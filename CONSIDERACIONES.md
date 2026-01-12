@@ -55,7 +55,6 @@ Funcionalidades MLM Críticas
 Roles de Usuario a Contemplar:
 
 Cliente final (compra sin membresía)
-Cliente miembro (con suscripción)
 Distribuidor (varios niveles)
 Administradores (gestión completa)
 RRHH (gestión de distribuidores)
@@ -123,12 +122,6 @@ Flujo simplificado: Máximo 3 pasos
 Sin registro obligatorio para primera compra
 Opción de crear cuenta después de comprar
 
-Sistema de Suscripciones
-
-Entregas automáticas mensuales con descuento
-Gestión fácil de suscripciones (pausar, reactivar, cancelar)
-Recordatorios antes de cada envío
-
 Bundles y Combos
 
 Paquetes pre-configurados según meta
@@ -139,7 +132,6 @@ Integración de Pagos
 
 Stripe como procesador principal
 Múltiples métodos de pago
-Pagos recurrentes para suscripciones
 Sistema de cupones y códigos de descuento
 
 
@@ -164,25 +156,7 @@ Peso y Metabolismo: Ability, 24 Shake, Proteínas
 Energía: Jimmy Coffee, Nanxa, Opolmix
 
 
-8. 📊 Daily Habit Tracker - Gamificación
-Pilares del Bienestar a Trackear
-
-Hidratación: Contador de vasos de agua
-Suplementación: Recordatorios por producto comprado
-Movimiento: Registro de actividad física
-Descanso: Horas de sueño y calidad
-Bienestar mental: Estado emocional diario
-
-Sistema de Gamificación
-
-Puntos por consistencia: 7 días seguidos = badge/insignia
-Frases motivacionales: "Hoy elegiste invertir en tu bienestar"
-Gráficas de progreso: Visualización semanal/mensual
-Desafíos grupales: Reto 90 Días, Detox Challenge, 10K Pasos
-Reconocimientos: "Líder del Mes", "Top Vendedor"
-
-
-9. 🎨 Experiencia de Usuario (UX) - Roadmap Emocional
+8. 🎨 Experiencia de Usuario (UX) - Roadmap Emocional
 5 Experiencias Clave del Cliente
 Experiencia 1: REELS (Descubrimiento)
 
@@ -205,7 +179,7 @@ Experiencia 4: WEB (Conversión)
 
 Experiencia digital moderna, clara y atractiva
 Email de bienvenida que hace sentir acompañado
-Opciones de membresía claras
+Opciones de compra claras y sencillas
 
 Experiencia 5: PRODUCT DELIVERY (Fidelización)
 
@@ -214,7 +188,7 @@ QR code directo a la app con rastreador
 Formulario para obtener link de afiliado
 
 
-10. 🏢 Centro de Negocio para Distribuidores
+9. 🏢 Centro de Negocio para Distribuidores
 Funcionalidades Core
 
 Onboarding guiado: Videos, pasos claros, scripts
@@ -249,7 +223,7 @@ Eventos de comunidad
 
 
 
-11. 🤝 Comunidad y Cultura
+10. 🤝 Comunidad y Cultura
 Funcionalidades Sociales
 
 Historias de transformación: Salud + Negocio
@@ -271,7 +245,7 @@ Galería de comunidad: Fotos de eventos internacionales
 Sistema de badges/medallas: Por logros y constancia
 
 
-12. 💬 Sistema de Soporte Multi-Canal
+11. 💬 Sistema de Soporte Multi-Canal
 Canales de Atención
 
 Chat en vivo: Integrado en la plataforma
@@ -286,7 +260,7 @@ Scripts personalizables
 Tracking de satisfacción del cliente
 
 
-13. 🔐 Seguridad y Privacidad
+12. 🔐 Seguridad y Privacidad
 Consideraciones GDPR/Privacidad
 
 Consentimiento explícito para datos personales
@@ -301,7 +275,7 @@ Opción de autenticación de dos factores
 Recuperación de contraseña robusta
 
 
-14. 📱 Mobile First + Progressive Web App
+13. 📱 Mobile First + Progressive Web App
 Experiencia Móvil
 
 Diseño mobile-first: La mayoría de usuarios accederán desde celular
@@ -310,7 +284,7 @@ Notificaciones push: Para recordatorios y alertas
 Modo offline: Funcionalidad básica sin internet
 
 
-15. 📈 Analytics y Reportes
+14. 📈 Analytics y Reportes
 Métricas Clave a Trackear
 Para Administradores:
 
@@ -335,7 +309,7 @@ ROI de campañas
 Engagement en comunidad
 
 
-16. 🎁 Funcionalidades Especiales
+15. 🎁 Funcionalidades Especiales
 Packaging y Unboxing Experience
 
 Empaque minimalista y moderno
@@ -347,11 +321,10 @@ Automatizaciones
 
 Email/SMS de bienvenida personalizado
 Recordatorio de producto por terminarse
-Notificaciones de nuevos retos disponibles
-Felicitaciones por días de constancia
+Notificaciones de promociones y novedades
 
 
-17. 🧩 Integraciones Necesarias
+16. 🧩 Integraciones Necesarias
 Terceros
 
  Stripe: Procesamiento de pagos
@@ -364,7 +337,7 @@ Terceros
  Looker Studio: Para reportes avanzados
 
 
-18. 🌐 SEO y Contenido
+17. 🌐 SEO y Contenido
 Estrategia de Contenido
 
 Blog de bienestar: Artículos educativos
@@ -381,7 +354,7 @@ Sitemap XML automático
 Velocidad de carga optimizada
 
 
-19. 🚀 Escalabilidad y Performance
+18. 🚀 Escalabilidad y Performance
 Consideraciones Técnicas
 
 Arquitectura escalable: Preparada para crecer 10x
@@ -402,7 +375,7 @@ Sistema debe soportar:
 
 
 
-20. 📋 Compliance y Legal
+19. 📋 Compliance y Legal
 Regulaciones a Cumplir
 
 FDA (Estados Unidos): Etiquetado y claims
@@ -444,7 +417,6 @@ MVP - Fase 1 (Lanzamiento Inicial)
 
 Fase 2 (3-6 meses después)
 
-Daily Habit Tracker completo
 Comunidad y gamificación
 App móvil nativa
 CRM avanzado

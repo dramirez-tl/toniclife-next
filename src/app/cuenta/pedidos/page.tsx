@@ -13,7 +13,6 @@ import {
   MagnifyingGlassIcon,
   FunnelIcon,
   DocumentTextIcon,
-  ArrowDownTrayIcon,
   ChatBubbleLeftIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
@@ -142,7 +141,7 @@ const timeRanges = [
 ];
 
 export default function PedidosPage() {
-  const [orders, setOrders] = useState(mockOrders);
+  const [orders] = useState(mockOrders);
   const [statusFilter, setStatusFilter] = useState('all');
   const [timeFilter, setTimeFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -181,322 +180,308 @@ export default function PedidosPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <ShoppingBagIcon className="h-10 w-10" />
-                <h1 className="text-4xl font-bold">Mis Pedidos</h1>
+    <div className="p-6 lg:p-8">
+      {/* Page Header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <ShoppingBagIcon className="h-8 w-8 text-[#003B7A]" />
+          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Mis Pedidos</h1>
+        </div>
+        <p className="text-gray-600">
+          {filteredOrders.length} {filteredOrders.length === 1 ? 'pedido encontrado' : 'pedidos encontrados'}
+        </p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <Card>
+          <CardContent className="p-4 lg:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs lg:text-sm text-gray-600 mb-1">Total de pedidos</p>
+                <p className="text-2xl lg:text-3xl font-bold text-gray-900">{stats.total}</p>
               </div>
-              <p className="text-white/80 text-lg">
-                {filteredOrders.length} {filteredOrders.length === 1 ? 'pedido' : 'pedidos'}
+              <ShoppingBagIcon className="h-8 lg:h-12 w-8 lg:w-12 text-gray-400" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 lg:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs lg:text-sm text-gray-600 mb-1">Entregados</p>
+                <p className="text-2xl lg:text-3xl font-bold text-green-600">{stats.delivered}</p>
+              </div>
+              <CheckCircleIcon className="h-8 lg:h-12 w-8 lg:w-12 text-green-400" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 lg:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs lg:text-sm text-gray-600 mb-1">En tránsito</p>
+                <p className="text-2xl lg:text-3xl font-bold text-blue-600">{stats.inTransit}</p>
+              </div>
+              <TruckIcon className="h-8 lg:h-12 w-8 lg:w-12 text-blue-400" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 lg:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs lg:text-sm text-gray-600 mb-1">Total gastado</p>
+                <p className="text-xl lg:text-2xl font-bold text-[#7AB82E]">
+                  ${totalSpent.toLocaleString('es-MX')}
+                </p>
+              </div>
+              <div className="text-2xl lg:text-3xl">💰</div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <Card className="mb-6">
+        <CardContent className="p-4 lg:p-6">
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Search */}
+            <div className="flex-1 relative">
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar por número de pedido o producto..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+              />
+            </div>
+
+            {/* Status Filter */}
+            <div className="flex items-center gap-2">
+              <FunnelIcon className="h-5 w-5 text-gray-400" />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+              >
+                {filterOptions.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Time Range */}
+            <div className="flex items-center gap-2">
+              <ClockIcon className="h-5 w-5 text-gray-400" />
+              <select
+                value={timeFilter}
+                onChange={(e) => setTimeFilter(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+              >
+                {timeRanges.map(range => (
+                  <option key={range.value} value={range.value}>
+                    {range.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Orders List */}
+      {filteredOrders.length === 0 ? (
+        <Card>
+          <CardContent className="p-16 text-center">
+            <ShoppingBagIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              No se encontraron pedidos
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Intenta ajustar los filtros o realiza tu primera compra
+            </p>
+            <Link href="/productos">
+              <Button variant="primary" size="lg">
+                Explorar Productos
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {filteredOrders.map((order) => {
+            const status = statusConfig[order.status as keyof typeof statusConfig];
+            const StatusIcon = status.icon;
+
+            return (
+              <Card key={order.id} className="hover:shadow-lg transition-shadow">
+                <CardContent className="p-4 lg:p-6">
+                  {/* Order Header */}
+                  <div className="flex flex-col lg:flex-row lg:items-start justify-between mb-6 pb-6 border-b gap-4">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-lg lg:text-xl font-bold text-gray-900">
+                          {order.id}
+                        </h3>
+                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${status.color}`}>
+                          <StatusIcon className="h-4 w-4" />
+                          {status.label}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 lg:gap-4 text-sm text-gray-600">
+                        <span className="flex items-center gap-1">
+                          <ClockIcon className="h-4 w-4" />
+                          {new Date(order.date).toLocaleDateString('es-MX', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          })}
+                        </span>
+                        <span className="hidden lg:inline">•</span>
+                        <span>{order.items} productos</span>
+                        <span className="hidden lg:inline">•</span>
+                        <span className="hidden lg:inline">{order.paymentMethod}</span>
+                      </div>
+                    </div>
+                    <div className="text-left lg:text-right">
+                      <p className="text-2xl lg:text-3xl font-bold text-gray-900">
+                        ${order.total.toLocaleString('es-MX')}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Products List */}
+                  <div className="mb-6">
+                    <h4 className="font-semibold text-gray-900 mb-3">Productos:</h4>
+                    <div className="space-y-2">
+                      {order.products.map((product, idx) => (
+                        <div key={idx} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
+                          <span className="text-gray-900 text-sm lg:text-base">
+                            {product.quantity}x {product.name}
+                          </span>
+                          <span className="font-medium text-gray-900">
+                            ${(product.price * product.quantity).toLocaleString('es-MX')}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Shipping Info */}
+                  <div className="mb-6 p-4 bg-blue-50 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <TruckIcon className="h-5 w-5 text-blue-600 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900 mb-1">
+                          Dirección de envío:
+                        </p>
+                        <p className="text-sm text-gray-600 mb-2">
+                          {order.shippingAddress}
+                        </p>
+                        {order.trackingNumber && (
+                          <p className="text-xs text-gray-500">
+                            Tracking: <span className="font-mono font-medium">{order.trackingNumber}</span>
+                          </p>
+                        )}
+                        {order.deliveryDate && (
+                          <p className="text-sm text-green-600 font-medium mt-1">
+                            Entregado el {new Date(order.deliveryDate).toLocaleDateString('es-MX')}
+                          </p>
+                        )}
+                        {order.estimatedDelivery && !order.deliveryDate && (
+                          <p className="text-sm text-blue-600 font-medium mt-1">
+                            Entrega estimada: {new Date(order.estimatedDelivery).toLocaleDateString('es-MX')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Cancellation Info */}
+                  {order.status === 'cancelled' && order.cancellationReason && (
+                    <div className="mb-6 p-4 bg-red-50 rounded-lg">
+                      <p className="text-sm text-red-800">
+                        <strong>Razón de cancelación:</strong> {order.cancellationReason}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex flex-wrap gap-3">
+                    {order.status !== 'cancelled' && (
+                      <Link href={`/cuenta/pedidos/${order.id}`}>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          leftIcon={<TruckIcon className="h-4 w-4" />}
+                        >
+                          Rastrear Pedido
+                        </Button>
+                      </Link>
+                    )}
+
+                    {order.status === 'delivered' && (
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          leftIcon={<DocumentTextIcon className="h-4 w-4" />}
+                          onClick={() => handleDownloadInvoice(order.id)}
+                        >
+                          Descargar Factura
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          leftIcon={<ShoppingBagIcon className="h-4 w-4" />}
+                          onClick={() => handleReorder(order.id)}
+                        >
+                          Volver a Comprar
+                        </Button>
+                      </>
+                    )}
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      leftIcon={<ChatBubbleLeftIcon className="h-4 w-4" />}
+                      onClick={() => handleContactSupport(order.id)}
+                    >
+                      Soporte
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Help CTA */}
+      <Card className="mt-8 bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+        <CardContent className="p-6 lg:p-8">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-xl lg:text-2xl font-bold mb-2">¿Necesitas ayuda con un pedido?</h3>
+              <p className="text-white/90">
+                Nuestro equipo de soporte está disponible 24/7 para asistirte
               </p>
             </div>
-            <Link href="/cuenta">
-              <Button variant="secondary">
-                Volver a Mi Cuenta
+            <Link href="/ayuda">
+              <Button variant="secondary" size="lg" leftIcon={<ChatBubbleLeftIcon className="h-5 w-5" />}>
+                Contactar Soporte
               </Button>
             </Link>
           </div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Total de pedidos</p>
-                  <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
-                </div>
-                <ShoppingBagIcon className="h-12 w-12 text-gray-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Entregados</p>
-                  <p className="text-3xl font-bold text-green-600">{stats.delivered}</p>
-                </div>
-                <CheckCircleIcon className="h-12 w-12 text-green-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">En tránsito</p>
-                  <p className="text-3xl font-bold text-blue-600">{stats.inTransit}</p>
-                </div>
-                <TruckIcon className="h-12 w-12 text-blue-400" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Total gastado</p>
-                  <p className="text-2xl font-bold text-[#7AB82E]">
-                    ${totalSpent.toLocaleString('es-MX')}
-                  </p>
-                </div>
-                <div className="text-3xl">💰</div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filters */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <div className="flex flex-col lg:flex-row gap-4">
-              {/* Search */}
-              <div className="flex-1 relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Buscar por número de pedido o producto..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
-                />
-              </div>
-
-              {/* Status Filter */}
-              <div className="flex items-center gap-2">
-                <FunnelIcon className="h-5 w-5 text-gray-400" />
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
-                >
-                  {filterOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Time Range */}
-              <div className="flex items-center gap-2">
-                <ClockIcon className="h-5 w-5 text-gray-400" />
-                <select
-                  value={timeFilter}
-                  onChange={(e) => setTimeFilter(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
-                >
-                  {timeRanges.map(range => (
-                    <option key={range.value} value={range.value}>
-                      {range.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Orders List */}
-        {filteredOrders.length === 0 ? (
-          <Card>
-            <CardContent className="p-16 text-center">
-              <ShoppingBagIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 mb-2">
-                No se encontraron pedidos
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Intenta ajustar los filtros o realiza tu primera compra
-              </p>
-              <Link href="/tienda">
-                <Button variant="primary" size="lg">
-                  Explorar Productos
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-4">
-            {filteredOrders.map((order) => {
-              const status = statusConfig[order.status as keyof typeof statusConfig];
-              const StatusIcon = status.icon;
-
-              return (
-                <Card key={order.id} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="p-6">
-                    {/* Order Header */}
-                    <div className="flex items-start justify-between mb-6 pb-6 border-b">
-                      <div>
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-xl font-bold text-gray-900">
-                            {order.id}
-                          </h3>
-                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${status.color}`}>
-                            <StatusIcon className="h-4 w-4" />
-                            {status.label}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <span className="flex items-center gap-1">
-                            <ClockIcon className="h-4 w-4" />
-                            {new Date(order.date).toLocaleDateString('es-MX', {
-                              day: 'numeric',
-                              month: 'long',
-                              year: 'numeric'
-                            })}
-                          </span>
-                          <span>•</span>
-                          <span>{order.items} productos</span>
-                          <span>•</span>
-                          <span>{order.paymentMethod}</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-3xl font-bold text-gray-900">
-                          ${order.total.toLocaleString('es-MX')}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Products List */}
-                    <div className="mb-6">
-                      <h4 className="font-semibold text-gray-900 mb-3">Productos:</h4>
-                      <div className="space-y-2">
-                        {order.products.map((product, idx) => (
-                          <div key={idx} className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded-lg">
-                            <span className="text-gray-900">
-                              {product.quantity}x {product.name}
-                            </span>
-                            <span className="font-medium text-gray-900">
-                              ${(product.price * product.quantity).toLocaleString('es-MX')}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Shipping Info */}
-                    <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-                      <div className="flex items-start gap-3">
-                        <TruckIcon className="h-5 w-5 text-blue-600 mt-0.5" />
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900 mb-1">
-                            Dirección de envío:
-                          </p>
-                          <p className="text-sm text-gray-600 mb-2">
-                            {order.shippingAddress}
-                          </p>
-                          {order.trackingNumber && (
-                            <p className="text-xs text-gray-500">
-                              Tracking: <span className="font-mono font-medium">{order.trackingNumber}</span>
-                            </p>
-                          )}
-                          {order.deliveryDate && (
-                            <p className="text-sm text-green-600 font-medium mt-1">
-                              ✅ Entregado el {new Date(order.deliveryDate).toLocaleDateString('es-MX')}
-                            </p>
-                          )}
-                          {order.estimatedDelivery && !order.deliveryDate && (
-                            <p className="text-sm text-blue-600 font-medium mt-1">
-                              📅 Entrega estimada: {new Date(order.estimatedDelivery).toLocaleDateString('es-MX')}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Cancellation Info */}
-                    {order.status === 'cancelled' && order.cancellationReason && (
-                      <div className="mb-6 p-4 bg-red-50 rounded-lg">
-                        <p className="text-sm text-red-800">
-                          <strong>Razón de cancelación:</strong> {order.cancellationReason}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Actions */}
-                    <div className="flex flex-wrap gap-3">
-                      {order.status !== 'cancelled' && (
-                        <Link href={`/cuenta/pedidos/${order.id}`}>
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            leftIcon={<TruckIcon className="h-4 w-4" />}
-                          >
-                            Rastrear Pedido
-                          </Button>
-                        </Link>
-                      )}
-
-                      {order.status === 'delivered' && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            leftIcon={<DocumentTextIcon className="h-4 w-4" />}
-                            onClick={() => handleDownloadInvoice(order.id)}
-                          >
-                            Descargar Factura
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            leftIcon={<ShoppingBagIcon className="h-4 w-4" />}
-                            onClick={() => handleReorder(order.id)}
-                          >
-                            Volver a Comprar
-                          </Button>
-                        </>
-                      )}
-
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        leftIcon={<ChatBubbleLeftIcon className="h-4 w-4" />}
-                        onClick={() => handleContactSupport(order.id)}
-                      >
-                        Soporte
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Help CTA */}
-        <Card className="mt-8 bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
-          <CardContent className="p-8">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-2xl font-bold mb-2">¿Necesitas ayuda con un pedido?</h3>
-                <p className="text-white/90">
-                  Nuestro equipo de soporte está disponible 24/7 para asistirte
-                </p>
-              </div>
-              <Link href="/ayuda">
-                <Button variant="secondary" size="lg" leftIcon={<ChatBubbleLeftIcon className="h-5 w-5" />}>
-                  Contactar Soporte
-                </Button>
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

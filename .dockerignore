@@ -1,0 +1,46 @@
+# Dependencies
+node_modules
+npm-debug.log
+
+# Build output
+.next
+out
+
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Test files
+coverage
+__tests__
+*.test.ts
+*.test.tsx
+jest.config.js
+
+# Documentation
+*.md
+LICENSE
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.docker
+
+# Misc
+.DS_Store
+Thumbs.db
+
+# Storybook
+.storybook
+storybook-static

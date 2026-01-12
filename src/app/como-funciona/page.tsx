@@ -53,7 +53,7 @@ export default function ComoFuncionaPage() {
         'Checkout en 3 pasos simples',
         'Pago seguro con encriptación',
         'Múltiples métodos de pago',
-        'Opción de suscripción con descuento'
+        'Envío gratis en pedidos mayores'
       ]
     },
     {
@@ -77,7 +77,7 @@ export default function ComoFuncionaPage() {
       color: 'from-teal-500 to-teal-600',
       details: [
         'Guías de uso detalladas',
-        'Tracker de hábitos diarios',
+        'Consejos de bienestar personalizados',
         'Soporte de la comunidad',
         'Seguimiento de resultados'
       ]

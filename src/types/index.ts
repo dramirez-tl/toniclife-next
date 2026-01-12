@@ -203,25 +203,6 @@ export interface Testimonial {
   date: Date;
 }
 
-// Daily Habit Tracker Types
-export interface DailyHabit {
-  id: string;
-  userId: string;
-  date: Date;
-  water: number; // glasses
-  supplements: SupplementLog[];
-  exercise: number; // minutes
-  sleep: number; // hours
-  energyLevel: number; // 1-10
-  notes?: string;
-}
-
-export interface SupplementLog {
-  productId: string;
-  taken: boolean;
-  time?: string;
-}
-
 // Navigation Types
 export interface NavItem {
   label: string;

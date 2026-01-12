@@ -21,7 +21,7 @@ interface Resource {
   id: string;
   title: string;
   description: string;
-  type: 'pdf' | 'planner' | 'tracker' | 'infographic' | 'wallpaper';
+  type: 'pdf' | 'planner' | 'checklist' | 'infographic' | 'wallpaper';
   category: 'wellness' | 'nutrition' | 'fitness' | 'productivity' | 'motivation';
   thumbnail: string;
   fileSize: string;
@@ -41,7 +41,7 @@ export default function RecursosPage() {
     { value: 'all', label: 'Todos', icon: SparklesIcon },
     { value: 'pdf', label: 'PDFs', icon: DocumentTextIcon },
     { value: 'planner', label: 'Planificadores', icon: CalendarIcon },
-    { value: 'tracker', label: 'Trackers', icon: ChartBarIcon },
+    { value: 'checklist', label: 'Checklists', icon: ClipboardDocumentListIcon },
     { value: 'infographic', label: 'Infografías', icon: ClipboardDocumentListIcon },
     { value: 'wallpaper', label: 'Wallpapers', icon: PhotoIcon }
   ];
@@ -86,17 +86,17 @@ export default function RecursosPage() {
     },
     {
       id: '3',
-      title: 'Tracker de Hábitos Diarios',
-      description: 'Seguimiento de tus hábitos saludables durante 30 días. Perfecto para construir nuevas rutinas.',
-      type: 'tracker',
+      title: 'Checklist de Bienestar Diario',
+      description: 'Lista de verificación para tus rutinas saludables durante 30 días. Perfecto para construir nuevos hábitos.',
+      type: 'checklist',
       category: 'wellness',
       thumbnail: '/placeholder-resource-3.jpg',
       fileSize: '850 KB',
       downloads: 15670,
       date: '2024-01-20',
-      tags: ['Hábitos', 'Rutinas', 'Seguimiento'],
+      tags: ['Bienestar', 'Rutinas', 'Checklist'],
       featured: true,
-      downloadUrl: '/downloads/tracker-habitos.pdf'
+      downloadUrl: '/downloads/checklist-bienestar.pdf'
     },
     {
       id: '4',
@@ -128,9 +128,9 @@ export default function RecursosPage() {
     },
     {
       id: '6',
-      title: 'Tracker de Agua e Hidratación',
+      title: 'Registro de Hidratación Diaria',
       description: 'Registra tu consumo de agua diario y asegúrate de mantenerte hidratado. Meta de 8 vasos al día.',
-      type: 'tracker',
+      type: 'checklist',
       category: 'wellness',
       thumbnail: '/placeholder-resource-6.jpg',
       fileSize: '650 KB',
@@ -138,7 +138,7 @@ export default function RecursosPage() {
       date: '2024-01-12',
       tags: ['Hidratación', 'Agua', 'Salud'],
       featured: false,
-      downloadUrl: '/downloads/tracker-agua.pdf'
+      downloadUrl: '/downloads/registro-hidratacion.pdf'
     },
     {
       id: '7',
@@ -170,9 +170,9 @@ export default function RecursosPage() {
     },
     {
       id: '9',
-      title: 'Tracker de Entrenamiento',
+      title: 'Registro de Entrenamiento Semanal',
       description: 'Registra tus sesiones de ejercicio, peso levantado, repeticiones y progreso semanal.',
-      type: 'tracker',
+      type: 'checklist',
       category: 'fitness',
       thumbnail: '/placeholder-resource-9.jpg',
       fileSize: '1.2 MB',
@@ -180,7 +180,7 @@ export default function RecursosPage() {
       date: '2024-01-05',
       tags: ['Ejercicio', 'Gym', 'Progreso'],
       featured: false,
-      downloadUrl: '/downloads/tracker-entrenamiento.pdf'
+      downloadUrl: '/downloads/registro-entrenamiento.pdf'
     },
     {
       id: '10',
@@ -264,7 +264,7 @@ export default function RecursosPage() {
             </div>
             <h1 className="text-4xl font-bold mb-4">Recursos Descargables</h1>
             <p className="text-xl text-blue-100 max-w-3xl mx-auto">
-              PDFs, planificadores, trackers e infografías para complementar tu camino al bienestar
+              PDFs, planificadores, checklists e infografías para complementar tu camino al bienestar
             </p>
           </div>
 

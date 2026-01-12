@@ -36,9 +36,13 @@ npm run lint
 - **React**: 19.2.0
 - **TypeScript**: 5.9.3
 - **Styling**: Tailwind CSS 4.1.17
-- **Icons**: Heroicons 2.2.0
+- **State Management**: Redux Toolkit + React-Redux
+- **Forms**: React Hook Form + Zod (validación)
+- **UI Components**: Radix UI primitives (base para shadcn/ui)
+- **Icons**: Heroicons 2.2.0 + Lucide React
 - **Notifications**: Sonner 2.0.7
 - **HTTP Client**: Axios 1.13.2
+- **Utilities**: clsx + tailwind-merge (cn helper)
 
 ## Architecture & Code Organization
 
@@ -82,6 +86,29 @@ The system supports 7 user roles with distinct dashboards and permissions:
 ```
 
 **Pattern**: All interactive components use `'use client'` directive. Server components by default.
+
+### Redux Store Structure
+
+```
+/src/store/
+├── store.ts               # Store configuration
+├── hooks.ts               # Typed hooks (useAppDispatch, useAppSelector)
+├── provider.tsx           # ReduxProvider for Next.js
+├── index.ts               # Barrel exports
+└── slices/
+    ├── authSlice.ts       # Authentication state (user, tokens, login/logout)
+    └── uiSlice.ts         # UI state (sidebar, theme, notifications, modals)
+```
+
+**Usage**:
+```typescript
+import { useAppDispatch, useAppSelector } from '@/store';
+import { loginAsync, setTheme } from '@/store';
+
+const user = useAppSelector((state) => state.auth.user);
+const dispatch = useAppDispatch();
+dispatch(setTheme('dark'));
+```
 
 ### Type System
 
@@ -238,3 +265,36 @@ System is prepared for English/Spanish:
 - **Distributor portal is most complex**: 24 pages with CRM, genealogy, commissions
 - **Quiz is the conversion funnel**: Drives product recommendations and distributor attribution
 - **Mobile-first**: Responsive design is critical (majority of traffic expected from mobile)
+
+---
+
+## Development Workflow - OBLIGATORIO
+
+### Al completar trabajo en cualquier issue de Jira:
+
+1. **Actualizar Jira**:
+   - Mover el issue al siguiente estado (En curso → Code Review → QA Testing → Done)
+   - Agregar comentario detallando qué se implementó
+   - Si hay cambios en el alcance, actualizar la descripción
+   - **Verificar/actualizar Story Points** si la estimación inicial fue incorrecta
+
+2. **Actualizar Confluence** (si aplica):
+   - Documentar nuevos componentes en la página de Arquitectura
+   - Actualizar guías si hay cambios en el setup
+   - Agregar troubleshooting si se encontraron problemas comunes
+
+3. **Commits**:
+   - Usar formato: `feat(TL20-XX): descripción breve`
+   - Tipos: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
+   - Referenciar siempre el issue de Jira
+
+### Recursos del Proyecto
+
+| Recurso | URL |
+|---------|-----|
+| Jira Board | https://toniclife.atlassian.net/jira/software/projects/TL20/boards/5 |
+| Confluence | https://toniclife.atlassian.net/wiki/spaces/TL20 |
+| Arquitectura | https://toniclife.atlassian.net/wiki/spaces/TL20/pages/38895618 |
+| Setup Local | https://toniclife.atlassian.net/wiki/spaces/TL20/pages/38928385 |
+| DB Schema | https://toniclife.atlassian.net/wiki/spaces/TL20/pages/38961153 |
+| Roadmap | https://toniclife.atlassian.net/wiki/spaces/TL20/pages/38764839 |

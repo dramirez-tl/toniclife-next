@@ -1,9 +1,10 @@
 'use client';
 
 import { ButtonHTMLAttributes, forwardRef } from 'react';
+import { cn } from '@/lib/utils';
 
-type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
-type ButtonSize = 'sm' | 'md' | 'lg' | 'xl';
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'link';
+type ButtonSize = 'sm' | 'md' | 'lg' | 'xl' | 'icon';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
@@ -19,20 +20,22 @@ const variantStyles: Record<ButtonVariant, string> = {
   secondary: 'bg-[#003B7A] hover:bg-[#002d5c] text-white shadow-md hover:shadow-lg',
   outline: 'border-2 border-[#003B7A] text-[#003B7A] hover:bg-[#003B7A] hover:text-white',
   ghost: 'text-[#003B7A] hover:bg-[#003B7A]/10',
-  danger: 'bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg'
+  danger: 'bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg',
+  link: 'text-[#003B7A] underline-offset-4 hover:underline'
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
   sm: 'px-3 py-1.5 text-sm',
   md: 'px-4 py-2 text-base',
   lg: 'px-6 py-3 text-lg',
-  xl: 'px-8 py-4 text-xl'
+  xl: 'px-8 py-4 text-xl',
+  icon: 'h-9 w-9 p-0'
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
     {
-      className = '',
+      className,
       variant = 'primary',
       size = 'md',
       isLoading = false,
@@ -48,17 +51,17 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <button
         ref={ref}
-        className={`
-          inline-flex items-center justify-center gap-2
-          font-semibold rounded-full
-          transition-all duration-200 ease-in-out
-          focus:outline-none focus:ring-2 focus:ring-[#7AB82E] focus:ring-offset-2
-          disabled:opacity-50 disabled:cursor-not-allowed
-          ${variantStyles[variant]}
-          ${sizeStyles[size]}
-          ${fullWidth ? 'w-full' : ''}
-          ${className}
-        `}
+        className={cn(
+          'inline-flex items-center justify-center gap-2',
+          'font-semibold rounded-full',
+          'transition-all duration-200 ease-in-out',
+          'focus:outline-none focus:ring-2 focus:ring-[#7AB82E] focus:ring-offset-2',
+          'disabled:opacity-50 disabled:cursor-not-allowed',
+          variantStyles[variant],
+          sizeStyles[size],
+          fullWidth && 'w-full',
+          className
+        )}
         disabled={disabled || isLoading}
         {...props}
       >

@@ -59,7 +59,7 @@ const mockIntegrations = [
     icon: '💳',
     color: 'purple',
     isConnected: false,
-    features: ['Pagos con tarjeta', 'Suscripciones', 'Reportes financieros'],
+    features: ['Pagos con tarjeta', 'Checkout seguro', 'Reportes financieros'],
     status: 'available',
   },
   {
