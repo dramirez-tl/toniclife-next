@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -16,12 +16,25 @@ import {
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import {
+  registerAsync,
+  selectIsAuthenticated,
+  selectIsLoading,
+  selectAuthError,
+  clearError,
+} from '@/store/slices/authSlice';
 
 export default function RegistroPage() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
+
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const isLoading = useAppSelector(selectIsLoading);
+  const authError = useAppSelector(selectAuthError);
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -34,6 +47,21 @@ export default function RegistroPage() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push('/cuenta');
+    }
+  }, [isAuthenticated, router]);
+
+  // Show auth error as toast
+  useEffect(() => {
+    if (authError) {
+      toast.error(authError);
+      dispatch(clearError());
+    }
+  }, [authError, dispatch]);
+
   const passwordRequirements = [
     { text: 'Al menos 8 caracteres', met: formData.password.length >= 8 },
     { text: 'Una letra mayúscula', met: /[A-Z]/.test(formData.password) },
@@ -44,7 +72,7 @@ export default function RegistroPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validación
+    // Validation
     const newErrors: Record<string, string> = {};
 
     if (!formData.firstName.trim()) {
@@ -75,15 +103,22 @@ export default function RegistroPage() {
       return;
     }
 
-    setIsLoading(true);
     setErrors({});
 
-    // Simulación de registro (reemplazar con API call)
-    setTimeout(() => {
-      setIsLoading(false);
-      toast.success('¡Cuenta creada exitosamente! Verifica tu email.');
+    try {
+      await dispatch(registerAsync({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        password: formData.password,
+        phone: formData.phone || undefined,
+      })).unwrap();
+
+      toast.success('¡Cuenta creada exitosamente! Revisa tu email para verificar tu cuenta.');
       router.push('/login');
-    }, 2000);
+    } catch {
+      // Error is handled via authError state
+    }
   };
 
   const handleSocialRegister = (provider: string) => {
@@ -124,6 +159,7 @@ export default function RegistroPage() {
                 variant="outline"
                 onClick={() => handleSocialRegister('Google')}
                 className="w-full"
+                disabled={isLoading}
               >
                 <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
                   <path
@@ -150,6 +186,7 @@ export default function RegistroPage() {
                 variant="outline"
                 onClick={() => handleSocialRegister('Facebook')}
                 className="w-full"
+                disabled={isLoading}
               >
                 <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
@@ -180,6 +217,7 @@ export default function RegistroPage() {
                   error={errors.firstName}
                   leftIcon={<UserIcon className="h-5 w-5" />}
                   autoComplete="given-name"
+                  disabled={isLoading}
                 />
                 <Input
                   label="Apellidos"
@@ -189,6 +227,7 @@ export default function RegistroPage() {
                   onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                   error={errors.lastName}
                   autoComplete="family-name"
+                  disabled={isLoading}
                 />
               </div>
 
@@ -202,6 +241,7 @@ export default function RegistroPage() {
                 error={errors.email}
                 leftIcon={<EnvelopeIcon className="h-5 w-5" />}
                 autoComplete="email"
+                disabled={isLoading}
               />
 
               {/* Phone (Optional) */}
@@ -213,6 +253,7 @@ export default function RegistroPage() {
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 helperText="Te contactaremos sobre tu pedido"
                 autoComplete="tel"
+                disabled={isLoading}
               />
 
               {/* Password */}
@@ -226,11 +267,13 @@ export default function RegistroPage() {
                   error={errors.password}
                   leftIcon={<LockClosedIcon className="h-5 w-5" />}
                   autoComplete="new-password"
+                  disabled={isLoading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-9 text-gray-400 hover:text-gray-600"
+                  disabled={isLoading}
                 >
                   {showPassword ? (
                     <EyeSlashIcon className="h-5 w-5" />
@@ -274,11 +317,13 @@ export default function RegistroPage() {
                   error={errors.confirmPassword}
                   leftIcon={<LockClosedIcon className="h-5 w-5" />}
                   autoComplete="new-password"
+                  disabled={isLoading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-3 top-9 text-gray-400 hover:text-gray-600"
+                  disabled={isLoading}
                 >
                   {showConfirmPassword ? (
                     <EyeSlashIcon className="h-5 w-5" />
@@ -296,6 +341,7 @@ export default function RegistroPage() {
                     checked={formData.acceptTerms}
                     onChange={(e) => setFormData({ ...formData, acceptTerms: e.target.checked })}
                     className="mt-1 h-4 w-4 text-[#003B7A] border-gray-300 rounded focus:ring-[#7AB82E]"
+                    disabled={isLoading}
                   />
                   <span className="text-sm text-gray-600">
                     Acepto los{' '}
@@ -318,6 +364,7 @@ export default function RegistroPage() {
                     checked={formData.acceptMarketing}
                     onChange={(e) => setFormData({ ...formData, acceptMarketing: e.target.checked })}
                     className="mt-1 h-4 w-4 text-[#003B7A] border-gray-300 rounded focus:ring-[#7AB82E]"
+                    disabled={isLoading}
                   />
                   <span className="text-sm text-gray-600">
                     Quiero recibir ofertas exclusivas, tips de bienestar y novedades por email

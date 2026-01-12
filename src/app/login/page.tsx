@@ -1,19 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { EnvelopeIcon, LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import {
+  loginAsync,
+  selectIsAuthenticated,
+  selectIsLoading,
+  selectAuthError,
+  selectUser,
+  clearError,
+} from '@/store/slices/authSlice';
 
 export default function LoginPage() {
   const router = useRouter();
+  const dispatch = useAppDispatch();
+
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const isLoading = useAppSelector(selectIsLoading);
+  const authError = useAppSelector(selectAuthError);
+  const user = useAppSelector(selectUser);
+
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -21,10 +36,35 @@ export default function LoginPage() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      redirectByRole(user.roles);
+    }
+  }, [isAuthenticated, user, router]);
+
+  // Show auth error as toast
+  useEffect(() => {
+    if (authError) {
+      toast.error(authError);
+      dispatch(clearError());
+    }
+  }, [authError, dispatch]);
+
+  const redirectByRole = (roles: string[]) => {
+    if (roles.includes('admin') || roles.includes('super_admin')) {
+      router.push('/admin');
+    } else if (roles.includes('distributor')) {
+      router.push('/distribuidor');
+    } else {
+      router.push('/cuenta');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validación
+    // Validation
     const newErrors: Record<string, string> = {};
     if (!formData.email) {
       newErrors.email = 'El email es requerido';
@@ -42,28 +82,19 @@ export default function LoginPage() {
       return;
     }
 
-    setIsLoading(true);
     setErrors({});
 
-    // Simulación de login (reemplazar con API call)
-    setTimeout(() => {
-      setIsLoading(false);
-
-      // Mock: Determinar rol según email
-      const isDistributor = formData.email.includes('distribuidor');
-      const isAdmin = formData.email.includes('admin');
+    try {
+      const result = await dispatch(loginAsync({
+        email: formData.email,
+        password: formData.password,
+      })).unwrap();
 
       toast.success('¡Bienvenido de nuevo!');
-
-      // Redirigir según rol
-      if (isAdmin) {
-        router.push('/admin');
-      } else if (isDistributor) {
-        router.push('/distribuidor');
-      } else {
-        router.push('/cuenta');
-      }
-    }, 1500);
+      redirectByRole(result.roles);
+    } catch {
+      // Error is handled via authError state
+    }
   };
 
   const handleSocialLogin = (provider: string) => {
@@ -108,6 +139,7 @@ export default function LoginPage() {
                 error={errors.email}
                 leftIcon={<EnvelopeIcon className="h-5 w-5" />}
                 autoComplete="email"
+                disabled={isLoading}
               />
 
               {/* Password */}
@@ -121,11 +153,13 @@ export default function LoginPage() {
                   error={errors.password}
                   leftIcon={<LockClosedIcon className="h-5 w-5" />}
                   autoComplete="current-password"
+                  disabled={isLoading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-9 text-gray-400 hover:text-gray-600"
+                  disabled={isLoading}
                 >
                   {showPassword ? (
                     <EyeSlashIcon className="h-5 w-5" />
@@ -143,6 +177,7 @@ export default function LoginPage() {
                     checked={formData.remember}
                     onChange={(e) => setFormData({ ...formData, remember: e.target.checked })}
                     className="h-4 w-4 text-[#003B7A] border-gray-300 rounded focus:ring-[#7AB82E]"
+                    disabled={isLoading}
                   />
                   <span className="ml-2 text-sm text-gray-600">Recordarme</span>
                 </label>
@@ -183,6 +218,7 @@ export default function LoginPage() {
                 variant="outline"
                 onClick={() => handleSocialLogin('Google')}
                 className="w-full"
+                disabled={isLoading}
               >
                 <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24">
                   <path
@@ -209,6 +245,7 @@ export default function LoginPage() {
                 variant="outline"
                 onClick={() => handleSocialLogin('Facebook')}
                 className="w-full"
+                disabled={isLoading}
               >
                 <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
@@ -226,19 +263,6 @@ export default function LoginPage() {
             Contáctanos
           </Link>
         </p>
-
-        {/* Mock credentials */}
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="p-4">
-            <p className="text-xs text-blue-800 mb-2 font-semibold">💡 Mockup - Prueba con:</p>
-            <div className="space-y-1 text-xs text-blue-700">
-              <p>• cliente@test.com → Ir a cuenta de cliente</p>
-              <p>• distribuidor@test.com → Ir a portal distribuidor</p>
-              <p>• admin@test.com → Ir a panel admin</p>
-              <p className="text-blue-600 italic mt-2">Cualquier contraseña funciona (es mock)</p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );

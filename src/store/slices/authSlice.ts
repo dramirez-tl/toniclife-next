@@ -1,95 +1,190 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import {
+  authService,
+  UserResponse,
+  LoginCredentials,
+  RegisterData,
+  ChangePasswordData,
+  ForgotPasswordData,
+  ResetPasswordData,
+} from '@/services/auth.service';
+import { AxiosError } from 'axios';
 
-// Tipos
-export interface User {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-  distributorCode?: string;
-  avatar?: string;
-}
-
+// Types
 export interface AuthState {
-  user: User | null;
-  accessToken: string | null;
-  refreshToken: string | null;
+  user: UserResponse | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isInitialized: boolean;
   error: string | null;
 }
 
-// Estado inicial
+interface ApiError {
+  message: string;
+  statusCode?: number;
+}
+
+// Helper to extract error message
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof AxiosError) {
+    return error.response?.data?.message || error.message || 'Error de conexión';
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return 'Error desconocido';
+};
+
+// Initial state
 const initialState: AuthState = {
   user: null,
-  accessToken: null,
-  refreshToken: null,
   isAuthenticated: false,
   isLoading: false,
+  isInitialized: false,
   error: null,
 };
 
 // Async thunks
-export const loginAsync = createAsyncThunk(
-  'auth/login',
-  async (credentials: { email: string; password: string }, { rejectWithValue }) => {
+export const initializeAuth = createAsyncThunk(
+  'auth/initialize',
+  async (_, { rejectWithValue }) => {
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(credentials),
-      });
+      const storedUser = authService.getStoredUser();
+      const token = authService.getAccessToken();
 
-      if (!response.ok) {
-        const error = await response.json();
-        return rejectWithValue(error.message || 'Error al iniciar sesión');
+      if (!token || !storedUser) {
+        return null;
       }
 
-      return await response.json();
+      // Verify token is still valid by fetching profile
+      const user = await authService.getProfile();
+      return user;
     } catch (error) {
-      return rejectWithValue('Error de conexión');
+      // Token is invalid, clear storage
+      authService.clearTokens();
+      return null;
+    }
+  }
+);
+
+export const loginAsync = createAsyncThunk(
+  'auth/login',
+  async (credentials: LoginCredentials, { rejectWithValue }) => {
+    try {
+      const response = await authService.login(credentials);
+      return response.user;
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error));
+    }
+  }
+);
+
+export const registerAsync = createAsyncThunk(
+  'auth/register',
+  async (data: RegisterData, { rejectWithValue }) => {
+    try {
+      const response = await authService.register(data);
+      return response.user;
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error));
     }
   }
 );
 
 export const logoutAsync = createAsyncThunk(
   'auth/logout',
-  async (_, { getState, rejectWithValue }) => {
+  async (_, { rejectWithValue }) => {
     try {
-      const state = getState() as { auth: AuthState };
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${state.auth.accessToken}`,
-        },
-      });
+      await authService.logout();
       return null;
     } catch (error) {
-      return rejectWithValue('Error al cerrar sesión');
+      // Still clear local state even if API call fails
+      authService.clearTokens();
+      return null;
     }
   }
 );
 
-export const refreshTokenAsync = createAsyncThunk(
-  'auth/refreshToken',
-  async (_, { getState, rejectWithValue }) => {
+export const logoutAllSessionsAsync = createAsyncThunk(
+  'auth/logoutAll',
+  async (_, { rejectWithValue }) => {
     try {
-      const state = getState() as { auth: AuthState };
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: state.auth.refreshToken }),
-      });
-
-      if (!response.ok) {
-        return rejectWithValue('Sesión expirada');
-      }
-
-      return await response.json();
+      await authService.logoutAllSessions();
+      return null;
     } catch (error) {
-      return rejectWithValue('Error al refrescar sesión');
+      return rejectWithValue(getErrorMessage(error));
+    }
+  }
+);
+
+export const refreshProfileAsync = createAsyncThunk(
+  'auth/refreshProfile',
+  async (_, { rejectWithValue }) => {
+    try {
+      const user = await authService.getProfile();
+      return user;
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error));
+    }
+  }
+);
+
+export const changePasswordAsync = createAsyncThunk(
+  'auth/changePassword',
+  async (data: ChangePasswordData, { rejectWithValue }) => {
+    try {
+      const response = await authService.changePassword(data);
+      return response.message;
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error));
+    }
+  }
+);
+
+export const forgotPasswordAsync = createAsyncThunk(
+  'auth/forgotPassword',
+  async (data: ForgotPasswordData, { rejectWithValue }) => {
+    try {
+      const response = await authService.forgotPassword(data);
+      return response.message;
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error));
+    }
+  }
+);
+
+export const resetPasswordAsync = createAsyncThunk(
+  'auth/resetPassword',
+  async (data: ResetPasswordData, { rejectWithValue }) => {
+    try {
+      const response = await authService.resetPassword(data);
+      return response.message;
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error));
+    }
+  }
+);
+
+export const verifyEmailAsync = createAsyncThunk(
+  'auth/verifyEmail',
+  async (token: string, { rejectWithValue }) => {
+    try {
+      const response = await authService.verifyEmail({ token });
+      return response.message;
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error));
+    }
+  }
+);
+
+export const resendVerificationAsync = createAsyncThunk(
+  'auth/resendVerification',
+  async (email: string, { rejectWithValue }) => {
+    try {
+      const response = await authService.resendVerificationEmail({ email });
+      return response.message;
+    } catch (error) {
+      return rejectWithValue(getErrorMessage(error));
     }
   }
 );
@@ -99,24 +194,15 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    setCredentials: (state, action: PayloadAction<{ user: User; accessToken: string; refreshToken: string }>) => {
-      state.user = action.payload.user;
-      state.accessToken = action.payload.accessToken;
-      state.refreshToken = action.payload.refreshToken;
+    setUser: (state, action: PayloadAction<UserResponse>) => {
+      state.user = action.payload;
       state.isAuthenticated = true;
       state.error = null;
     },
-    clearCredentials: (state) => {
+    clearUser: (state) => {
       state.user = null;
-      state.accessToken = null;
-      state.refreshToken = null;
       state.isAuthenticated = false;
       state.error = null;
-    },
-    updateUser: (state, action: PayloadAction<Partial<User>>) => {
-      if (state.user) {
-        state.user = { ...state.user, ...action.payload };
-      }
     },
     setError: (state, action: PayloadAction<string>) => {
       state.error = action.payload;
@@ -124,9 +210,28 @@ const authSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    setInitialized: (state, action: PayloadAction<boolean>) => {
+      state.isInitialized = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
+      // Initialize
+      .addCase(initializeAuth.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(initializeAuth.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isInitialized = true;
+        state.user = action.payload;
+        state.isAuthenticated = !!action.payload;
+      })
+      .addCase(initializeAuth.rejected, (state) => {
+        state.isLoading = false;
+        state.isInitialized = true;
+        state.user = null;
+        state.isAuthenticated = false;
+      })
       // Login
       .addCase(loginAsync.pending, (state) => {
         state.isLoading = true;
@@ -134,37 +239,101 @@ const authSlice = createSlice({
       })
       .addCase(loginAsync.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.user = action.payload.user;
-        state.accessToken = action.payload.accessToken;
-        state.refreshToken = action.payload.refreshToken;
+        state.user = action.payload;
         state.isAuthenticated = true;
+        state.error = null;
       })
       .addCase(loginAsync.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      })
+      // Register
+      .addCase(registerAsync.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(registerAsync.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.user = action.payload;
+        state.isAuthenticated = true;
+        state.error = null;
+      })
+      .addCase(registerAsync.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
       })
       // Logout
       .addCase(logoutAsync.fulfilled, (state) => {
         state.user = null;
-        state.accessToken = null;
-        state.refreshToken = null;
+        state.isAuthenticated = false;
+        state.error = null;
+      })
+      // Logout all sessions
+      .addCase(logoutAllSessionsAsync.fulfilled, (state) => {
+        state.user = null;
+        state.isAuthenticated = false;
+        state.error = null;
+      })
+      // Refresh profile
+      .addCase(refreshProfileAsync.fulfilled, (state, action) => {
+        state.user = action.payload;
+      })
+      // Change password (logs out all sessions)
+      .addCase(changePasswordAsync.fulfilled, (state) => {
+        state.user = null;
         state.isAuthenticated = false;
       })
-      // Refresh token
-      .addCase(refreshTokenAsync.fulfilled, (state, action) => {
-        state.accessToken = action.payload.accessToken;
-        if (action.payload.refreshToken) {
-          state.refreshToken = action.payload.refreshToken;
+      // Forgot password
+      .addCase(forgotPasswordAsync.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(forgotPasswordAsync.fulfilled, (state) => {
+        state.isLoading = false;
+      })
+      .addCase(forgotPasswordAsync.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      })
+      // Reset password
+      .addCase(resetPasswordAsync.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(resetPasswordAsync.fulfilled, (state) => {
+        state.isLoading = false;
+      })
+      .addCase(resetPasswordAsync.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      })
+      // Verify email
+      .addCase(verifyEmailAsync.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(verifyEmailAsync.fulfilled, (state) => {
+        state.isLoading = false;
+        if (state.user) {
+          state.user.emailVerifiedAt = new Date().toISOString();
         }
       })
-      .addCase(refreshTokenAsync.rejected, (state) => {
-        state.user = null;
-        state.accessToken = null;
-        state.refreshToken = null;
-        state.isAuthenticated = false;
+      .addCase(verifyEmailAsync.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
       });
   },
 });
 
-export const { setCredentials, clearCredentials, updateUser, setError, clearError } = authSlice.actions;
+export const { setUser, clearUser, setError, clearError, setInitialized } = authSlice.actions;
 export default authSlice.reducer;
+
+// Selectors
+export const selectUser = (state: { auth: AuthState }) => state.auth.user;
+export const selectIsAuthenticated = (state: { auth: AuthState }) => state.auth.isAuthenticated;
+export const selectIsLoading = (state: { auth: AuthState }) => state.auth.isLoading;
+export const selectIsInitialized = (state: { auth: AuthState }) => state.auth.isInitialized;
+export const selectAuthError = (state: { auth: AuthState }) => state.auth.error;
+export const selectUserRoles = (state: { auth: AuthState }) => state.auth.user?.roles ?? [];
+export const selectUserPermissions = (state: { auth: AuthState }) => state.auth.user?.permissions ?? [];
+export const selectIsEmailVerified = (state: { auth: AuthState }) => !!state.auth.user?.emailVerifiedAt;

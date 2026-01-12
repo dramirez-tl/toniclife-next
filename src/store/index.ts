@@ -7,16 +7,32 @@ export { useAppDispatch, useAppSelector } from './hooks';
 
 // Auth slice
 export {
-  setCredentials,
-  clearCredentials,
-  updateUser,
+  setUser,
+  clearUser,
   setError,
   clearError,
+  setInitialized,
+  initializeAuth,
   loginAsync,
+  registerAsync,
   logoutAsync,
-  refreshTokenAsync,
+  logoutAllSessionsAsync,
+  refreshProfileAsync,
+  changePasswordAsync,
+  forgotPasswordAsync,
+  resetPasswordAsync,
+  verifyEmailAsync,
+  resendVerificationAsync,
+  selectUser,
+  selectIsAuthenticated,
+  selectIsLoading,
+  selectIsInitialized,
+  selectAuthError,
+  selectUserRoles,
+  selectUserPermissions,
+  selectIsEmailVerified,
 } from './slices/authSlice';
-export type { User, AuthState } from './slices/authSlice';
+export type { AuthState } from './slices/authSlice';
 
 // UI slice
 export {
