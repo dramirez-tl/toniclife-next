@@ -43,28 +43,28 @@ interface NavItem {
 // Navegación con permisos requeridos
 const navigation: NavItem[] = [
   { name: 'Panel Principal', href: '/admin', icon: HomeIcon }, // Todos pueden ver el panel principal
-  { name: 'Sucursales', href: '/admin/sucursales', icon: BuildingStorefrontIcon, permissions: ['settings:read', 'settings:*'] },
-  { name: 'Usuarios', href: '/admin/usuarios', icon: UserGroupIcon, permissions: ['users:read', 'users:*'] },
-  { name: 'Distribuidores', href: '/admin/distribuidores', icon: UsersIcon, permissions: ['customers:read', 'customers:*'] },
-  { name: 'Productos', href: '/admin/productos', icon: ShoppingBagIcon, permissions: ['products:read', 'products:*'] },
-  { name: 'Pedidos', href: '/admin/pedidos', icon: ClipboardDocumentListIcon, permissions: ['orders:read', 'orders:*'] },
+  { name: 'Sucursales', href: '/admin/sucursales', icon: BuildingStorefrontIcon, permissions: ['config.branches', 'config.branches.read'] },
+  { name: 'Usuarios', href: '/admin/usuarios', icon: UserGroupIcon, permissions: ['users:read', 'config.users', 'config.users.read'] },
+  { name: 'Distribuidores', href: '/admin/distribuidores', icon: UsersIcon, permissions: ['customers:read', 'customers', 'customers.list.read'] },
+  { name: 'Productos', href: '/admin/productos', icon: ShoppingBagIcon, permissions: ['config.products', 'config.products.read'] },
+  { name: 'Pedidos', href: '/admin/pedidos', icon: ClipboardDocumentListIcon, permissions: ['sales.orders', 'sales.orders.read'] },
   {
     name: 'Inventario',
     href: '/admin/inventario',
     icon: CubeIcon,
-    permissions: ['inventory:read', 'inventory:*'],
+    permissions: ['inventory', 'inventory.stock'],
     children: [
       { name: 'Existencias General', href: '/admin/inventario' },
       { name: 'Traspasos', href: '/admin/inventario/traspasos' },
       { name: 'Ajustes', href: '/admin/inventario/ajustes' },
     ],
   },
-  { name: 'Comisiones', href: '/admin/comisiones', icon: CurrencyDollarIcon, permissions: ['commissions:read', 'commissions:*'] },
+  { name: 'Comisiones', href: '/admin/comisiones', icon: CurrencyDollarIcon, permissions: ['commissions', 'commissions.history'] },
   {
     name: 'MLM',
     href: '/admin/mlm',
     icon: GlobeAltIcon,
-    permissions: ['mlm:read', 'mlm:*'],
+    permissions: ['mlm:read', 'mlm:admin'],
     children: [
       { name: 'Rangos', href: '/admin/mlm/rangos' },
       { name: 'Periodos', href: '/admin/mlm/periodos' },
@@ -76,7 +76,7 @@ const navigation: NavItem[] = [
     name: 'Facturación',
     href: '/admin/facturacion',
     icon: DocumentTextIcon,
-    permissions: ['billing:read', 'billing:*'],
+    permissions: ['reports.invoices', 'config'],
     children: [
       { name: 'Facturas', href: '/admin/facturacion' },
       { name: 'Datos Fiscales', href: '/admin/facturacion/datos-fiscales' },
@@ -88,7 +88,7 @@ const navigation: NavItem[] = [
     name: 'Reportes',
     href: '/admin/reportes',
     icon: ChartBarIcon,
-    permissions: ['reports:read', 'reports:*'],
+    permissions: ['reports', 'reports.sales'],
     children: [
       { name: 'Panel Principal', href: '/admin/reportes' },
       { name: 'Ventas', href: '/admin/reportes/ventas' },
@@ -101,7 +101,7 @@ const navigation: NavItem[] = [
     name: 'RRHH',
     href: '/admin/rrhh',
     icon: BriefcaseIcon,
-    permissions: ['hr:read', 'hr:*'],
+    permissions: ['hr', 'hr.workers.read'],
     children: [
       { name: 'Panel Principal', href: '/admin/rrhh' },
       { name: 'Empleados', href: '/admin/rrhh/empleados' },
@@ -110,15 +110,15 @@ const navigation: NavItem[] = [
       { name: 'Viáticos', href: '/admin/rrhh/viaticos' },
     ],
   },
-  { name: 'Cupones', href: '/admin/cupones', icon: TagIcon, permissions: ['settings:read', 'settings:*'] },
-  { name: 'Banners', href: '/admin/banners', icon: PhotoIcon, permissions: ['settings:read', 'settings:*'] },
-  { name: 'Contenido', href: '/admin/contenido', icon: ComputerDesktopIcon, permissions: ['settings:read', 'settings:*'] },
-  { name: 'Punto de Venta', href: '/admin/pos', icon: ComputerDesktopIcon, permissions: ['pos:read', 'pos:create', 'pos:*'] },
+  { name: 'Cupones', href: '/admin/cupones', icon: TagIcon, permissions: ['customers.promos', 'config'] },
+  { name: 'Banners', href: '/admin/banners', icon: PhotoIcon, permissions: ['config'] },
+  { name: 'Contenido', href: '/admin/contenido', icon: ComputerDesktopIcon, permissions: ['config'] },
+  { name: 'Punto de Venta', href: '/admin/pos', icon: ComputerDesktopIcon, permissions: ['sales.pos', 'sales.pos.read', 'sales.pos.create'] },
   {
     name: 'Auditoría',
     href: '/admin/auditoria',
     icon: ShieldCheckIcon,
-    permissions: ['audit:read', 'audit:*'],
+    permissions: ['config'],
     children: [
       { name: 'Panel Principal', href: '/admin/auditoria' },
       { name: 'Logs', href: '/admin/auditoria/logs' },
@@ -127,14 +127,22 @@ const navigation: NavItem[] = [
       { name: 'Superusuario', href: '/admin/auditoria/superusuario' },
     ],
   },
-  { name: 'Notificaciones', href: '/admin/notificaciones', icon: BellIcon, permissions: ['settings:read', 'settings:*'] },
-  { name: 'Logs', href: '/admin/logs', icon: ClipboardDocumentListIcon, permissions: ['audit:read', 'audit:*'] },
-  { name: 'Seguridad', href: '/admin/seguridad', icon: ShieldCheckIcon, permissions: ['settings:update', 'settings:*'] },
+  { name: 'Notificaciones', href: '/admin/notificaciones', icon: BellIcon, permissions: ['config'] },
+  { name: 'Logs', href: '/admin/logs', icon: ClipboardDocumentListIcon, permissions: ['config'] },
+  {
+    name: 'Seguridad',
+    href: '/admin/seguridad',
+    icon: ShieldCheckIcon,
+    permissions: ['config.roles', 'config.roles.read'],
+    children: [
+      { name: 'Roles y Permisos', href: '/admin/seguridad/roles' },
+    ],
+  },
   {
     name: 'Configuración',
     href: '/admin/configuracion',
     icon: Cog6ToothIcon,
-    permissions: ['settings:read', 'settings:*'],
+    permissions: ['config', 'config.catalogs'],
     children: [
       { name: 'General', href: '/admin/configuracion' },
       { name: 'Catálogos', href: '/admin/configuracion/catalogos' },
