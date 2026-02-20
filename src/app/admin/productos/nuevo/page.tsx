@@ -2,56 +2,89 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ArrowLeftIcon,
   PhotoIcon,
   PlusIcon,
   XMarkIcon,
-  CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { useCreateProduct, useCategories } from '@/hooks/useProducts';
+import type { CreateProductDto } from '@/types/product';
+import { ProductType, KitType } from '@/types/product';
 
 export default function NuevoProductoAdminPage() {
+  const router = useRouter();
+  const createProduct = useCreateProduct();
+  const { data: categories, isLoading: categoriesLoading } = useCategories({ isActive: true });
+
   const [formData, setFormData] = useState({
+    // Basic Info
     name: '',
+    code: '',
+    barcode: '',
+    shortName: '',
     slug: '',
-    category: '',
-    price: '',
-    comparePrice: '',
-    stock: '',
-    sku: '',
-    status: 'active',
-    featured: false,
     description: '',
-    shortDescription: '',
+    longDescription: '',
+    // Classification
+    productType: 'finished_good' as string,
+    categoryId: '',
+    unitId: '',
+    brand: 'Tonic Life',
+    kitType: '',
+    kitDeductsInventory: false,
+    // MLM
+    pointsValue: '',
+    businessVolume: '',
+    qualifiesForCommission: true,
+    // Tax / SAT
+    satProductCode: '',
+    satUnitCode: '',
+    taxRuleId: '',
+    isTaxExempt: false,
+    // Inventory
+    tracksInventory: true,
+    tracksLots: false,
+    minStockAlert: '',
+    maxStockLevel: '',
+    reorderPoint: '',
+    reorderQuantity: '',
+    // Physical
+    weightKg: '',
+    volumeCm3: '',
+    // E-commerce
+    isVisibleEcommerce: true,
+    isFeatured: false,
+    // SEO
     metaTitle: '',
     metaDescription: '',
+    // Status
+    isActive: true,
+    sortOrder: '0',
+    // UI-only fields
+    imageUrl: '',
+    videoUrl: '',
+    usageInstructions: '',
+    usageFormat: '',
+    ingredients: '',
+    warnings: '',
   });
 
-  const [ingredients, setIngredients] = useState<string[]>(['']);
-  const [benefits, setBenefits] = useState<string[]>(['']);
-  const [images, setImages] = useState<string[]>([]);
-
-  const categories = [
-    'Suplementos',
-    'Vitaminas',
-    'Proteínas',
-    'Pérdida de Peso',
-    'Energía',
-    'Digestión',
-    'Inmunidad',
-    'Belleza',
-    'Bundles'
-  ];
+  const [healthBenefits, setHealthBenefits] = useState<string[]>(['']);
+  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     const checked = (e.target as HTMLInputElement).checked;
 
-    setFormData({
-      ...formData,
-      [name]: type === 'checkbox' ? checked : value
-    });
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
 
     // Auto-generate slug from name
     if (name === 'name') {
@@ -60,41 +93,83 @@ export default function NuevoProductoAdminPage() {
         .replace(/(^-|-$)/g, '');
       setFormData(prev => ({ ...prev, slug }));
     }
+
+    // Auto-set kitDeductsInventory based on productType
+    if (name === 'productType') {
+      setFormData(prev => ({
+        ...prev,
+        kitDeductsInventory: value === 'kit' ? prev.kitDeductsInventory : false,
+      }));
+    }
   };
 
-  const addIngredient = () => {
-    setIngredients([...ingredients, '']);
-  };
-
-  const removeIngredient = (index: number) => {
-    setIngredients(ingredients.filter((_, i) => i !== index));
-  };
-
-  const updateIngredient = (index: number, value: string) => {
-    const updated = [...ingredients];
+  const addHealthBenefit = () => setHealthBenefits([...healthBenefits, '']);
+  const removeHealthBenefit = (index: number) => setHealthBenefits(healthBenefits.filter((_, i) => i !== index));
+  const updateHealthBenefit = (index: number, value: string) => {
+    const updated = [...healthBenefits];
     updated[index] = value;
-    setIngredients(updated);
-  };
-
-  const addBenefit = () => {
-    setBenefits([...benefits, '']);
-  };
-
-  const removeBenefit = (index: number) => {
-    setBenefits(benefits.filter((_, i) => i !== index));
-  };
-
-  const updateBenefit = (index: number, value: string) => {
-    const updated = [...benefits];
-    updated[index] = value;
-    setBenefits(updated);
+    setHealthBenefits(updated);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success('Producto creado exitosamente');
-    // In real app, send to API
+
+    if (!formData.name || !formData.code) {
+      toast.error('Por favor completa los campos requeridos: Nombre y Codigo');
+      return;
+    }
+
+    const dto: CreateProductDto = {
+      code: formData.code,
+      barcode: formData.barcode || undefined,
+      name: formData.name,
+      shortName: formData.shortName || undefined,
+      description: formData.description || undefined,
+      longDescription: formData.longDescription || undefined,
+      categoryId: formData.categoryId || undefined,
+      unitId: formData.unitId || undefined,
+      brand: formData.brand || undefined,
+      productType: formData.productType as ProductType || undefined,
+      kitType: formData.kitType ? (formData.kitType as KitType) : undefined,
+      kitDeductsInventory: formData.kitDeductsInventory,
+      pointsValue: formData.pointsValue ? parseFloat(formData.pointsValue) : undefined,
+      businessVolume: formData.businessVolume ? parseFloat(formData.businessVolume) : undefined,
+      qualifiesForCommission: formData.qualifiesForCommission,
+      satProductCode: formData.satProductCode || undefined,
+      satUnitCode: formData.satUnitCode || undefined,
+      taxRuleId: formData.taxRuleId || undefined,
+      isTaxExempt: formData.isTaxExempt,
+      tracksInventory: formData.tracksInventory,
+      tracksLots: formData.tracksLots,
+      minStockAlert: formData.minStockAlert ? parseFloat(formData.minStockAlert) : undefined,
+      maxStockLevel: formData.maxStockLevel ? parseFloat(formData.maxStockLevel) : undefined,
+      reorderPoint: formData.reorderPoint ? parseFloat(formData.reorderPoint) : undefined,
+      reorderQuantity: formData.reorderQuantity ? parseFloat(formData.reorderQuantity) : undefined,
+      weightKg: formData.weightKg ? parseFloat(formData.weightKg) : undefined,
+      volumeCm3: formData.volumeCm3 ? parseFloat(formData.volumeCm3) : undefined,
+      isVisibleEcommerce: formData.isVisibleEcommerce,
+      isFeatured: formData.isFeatured,
+      slug: formData.slug || undefined,
+      metaTitle: formData.metaTitle || undefined,
+      metaDescription: formData.metaDescription || undefined,
+      sortOrder: formData.sortOrder ? parseInt(formData.sortOrder) : undefined,
+      isActive: formData.isActive,
+    };
+
+    createProduct.mutate(dto, {
+      onSuccess: () => {
+        toast.success('Producto creado exitosamente');
+        router.push('/admin/productos');
+      },
+      onError: (error: any) => {
+        const message = error?.response?.data?.message || error?.message || 'Error al crear el producto';
+        toast.error(typeof message === 'string' ? message : 'Error al crear el producto');
+      },
+    });
   };
+
+  const inputClass = 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]';
+  const labelClass = 'block text-sm font-medium text-gray-700 mb-2';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -111,7 +186,7 @@ export default function NuevoProductoAdminPage() {
               </Link>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Nuevo Producto</h1>
-                <p className="text-gray-600">Completa la información del producto</p>
+                <p className="text-gray-600">Completa la informacion del producto</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -123,9 +198,10 @@ export default function NuevoProductoAdminPage() {
               </Link>
               <button
                 onClick={handleSubmit}
-                className="px-6 py-2 bg-[#003B7A] text-white rounded-lg hover:bg-[#002855] transition-colors"
+                disabled={createProduct.isPending}
+                className="px-6 py-2 bg-[#003B7A] text-white rounded-lg hover:bg-[#002855] transition-colors disabled:opacity-50"
               >
-                Guardar Producto
+                {createProduct.isPending ? 'Guardando...' : 'Guardar Producto'}
               </button>
             </div>
           </div>
@@ -138,331 +214,573 @@ export default function NuevoProductoAdminPage() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Basic Information */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-6">Información Básica</h2>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nombre del Producto *
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    required
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
-                    placeholder="Ej: Proteína Vegana Chocolate"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Slug (URL) *
-                  </label>
-                  <input
-                    type="text"
-                    name="slug"
-                    required
-                    value={formData.slug}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
-                    placeholder="proteina-vegana-chocolate"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Descripción Corta *
-                  </label>
-                  <textarea
-                    name="shortDescription"
-                    required
-                    rows={3}
-                    value={formData.shortDescription}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A] resize-none"
-                    placeholder="Descripción breve para listados (máx. 160 caracteres)"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Descripción Completa *
-                  </label>
-                  <textarea
-                    name="description"
-                    required
-                    rows={6}
-                    value={formData.description}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A] resize-none"
-                    placeholder="Descripción detallada del producto"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Pricing & Inventory */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-6">Precios e Inventario</h2>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Precio *
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-2 text-gray-500">$</span>
+            <Card padding="none">
+              <CardContent className="p-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-6">Informacion Basica</h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className={labelClass}>Nombre del Producto *</label>
                     <input
-                      type="number"
-                      name="price"
+                      type="text"
+                      name="name"
                       required
-                      step="0.01"
-                      value={formData.price}
+                      value={formData.name}
                       onChange={handleChange}
-                      className="w-full pl-7 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
-                      placeholder="0.00"
+                      className={inputClass}
+                      placeholder="Ej: Proteina Vegana Chocolate"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelClass}>Codigo *</label>
+                      <input
+                        type="text"
+                        name="code"
+                        required
+                        value={formData.code}
+                        onChange={handleChange}
+                        className={inputClass}
+                        placeholder="TL-PROT-001"
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Slug (URL)</label>
+                      <input
+                        type="text"
+                        name="slug"
+                        value={formData.slug}
+                        onChange={handleChange}
+                        className={inputClass}
+                        placeholder="proteina-vegana-chocolate"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Descripcion Corta</label>
+                    <textarea
+                      name="shortName"
+                      rows={3}
+                      value={formData.shortName}
+                      onChange={handleChange}
+                      className={`${inputClass} resize-none`}
+                      placeholder="Descripcion breve para listados (max. 160 caracteres)"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Descripcion Completa</label>
+                    <textarea
+                      name="description"
+                      rows={6}
+                      value={formData.description}
+                      onChange={handleChange}
+                      className={`${inputClass} resize-none`}
+                      placeholder="Descripcion detallada del producto"
                     />
                   </div>
                 </div>
+              </CardContent>
+            </Card>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Precio de Comparación
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-2 text-gray-500">$</span>
+            {/* Classification */}
+            <Card padding="none">
+              <CardContent className="p-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-6">Clasificacion</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClass}>Tipo de Producto</label>
+                    <select
+                      name="productType"
+                      value={formData.productType}
+                      onChange={handleChange}
+                      className={inputClass}
+                    >
+                      <option value="finished_good">Producto Terminado</option>
+                      <option value="raw_material">Materia Prima</option>
+                      <option value="kit">Kit</option>
+                      <option value="promotional">Promocional</option>
+                      <option value="virtual">Virtual</option>
+                      <option value="service">Servicio</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Categoria</label>
+                    <select
+                      name="categoryId"
+                      value={formData.categoryId}
+                      onChange={handleChange}
+                      className={inputClass}
+                    >
+                      <option value="">Seleccionar categoria</option>
+                      {categoriesLoading && <option disabled>Cargando...</option>}
+                      {categories?.map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  {formData.productType === 'kit' && (
+                    <div>
+                      <label className={labelClass}>Tipo de Kit</label>
+                      <select
+                        name="kitType"
+                        value={formData.kitType}
+                        onChange={handleChange}
+                        className={inputClass}
+                      >
+                        <option value="">Seleccionar tipo de kit</option>
+                        <option value="basico">Basico</option>
+                        <option value="premium">Premium</option>
+                        <option value="preferente">Preferente</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Pricing & MLM */}
+            <Card padding="none">
+              <CardContent className="p-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-6">MLM y Fiscal</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClass}>Puntos Personales</label>
                     <input
                       type="number"
-                      name="comparePrice"
+                      name="pointsValue"
                       step="0.01"
-                      value={formData.comparePrice}
+                      value={formData.pointsValue}
                       onChange={handleChange}
-                      className="w-full pl-7 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                      className={inputClass}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Volumen de Negocio</label>
+                    <input
+                      type="number"
+                      name="businessVolume"
+                      step="0.01"
+                      value={formData.businessVolume}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="0.00"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Clave Producto SAT</label>
+                    <input
+                      type="text"
+                      name="satProductCode"
+                      value={formData.satProductCode}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="c_ClaveProdServ"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Clave Unidad SAT</label>
+                    <input
+                      type="text"
+                      name="satUnitCode"
+                      value={formData.satUnitCode}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="c_ClaveUnidad"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        name="isTaxExempt"
+                        id="isTaxExempt"
+                        checked={formData.isTaxExempt}
+                        onChange={handleChange}
+                        className="h-4 w-4 text-[#003B7A] focus:ring-[#003B7A] border-gray-300 rounded"
+                      />
+                      <label htmlFor="isTaxExempt" className="ml-2 text-sm text-gray-700">
+                        Exento de impuestos
+                      </label>
+                    </div>
+                  </div>
+                  {formData.productType === 'kit' && (
+                    <div className="col-span-2">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          name="kitDeductsInventory"
+                          id="kitDeductsInventory"
+                          checked={formData.kitDeductsInventory}
+                          onChange={handleChange}
+                          className="h-4 w-4 text-[#003B7A] focus:ring-[#003B7A] border-gray-300 rounded"
+                        />
+                        <label htmlFor="kitDeductsInventory" className="ml-2 text-sm text-gray-700">
+                          El kit deduce inventario de componentes
+                        </label>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Inventory */}
+            <Card padding="none">
+              <CardContent className="p-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-6">Inventario y Fisica</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelClass}>Alerta Existencias Mínimas</label>
+                    <input
+                      type="number"
+                      name="minStockAlert"
+                      step="0.01"
+                      value={formData.minStockAlert}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Existencias Máximas</label>
+                    <input
+                      type="number"
+                      name="maxStockLevel"
+                      step="0.01"
+                      value={formData.maxStockLevel}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Punto de Reorden</label>
+                    <input
+                      type="number"
+                      name="reorderPoint"
+                      step="0.01"
+                      value={formData.reorderPoint}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Cantidad de Reorden</label>
+                    <input
+                      type="number"
+                      name="reorderQuantity"
+                      step="0.01"
+                      value={formData.reorderQuantity}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Peso (kg)</label>
+                    <input
+                      type="number"
+                      name="weightKg"
+                      step="0.001"
+                      value={formData.weightKg}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="0.000"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Volumen (cm3)</label>
+                    <input
+                      type="number"
+                      name="volumeCm3"
+                      step="0.01"
+                      value={formData.volumeCm3}
+                      onChange={handleChange}
+                      className={inputClass}
                       placeholder="0.00"
                     />
                   </div>
                 </div>
+              </CardContent>
+            </Card>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    SKU *
-                  </label>
-                  <input
-                    type="text"
-                    name="sku"
-                    required
-                    value={formData.sku}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
-                    placeholder="TL-PROT-001"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Stock Disponible *
-                  </label>
-                  <input
-                    type="number"
-                    name="stock"
-                    required
-                    value={formData.stock}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Ingredients */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-gray-900">Ingredientes</h2>
-                <button
-                  type="button"
-                  onClick={addIngredient}
-                  className="flex items-center gap-2 px-3 py-1 text-sm bg-[#7AB82E] text-white rounded-lg hover:bg-[#6ba625]"
-                >
-                  <PlusIcon className="h-4 w-4" />
-                  Agregar
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {ingredients.map((ingredient, index) => (
-                  <div key={index} className="flex gap-2">
+            {/* Usage & Health */}
+            <Card padding="none">
+              <CardContent className="p-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-6">Uso y Salud</h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className={labelClass}>Instrucciones de Uso</label>
+                    <textarea
+                      name="usageInstructions"
+                      rows={3}
+                      value={formData.usageInstructions}
+                      onChange={handleChange}
+                      className={`${inputClass} resize-none`}
+                      placeholder="Ej: Tomar 2 capsulas al dia con alimentos"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Formato de Uso</label>
                     <input
                       type="text"
-                      value={ingredient}
-                      onChange={(e) => updateIngredient(index, e.target.value)}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
-                      placeholder="Ej: Proteína de Guisante (20g)"
+                      name="usageFormat"
+                      value={formData.usageFormat}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="Ej: Capsulas, Polvo, Liquido"
                     />
-                    {ingredients.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeIngredient(index)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                      >
-                        <XMarkIcon className="h-5 w-5" />
-                      </button>
-                    )}
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Benefits */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-gray-900">Beneficios</h2>
-                <button
-                  type="button"
-                  onClick={addBenefit}
-                  className="flex items-center gap-2 px-3 py-1 text-sm bg-[#7AB82E] text-white rounded-lg hover:bg-[#6ba625]"
-                >
-                  <PlusIcon className="h-4 w-4" />
-                  Agregar
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {benefits.map((benefit, index) => (
-                  <div key={index} className="flex gap-2">
-                    <input
-                      type="text"
-                      value={benefit}
-                      onChange={(e) => updateBenefit(index, e.target.value)}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
-                      placeholder="Ej: Aumenta masa muscular magra"
+                  <div>
+                    <label className={labelClass}>Ingredientes</label>
+                    <textarea
+                      name="ingredients"
+                      rows={3}
+                      value={formData.ingredients}
+                      onChange={handleChange}
+                      className={`${inputClass} resize-none`}
+                      placeholder="Lista de ingredientes del producto"
                     />
-                    {benefits.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeBenefit(index)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                      >
-                        <XMarkIcon className="h-5 w-5" />
-                      </button>
-                    )}
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div>
+                    <label className={labelClass}>Advertencias</label>
+                    <textarea
+                      name="warnings"
+                      rows={3}
+                      value={formData.warnings}
+                      onChange={handleChange}
+                      className={`${inputClass} resize-none`}
+                      placeholder="Advertencias y contraindicaciones"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Health Benefits */}
+            <Card padding="none">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-bold text-gray-900">Beneficios de Salud</h2>
+                  <button
+                    type="button"
+                    onClick={addHealthBenefit}
+                    className="flex items-center gap-2 px-3 py-1 text-sm bg-[#7AB82E] text-white rounded-lg hover:bg-[#6ba625]"
+                  >
+                    <PlusIcon className="h-4 w-4" />
+                    Agregar
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {healthBenefits.map((benefit, index) => (
+                    <div key={index} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={benefit}
+                        onChange={(e) => updateHealthBenefit(index, e.target.value)}
+                        className={`flex-1 ${inputClass}`}
+                        placeholder="Ej: Aumenta masa muscular magra"
+                      />
+                      {healthBenefits.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeHealthBenefit(index)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                        >
+                          <XMarkIcon className="h-5 w-5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
             {/* SEO */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-6">SEO</h2>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Meta Título
-                  </label>
-                  <input
-                    type="text"
-                    name="metaTitle"
-                    value={formData.metaTitle}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
-                    placeholder="Máx. 60 caracteres"
-                  />
+            <Card padding="none">
+              <CardContent className="p-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-6">SEO</h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className={labelClass}>Meta Titulo</label>
+                    <input
+                      type="text"
+                      name="metaTitle"
+                      value={formData.metaTitle}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="Max. 60 caracteres"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Meta Descripcion</label>
+                    <textarea
+                      name="metaDescription"
+                      rows={3}
+                      value={formData.metaDescription}
+                      onChange={handleChange}
+                      className={`${inputClass} resize-none`}
+                      placeholder="Max. 160 caracteres"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Meta Description</label>
+                    <input
+                      type="text"
+                      name="metaDescription"
+                      value={formData.metaDescription}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="Descripcion para motores de busqueda"
+                    />
+                  </div>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Meta Descripción
-                  </label>
-                  <textarea
-                    name="metaDescription"
-                    rows={3}
-                    value={formData.metaDescription}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A] resize-none"
-                    placeholder="Máx. 160 caracteres"
-                  />
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Status */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Estado</h2>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Estado del Producto
-                  </label>
-                  <select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
-                  >
-                    <option value="active">Activo</option>
-                    <option value="draft">Borrador</option>
-                    <option value="archived">Archivado</option>
-                  </select>
+            <Card padding="none">
+              <CardContent className="p-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-4">Estado y Visibilidad</h2>
+                <div className="space-y-4">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      name="isActive"
+                      id="isActive"
+                      checked={formData.isActive}
+                      onChange={handleChange}
+                      className="h-4 w-4 text-[#003B7A] focus:ring-[#003B7A] border-gray-300 rounded"
+                    />
+                    <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">
+                      Producto Activo
+                    </label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      name="isVisibleEcommerce"
+                      id="isVisibleEcommerce"
+                      checked={formData.isVisibleEcommerce}
+                      onChange={handleChange}
+                      className="h-4 w-4 text-[#003B7A] focus:ring-[#003B7A] border-gray-300 rounded"
+                    />
+                    <label htmlFor="isVisibleEcommerce" className="ml-2 text-sm text-gray-700">
+                      Visible en E-commerce
+                    </label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      name="isFeatured"
+                      id="isFeatured"
+                      checked={formData.isFeatured}
+                      onChange={handleChange}
+                      className="h-4 w-4 text-[#003B7A] focus:ring-[#003B7A] border-gray-300 rounded"
+                    />
+                    <label htmlFor="isFeatured" className="ml-2 text-sm text-gray-700">
+                      Producto Destacado
+                    </label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      name="tracksInventory"
+                      id="tracksInventory"
+                      checked={formData.tracksInventory}
+                      onChange={handleChange}
+                      className="h-4 w-4 text-[#003B7A] focus:ring-[#003B7A] border-gray-300 rounded"
+                    />
+                    <label htmlFor="tracksInventory" className="ml-2 text-sm text-gray-700">
+                      Controla Inventario
+                    </label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      name="tracksLots"
+                      id="tracksLots"
+                      checked={formData.tracksLots}
+                      onChange={handleChange}
+                      className="h-4 w-4 text-[#003B7A] focus:ring-[#003B7A] border-gray-300 rounded"
+                    />
+                    <label htmlFor="tracksLots" className="ml-2 text-sm text-gray-700">
+                      Controla Lotes
+                    </label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      name="qualifiesForCommission"
+                      id="qualifiesForCommission"
+                      checked={formData.qualifiesForCommission}
+                      onChange={handleChange}
+                      className="h-4 w-4 text-[#003B7A] focus:ring-[#003B7A] border-gray-300 rounded"
+                    />
+                    <label htmlFor="qualifiesForCommission" className="ml-2 text-sm text-gray-700">
+                      Califica para Comisiones
+                    </label>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Orden de Aparicion</label>
+                    <input
+                      type="number"
+                      name="sortOrder"
+                      value={formData.sortOrder}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="0"
+                    />
+                  </div>
                 </div>
+              </CardContent>
+            </Card>
 
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    name="featured"
-                    id="featured"
-                    checked={formData.featured}
-                    onChange={handleChange}
-                    className="h-4 w-4 text-[#003B7A] focus:ring-[#003B7A] border-gray-300 rounded"
-                  />
-                  <label htmlFor="featured" className="ml-2 text-sm text-gray-700">
-                    Producto Destacado
-                  </label>
+            {/* Media */}
+            <Card padding="none">
+              <CardContent className="p-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-4">Media</h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className={labelClass}>URL de Imagen Principal</label>
+                    <input
+                      type="url"
+                      name="imageUrl"
+                      value={formData.imageUrl}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="https://..."
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>URL de Video</label>
+                    <input
+                      type="url"
+                      name="videoUrl"
+                      value={formData.videoUrl}
+                      onChange={handleChange}
+                      className={inputClass}
+                      placeholder="https://..."
+                    />
+                  </div>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                    <PhotoIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                    <p className="text-sm text-gray-600 mb-2">Arrastra imagenes aqui o</p>
+                    <button
+                      type="button"
+                      className="text-sm text-[#003B7A] font-medium hover:underline"
+                    >
+                      Seleccionar archivos
+                    </button>
+                    <p className="text-xs text-gray-500 mt-2">PNG, JPG hasta 5MB</p>
+                  </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Category */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Categoría</h2>
-
-              <select
-                name="category"
-                required
-                value={formData.category}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
-              >
-                <option value="">Seleccionar categoría</option>
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Images */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Imágenes</h2>
-
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                <PhotoIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-sm text-gray-600 mb-2">Arrastra imágenes aquí o</p>
-                <button
-                  type="button"
-                  className="text-sm text-[#003B7A] font-medium hover:underline"
-                >
-                  Seleccionar archivos
-                </button>
-                <p className="text-xs text-gray-500 mt-2">PNG, JPG hasta 5MB</p>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
         </form>
       </div>

@@ -27,7 +27,7 @@ const mockSearchResults = [
     rating: 4.8,
     reviews: 234,
     stock: 25,
-    badge: 'Bestseller',
+    badge: 'Más Vendido',
     benefits: ['Salud ósea', 'Sistema inmune', 'Absorción de calcio'],
     format: 'Cápsulas',
   },
@@ -66,7 +66,7 @@ const mockSearchResults = [
     rating: 4.9,
     reviews: 523,
     stock: 12,
-    badge: 'Bestseller',
+    badge: 'Más Vendido',
     benefits: ['Elasticidad de la piel', 'Salud articular', 'Cabello y uñas'],
     format: 'Polvo',
   },
@@ -453,7 +453,7 @@ export default function BuscarPage() {
                         </div>
                         {product.badge && (
                           <div className={`absolute top-2 left-2 px-3 py-1 rounded-full text-xs font-semibold ${
-                            product.badge === 'Bestseller' ? 'bg-purple-100 text-purple-800' :
+                            product.badge === 'Más Vendido' ? 'bg-purple-100 text-purple-800' :
                             product.badge === 'En oferta' ? 'bg-orange-100 text-orange-800' :
                             'bg-blue-100 text-blue-800'
                           }`}>

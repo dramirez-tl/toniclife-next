@@ -1,0 +1,264 @@
+// Types for Products module
+// Ref: toniclife-api/src/modules/products/dto/product.dto.ts
+
+// ================================
+// ENUMS
+// ================================
+export enum ProductType {
+  FINISHED_GOOD = 'finished_good',
+  RAW_MATERIAL = 'raw_material',
+  KIT = 'kit',
+  PROMOTIONAL = 'promotional',
+  VIRTUAL = 'virtual',
+  SERVICE = 'service',
+}
+
+export enum KitType {
+  BASICO = 'basico',
+  PREMIUM = 'premium',
+  PREFERENTE = 'preferente',
+}
+
+// ================================
+// CATEGORY TYPES (matches CategoryDto from category.dto.ts)
+// ================================
+export interface Category {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  parentId?: string;
+  parentName?: string;
+  level: number;
+  path?: string;
+  slug?: string;
+  imageUrl?: string;
+  sortOrder: number;
+  isActive: boolean;
+  productCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CategoryTree extends Category {
+  children?: CategoryTree[];
+}
+
+// ================================
+// PRODUCT TYPES (matches ProductDto from product.dto.ts)
+// ================================
+export interface Product {
+  id: string;
+  code: string;
+  barcode?: string;
+  name: string;
+  shortName?: string;
+  description?: string;
+  longDescription?: string;
+  categoryId?: string;
+  categoryName?: string;
+  unitId?: string;
+  brand?: string;
+  productType: string;
+  kitType?: string;
+  kitDeductsInventory: boolean;
+  pointsValue: string;
+  businessVolume: string;
+  qualifiesForCommission: boolean;
+  satProductCode?: string;
+  satUnitCode?: string;
+  taxRuleId?: string;
+  isTaxExempt: boolean;
+  tracksInventory: boolean;
+  tracksLots: boolean;
+  minStockAlert?: string;
+  maxStockLevel?: string;
+  reorderPoint?: string;
+  reorderQuantity?: string;
+  weightKg?: string;
+  volumeCm3?: string;
+  isVisibleEcommerce: boolean;
+  isFeatured: boolean;
+  slug?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+
+  // UI-only fields (not in backend DTO, used by frontend pages)
+  imageUrl?: string;
+  galleryUrls?: string[];
+  videoUrl?: string;
+  healthBenefits?: string[];
+  ingredients?: string;
+  warnings?: string;
+  usageInstructions?: string;
+  usageFormat?: string;
+}
+
+// ================================
+// PRODUCT PRICE TYPES (matches ProductPriceDto)
+// ================================
+export interface ProductPrice {
+  id: string;
+  productId: string;
+  priceTypeId: string;
+  priceTypeName?: string;
+  currencyCode: string;
+  price: string;
+  cost?: string;
+  effectiveFrom: string;
+  effectiveTo?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ================================
+// PRODUCT COMPONENT TYPES (matches ProductComponentDto)
+// ================================
+export interface ProductComponent {
+  id: string;
+  productId: string;
+  componentProductId?: string;
+  componentProductCode?: string;
+  componentProductName?: string;
+  componentId?: string;
+  componentName?: string;
+  quantity: string;
+  unitId?: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ================================
+// QUERY & RESPONSE TYPES (matches ProductQueryDto / ProductListResponseDto)
+// ================================
+export interface ProductQueryParams {
+  search?: string;
+  categoryId?: string;
+  isActive?: boolean;
+  isVisibleEcommerce?: boolean;
+  isFeatured?: boolean;
+  productType?: ProductType;
+  brand?: string;
+  tracksInventory?: boolean;
+  sortBy?: string;
+  sortDir?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
+}
+
+export interface ProductListResponse {
+  data: Product[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface CategoryQueryParams {
+  search?: string;
+  isActive?: boolean;
+  parentId?: string;
+  level?: number;
+  includeProductCount?: boolean;
+}
+
+// ================================
+// PRICE TYPE & CURRENCY
+// ================================
+export interface PriceType {
+  id: string;
+  name: string;
+  code: string;
+  discountPercentage: string;
+  isDefault: boolean;
+}
+
+export interface Currency {
+  id: string;
+  code: string;
+  name: string;
+  symbol: string;
+  exchangeRate: string;
+}
+
+// ================================
+// CREATE/UPDATE DTOs (matches CreateProductDto / UpdateProductDto)
+// ================================
+
+export interface CreateProductDto {
+  code: string;
+  barcode?: string;
+  name: string;
+  shortName?: string;
+  description?: string;
+  longDescription?: string;
+  categoryId?: string;
+  unitId?: string;
+  brand?: string;
+  productType?: ProductType;
+  kitType?: KitType;
+  kitDeductsInventory?: boolean;
+  pointsValue?: number;
+  businessVolume?: number;
+  qualifiesForCommission?: boolean;
+  satProductCode?: string;
+  satUnitCode?: string;
+  taxRuleId?: string;
+  isTaxExempt?: boolean;
+  tracksInventory?: boolean;
+  tracksLots?: boolean;
+  minStockAlert?: number;
+  maxStockLevel?: number;
+  reorderPoint?: number;
+  reorderQuantity?: number;
+  weightKg?: number;
+  volumeCm3?: number;
+  isVisibleEcommerce?: boolean;
+  isFeatured?: boolean;
+  slug?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export interface UpdateProductDto extends Partial<CreateProductDto> {}
+
+export interface CreateProductPriceDto {
+  priceTypeId: string;
+  currencyCode: string;
+  price: number;
+  cost?: number;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+  isActive?: boolean;
+}
+
+export interface CreateCategoryDto {
+  code: string;
+  name: string;
+  description?: string;
+  parentId?: string;
+  slug?: string;
+  imageUrl?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export interface UpdateCategoryDto {
+  code?: string;
+  name?: string;
+  description?: string;
+  parentId?: string;
+  slug?: string;
+  imageUrl?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}

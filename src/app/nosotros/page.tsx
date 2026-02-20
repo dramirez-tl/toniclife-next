@@ -70,19 +70,19 @@ export default function NosotrosPage() {
     },
     {
       year: '2024',
-      title: 'Líder en Wellness',
+      title: 'Líder en Bienestar',
       description: 'Consolidados como la marca #1 de bienestar y network marketing en América Latina.',
       milestone: true
     }
   ];
 
   const certifications = [
-    { name: 'FDA Registration', logo: '/placeholder-cert-fda.png' },
-    { name: 'DSA Member', logo: '/placeholder-cert-dsa.png' },
-    { name: 'BBB A+ Rating', logo: '/placeholder-cert-bbb.png' },
+    { name: 'Registro FDA', logo: '/placeholder-cert-fda.png' },
+    { name: 'Miembro DSA', logo: '/placeholder-cert-dsa.png' },
+    { name: 'BBB A+ Calificación', logo: '/placeholder-cert-bbb.png' },
     { name: 'COFEPRIS', logo: '/placeholder-cert-cofepris.png' },
     { name: 'ISO 9001', logo: '/placeholder-cert-iso.png' },
-    { name: 'GMP Certified', logo: '/placeholder-cert-gmp.png' }
+    { name: 'Certificación GMP', logo: '/placeholder-cert-gmp.png' }
   ];
 
   const stats = [

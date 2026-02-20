@@ -47,7 +47,7 @@ const mockGoals = [
   },
   {
     id: '3',
-    title: 'Ascender a Rango Diamond',
+    title: 'Ascender a Rango Diamante',
     category: 'Rango',
     target: 75000,
     current: 45000,
@@ -172,7 +172,7 @@ export default function MetasPage() {
             <div className="flex gap-3">
               <Link href="/distribuidor">
                 <Button variant="secondary">
-                  Volver al Dashboard
+                  Volver al Panel Principal
                 </Button>
               </Link>
               <Button

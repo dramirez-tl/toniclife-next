@@ -93,7 +93,7 @@ export default function ReconocimientosPage() {
       id: '2',
       type: 'top-seller',
       category: 'Top Ventas',
-      title: 'Top Seller - Enero 2024',
+      title: 'Top Ventas - Enero 2024',
       recipient: {
         name: 'Carlos Ramírez',
         avatar: '/placeholder-avatar-2.jpg',
@@ -175,7 +175,7 @@ export default function ReconocimientosPage() {
       id: '6',
       type: 'team-builder',
       category: 'Constructor de Equipos',
-      title: 'Team Builder del Mes',
+      title: 'Constructor de Equipos del Mes',
       recipient: {
         name: 'Roberto Torres',
         avatar: '/placeholder-avatar-6.jpg',
@@ -242,8 +242,8 @@ export default function ReconocimientosPage() {
       rank: 'Diamante Elite',
       achievements: [
         'Líder del Mes (8 veces)',
-        'Top Seller Nacional 2023',
-        'Team Builder del Año 2022',
+        'Top Ventas Nacional 2023',
+        'Constructor de Equipos del Año 2022',
         'Círculo de Honor 2021-2024'
       ],
       totalSales: 1250000,
@@ -259,7 +259,7 @@ export default function ReconocimientosPage() {
       country: 'Colombia',
       rank: 'Diamante',
       achievements: [
-        'Top Seller Latinoamérica 2023',
+        'Top Ventas Latinoamérica 2023',
         'Líder del Mes (5 veces)',
         'Mejor Transformación Personal 2022',
         'Círculo de Honor 2022-2024'
@@ -279,7 +279,7 @@ export default function ReconocimientosPage() {
       achievements: [
         'Ascenso más Rápido a Platino',
         'Líder del Mes (3 veces)',
-        'Team Builder Destacada 2023',
+        'Constructor de Equipos Destacada 2023',
         'Círculo de Honor 2023-2024'
       ],
       totalSales: 560000,
@@ -331,7 +331,7 @@ export default function ReconocimientosPage() {
       country: 'Chile',
       rank: 'Platino',
       achievements: [
-        'Team Builder del Año 2023',
+        'Constructor de Equipos del Año 2023',
         'Líder del Mes (4 veces)',
         'Mejor Capacitador',
         'Círculo de Honor 2023-2024'
@@ -351,7 +351,7 @@ export default function ReconocimientosPage() {
     { value: 'new-rank', label: 'Nuevos Rangos', icon: ArrowTrendingUpIcon, color: 'bg-green-100 text-green-800' },
     { value: 'anniversary', label: 'Aniversarios', icon: CakeIcon, color: 'bg-pink-100 text-pink-800' },
     { value: 'transformation', label: 'Transformaciones', icon: HeartIcon, color: 'bg-red-100 text-red-800' },
-    { value: 'team-builder', label: 'Team Builders', icon: UserGroupIcon, color: 'bg-indigo-100 text-indigo-800' }
+    { value: 'team-builder', label: 'Constructores de Equipos', icon: UserGroupIcon, color: 'bg-indigo-100 text-indigo-800' }
   ];
 
   const periods = [

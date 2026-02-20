@@ -22,7 +22,7 @@ const mockInventory = [
     productId: 'VIT-D3-001',
     name: 'Vitamina D3 + K2',
     category: 'Vitaminas',
-    sku: 'VD3K2-60',
+    code: 'VD3K2-60',
     stock: 45,
     minStock: 10,
     maxStock: 100,
@@ -37,7 +37,7 @@ const mockInventory = [
     productId: 'OMG-001',
     name: 'Omega 3 Premium',
     category: 'Suplementos',
-    sku: 'OMG3-90',
+    code: 'OMG3-90',
     stock: 8,
     minStock: 10,
     maxStock: 80,
@@ -52,7 +52,7 @@ const mockInventory = [
     productId: 'MAG-001',
     name: 'Magnesio Bisglicinato',
     category: 'Minerales',
-    sku: 'MAG-60',
+    code: 'MAG-60',
     stock: 62,
     minStock: 15,
     maxStock: 100,
@@ -67,7 +67,7 @@ const mockInventory = [
     productId: 'COL-001',
     name: 'Colágeno Hidrolizado',
     category: 'Proteínas',
-    sku: 'COL-500',
+    code: 'COL-500',
     stock: 0,
     minStock: 5,
     maxStock: 50,
@@ -82,7 +82,7 @@ const mockInventory = [
     productId: 'PRO-001',
     name: 'Probióticos 10B UFC',
     category: 'Digestivos',
-    sku: 'PROB-30',
+    code: 'PROB-30',
     stock: 28,
     minStock: 10,
     maxStock: 60,
@@ -97,7 +97,7 @@ const mockInventory = [
     productId: 'CUR-001',
     name: 'Cúrcuma + Pimienta Negra',
     category: 'Antiinflamatorios',
-    sku: 'CUR-60',
+    code: 'CUR-60',
     stock: 3,
     minStock: 10,
     maxStock: 70,
@@ -110,9 +110,9 @@ const mockInventory = [
 ];
 
 const statusConfig = {
-  in_stock: { label: 'En Stock', color: 'bg-green-100 text-green-800', icon: CheckCircleIcon },
-  low_stock: { label: 'Stock Bajo', color: 'bg-yellow-100 text-yellow-800', icon: ExclamationTriangleIcon },
-  out_of_stock: { label: 'Sin Stock', color: 'bg-red-100 text-red-800', icon: ExclamationTriangleIcon },
+  in_stock: { label: 'En Existencia', color: 'bg-green-100 text-green-800', icon: CheckCircleIcon },
+  low_stock: { label: 'Existencias Bajas', color: 'bg-yellow-100 text-yellow-800', icon: ExclamationTriangleIcon },
+  out_of_stock: { label: 'Sin Existencias', color: 'bg-red-100 text-red-800', icon: ExclamationTriangleIcon },
 };
 
 const categories = ['Todas', 'Vitaminas', 'Suplementos', 'Minerales', 'Proteínas', 'Digestivos', 'Antiinflamatorios'];
@@ -125,7 +125,7 @@ export default function InventarioPage() {
 
   const filteredInventory = inventory.filter(item => {
     if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !item.sku.toLowerCase().includes(searchQuery.toLowerCase())) {
+        !item.code.toLowerCase().includes(searchQuery.toLowerCase())) {
       return false;
     }
     if (filterCategory !== 'Todas' && item.category !== filterCategory) return false;
@@ -195,7 +195,7 @@ export default function InventarioPage() {
             <div className="flex gap-3">
               <Link href="/distribuidor">
                 <Button variant="secondary">
-                  Volver al Dashboard
+                  Volver al Panel Principal
                 </Button>
               </Link>
               <Button
@@ -241,7 +241,7 @@ export default function InventarioPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Stock Bajo</p>
+                  <p className="text-sm text-gray-600 mb-1">Existencias Bajas</p>
                   <p className="text-3xl font-bold text-yellow-600">{stats.lowStock}</p>
                 </div>
                 <ExclamationTriangleIcon className="h-12 w-12 text-yellow-400" />
@@ -253,7 +253,7 @@ export default function InventarioPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Sin Stock</p>
+                  <p className="text-sm text-gray-600 mb-1">Sin Existencias</p>
                   <p className="text-3xl font-bold text-red-600">{stats.outOfStock}</p>
                 </div>
                 <ExclamationTriangleIcon className="h-12 w-12 text-red-400" />
@@ -271,9 +271,9 @@ export default function InventarioPage() {
                 <div className="flex-1">
                   <h3 className="font-semibold text-yellow-900 mb-1">Atención Requerida</h3>
                   <p className="text-sm text-yellow-800">
-                    {stats.outOfStock > 0 && `${stats.outOfStock} productos sin stock`}
+                    {stats.outOfStock > 0 && `${stats.outOfStock} productos sin existencias`}
                     {stats.outOfStock > 0 && stats.lowStock > 0 && ' • '}
-                    {stats.lowStock > 0 && `${stats.lowStock} productos con stock bajo`}
+                    {stats.lowStock > 0 && `${stats.lowStock} productos con existencias bajas`}
                   </p>
                 </div>
                 <Button
@@ -331,9 +331,9 @@ export default function InventarioPage() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
                   >
                     <option value="all">Todos</option>
-                    <option value="in_stock">En Stock</option>
-                    <option value="low_stock">Stock Bajo</option>
-                    <option value="out_of_stock">Sin Stock</option>
+                    <option value="in_stock">En Existencia</option>
+                    <option value="low_stock">Existencias Bajas</option>
+                    <option value="out_of_stock">Sin Existencias</option>
                   </select>
                 </div>
 
@@ -364,7 +364,7 @@ export default function InventarioPage() {
                   <tr className="border-b">
                     <th className="text-left py-3 px-4 font-semibold text-gray-900">Producto</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-900">SKU</th>
-                    <th className="text-center py-3 px-4 font-semibold text-gray-900">Stock</th>
+                    <th className="text-center py-3 px-4 font-semibold text-gray-900">Existencias</th>
                     <th className="text-center py-3 px-4 font-semibold text-gray-900">Estado</th>
                     <th className="text-right py-3 px-4 font-semibold text-gray-900">Precio</th>
                     <th className="text-right py-3 px-4 font-semibold text-gray-900">Valor</th>
@@ -394,7 +394,7 @@ export default function InventarioPage() {
 
                         {/* SKU */}
                         <td className="py-4 px-4">
-                          <code className="text-sm bg-gray-100 px-2 py-1 rounded">{item.sku}</code>
+                          <code className="text-sm bg-gray-100 px-2 py-1 rounded">{item.code}</code>
                         </td>
 
                         {/* Stock */}

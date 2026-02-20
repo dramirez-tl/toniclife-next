@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -16,226 +16,170 @@ import {
   CalendarIcon,
   BanknotesIcon,
   ChartBarIcon,
+  CalculatorIcon,
+  LockClosedIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
-
-const mockCommissions = [
-  {
-    id: 'COM-2025-001',
-    distributor: {
-      name: 'Laura Mendoza',
-      email: 'laura.mendoza@email.com',
-      level: 'Diamond Elite',
-    },
-    period: '2025-01',
-    personalSales: 125000,
-    teamSales: 287000,
-    totalSales: 412000,
-    personalCommission: 15625,
-    teamCommission: 28700,
-    bonuses: 5000,
-    totalCommission: 49325,
-    status: 'pending',
-    generatedAt: '2025-01-31T23:59:00',
-    paymentDate: '2025-02-05',
-  },
-  {
-    id: 'COM-2025-002',
-    distributor: {
-      name: 'Diana Flores',
-      email: 'diana.flores@email.com',
-      level: 'Gold',
-    },
-    period: '2025-01',
-    personalSales: 98000,
-    teamSales: 156000,
-    totalSales: 254000,
-    personalCommission: 12250,
-    teamCommission: 15600,
-    bonuses: 2000,
-    totalCommission: 29850,
-    status: 'pending',
-    generatedAt: '2025-01-31T23:59:00',
-    paymentDate: '2025-02-05',
-  },
-  {
-    id: 'COM-2024-156',
-    distributor: {
-      name: 'Patricia González',
-      email: 'patricia.gonzalez@email.com',
-      level: 'Silver',
-    },
-    period: '2024-12',
-    personalSales: 87000,
-    teamSales: 98000,
-    totalSales: 185000,
-    personalCommission: 10875,
-    teamCommission: 9800,
-    bonuses: 1500,
-    totalCommission: 22175,
-    status: 'paid',
-    generatedAt: '2024-12-31T23:59:00',
-    paymentDate: '2025-01-05',
-    paidAt: '2025-01-05T10:30:00',
-  },
-  {
-    id: 'COM-2024-155',
-    distributor: {
-      name: 'Ana Martínez',
-      email: 'ana.martinez@email.com',
-      level: 'Silver',
-    },
-    period: '2024-12',
-    personalSales: 76000,
-    teamSales: 67000,
-    totalSales: 143000,
-    personalCommission: 9500,
-    teamCommission: 6700,
-    bonuses: 1000,
-    totalCommission: 17200,
-    status: 'paid',
-    generatedAt: '2024-12-31T23:59:00',
-    paymentDate: '2025-01-05',
-    paidAt: '2025-01-05T10:30:00',
-  },
-  {
-    id: 'COM-2024-154',
-    distributor: {
-      name: 'Fernando García',
-      email: 'fernando.garcia@email.com',
-      level: 'Bronze',
-    },
-    period: '2024-12',
-    personalSales: 54000,
-    teamSales: 23000,
-    totalSales: 77000,
-    personalCommission: 6750,
-    teamCommission: 2300,
-    bonuses: 500,
-    totalCommission: 9550,
-    status: 'paid',
-    generatedAt: '2024-12-31T23:59:00',
-    paymentDate: '2025-01-05',
-    paidAt: '2025-01-05T10:30:00',
-  },
-  {
-    id: 'COM-2024-153',
-    distributor: {
-      name: 'Laura Mendoza',
-      email: 'laura.mendoza@email.com',
-      level: 'Diamond Elite',
-    },
-    period: '2024-11',
-    personalSales: 112000,
-    teamSales: 245000,
-    totalSales: 357000,
-    personalCommission: 14000,
-    teamCommission: 24500,
-    bonuses: 4500,
-    totalCommission: 43000,
-    status: 'paid',
-    generatedAt: '2024-11-30T23:59:00',
-    paymentDate: '2024-12-05',
-    paidAt: '2024-12-05T09:15:00',
-  },
-  {
-    id: 'COM-2024-152',
-    distributor: {
-      name: 'Diana Flores',
-      email: 'diana.flores@email.com',
-      level: 'Gold',
-    },
-    period: '2024-11',
-    personalSales: 89000,
-    teamSales: 134000,
-    totalSales: 223000,
-    personalCommission: 11125,
-    teamCommission: 13400,
-    bonuses: 1800,
-    totalCommission: 26325,
-    status: 'paid',
-    generatedAt: '2024-11-30T23:59:00',
-    paymentDate: '2024-12-05',
-    paidAt: '2024-12-05T09:15:00',
-  },
-  {
-    id: 'COM-2024-151',
-    distributor: {
-      name: 'Roberto Sánchez',
-      email: 'roberto.sanchez@email.com',
-      level: 'Bronze',
-    },
-    period: '2024-11',
-    personalSales: 34000,
-    teamSales: 12000,
-    totalSales: 46000,
-    personalCommission: 4250,
-    teamCommission: 1200,
-    bonuses: 0,
-    totalCommission: 5450,
-    status: 'cancelled',
-    generatedAt: '2024-11-30T23:59:00',
-    paymentDate: '2024-12-05',
-    cancelledAt: '2024-12-03T14:20:00',
-    cancelReason: 'Distribuidor dado de baja',
-  },
-];
-
-const commissionRates = [
-  { level: 'Bronze', personalRate: 12.5, teamRate: 10, minSales: 0 },
-  { level: 'Silver', personalRate: 12.5, teamRate: 10, minSales: 50000 },
-  { level: 'Gold', personalRate: 12.5, teamRate: 10, minSales: 80000 },
-  { level: 'Diamond', personalRate: 12.5, teamRate: 10, minSales: 100000 },
-  { level: 'Diamond Elite', personalRate: 12.5, teamRate: 10, minSales: 120000 },
-];
+import {
+  useAllCommissions,
+  useApproveCommissions,
+  useMarkCommissionsAsPaid,
+  useCalculateCommissions,
+  useCommissionPeriods,
+  useCommissionPercentages,
+} from '@/hooks/useCommissions';
+import { useClosePeriod } from '@/hooks/useMlmPeriods';
+import type { CommissionStatus } from '@/types/commissions';
+import { PermissionGuard } from '@/components/auth';
 
 export default function ComisionesPage() {
-  const [commissions, setCommissions] = useState(mockCommissions);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterPeriod, setFilterPeriod] = useState('all');
+  const [filterStatus, setFilterStatus] = useState<CommissionStatus | 'all'>('all');
+  const [filterPeriod, setFilterPeriod] = useState<string>('');
+  const [page, setPage] = useState(1);
 
-  const filteredCommissions = commissions.filter(commission => {
-    const matchesSearch = commission.distributor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         commission.distributor.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         commission.id.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || commission.status === filterStatus;
-    const matchesPeriod = filterPeriod === 'all' || commission.period === filterPeriod;
-    return matchesSearch && matchesStatus && matchesPeriod;
+  // Fetch commissions from API
+  const { data: commissionsData, isLoading } = useAllCommissions({
+    periodId: filterPeriod || undefined,
+    status: filterStatus !== 'all' ? filterStatus : undefined,
+    search: searchQuery || undefined,
+    page,
+    limit: 20,
   });
 
-  const stats = {
-    pending: commissions.filter(c => c.status === 'pending'),
-    paid: commissions.filter(c => c.status === 'paid'),
-    cancelled: commissions.filter(c => c.status === 'cancelled'),
+  // Fetch periods for filter
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: periodsData } = useCommissionPeriods() as { data: any };
+
+  // Fetch percentages for rates table
+  const { data: percentages } = useCommissionPercentages();
+
+  // Approve mutation
+  const approveMutation = useApproveCommissions();
+
+  // Mark as paid mutation
+  const markPaidMutation = useMarkCommissionsAsPaid();
+
+  // Calculate commissions mutation
+  const calculateMutation = useCalculateCommissions();
+
+  // Close period mutation
+  const closePeriodMutation = useClosePeriod();
+
+  // Computed values
+  const commissions = commissionsData?.data || [];
+  const summary = commissionsData?.summary;
+  const totalResults = commissionsData?.total ?? 0;
+  const totalPages = commissionsData?.totalPages ?? 1;
+  // periodsData may be an array or an object with periods/data - handle both
+  const periods: Array<{ id: string; name: string; code?: string; isCurrent?: boolean }> =
+    Array.isArray(periodsData) ? periodsData : (periodsData?.periods ?? periodsData?.data ?? []);
+
+  // Count pending commissions (calculated = pending approval)
+  const pendingCount = commissions.filter(c => c.status === 'calculated').length;
+
+  const handleApproveCommission = async (commissionId: string) => {
+    try {
+      await approveMutation.mutateAsync([commissionId]);
+      toast.success(`Comisión aprobada para pago`);
+    } catch {
+      toast.error('Error al aprobar comisión');
+    }
   };
 
-  const totalPending = stats.pending.reduce((sum, c) => sum + c.totalCommission, 0);
-  const totalPaid = stats.paid.reduce((sum, c) => sum + c.totalCommission, 0);
-  const totalThisMonth = commissions
-    .filter(c => c.period === '2025-01')
-    .reduce((sum, c) => sum + c.totalCommission, 0);
+  const handleApproveAll = async () => {
+    const pendingIds = commissions
+      .filter(c => c.status === 'calculated')
+      .map(c => c.id);
 
-  const handleApproveCommission = (commissionId: string) => {
-    setCommissions(commissions.map(c =>
-      c.id === commissionId ? { ...c, status: 'approved' as const } : c
-    ));
-    toast.success(`Comisión ${commissionId} aprobada para pago`);
+    if (pendingIds.length === 0) {
+      toast.info('No hay comisiones pendientes para aprobar');
+      return;
+    }
+
+    try {
+      await approveMutation.mutateAsync(pendingIds);
+      toast.success(`${pendingIds.length} comisiones aprobadas para pago`);
+    } catch {
+      toast.error('Error al aprobar comisiones');
+    }
   };
 
-  const handleApproveAll = () => {
-    setCommissions(commissions.map(c =>
-      c.status === 'pending' ? { ...c, status: 'approved' as const } : c
-    ));
-    toast.success(`${stats.pending.length} comisiones aprobadas para pago`);
+  const handleCalculateCommissions = async () => {
+    const periodId = filterPeriod || periods.find((p) => p.isCurrent)?.id;
+    if (!periodId) {
+      toast.error('Selecciona un periodo primero');
+      return;
+    }
+    try {
+      await calculateMutation.mutateAsync({ periodId });
+      toast.success('Comisiones calculadas exitosamente');
+    } catch {
+      toast.error('Error al calcular comisiones');
+    }
   };
+
+  const handleMarkAsPaid = async () => {
+    const approvedIds = commissions
+      .filter(c => c.status === 'approved')
+      .map(c => c.id);
+
+    if (approvedIds.length === 0) {
+      toast.info('No hay comisiones aprobadas para marcar como pagadas');
+      return;
+    }
+
+    try {
+      await markPaidMutation.mutateAsync(approvedIds);
+      toast.success(`${approvedIds.length} comisiones marcadas como pagadas`);
+    } catch {
+      toast.error('Error al marcar comisiones como pagadas');
+    }
+  };
+
+  const handleClosePeriod = async () => {
+    // Find the current/active period from the list
+    const currentPeriod = periods.find((p) => p.isCurrent) || (periods.length > 0 ? periods[0] : null);
+    if (!currentPeriod) {
+      toast.info('No hay un periodo activo para cerrar');
+      return;
+    }
+
+    try {
+      await closePeriodMutation.mutateAsync(currentPeriod.id);
+      toast.success(`Periodo "${currentPeriod.name}" cerrado exitosamente`);
+    } catch {
+      toast.error('Error al cerrar el periodo');
+    }
+  };
+
+  // Count approved commissions for "Mark as Paid" button
+  const approvedCount = commissions.filter(c => c.status === 'approved').length;
 
   const handleExport = () => {
     toast.success('Exportando datos de comisiones...');
   };
 
+  // Commission rates from API or defaults
+  const commissionRates = useMemo(() => {
+    if (percentages && percentages.length > 0) {
+      return percentages.map(p => ({
+        level: `Nivel ${p.levelNumber}`,
+        personalRate: parseFloat(p.basePercentage),
+        teamRate: parseFloat(p.upgradedPercentage || '0'),
+        minSales: (p.qualifiersRequired || 0) * 1000, // Approximate
+      }));
+    }
+    return [
+      { level: 'Nivel 1', personalRate: 5.0, teamRate: 7.0, minSales: 0 },
+      { level: 'Nivel 2', personalRate: 2.5, teamRate: 4.0, minSales: 2000 },
+      { level: 'Nivel 3', personalRate: 1.5, teamRate: 2.5, minSales: 3000 },
+    ];
+  }, [percentages]);
+
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case 'calculated':
       case 'pending':
         return (
           <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
@@ -269,26 +213,27 @@ export default function ComisionesPage() {
     }
   };
 
-  const getLevelBadge = (level: string) => {
-    const colors: Record<string, string> = {
-      'Bronze': 'bg-orange-100 text-orange-700',
-      'Silver': 'bg-gray-200 text-gray-700',
-      'Gold': 'bg-yellow-100 text-yellow-700',
-      'Diamond': 'bg-blue-100 text-blue-700',
-      'Diamond Elite': 'bg-purple-100 text-purple-700',
+  const getTypeBadge = (type: string) => {
+    const typeLabels: Record<string, { label: string; color: string }> = {
+      'mlm': { label: 'MLM', color: 'bg-blue-100 text-blue-700' },
+      'cedea_bonus': { label: 'CEDEA', color: 'bg-purple-100 text-purple-700' },
+      'auto_bonus': { label: 'Auto Bono', color: 'bg-green-100 text-green-700' },
+      'adjustment': { label: 'Ajuste', color: 'bg-orange-100 text-orange-700' },
     };
+    const config = typeLabels[type] || { label: type, color: 'bg-gray-100 text-gray-700' };
     return (
-      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${colors[level] || 'bg-gray-100 text-gray-700'}`}>
-        {level}
+      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
+        {config.label}
       </span>
     );
   };
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | string) => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) || 0 : amount;
     return new Intl.NumberFormat('es-MX', {
       style: 'currency',
       currency: 'MXN',
-    }).format(amount);
+    }).format(numAmount);
   };
 
   const formatDate = (dateString: string) => {
@@ -299,16 +244,8 @@ export default function ComisionesPage() {
     });
   };
 
-  const formatPeriod = (period: string) => {
-    const [year, month] = period.split('-');
-    const date = new Date(parseInt(year), parseInt(month) - 1);
-    return date.toLocaleDateString('es-MX', {
-      year: 'numeric',
-      month: 'long',
-    });
-  };
-
   return (
+    <PermissionGuard permissions={['commissions:read', 'commissions:*']}>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
@@ -323,19 +260,49 @@ export default function ComisionesPage() {
                 Administra y procesa comisiones de distribuidores
               </p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <Link href="/admin">
                 <Button variant="secondary">
-                  Volver al Dashboard
+                  Volver al Panel Principal
                 </Button>
               </Link>
-              {stats.pending.length > 0 && (
+              <Button
+                variant="outline"
+                className="border-white text-white hover:bg-white/10"
+                leftIcon={<CalculatorIcon className="h-5 w-5" />}
+                onClick={handleCalculateCommissions}
+                disabled={calculateMutation.isPending}
+              >
+                {calculateMutation.isPending ? 'Calculando...' : 'Calcular Comisiones'}
+              </Button>
+              {approvedCount > 0 && (
+                <Button
+                  variant="outline"
+                  className="border-white text-white hover:bg-white/10"
+                  leftIcon={<BanknotesIcon className="h-5 w-5" />}
+                  onClick={handleMarkAsPaid}
+                  disabled={markPaidMutation.isPending}
+                >
+                  {markPaidMutation.isPending ? 'Procesando...' : `Marcar como Pagadas (${approvedCount})`}
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                className="border-white text-white hover:bg-white/10"
+                leftIcon={<LockClosedIcon className="h-5 w-5" />}
+                onClick={handleClosePeriod}
+                disabled={closePeriodMutation.isPending}
+              >
+                {closePeriodMutation.isPending ? 'Cerrando...' : 'Cerrar Periodo'}
+              </Button>
+              {pendingCount > 0 && (
                 <Button
                   variant="primary"
                   leftIcon={<CheckCircleIcon className="h-5 w-5" />}
                   onClick={handleApproveAll}
+                  disabled={approveMutation.isPending}
                 >
-                  Aprobar Todas ({stats.pending.length})
+                  {approveMutation.isPending ? 'Aprobando...' : `Aprobar Todas (${pendingCount})`}
                 </Button>
               )}
             </div>
@@ -352,8 +319,8 @@ export default function ComisionesPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Pendientes de Pago</p>
-                  <p className="text-3xl font-bold text-yellow-600">{formatCurrency(totalPending)}</p>
-                  <p className="text-xs text-gray-500 mt-1">{stats.pending.length} comisiones</p>
+                  <p className="text-3xl font-bold text-yellow-600">{pendingCount}</p>
+                  <p className="text-xs text-gray-500 mt-1">comisiones calculadas</p>
                 </div>
                 <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
                   <ClockIcon className="h-6 w-6 text-yellow-600" />
@@ -366,9 +333,9 @@ export default function ComisionesPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Pagado</p>
-                  <p className="text-3xl font-bold text-green-600">{formatCurrency(totalPaid)}</p>
-                  <p className="text-xs text-gray-500 mt-1">{stats.paid.length} comisiones</p>
+                  <p className="text-sm text-gray-600 mb-1">Total Neto</p>
+                  <p className="text-3xl font-bold text-green-600">{formatCurrency(parseFloat(summary?.totalNetMxn || '0'))}</p>
+                  <p className="text-xs text-gray-500 mt-1">{summary?.transactionCount || 0} transacciones</p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                   <CheckCircleIcon className="h-6 w-6 text-green-600" />
@@ -381,9 +348,9 @@ export default function ComisionesPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Este Mes (Enero)</p>
-                  <p className="text-3xl font-bold text-[#003B7A]">{formatCurrency(totalThisMonth)}</p>
-                  <p className="text-xs text-gray-500 mt-1">2 distribuidores</p>
+                  <p className="text-sm text-gray-600 mb-1">Total Subtotal</p>
+                  <p className="text-3xl font-bold text-[#003B7A]">{formatCurrency(parseFloat(summary?.totalSubtotalMxn || '0'))}</p>
+                  <p className="text-xs text-gray-500 mt-1">Período seleccionado</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                   <BanknotesIcon className="h-6 w-6 text-blue-600" />
@@ -396,11 +363,11 @@ export default function ComisionesPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Promedio por Distribuidor</p>
+                  <p className="text-sm text-gray-600 mb-1">Total Retenciones</p>
                   <p className="text-3xl font-bold text-gray-900">
-                    {formatCurrency(totalThisMonth / 2)}
+                    {formatCurrency(parseFloat(summary?.totalRetentions || '0'))}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">Mes actual</p>
+                  <p className="text-xs text-gray-500 mt-1">IVA + ISR + RESICO</p>
                 </div>
                 <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
                   <ChartBarIcon className="h-6 w-6 text-purple-600" />
@@ -427,7 +394,11 @@ export default function ComisionesPage() {
                 <tbody>
                   {commissionRates.map((rate) => (
                     <tr key={rate.level} className="border-b border-gray-100">
-                      <td className="py-3 px-4">{getLevelBadge(rate.level)}</td>
+                      <td className="py-3 px-4">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                          {rate.level}
+                        </span>
+                      </td>
                       <td className="py-3 px-4 text-sm font-semibold text-green-600">{rate.personalRate}%</td>
                       <td className="py-3 px-4 text-sm font-semibold text-blue-600">{rate.teamRate}%</td>
                       <td className="py-3 px-4 text-sm text-gray-900">{formatCurrency(rate.minSales)}</td>
@@ -462,11 +433,14 @@ export default function ComisionesPage() {
                 <FunnelIcon className="h-5 w-5 text-gray-400" />
                 <select
                   value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
+                  onChange={(e) => {
+                    setFilterStatus(e.target.value as CommissionStatus | 'all');
+                    setPage(1);
+                  }}
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
                 >
                   <option value="all">Todos los Estados</option>
-                  <option value="pending">Pendientes</option>
+                  <option value="calculated">Calculadas</option>
                   <option value="approved">Aprobadas</option>
                   <option value="paid">Pagadas</option>
                   <option value="cancelled">Canceladas</option>
@@ -477,13 +451,18 @@ export default function ComisionesPage() {
               <div>
                 <select
                   value={filterPeriod}
-                  onChange={(e) => setFilterPeriod(e.target.value)}
+                  onChange={(e) => {
+                    setFilterPeriod(e.target.value);
+                    setPage(1);
+                  }}
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
                 >
-                  <option value="all">Todos los Períodos</option>
-                  <option value="2025-01">Enero 2025</option>
-                  <option value="2024-12">Diciembre 2024</option>
-                  <option value="2024-11">Noviembre 2024</option>
+                  <option value="">Todos los Períodos</option>
+                  {periods.map((period) => (
+                    <option key={period.id} value={period.id}>
+                      {period.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -500,118 +479,112 @@ export default function ComisionesPage() {
         </Card>
 
         {/* Commissions List */}
-        <div className="space-y-4">
-          {filteredCommissions.map((commission) => (
-            <Card key={commission.id}>
-              <CardContent className="p-6">
-                <div className="flex flex-col lg:flex-row lg:items-start gap-6">
-                  {/* Commission Info */}
-                  <div className="flex-1">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-bold text-gray-900">{commission.id}</h3>
-                          {getStatusBadge(commission.status)}
-                          {getLevelBadge(commission.distributor.level)}
+        {isLoading ? (
+          <Card>
+            <CardContent className="p-12">
+              <div className="text-center">
+                <div className="inline-block w-12 h-12 border-4 border-[#003B7A] border-t-transparent rounded-full animate-spin" />
+                <p className="mt-4 text-gray-600">Cargando comisiones...</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {commissions.map((commission) => (
+              <Card key={commission.id}>
+                <CardContent className="p-6">
+                  <div className="flex flex-col lg:flex-row lg:items-start gap-6">
+                    {/* Commission Info */}
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between mb-4">
+                        <div>
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-lg font-bold text-gray-900">{commission.id.slice(0, 8)}</h3>
+                            {getStatusBadge(commission.status)}
+                            {getTypeBadge(commission.commissionType)}
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <UserIcon className="h-4 w-4" />
+                            <span className="font-medium">{commission.customerName}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
+                            <CalendarIcon className="h-4 w-4" />
+                            <span className="font-medium">Periodo:</span>
+                            <span>{commission.periodCode}</span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <UserIcon className="h-4 w-4" />
-                          <span className="font-medium">{commission.distributor.name}</span>
-                          <span className="text-gray-400">•</span>
-                          <span>{commission.distributor.email}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-                          <CalendarIcon className="h-4 w-4" />
-                          <span className="font-medium">Período:</span>
-                          <span>{formatPeriod(commission.period)}</span>
-                          <span className="text-gray-400">•</span>
-                          <span>Pago programado: {formatDate(commission.paymentDate)}</span>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-[#003B7A]">
+                            {formatCurrency(commission.totalAmount)}
+                          </p>
+                          <p className="text-sm text-gray-600">Neto a Pagar</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold text-[#003B7A]">
-                          {formatCurrency(commission.totalCommission)}
+
+                      {/* Amount Breakdown */}
+                      <div className="grid grid-cols-3 gap-4 bg-gray-50 rounded-lg p-4 mb-4">
+                        <div>
+                          <p className="text-xs text-gray-600 mb-1">Subtotal Ganancias</p>
+                          <p className="text-lg font-bold text-gray-900">{formatCurrency(commission.subtotalEarnings)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600 mb-1">Retencion IVA</p>
+                          <p className="text-lg font-bold text-red-600">-{formatCurrency(commission.ivaWithholding || '0')}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600 mb-1">ISR</p>
+                          <p className="text-lg font-bold text-red-600">-{formatCurrency(commission.isrAmount || '0')}</p>
+                        </div>
+                      </div>
+
+                      {/* Additional Info */}
+                      {commission.status === 'approved' && commission.approvedAt && (
+                        <p className="text-sm text-blue-600">
+                          Aprobada el {formatDate(commission.approvedAt)}
                         </p>
-                        <p className="text-sm text-gray-600">Comisión Total</p>
-                      </div>
+                      )}
                     </div>
 
-                    {/* Sales Breakdown */}
-                    <div className="grid grid-cols-3 gap-4 bg-gray-50 rounded-lg p-4 mb-4">
-                      <div>
-                        <p className="text-xs text-gray-600 mb-1">Ventas Personales</p>
-                        <p className="text-lg font-bold text-gray-900">{formatCurrency(commission.personalSales)}</p>
-                        <p className="text-xs text-green-600 font-semibold mt-1">
-                          Comisión: {formatCurrency(commission.personalCommission)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-600 mb-1">Ventas de Equipo</p>
-                        <p className="text-lg font-bold text-gray-900">{formatCurrency(commission.teamSales)}</p>
-                        <p className="text-xs text-blue-600 font-semibold mt-1">
-                          Comisión: {formatCurrency(commission.teamCommission)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-600 mb-1">Bonos</p>
-                        <p className="text-lg font-bold text-gray-900">{formatCurrency(commission.bonuses)}</p>
-                        <p className="text-xs text-purple-600 font-semibold mt-1">
-                          Total: {formatCurrency(commission.totalSales)}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Additional Info */}
-                    {commission.status === 'paid' && commission.paidAt && (
-                      <p className="text-sm text-green-600">
-                        ✓ Pagada el {formatDate(commission.paidAt)}
-                      </p>
-                    )}
-                    {commission.status === 'cancelled' && commission.cancelReason && (
-                      <p className="text-sm text-red-600">
-                        ✗ Cancelada: {commission.cancelReason}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="lg:w-48 flex flex-col gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => toast.info('Función próximamente disponible')}
-                      className="w-full justify-center"
-                    >
-                      Ver Detalles
-                    </Button>
-                    {commission.status === 'pending' && (
+                    {/* Actions */}
+                    <div className="lg:w-48 flex flex-col gap-2">
                       <Button
-                        variant="primary"
+                        variant="outline"
                         size="sm"
-                        leftIcon={<CheckCircleIcon className="h-4 w-4" />}
-                        onClick={() => handleApproveCommission(commission.id)}
+                        onClick={() => toast.info('Función próximamente disponible')}
                         className="w-full justify-center"
                       >
-                        Aprobar Pago
+                        Ver Detalles
                       </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
-                      onClick={() => toast.success('Descargando recibo de comisión...')}
-                      className="w-full justify-center"
-                    >
-                      Descargar Recibo
-                    </Button>
+                      {commission.status === 'calculated' && (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          leftIcon={<CheckCircleIcon className="h-4 w-4" />}
+                          onClick={() => handleApproveCommission(commission.id)}
+                          disabled={approveMutation.isPending}
+                          className="w-full justify-center"
+                        >
+                          Aprobar Pago
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
+                        onClick={() => toast.success('Descargando recibo de comisión...')}
+                        className="w-full justify-center"
+                      >
+                        Descargar Recibo
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
 
-        {filteredCommissions.length === 0 && (
+        {!isLoading && commissions.length === 0 && (
           <Card>
             <CardContent className="p-12">
               <div className="text-center">
@@ -628,16 +601,26 @@ export default function ComisionesPage() {
         )}
 
         {/* Pagination */}
-        {filteredCommissions.length > 0 && (
+        {!isLoading && commissions.length > 0 && totalResults > 0 && (
           <div className="mt-6 flex items-center justify-between">
             <p className="text-sm text-gray-600">
-              Mostrando {filteredCommissions.length} de {commissions.length} comisiones
+              Mostrando {commissions.length} de {totalResults} comisiones (Página {page} de {totalPages})
             </p>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" disabled>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+              >
                 Anterior
               </Button>
-              <Button variant="outline" size="sm" disabled>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(p => p + 1)}
+                disabled={page >= totalPages}
+              >
                 Siguiente
               </Button>
             </div>
@@ -645,5 +628,6 @@ export default function ComisionesPage() {
         )}
       </div>
     </div>
+    </PermissionGuard>
   );
 }

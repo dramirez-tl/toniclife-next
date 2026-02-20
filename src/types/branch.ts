@@ -1,0 +1,137 @@
+// branch.ts - TypeScript types for Branches module
+// Ref: TONIC_LIFE_2.0_MASTER.md - Sección 4.2.4
+
+// ================================
+// BRANCH TYPES
+// ================================
+
+export interface Branch {
+  id: string;
+  code: string;
+  name: string;
+  parentBranchId?: string;
+  countryId?: string;
+  countryName?: string;
+  currencyCode?: string;
+  roundingMode?: string;
+  addressStreet?: string;
+  addressCity?: string;
+  addressState?: string;
+  addressZip?: string;
+  addressPhone?: string;
+  addressEmail?: string;
+  latitude?: number;
+  longitude?: number;
+  shippingFreeThreshold?: number;
+  shippingCost?: number;
+  ticketName?: string;
+  ticketAddress?: string;
+  ticketHeader?: string;
+  ticketFooter?: string;
+  ticketStartFolio?: string;
+  ticketEndFolio?: string;
+  isWarehouse: boolean;
+  isPickupPoint: boolean;
+  isPosEnabled: boolean;
+  isEcommerceEnabled: boolean;
+  botName?: string;
+  botEnabled: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// ================================
+// QUERY TYPES
+// ================================
+
+export interface BranchQueryParams {
+  search?: string;
+  countryId?: string;
+  isWarehouse?: boolean;
+  isPickupPoint?: boolean;
+  isPosEnabled?: boolean;
+  isActive?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+// ================================
+// RESPONSE TYPES
+// ================================
+
+export interface BranchListResponse {
+  data: Branch[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+// ================================
+// MUTATION TYPES
+// ================================
+
+export interface CreateBranchDto {
+  code: string;
+  name: string;
+  parentBranchId?: string;
+  countryId?: string;
+  currencyCode?: string;
+  roundingMode?: string;
+  addressStreet?: string;
+  addressCity?: string;
+  addressState?: string;
+  addressZip?: string;
+  addressPhone?: string;
+  addressEmail?: string;
+  latitude?: number;
+  longitude?: number;
+  shippingFreeThreshold?: number;
+  shippingCost?: number;
+  ticketName?: string;
+  ticketAddress?: string;
+  ticketHeader?: string;
+  ticketFooter?: string;
+  ticketStartFolio?: string;
+  ticketEndFolio?: string;
+  isWarehouse?: boolean;
+  isPickupPoint?: boolean;
+  isPosEnabled?: boolean;
+  isEcommerceEnabled?: boolean;
+  botName?: string;
+  botEnabled?: boolean;
+  isActive?: boolean;
+}
+
+export interface UpdateBranchDto {
+  code?: string;
+  name?: string;
+  parentBranchId?: string;
+  countryId?: string;
+  currencyCode?: string;
+  roundingMode?: string;
+  addressStreet?: string;
+  addressCity?: string;
+  addressState?: string;
+  addressZip?: string;
+  addressPhone?: string;
+  addressEmail?: string;
+  latitude?: number;
+  longitude?: number;
+  shippingFreeThreshold?: number;
+  shippingCost?: number;
+  ticketName?: string;
+  ticketAddress?: string;
+  ticketHeader?: string;
+  ticketFooter?: string;
+  ticketStartFolio?: string;
+  ticketEndFolio?: string;
+  isWarehouse?: boolean;
+  isPickupPoint?: boolean;
+  isPosEnabled?: boolean;
+  isEcommerceEnabled?: boolean;
+  botName?: string;
+  botEnabled?: boolean;
+  isActive?: boolean;
+}

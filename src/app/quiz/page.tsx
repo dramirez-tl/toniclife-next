@@ -1,165 +1,304 @@
+// app/quiz/page.tsx - Health Quiz with API integration
+// Ref: TONIC_LIFE_2.0_MASTER.md - Sección 7 Health Quiz
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Header, Footer } from '@/components/layout';
-import { QuizWelcome } from '@/components/quiz/QuizWelcome';
-import { QuizQuestion } from '@/components/quiz/QuizQuestion';
-import { QuizResults } from '@/components/quiz/QuizResults';
-import { QuizProgress } from '@/components/quiz/QuizProgress';
-import { quizQuestions, getRecommendedBundle, productBundles } from '@/lib/mock-data';
-import type { QuizAnswer, WellnessGoal } from '@/types';
+import { QuizWelcome, QuizQuestion, QuizResults, QuizProgress } from '@/components/quiz';
+import { Card } from '@/components/ui';
+import {
+  useStartQuiz,
+  useResumeQuiz,
+  useSubmitAnswer,
+  useSubmitMultipleAnswer,
+  useSetGender,
+  useSetGuestInfo,
+  useQuizResults,
+  useQuizFlow,
+} from '@/hooks/useQuiz';
+import { quizService } from '@/services/quiz.service';
+import type {
+  QuizGender,
+  StartQuizInput,
+  QuizQuestion as QuizQuestionType,
+  QuizResult,
+} from '@/types/quiz';
+import { toast } from 'sonner';
 
-type QuizStage = 'welcome' | 'questions' | 'results';
+type QuizStage = 'welcome' | 'questions' | 'results' | 'loading';
 
-interface UserInfo {
-  name: string;
-  email: string;
-  age: number;
-  gender: 'female' | 'male';
-}
+function QuizPageContent() {
+  const searchParams = useSearchParams();
+  const referralCode = searchParams.get('ref') || searchParams.get('referral');
 
-export default function QuizPage() {
   const [stage, setStage] = useState<QuizStage>('welcome');
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  const [answers, setAnswers] = useState<QuizAnswer[]>([]);
+  const [sessionToken, setSessionToken] = useState<string | null>(null);
+  const [currentQuestion, setCurrentQuestion] = useState<QuizQuestionType | null>(null);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [totalSteps, setTotalSteps] = useState(10);
+  const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
 
-  // Filter questions based on gender
-  const getFilteredQuestions = () => {
-    if (!userInfo) return quizQuestions.filter(q => q.id !== 1); // Exclude info question
+  const { storedToken, clearSession } = useQuizFlow();
+  const startQuiz = useStartQuiz();
+  const resumeQuiz = useResumeQuiz();
+  const submitAnswer = useSubmitAnswer();
+  const submitMultipleAnswer = useSubmitMultipleAnswer();
+  const setGender = useSetGender();
+  const setGuestInfo = useSetGuestInfo();
 
-    return quizQuestions.filter(q => {
-      // Always skip question 1 (info form)
-      if (q.id === 1) return false;
+  const { data: quizResults, isLoading: isLoadingResults } = useQuizResults(
+    stage === 'results' ? sessionToken : null
+  );
 
-      // Filter gender-specific questions
-      if (q.conditionalDisplay) {
-        if (q.conditionalDisplay.requiredAnswer === 'female' && userInfo.gender !== 'female') {
-          return false;
-        }
-        if (q.conditionalDisplay.requiredAnswer === 'male' && userInfo.gender !== 'male') {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  };
-
-  const filteredQuestions = getFilteredQuestions();
-  const totalQuestions = filteredQuestions.length;
-  const currentQuestion = filteredQuestions[currentQuestionIndex];
-
-  const handleStartQuiz = (info: UserInfo) => {
-    setUserInfo(info);
-    setStage('questions');
-    setCurrentQuestionIndex(0);
-  };
-
-  const handleAnswer = (questionId: number, optionId: string, value: number) => {
-    const newAnswer: QuizAnswer = { questionId, optionId, value };
-
-    setAnswers(prev => {
-      const existing = prev.findIndex(a => a.questionId === questionId);
-      if (existing >= 0) {
-        const updated = [...prev];
-        updated[existing] = newAnswer;
-        return updated;
-      }
-      return [...prev, newAnswer];
-    });
-
-    // Move to next question or results
-    if (currentQuestionIndex < totalQuestions - 1) {
-      setCurrentQuestionIndex(prev => prev + 1);
-    } else {
-      setStage('results');
+  // Check for existing session on mount
+  useEffect(() => {
+    const existingToken = quizService.getStoredSession();
+    if (existingToken) {
+      // Could auto-resume or show option to continue
     }
-  };
+  }, []);
 
-  const handlePrevious = () => {
-    if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(prev => prev - 1);
+  const handleStartQuiz = useCallback(
+    async (data: StartQuizInput, gender: QuizGender) => {
+      setStage('loading');
+
+      try {
+        // Include referral code if present
+        const startData: StartQuizInput = {
+          ...data,
+          referralCode: referralCode || data.referralCode,
+        };
+
+        const result = await startQuiz.mutateAsync(startData);
+
+        setSessionToken(result.sessionToken);
+        setTotalSteps(result.totalSteps);
+        setCurrentStep(result.currentStep);
+
+        // Set gender for the session
+        await setGender.mutateAsync({
+          sessionToken: result.sessionToken,
+          gender,
+        });
+
+        setCurrentQuestion(result.firstQuestion);
+        setStage('questions');
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || 'Error al iniciar la evaluación');
+        setStage('welcome');
+      }
+    },
+    [startQuiz, setGender, referralCode]
+  );
+
+  const handleResumeQuiz = useCallback(async () => {
+    const existingToken = quizService.getStoredSession();
+    if (!existingToken) return;
+
+    setStage('loading');
+
+    try {
+      const result = await resumeQuiz.mutateAsync(existingToken);
+
+      setSessionToken(result.sessionToken);
+      setTotalSteps(result.totalSteps);
+      setCurrentStep(result.currentStep);
+      setCurrentQuestion(result.firstQuestion);
+      setStage('questions');
+
+      toast.success('Evaluación reanudada');
+    } catch (error: any) {
+      toast.error('No se pudo reanudar la evaluación');
+      clearSession();
+      setStage('welcome');
     }
-  };
+  }, [resumeQuiz, clearSession]);
 
-  const handleRestart = () => {
+  const handleAnswer = useCallback(
+    async (questionKey: string, answerValue: string, answerLabel?: string) => {
+      if (!sessionToken) return;
+
+      // Save locally for UI feedback
+      setAnswers((prev) => ({ ...prev, [questionKey]: answerValue }));
+
+      try {
+        const result = await submitAnswer.mutateAsync({
+          sessionToken,
+          questionKey,
+          answerValue,
+          answerLabel,
+        });
+
+        setCurrentStep(result.currentStep);
+
+        if (result.isComplete) {
+          setStage('results');
+        } else if (result.nextQuestion) {
+          setCurrentQuestion(result.nextQuestion);
+        }
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || 'Error al guardar respuesta');
+      }
+    },
+    [sessionToken, submitAnswer]
+  );
+
+  const handleMultipleAnswer = useCallback(
+    async (questionKey: string, answerValues: string[], answerLabels?: string[]) => {
+      if (!sessionToken) return;
+
+      setAnswers((prev) => ({ ...prev, [questionKey]: answerValues }));
+
+      try {
+        const result = await submitMultipleAnswer.mutateAsync({
+          sessionToken,
+          questionKey,
+          answerValues,
+          answerLabels,
+        });
+
+        setCurrentStep(result.currentStep);
+
+        if (result.isComplete) {
+          setStage('results');
+        } else if (result.nextQuestion) {
+          setCurrentQuestion(result.nextQuestion);
+        }
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || 'Error al guardar respuesta');
+      }
+    },
+    [sessionToken, submitMultipleAnswer]
+  );
+
+  const handleSaveEmail = useCallback(
+    async (email: string, name?: string, phone?: string) => {
+      if (!sessionToken) return;
+
+      try {
+        await setGuestInfo.mutateAsync({
+          sessionToken,
+          email,
+          name,
+          phone,
+        });
+        toast.success('Información guardada correctamente');
+      } catch (error: any) {
+        toast.error('Error al guardar información');
+      }
+    },
+    [sessionToken, setGuestInfo]
+  );
+
+  const handleRestart = useCallback(() => {
+    clearSession();
+    setSessionToken(null);
+    setCurrentQuestion(null);
+    setCurrentStep(1);
+    setAnswers({});
     setStage('welcome');
-    setCurrentQuestionIndex(0);
-    setUserInfo(null);
-    setAnswers([]);
-  };
+  }, [clearSession]);
 
-  // Calculate results
-  const getResults = () => {
-    const recommendedBundle = getRecommendedBundle(
-      answers.map(a => ({ questionId: a.questionId, optionId: a.optionId }))
-    );
-
-    // Calculate health profile based on answers
-    const healthProfile = {
-      energy: calculateScore(answers, [2]),
-      digestion: calculateScore(answers, [3]),
-      stress: calculateScore(answers, [4]),
-      skin: calculateScore(answers, [6]),
-      immune: calculateScore(answers, [7]),
-      circulation: calculateScore(answers, [10]),
-      hormonal: calculateScore(answers, [8, 9])
-    };
-
-    return {
-      userInfo: userInfo!,
-      answers,
-      primaryGoal: recommendedBundle.goal,
-      recommendedProducts: recommendedBundle.products,
-      recommendedBundle,
-      healthProfile
-    };
-  };
-
-  const calculateScore = (answers: QuizAnswer[], questionIds: number[]) => {
-    const relevantAnswers = answers.filter(a => questionIds.includes(a.questionId));
-    if (relevantAnswers.length === 0) return 100;
-
-    const totalValue = relevantAnswers.reduce((sum, a) => sum + a.value, 0);
-    const maxValue = relevantAnswers.length * 2;
-    return Math.round(100 - (totalValue / maxValue) * 100);
-  };
+  const isLoading =
+    startQuiz.isPending ||
+    resumeQuiz.isPending ||
+    submitAnswer.isPending ||
+    submitMultipleAnswer.isPending;
 
   return (
     <>
       <Header />
       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Welcome Stage */}
           {stage === 'welcome' && (
-            <QuizWelcome onStart={handleStartQuiz} />
+            <QuizWelcome
+              onStart={handleStartQuiz}
+              onResume={handleResumeQuiz}
+              hasStoredSession={!!storedToken}
+              isLoading={isLoading}
+              referralCode={referralCode || undefined}
+            />
           )}
 
+          {/* Loading Stage */}
+          {stage === 'loading' && (
+            <div className="text-center py-20">
+              <div className="inline-block w-12 h-12 border-4 border-[#7AB82E] border-t-transparent rounded-full animate-spin" />
+              <p className="mt-4 text-gray-600">Preparando tu evaluación personalizada...</p>
+            </div>
+          )}
+
+          {/* Questions Stage */}
           {stage === 'questions' && currentQuestion && (
             <>
-              <QuizProgress
-                current={currentQuestionIndex + 1}
-                total={totalQuestions}
-              />
+              <QuizProgress current={currentStep} total={totalSteps} />
               <QuizQuestion
                 question={currentQuestion}
                 onAnswer={handleAnswer}
-                onPrevious={handlePrevious}
-                canGoPrevious={currentQuestionIndex > 0}
-                selectedAnswer={answers.find(a => a.questionId === currentQuestion.id)?.optionId}
+                onMultipleAnswer={handleMultipleAnswer}
+                selectedAnswer={answers[currentQuestion.questionKey]}
+                isLoading={isLoading}
               />
             </>
           )}
 
-          {stage === 'results' && userInfo && (
-            <QuizResults
-              result={getResults()}
-              onRestart={handleRestart}
-            />
+          {/* Results Stage */}
+          {stage === 'results' && (
+            <>
+              {isLoadingResults ? (
+                <div className="text-center py-20">
+                  <div className="inline-block w-12 h-12 border-4 border-[#7AB82E] border-t-transparent rounded-full animate-spin" />
+                  <p className="mt-4 text-gray-600">Generando tus recomendaciones...</p>
+                </div>
+              ) : quizResults ? (
+                <QuizResults
+                  result={quizResults}
+                  onRestart={handleRestart}
+                  onSaveEmail={handleSaveEmail}
+                />
+              ) : (
+                <Card className="text-center py-12" padding="lg">
+                  <p className="text-gray-600">No se pudieron cargar los resultados.</p>
+                  <button
+                    onClick={handleRestart}
+                    className="mt-4 text-[#7AB82E] hover:underline"
+                  >
+                    Intentar de nuevo
+                  </button>
+                </Card>
+              )}
+            </>
           )}
         </div>
       </main>
       <Footer />
     </>
+  );
+}
+
+function QuizLoadingFallback() {
+  return (
+    <>
+      <Header />
+      <main className="min-h-screen pt-32 pb-20 bg-gradient-to-b from-gray-50 to-white">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center py-20">
+            <div className="inline-block w-12 h-12 border-4 border-[#7AB82E] border-t-transparent rounded-full animate-spin" />
+            <p className="mt-4 text-gray-600">Cargando...</p>
+          </div>
+        </div>
+      </main>
+      <Footer />
+    </>
+  );
+}
+
+export default function QuizPage() {
+  return (
+    <Suspense fallback={<QuizLoadingFallback />}>
+      <QuizPageContent />
+    </Suspense>
   );
 }

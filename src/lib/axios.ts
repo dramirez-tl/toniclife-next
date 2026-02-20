@@ -3,7 +3,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 const ACCESS_TOKEN_KEY = 'accessToken';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -33,6 +33,35 @@ let failedQueue: Array<{
   reject: (error: Error) => void;
 }> = [];
 
+// Auth endpoints that should NOT trigger token refresh on 401
+const AUTH_ENDPOINTS = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/verify-email',
+  '/auth/refresh',
+];
+
+// Public endpoints that should NOT redirect to login on 401
+const PUBLIC_ENDPOINTS = [
+  '/cart',
+  '/checkout',
+  '/products',
+  '/categories',
+  '/quiz',
+];
+
+const isAuthEndpoint = (url?: string): boolean => {
+  if (!url) return false;
+  return AUTH_ENDPOINTS.some((endpoint) => url.includes(endpoint));
+};
+
+const isPublicEndpoint = (url?: string): boolean => {
+  if (!url) return false;
+  return PUBLIC_ENDPOINTS.some((endpoint) => url.includes(endpoint));
+};
+
 const processQueue = (error: Error | null, token: string | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) {
@@ -50,6 +79,16 @@ api.interceptors.response.use(
     const originalRequest = error.config as InternalAxiosRequestConfig & {
       _retry?: boolean;
     };
+
+    // Don't try to refresh token for auth endpoints - just pass through the error
+    if (isAuthEndpoint(originalRequest?.url)) {
+      return Promise.reject(error);
+    }
+
+    // Don't redirect to login for public endpoints - just pass through the error
+    if (isPublicEndpoint(originalRequest?.url)) {
+      return Promise.reject(error);
+    }
 
     // Handle 401 errors (unauthorized)
     if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
@@ -79,7 +118,7 @@ api.interceptors.response.use(
           throw new Error('No refresh token available');
         }
 
-        const response = await api.post('/v1/auth/refresh', { refreshToken });
+        const response = await api.post('/auth/refresh', { refreshToken });
         const { accessToken } = response.data;
 
         if (typeof window !== 'undefined') {
@@ -95,11 +134,13 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError as Error, null);
 
-        // Clear tokens and redirect to login
+        // Clear tokens (including cookie used by middleware) and redirect to login
         if (typeof window !== 'undefined') {
           localStorage.removeItem(ACCESS_TOKEN_KEY);
           localStorage.removeItem('refreshToken');
           localStorage.removeItem('user');
+          document.cookie = `${ACCESS_TOKEN_KEY}=; path=/; max-age=0`;
+          document.cookie = `authRole=; path=/; max-age=0`;
 
           // Only redirect if not already on login page
           if (!window.location.pathname.includes('/login')) {

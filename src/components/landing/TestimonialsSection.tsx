@@ -2,12 +2,39 @@
 
 import { useState } from 'react';
 import { Card, Badge } from '@/components/ui';
-import { testimonials } from '@/lib/mock-data';
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
   StarIcon
 } from '@heroicons/react/24/solid';
+
+// Testimonios estáticos - contenido de marketing
+const testimonials = [
+  {
+    id: '1',
+    name: 'María García',
+    location: 'Ciudad de México',
+    quote: 'Después de 3 meses usando los productos de Tonic Life, mi energía ha mejorado increíblemente. Me siento más activa y con mejor ánimo cada día.',
+    rating: 5,
+    products: ['energia-vital', 'inmuno-plus'],
+  },
+  {
+    id: '2',
+    name: 'Carlos Rodríguez',
+    location: 'Guadalajara, Jalisco',
+    quote: 'Los suplementos digestivos han sido un cambio total para mí. Ya no tengo molestias después de comer y mi digestión es mucho mejor.',
+    rating: 5,
+    products: ['digestivo-natural', 'probioticos'],
+  },
+  {
+    id: '3',
+    name: 'Ana Martínez',
+    location: 'Monterrey, Nuevo León',
+    quote: 'Empecé con el kit de inicio y los resultados fueron evidentes desde la primera semana. Ahora toda mi familia usa productos Tonic Life.',
+    rating: 5,
+    products: ['kit-inicio', 'omega-3'],
+  },
+];
 
 export function TestimonialsSection() {
   const [activeIndex, setActiveIndex] = useState(0);

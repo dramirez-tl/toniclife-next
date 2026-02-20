@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { Card, Badge, Button } from '@/components/ui';
-import { ShoppingCartIcon, HeartIcon, EyeIcon } from '@heroicons/react/24/outline';
+import { ShoppingCartIcon, HeartIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
+import { useAddCartItem } from '@/hooks/useCart';
+import { useState } from 'react';
 import type { Product } from '@/types';
 
 interface ProductGridProps {
@@ -33,6 +35,21 @@ export function ProductGrid({ products, viewMode = 'grid' }: ProductGridProps) {
 
 // Grid Card Component
 function ProductCard({ product }: { product: Product }) {
+  const addToCart = useAddCartItem();
+  const [added, setAdded] = useState(false);
+
+  const handleAddToCart = () => {
+    addToCart.mutate(
+      { productId: product.id, quantity: 1 },
+      {
+        onSuccess: () => {
+          setAdded(true);
+          setTimeout(() => setAdded(false), 2000);
+        },
+      }
+    );
+  };
+
   return (
     <Card
       hover
@@ -58,24 +75,12 @@ function ProductCard({ product }: { product: Product }) {
 
       {/* Product Image */}
       <Link href={`/productos/${product.slug}`}>
-        <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center overflow-hidden">
+        <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center overflow-hidden cursor-pointer">
           <div className="relative w-full h-full flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
             <div className="w-28 h-28 bg-gradient-to-br from-[#7AB82E]/20 to-[#003B7A]/20 rounded-2xl flex items-center justify-center">
               <span className="text-3xl font-bold text-[#003B7A]">
                 {product.name.substring(0, 2).toUpperCase()}
               </span>
-            </div>
-          </div>
-
-          {/* Quick View Overlay */}
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all">
-              <button className="p-3 bg-white rounded-full shadow-lg hover:bg-[#7AB82E] hover:text-white transition-colors">
-                <EyeIcon className="h-5 w-5" />
-              </button>
-              <button className="p-3 bg-white rounded-full shadow-lg hover:bg-[#7AB82E] hover:text-white transition-colors">
-                <ShoppingCartIcon className="h-5 w-5" />
-              </button>
             </div>
           </div>
         </div>
@@ -122,8 +127,14 @@ function ProductCard({ product }: { product: Product }) {
               )}
             </div>
           </div>
-          <Button size="sm" leftIcon={<ShoppingCartIcon className="h-4 w-4" />}>
-            Agregar
+          <Button
+            size="sm"
+            leftIcon={added ? <CheckIcon className="h-4 w-4" /> : <ShoppingCartIcon className="h-4 w-4" />}
+            onClick={handleAddToCart}
+            disabled={addToCart.isPending}
+            variant={added ? 'success' : 'primary'}
+          >
+            {addToCart.isPending ? 'Agregando...' : added ? 'Agregado' : 'Agregar'}
           </Button>
         </div>
       </div>
@@ -133,6 +144,21 @@ function ProductCard({ product }: { product: Product }) {
 
 // List Item Component
 function ProductListItem({ product }: { product: Product }) {
+  const addToCart = useAddCartItem();
+  const [added, setAdded] = useState(false);
+
+  const handleAddToCart = () => {
+    addToCart.mutate(
+      { productId: product.id, quantity: 1 },
+      {
+        onSuccess: () => {
+          setAdded(true);
+          setTimeout(() => setAdded(false), 2000);
+        },
+      }
+    );
+  };
+
   return (
     <Card hover className="overflow-hidden" padding="none">
       <div className="flex flex-col sm:flex-row">
@@ -212,8 +238,13 @@ function ProductListItem({ product }: { product: Product }) {
                   ${product.price.toFixed(2)}
                 </span>
               </div>
-              <Button leftIcon={<ShoppingCartIcon className="h-4 w-4" />}>
-                Agregar al Carrito
+              <Button
+                leftIcon={added ? <CheckIcon className="h-4 w-4" /> : <ShoppingCartIcon className="h-4 w-4" />}
+                onClick={handleAddToCart}
+                disabled={addToCart.isPending}
+                variant={added ? 'success' : 'primary'}
+              >
+                {addToCart.isPending ? 'Agregando...' : added ? 'Agregado' : 'Agregar al Carrito'}
               </Button>
             </div>
           </div>

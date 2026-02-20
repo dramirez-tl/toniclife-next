@@ -40,7 +40,7 @@ const reportTemplates = [
   {
     id: '3',
     name: 'Análisis de Red',
-    description: 'Estructura y performance de tu red de distribuidores',
+    description: 'Estructura y rendimiento de tu red de distribuidores',
     category: 'Red',
     fields: ['Distribuidor', 'Nivel', 'Ventas', 'Equipo', 'Rango'],
     icon: TableCellsIcon,
@@ -49,9 +49,9 @@ const reportTemplates = [
   {
     id: '4',
     name: 'Productos Más Vendidos',
-    description: 'Top productos por volumen y revenue',
+    description: 'Productos más vendidos por volumen e ingresos',
     category: 'Ventas',
-    fields: ['Producto', 'Unidades', 'Revenue', 'Margen', 'Tendencia'],
+    fields: ['Producto', 'Unidades', 'Ingresos', 'Margen', 'Tendencia'],
     icon: ChartBarIcon,
     color: 'orange',
   },
@@ -181,7 +181,7 @@ export default function ReportesPage() {
             </div>
             <Link href="/distribuidor">
               <Button variant="secondary">
-                Volver al Dashboard
+                Volver al Panel Principal
               </Button>
             </Link>
           </div>

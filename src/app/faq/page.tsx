@@ -51,12 +51,12 @@ export default function FAQPage() {
     },
     {
       question: '¿Puedo tomar varios productos al mismo tiempo?',
-      answer: 'Sí, muchos de nuestros productos están diseñados para trabajar en sinergia. El quiz de bienestar te ayudará a identificar la mejor combinación para tus objetivos. También puedes consultar las guías de cada producto o hablar con tu distribuidor personal.',
+      answer: 'Sí, muchos de nuestros productos están diseñados para trabajar en sinergia. La Evaluación de Salud te ayudará a identificar la mejor combinación para tus objetivos. También puedes consultar las guías de cada producto o hablar con tu distribuidor personal.',
       category: 'productos'
     },
     {
       question: '¿Cómo hago un pedido?',
-      answer: 'Puedes hacer un pedido directamente en nuestro sitio web agregando productos al carrito y completando el proceso de checkout. También puedes ordenar a través de tu distribuidor personal si tienes uno asignado.',
+      answer: 'Puedes hacer un pedido directamente en nuestro sitio web agregando productos al carrito y completando el proceso de compra. También puedes ordenar a través de tu distribuidor personal si tienes uno asignado.',
       category: 'pedidos'
     },
     {
@@ -76,7 +76,7 @@ export default function FAQPage() {
     },
     {
       question: '¿Cuánto cuesta el envío?',
-      answer: 'El costo de envío varía según tu ubicación y el peso del paquete. Ofrecemos ENVÍO GRATIS en pedidos superiores a $50 USD. Puedes ver el costo exacto de envío al momento del checkout antes de completar tu compra.',
+      answer: 'El costo de envío varía según tu ubicación y el peso del paquete. Ofrecemos ENVÍO GRATIS en pedidos superiores a $50 USD. Puedes ver el costo exacto de envío al momento de la compra antes de confirmar tu pedido.',
       category: 'envios'
     },
     {

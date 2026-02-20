@@ -119,7 +119,7 @@ Le recomendamos revisar estos Términos periódicamente para estar informado de 
       title: '15. Contacto',
       content: `Si tiene preguntas sobre estos Términos y Condiciones, puede contactarnos en:
 
-Email: legal@toniclife.com
+Correo electrónico: legal@toniclife.com
 Teléfono: +52 55 1234 5678
 Dirección: Av. Insurgentes Sur 1602, Crédito Constructor, Benito Juárez, 03940 CDMX, México`
     }

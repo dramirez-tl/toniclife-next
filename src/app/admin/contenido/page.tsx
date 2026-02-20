@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
+import { PermissionGuard } from '@/components/auth';
 import {
   DocumentTextIcon,
   MagnifyingGlassIcon,
@@ -294,6 +295,7 @@ export default function ContenidoPage() {
   };
 
   return (
+    <PermissionGuard permissions={['settings:read']}>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
@@ -311,7 +313,7 @@ export default function ContenidoPage() {
             <div className="flex gap-3">
               <Link href="/admin">
                 <Button variant="secondary">
-                  Volver al Dashboard
+                  Volver al Panel Principal
                 </Button>
               </Link>
               <Button
@@ -577,5 +579,6 @@ export default function ContenidoPage() {
         )}
       </div>
     </div>
+    </PermissionGuard>
   );
 }

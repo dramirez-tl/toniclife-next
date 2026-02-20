@@ -19,7 +19,7 @@ export interface Product {
   dosage?: string;
   ingredients?: string[];
   combinations?: string[];
-  category: ProductCategory;
+  category: ProductCategory | string;
   tags: string[];
   price: number;
   compareAtPrice?: number;
@@ -219,3 +219,22 @@ export interface ContactForm {
   subject: string;
   message: string;
 }
+
+// Re-export API types from product module
+// These are the types that match the backend API
+export * from './product';
+
+// Re-export POS types
+export * from './pos';
+
+// Re-export Cart types
+export * from './cart';
+
+// Re-export Quiz types
+export * from './quiz';
+
+// Re-export Inventory types
+export * from './inventory';
+
+// Re-export Notification types
+export * from './notification';

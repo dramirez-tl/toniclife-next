@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Card } from '@/components/ui';
-import { productCategories } from '@/lib/mock-data';
+import { useCategories } from '@/hooks/useProducts';
 import {
   BoltIcon,
   SparklesIcon,
@@ -10,34 +10,60 @@ import {
   MoonIcon,
   ShieldCheckIcon,
   ScaleIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  BeakerIcon,
+  StarIcon
 } from '@heroicons/react/24/outline';
 
 const categoryIcons: Record<string, React.ReactNode> = {
-  energia: <BoltIcon className="h-8 w-8" />,
-  detox: <SparklesIcon className="h-8 w-8" />,
-  belleza: <SparklesIcon className="h-8 w-8" />,
-  estres: <MoonIcon className="h-8 w-8" />,
-  hormonal: <HeartIcon className="h-8 w-8" />,
-  masculino: <ShieldCheckIcon className="h-8 w-8" />,
-  inmune: <ShieldCheckIcon className="h-8 w-8" />,
-  circulacion: <ArrowPathIcon className="h-8 w-8" />,
-  peso: <ScaleIcon className="h-8 w-8" />
+  'sistema-digestivo': <SparklesIcon className="h-8 w-8" />,
+  'sistema-inmunologico': <ShieldCheckIcon className="h-8 w-8" />,
+  'sistema-nervioso': <MoonIcon className="h-8 w-8" />,
+  'sistema-cardiovascular': <HeartIcon className="h-8 w-8" />,
+  'control-de-peso': <ScaleIcon className="h-8 w-8" />,
+  'energia-vitalidad': <BoltIcon className="h-8 w-8" />,
+  'belleza-cuidado': <SparklesIcon className="h-8 w-8" />,
+  'nutricion-deportiva': <BoltIcon className="h-8 w-8" />,
+  'salud-osea-articular': <ArrowPathIcon className="h-8 w-8" />,
+  'kits-inicio': <StarIcon className="h-8 w-8" />
 };
 
 const categoryColors: Record<string, { bg: string; text: string; hover: string }> = {
-  energia: { bg: 'bg-amber-50', text: 'text-amber-600', hover: 'hover:bg-amber-100' },
-  detox: { bg: 'bg-emerald-50', text: 'text-emerald-600', hover: 'hover:bg-emerald-100' },
-  belleza: { bg: 'bg-pink-50', text: 'text-pink-600', hover: 'hover:bg-pink-100' },
-  estres: { bg: 'bg-indigo-50', text: 'text-indigo-600', hover: 'hover:bg-indigo-100' },
-  hormonal: { bg: 'bg-rose-50', text: 'text-rose-600', hover: 'hover:bg-rose-100' },
-  masculino: { bg: 'bg-blue-50', text: 'text-blue-600', hover: 'hover:bg-blue-100' },
-  inmune: { bg: 'bg-green-50', text: 'text-green-600', hover: 'hover:bg-green-100' },
-  circulacion: { bg: 'bg-red-50', text: 'text-red-600', hover: 'hover:bg-red-100' },
-  peso: { bg: 'bg-purple-50', text: 'text-purple-600', hover: 'hover:bg-purple-100' }
+  'sistema-digestivo': { bg: 'bg-emerald-50', text: 'text-emerald-600', hover: 'hover:bg-emerald-100' },
+  'sistema-inmunologico': { bg: 'bg-green-50', text: 'text-green-600', hover: 'hover:bg-green-100' },
+  'sistema-nervioso': { bg: 'bg-indigo-50', text: 'text-indigo-600', hover: 'hover:bg-indigo-100' },
+  'sistema-cardiovascular': { bg: 'bg-red-50', text: 'text-red-600', hover: 'hover:bg-red-100' },
+  'control-de-peso': { bg: 'bg-purple-50', text: 'text-purple-600', hover: 'hover:bg-purple-100' },
+  'energia-vitalidad': { bg: 'bg-amber-50', text: 'text-amber-600', hover: 'hover:bg-amber-100' },
+  'belleza-cuidado': { bg: 'bg-pink-50', text: 'text-pink-600', hover: 'hover:bg-pink-100' },
+  'nutricion-deportiva': { bg: 'bg-orange-50', text: 'text-orange-600', hover: 'hover:bg-orange-100' },
+  'salud-osea-articular': { bg: 'bg-teal-50', text: 'text-teal-600', hover: 'hover:bg-teal-100' },
+  'kits-inicio': { bg: 'bg-blue-50', text: 'text-blue-600', hover: 'hover:bg-blue-100' }
 };
 
+const defaultColors = { bg: 'bg-gray-50', text: 'text-gray-600', hover: 'hover:bg-gray-100' };
+
 export function CategoriesSection() {
+  const { data: categories, isLoading } = useCategories();
+
+  if (isLoading) {
+    return (
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <div className="h-12 bg-gray-200 rounded w-64 mx-auto mb-4 animate-pulse" />
+            <div className="h-6 bg-gray-200 rounded w-96 mx-auto animate-pulse" />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-6">
+            {[...Array(10)].map((_, i) => (
+              <div key={i} className="bg-gray-200 rounded-lg h-40 animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="py-20 bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -54,12 +80,13 @@ export function CategoriesSection() {
 
         {/* Categories Grid */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-6">
-          {productCategories.map((category) => {
-            const colors = categoryColors[category.id] || categoryColors.energia;
+          {categories?.map((category) => {
+            const slug = category.slug || '';
+            const colors = categoryColors[slug] || defaultColors;
             return (
               <Link
                 key={category.id}
-                href={`/productos/${category.id}`}
+                href={`/productos?categoria=${slug}`}
                 className="group"
               >
                 <Card
@@ -69,7 +96,7 @@ export function CategoriesSection() {
                 >
                   {/* Icon */}
                   <div className={`w-16 h-16 mx-auto rounded-2xl ${colors.bg} flex items-center justify-center ${colors.text} group-hover:scale-110 transition-transform duration-300`}>
-                    {categoryIcons[category.id]}
+                    {categoryIcons[slug] || <BeakerIcon className="h-8 w-8" />}
                   </div>
 
                   {/* Name */}
@@ -102,7 +129,7 @@ export function CategoriesSection() {
                 ¿No sabes por dónde empezar?
               </h3>
               <p className="mt-4 text-gray-600">
-                Nuestro Health Quiz te ayudará a identificar qué productos son ideales
+                Nuestra Evaluación de Salud te ayudará a identificar qué productos son ideales
                 para ti basándose en tus necesidades específicas de salud y bienestar.
               </p>
               <div className="mt-6 flex flex-wrap gap-4">
@@ -130,7 +157,7 @@ export function CategoriesSection() {
                   href="/quiz"
                   className="inline-flex items-center gap-2 bg-[#7AB82E] hover:bg-[#6aa025] text-white font-semibold px-6 py-3 rounded-full transition-colors"
                 >
-                  Hacer el Health Quiz
+                  Iniciar mi Evaluación
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                   </svg>
@@ -142,14 +169,15 @@ export function CategoriesSection() {
             <div className="relative">
               <div className="bg-gradient-to-br from-[#003B7A]/5 to-[#7AB82E]/10 rounded-2xl p-8">
                 <div className="grid grid-cols-3 gap-3">
-                  {productCategories.slice(0, 6).map((cat) => {
-                    const colors = categoryColors[cat.id] || categoryColors.energia;
+                  {categories?.slice(0, 6).map((cat) => {
+                    const catSlug = cat.slug || '';
+                    const colors = categoryColors[catSlug] || defaultColors;
                     return (
                       <div
                         key={cat.id}
                         className={`aspect-square ${colors.bg} rounded-xl flex items-center justify-center ${colors.text}`}
                       >
-                        {categoryIcons[cat.id]}
+                        {categoryIcons[catSlug] || <BeakerIcon className="h-8 w-8" />}
                       </div>
                     );
                   })}

@@ -72,7 +72,7 @@ export default function VentasPage() {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <ChartBarIcon className="h-10 w-10" />
-                <h1 className="text-4xl font-bold">Performance de Ventas</h1>
+                <h1 className="text-4xl font-bold">Rendimiento de Ventas</h1>
               </div>
               <p className="text-white/80 text-lg">
                 Analiza tu desempeño y el de tu equipo
@@ -80,7 +80,7 @@ export default function VentasPage() {
             </div>
             <Link href="/distribuidor">
               <Button variant="secondary">
-                Volver al Dashboard
+                Volver al Panel Principal
               </Button>
             </Link>
           </div>
@@ -192,7 +192,7 @@ export default function VentasPage() {
                 {/* Rank Goal */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">Progreso a Diamond</span>
+                    <span className="text-sm font-medium text-gray-700">Progreso a Diamante</span>
                     <span className="text-sm font-bold text-gray-900">
                       ${data.total.toLocaleString('es-MX')} / ${mockSalesData.goals.nextRank.toLocaleString('es-MX')}
                     </span>
@@ -294,7 +294,7 @@ export default function VentasPage() {
               <CardContent className="p-6">
                 <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                   <TrophyIcon className="h-5 w-5 text-yellow-500" />
-                  Top Performers
+                  Líderes del Mes
                 </h3>
                 <div className="space-y-3">
                   {mockSalesData.topPerformers.map((performer, index) => (

@@ -131,7 +131,7 @@ export default function ContactoPage() {
 
                   <div>
                     <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                      Email *
+                      Correo electrónico *
                     </label>
                     <input
                       type="email"
@@ -228,7 +228,7 @@ export default function ContactoPage() {
                 <div className="flex items-start gap-3">
                   <EnvelopeIcon className="h-6 w-6 text-[#7AB82E] flex-shrink-0 mt-1" />
                   <div>
-                    <p className="font-medium text-gray-900">Email</p>
+                    <p className="font-medium text-gray-900">Correo electrónico</p>
                     <p className="text-gray-600">soporte@toniclife.com</p>
                     <p className="text-sm text-gray-500">Respuesta en 24 hrs</p>
                   </div>
@@ -277,7 +277,7 @@ export default function ContactoPage() {
                 href="/faq"
                 className="inline-block px-4 py-2 bg-white text-[#003B7A] font-medium rounded-lg hover:bg-blue-50 transition-colors text-sm"
               >
-                Ver FAQ
+                Ver Preguntas Frecuentes
               </a>
             </div>
           </div>

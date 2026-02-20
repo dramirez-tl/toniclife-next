@@ -308,9 +308,9 @@ export default function BlogPage() {
               ✕
             </button>
             <div className="max-w-3xl mx-auto text-center">
-              <h2 className="text-2xl font-bold mb-2">Suscríbete a Nuestro Newsletter</h2>
+              <h2 className="text-2xl font-bold mb-2">Suscríbete a Nuestro Boletín de Novedades</h2>
               <p className="text-blue-100 mb-6">
-                Recibe artículos exclusivos, tips de bienestar y ofertas especiales directamente en tu inbox
+                Recibe artículos exclusivos, tips de bienestar y ofertas especiales directamente en tu correo
               </p>
               <div className="flex gap-3 max-w-md mx-auto">
                 <input

@@ -1,0 +1,80 @@
+// users.service.ts - Service for Users API
+// Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.2 Usuarios
+
+import api from '@/lib/api';
+import type {
+  User,
+  UserQueryParams,
+  UserListResponse,
+  CreateUserDto,
+  UpdateUserDto,
+} from '@/types/user';
+
+class UsersService {
+  /**
+   * Get all users with pagination and filters
+   */
+  async findAll(params: UserQueryParams = {}): Promise<UserListResponse> {
+    const queryParams = new URLSearchParams();
+
+    if (params.search) queryParams.append('search', params.search);
+    if (params.role) queryParams.append('role', params.role);
+    if (params.isActive !== undefined) queryParams.append('isActive', String(params.isActive));
+    if (params.page) queryParams.append('page', String(params.page));
+    if (params.limit) queryParams.append('limit', String(params.limit));
+    if (params.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+
+    const response = await api.get<UserListResponse>(`/users?${queryParams.toString()}`);
+    return response.data;
+  }
+
+  /**
+   * Get a single user by ID
+   */
+  async findById(id: string): Promise<User> {
+    const response = await api.get<User>(`/users/${id}`);
+    return response.data;
+  }
+
+  /**
+   * Create a new user
+   */
+  async create(dto: CreateUserDto): Promise<User> {
+    const response = await api.post<User>('/users', dto);
+    return response.data;
+  }
+
+  /**
+   * Update an existing user
+   */
+  async update(id: string, dto: UpdateUserDto): Promise<User> {
+    const response = await api.patch<User>(`/users/${id}`, dto);
+    return response.data;
+  }
+
+  /**
+   * Deactivate a user (soft delete)
+   */
+  async deactivate(id: string): Promise<void> {
+    await api.delete(`/users/${id}`);
+  }
+
+  /**
+   * Permanently delete a user
+   */
+  async hardDelete(id: string): Promise<void> {
+    await api.delete(`/users/${id}/hard`);
+  }
+
+  /**
+   * Activate a user
+   */
+  async activate(id: string): Promise<User> {
+    const response = await api.patch<User>(`/users/${id}`, { isActive: true });
+    return response.data;
+  }
+}
+
+export const usersService = new UsersService();
+export default usersService;

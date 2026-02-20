@@ -28,7 +28,7 @@ const mockProducts = [
     rating: 4.8,
     reviews: 234,
     image: '/products/vitamin-d.jpg',
-    badge: 'Bestseller',
+    badge: 'Más Vendido',
     stock: 25,
     features: {
       'Dosis diaria': '5000 IU D3 + 100mcg K2',
@@ -190,7 +190,7 @@ export default function ComparadorPage() {
                 Compara hasta 4 productos lado a lado
               </p>
             </div>
-            <Link href="/tienda">
+            <Link href="/productos">
               <Button variant="secondary">
                 Volver a la Tienda
               </Button>
@@ -213,14 +213,14 @@ export default function ComparadorPage() {
                 Agrega productos desde la tienda para compararlos lado a lado y encontrar la mejor opción para ti
               </p>
               <div className="flex gap-4 justify-center">
-                <Link href="/tienda">
+                <Link href="/productos">
                   <Button variant="primary" size="lg">
                     Explorar Productos
                   </Button>
                 </Link>
                 <Link href="/quiz">
                   <Button variant="outline" size="lg">
-                    Hacer Health Quiz
+                    Iniciar mi Evaluación
                   </Button>
                 </Link>
               </div>
@@ -315,7 +315,7 @@ export default function ComparadorPage() {
                               {/* Badge */}
                               {product.badge && (
                                 <div className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold mb-2 ${
-                                  product.badge === 'Bestseller' ? 'bg-purple-100 text-purple-800' :
+                                  product.badge === 'Más Vendido' ? 'bg-purple-100 text-purple-800' :
                                   product.badge === 'En oferta' ? 'bg-orange-100 text-orange-800' :
                                   'bg-blue-100 text-blue-800'
                                 }`}>
@@ -425,12 +425,12 @@ export default function ComparadorPage() {
                       ¿No estás seguro cuál elegir?
                     </h3>
                     <p className="text-white/90">
-                      Haz nuestro Health Quiz y recibe recomendaciones personalizadas
+                      Haz nuestra Evaluación de Salud y recibe recomendaciones personalizadas
                     </p>
                   </div>
                   <Link href="/quiz">
                     <Button variant="secondary" size="lg">
-                      Hacer Health Quiz
+                      Iniciar mi Evaluación
                     </Button>
                   </Link>
                 </div>

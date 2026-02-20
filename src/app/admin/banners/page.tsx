@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { PermissionGuard } from '@/components/auth';
 import {
   PlusIcon,
   PhotoIcon,
@@ -90,7 +91,7 @@ const banners = [
   },
   {
     id: 'BNR-005',
-    title: 'Spring Wellness Challenge',
+    title: 'Desafío de Bienestar Primavera',
     description: 'Desafío de primavera - comunidad',
     location: 'blog_sidebar',
     imageDesktop: '/banners/challenge-desktop.jpg',
@@ -107,13 +108,13 @@ const banners = [
   },
   {
     id: 'BNR-006',
-    title: 'Quiz de Bienestar Personalizado',
-    description: 'Banner promocional del quiz',
+    title: 'Evaluación de Bienestar Personalizada',
+    description: 'Banner promocional de la evaluación',
     location: 'products_sidebar',
     imageDesktop: '/banners/quiz-desktop.jpg',
     imageMobile: '/banners/quiz-mobile.jpg',
     linkUrl: '/quiz',
-    linkText: 'Comenzar Quiz',
+    linkText: 'Comenzar Evaluación',
     startDate: '2024-01-01',
     endDate: null,
     status: 'active',
@@ -166,7 +167,7 @@ const locations = [
   { value: 'cart_top', label: 'Carrito - Top' },
   { value: 'checkout_bottom', label: 'Checkout - Bottom' },
   { value: 'blog_sidebar', label: 'Blog - Sidebar' },
-  { value: 'account_dashboard', label: 'Cuenta - Dashboard' }
+  { value: 'account_dashboard', label: 'Cuenta - Panel Principal' }
 ];
 
 export default function BannersAdminPage() {
@@ -245,6 +246,7 @@ export default function BannersAdminPage() {
   };
 
   return (
+    <PermissionGuard permissions={['settings:read']}>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b">
@@ -513,5 +515,6 @@ export default function BannersAdminPage() {
         )}
       </div>
     </div>
+    </PermissionGuard>
   );
 }

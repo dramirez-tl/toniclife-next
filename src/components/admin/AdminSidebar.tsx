@@ -1,0 +1,367 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { useState, useMemo } from 'react';
+import {
+  HomeIcon,
+  UserGroupIcon,
+  ShoppingBagIcon,
+  CubeIcon,
+  DocumentTextIcon,
+  ChartBarIcon,
+  BriefcaseIcon,
+  Cog6ToothIcon,
+  ShieldCheckIcon,
+  ClipboardDocumentListIcon,
+  CurrencyDollarIcon,
+  TagIcon,
+  PhotoIcon,
+  UsersIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
+  ArrowLeftOnRectangleIcon,
+  ArrowRightOnRectangleIcon,
+  ComputerDesktopIcon,
+  BuildingStorefrontIcon,
+  GlobeAltIcon,
+  BellIcon,
+} from '@heroicons/react/24/outline';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { logoutAsync, selectUser, selectUserPermissions } from '@/store/slices/authSlice';
+import { toast } from 'sonner';
+
+interface NavItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  children?: { name: string; href: string }[];
+  // Permisos requeridos para ver este elemento (cualquiera de ellos)
+  permissions?: string[];
+}
+
+// Navegación con permisos requeridos
+const navigation: NavItem[] = [
+  { name: 'Panel Principal', href: '/admin', icon: HomeIcon }, // Todos pueden ver el panel principal
+  { name: 'Sucursales', href: '/admin/sucursales', icon: BuildingStorefrontIcon, permissions: ['settings:read', 'settings:*'] },
+  { name: 'Usuarios', href: '/admin/usuarios', icon: UserGroupIcon, permissions: ['users:read', 'users:*'] },
+  { name: 'Distribuidores', href: '/admin/distribuidores', icon: UsersIcon, permissions: ['customers:read', 'customers:*'] },
+  { name: 'Productos', href: '/admin/productos', icon: ShoppingBagIcon, permissions: ['products:read', 'products:*'] },
+  { name: 'Pedidos', href: '/admin/pedidos', icon: ClipboardDocumentListIcon, permissions: ['orders:read', 'orders:*'] },
+  {
+    name: 'Inventario',
+    href: '/admin/inventario',
+    icon: CubeIcon,
+    permissions: ['inventory:read', 'inventory:*'],
+    children: [
+      { name: 'Existencias General', href: '/admin/inventario' },
+      { name: 'Traspasos', href: '/admin/inventario/traspasos' },
+      { name: 'Ajustes', href: '/admin/inventario/ajustes' },
+    ],
+  },
+  { name: 'Comisiones', href: '/admin/comisiones', icon: CurrencyDollarIcon, permissions: ['commissions:read', 'commissions:*'] },
+  {
+    name: 'MLM',
+    href: '/admin/mlm',
+    icon: GlobeAltIcon,
+    permissions: ['mlm:read', 'mlm:*'],
+    children: [
+      { name: 'Rangos', href: '/admin/mlm/rangos' },
+      { name: 'Periodos', href: '/admin/mlm/periodos' },
+      { name: 'Puntos Acumulados', href: '/admin/mlm/rollover' },
+      { name: 'Estadísticas de Red', href: '/admin/mlm/estadisticas' },
+    ],
+  },
+  {
+    name: 'Facturación',
+    href: '/admin/facturacion',
+    icon: DocumentTextIcon,
+    permissions: ['billing:read', 'billing:*'],
+    children: [
+      { name: 'Facturas', href: '/admin/facturacion' },
+      { name: 'Datos Fiscales', href: '/admin/facturacion/datos-fiscales' },
+      { name: 'Factura Global', href: '/admin/facturacion/global' },
+      { name: 'Complemento de Pago', href: '/admin/facturacion/complemento-pago' },
+    ],
+  },
+  {
+    name: 'Reportes',
+    href: '/admin/reportes',
+    icon: ChartBarIcon,
+    permissions: ['reports:read', 'reports:*'],
+    children: [
+      { name: 'Panel Principal', href: '/admin/reportes' },
+      { name: 'Ventas', href: '/admin/reportes/ventas' },
+      { name: 'Inventario', href: '/admin/reportes/inventario' },
+      { name: 'Comisiones', href: '/admin/reportes/comisiones' },
+      { name: 'Clientes', href: '/admin/reportes/clientes' },
+    ],
+  },
+  {
+    name: 'RRHH',
+    href: '/admin/rrhh',
+    icon: BriefcaseIcon,
+    permissions: ['hr:read', 'hr:*'],
+    children: [
+      { name: 'Panel Principal', href: '/admin/rrhh' },
+      { name: 'Empleados', href: '/admin/rrhh/empleados' },
+      { name: 'Asistencia', href: '/admin/rrhh/asistencia' },
+      { name: 'Vacaciones', href: '/admin/rrhh/vacaciones' },
+      { name: 'Viáticos', href: '/admin/rrhh/viaticos' },
+    ],
+  },
+  { name: 'Cupones', href: '/admin/cupones', icon: TagIcon, permissions: ['settings:read', 'settings:*'] },
+  { name: 'Banners', href: '/admin/banners', icon: PhotoIcon, permissions: ['settings:read', 'settings:*'] },
+  { name: 'Contenido', href: '/admin/contenido', icon: ComputerDesktopIcon, permissions: ['settings:read', 'settings:*'] },
+  { name: 'Punto de Venta', href: '/admin/pos', icon: ComputerDesktopIcon, permissions: ['pos:read', 'pos:create', 'pos:*'] },
+  {
+    name: 'Auditoría',
+    href: '/admin/auditoria',
+    icon: ShieldCheckIcon,
+    permissions: ['audit:read', 'audit:*'],
+    children: [
+      { name: 'Panel Principal', href: '/admin/auditoria' },
+      { name: 'Logs', href: '/admin/auditoria/logs' },
+      { name: 'Alertas', href: '/admin/auditoria/alertas' },
+      { name: 'Reportes', href: '/admin/auditoria/reportes' },
+      { name: 'Superusuario', href: '/admin/auditoria/superusuario' },
+    ],
+  },
+  { name: 'Notificaciones', href: '/admin/notificaciones', icon: BellIcon, permissions: ['settings:read', 'settings:*'] },
+  { name: 'Logs', href: '/admin/logs', icon: ClipboardDocumentListIcon, permissions: ['audit:read', 'audit:*'] },
+  { name: 'Seguridad', href: '/admin/seguridad', icon: ShieldCheckIcon, permissions: ['settings:update', 'settings:*'] },
+  {
+    name: 'Configuración',
+    href: '/admin/configuracion',
+    icon: Cog6ToothIcon,
+    permissions: ['settings:read', 'settings:*'],
+    children: [
+      { name: 'General', href: '/admin/configuracion' },
+      { name: 'Catálogos', href: '/admin/configuracion/catalogos' },
+    ],
+  },
+];
+
+// Función para verificar si el usuario tiene al menos uno de los permisos requeridos
+function hasAnyPermission(userPermissions: string[], requiredPermissions?: string[]): boolean {
+  // Si no hay permisos requeridos, mostrar el elemento
+  if (!requiredPermissions || requiredPermissions.length === 0) {
+    return true;
+  }
+
+  // Verificar si tiene permiso wildcard total
+  if (userPermissions.includes('*')) {
+    return true;
+  }
+
+  // Verificar cada permiso requerido
+  return requiredPermissions.some((required) => {
+    const [requiredModule, requiredAction] = required.split(':');
+
+    return userPermissions.some((userPerm) => {
+      const [userModule, userAction] = userPerm.split(':');
+
+      // Coincidencia exacta
+      if (userPerm === required) return true;
+
+      // Wildcard de módulo (ej: "inventory:*" permite "inventory:read")
+      if (userModule === requiredModule && userAction === '*') return true;
+
+      // Wildcard global
+      if (userModule === '*' && userAction === '*') return true;
+
+      return false;
+    });
+  });
+}
+
+export function AdminSidebar() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+  const user = useAppSelector(selectUser);
+  const userPermissions = useAppSelector(selectUserPermissions);
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
+
+  // Filtrar navegación según permisos
+  const filteredNavigation = useMemo(() => {
+    // Super admin ve todo
+    if (user?.roles?.includes('super_admin')) {
+      return navigation;
+    }
+
+    return navigation.filter((item) => hasAnyPermission(userPermissions, item.permissions));
+  }, [user?.roles, userPermissions]);
+
+  const handleLogout = async () => {
+    try {
+      await dispatch(logoutAsync()).unwrap();
+      toast.success('Sesión cerrada correctamente');
+      router.push('/login');
+    } catch {
+      toast.error('Error al cerrar sesión');
+    }
+  };
+
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    if (!user) return 'AD';
+    const first = user.firstName?.[0] || '';
+    const last = user.lastName?.[0] || '';
+    return (first + last).toUpperCase() || 'AD';
+  };
+
+  // Get user display name
+  const getUserDisplayName = () => {
+    if (!user) return 'Admin';
+    return `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Admin';
+  };
+
+  // Get user role label
+  const getUserRoleLabel = () => {
+    const code = user?.roles?.[0];
+    if (!code) return 'Usuario';
+    if (code === 'super_admin') return 'Super Administrador';
+    if (code === 'administrador') return 'Administrador';
+    if (code === 'subadmin') return 'Sub-Administrador';
+    if (code === 'almacen') return 'Almacenista';
+    if (code === 'ventas_mostrador') return 'Ventas Mostrador';
+    if (code === 'contabilidad') return 'Contador';
+    if (code === 'rh') return 'RRHH';
+    if (code === 'auditor') return 'Auditor';
+    if (code === 'viewer') return 'Solo Lectura';
+    return 'Usuario';
+  };
+
+  const toggleExpand = (name: string) => {
+    setExpandedItems((prev) =>
+      prev.includes(name) ? prev.filter((item) => item !== name) : [...prev, name]
+    );
+  };
+
+  const isActive = (href: string) => {
+    if (href === '/admin') {
+      return pathname === '/admin';
+    }
+    return pathname.startsWith(href);
+  };
+
+  const isChildActive = (children?: { name: string; href: string }[]) => {
+    if (!children) return false;
+    return children.some((child) => pathname === child.href || pathname.startsWith(child.href + '/'));
+  };
+
+  return (
+    <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-[#003B7A] text-white flex flex-col">
+      {/* Logo */}
+      <div className="flex h-16 items-center justify-center border-b border-white/10 px-4">
+        <Link href="/admin" className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-[#7AB82E] rounded-lg flex items-center justify-center">
+            <span className="text-white font-bold text-sm">TL</span>
+          </div>
+          <span className="text-lg font-bold">Tonic Life Admin</span>
+        </Link>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto px-3 py-4">
+        <ul className="space-y-1">
+          {filteredNavigation.map((item) => {
+            const active = isActive(item.href);
+            const childActive = isChildActive(item.children);
+            const isExpanded = expandedItems.includes(item.name) || childActive;
+
+            return (
+              <li key={item.name}>
+                {item.children ? (
+                  <div>
+                    <button
+                      onClick={() => toggleExpand(item.name)}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                        active || childActive
+                          ? 'bg-white/10 text-white'
+                          : 'text-white/70 hover:bg-white/5 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <item.icon className="h-5 w-5 flex-shrink-0" />
+                        <span>{item.name}</span>
+                      </div>
+                      {isExpanded ? (
+                        <ChevronDownIcon className="h-4 w-4" />
+                      ) : (
+                        <ChevronRightIcon className="h-4 w-4" />
+                      )}
+                    </button>
+                    {isExpanded && (
+                      <ul className="mt-1 ml-8 space-y-1">
+                        {item.children.map((child) => {
+                          const childIsActive = pathname === child.href;
+                          return (
+                            <li key={child.name}>
+                              <Link
+                                href={child.href}
+                                className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
+                                  childIsActive
+                                    ? 'bg-[#7AB82E] text-white font-medium'
+                                    : 'text-white/60 hover:bg-white/5 hover:text-white'
+                                }`}
+                              >
+                                {child.name}
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                ) : (
+                  <Link
+                    href={item.href}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                      active
+                        ? 'bg-[#7AB82E] text-white'
+                        : 'text-white/70 hover:bg-white/5 hover:text-white'
+                    }`}
+                  >
+                    <item.icon className="h-5 w-5 flex-shrink-0" />
+                    <span>{item.name}</span>
+                  </Link>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      {/* User section */}
+      <div className="border-t border-white/10 p-4">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 bg-[#7AB82E] rounded-full flex items-center justify-center">
+            <span className="text-white font-bold text-sm">{getUserInitials()}</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-white truncate">{getUserDisplayName()}</p>
+            <p className="text-xs text-white/60 truncate">{getUserRoleLabel()}</p>
+          </div>
+        </div>
+        <div className="space-y-1">
+          <Link
+            href="/"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors"
+          >
+            <ArrowLeftOnRectangleIcon className="h-5 w-5" />
+            <span>Volver al sitio</span>
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-300 hover:bg-red-500/10 hover:text-red-200 transition-colors"
+          >
+            <ArrowRightOnRectangleIcon className="h-5 w-5" />
+            <span>Cerrar sesión</span>
+          </button>
+        </div>
+      </div>
+    </aside>
+  );
+}

@@ -236,7 +236,7 @@ export default function TestimoniosPage() {
             </p>
             <div className="flex flex-wrap justify-center gap-3">
               <div className="bg-white/20 backdrop-blur-sm px-6 py-3 rounded-full">
-                <p className="text-sm font-medium">⭐ 4.9/5 Rating Promedio</p>
+                <p className="text-sm font-medium">⭐ 4.9/5 Calificación Promedio</p>
               </div>
               <div className="bg-white/20 backdrop-blur-sm px-6 py-3 rounded-full">
                 <p className="text-sm font-medium">✓ {mockTestimonials.length} Testimonios Verificados</p>

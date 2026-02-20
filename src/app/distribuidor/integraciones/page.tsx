@@ -204,7 +204,7 @@ export default function IntegracionesPage() {
             </div>
             <Link href="/distribuidor">
               <Button variant="secondary">
-                Volver al Dashboard
+                Volver al Panel Principal
               </Button>
             </Link>
           </div>

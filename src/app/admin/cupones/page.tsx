@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { PermissionGuard } from '@/components/auth';
 import {
   MagnifyingGlassIcon,
   PlusIcon,
@@ -273,6 +274,7 @@ export default function CuponesAdminPage() {
   };
 
   return (
+    <PermissionGuard permissions={['products:read']}>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b">
@@ -556,5 +558,6 @@ export default function CuponesAdminPage() {
         </div>
       )}
     </div>
+    </PermissionGuard>
   );
 }

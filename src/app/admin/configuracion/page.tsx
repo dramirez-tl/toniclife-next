@@ -18,11 +18,12 @@ import {
   CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { PermissionGuard } from '@/components/auth';
 
 export default function ConfiguracionPage() {
   const [settings, setSettings] = useState({
     // General Settings
-    siteName: 'My Wellness Hub',
+    siteName: 'Tonic Life',
     siteUrl: 'https://mywellnesshub.com',
     supportEmail: 'soporte@mywellnesshub.com',
     supportPhone: '+52 33 1234 5678',
@@ -48,7 +49,7 @@ export default function ConfiguracionPage() {
     smtpUser: 'apikey',
     smtpSecure: true,
     emailFrom: 'noreply@mywellnesshub.com',
-    emailFromName: 'My Wellness Hub',
+    emailFromName: 'Tonic Life',
 
     // Notification Settings
     emailNotificationsEnabled: true,
@@ -91,7 +92,7 @@ export default function ConfiguracionPage() {
     { id: 'general', name: 'General', icon: Cog6ToothIcon },
     { id: 'business', name: 'Negocio', icon: BuildingStorefrontIcon },
     { id: 'shipping', name: 'Envíos', icon: TruckIcon },
-    { id: 'email', name: 'Email', icon: EnvelopeIcon },
+    { id: 'email', name: 'Correo', icon: EnvelopeIcon },
     { id: 'notifications', name: 'Notificaciones', icon: BellIcon },
     { id: 'payments', name: 'Pagos', icon: CreditCardIcon },
     { id: 'mlm', name: 'MLM', icon: CurrencyDollarIcon },
@@ -99,6 +100,7 @@ export default function ConfiguracionPage() {
   ];
 
   return (
+    <PermissionGuard permissions={['settings:read', 'settings:*']}>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
@@ -116,7 +118,7 @@ export default function ConfiguracionPage() {
             <div className="flex gap-3">
               <Link href="/admin">
                 <Button variant="secondary">
-                  Volver al Dashboard
+                  Volver al Panel Principal
                 </Button>
               </Link>
               <Button
@@ -194,7 +196,7 @@ export default function ConfiguracionPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Email de Soporte
+                          Correo de Soporte
                         </label>
                         <input
                           type="email"
@@ -280,7 +282,7 @@ export default function ConfiguracionPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Umbral de Stock Bajo
+                          Umbral de Existencias Bajas
                         </label>
                         <input
                           type="number"
@@ -380,7 +382,7 @@ export default function ConfiguracionPage() {
             {activeTab === 'email' && (
               <Card>
                 <CardContent className="p-6">
-                  <h2 className="text-xl font-bold text-gray-900 mb-6">Configuración de Email</h2>
+                  <h2 className="text-xl font-bold text-gray-900 mb-6">Configuración de Correo Electrónico</h2>
                   <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
@@ -407,7 +409,7 @@ export default function ConfiguracionPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Email From
+                          Remitente del Correo
                         </label>
                         <input
                           type="email"
@@ -717,5 +719,6 @@ export default function ConfiguracionPage() {
         </div>
       </div>
     </div>
+    </PermissionGuard>
   );
 }

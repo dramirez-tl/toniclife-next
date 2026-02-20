@@ -25,7 +25,7 @@ const footerLinks = {
     { name: 'Envíos', href: '/envios' },
     { name: 'Devoluciones', href: '/devoluciones' },
     { name: 'Contacto', href: '/contacto' },
-    { name: 'FAQs', href: '/faq' }
+    { name: 'Preguntas Frecuentes', href: '/faq' }
   ],
   legal: [
     { name: 'Términos y Condiciones', href: '/terminos' },
@@ -110,7 +110,7 @@ export function Footer() {
             <Link href="/" className="inline-block">
               <Image
                 src="/images/logo-white.png"
-                alt="Tonic Life - My Wellness Hub"
+                alt="Tonic Life - Tu Centro de Bienestar"
                 width={180}
                 height={60}
                 className="h-12 w-auto"
@@ -125,15 +125,15 @@ export function Footer() {
             <div className="flex items-center gap-4 mt-6">
               <div className="bg-white/10 rounded-lg px-3 py-2 text-xs">
                 <span className="block font-bold">BBB</span>
-                <span className="text-white/70">Accredited</span>
+                <span className="text-white/70">Acreditado</span>
               </div>
               <div className="bg-white/10 rounded-lg px-3 py-2 text-xs">
                 <span className="block font-bold">DSA</span>
-                <span className="text-white/70">Member</span>
+                <span className="text-white/70">Miembro</span>
               </div>
               <div className="bg-white/10 rounded-lg px-3 py-2 text-xs">
                 <span className="block font-bold">FDA</span>
-                <span className="text-white/70">Registered</span>
+                <span className="text-white/70">Registrado</span>
               </div>
             </div>
           </div>
@@ -195,7 +195,7 @@ export function Footer() {
                 1-800-TONIC-LIFE
               </li>
               <li>
-                <span className="block text-white font-medium">Email</span>
+                <span className="block text-white font-medium">Correo electrónico</span>
                 info@toniclife.com
               </li>
               <li>

@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { ReduxProvider } from "@/store/provider";
+import { QueryProvider } from "@/providers/QueryProvider";
+import { ReferralCodeCapture } from "@/components/ReferralCodeCapture";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,31 +17,32 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "My Wellness Hub by Tonic Life | Wellness Made Simple",
-  description: "Descubre tu fórmula ideal de bienestar con productos naturales de alta calidad. Health Quiz personalizado, recomendaciones únicas y envío gratis en pedidos +$99.",
-  keywords: "suplementos naturales, bienestar, salud, tonic life, health quiz, productos naturales",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'),
+  title: "Tonic Life | Tu Centro de Bienestar Natural",
+  description: "Descubre tu fórmula ideal de bienestar con productos naturales de alta calidad. Evaluación de Salud personalizada, recomendaciones únicas y envío gratis en pedidos +$99.",
+  keywords: "suplementos naturales, bienestar, salud, tonic life, evaluación de salud, productos naturales",
   icons: {
     icon: '/favicon.ico',
     shortcut: '/favicon.ico',
     apple: '/images/logo-icon.png',
   },
   openGraph: {
-    title: "My Wellness Hub by Tonic Life",
-    description: "Wellness Made Simple - Descubre tu fórmula ideal de bienestar",
+    title: "Tonic Life | Tu Centro de Bienestar Natural",
+    description: "Bienestar Natural, Vida Plena - Descubre tu fórmula ideal de bienestar",
     type: "website",
     images: [
       {
         url: '/images/logo.png',
         width: 1200,
         height: 630,
-        alt: 'Tonic Life - My Wellness Hub',
+        alt: 'Tonic Life - Tu Centro de Bienestar Natural',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: "My Wellness Hub by Tonic Life",
-    description: "Wellness Made Simple - Descubre tu fórmula ideal de bienestar",
+    title: "Tonic Life | Tu Centro de Bienestar Natural",
+    description: "Bienestar Natural, Vida Plena - Descubre tu fórmula ideal de bienestar",
     images: ['/images/logo.png'],
   },
 };
@@ -54,9 +57,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white`}
       >
-        <ReduxProvider>
-          {children}
-        </ReduxProvider>
+        <QueryProvider>
+          <ReduxProvider>
+            <ReferralCodeCapture />
+            {children}
+          </ReduxProvider>
+        </QueryProvider>
         <Toaster richColors position="top-right" />
       </body>
     </html>

@@ -175,7 +175,7 @@ export default function ClientesPage() {
             <div className="flex gap-3">
               <Link href="/distribuidor">
                 <Button variant="secondary">
-                  Volver al Dashboard
+                  Volver al Panel Principal
                 </Button>
               </Link>
               <Button
@@ -412,7 +412,7 @@ export default function ClientesPage() {
                       handleContact(customer, 'email');
                     }}
                   >
-                    Email
+                    Correo
                   </Button>
                 </div>
               </CardContent>

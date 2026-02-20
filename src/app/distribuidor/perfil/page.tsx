@@ -78,7 +78,7 @@ export default function PerfilPage() {
             </div>
             <Link href="/distribuidor">
               <Button variant="secondary">
-                Volver al Dashboard
+                Volver al Panel Principal
               </Button>
             </Link>
           </div>
@@ -130,7 +130,7 @@ export default function PerfilPage() {
                   onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                 />
                 <Input
-                  label="Email"
+                  label="Correo electrónico"
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -241,7 +241,7 @@ export default function PerfilPage() {
 
               <div className="space-y-4">
                 <div>
-                  <h4 className="font-semibold text-gray-900 mb-3">Email</h4>
+                  <h4 className="font-semibold text-gray-900 mb-3">Correo electrónico</h4>
                   <div className="space-y-3">
                     {[
                       { key: 'emailSales', label: 'Nuevas ventas' },

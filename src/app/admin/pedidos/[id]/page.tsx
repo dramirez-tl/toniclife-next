@@ -169,7 +169,7 @@ export default function OrderDetailAdminPage() {
   };
 
   const handleSendEmail = () => {
-    toast.success('Email de actualización enviado al cliente');
+    toast.success('Correo de actualización enviado al cliente');
   };
 
   const handleAddNote = () => {

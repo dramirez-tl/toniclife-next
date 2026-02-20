@@ -451,7 +451,7 @@ export default function HistoriasPage() {
               <div className="flex flex-wrap justify-center gap-4">
                 <Link href="/quiz">
                   <Button variant="secondary" size="lg">
-                    Hacer el Quiz Gratuito
+                    Iniciar mi Evaluación Gratuita
                   </Button>
                 </Link>
                 <Link href="/productos">

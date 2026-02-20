@@ -13,7 +13,7 @@ import {
 const steps = [
   {
     icon: <ClipboardDocumentListIcon className="h-8 w-8" />,
-    title: 'Responde el Quiz',
+    title: 'Responde la Evaluación',
     description: 'Contesta 10 preguntas simples sobre tu salud y bienestar'
   },
   {
@@ -56,7 +56,7 @@ export function QuizCTA() {
           <div className="text-center lg:text-left">
             <div className="inline-flex items-center gap-2 bg-[#7AB82E]/20 text-[#7AB82E] px-4 py-2 rounded-full text-sm font-medium mb-6">
               <SparklesIcon className="h-4 w-4" />
-              Quiz Personalizado
+              Evaluación Personalizada
             </div>
 
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight">
@@ -92,7 +92,7 @@ export function QuizCTA() {
                   className="bg-[#7AB82E] hover:bg-[#6aa025] text-white shadow-lg shadow-[#7AB82E]/30"
                   rightIcon={<ArrowRightIcon className="h-5 w-5" />}
                 >
-                  Comenzar Health Quiz
+                  Comenzar Evaluación de Salud
                 </Button>
               </Link>
               <p className="mt-4 text-sm text-white/60">

@@ -84,7 +84,7 @@ export default function ComunidadDesafiosPage() {
       progress: 65,
       reward: {
         points: 500,
-        badge: 'Wellness Warrior',
+        badge: 'Guerrero del Bienestar',
         prize: '15% descuento en próxima compra'
       },
       milestones: [

@@ -1,0 +1,313 @@
+// POS Service - Frontend API client for POS module
+// Ref: toniclife-api/src/modules/pos/
+
+import api from '@/lib/axios';
+import type {
+  // Cash Register
+  CashRegister,
+  CreateCashRegisterInput,
+  UpdateCashRegisterInput,
+  CashRegisterQueryParams,
+  CashRegisterListResponse,
+  // Session
+  Session,
+  ActiveSession,
+  OpenSessionInput,
+  CloseSessionInput,
+  SessionQueryParams,
+  SessionListResponse,
+  // Sale
+  Sale,
+  CreateSaleInput,
+  CancelSaleInput,
+  SaleQueryParams,
+  SaleListResponse,
+  DailySalesSummary,
+  // Payment
+  ProcessPaymentInput,
+  PaymentResult,
+  // Movement
+  CashMovement,
+  CreateCashMovementInput,
+  CashMovementQueryParams,
+  CashMovementListResponse,
+  CashBalance,
+  // Quick Product
+  QuickProduct,
+} from '@/types/pos';
+
+class PosService {
+  // ================================
+  // CASH REGISTERS
+  // ================================
+
+  /**
+   * Create a new cash register
+   */
+  async createRegister(data: CreateCashRegisterInput): Promise<CashRegister> {
+    const response = await api.post<CashRegister>('/pos/registers', data);
+    return response.data;
+  }
+
+  /**
+   * Get list of cash registers
+   */
+  async getRegisters(params?: CashRegisterQueryParams): Promise<CashRegisterListResponse> {
+    const response = await api.get<CashRegisterListResponse>('/pos/registers', { params });
+    return response.data;
+  }
+
+  /**
+   * Get available registers (not in use)
+   */
+  async getAvailableRegisters(branchId?: string): Promise<CashRegister[]> {
+    const response = await api.get<CashRegister[]>('/pos/registers/available', {
+      params: branchId ? { branchId } : undefined,
+    });
+    return response.data;
+  }
+
+  /**
+   * Get register by ID
+   */
+  async getRegisterById(id: string): Promise<CashRegister> {
+    const response = await api.get<CashRegister>(`/pos/registers/${id}`);
+    return response.data;
+  }
+
+  /**
+   * Update a cash register
+   */
+  async updateRegister(id: string, data: UpdateCashRegisterInput): Promise<CashRegister> {
+    const response = await api.patch<CashRegister>(`/pos/registers/${id}`, data);
+    return response.data;
+  }
+
+  // ================================
+  // SESSIONS
+  // ================================
+
+  /**
+   * Open a new session
+   */
+  async openSession(data: OpenSessionInput): Promise<Session> {
+    const response = await api.post<Session>('/pos/sessions/open', data);
+    return response.data;
+  }
+
+  /**
+   * Close a session
+   */
+  async closeSession(sessionId: string, data: CloseSessionInput): Promise<Session> {
+    const response = await api.post<Session>(`/pos/sessions/${sessionId}/close`, data);
+    return response.data;
+  }
+
+  /**
+   * Get list of sessions
+   */
+  async getSessions(params?: SessionQueryParams): Promise<SessionListResponse> {
+    const response = await api.get<SessionListResponse>('/pos/sessions', { params });
+    return response.data;
+  }
+
+  /**
+   * Get current user's active session
+   */
+  async getActiveSession(): Promise<ActiveSession | null> {
+    const response = await api.get<ActiveSession | null>('/pos/sessions/active');
+    return response.data;
+  }
+
+  /**
+   * Get session by ID
+   */
+  async getSessionById(id: string): Promise<Session> {
+    const response = await api.get<Session>(`/pos/sessions/${id}`);
+    return response.data;
+  }
+
+  // ================================
+  // SALES
+  // ================================
+
+  /**
+   * Create a new sale
+   */
+  async createSale(data: CreateSaleInput): Promise<Sale> {
+    const response = await api.post<Sale>('/pos/sales', data);
+    return response.data;
+  }
+
+  /**
+   * Process payment for a sale
+   */
+  async processPayment(data: ProcessPaymentInput): Promise<PaymentResult> {
+    const response = await api.post<PaymentResult>('/pos/sales/pay', data);
+    return response.data;
+  }
+
+  /**
+   * Get list of sales
+   */
+  async getSales(params?: SaleQueryParams): Promise<SaleListResponse> {
+    const response = await api.get<SaleListResponse>('/pos/sales', { params });
+    return response.data;
+  }
+
+  /**
+   * Get daily sales summary
+   */
+  async getDailySummary(branchId: string, date?: string): Promise<DailySalesSummary> {
+    const response = await api.get<DailySalesSummary>(`/pos/sales/summary/${branchId}`, {
+      params: date ? { date } : undefined,
+    });
+    return response.data;
+  }
+
+  /**
+   * Get sale by ID
+   */
+  async getSaleById(id: string): Promise<Sale> {
+    const response = await api.get<Sale>(`/pos/sales/${id}`);
+    return response.data;
+  }
+
+  /**
+   * Cancel a sale
+   */
+  async cancelSale(id: string, data: CancelSaleInput): Promise<Sale> {
+    const response = await api.patch<Sale>(`/pos/sales/${id}/cancel`, data);
+    return response.data;
+  }
+
+  // ================================
+  // CASH MOVEMENTS
+  // ================================
+
+  /**
+   * Create a cash movement (deposit/withdrawal)
+   */
+  async createMovement(data: CreateCashMovementInput): Promise<CashMovement> {
+    const response = await api.post<CashMovement>('/pos/movements', data);
+    return response.data;
+  }
+
+  /**
+   * Get list of cash movements
+   */
+  async getMovements(params?: CashMovementQueryParams): Promise<CashMovementListResponse> {
+    const response = await api.get<CashMovementListResponse>('/pos/movements', { params });
+    return response.data;
+  }
+
+  /**
+   * Get current balance for a session
+   */
+  async getBalance(sessionId: string): Promise<CashBalance> {
+    const response = await api.get<CashBalance>(`/pos/movements/balance/${sessionId}`);
+    return response.data;
+  }
+
+  /**
+   * Get movement by ID
+   */
+  async getMovementById(id: string): Promise<CashMovement> {
+    const response = await api.get<CashMovement>(`/pos/movements/${id}`);
+    return response.data;
+  }
+
+  /**
+   * Approve a withdrawal
+   */
+  async approveWithdrawal(id: string, notes?: string): Promise<CashMovement> {
+    const response = await api.patch<CashMovement>(`/pos/movements/${id}/approve`, {
+      notes,
+    });
+    return response.data;
+  }
+
+  /**
+   * Reject a withdrawal
+   */
+  async rejectWithdrawal(id: string): Promise<void> {
+    await api.delete(`/pos/movements/${id}`);
+  }
+
+  // ================================
+  // QUICK PRODUCT SEARCH
+  // ================================
+
+  /**
+   * Search products for POS (quick search by SKU or name)
+   */
+  async searchProducts(query: string, limit = 10): Promise<QuickProduct[]> {
+    // Use the existing products endpoint with search
+    const response = await api.get('/products', {
+      params: {
+        search: query,
+        isActive: true,
+        limit,
+      },
+    });
+    // Map to QuickProduct format
+    return response.data.data?.map((p: any) => ({
+      id: p.id,
+      sku: p.sku,
+      name: p.name,
+      slug: p.slug,
+      imageUrl: p.imageUrl,
+      basePrice: parseFloat(p.basePrice),
+      categoryName: p.categoryName,
+      stock: p.stock,
+      isActive: p.isActive,
+    })) || [];
+  }
+
+  /**
+   * Get product by SKU (for barcode scanning)
+   */
+  async getProductBySku(sku: string): Promise<QuickProduct | null> {
+    try {
+      const response = await api.get(`/products/sku/${sku}`);
+      const p = response.data;
+      return {
+        id: p.id,
+        sku: p.sku,
+        name: p.name,
+        slug: p.slug,
+        imageUrl: p.imageUrl,
+        basePrice: parseFloat(p.basePrice),
+        categoryName: p.categoryName,
+        stock: p.stock,
+        isActive: p.isActive,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  // ================================
+  // HELPERS
+  // ================================
+
+  /**
+   * Format currency for display
+   */
+  formatCurrency(amount: number, currencySymbol = '$'): string {
+    return `${currencySymbol}${amount.toLocaleString('es-MX', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }
+
+  /**
+   * Calculate change for cash payment
+   */
+  calculateChange(amountDue: number, amountReceived: number): number {
+    return Math.max(0, amountReceived - amountDue);
+  }
+}
+
+export const posService = new PosService();
+export default posService;

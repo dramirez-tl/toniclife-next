@@ -88,7 +88,7 @@ const mockActivities = [
     icon: ArrowTrendingUpIcon,
     color: 'orange',
     title: 'Progreso de Rango',
-    description: 'Estás a $5,000 de alcanzar Diamond',
+    description: 'Estás a $5,000 de alcanzar Diamante',
     timestamp: '2025-01-24T16:00:00',
     details: '87% completado',
   },
@@ -243,7 +243,7 @@ export default function ActividadPage() {
             </div>
             <Link href="/distribuidor">
               <Button variant="secondary">
-                Volver al Dashboard
+                Volver al Panel Principal
               </Button>
             </Link>
           </div>

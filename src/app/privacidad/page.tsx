@@ -39,7 +39,7 @@ export default function PrivacidadPage() {
 • Realizar investigación de mercado
 
 **Marketing y Comunicaciones:**
-• Enviar newsletters y ofertas promocionales
+• Enviar boletines informativos y ofertas promocionales
 • Informar sobre nuevos productos y eventos
 • Enviar contenido educativo relevante
 • Realizar encuestas de satisfacción
@@ -196,7 +196,7 @@ La fecha de "Última actualización" al comienzo de esta política indica cuánd
       title: '11. Contacto',
       content: `Si tiene preguntas, inquietudes o solicitudes sobre esta Política de Privacidad o nuestras prácticas de datos, puede contactarnos en:
 
-**Email:** privacidad@toniclife.com
+**Correo electrónico:** privacidad@toniclife.com
 **Teléfono:** +52 55 1234 5678
 **Dirección:**
 Tonic Life - Departamento de Privacidad

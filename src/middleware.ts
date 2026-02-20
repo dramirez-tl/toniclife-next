@@ -3,7 +3,6 @@ import type { NextRequest } from 'next/server';
 
 // Routes that require authentication
 const protectedRoutes = [
-  '/cuenta',
   '/distribuidor',
   '/admin',
 ];
@@ -11,53 +10,103 @@ const protectedRoutes = [
 // Routes that are only accessible when NOT authenticated
 const authRoutes = [
   '/login',
-  '/registro',
   '/forgot-password',
 ];
 
-// Routes that require specific roles
-const roleRoutes: Record<string, string[]> = {
-  '/admin': ['admin', 'super_admin'],
-  '/distribuidor': ['distributor', 'admin', 'super_admin'],
-};
+// Public registration routes that should be accessible even when authenticated
+// (e.g., distributor registration via referral link)
+const publicRegistrationRoutes = [
+  '/registro/distribuidor',
+];
+
+// Auth-only registration routes (login/register selection page)
+const authOnlyRoutes = [
+  '/registro',
+];
+
+// Admin roles that can access /admin/* routes (Spanish database role codes)
+const ADMIN_ROLES = [
+  'administrador',
+  'super_admin',
+  'subadmin',
+  'almacen',
+  'ventas_mostrador',
+  'rh',
+  'contabilidad',
+  'auditor',
+  'viewer',
+];
+
+// Distributor role for /distribuidor/* routes
+const DISTRIBUTOR_ROLE = 'distribuidor';
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Get tokens from cookies or localStorage (cookies for middleware)
-  const accessToken = request.cookies.get('accessToken')?.value;
+  // The client stores two small cookies for the middleware:
+  //   accessToken = "1"          → indicates the user is logged-in
+  //   authRole    = "administrador" (or other role code)
+  // The full JWT lives only in localStorage (it can exceed the 4 KB cookie
+  // limit when it embeds many permissions).
+  const isLoggedIn = !!request.cookies.get('accessToken')?.value;
+  const role = request.cookies.get('authRole')?.value || null;
 
   // Check if the current path is protected
   const isProtectedRoute = protectedRoutes.some((route) =>
     pathname.startsWith(route)
   );
 
-  // Check if the current path is an auth route (login, register, etc.)
+  // Check if the current path is an auth route (login, etc.)
   const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route));
 
-  // If trying to access protected route without token, redirect to login
-  if (isProtectedRoute && !accessToken) {
+  // Check if this is a public registration route (accessible even when authenticated)
+  const isPublicRegistrationRoute = publicRegistrationRoutes.some((route) =>
+    pathname.startsWith(route)
+  );
+
+  // Check if this is an auth-only registration route (only when NOT authenticated)
+  const isAuthOnlyRoute = authOnlyRoutes.some((route) =>
+    pathname === route || pathname === route + '/'
+  );
+
+  // If trying to access protected route without being logged in, redirect to login
+  if (isProtectedRoute && !isLoggedIn) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // If already authenticated and trying to access auth routes, redirect to home
-  if (isAuthRoute && accessToken) {
-    return NextResponse.redirect(new URL('/cuenta', request.url));
+  // If already authenticated and trying to access auth routes, redirect to dashboard
+  // But allow public registration routes (like /registro/distribuidor for referrals)
+  if ((isAuthRoute || isAuthOnlyRoute) && isLoggedIn && !isPublicRegistrationRoute) {
+    // Redirect admin roles to /admin, distributors to /distribuidor
+    if (role && ADMIN_ROLES.includes(role)) {
+      return NextResponse.redirect(new URL('/admin', request.url));
+    }
+    return NextResponse.redirect(new URL('/distribuidor', request.url));
   }
 
-  // Role-based access control
-  // Note: For full role checking, we'd need to decode the JWT or make an API call
-  // This is a basic check - full role validation should happen on the client/server
-  const matchedRoleRoute = Object.keys(roleRoutes).find((route) =>
-    pathname.startsWith(route)
-  );
+  // ── Role-based access control ──────────────────────────────────────────
+  if (isLoggedIn && (pathname.startsWith('/admin') || pathname.startsWith('/distribuidor'))) {
+    // /admin/* — only admin roles may enter
+    if (pathname.startsWith('/admin')) {
+      if (!role || !ADMIN_ROLES.includes(role)) {
+        // If the user is a distribuidor, send them to their dashboard
+        if (role === DISTRIBUTOR_ROLE) {
+          return NextResponse.redirect(new URL('/distribuidor', request.url));
+        }
+        // Otherwise redirect to the homepage
+        return NextResponse.redirect(new URL('/', request.url));
+      }
+    }
 
-  if (matchedRoleRoute && accessToken) {
-    // For now, we'll allow access and let client-side handle role validation
-    // A more robust solution would decode the JWT here or use a separate endpoint
-    // to validate roles server-side
+    // /distribuidor/* — only the distribuidor role (and admin roles for impersonation)
+    if (pathname.startsWith('/distribuidor')) {
+      const allowedForDistribuidor = [DISTRIBUTOR_ROLE, ...ADMIN_ROLES];
+      if (!role || !allowedForDistribuidor.includes(role)) {
+        return NextResponse.redirect(new URL('/', request.url));
+      }
+    }
   }
 
   return NextResponse.next();

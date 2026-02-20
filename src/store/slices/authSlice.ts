@@ -27,6 +27,17 @@ interface ApiError {
 // Helper to extract error message
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof AxiosError) {
+    // Handle 401 specifically for better UX
+    if (error.response?.status === 401) {
+      return 'Credenciales incorrectas. Verifica tu email y contraseña.';
+    }
+    // Handle other common errors
+    if (error.response?.status === 429) {
+      return 'Demasiados intentos. Espera un momento antes de intentar de nuevo.';
+    }
+    if (error.response?.status === 500) {
+      return 'Error del servidor. Intenta de nuevo más tarde.';
+    }
     return error.response?.data?.message || error.message || 'Error de conexión';
   }
   if (error instanceof Error) {
@@ -56,9 +67,9 @@ export const initializeAuth = createAsyncThunk(
         return null;
       }
 
-      // Verify token is still valid by fetching profile
-      const user = await authService.getProfile();
-      return user;
+      // Return stored user immediately for fast UI render
+      // Token validation happens via API interceptors on actual requests
+      return storedUser;
     } catch (error) {
       // Token is invalid, clear storage
       authService.clearTokens();
@@ -328,12 +339,18 @@ const authSlice = createSlice({
 export const { setUser, clearUser, setError, clearError, setInitialized } = authSlice.actions;
 export default authSlice.reducer;
 
+// Empty arrays for stable references (prevents re-renders)
+const EMPTY_ROLES: string[] = [];
+const EMPTY_PERMISSIONS: string[] = [];
+
 // Selectors
 export const selectUser = (state: { auth: AuthState }) => state.auth.user;
 export const selectIsAuthenticated = (state: { auth: AuthState }) => state.auth.isAuthenticated;
 export const selectIsLoading = (state: { auth: AuthState }) => state.auth.isLoading;
 export const selectIsInitialized = (state: { auth: AuthState }) => state.auth.isInitialized;
 export const selectAuthError = (state: { auth: AuthState }) => state.auth.error;
-export const selectUserRoles = (state: { auth: AuthState }) => state.auth.user?.roles ?? [];
-export const selectUserPermissions = (state: { auth: AuthState }) => state.auth.user?.permissions ?? [];
+export const selectUserRoles = (state: { auth: AuthState }): string[] => {
+  return state.auth.user?.roles ?? EMPTY_ROLES;
+};
+export const selectUserPermissions = (state: { auth: AuthState }) => state.auth.user?.permissions ?? EMPTY_PERMISSIONS;
 export const selectIsEmailVerified = (state: { auth: AuthState }) => !!state.auth.user?.emailVerifiedAt;

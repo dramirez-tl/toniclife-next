@@ -73,8 +73,8 @@ Me encantaría ayudarte a dar ese primer paso hacia [Beneficio Principal].
   },
   {
     id: '3',
-    title: 'Email - Presentación del Negocio',
-    type: 'Email',
+    title: 'Correo - Presentación del Negocio',
+    type: 'Correo',
     category: 'Oportunidad de Negocio',
     content: `Asunto: Una oportunidad que está cambiando vidas
 
@@ -97,7 +97,7 @@ Nuestro plan de compensación te permite ganar hasta 25% en comisiones directas,
 Saludos cordiales,
 [Tu Nombre]
 [Tu Contacto]`,
-    tags: ['Negocio', 'Email', 'Reclutamiento'],
+    tags: ['Negocio', 'Correo', 'Reclutamiento'],
     isFavorite: false,
     lastUsed: '2025-01-20',
     useCount: 29,
@@ -212,8 +212,8 @@ La pregunta real es: ¿puedes darte el lujo de NO tener un ingreso adicional?
   },
   {
     id: '8',
-    title: 'Email - Reactivación Cliente Inactivo',
-    type: 'Email',
+    title: 'Correo - Reactivación Cliente Inactivo',
+    type: 'Correo',
     category: 'Reactivación',
     content: `Asunto: Te extrañamos, [Nombre] 💚
 
@@ -234,7 +234,7 @@ Además, acabamos de lanzar [Nuevo producto] que estoy seguro/a te va a encantar
 
 Quedo atento/a,
 [Tu Nombre]`,
-    tags: ['Reactivación', 'Email', 'Promoción'],
+    tags: ['Reactivación', 'Correo', 'Promoción'],
     isFavorite: false,
     lastUsed: '2025-01-18',
     useCount: 23,
@@ -242,7 +242,7 @@ Quedo atento/a,
   },
 ];
 
-const scriptTypes = ['Todos', 'Llamada', 'WhatsApp', 'Email', 'Script'];
+const scriptTypes = ['Todos', 'Llamada', 'WhatsApp', 'Correo', 'Script'];
 const categories = ['Todas', 'Prospección', 'Seguimiento', 'Oportunidad de Negocio', 'Objeciones', 'Cierre', 'Referidos', 'Reactivación'];
 
 export default function ScriptsPage() {
@@ -316,7 +316,7 @@ export default function ScriptsPage() {
             <div className="flex gap-3">
               <Link href="/distribuidor">
                 <Button variant="secondary">
-                  Volver al Dashboard
+                  Volver al Panel Principal
                 </Button>
               </Link>
               <Button
@@ -453,7 +453,7 @@ export default function ScriptsPage() {
             const typeIcon =
               script.type === 'Llamada' ? PhoneIcon :
               script.type === 'WhatsApp' ? ChatBubbleLeftIcon :
-              script.type === 'Email' ? EnvelopeIcon :
+              script.type === 'Correo' ? EnvelopeIcon :
               ClipboardDocumentListIcon;
             const TypeIcon = typeIcon;
 
@@ -466,13 +466,13 @@ export default function ScriptsPage() {
                       <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                         script.type === 'Llamada' ? 'bg-blue-100' :
                         script.type === 'WhatsApp' ? 'bg-green-100' :
-                        script.type === 'Email' ? 'bg-purple-100' :
+                        script.type === 'Correo' ? 'bg-purple-100' :
                         'bg-gray-100'
                       }`}>
                         <TypeIcon className={`h-5 w-5 ${
                           script.type === 'Llamada' ? 'text-blue-600' :
                           script.type === 'WhatsApp' ? 'text-green-600' :
-                          script.type === 'Email' ? 'text-purple-600' :
+                          script.type === 'Correo' ? 'text-purple-600' :
                           'text-gray-600'
                         }`} />
                       </div>
@@ -482,7 +482,7 @@ export default function ScriptsPage() {
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                             script.type === 'Llamada' ? 'bg-blue-100 text-blue-800' :
                             script.type === 'WhatsApp' ? 'bg-green-100 text-green-800' :
-                            script.type === 'Email' ? 'bg-purple-100 text-purple-800' :
+                            script.type === 'Correo' ? 'bg-purple-100 text-purple-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
                             {script.type}
@@ -590,7 +590,7 @@ export default function ScriptsPage() {
                       <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
                         selectedScript.type === 'Llamada' ? 'bg-blue-100 text-blue-800' :
                         selectedScript.type === 'WhatsApp' ? 'bg-green-100 text-green-800' :
-                        selectedScript.type === 'Email' ? 'bg-purple-100 text-purple-800' :
+                        selectedScript.type === 'Correo' ? 'bg-purple-100 text-purple-800' :
                         'bg-gray-100 text-gray-800'
                       }`}>
                         {selectedScript.type}

@@ -268,6 +268,53 @@ System is prepared for English/Spanish:
 
 ---
 
+## DIRECTRIZ OBLIGATORIA: Integración con Sistema de Auditoría
+
+**CRÍTICO**: Al integrar con el backend, todas las operaciones de mutación deben estar preparadas para el sistema de auditoría.
+
+### Consideraciones para el Frontend
+
+1. **Operaciones que requieren confirmación del usuario**:
+   - Antes de operaciones sensibles, mostrar modal de confirmación
+   - Operaciones de alto riesgo: eliminación, ajustes de inventario, cambios de precio
+   - Mostrar claramente qué acción se va a registrar
+
+2. **Feedback de auditoría**:
+   - Mostrar toast de éxito con referencia del registro de auditoría cuando aplique
+   - En caso de error, mostrar el ID de auditoría para soporte
+
+3. **Panel de Administración - Requisitos**:
+   - Dashboard de auditoría debe mostrar:
+     - Actividad reciente (últimas 24h)
+     - Operaciones de alto riesgo destacadas
+     - Filtros por usuario, acción, entidad, riesgo
+     - Exportación de logs
+   - Alertas en tiempo real para operaciones críticas
+
+4. **Permisos de visualización**:
+   | Rol | Acceso a Auditoría |
+   |-----|-------------------|
+   | `admin` | Todos los logs |
+   | `superadmin` | Todos los logs + análisis avanzado |
+   | `manager` | Logs de su sucursal |
+   | `distributor` | Solo sus propias acciones |
+   | `support` | Logs relevantes a tickets |
+
+5. **Páginas de auditoría a implementar**:
+   - `/admin/auditoria` - Dashboard principal
+   - `/admin/auditoria/logs` - Tabla de logs con filtros
+   - `/admin/auditoria/alertas` - Sistema de alertas
+   - `/admin/auditoria/reportes` - Reportes y exportación
+
+### Checklist para Nuevas Páginas Admin
+
+- [ ] ¿Las acciones destructivas tienen confirmación?
+- [ ] ¿Se muestra feedback del resultado de la operación?
+- [ ] ¿Las operaciones sensibles están marcadas visualmente?
+- [ ] ¿El usuario entiende qué quedará registrado?
+
+---
+
 ## Development Workflow - OBLIGATORIO
 
 ### Al completar trabajo en cualquier issue de Jira:

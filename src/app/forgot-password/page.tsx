@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
@@ -8,17 +8,36 @@ import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { EnvelopeIcon, ArrowLeftIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import {
+  forgotPasswordAsync,
+  selectIsLoading,
+  selectAuthError,
+  clearError,
+} from '@/store/slices/authSlice';
 
 export default function ForgotPasswordPage() {
+  const dispatch = useAppDispatch();
+
+  const isLoading = useAppSelector(selectIsLoading);
+  const authError = useAppSelector(selectAuthError);
+
   const [email, setEmail] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [error, setError] = useState('');
+
+  // Show auth error as toast
+  useEffect(() => {
+    if (authError) {
+      toast.error(authError);
+      dispatch(clearError());
+    }
+  }, [authError, dispatch]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validación
+    // Validation
     if (!email) {
       setError('El email es requerido');
       return;
@@ -28,15 +47,15 @@ export default function ForgotPasswordPage() {
       return;
     }
 
-    setIsLoading(true);
     setError('');
 
-    // Simulación de envío de email (reemplazar con API call)
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await dispatch(forgotPasswordAsync({ email })).unwrap();
       setEmailSent(true);
-      toast.success('Email de recuperación enviado');
-    }, 1500);
+      toast.success('Se ha enviado un enlace de recuperación a tu email');
+    } catch {
+      // Error is handled via authError state
+    }
   };
 
   if (emailSent) {
@@ -66,7 +85,7 @@ export default function ForgotPasswordPage() {
               </h2>
 
               <p className="text-gray-600 mb-6">
-                Te enviamos un enlace de recuperación a
+                Se ha enviado un enlace de recuperación a
               </p>
 
               <div className="bg-gray-50 rounded-lg p-4 mb-6">
@@ -74,9 +93,9 @@ export default function ForgotPasswordPage() {
               </div>
 
               <div className="text-sm text-gray-600 mb-6 space-y-2">
-                <p>📧 Revisa tu bandeja de entrada</p>
-                <p>📁 Verifica la carpeta de spam</p>
-                <p>⏱️ El enlace expira en 1 hora</p>
+                <p>Revisa tu bandeja de entrada</p>
+                <p>Verifica la carpeta de spam</p>
+                <p>El enlace expira en 1 hora</p>
               </div>
 
               <div className="space-y-3">
@@ -143,6 +162,7 @@ export default function ForgotPasswordPage() {
                 leftIcon={<EnvelopeIcon className="h-5 w-5" />}
                 autoComplete="email"
                 autoFocus
+                disabled={isLoading}
               />
 
               <Button
@@ -150,6 +170,7 @@ export default function ForgotPasswordPage() {
                 variant="primary"
                 size="lg"
                 className="w-full"
+                isLoading={isLoading}
                 disabled={isLoading}
               >
                 {isLoading ? 'Enviando...' : 'Enviar enlace de recuperación'}
@@ -162,6 +183,7 @@ export default function ForgotPasswordPage() {
                   size="lg"
                   className="w-full"
                   leftIcon={<ArrowLeftIcon className="h-5 w-5" />}
+                  disabled={isLoading}
                 >
                   Volver al login
                 </Button>

@@ -47,23 +47,23 @@ export function HeroSection() {
 
             {/* Main Heading */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight">
-              <span className="text-[#003B7A]">Wellness</span>
+              <span className="text-[#003B7A]">Bienestar Natural,</span>
               <br />
-              <span className="text-[#003B7A]">Made</span>{' '}
-              <span className="text-[#7AB82E] font-serif italic">Simple</span>
+              <span className="text-[#003B7A]">Vida</span>{' '}
+              <span className="text-[#7AB82E] font-serif italic">Plena</span>
             </h1>
 
             {/* Subtitle */}
             <p className="mt-6 text-lg sm:text-xl text-gray-600 max-w-xl mx-auto lg:mx-0">
               Descubre tu fórmula ideal de bienestar con nuestro{' '}
-              <span className="font-semibold text-[#003B7A]">Health Quiz personalizado</span>.
+              <span className="font-semibold text-[#003B7A]">Evaluación de Salud personalizada</span>.
               Productos naturales diseñados para transformar tu vida.
             </p>
 
             {/* CTA Buttons */}
             <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <Button size="xl" rightIcon={<ArrowRightIcon className="h-5 w-5" />}>
-                <Link href="/quiz">Hacer el Health Quiz</Link>
+                <Link href="/quiz">Iniciar mi Evaluación</Link>
               </Button>
               <Button variant="outline" size="xl">
                 <Link href="/productos">Ver Productos</Link>
@@ -130,7 +130,7 @@ export function HeroSection() {
                   </div>
                   <div>
                     <p className="font-bold text-[#003B7A]">+50,000</p>
-                    <p className="text-xs text-gray-500">Quiz completados</p>
+                    <p className="text-xs text-gray-500">Evaluaciones completadas</p>
                   </div>
                 </div>
               </div>

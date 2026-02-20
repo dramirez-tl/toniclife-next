@@ -93,7 +93,7 @@ const mockPendingPayments = [
     amount: 2500,
     paymentDate: '2025-02-05',
     type: 'bonus',
-    description: 'Bono de rango Diamond',
+    description: 'Bono de rango Diamante',
   },
 ];
 
@@ -156,7 +156,7 @@ export default function PagosPage() {
             </div>
             <Link href="/distribuidor">
               <Button variant="secondary">
-                Volver al Dashboard
+                Volver al Panel Principal
               </Button>
             </Link>
           </div>

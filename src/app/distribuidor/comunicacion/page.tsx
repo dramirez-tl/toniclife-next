@@ -30,7 +30,7 @@ const mockConversations = [
     timestamp: '2025-01-25T14:30:00',
     unread: 0,
     online: true,
-    role: 'Upline',
+    role: 'Patrocinador',
   },
   {
     id: '2',
@@ -51,12 +51,12 @@ const mockConversations = [
     timestamp: '2025-01-25T11:20:00',
     unread: 2,
     online: true,
-    role: 'Downline',
+    role: 'Mi Red',
   },
   {
     id: '4',
     type: 'group',
-    name: 'Top Performers Enero',
+    name: 'Líderes del Mes Enero',
     avatar: '🏆',
     lastMessage: 'Roberto: ¡Felicidades a todos por las metas!',
     timestamp: '2025-01-24T18:45:00',
@@ -72,7 +72,7 @@ const mockConversations = [
     timestamp: '2025-01-24T16:30:00',
     unread: 1,
     online: false,
-    role: 'Peer',
+    role: 'Colega',
   },
   {
     id: '6',
@@ -192,7 +192,7 @@ export default function ComunicacionPage() {
             </div>
             <Link href="/distribuidor">
               <Button variant="secondary">
-                Volver al Dashboard
+                Volver al Panel Principal
               </Button>
             </Link>
           </div>

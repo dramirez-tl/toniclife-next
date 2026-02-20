@@ -62,11 +62,11 @@ const userData = {
   distributor: {
     isDistributor: true,
     distributorId: 'DIST-456',
-    level: 'Gold',
+    level: 'Oro',
     enrollmentDate: '2023-08-20',
     totalSales: 15600.00,
     teamSize: 23,
-    rank: 'Senior Consultant'
+    rank: 'Consultor Senior'
   },
   recentOrders: [
     {
@@ -112,7 +112,7 @@ const userData = {
     },
     {
       id: 'A4',
-      action: 'Completó el quiz de bienestar',
+      action: 'Completó la evaluación de bienestar',
       details: 'Puntuación: 85/100',
       timestamp: '2024-01-22 11:45 AM'
     }
@@ -172,7 +172,7 @@ export default function UserDetailAdminPage() {
 
   const handleResetPassword = () => {
     if (confirm('¿Enviar email de restablecimiento de contraseña a este usuario?')) {
-      toast.success('Email de restablecimiento enviado');
+      toast.success('Correo de restablecimiento enviado');
     }
   };
 
@@ -222,14 +222,14 @@ export default function UserDetailAdminPage() {
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2"
               >
                 <EnvelopeIcon className="h-5 w-5" />
-                Enviar Email
+                Enviar Correo
               </button>
               <button
                 onClick={handleResetPassword}
                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2"
               >
                 <LockClosedIcon className="h-5 w-5" />
-                Reset Password
+                Restablecer Contraseña
               </button>
               <button
                 onClick={handleDeleteUser}
@@ -326,7 +326,7 @@ export default function UserDetailAdminPage() {
                       <h3 className="text-lg font-bold text-gray-900 mb-4">Información Personal</h3>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="text-sm text-gray-600">Email</label>
+                          <label className="text-sm text-gray-600">Correo electrónico</label>
                           <p className="font-medium text-gray-900">{userData.email}</p>
                         </div>
                         <div>
@@ -359,7 +359,7 @@ export default function UserDetailAdminPage() {
                       <h3 className="text-lg font-bold text-gray-900 mb-4">Preferencias</h3>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-gray-700">Newsletter</span>
+                          <span className="text-gray-700">Boletín de Novedades</span>
                           <span className={`px-3 py-1 rounded-full text-sm ${
                             userData.preferences.newsletter
                               ? 'bg-green-100 text-green-800'
@@ -595,7 +595,7 @@ export default function UserDetailAdminPage() {
                   <span className="font-medium text-gray-900">{userData.id}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Email Verificado</span>
+                  <span className="text-gray-600">Correo Verificado</span>
                   <CheckCircleIcon className="h-5 w-5 text-green-500" />
                 </div>
                 <div className="flex items-center justify-between">

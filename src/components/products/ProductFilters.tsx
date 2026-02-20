@@ -6,7 +6,7 @@ import { ChevronDownIcon } from '@heroicons/react/24/outline';
 interface Category {
   id: string;
   name: string;
-  description: string;
+  description?: string;
 }
 
 interface ProductFiltersProps {

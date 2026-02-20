@@ -41,9 +41,9 @@ export default function RecursosPage() {
     { value: 'all', label: 'Todos', icon: SparklesIcon },
     { value: 'pdf', label: 'PDFs', icon: DocumentTextIcon },
     { value: 'planner', label: 'Planificadores', icon: CalendarIcon },
-    { value: 'checklist', label: 'Checklists', icon: ClipboardDocumentListIcon },
+    { value: 'checklist', label: 'Listas de Verificación', icon: ClipboardDocumentListIcon },
     { value: 'infographic', label: 'Infografías', icon: ClipboardDocumentListIcon },
-    { value: 'wallpaper', label: 'Wallpapers', icon: PhotoIcon }
+    { value: 'wallpaper', label: 'Fondos de Pantalla', icon: PhotoIcon }
   ];
 
   const categories = [
@@ -94,7 +94,7 @@ export default function RecursosPage() {
       fileSize: '850 KB',
       downloads: 15670,
       date: '2024-01-20',
-      tags: ['Bienestar', 'Rutinas', 'Checklist'],
+      tags: ['Bienestar', 'Rutinas', 'Lista de Verificación'],
       featured: true,
       downloadUrl: '/downloads/checklist-bienestar.pdf'
     },
@@ -114,7 +114,7 @@ export default function RecursosPage() {
     },
     {
       id: '5',
-      title: 'Wallpaper: Tu Meta, Tu Motivación',
+      title: 'Fondo de Pantalla: Tu Meta, Tu Motivación',
       description: 'Fondo de pantalla motivacional en alta resolución para tu computadora o celular.',
       type: 'wallpaper',
       category: 'motivation',
@@ -122,7 +122,7 @@ export default function RecursosPage() {
       fileSize: '3.5 MB',
       downloads: 6780,
       date: '2024-01-15',
-      tags: ['Motivación', 'Wallpaper', 'Inspiración'],
+      tags: ['Motivación', 'Fondo de Pantalla', 'Inspiración'],
       featured: false,
       downloadUrl: '/downloads/wallpaper-motivacion.jpg'
     },
@@ -212,7 +212,7 @@ export default function RecursosPage() {
     },
     {
       id: '12',
-      title: 'Wallpaper: Fuerza y Determinación',
+      title: 'Fondo de Pantalla: Fuerza y Determinación',
       description: 'Imagen inspiradora de alta calidad para recordarte tu fuerza interior cada día.',
       type: 'wallpaper',
       category: 'motivation',
@@ -220,7 +220,7 @@ export default function RecursosPage() {
       fileSize: '4.0 MB',
       downloads: 7120,
       date: '2023-12-25',
-      tags: ['Motivación', 'Fuerza', 'Inspiración'],
+      tags: ['Motivación', 'Fuerza', 'Inspiracional'],
       featured: false,
       downloadUrl: '/downloads/wallpaper-fuerza.jpg'
     }
@@ -264,7 +264,7 @@ export default function RecursosPage() {
             </div>
             <h1 className="text-4xl font-bold mb-4">Recursos Descargables</h1>
             <p className="text-xl text-blue-100 max-w-3xl mx-auto">
-              PDFs, planificadores, checklists e infografías para complementar tu camino al bienestar
+              PDFs, planificadores, listas de verificación e infografías para complementar tu camino al bienestar
             </p>
           </div>
 

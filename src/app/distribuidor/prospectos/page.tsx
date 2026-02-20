@@ -100,9 +100,9 @@ const scripts = [
   },
   {
     id: '3',
-    title: 'Email Presentación Negocio',
-    type: 'Email',
-    description: 'Email formal presentando oportunidad de negocio',
+    title: 'Correo Presentación Negocio',
+    type: 'Correo',
+    description: 'Correo formal presentando oportunidad de negocio',
     content: 'Estimado/a [Nombre], Me gustaría compartir contigo una oportunidad que está transformando vidas...',
   },
   {
@@ -173,7 +173,7 @@ export default function ProspectosPage() {
             <div className="flex gap-3">
               <Link href="/distribuidor">
                 <Button variant="secondary">
-                  Volver al Dashboard
+                  Volver al Panel Principal
                 </Button>
               </Link>
               <Button
@@ -364,7 +364,7 @@ export default function ProspectosPage() {
                           leftIcon={<EnvelopeIcon className="h-4 w-4" />}
                           onClick={() => handleContact(prospect, 'email')}
                         >
-                          Email
+                          Correo
                         </Button>
                         <Button
                           variant="ghost"

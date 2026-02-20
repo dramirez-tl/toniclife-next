@@ -294,7 +294,7 @@ export default function ComunidadPage() {
               <CardContent className="p-6">
                 <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
                   <FireIcon className="h-5 w-5 text-orange-600" />
-                  Temas Trending
+                  Temas en Tendencia
                 </h3>
                 <div className="space-y-3">
                   {trendingTopics.map((topic) => (
@@ -302,7 +302,7 @@ export default function ComunidadPage() {
                       <span className="text-sm text-[#003B7A] font-medium hover:underline cursor-pointer">
                         #{topic.name}
                       </span>
-                      <span className="text-xs text-gray-500">{topic.count} posts</span>
+                      <span className="text-xs text-gray-500">{topic.count} publicaciones</span>
                     </div>
                   ))}
                 </div>
@@ -378,7 +378,7 @@ export default function ComunidadPage() {
                     <div className="mb-4 rounded-lg overflow-hidden">
                       <Image
                         src={post.image}
-                        alt="Post image"
+                        alt="Imagen de la publicación"
                         width={800}
                         height={600}
                         className="w-full object-cover"

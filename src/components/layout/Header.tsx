@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui';
@@ -12,6 +12,9 @@ import {
   GlobeAltIcon,
   ChevronDownIcon
 } from '@heroicons/react/24/outline';
+import { useCartSummary } from '@/hooks/useCart';
+import { useAppSelector } from '@/store/hooks';
+import { selectIsAuthenticated, selectUserRoles } from '@/store/slices/authSlice';
 
 const navigation = [
   { name: 'Inicio', href: '/' },
@@ -28,7 +31,7 @@ const navigation = [
       { name: 'Ver todos', href: '/productos' }
     ]
   },
-  { name: 'Health Quiz', href: '/quiz', highlight: true },
+  { name: 'Evaluación de Salud', href: '/quiz', highlight: true },
   { name: 'Testimonios', href: '/testimonios' },
   { name: 'Distribuidores', href: '/distribuidores' }
 ];
@@ -38,8 +41,25 @@ export function Header() {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [language, setLanguage] = useState<'es' | 'en'>('es');
 
-  // Mock cart count
-  const cartItemCount = 3;
+  // Get cart item count from API
+  const { data: cartSummary } = useCartSummary();
+  const cartItemCount = cartSummary?.itemCount || 0;
+
+  // Get user authentication state and roles
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const userRoles = useAppSelector(selectUserRoles);
+
+  // Determine the correct dashboard URL based on user roles
+  const dashboardUrl = useMemo(() => {
+    if (!isAuthenticated) return '/login';
+
+    // Admin roles that should access the admin panel (database role codes)
+    const adminRoles = ['super_admin', 'administrador', 'subadmin', 'almacen', 'ventas_mostrador', 'rh', 'contabilidad', 'auditor', 'viewer'];
+    if (userRoles.some(role => adminRoles.includes(role))) return '/admin';
+
+    // All authenticated users go to distributor dashboard
+    return '/distribuidor';
+  }, [isAuthenticated, userRoles]);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md shadow-sm">
@@ -71,7 +91,7 @@ export function Header() {
           <Link href="/" className="flex items-center">
             <Image
               src="/images/logo.png"
-              alt="Tonic Life - My Wellness Hub"
+              alt="Tonic Life - Tu Centro de Bienestar"
               width={180}
               height={60}
               priority
@@ -153,7 +173,7 @@ export function Header() {
 
             {/* User */}
             <Link
-              href="/cuenta"
+              href={dashboardUrl}
               className="hidden sm:block p-2 rounded-full hover:bg-gray-100 transition-colors"
             >
               <UserIcon className="h-6 w-6 text-[#003B7A]" />
@@ -163,7 +183,7 @@ export function Header() {
             <div className="hidden lg:block ml-2">
               <Link href="/quiz">
                 <Button size="md">
-                  Hacer Quiz
+                  Mi Evaluación
                 </Button>
               </Link>
             </div>
@@ -239,7 +259,7 @@ export function Header() {
 
             <div className="pt-4 border-t border-gray-100 mt-4">
               <Button fullWidth size="lg">
-                Hacer Health Quiz
+                Iniciar mi Evaluación
               </Button>
             </div>
           </div>

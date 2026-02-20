@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, use } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ShoppingCartIcon, HeartIcon, StarIcon, CheckCircleIcon, TruckIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
@@ -8,35 +8,140 @@ import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardContent } from '@/components/ui/Card';
-import { products } from '@/lib/mock-data';
 import { toast } from 'sonner';
+import { useProductBySlug, useProducts, useProductComponents } from '@/hooks/useProducts';
+import { useAddCartItem } from '@/hooks/useCart';
+import { Header, Footer } from '@/components/layout';
+import type { Product as APIProduct } from '@/types/product';
+import type { Product as MockProduct } from '@/types';
 
-export default function ProductDetailPage({ params }: { params: { slug: string } }) {
-  const product = products.find(p => p.slug === params.slug);
+// Adapter para convertir productos del API al formato mock para compatibilidad
+function adaptAPIProductToMock(apiProduct: APIProduct): MockProduct {
+  return {
+    id: apiProduct.id,
+    name: apiProduct.name,
+    slug: apiProduct.slug || '',
+    description: apiProduct.description || '',
+    shortDescription: apiProduct.shortName || '',
+    fullDescription: apiProduct.longDescription || apiProduct.description,
+    benefits: apiProduct.healthBenefits || [],
+    usage: {
+      ideal: apiProduct.usageInstructions || 'Tomar segun las indicaciones del producto.',
+      regular: apiProduct.usageFormat,
+    },
+    dosage: apiProduct.usageFormat,
+    ingredients: apiProduct.ingredients?.split(',').map((i) => i.trim()),
+    category: apiProduct.categoryName?.toLowerCase() as MockProduct['category'] || 'energia',
+    tags: [],
+    price: parseFloat(apiProduct.pointsValue || '0'),
+    compareAtPrice: undefined,
+    originalPrice: undefined,
+    image: apiProduct.imageUrl || '/images/product-placeholder.jpg',
+    images: apiProduct.galleryUrls,
+    inStock: apiProduct.isActive,
+    stock: 100,
+    rating: 5,
+    reviews: 0,
+    badge: apiProduct.isFeatured ? 'Destacado' : undefined,
+    featured: apiProduct.isFeatured,
+  };
+}
+
+interface ProductDetailPageProps {
+  params: Promise<{ slug: string }>;
+}
+
+export default function ProductDetailPage({ params }: ProductDetailPageProps) {
+  // Unwrap params using React.use()
+  const { slug } = use(params);
+
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isFavorite, setIsFavorite] = useState(false);
   const [activeTab, setActiveTab] = useState<'description' | 'benefits' | 'usage' | 'ingredients'>('description');
 
-  if (!product) {
+  // Cart mutation
+  const addToCart = useAddCartItem();
+
+  // Obtener datos del API
+  const {
+    data: apiProduct,
+    isLoading,
+    error,
+  } = useProductBySlug(slug);
+
+  // Obtener componentes si es kit
+  const { data: components } = useProductComponents(
+    apiProduct?.id || '',
+    apiProduct?.productType === 'kit'
+  );
+
+  // Producto del API
+  const product = apiProduct ? adaptAPIProductToMock(apiProduct) : null;
+
+  // Obtener productos relacionados
+  const { data: relatedProductsData } = useProducts({
+    categoryId: apiProduct?.categoryId,
+    isActive: true,
+    isVisibleEcommerce: true,
+    limit: 5,
+  });
+
+  const relatedProducts = relatedProductsData?.data
+    ? relatedProductsData.data
+        .filter((p) => p.id !== apiProduct?.id)
+        .slice(0, 4)
+        .map(adaptAPIProductToMock)
+    : [];
+
+  // Loading state
+  if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Producto no encontrado</h1>
-          <Link href="/productos">
-            <Button>Ver todos los productos</Button>
-          </Link>
+      <>
+        <Header />
+        <div className="min-h-screen flex items-center justify-center pt-20">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7AB82E] mx-auto"></div>
+            <p className="mt-4 text-gray-500">Cargando producto...</p>
+          </div>
         </div>
-      </div>
+        <Footer />
+      </>
     );
   }
 
-  const relatedProducts = products
-    .filter(p => p.id !== product.id && p.category === product.category)
-    .slice(0, 4);
+  // Not found state
+  if (!product) {
+    return (
+      <>
+        <Header />
+        <div className="min-h-screen flex items-center justify-center pt-20">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Producto no encontrado</h1>
+            <Link href="/productos">
+              <Button>Ver todos los productos</Button>
+            </Link>
+          </div>
+        </div>
+        <Footer />
+      </>
+    );
+  }
 
   const handleAddToCart = () => {
-    toast.success(`${quantity}x ${product.name} agregado al carrito`);
+    if (!apiProduct) return;
+
+    addToCart.mutate(
+      { productId: apiProduct.id, quantity },
+      {
+        onSuccess: () => {
+          toast.success(`${quantity}x ${product?.name} agregado al carrito`);
+        },
+        onError: () => {
+          toast.error('Error al agregar al carrito');
+        },
+      }
+    );
   };
 
   const handleToggleFavorite = () => {
@@ -45,19 +150,22 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Breadcrumbs */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <nav className="flex items-center space-x-2 text-sm">
-            <Link href="/" className="text-gray-500 hover:text-[#003B7A]">Inicio</Link>
-            <span className="text-gray-400">/</span>
-            <Link href="/productos" className="text-gray-500 hover:text-[#003B7A]">Productos</Link>
-            <span className="text-gray-400">/</span>
-            <span className="text-gray-900 font-medium">{product.name}</span>
-          </nav>
+    <>
+      <Header />
+      <div className="min-h-screen bg-gray-50 pt-20">
+
+        {/* Breadcrumbs */}
+        <div className="bg-white border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <nav className="flex items-center space-x-2 text-sm">
+              <Link href="/" className="text-gray-500 hover:text-[#003B7A]">Inicio</Link>
+              <span className="text-gray-400">/</span>
+              <Link href="/productos" className="text-gray-500 hover:text-[#003B7A]">Productos</Link>
+              <span className="text-gray-400">/</span>
+              <span className="text-gray-900 font-medium">{product.name}</span>
+            </nav>
+          </div>
         </div>
-      </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-12">
@@ -70,13 +178,44 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                 </Badge>
               )}
               <div className="aspect-square relative mb-4">
-                <Image
-                  src={product.image}
-                  alt={product.name}
-                  fill
-                  className="object-contain"
-                />
+                {product.image ? (
+                  <Image
+                    src={product.image}
+                    alt={product.name}
+                    fill
+                    className="object-contain"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-[#7AB82E]/20 to-[#003B7A]/20 rounded-2xl flex items-center justify-center">
+                    <span className="text-6xl font-bold text-[#003B7A]">
+                      {product.name.substring(0, 2).toUpperCase()}
+                    </span>
+                  </div>
+                )}
               </div>
+
+              {/* Image Gallery Thumbnails */}
+              {product.images && product.images.length > 1 && (
+                <div className="flex gap-2 justify-center">
+                  {product.images.map((img, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedImage(index)}
+                      className={`w-16 h-16 rounded-lg overflow-hidden border-2 ${
+                        selectedImage === index ? 'border-[#7AB82E]' : 'border-transparent'
+                      }`}
+                    >
+                      <Image
+                        src={img}
+                        alt={`${product.name} - ${index + 1}`}
+                        width={64}
+                        height={64}
+                        className="object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Trust Badges */}
@@ -113,8 +252,27 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
               </h1>
               <p className="text-lg text-gray-600 mb-4">{product.description}</p>
 
+              {/* SKU & Category (from API) */}
+              {apiProduct && (
+                <div className="flex gap-4 text-sm text-gray-500 mb-4">
+                  <span>Codigo: {apiProduct.code}</span>
+                  {apiProduct.categoryName && (
+                    <span>Categoría: {apiProduct.categoryName}</span>
+                  )}
+                </div>
+              )}
+
+              {/* MLM Points (from API) */}
+              {apiProduct && parseFloat(apiProduct.pointsValue || '0') > 0 && (
+                <div className="bg-[#003B7A]/5 rounded-lg p-3 mb-4">
+                  <p className="text-sm text-[#003B7A] font-medium">
+                    Gana {apiProduct.pointsValue} puntos con esta compra
+                  </p>
+                </div>
+              )}
+
               {/* Rating */}
-              {product.rating && product.reviews && (
+              {product.rating && product.reviews !== undefined && (
                 <div className="flex items-center gap-2 mb-4">
                   <div className="flex items-center">
                     {[...Array(5)].map((_, i) => (
@@ -152,14 +310,33 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
               </div>
 
               {/* Benefits Pills */}
-              <div className="flex flex-wrap gap-2 mb-6">
-                {product.benefits.map((benefit, index) => (
-                  <Badge key={index} variant="outline">
-                    {benefit}
-                  </Badge>
-                ))}
-              </div>
+              {product.benefits && product.benefits.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-6">
+                  {product.benefits.map((benefit, index) => (
+                    <Badge key={index} variant="outline">
+                      {benefit}
+                    </Badge>
+                  ))}
+                </div>
+              )}
             </div>
+
+            {/* Kit Components (if applicable) */}
+            {components && components.length > 0 && (
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <h4 className="font-semibold text-gray-900 mb-3">Este kit incluye:</h4>
+                <ul className="space-y-2">
+                  {components.map((comp) => (
+                    <li key={comp.id} className="flex items-center gap-2">
+                      <CheckCircleIcon className="h-5 w-5 text-[#7AB82E]" />
+                      <span className="text-gray-700">
+                        {comp.quantity}x {comp.componentProductName || comp.componentName || comp.componentProductCode}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Quantity Selector */}
             <div className="mb-6">
@@ -197,9 +374,10 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                 size="lg"
                 className="flex-1"
                 onClick={handleAddToCart}
+                disabled={addToCart.isPending}
               >
                 <ShoppingCartIcon className="h-5 w-5 mr-2" />
-                Agregar al carrito
+                {addToCart.isPending ? 'Agregando...' : 'Agregar al carrito'}
               </Button>
               <Button
                 variant="outline"
@@ -226,10 +404,10 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
         <Card className="mb-12">
           <CardContent className="p-0">
             <div className="border-b border-gray-200">
-              <nav className="flex -mb-px">
+              <nav className="flex -mb-px overflow-x-auto">
                 <button
                   onClick={() => setActiveTab('description')}
-                  className={`px-6 py-4 text-sm font-medium border-b-2 ${
+                  className={`px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap ${
                     activeTab === 'description'
                       ? 'border-[#003B7A] text-[#003B7A]'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -239,7 +417,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                 </button>
                 <button
                   onClick={() => setActiveTab('benefits')}
-                  className={`px-6 py-4 text-sm font-medium border-b-2 ${
+                  className={`px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap ${
                     activeTab === 'benefits'
                       ? 'border-[#003B7A] text-[#003B7A]'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -249,7 +427,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                 </button>
                 <button
                   onClick={() => setActiveTab('usage')}
-                  className={`px-6 py-4 text-sm font-medium border-b-2 ${
+                  className={`px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap ${
                     activeTab === 'usage'
                       ? 'border-[#003B7A] text-[#003B7A]'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -259,7 +437,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                 </button>
                 <button
                   onClick={() => setActiveTab('ingredients')}
-                  className={`px-6 py-4 text-sm font-medium border-b-2 ${
+                  className={`px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap ${
                     activeTab === 'ingredients'
                       ? 'border-[#003B7A] text-[#003B7A]'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -276,19 +454,29 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                   <p className="text-gray-700 leading-relaxed">
                     {product.fullDescription || product.description}
                   </p>
+                  {apiProduct?.warnings && (
+                    <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <h4 className="font-semibold text-yellow-800 mb-2">Advertencias</h4>
+                      <p className="text-yellow-700 text-sm">{apiProduct.warnings}</p>
+                    </div>
+                  )}
                 </div>
               )}
 
               {activeTab === 'benefits' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {product.benefits.map((benefit, index) => (
-                    <div key={index} className="flex items-start gap-3">
-                      <CheckCircleIcon className="h-6 w-6 text-[#7AB82E] flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-medium text-gray-900">{benefit}</p>
+                  {product.benefits && product.benefits.length > 0 ? (
+                    product.benefits.map((benefit, index) => (
+                      <div key={index} className="flex items-start gap-3">
+                        <CheckCircleIcon className="h-6 w-6 text-[#7AB82E] flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-medium text-gray-900">{benefit}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-gray-600">Información de beneficios disponible próximamente.</p>
+                  )}
                 </div>
               )}
 
@@ -348,12 +536,20 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
                             {relatedProduct.badge}
                           </Badge>
                         )}
-                        <Image
-                          src={relatedProduct.image}
-                          alt={relatedProduct.name}
-                          fill
-                          className="object-contain group-hover:scale-105 transition-transform duration-300"
-                        />
+                        {relatedProduct.image ? (
+                          <Image
+                            src={relatedProduct.image}
+                            alt={relatedProduct.name}
+                            fill
+                            className="object-contain group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-[#7AB82E]/20 to-[#003B7A]/20 flex items-center justify-center">
+                            <span className="text-2xl font-bold text-[#003B7A]">
+                              {relatedProduct.name.substring(0, 2).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-[#003B7A] transition-colors">
                         {relatedProduct.name}
@@ -380,5 +576,7 @@ export default function ProductDetailPage({ params }: { params: { slug: string }
         )}
       </div>
     </div>
+      <Footer />
+    </>
   );
 }

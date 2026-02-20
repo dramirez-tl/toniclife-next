@@ -1,56 +1,120 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Card, Button } from '@/components/ui';
-import { ChevronLeftIcon } from '@heroicons/react/24/outline';
-import type { QuizQuestion as QuizQuestionType } from '@/types';
+import { ChevronLeftIcon, CheckIcon } from '@heroicons/react/24/outline';
+import type { QuizQuestion as QuizQuestionType, QuestionType } from '@/types/quiz';
 
 interface QuizQuestionProps {
   question: QuizQuestionType;
-  onAnswer: (questionId: number, optionId: string, value: number) => void;
-  onPrevious: () => void;
-  canGoPrevious: boolean;
-  selectedAnswer?: string;
+  onAnswer: (questionKey: string, answerValue: string, answerLabel?: string) => void;
+  onMultipleAnswer?: (questionKey: string, answerValues: string[], answerLabels?: string[]) => void;
+  onPrevious?: () => void;
+  canGoPrevious?: boolean;
+  selectedAnswer?: string | string[];
+  isLoading?: boolean;
 }
 
 // Category to emoji mapping
 const categoryEmojis: Record<string, string> = {
+  health: '❤️',
+  lifestyle: '🌿',
+  goals: '🎯',
+  energy: '⚡',
   energia: '⚡',
   digestion: '🍃',
+  stress: '😌',
   estres: '😌',
-  peso: '⚖️',
+  beauty: '✨',
   piel: '✨',
+  immune: '🛡️',
   inmune: '🛡️',
+  hormonal: '💗',
   'hormonal-female': '💗',
   'hormonal-male': '💪',
   circulacion: '🩸',
+  peso: '⚖️',
   metabolico: '🔄',
-  'meta-principal': '🎯'
+  'meta-principal': '🎯',
 };
 
 // Category to title mapping
 const categoryTitles: Record<string, string> = {
+  health: 'Salud',
+  lifestyle: 'Estilo de Vida',
+  goals: 'Objetivos',
+  energy: 'Energía',
   energia: 'Bienestar General',
   digestion: 'Digestión',
+  stress: 'Estrés y Sueño',
   estres: 'Estrés, Sueño y Estado Emocional',
-  peso: 'Peso y Metabolismo',
+  beauty: 'Belleza',
   piel: 'Piel y Apariencia',
+  immune: 'Sistema Inmune',
   inmune: 'Sistema Inmune',
+  hormonal: 'Balance Hormonal',
   'hormonal-female': 'Hormonas y Estado Femenino',
   'hormonal-male': 'Salud Masculina',
   circulacion: 'Circulación y Articulaciones',
+  peso: 'Peso y Metabolismo',
   metabolico: 'Hígado, Colesterol o Azúcar',
-  'meta-principal': 'Meta Principal'
+  'meta-principal': 'Meta Principal',
 };
 
 export function QuizQuestion({
   question,
   onAnswer,
+  onMultipleAnswer,
   onPrevious,
-  canGoPrevious,
-  selectedAnswer
+  canGoPrevious = false,
+  selectedAnswer,
+  isLoading = false,
 }: QuizQuestionProps) {
-  const emoji = categoryEmojis[question.category] || '❓';
-  const categoryTitle = categoryTitles[question.category] || question.category;
+  const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const isMultiple = question.questionType === 'multiple';
+
+  const emoji = categoryEmojis[question.category || ''] || '❓';
+  const categoryTitle = categoryTitles[question.category || ''] || question.category || 'Pregunta';
+
+  // Sync selected options with prop
+  useEffect(() => {
+    if (selectedAnswer) {
+      setSelectedOptions(Array.isArray(selectedAnswer) ? selectedAnswer : [selectedAnswer]);
+    } else {
+      setSelectedOptions([]);
+    }
+  }, [selectedAnswer]);
+
+  const handleOptionClick = (optionValue: string, optionLabel: string) => {
+    if (isLoading) return;
+
+    if (isMultiple) {
+      // Toggle selection for multiple choice
+      setSelectedOptions((prev) => {
+        if (prev.includes(optionValue)) {
+          return prev.filter((v) => v !== optionValue);
+        }
+        return [...prev, optionValue];
+      });
+    } else {
+      // Single choice - submit immediately
+      onAnswer(question.questionKey, optionValue, optionLabel);
+    }
+  };
+
+  const handleSubmitMultiple = () => {
+    if (selectedOptions.length === 0 || !onMultipleAnswer) return;
+
+    const selectedLabels = question.options
+      .filter((opt) => selectedOptions.includes(opt.value))
+      .map((opt) => opt.label);
+
+    onMultipleAnswer(question.questionKey, selectedOptions, selectedLabels);
+  };
+
+  const isOptionSelected = (optionValue: string) => {
+    return selectedOptions.includes(optionValue);
+  };
 
   return (
     <div className="animate-in fade-in slide-in-from-right-4 duration-300">
@@ -65,8 +129,20 @@ export function QuizQuestion({
 
           {/* Question */}
           <h2 className="text-xl sm:text-2xl font-bold leading-relaxed">
-            {question.question}
+            {question.questionText}
           </h2>
+
+          {/* Description */}
+          {question.description && (
+            <p className="mt-3 text-white/80 text-sm">{question.description}</p>
+          )}
+
+          {/* Multiple choice hint */}
+          {isMultiple && (
+            <p className="mt-3 text-white/60 text-sm italic">
+              Puedes seleccionar más de una opción
+            </p>
+          )}
         </div>
 
         {/* Options */}
@@ -74,11 +150,13 @@ export function QuizQuestion({
           {question.options.map((option, index) => (
             <button
               key={option.id}
-              onClick={() => onAnswer(question.id, option.id, option.value)}
+              onClick={() => handleOptionClick(option.value, option.label)}
+              disabled={isLoading}
               className={`
                 w-full text-left p-4 sm:p-5 rounded-xl border-2 transition-all duration-200
                 hover:border-[#7AB82E] hover:bg-[#7AB82E]/5
-                ${selectedAnswer === option.id
+                disabled:opacity-50 disabled:cursor-not-allowed
+                ${isOptionSelected(option.value)
                   ? 'border-[#7AB82E] bg-[#7AB82E]/10 ring-2 ring-[#7AB82E]/30'
                   : 'border-gray-200 bg-gray-50'
                 }
@@ -86,37 +164,74 @@ export function QuizQuestion({
             >
               <div className="flex items-start gap-4">
                 {/* Option indicator */}
-                <div className={`
-                  w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-sm font-bold
-                  ${selectedAnswer === option.id
-                    ? 'bg-[#7AB82E] text-white'
-                    : 'bg-[#003B7A]/10 text-[#003B7A]'
-                  }
-                `}>
-                  {String.fromCharCode(65 + index)}
+                <div
+                  className={`
+                    w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-sm font-bold
+                    ${isOptionSelected(option.value)
+                      ? 'bg-[#7AB82E] text-white'
+                      : 'bg-[#003B7A]/10 text-[#003B7A]'
+                    }
+                  `}
+                >
+                  {isMultiple && isOptionSelected(option.value) ? (
+                    <CheckIcon className="h-5 w-5" />
+                  ) : (
+                    String.fromCharCode(65 + index)
+                  )}
                 </div>
 
-                {/* Option text */}
-                <span className={`
-                  text-base sm:text-lg
-                  ${selectedAnswer === option.id
-                    ? 'text-[#003B7A] font-medium'
-                    : 'text-gray-700'
-                  }
-                `}>
-                  {option.text}
-                </span>
+                {/* Option content */}
+                <div className="flex-1">
+                  <span
+                    className={`
+                      text-base sm:text-lg block
+                      ${isOptionSelected(option.value)
+                        ? 'text-[#003B7A] font-medium'
+                        : 'text-gray-700'
+                      }
+                    `}
+                  >
+                    {option.label}
+                  </span>
+                  {option.description && (
+                    <span className="text-sm text-gray-500 mt-1 block">
+                      {option.description}
+                    </span>
+                  )}
+                </div>
+
+                {/* Color indicator if present */}
+                {option.colorHex && (
+                  <div
+                    className="w-6 h-6 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: option.colorHex }}
+                  />
+                )}
               </div>
             </button>
           ))}
         </div>
 
+        {/* Submit button for multiple choice */}
+        {isMultiple && (
+          <div className="px-6 sm:px-8 pb-4">
+            <Button
+              onClick={handleSubmitMultiple}
+              fullWidth
+              disabled={isLoading || selectedOptions.length === 0}
+            >
+              {isLoading ? 'Guardando...' : `Continuar (${selectedOptions.length} seleccionadas)`}
+            </Button>
+          </div>
+        )}
+
         {/* Navigation */}
         <div className="px-6 sm:px-8 pb-6 sm:pb-8">
-          {canGoPrevious && (
+          {canGoPrevious && onPrevious && (
             <button
               onClick={onPrevious}
-              className="flex items-center gap-2 text-gray-500 hover:text-[#003B7A] transition-colors"
+              disabled={isLoading}
+              className="flex items-center gap-2 text-gray-500 hover:text-[#003B7A] transition-colors disabled:opacity-50"
             >
               <ChevronLeftIcon className="h-5 w-5" />
               <span>Pregunta anterior</span>

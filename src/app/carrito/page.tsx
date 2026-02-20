@@ -1,3 +1,5 @@
+// app/carrito/page.tsx - Cart page with API integration
+// Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.4 E-commerce
 'use client';
 
 import { useState } from 'react';
@@ -12,59 +14,97 @@ import {
   TruckIcon,
   TagIcon,
   ShieldCheckIcon,
-  ArrowLeftIcon
+  ArrowLeftIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
-import { products, productBundles } from '@/lib/mock-data';
-import type { CartItem } from '@/types';
+import {
+  useCart,
+  useClearCart,
+  useUpdateCartItem,
+  useRemoveCartItem,
+  useApplyCoupon,
+  useRemoveCoupon,
+} from '@/hooks/useCart';
+import { cartService } from '@/services/cart.service';
+import { toast } from 'sonner';
 
-// Mock cart data
-const initialCartItems: CartItem[] = [
-  { product: products[0], quantity: 2 }, // Tonic Life
-  { product: products[3], quantity: 1 }, // Lexi Life
-  { product: products[6], quantity: 1 }, // Oxifila
-];
+// Free shipping threshold
+const FREE_SHIPPING_THRESHOLD = 999;
 
 export default function CartPage() {
-  const [cartItems, setCartItems] = useState<CartItem[]>(initialCartItems);
   const [couponCode, setCouponCode] = useState('');
-  const [couponApplied, setCouponApplied] = useState(false);
   const [couponError, setCouponError] = useState('');
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
 
-  const updateQuantity = (productId: string, newQuantity: number) => {
+  const { data: cart, isLoading } = useCart();
+  const clearCart = useClearCart();
+  const updateItem = useUpdateCartItem();
+  const removeItem = useRemoveCartItem();
+  const applyCouponMutation = useApplyCoupon();
+  const removeCouponMutation = useRemoveCoupon();
+
+  const handleUpdateQuantity = async (itemId: string, newQuantity: number) => {
     if (newQuantity < 1) return;
-    setCartItems(items =>
-      items.map(item =>
-        item.product.id === productId
-          ? { ...item, quantity: newQuantity }
-          : item
-      )
-    );
+    try {
+      await updateItem.mutateAsync({ itemId, data: { quantity: newQuantity } });
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Error al actualizar cantidad');
+    }
   };
 
-  const removeItem = (productId: string) => {
-    setCartItems(items => items.filter(item => item.product.id !== productId));
+  const handleRemoveItem = async (itemId: string) => {
+    try {
+      await removeItem.mutateAsync(itemId);
+      toast.success('Producto eliminado del carrito');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Error al eliminar producto');
+    }
   };
 
-  const applyCoupon = () => {
+  const handleClearCart = async () => {
+    if (confirm('¿Estás seguro de que deseas vaciar el carrito?')) {
+      try {
+        await clearCart.mutateAsync();
+        toast.success('Carrito vaciado');
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || 'Error al vaciar carrito');
+      }
+    }
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+
     setCouponError('');
-    if (couponCode.toLowerCase() === 'wellness10') {
-      setCouponApplied(true);
-    } else {
-      setCouponError('Cupón no válido');
+    setIsApplyingCoupon(true);
+    try {
+      await applyCouponMutation.mutateAsync({ code: couponCode.trim().toUpperCase() });
+      toast.success('Cupón aplicado exitosamente');
+      setCouponCode('');
+    } catch (error: any) {
+      setCouponError(error.response?.data?.message || 'Cupón no válido');
+    } finally {
+      setIsApplyingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = async () => {
+    try {
+      await removeCouponMutation.mutateAsync();
+      toast.success('Cupón removido');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Error al remover cupón');
     }
   };
 
   // Calculations
-  const subtotal = cartItems.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
-    0
-  );
-  const discount = couponApplied ? subtotal * 0.1 : 0;
-  const shipping = subtotal >= 99 ? 0 : 9.99;
-  const total = subtotal - discount + shipping;
-
-  // Recommended products based on cart
-  const recommendedBundle = productBundles[0];
+  const subtotal = cart ? parseFloat(cart.subtotal) : 0;
+  const total = cart ? parseFloat(cart.total) : 0;
+  const discount = cart ? parseFloat(cart.discountAmount) : 0;
+  const shipping = cart ? parseFloat(cart.shippingAmount) : 0;
+  const hasCoupon = !!cart?.coupon;
+  const couponDiscount = cart?.couponDiscountAmount ? parseFloat(cart.couponDiscountAmount) : 0;
+  const itemCount = cart?.itemCount || 0;
 
   return (
     <>
@@ -78,7 +118,7 @@ export default function CartPage() {
               className="inline-flex items-center gap-2 text-gray-500 hover:text-[#7AB82E] transition-colors"
             >
               <ArrowLeftIcon className="h-4 w-4" />
-              Continuar comprando
+              Seguir comprando
             </Link>
           </div>
 
@@ -88,12 +128,16 @@ export default function CartPage() {
             <div>
               <h1 className="text-3xl font-bold text-[#003B7A]">Tu Carrito</h1>
               <p className="text-gray-500">
-                {cartItems.length} {cartItems.length === 1 ? 'producto' : 'productos'}
+                {itemCount} {itemCount === 1 ? 'producto' : 'productos'}
               </p>
             </div>
           </div>
 
-          {cartItems.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003B7A]"></div>
+            </div>
+          ) : !cart || cart.items.length === 0 ? (
             /* Empty Cart */
             <Card className="text-center py-16">
               <ShoppingBagIcon className="h-20 w-20 mx-auto text-gray-300 mb-6" />
@@ -109,7 +153,7 @@ export default function CartPage() {
                   <Link href="/productos">Ver Productos</Link>
                 </Button>
                 <Button variant="outline" size="lg">
-                  <Link href="/quiz">Hacer el Health Quiz</Link>
+                  <Link href="/quiz">Iniciar mi Evaluación</Link>
                 </Button>
               </div>
             </Card>
@@ -118,18 +162,18 @@ export default function CartPage() {
               {/* Cart Items */}
               <div className="lg:col-span-2 space-y-4">
                 {/* Free Shipping Progress */}
-                {subtotal < 99 && (
+                {subtotal < FREE_SHIPPING_THRESHOLD && (
                   <Card className="bg-[#7AB82E]/10 border-[#7AB82E]/20" padding="md">
                     <div className="flex items-center gap-4">
                       <TruckIcon className="h-8 w-8 text-[#7AB82E] flex-shrink-0" />
                       <div className="flex-grow">
                         <p className="font-medium text-[#003B7A]">
-                          ¡Agrega ${(99 - subtotal).toFixed(2)} más para envío gratis!
+                          ¡Agrega {cartService.formatCurrency(FREE_SHIPPING_THRESHOLD - subtotal)} más para envío gratis!
                         </p>
                         <div className="mt-2 h-2 bg-white rounded-full overflow-hidden">
                           <div
                             className="h-full bg-[#7AB82E] rounded-full transition-all"
-                            style={{ width: `${Math.min((subtotal / 99) * 100, 100)}%` }}
+                            style={{ width: `${Math.min((subtotal / FREE_SHIPPING_THRESHOLD) * 100, 100)}%` }}
                           />
                         </div>
                       </div>
@@ -137,60 +181,74 @@ export default function CartPage() {
                   </Card>
                 )}
 
+                {subtotal >= FREE_SHIPPING_THRESHOLD && (
+                  <Card className="bg-[#7AB82E]/10 border-[#7AB82E]/20" padding="md">
+                    <div className="flex items-center gap-4">
+                      <TruckIcon className="h-8 w-8 text-[#7AB82E] flex-shrink-0" />
+                      <p className="font-medium text-[#7AB82E]">
+                        ¡Felicidades! Tu pedido califica para envío gratis
+                      </p>
+                    </div>
+                  </Card>
+                )}
+
                 {/* Cart Items List */}
-                {cartItems.map((item) => (
-                  <Card key={item.product.id} className="overflow-hidden" padding="none">
+                {cart.items.map((item) => (
+                  <Card key={item.id} className="overflow-hidden" padding="none">
                     <div className="flex flex-col sm:flex-row">
                       {/* Product Image */}
-                      <Link
-                        href={`/productos/${item.product.slug}`}
-                        className="sm:w-40 h-40 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center flex-shrink-0"
-                      >
-                        <div className="w-24 h-24 bg-gradient-to-br from-[#7AB82E]/20 to-[#003B7A]/20 rounded-2xl flex items-center justify-center">
-                          <span className="text-2xl font-bold text-[#003B7A]">
-                            {item.product.name.substring(0, 2).toUpperCase()}
-                          </span>
-                        </div>
-                      </Link>
+                      <div className="sm:w-40 h-40 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {item.productSnapshot?.imageUrl ? (
+                          <img
+                            src={item.productSnapshot.imageUrl}
+                            alt={item.productSnapshot.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-24 h-24 bg-gradient-to-br from-[#7AB82E]/20 to-[#003B7A]/20 rounded-2xl flex items-center justify-center">
+                            <span className="text-2xl font-bold text-[#003B7A]">
+                              {(item.productSnapshot?.name || 'P').substring(0, 2).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
 
                       {/* Product Info */}
                       <div className="flex-grow p-5">
                         <div className="flex justify-between items-start gap-4">
                           <div className="flex-grow">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs font-medium text-[#7AB82E] uppercase">
-                                {item.product.category}
-                              </span>
-                              {item.product.compareAtPrice && (
-                                <Badge variant="error" size="sm">Oferta</Badge>
-                              )}
-                            </div>
-                            <h3 className="font-bold text-lg text-[#003B7A]">
-                              <Link href={`/productos/${item.product.slug}`}>
-                                {item.product.name}
-                              </Link>
-                            </h3>
-                            <p className="text-sm text-gray-500 mt-1">
-                              {item.product.shortDescription}
+                            <p className="text-xs text-gray-500 mb-1">
+                              SKU: {item.productSnapshot?.sku}
                             </p>
+                            <h3 className="font-bold text-lg text-[#003B7A]">
+                              {item.productSnapshot?.name || 'Producto'}
+                            </h3>
 
                             {/* Unit Price */}
                             <div className="flex items-center gap-2 mt-2">
                               <span className="text-sm text-gray-500">
-                                ${item.product.price.toFixed(2)} c/u
+                                {cartService.formatCurrency(item.unitPrice)} c/u
                               </span>
-                              {item.product.compareAtPrice && (
+                              {item.originalPrice && (
                                 <span className="text-xs text-gray-400 line-through">
-                                  ${item.product.compareAtPrice.toFixed(2)}
+                                  {cartService.formatCurrency(item.originalPrice)}
                                 </span>
                               )}
                             </div>
+
+                            {/* Points */}
+                            {item.points > 0 && (
+                              <p className="text-xs text-[#7AB82E] mt-1">
+                                +{item.points} puntos por unidad
+                              </p>
+                            )}
                           </div>
 
                           {/* Remove Button */}
                           <button
-                            onClick={() => removeItem(item.product.id)}
-                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            onClick={() => handleRemoveItem(item.id)}
+                            disabled={removeItem.isPending}
+                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                           >
                             <TrashIcon className="h-5 w-5" />
                           </button>
@@ -203,8 +261,9 @@ export default function CartPage() {
                             <span className="text-sm text-gray-500">Cantidad:</span>
                             <div className="flex items-center">
                               <button
-                                onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                                className="p-2 rounded-l-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+                                onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+                                disabled={item.quantity <= 1 || updateItem.isPending}
+                                className="p-2 rounded-l-lg bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50"
                               >
                                 <MinusIcon className="h-4 w-4" />
                               </button>
@@ -212,12 +271,13 @@ export default function CartPage() {
                                 type="number"
                                 min={1}
                                 value={item.quantity}
-                                onChange={(e) => updateQuantity(item.product.id, parseInt(e.target.value) || 1)}
+                                onChange={(e) => handleUpdateQuantity(item.id, parseInt(e.target.value) || 1)}
                                 className="w-14 text-center py-2 border-y border-gray-200 focus:outline-none"
                               />
                               <button
-                                onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                                className="p-2 rounded-r-lg bg-gray-100 hover:bg-gray-200 transition-colors"
+                                onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                                disabled={updateItem.isPending}
+                                className="p-2 rounded-r-lg bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50"
                               >
                                 <PlusIcon className="h-4 w-4" />
                               </button>
@@ -227,7 +287,7 @@ export default function CartPage() {
                           {/* Line Total */}
                           <div className="text-right">
                             <span className="text-xl font-bold text-[#003B7A]">
-                              ${(item.product.price * item.quantity).toFixed(2)}
+                              {cartService.formatCurrency(item.lineTotal)}
                             </span>
                           </div>
                         </div>
@@ -236,30 +296,16 @@ export default function CartPage() {
                   </Card>
                 ))}
 
-                {/* Recommended Bundle */}
-                <Card className="bg-gradient-to-r from-[#003B7A]/5 to-[#7AB82E]/5 border-[#7AB82E]/20">
-                  <div className="flex items-center gap-2 mb-4">
-                    <TagIcon className="h-5 w-5 text-[#7AB82E]" />
-                    <h3 className="font-bold text-[#003B7A]">Recomendado para ti</h3>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-[#003B7A]">{recommendedBundle.name}</p>
-                      <p className="text-sm text-gray-500">{recommendedBundle.description}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-400 line-through">
-                        ${recommendedBundle.originalPrice.toFixed(2)}
-                      </p>
-                      <p className="font-bold text-[#7AB82E]">
-                        ${recommendedBundle.bundlePrice.toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm" className="mt-4">
-                    Agregar al carrito
-                  </Button>
-                </Card>
+                {/* Clear Cart Button */}
+                <div className="text-center">
+                  <button
+                    onClick={handleClearCart}
+                    disabled={clearCart.isPending}
+                    className="text-sm text-red-500 hover:text-red-600 hover:underline disabled:opacity-50"
+                  >
+                    Vaciar carrito
+                  </button>
+                </div>
               </div>
 
               {/* Order Summary */}
@@ -270,65 +316,100 @@ export default function CartPage() {
                   </h2>
 
                   {/* Coupon Code */}
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Código de descuento
-                    </label>
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Ej: WELLNESS10"
-                        value={couponCode}
-                        onChange={(e) => setCouponCode(e.target.value)}
-                        error={couponError}
-                        disabled={couponApplied}
-                      />
-                      <Button
-                        variant="outline"
-                        onClick={applyCoupon}
-                        disabled={!couponCode || couponApplied}
-                      >
-                        Aplicar
-                      </Button>
+                  {!hasCoupon ? (
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Código de descuento
+                      </label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Código de cupón"
+                          value={couponCode}
+                          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                          error={couponError}
+                        />
+                        <Button
+                          variant="outline"
+                          onClick={handleApplyCoupon}
+                          disabled={!couponCode.trim() || isApplyingCoupon}
+                        >
+                          {isApplyingCoupon ? '...' : 'Aplicar'}
+                        </Button>
+                      </div>
                     </div>
-                    {couponApplied && (
-                      <p className="mt-2 text-sm text-[#7AB82E] flex items-center gap-1">
+                  ) : (
+                    <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-green-700">
                         <TagIcon className="h-4 w-4" />
-                        Cupón aplicado: 10% descuento
-                      </p>
-                    )}
-                  </div>
+                        <div>
+                          <span className="font-medium">{cart.coupon!.code}</span>
+                          <p className="text-xs text-green-600">
+                            {cart.coupon!.name} - {cartService.formatCurrency(couponDiscount)} de descuento
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleRemoveCoupon}
+                        disabled={removeCouponMutation.isPending}
+                        className="text-green-600 hover:text-red-500 transition-colors"
+                      >
+                        <XMarkIcon className="h-5 w-5" />
+                      </button>
+                    </div>
+                  )}
 
                   {/* Order Details */}
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Subtotal ({cartItems.length} productos)</span>
-                      <span className="font-medium">${subtotal.toFixed(2)}</span>
+                      <span className="text-gray-600">Subtotal ({itemCount} productos)</span>
+                      <span className="font-medium">{cartService.formatCurrency(subtotal)}</span>
                     </div>
 
                     {discount > 0 && (
-                      <div className="flex justify-between text-[#7AB82E]">
+                      <div className="flex justify-between text-green-600">
                         <span>Descuento</span>
-                        <span>-${discount.toFixed(2)}</span>
+                        <span>-{cartService.formatCurrency(discount)}</span>
+                      </div>
+                    )}
+
+                    {hasCoupon && couponDiscount > 0 && (
+                      <div className="flex justify-between text-green-600">
+                        <span>Cupón ({cart.coupon!.code})</span>
+                        <span>-{cartService.formatCurrency(couponDiscount)}</span>
                       </div>
                     )}
 
                     <div className="flex justify-between">
+                      <span className="text-gray-600">IVA</span>
+                      <span className="font-medium">
+                        {cartService.formatCurrency(cart.taxAmount)}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between">
                       <span className="text-gray-600">Envío</span>
                       <span className={shipping === 0 ? 'text-[#7AB82E] font-medium' : ''}>
-                        {shipping === 0 ? 'Gratis' : `$${shipping.toFixed(2)}`}
+                        {shipping === 0 ? 'Calculado en checkout' : cartService.formatCurrency(shipping)}
                       </span>
                     </div>
 
                     <div className="flex justify-between text-lg font-bold text-[#003B7A] pt-3 border-t border-gray-200">
                       <span>Total</span>
-                      <span>${total.toFixed(2)} USD</span>
+                      <span>{cartService.formatCurrency(total)}</span>
                     </div>
+
+                    {/* Points */}
+                    {cart.totalPoints > 0 && (
+                      <p className="text-sm text-[#7AB82E] text-center pt-2">
+                        +{cart.totalPoints} puntos por esta compra
+                      </p>
+                    )}
                   </div>
 
                   {/* Checkout Button */}
                   <Link href="/checkout">
                     <Button fullWidth size="lg" className="mt-6">
-                      Proceder al Checkout
+                      Finalizar Compra
                     </Button>
                   </Link>
 
@@ -340,7 +421,7 @@ export default function CartPage() {
                     </div>
                     <div className="flex items-center gap-2 text-gray-500 text-sm mb-3">
                       <TruckIcon className="h-5 w-5 text-[#7AB82E]" />
-                      <span>Envío gratis en pedidos +$99</span>
+                      <span>Envío gratis en pedidos +{cartService.formatCurrency(FREE_SHIPPING_THRESHOLD)}</span>
                     </div>
                     <div className="flex items-center gap-2 text-gray-500 text-sm">
                       <svg className="h-5 w-5 text-[#7AB82E]" fill="currentColor" viewBox="0 0 20 20">
@@ -356,7 +437,7 @@ export default function CartPage() {
                       Métodos de pago aceptados
                     </p>
                     <div className="flex items-center justify-center gap-3">
-                      {['Visa', 'MC', 'Amex', 'PayPal'].map((method) => (
+                      {['Visa', 'MC', 'Amex', 'PayPal', 'MP'].map((method) => (
                         <div
                           key={method}
                           className="w-12 h-8 bg-gray-100 rounded flex items-center justify-center text-[10px] font-bold text-gray-500"

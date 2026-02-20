@@ -297,7 +297,7 @@ export default function EnviosPage() {
               href="/faq"
               className="px-6 py-3 bg-white text-[#003B7A] font-bold rounded-lg hover:bg-blue-50 transition-colors"
             >
-              Ver FAQ
+              Ver Preguntas Frecuentes
             </a>
             <a
               href="/contacto"

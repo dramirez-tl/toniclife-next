@@ -264,7 +264,7 @@ La duración específica de cada cookie se indica en la sección de gestión de 
                   Si tiene preguntas sobre nuestra Política de Cookies, puede contactarnos en:
                 </p>
                 <div className="mt-4 space-y-1 text-gray-700">
-                  <p><strong>Email:</strong> privacidad@toniclife.com</p>
+                  <p><strong>Correo electrónico:</strong> privacidad@toniclife.com</p>
                   <p><strong>Teléfono:</strong> +52 55 1234 5678</p>
                   <p><strong>Dirección:</strong> Av. Insurgentes Sur 1602, Crédito Constructor, Benito Juárez, 03940 CDMX, México</p>
                 </div>

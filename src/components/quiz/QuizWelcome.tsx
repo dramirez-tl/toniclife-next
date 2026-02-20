@@ -3,56 +3,46 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { Button, Card, Input } from '@/components/ui';
-import { SparklesIcon, ClockIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
-
-interface UserInfo {
-  name: string;
-  email: string;
-  age: number;
-  gender: 'female' | 'male';
-}
+import { SparklesIcon, ClockIcon, ShieldCheckIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { QuizGender, QuizSource } from '@/types/quiz';
+import type { StartQuizInput } from '@/types/quiz';
 
 interface QuizWelcomeProps {
-  onStart: (userInfo: UserInfo) => void;
+  onStart: (data: StartQuizInput, gender: QuizGender) => void;
+  onResume?: () => void;
+  hasStoredSession?: boolean;
+  isLoading?: boolean;
+  referralCode?: string;
 }
 
-export function QuizWelcome({ onStart }: QuizWelcomeProps) {
-  const [step, setStep] = useState<'intro' | 'form'>('intro');
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    age: '',
-    gender: '' as 'female' | 'male' | ''
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+export function QuizWelcome({
+  onStart,
+  onResume,
+  hasStoredSession,
+  isLoading,
+  referralCode
+}: QuizWelcomeProps) {
+  const [step, setStep] = useState<'intro' | 'gender'>('intro');
+  const [selectedGender, setSelectedGender] = useState<QuizGender | ''>('');
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSelectGender = (gender: QuizGender) => {
+    setSelectedGender(gender);
+    setError('');
+  };
 
-    // Validate
-    const newErrors: Record<string, string> = {};
-    if (!formData.name.trim()) newErrors.name = 'Ingresa tu nombre';
-    if (!formData.email.trim()) newErrors.email = 'Ingresa tu correo';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Ingresa un correo válido';
-    }
-    if (!formData.age) newErrors.age = 'Ingresa tu edad';
-    else if (parseInt(formData.age) < 18 || parseInt(formData.age) > 100) {
-      newErrors.age = 'Edad debe ser entre 18 y 100';
-    }
-    if (!formData.gender) newErrors.gender = 'Selecciona tu género';
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
+  const handleStartQuiz = () => {
+    if (!selectedGender) {
+      setError('Por favor selecciona tu género');
       return;
     }
 
-    onStart({
-      name: formData.name,
-      email: formData.email,
-      age: parseInt(formData.age),
-      gender: formData.gender as 'female' | 'male'
-    });
+    const startData: StartQuizInput = {
+      referralCode: referralCode || undefined,
+      source: referralCode ? QuizSource.REFERRAL_LINK : QuizSource.DIRECT,
+    };
+
+    onStart(startData, selectedGender as QuizGender);
   };
 
   if (step === 'intro') {
@@ -62,7 +52,7 @@ export function QuizWelcome({ onStart }: QuizWelcomeProps) {
         <div className="flex justify-center mb-8">
           <Image
             src="/images/logo.png"
-            alt="Tonic Life - My Wellness Hub"
+            alt="Tonic Life - Tu Centro de Bienestar"
             width={200}
             height={80}
             priority
@@ -100,16 +90,37 @@ export function QuizWelcome({ onStart }: QuizWelcomeProps) {
           </div>
         </div>
 
-        {/* CTA Button */}
-        <div className="mt-12">
+        {/* CTA Buttons */}
+        <div className="mt-12 space-y-4">
           <Button
             size="xl"
-            onClick={() => setStep('form')}
+            onClick={() => setStep('gender')}
             className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
           >
-            START NOW
+            COMENZAR AHORA
           </Button>
+
+          {hasStoredSession && onResume && (
+            <div>
+              <button
+                onClick={onResume}
+                disabled={isLoading}
+                className="inline-flex items-center gap-2 text-[#003B7A] hover:text-[#7AB82E] transition-colors"
+              >
+                <ArrowPathIcon className="h-5 w-5" />
+                <span>Continuar evaluación anterior</span>
+              </button>
+            </div>
+          )}
         </div>
+
+        {/* Referral Badge */}
+        {referralCode && (
+          <div className="mt-6 inline-flex items-center gap-2 bg-[#7AB82E]/10 text-[#7AB82E] px-4 py-2 rounded-full text-sm">
+            <SparklesIcon className="h-4 w-4" />
+            <span>Referido por: {referralCode}</span>
+          </div>
+        )}
 
         {/* Trust Text */}
         <p className="mt-6 text-sm text-gray-500">
@@ -119,100 +130,76 @@ export function QuizWelcome({ onStart }: QuizWelcomeProps) {
     );
   }
 
+  // Gender Selection Step
   return (
     <Card className="max-w-xl mx-auto" padding="lg">
       <div className="text-center mb-8">
         <div className="inline-flex items-center gap-2 bg-[#7AB82E]/10 text-[#7AB82E] px-4 py-2 rounded-full text-sm font-medium mb-4">
           <SparklesIcon className="h-4 w-4" />
-          Pregunta 1
+          Paso 1
         </div>
         <h2 className="text-2xl font-bold text-[#003B7A]">
-          Comencemos conociéndote
+          Selecciona tu género
         </h2>
         <p className="text-gray-500 mt-2">
-          Esta información nos ayuda a personalizar tus recomendaciones
+          Esto nos ayuda a personalizar las preguntas para ti
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        <Input
-          label="Nombre Completo"
-          placeholder="Tu nombre"
-          value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-          error={errors.name}
-        />
-
-        <Input
-          label="Edad"
-          type="number"
-          placeholder="Tu edad"
-          min={18}
-          max={100}
-          value={formData.age}
-          onChange={(e) => setFormData({ ...formData, age: e.target.value })}
-          error={errors.age}
-        />
-
-        <Input
-          label="Correo Electrónico"
-          type="email"
-          placeholder="tu@correo.com"
-          value={formData.email}
-          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-          error={errors.email}
-          helperText="Para enviarte tus resultados"
-        />
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            Género
-          </label>
-          <div className="grid grid-cols-2 gap-4">
-            <button
-              type="button"
-              onClick={() => setFormData({ ...formData, gender: 'female' })}
-              className={`
-                p-4 rounded-xl border-2 transition-all
-                ${formData.gender === 'female'
-                  ? 'border-[#7AB82E] bg-[#7AB82E]/10 text-[#7AB82E]'
-                  : 'border-gray-200 hover:border-[#7AB82E]/50'
-                }
-              `}
-            >
-              <span className="text-2xl mb-2 block">👩</span>
-              <span className="font-medium">Mujer</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setFormData({ ...formData, gender: 'male' })}
-              className={`
-                p-4 rounded-xl border-2 transition-all
-                ${formData.gender === 'male'
-                  ? 'border-[#7AB82E] bg-[#7AB82E]/10 text-[#7AB82E]'
-                  : 'border-gray-200 hover:border-[#7AB82E]/50'
-                }
-              `}
-            >
-              <span className="text-2xl mb-2 block">👨</span>
-              <span className="font-medium">Hombre</span>
-            </button>
-          </div>
-          {errors.gender && (
-            <p className="mt-2 text-sm text-red-500">{errors.gender}</p>
-          )}
+      <div className="space-y-5">
+        <div className="grid grid-cols-2 gap-4">
+          <button
+            type="button"
+            onClick={() => handleSelectGender(QuizGender.FEMALE)}
+            className={`
+              p-6 rounded-xl border-2 transition-all
+              ${selectedGender === QuizGender.FEMALE
+                ? 'border-[#7AB82E] bg-[#7AB82E]/10 text-[#7AB82E]'
+                : 'border-gray-200 hover:border-[#7AB82E]/50'
+              }
+            `}
+          >
+            <span className="text-4xl mb-3 block">👩</span>
+            <span className="font-medium text-lg">Mujer</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSelectGender(QuizGender.MALE)}
+            className={`
+              p-6 rounded-xl border-2 transition-all
+              ${selectedGender === QuizGender.MALE
+                ? 'border-[#7AB82E] bg-[#7AB82E]/10 text-[#7AB82E]'
+                : 'border-gray-200 hover:border-[#7AB82E]/50'
+              }
+            `}
+          >
+            <span className="text-4xl mb-3 block">👨</span>
+            <span className="font-medium text-lg">Hombre</span>
+          </button>
         </div>
 
+        {error && (
+          <p className="text-center text-sm text-red-500">{error}</p>
+        )}
+
         <div className="pt-4">
-          <Button type="submit" fullWidth size="lg">
-            Continuar
+          <Button
+            onClick={handleStartQuiz}
+            fullWidth
+            size="lg"
+            disabled={isLoading || !selectedGender}
+          >
+            {isLoading ? 'Iniciando...' : 'Continuar'}
           </Button>
         </div>
 
-        <p className="text-center text-xs text-gray-500">
-          Tu información no será compartida. Nunca envíes contraseñas.
-        </p>
-      </form>
+        <button
+          onClick={() => setStep('intro')}
+          className="w-full text-center text-sm text-gray-500 hover:text-[#003B7A] transition-colors"
+        >
+          ← Volver al inicio
+        </button>
+      </div>
     </Card>
   );
 }

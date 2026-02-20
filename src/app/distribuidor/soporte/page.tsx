@@ -145,7 +145,7 @@ const contactMethods = [
   },
   {
     id: 'email',
-    name: 'Email',
+    name: 'Correo',
     description: 'soporte@toniclife.com',
     icon: EnvelopeIcon,
     availability: 'Respuesta en 24hrs',
@@ -261,7 +261,7 @@ export default function SoportePage() {
             </div>
             <Link href="/distribuidor">
               <Button variant="secondary">
-                Volver al Dashboard
+                Volver al Panel Principal
               </Button>
             </Link>
           </div>

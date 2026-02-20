@@ -3,7 +3,7 @@
 import { ButtonHTMLAttributes, forwardRef } from 'react';
 import { cn } from '@/lib/utils';
 
-type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'link';
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'link' | 'success';
 type ButtonSize = 'sm' | 'md' | 'lg' | 'xl' | 'icon';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -21,7 +21,8 @@ const variantStyles: Record<ButtonVariant, string> = {
   outline: 'border-2 border-[#003B7A] text-[#003B7A] hover:bg-[#003B7A] hover:text-white',
   ghost: 'text-[#003B7A] hover:bg-[#003B7A]/10',
   danger: 'bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg',
-  link: 'text-[#003B7A] underline-offset-4 hover:underline'
+  link: 'text-[#003B7A] underline-offset-4 hover:underline',
+  success: 'bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg'
 };
 
 const sizeStyles: Record<ButtonSize, string> = {

@@ -147,7 +147,7 @@ const mockEvents: Event[] = [
   },
   {
     id: '6',
-    title: 'Wellness Retreat 2024',
+    title: 'Retiro de Bienestar 2024',
     type: 'training',
     location: 'Tulum, Quintana Roo',
     country: 'México',

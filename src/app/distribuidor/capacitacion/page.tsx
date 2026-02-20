@@ -114,12 +114,12 @@ const mockCourses = [
 const achievements = [
   { name: 'Primera Venta', icon: '🎯', earned: true, date: '2024-02-15' },
   { name: 'Curso Completado', icon: '📚', earned: true, date: '2024-03-20' },
-  { name: 'Rango Silver', icon: '🥈', earned: true, date: '2024-05-10' },
-  { name: 'Rango Gold', icon: '🥇', earned: true, date: '2024-08-15' },
+  { name: 'Rango Plata', icon: '🥈', earned: true, date: '2024-05-10' },
+  { name: 'Rango Oro', icon: '🥇', earned: true, date: '2024-08-15' },
   { name: '10 Distribuidores', icon: '👥', earned: true, date: '2024-09-20' },
   { name: 'Maestro de Productos', icon: '🎓', earned: false },
   { name: 'Líder de Equipo', icon: '👑', earned: false },
-  { name: 'Rango Diamond', icon: '💎', earned: false },
+  { name: 'Rango Diamante', icon: '💎', earned: false },
 ];
 
 export default function CapacitacionPage() {
@@ -167,7 +167,7 @@ export default function CapacitacionPage() {
             </div>
             <Link href="/distribuidor">
               <Button variant="secondary">
-                Volver al Dashboard
+                Volver al Panel Principal
               </Button>
             </Link>
           </div>

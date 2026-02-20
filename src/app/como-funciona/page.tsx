@@ -19,8 +19,8 @@ export default function ComoFuncionaPage() {
   const steps = [
     {
       number: '01',
-      title: 'Realiza el Quiz de Bienestar',
-      description: 'Nuestro quiz personalizado analiza tu estilo de vida, objetivos de salud y necesidades específicas.',
+      title: 'Realiza la Evaluación de Salud',
+      description: 'Nuestra evaluación personalizada analiza tu estilo de vida, objetivos de salud y necesidades específicas.',
       icon: ClipboardDocumentCheckIcon,
       color: 'from-blue-500 to-blue-600',
       details: [
@@ -40,7 +40,7 @@ export default function ComoFuncionaPage() {
         'Productos seleccionados para tus objetivos',
         'Dosis y horarios recomendados',
         'Plan de suplementación completo',
-        'Bundles optimizados con descuento'
+        'Paquetes optimizados con descuento'
       ]
     },
     {
@@ -50,7 +50,7 @@ export default function ComoFuncionaPage() {
       icon: ShoppingCartIcon,
       color: 'from-green-500 to-green-600',
       details: [
-        'Checkout en 3 pasos simples',
+        'Compra en 3 pasos simples',
         'Pago seguro con encriptación',
         'Múltiples métodos de pago',
         'Envío gratis en pedidos mayores'
@@ -63,8 +63,8 @@ export default function ComoFuncionaPage() {
       icon: TruckIcon,
       color: 'from-orange-500 to-orange-600',
       details: [
-        'Tracking en tiempo real',
-        'Notificaciones por email y SMS',
+        'Seguimiento en tiempo real',
+        'Notificaciones por correo y SMS',
         'Entrega garantizada',
         'Envío gratis en pedidos mayores'
       ]
@@ -174,13 +174,13 @@ export default function ComoFuncionaPage() {
             ¿Listo para Comenzar tu Transformación?
           </h2>
           <p className="text-xl text-blue-100 mb-8">
-            Completa nuestro quiz de bienestar en menos de 2 minutos y recibe tu plan personalizado.
+            Completa nuestra Evaluación de Salud en menos de 2 minutos y recibe tu plan personalizado.
           </p>
           <Link
             href="/quiz"
             className="inline-flex items-center gap-2 px-8 py-4 bg-white text-[#003B7A] font-bold rounded-lg hover:bg-blue-50 transition-colors"
           >
-            <span>Comenzar el Quiz</span>
+            <span>Comenzar la Evaluación</span>
             <ArrowRightIcon className="h-5 w-5" />
           </Link>
         </div>
@@ -224,12 +224,12 @@ export default function ComoFuncionaPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">El Proceso Completo</h2>
-            <p className="text-xl text-gray-600">Desde el quiz hasta tus resultados</p>
+            <p className="text-xl text-gray-600">Desde la evaluación hasta tus resultados</p>
           </div>
 
           <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12">
             <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-              {['Quiz', 'Análisis', 'Recomendaciones', 'Compra', 'Resultados'].map((label, index) => (
+              {['Evaluación', 'Análisis', 'Recomendaciones', 'Compra', 'Resultados'].map((label, index) => (
                 <div key={index} className="flex flex-col items-center">
                   <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#003B7A] to-[#7AB82E] text-white flex items-center justify-center text-2xl font-bold mb-3">
                     {index + 1}

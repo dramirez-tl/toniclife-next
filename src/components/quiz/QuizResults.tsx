@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button, Card, Badge } from '@/components/ui';
 import {
   CheckCircleIcon,
@@ -12,76 +14,176 @@ import {
   HeartIcon,
   MoonIcon,
   ShieldCheckIcon,
-  ScaleIcon
+  EnvelopeIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
-import type { QuizResult, Product, HealthProfile } from '@/types';
+import type { QuizResult, ProductRecommendation } from '@/types/quiz';
+import { useAddCartItem } from '@/hooks/useCart';
+import { useTrackCartAdd } from '@/hooks/useQuiz';
+import { toast } from 'sonner';
 
 interface QuizResultsProps {
   result: QuizResult;
   onRestart: () => void;
+  onSaveEmail?: (email: string, name?: string, phone?: string) => void;
 }
 
 const goalLabels: Record<string, { title: string; description: string; icon: React.ReactNode }> = {
   detox: {
     title: 'Detox & Ligereza',
     description: 'Tu cuerpo necesita una limpieza profunda para recuperar su equilibrio natural.',
-    icon: <SparklesIcon className="h-8 w-8" />
+    icon: <SparklesIcon className="h-8 w-8" />,
   },
   energia: {
     title: 'Energía & Concentración',
     description: 'Tu prioridad es aumentar tus niveles de energía y mejorar tu enfoque mental.',
-    icon: <BoltIcon className="h-8 w-8" />
+    icon: <BoltIcon className="h-8 w-8" />,
+  },
+  energy: {
+    title: 'Energía & Vitalidad',
+    description: 'Tu prioridad es recuperar y mantener altos niveles de energía.',
+    icon: <BoltIcon className="h-8 w-8" />,
   },
   belleza: {
     title: 'Piel & Belleza',
     description: 'Tu piel necesita nutrientes esenciales para brillar desde adentro.',
-    icon: <SparklesIcon className="h-8 w-8" />
+    icon: <SparklesIcon className="h-8 w-8" />,
+  },
+  beauty: {
+    title: 'Belleza Interior',
+    description: 'Nutrientes esenciales para una piel radiante y saludable.',
+    icon: <SparklesIcon className="h-8 w-8" />,
   },
   estres: {
     title: 'Estrés & Sueño',
     description: 'Reducir el estrés y mejorar tu descanso es clave para tu bienestar.',
-    icon: <MoonIcon className="h-8 w-8" />
+    icon: <MoonIcon className="h-8 w-8" />,
+  },
+  stress: {
+    title: 'Manejo del Estrés',
+    description: 'Tu bienestar emocional y descanso son prioridad.',
+    icon: <MoonIcon className="h-8 w-8" />,
   },
   hormonal: {
     title: 'Balance Hormonal',
     description: 'Tu cuerpo necesita apoyo para equilibrar sus procesos hormonales.',
-    icon: <HeartIcon className="h-8 w-8" />
+    icon: <HeartIcon className="h-8 w-8" />,
   },
   masculino: {
     title: 'Salud Masculina',
     description: 'Tu vitalidad y energía masculina pueden mejorar significativamente.',
-    icon: <ShieldCheckIcon className="h-8 w-8" />
-  }
+    icon: <ShieldCheckIcon className="h-8 w-8" />,
+  },
+  weight_loss: {
+    title: 'Control de Peso',
+    description: 'Alcanza tu peso ideal con el apoyo nutricional adecuado.',
+    icon: <SparklesIcon className="h-8 w-8" />,
+  },
+  immune: {
+    title: 'Sistema Inmune',
+    description: 'Fortalece tus defensas naturales.',
+    icon: <ShieldCheckIcon className="h-8 w-8" />,
+  },
+  digestion: {
+    title: 'Salud Digestiva',
+    description: 'Mejora tu digestión y bienestar intestinal.',
+    icon: <SparklesIcon className="h-8 w-8" />,
+  },
 };
 
-const healthLabels: Record<keyof HealthProfile, { label: string; icon: string }> = {
-  energy: { label: 'Energía', icon: '⚡' },
-  digestion: { label: 'Digestión', icon: '🍃' },
-  stress: { label: 'Estrés', icon: '😌' },
-  skin: { label: 'Piel', icon: '✨' },
-  immune: { label: 'Inmunidad', icon: '🛡️' },
-  circulation: { label: 'Circulación', icon: '🩸' },
-  hormonal: { label: 'Hormonal', icon: '💗' }
-};
+export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps) {
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
 
-export function QuizResults({ result, onRestart }: QuizResultsProps) {
-  const goalInfo = goalLabels[result.primaryGoal] || goalLabels.energia;
-  const bundle = result.recommendedBundle;
+  const addToCart = useAddCartItem();
+  const trackCartAdd = useTrackCartAdd();
+
+  // Determine primary goal from summary or first category
+  const primaryGoal = result.summary?.mainGoals?.[0] ||
+    result.summary?.healthCategories?.[0] ||
+    'energy';
+
+  const goalInfo = goalLabels[primaryGoal] || goalLabels.energy;
 
   const handleShare = async () => {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Mi Resultado del Health Quiz - My Wellness Hub',
-          text: `Descubrí mi fórmula ideal de bienestar: ${goalInfo.title}. ¡Haz tu quiz!`,
-          url: window.location.origin + '/quiz'
+          title: 'Mi Resultado de la Evaluación de Salud - Tonic Life',
+          text: `Descubrí mi fórmula ideal de bienestar: ${goalInfo.title}. ¡Haz tu evaluación!`,
+          url: window.location.origin + '/quiz',
         });
       } catch (error) {
         console.log('Error sharing:', error);
       }
+    } else {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(window.location.origin + '/quiz');
+      toast.success('Enlace copiado al portapapeles');
     }
   };
+
+  const handleAddToCart = async (product: ProductRecommendation) => {
+    try {
+      await addToCart.mutateAsync({
+        productId: product.productId,
+        quantity: 1,
+      });
+
+      // Track cart add for analytics
+      if (result.sessionToken) {
+        trackCartAdd.mutate({
+          sessionToken: result.sessionToken,
+          productId: product.productId,
+        });
+      }
+
+      toast.success(`${product.productName} agregado al carrito`);
+    } catch (error) {
+      toast.error('Error al agregar al carrito');
+    }
+  };
+
+  const handleAddAllToCart = async () => {
+    try {
+      for (const product of result.recommendations.slice(0, 3)) {
+        await addToCart.mutateAsync({
+          productId: product.productId,
+          quantity: 1,
+        });
+
+        if (result.sessionToken) {
+          trackCartAdd.mutate({
+            sessionToken: result.sessionToken,
+            productId: product.productId,
+          });
+        }
+      }
+      toast.success('Productos recomendados agregados al carrito');
+    } catch (error) {
+      toast.error('Error al agregar productos');
+    }
+  };
+
+  const handleSaveEmail = () => {
+    if (!email) {
+      toast.error('Ingresa tu correo electrónico');
+      return;
+    }
+    onSaveEmail?.(email, name);
+    toast.success('Te enviaremos tus resultados por correo');
+    setShowEmailForm(false);
+  };
+
+  // Calculate total price for top 3 recommendations
+  const topRecommendations = result.recommendations.slice(0, 3);
+  const totalOriginalPrice = topRecommendations.reduce(
+    (sum, p) => sum + (p.originalPrice || p.price),
+    0
+  );
+  const totalBundlePrice = topRecommendations.reduce((sum, p) => sum + p.price, 0);
+  const discount = Math.round(((totalOriginalPrice - totalBundlePrice) / totalOriginalPrice) * 100);
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -91,10 +193,10 @@ export function QuizResults({ result, onRestart }: QuizResultsProps) {
           <CheckCircleIcon className="h-10 w-10 text-[#7AB82E]" />
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-[#003B7A]">
-          ¡Gracias por completar el cuestionario!
+          ¡Evaluación completada!
         </h1>
         <p className="mt-3 text-lg text-gray-600">
-          Hola <span className="font-semibold">{result.userInfo.name}</span>, aquí está tu recomendación personalizada
+          Aquí están tus recomendaciones personalizadas
         </p>
       </div>
 
@@ -106,68 +208,84 @@ export function QuizResults({ result, onRestart }: QuizResultsProps) {
               {goalInfo.icon}
             </div>
             <div>
-              <Badge variant="success" className="mb-2">Tu Meta Principal</Badge>
+              <Badge variant="success" className="mb-2">
+                Tu Meta Principal
+              </Badge>
               <h2 className="text-2xl sm:text-3xl font-bold">{goalInfo.title}</h2>
               <p className="mt-2 text-white/80">{goalInfo.description}</p>
             </div>
           </div>
         </div>
 
-        {/* Health Profile */}
-        <div className="p-6 bg-gray-50">
-          <h3 className="text-sm font-semibold text-gray-600 mb-4">Tu Perfil de Bienestar</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {Object.entries(result.healthProfile).map(([key, value]) => {
-              const info = healthLabels[key as keyof HealthProfile];
-              return (
-                <div key={key} className="text-center">
-                  <div className="text-2xl mb-1">{info.icon}</div>
-                  <div className="text-xs text-gray-500 mb-1">{info.label}</div>
-                  <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className={`absolute inset-y-0 left-0 rounded-full transition-all ${
-                        value >= 70 ? 'bg-[#7AB82E]' : value >= 40 ? 'bg-amber-400' : 'bg-red-400'
-                      }`}
-                      style={{ width: `${value}%` }}
-                    />
-                  </div>
-                  <div className="text-xs font-semibold mt-1">
-                    {value >= 70 ? 'Bien' : value >= 40 ? 'Mejorable' : 'Atención'}
-                  </div>
-                </div>
-              );
-            })}
+        {/* Health Categories */}
+        {result.summary?.healthCategories && result.summary.healthCategories.length > 0 && (
+          <div className="p-6 bg-gray-50">
+            <h3 className="text-sm font-semibold text-gray-600 mb-4">
+              Áreas de enfoque identificadas
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {result.summary.healthCategories.map((category, index) => (
+                <span
+                  key={index}
+                  className="px-3 py-1 bg-white border border-gray-200 rounded-full text-sm text-gray-700"
+                >
+                  {goalLabels[category]?.title || category}
+                </span>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </Card>
 
-      {/* Recommended Bundle */}
+      {/* Recommended Products Bundle */}
       <Card className="mb-8" padding="lg">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <Badge variant="info" className="mb-2">Tu Combo Recomendado</Badge>
-            <h2 className="text-2xl font-bold text-[#003B7A]">{bundle.name}</h2>
+            <Badge variant="info" className="mb-2">
+              Tu Combo Recomendado
+            </Badge>
+            <h2 className="text-2xl font-bold text-[#003B7A]">
+              Top {topRecommendations.length} Productos para Ti
+            </h2>
           </div>
-          <div className="text-right">
-            <div className="text-sm text-gray-500 line-through">${bundle.originalPrice.toFixed(2)}</div>
-            <div className="text-3xl font-bold text-[#7AB82E]">${bundle.bundlePrice.toFixed(2)}</div>
-            <Badge variant="error" size="sm">Ahorras {bundle.discount}%</Badge>
-          </div>
+          {discount > 0 && (
+            <div className="text-right">
+              <div className="text-sm text-gray-500 line-through">
+                ${totalOriginalPrice.toFixed(2)}
+              </div>
+              <div className="text-3xl font-bold text-[#7AB82E]">
+                ${totalBundlePrice.toFixed(2)}
+              </div>
+              <Badge variant="error" size="sm">
+                Ahorras {discount}%
+              </Badge>
+            </div>
+          )}
         </div>
 
-        <p className="text-gray-600 mb-6">{bundle.description}</p>
-
-        {/* Products in Bundle */}
+        {/* Products List */}
         <div className="space-y-4 mb-8">
-          {bundle.products.map((product) => (
-            <ProductCard key={product.id} product={product} />
+          {topRecommendations.map((product, index) => (
+            <ProductRecommendationCard
+              key={product.productId}
+              product={product}
+              rank={index + 1}
+              onAddToCart={() => handleAddToCart(product)}
+              isLoading={addToCart.isPending}
+            />
           ))}
         </div>
 
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row gap-4">
-          <Button size="lg" fullWidth leftIcon={<ShoppingCartIcon className="h-5 w-5" />}>
-            Agregar Combo al Carrito
+          <Button
+            size="lg"
+            fullWidth
+            leftIcon={<ShoppingCartIcon className="h-5 w-5" />}
+            onClick={handleAddAllToCart}
+            disabled={addToCart.isPending}
+          >
+            Agregar Todo al Carrito
           </Button>
           <Button
             variant="outline"
@@ -181,28 +299,111 @@ export function QuizResults({ result, onRestart }: QuizResultsProps) {
         </div>
       </Card>
 
-      {/* Individual Products */}
-      <Card className="mb-8" padding="lg">
-        <h3 className="text-xl font-bold text-[#003B7A] mb-4">
-          También te recomendamos individualmente
-        </h3>
-        <div className="grid sm:grid-cols-3 gap-4">
-          {bundle.products.map((product) => (
-            <div key={product.id} className="bg-gray-50 rounded-xl p-4 text-center">
-              <div className="w-16 h-16 mx-auto bg-white rounded-xl shadow-sm flex items-center justify-center mb-3">
-                <span className="text-2xl font-bold text-[#003B7A]">
-                  {product.name.substring(0, 2).toUpperCase()}
-                </span>
+      {/* More Recommendations */}
+      {result.recommendations.length > 3 && (
+        <Card className="mb-8" padding="lg">
+          <h3 className="text-xl font-bold text-[#003B7A] mb-4">
+            También te pueden interesar
+          </h3>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {result.recommendations.slice(3, 9).map((product) => (
+              <div
+                key={product.productId}
+                className="bg-gray-50 rounded-xl p-4 text-center hover:bg-gray-100 transition-colors"
+              >
+                <div className="w-16 h-16 mx-auto bg-white rounded-xl shadow-sm flex items-center justify-center mb-3 overflow-hidden">
+                  {product.productImage ? (
+                    <Image
+                      src={product.productImage}
+                      alt={product.productName}
+                      width={64}
+                      height={64}
+                      className="object-cover"
+                    />
+                  ) : (
+                    <span className="text-2xl font-bold text-[#003B7A]">
+                      {product.productName.substring(0, 2).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <h4 className="font-semibold text-[#003B7A] line-clamp-1">
+                  {product.productName}
+                </h4>
+                <p className="text-sm text-gray-500 mt-1">
+                  ${product.price.toFixed(2)}
+                </p>
+                <div className="flex items-center justify-center gap-1 mt-2">
+                  <span className="text-xs text-[#7AB82E] font-medium">
+                    Compatibilidad: {product.score}%
+                  </span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="mt-2"
+                  onClick={() => handleAddToCart(product)}
+                >
+                  Agregar
+                </Button>
               </div>
-              <h4 className="font-semibold text-[#003B7A]">{product.name}</h4>
-              <p className="text-sm text-gray-500 mt-1">${product.price.toFixed(2)}</p>
-              <Button size="sm" variant="ghost" className="mt-2">
-                Ver producto
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Save Email Form */}
+      {onSaveEmail && !showEmailForm && (
+        <Card className="mb-8" padding="lg">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-[#7AB82E]/10 rounded-full">
+              <EnvelopeIcon className="h-6 w-6 text-[#7AB82E]" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-[#003B7A]">
+                Guarda tus resultados
+              </h3>
+              <p className="text-sm text-gray-500">
+                Te enviaremos tus recomendaciones por correo
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setShowEmailForm(true)}>
+              Guardar
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {showEmailForm && (
+        <Card className="mb-8" padding="lg">
+          <h3 className="font-semibold text-[#003B7A] mb-4">
+            Envía tus resultados a tu correo
+          </h3>
+          <div className="space-y-4">
+            <input
+              type="text"
+              placeholder="Tu nombre (opcional)"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7AB82E]/50"
+            />
+            <input
+              type="email"
+              placeholder="tu@correo.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7AB82E]/50"
+            />
+            <div className="flex gap-2">
+              <Button onClick={handleSaveEmail} fullWidth>
+                Enviar resultados
+              </Button>
+              <Button variant="ghost" onClick={() => setShowEmailForm(false)}>
+                Cancelar
               </Button>
             </div>
-          ))}
-        </div>
-      </Card>
+          </div>
+        </Card>
+      )}
 
       {/* Restart or Continue */}
       <div className="text-center space-y-4">
@@ -211,11 +412,14 @@ export function QuizResults({ result, onRestart }: QuizResultsProps) {
           className="inline-flex items-center gap-2 text-gray-500 hover:text-[#003B7A] transition-colors"
         >
           <ArrowPathIcon className="h-5 w-5" />
-          Volver a hacer el quiz
+          Volver a hacer la evaluación
         </button>
 
         <div className="pt-4">
-          <Link href="/productos" className="text-[#7AB82E] hover:underline font-medium">
+          <Link
+            href="/productos"
+            className="text-[#7AB82E] hover:underline font-medium"
+          >
             Explorar todos los productos →
           </Link>
         </div>
@@ -224,43 +428,84 @@ export function QuizResults({ result, onRestart }: QuizResultsProps) {
   );
 }
 
-// Product Card Component
-function ProductCard({ product }: { product: Product }) {
+// Product Recommendation Card Component
+function ProductRecommendationCard({
+  product,
+  rank,
+  onAddToCart,
+  isLoading,
+}: {
+  product: ProductRecommendation;
+  rank: number;
+  onAddToCart: () => void;
+  isLoading: boolean;
+}) {
   return (
     <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-      {/* Product Image Placeholder */}
-      <div className="w-20 h-20 bg-white rounded-xl shadow-sm flex-shrink-0 flex items-center justify-center">
-        <span className="text-2xl font-bold text-[#003B7A]">
-          {product.name.substring(0, 2).toUpperCase()}
-        </span>
+      {/* Rank Badge */}
+      <div className="w-10 h-10 flex-shrink-0 bg-[#003B7A] text-white rounded-full flex items-center justify-center font-bold">
+        #{rank}
+      </div>
+
+      {/* Product Image */}
+      <div className="w-20 h-20 bg-white rounded-xl shadow-sm flex-shrink-0 flex items-center justify-center overflow-hidden">
+        {product.productImage ? (
+          <Image
+            src={product.productImage}
+            alt={product.productName}
+            width={80}
+            height={80}
+            className="object-cover"
+          />
+        ) : (
+          <span className="text-2xl font-bold text-[#003B7A]">
+            {product.productName.substring(0, 2).toUpperCase()}
+          </span>
+        )}
       </div>
 
       {/* Product Info */}
-      <div className="flex-grow">
-        <h4 className="font-bold text-[#003B7A]">{product.name}</h4>
-        <p className="text-sm text-gray-500 line-clamp-1">{product.shortDescription}</p>
+      <div className="flex-grow min-w-0">
+        <h4 className="font-bold text-[#003B7A] line-clamp-1">{product.productName}</h4>
+        <p className="text-sm text-gray-500 line-clamp-2">{product.reason}</p>
 
-        {/* Benefits */}
-        <div className="flex flex-wrap gap-1 mt-2">
-          {product.benefits.slice(0, 2).map((benefit, index) => (
-            <span
-              key={index}
-              className="text-xs bg-[#7AB82E]/10 text-[#7AB82E] px-2 py-0.5 rounded-full"
-            >
-              {benefit}
+        {/* Score and Category */}
+        <div className="flex flex-wrap items-center gap-2 mt-2">
+          <span className="text-xs bg-[#7AB82E]/10 text-[#7AB82E] px-2 py-0.5 rounded-full font-medium">
+            Compatibilidad: {product.score}%
+          </span>
+          {product.categoryName && (
+            <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
+              {product.categoryName}
             </span>
-          ))}
+          )}
         </div>
       </div>
 
-      {/* Price */}
+      {/* Price and Actions */}
       <div className="text-right flex-shrink-0">
-        <div className="font-bold text-[#003B7A]">${product.price.toFixed(2)}</div>
-        <div className="flex items-center gap-0.5 mt-1">
+        {product.originalPrice && product.originalPrice > product.price && (
+          <div className="text-sm text-gray-400 line-through">
+            ${product.originalPrice.toFixed(2)}
+          </div>
+        )}
+        <div className="font-bold text-[#003B7A] text-lg">
+          ${product.price.toFixed(2)}
+        </div>
+        <div className="flex items-center gap-0.5 mt-1 justify-end">
           {[1, 2, 3, 4, 5].map((star) => (
             <StarIcon key={star} className="h-3 w-3 text-yellow-400" />
           ))}
         </div>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="mt-2"
+          onClick={onAddToCart}
+          disabled={isLoading}
+        >
+          <ShoppingCartIcon className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );

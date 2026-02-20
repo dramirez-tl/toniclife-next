@@ -82,7 +82,7 @@ export default function ConfiguracionPage() {
             </div>
             <Link href="/distribuidor">
               <Button variant="secondary">
-                Volver al Dashboard
+                Volver al Panel Principal
               </Button>
             </Link>
           </div>
@@ -148,7 +148,7 @@ export default function ConfiguracionPage() {
                     <div className="flex items-start gap-3">
                       <EnvelopeIcon className="h-5 w-5 text-gray-600 mt-1" />
                       <div>
-                        <p className="font-medium text-gray-900">Notificaciones por Email</p>
+                        <p className="font-medium text-gray-900">Notificaciones por Correo</p>
                         <p className="text-sm text-gray-600">Recibe actualizaciones en tu correo</p>
                       </div>
                     </div>
@@ -274,7 +274,7 @@ export default function ConfiguracionPage() {
                     <div className="flex items-start gap-3">
                       <EyeIcon className="h-5 w-5 text-gray-600 mt-1" />
                       <div>
-                        <p className="font-medium text-gray-900">Mostrar Email</p>
+                        <p className="font-medium text-gray-900">Mostrar Correo Electrónico</p>
                         <p className="text-sm text-gray-600">Otros pueden ver tu correo electrónico</p>
                       </div>
                     </div>
