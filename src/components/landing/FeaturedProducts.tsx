@@ -48,6 +48,7 @@ interface ProductCardProps {
 function FeaturedProductCard({ product }: ProductCardProps) {
   const addToCart = useAddCartItem();
   const [added, setAdded] = useState(false);
+  const productHref = product.slug ? `/productos/${product.slug}` : '/productos';
 
   const handleAddToCart = () => {
     addToCart.mutate(
@@ -77,7 +78,7 @@ function FeaturedProductCard({ product }: ProductCardProps) {
       )}
 
       {/* Product Image */}
-      <Link href={`/productos/${product.slug}`}>
+      <Link href={productHref}>
         <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center overflow-hidden cursor-pointer">
           <div className="relative w-full h-full flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
             {/* Placeholder product image */}
@@ -100,7 +101,7 @@ function FeaturedProductCard({ product }: ProductCardProps) {
 
         {/* Name */}
         <h3 className="font-bold text-lg text-[#003B7A] group-hover:text-[#7AB82E] transition-colors">
-          <Link href={`/productos/${product.slug}`}>
+          <Link href={productHref}>
             {product.name}
           </Link>
         </h3>
@@ -142,6 +143,7 @@ function FeaturedProductCard({ product }: ProductCardProps) {
             disabled={addToCart.isPending}
             variant={added ? 'success' : 'primary'}
             leftIcon={added ? <CheckIcon className="h-4 w-4" /> : <ShoppingCartIcon className="h-4 w-4" />}
+            aria-label={`Agregar ${product.name} al carrito`}
           >
             {addToCart.isPending ? '...' : added ? 'Listo' : 'Agregar'}
           </Button>
@@ -210,11 +212,24 @@ export function FeaturedProducts() {
         </div>
 
         {/* Products Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {featuredProducts.map((product) => (
-            <FeaturedProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {featuredProducts.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/70 p-10 text-center">
+            <SparklesIcon className="mx-auto mb-3 h-8 w-8 text-gray-400" />
+            <p className="text-base font-medium text-gray-700">No hay productos destacados por ahora</p>
+            <p className="mt-1 text-sm text-gray-500">Explora el catalogo completo para descubrir recomendaciones.</p>
+            <div className="mt-5">
+              <Link href="/productos">
+                <Button variant="outline">Ver catalogo</Button>
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {featuredProducts.map((product) => (
+              <FeaturedProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
 
         {/* View All Button */}
         <div className="text-center mt-12">

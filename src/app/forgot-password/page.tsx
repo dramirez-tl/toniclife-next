@@ -60,7 +60,7 @@ export default function ForgotPasswordPage() {
 
   if (emailSent) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-[#003B7A]/5 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full">
           <div className="text-center mb-8">
             <Link href="/">
@@ -74,7 +74,7 @@ export default function ForgotPasswordPage() {
             </Link>
           </div>
 
-          <Card>
+          <Card className="rounded-3xl border-gray-100 shadow-xl shadow-gray-100/70">
             <CardContent className="p-8 text-center">
               <div className="w-16 h-16 bg-[#7AB82E]/10 rounded-full flex items-center justify-center mx-auto mb-6">
                 <CheckCircleIcon className="h-10 w-10 text-[#7AB82E]" />
@@ -93,9 +93,9 @@ export default function ForgotPasswordPage() {
               </div>
 
               <div className="text-sm text-gray-600 mb-6 space-y-2">
-                <p>Revisa tu bandeja de entrada</p>
-                <p>Verifica la carpeta de spam</p>
-                <p>El enlace expira en 1 hora</p>
+                <p>• Revisa tu bandeja de entrada</p>
+                <p>• Verifica la carpeta de spam</p>
+                <p>• El enlace expira en 1 hora</p>
               </div>
 
               <div className="space-y-3">
@@ -110,7 +110,7 @@ export default function ForgotPasswordPage() {
                     setEmailSent(false);
                     setEmail('');
                   }}
-                  className="w-full text-sm text-[#003B7A] hover:text-[#7AB82E] transition-colors"
+                  className="w-full rounded-lg px-3 py-2 text-sm text-[#003B7A] hover:bg-[#003B7A]/5 hover:text-[#7AB82E] transition-colors"
                 >
                   ¿No recibiste el email? Reenviar
                 </button>
@@ -123,7 +123,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-[#003B7A]/5 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <Link href="/">
@@ -135,7 +135,11 @@ export default function ForgotPasswordPage() {
               className="h-12 w-auto mx-auto mb-6"
             />
           </Link>
-          <h2 className="text-3xl font-bold text-gray-900">
+          <div className="inline-flex items-center gap-2 rounded-full bg-[#003B7A]/8 px-3 py-1 text-xs font-medium text-[#003B7A] mb-3">
+            <EnvelopeIcon className="h-3.5 w-3.5" />
+            Recuperación segura
+          </div>
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900">
             ¿Olvidaste tu contraseña?
           </h2>
           <p className="mt-2 text-sm text-gray-600">
@@ -143,11 +147,11 @@ export default function ForgotPasswordPage() {
           </p>
         </div>
 
-        <Card>
+        <Card className="rounded-3xl border-gray-100 shadow-xl shadow-gray-100/70">
           <CardContent className="p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">
+              <div className="rounded-xl border border-[#003B7A]/15 bg-[#003B7A]/5 p-4">
+                <p className="text-sm text-[#003B7A]/90">
                   Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.
                 </p>
               </div>
@@ -169,7 +173,7 @@ export default function ForgotPasswordPage() {
                 type="submit"
                 variant="primary"
                 size="lg"
-                className="w-full"
+                className="w-full h-12"
                 isLoading={isLoading}
                 disabled={isLoading}
               >
@@ -181,7 +185,7 @@ export default function ForgotPasswordPage() {
                   type="button"
                   variant="outline"
                   size="lg"
-                  className="w-full"
+                  className="w-full h-12"
                   leftIcon={<ArrowLeftIcon className="h-5 w-5" />}
                   disabled={isLoading}
                 >

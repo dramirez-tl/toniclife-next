@@ -6,7 +6,15 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
-import { EnvelopeIcon, LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
+import {
+  EnvelopeIcon,
+  LockClosedIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  ShieldCheckIcon,
+  SparklesIcon,
+  LifebuoyIcon,
+} from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
@@ -94,115 +102,129 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        {/* Logo */}
-        <div className="text-center">
-          <Link href="/">
-            <Image
-              src="/images/logo.png"
-              alt="Tonic Life"
-              width={200}
-              height={80}
-              className="h-12 w-auto mx-auto mb-6"
-            />
-          </Link>
-          <h2 className="text-3xl font-bold text-gray-900">
-            Bienvenido de nuevo
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            ¿No tienes cuenta?{' '}
-            <Link href="/registro" className="font-medium text-[#003B7A] hover:text-[#7AB82E] transition-colors">
-              Regístrate gratis
-            </Link>
-          </p>
-        </div>
-
-        <Card>
-          <CardContent className="p-8">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Email */}
-              <Input
-                label="Correo electrónico"
-                type="email"
-                placeholder="tu@email.com"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                error={errors.email}
-                leftIcon={<EnvelopeIcon className="h-5 w-5" />}
-                autoComplete="email"
-                disabled={isLoading}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-[#003B7A]/10 px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+      <div className="mx-auto flex w-full max-w-5xl items-center justify-center">
+        <div className="w-full max-w-md space-y-6">
+          <div className="text-center">
+            <Link href="/">
+              <Image
+                src="/images/logo.png"
+                alt="Tonic Life"
+                width={180}
+                height={64}
+                className="mx-auto mb-4 h-10 w-auto"
               />
+            </Link>
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#003B7A]/8 px-3 py-1 text-xs font-medium text-[#003B7A]">
+              <ShieldCheckIcon className="h-3.5 w-3.5" />
+              Acceso seguro
+            </div>
+            <h2 className="mt-3 text-3xl font-bold tracking-tight text-gray-900 sm:text-[2rem] lg:text-[2.2rem]">
+              Iniciar sesión
+            </h2>
+            <p className="mt-2 max-w-md text-sm text-gray-600 lg:max-w-none">
+              Ingresa con tus credenciales autorizadas para acceder a la plataforma.
+            </p>
+          </div>
 
-              {/* Password */}
-              <div className="relative">
+          <Card className="rounded-3xl border border-gray-100 bg-white/95 shadow-2xl shadow-gray-200/70 backdrop-blur">
+            <CardContent className="p-7 sm:p-8 lg:p-9">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Email */}
                 <Input
-                  label="Contraseña"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  error={errors.password}
-                  leftIcon={<LockClosedIcon className="h-5 w-5" />}
-                  autoComplete="current-password"
+                  label="Correo electrónico"
+                  type="email"
+                  placeholder="tu@email.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  error={errors.email}
+                  leftIcon={<EnvelopeIcon className="h-5 w-5" />}
+                  autoComplete="email"
                   disabled={isLoading}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-9 text-gray-400 hover:text-gray-600"
-                  disabled={isLoading}
-                >
-                  {showPassword ? (
-                    <EyeSlashIcon className="h-5 w-5" />
-                  ) : (
-                    <EyeIcon className="h-5 w-5" />
-                  )}
-                </button>
-              </div>
 
-              {/* Remember & Forgot */}
-              <div className="flex items-center justify-between">
-                <label className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={formData.remember}
-                    onChange={(e) => setFormData({ ...formData, remember: e.target.checked })}
-                    className="h-4 w-4 text-[#003B7A] border-gray-300 rounded focus:ring-[#7AB82E]"
+                {/* Password */}
+                <div className="relative">
+                  <Input
+                    label="Contraseña"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    error={errors.password}
+                    leftIcon={<LockClosedIcon className="h-5 w-5" />}
+                    autoComplete="current-password"
                     disabled={isLoading}
                   />
-                  <span className="ml-2 text-sm text-gray-600">Recordarme</span>
-                </label>
-                <Link
-                  href="/forgot-password"
-                  className="text-sm font-medium text-[#003B7A] hover:text-[#7AB82E] transition-colors"
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-9 rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                    disabled={isLoading}
+                    aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  >
+                    {showPassword ? (
+                      <EyeSlashIcon className="h-5 w-5" />
+                    ) : (
+                      <EyeIcon className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+
+                {/* Remember & Forgot */}
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={formData.remember}
+                      onChange={(e) => setFormData({ ...formData, remember: e.target.checked })}
+                      className="h-4 w-4 rounded border-gray-300 text-[#003B7A] focus:ring-[#7AB82E]"
+                      disabled={isLoading}
+                    />
+                    <span className="ml-2 text-sm text-gray-600">Recordarme</span>
+                  </label>
+                  <Link
+                    href="/forgot-password"
+                    className="text-sm font-medium text-[#003B7A] transition-colors hover:text-[#7AB82E]"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </Link>
+                </div>
+
+                {/* Submit Button */}
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="lg"
+                  className="w-full h-12 text-base font-semibold"
+                  disabled={isLoading}
                 >
-                  ¿Olvidaste tu contraseña?
+                  {isLoading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+                </Button>
+
+                <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
+                  <SparklesIcon className="h-4 w-4 text-[#7AB82E]" />
+                  Tu destino se asigna automáticamente según tu rol
+                </div>
+              </form>
+
+              <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
+                <Link
+                  href="/ayuda"
+                  className="group block transition-colors"
+                >
+                  <div className="mb-1 flex items-center gap-2 text-[#003B7A]">
+                    <LifebuoyIcon className="h-4 w-4" />
+                    <span className="text-sm font-semibold">Soporte de acceso</span>
+                  </div>
+                  <p className="text-xs text-gray-500 group-hover:text-gray-600">
+                    Si no puedes ingresar, contacta a mesa de ayuda interna.
+                  </p>
                 </Link>
               </div>
-
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                variant="primary"
-                size="lg"
-                className="w-full"
-                disabled={isLoading}
-              >
-                {isLoading ? 'Iniciando sesión...' : 'Iniciar sesión'}
-              </Button>
-            </form>
-
-          </CardContent>
-        </Card>
-
-        {/* Help text */}
-        <p className="text-center text-sm text-gray-600">
-          ¿Problemas para iniciar sesión?{' '}
-          <Link href="/ayuda" className="font-medium text-[#003B7A] hover:text-[#7AB82E] transition-colors">
-            Contáctanos
-          </Link>
-        </p>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );

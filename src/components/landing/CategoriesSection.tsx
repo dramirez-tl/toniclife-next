@@ -91,7 +91,7 @@ export function CategoriesSection() {
               >
                 <Card
                   hover
-                  className={`text-center ${colors.bg} ${colors.hover} border-0 transition-all duration-300`}
+                  className={`h-full text-center ${colors.bg} ${colors.hover} border-0 shadow-sm transition-all duration-300 hover:shadow-md`}
                   padding="md"
                 >
                   {/* Icon */}
@@ -105,7 +105,7 @@ export function CategoriesSection() {
                   </h3>
 
                   {/* Description */}
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="mt-1 line-clamp-2 text-sm text-gray-500">
                     {category.description}
                   </p>
 

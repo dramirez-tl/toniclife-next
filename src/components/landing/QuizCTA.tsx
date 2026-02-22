@@ -141,14 +141,18 @@ export function QuizCTA() {
             </div>
 
             {/* Floating Stats */}
-            <div className="absolute -top-8 -right-8 bg-white rounded-2xl shadow-xl px-6 py-5 hidden lg:block">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-[#7AB82E]/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <span className="text-2xl font-bold text-[#7AB82E]">98%</span>
-                </div>
-                <div>
-                  <p className="font-semibold text-[#003B7A]">Satisfacción</p>
-                  <p className="text-xs text-gray-500">Con sus recomendaciones</p>
+            <div className="absolute -top-8 -right-6 hidden xl:block">
+              <div className="rounded-2xl border border-white/70 bg-white/95 px-6 py-5 shadow-xl backdrop-blur">
+                <div className="flex items-center gap-4">
+                  <div className="relative flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-[#7AB82E]/10">
+                    <span className="absolute inset-[2px] rounded-[10px] ring-1 ring-[#7AB82E]/25" />
+                    <span className="text-xl font-bold leading-none tracking-tight text-[#7AB82E]">98%</span>
+                  </div>
+                  <div>
+                    <p className="font-semibold leading-tight text-[#003B7A]">Satisfacción</p>
+                    <p className="text-xs text-gray-500">Con sus recomendaciones</p>
+                    <p className="mt-1 text-[11px] font-medium text-[#7AB82E]">+50,000 evaluaciones</p>
+                  </div>
                 </div>
               </div>
             </div>

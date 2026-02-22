@@ -26,6 +26,7 @@ import {
   BuildingStorefrontIcon,
   GlobeAltIcon,
   BellIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutAsync, selectUser, selectUserPermissions } from '@/store/slices/authSlice';
@@ -183,7 +184,12 @@ function hasAnyPermission(userPermissions: string[], requiredPermissions?: strin
   });
 }
 
-export function AdminSidebar() {
+interface AdminSidebarProps {
+  mobile?: boolean;
+  onNavigate?: () => void;
+}
+
+export function AdminSidebar({ mobile = false, onNavigate }: AdminSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -260,19 +266,36 @@ export function AdminSidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-[#003B7A] text-white flex flex-col">
+    <aside
+      className={`z-40 w-64 bg-[#003B7A] text-white flex flex-col ${
+        mobile ? 'h-full' : 'fixed left-0 top-0 h-screen'
+      }`}
+      aria-label="Barra lateral de administración"
+    >
       {/* Logo */}
-      <div className="flex h-16 items-center justify-center border-b border-white/10 px-4">
-        <Link href="/admin" className="flex items-center gap-2">
+      <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
+        <Link href="/admin" className="flex items-center gap-2" onClick={onNavigate}>
           <div className="w-8 h-8 bg-[#7AB82E] rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-sm">TL</span>
           </div>
           <span className="text-lg font-bold">Tonic Life Admin</span>
         </Link>
+        {mobile && (
+          <button
+            onClick={onNavigate}
+            className="rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+            aria-label="Cerrar menú"
+          >
+            <XMarkIcon className="h-5 w-5" />
+          </button>
+        )}
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-4">
+        <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-white/40">
+          Navegación
+        </p>
         <ul className="space-y-1">
           {filteredNavigation.map((item) => {
             const active = isActive(item.href);
@@ -285,9 +308,10 @@ export function AdminSidebar() {
                   <div>
                     <button
                       onClick={() => toggleExpand(item.name)}
+                      aria-expanded={isExpanded}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                         active || childActive
-                          ? 'bg-white/10 text-white'
+                          ? 'bg-white/12 text-white ring-1 ring-white/10'
                           : 'text-white/70 hover:bg-white/5 hover:text-white'
                       }`}
                     >
@@ -309,9 +333,10 @@ export function AdminSidebar() {
                             <li key={child.name}>
                               <Link
                                 href={child.href}
+                                onClick={onNavigate}
                                 className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
                                   childIsActive
-                                    ? 'bg-[#7AB82E] text-white font-medium'
+                                    ? 'bg-[#7AB82E] text-white font-medium shadow-sm'
                                     : 'text-white/60 hover:bg-white/5 hover:text-white'
                                 }`}
                               >
@@ -326,9 +351,10 @@ export function AdminSidebar() {
                 ) : (
                   <Link
                     href={item.href}
+                    onClick={onNavigate}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                       active
-                        ? 'bg-[#7AB82E] text-white'
+                        ? 'bg-[#7AB82E] text-white shadow-sm'
                         : 'text-white/70 hover:bg-white/5 hover:text-white'
                     }`}
                   >
@@ -356,6 +382,7 @@ export function AdminSidebar() {
         <div className="space-y-1">
           <Link
             href="/"
+            onClick={onNavigate}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors"
           >
             <ArrowLeftOnRectangleIcon className="h-5 w-5" />

@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useDashboardKPIs } from '@/hooks/useReports';
 import {
@@ -15,7 +14,9 @@ import {
   ExclamationTriangleIcon,
   ClockIcon,
   ChartBarIcon,
-  EllipsisHorizontalIcon,
+  ArrowPathIcon,
+  SparklesIcon,
+  EyeIcon,
 } from '@heroicons/react/24/outline';
 
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
@@ -32,6 +33,7 @@ const statusConfig: Record<string, { label: string; color: string; bg: string }>
 
 export default function AdminDashboard() {
   const { data: kpis, isLoading, error } = useDashboardKPIs();
+  const handleRefresh = () => window.location.reload();
 
   const formatTime = (timestamp: string) => {
     if (!timestamp) return '';
@@ -134,27 +136,53 @@ export default function AdminDashboard() {
   ];
 
   return (
-    <div className="p-8 bg-gray-50/50 min-h-screen">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-gray-900">Panel Principal</h1>
-        <p className="text-gray-500 mt-1">Resumen general del sistema</p>
+      <div className="mb-6 rounded-2xl border border-white/70 bg-white/80 p-5 shadow-sm backdrop-blur sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
+              <SparklesIcon className="h-3.5 w-3.5" />
+              Vista administrativa
+            </div>
+            <h1 className="text-2xl font-semibold text-gray-900 sm:text-3xl">Panel Principal</h1>
+            <p className="mt-1 text-sm text-gray-500 sm:text-base">Resumen general del sistema y actividad reciente</p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href="/admin/reportes">
+              <Button variant="outline" size="sm" className="gap-2">
+                <EyeIcon className="h-4 w-4" />
+                Ver reportes
+              </Button>
+            </Link>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-2 text-gray-600"
+              onClick={handleRefresh}
+            >
+              <ArrowPathIcon className="h-4 w-4" />
+              Actualizar
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+      <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         {stats.map((stat) => (
           <div
             key={stat.title}
-            className="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-lg hover:shadow-gray-100/50 transition-shadow duration-300"
+            className="group rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-lg hover:shadow-gray-100/60"
           >
             <div className="flex items-start justify-between mb-4">
-              <div className={`${stat.iconBg} p-3 rounded-xl`}>
+              <div className={`${stat.iconBg} rounded-xl p-3 ring-1 ring-black/5`}>
                 <stat.icon className={`h-5 w-5 ${stat.iconColor}`} />
               </div>
-              <div className={`flex items-center gap-1 text-sm font-medium ${
+              <div className={`flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${
                 stat.change >= 0 ? 'text-emerald-600' : 'text-red-500'
-              }`}>
+              } ${stat.change >= 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
                 {stat.change >= 0 ? (
                   <ArrowUpIcon className="h-3.5 w-3.5" />
                 ) : (
@@ -163,19 +191,19 @@ export default function AdminDashboard() {
                 <span>{Math.abs(stat.change)}%</span>
               </div>
             </div>
-            <p className="text-sm text-gray-500 mb-1">{stat.title}</p>
-            <p className="text-2xl font-semibold text-gray-900">
+            <p className="mb-1 text-sm text-gray-500">{stat.title}</p>
+            <p className="text-2xl font-semibold tracking-tight text-gray-900">
               {stat.isCurrency ? '$' : ''}{stat.value.toLocaleString('es-MX')}
             </p>
           </div>
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid gap-6 xl:grid-cols-3">
         {/* Recent Orders */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-2xl border border-gray-100">
-            <div className="flex items-center justify-between p-6 border-b border-gray-50">
+        <div className="space-y-6 xl:col-span-2">
+          <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-gray-100/80 p-4 sm:p-6">
               <div className="flex items-center gap-3">
                 <div className="bg-blue-50 p-2 rounded-lg">
                   <ShoppingBagIcon className="h-4 w-4 text-blue-600" />
@@ -190,9 +218,9 @@ export default function AdminDashboard() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[640px]">
                 <thead>
-                  <tr className="bg-gray-50/50">
+                  <tr className="bg-gray-50/70">
                     <th className="text-left py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Pedido</th>
                     <th className="text-left py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
                     <th className="text-right py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
@@ -203,9 +231,10 @@ export default function AdminDashboard() {
                 <tbody className="divide-y divide-gray-50">
                   {(kpis?.recentOrders ?? []).length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-12 text-center">
+                      <td colSpan={5} className="py-14 text-center">
                         <ShoppingBagIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                        <p className="text-gray-400 text-sm">No hay pedidos recientes</p>
+                        <p className="text-gray-500 text-sm font-medium">No hay pedidos recientes</p>
+                        <p className="mt-1 text-xs text-gray-400">Cuando se registren nuevas ventas aparecerán aquí.</p>
                       </td>
                     </tr>
                   ) : (
@@ -244,14 +273,14 @@ export default function AdminDashboard() {
           </div>
 
           {/* Top Products */}
-          <div className="bg-white rounded-2xl border border-gray-100">
-            <div className="flex items-center gap-3 p-6 border-b border-gray-50">
+          <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
+            <div className="flex items-center gap-3 border-b border-gray-50 p-5 sm:p-6">
               <div className="bg-amber-50 p-2 rounded-lg">
                 <ChartBarIcon className="h-4 w-4 text-amber-600" />
               </div>
               <h2 className="text-lg font-semibold text-gray-900">Productos Más Vendidos</h2>
             </div>
-            <div className="p-6">
+            <div className="p-5 sm:p-6">
               {(kpis?.topProducts ?? []).length === 0 ? (
                 <div className="text-center py-8">
                   <ChartBarIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
@@ -259,8 +288,13 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {(kpis?.topProducts ?? []).map((product, index) => (
-                    <div key={product.productId} className="flex items-center gap-4 p-3 rounded-xl hover:bg-gray-50 transition-colors">
+                  {(kpis?.topProducts ?? []).map((product, index, arr) => {
+                    const maxSales = arr[0]?.sales ?? 1;
+                    const percentage = Math.max((product.sales / maxSales) * 100, 8);
+
+                    return (
+                    <div key={product.productId} className="rounded-xl border border-gray-100 p-3.5 transition-colors hover:bg-gray-50">
+                      <div className="mb-2 flex items-center gap-4">
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-semibold ${
                         index === 0 ? 'bg-amber-100 text-amber-700' :
                         index === 1 ? 'bg-gray-100 text-gray-600' :
@@ -278,8 +312,15 @@ export default function AdminDashboard() {
                           ${product.revenue.toLocaleString('es-MX')}
                         </p>
                       </div>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
               )}
             </div>
@@ -289,14 +330,14 @@ export default function AdminDashboard() {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Recent Activity */}
-          <div className="bg-white rounded-2xl border border-gray-100">
-            <div className="flex items-center gap-3 p-6 border-b border-gray-50">
+          <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
+            <div className="flex items-center gap-3 border-b border-gray-50 p-5 sm:p-6">
               <div className="bg-violet-50 p-2 rounded-lg">
                 <ClockIcon className="h-4 w-4 text-violet-600" />
               </div>
               <h2 className="text-lg font-semibold text-gray-900">Actividad Reciente</h2>
             </div>
-            <div className="p-6">
+            <div className="p-5 sm:p-6">
               {(kpis?.recentActivity ?? []).length === 0 ? (
                 <div className="text-center py-8">
                   <ClockIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
@@ -305,7 +346,7 @@ export default function AdminDashboard() {
               ) : (
                 <div className="space-y-4">
                   {(kpis?.recentActivity ?? []).map((activity) => (
-                    <div key={activity.id} className="flex gap-3">
+                    <div key={activity.id} className="relative flex gap-3 rounded-lg p-2 transition-colors hover:bg-gray-50">
                       <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
                         activity.type === 'user' ? 'bg-blue-500' :
                         activity.type === 'order' ? 'bg-emerald-500' :
@@ -325,21 +366,21 @@ export default function AdminDashboard() {
           </div>
 
           {/* System Status */}
-          <div className="bg-white rounded-2xl border border-gray-100">
-            <div className="flex items-center gap-3 p-6 border-b border-gray-50">
+          <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
+            <div className="flex items-center gap-3 border-b border-gray-50 p-5 sm:p-6">
               <div className="bg-emerald-50 p-2 rounded-lg">
                 <CheckCircleIcon className="h-4 w-4 text-emerald-600" />
               </div>
               <h2 className="text-lg font-semibold text-gray-900">Estado del Sistema</h2>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="space-y-4 p-5 sm:p-6">
               {[
                 { name: 'API', status: 'online' },
                 { name: 'Base de Datos', status: 'online' },
                 { name: 'Pagos', status: 'online' },
                 { name: 'Correo', status: 'online' },
               ].map((service) => (
-                <div key={service.name} className="flex items-center justify-between">
+                <div key={service.name} className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2.5">
                   <span className="text-sm text-gray-600">{service.name}</span>
                   <div className="flex items-center gap-2">
                     <span className="relative flex h-2 w-2">

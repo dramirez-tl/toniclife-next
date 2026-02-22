@@ -3,7 +3,7 @@
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useState } from 'react';
-import { Bars3Icon, XMarkIcon, BellIcon } from '@heroicons/react/24/outline';
+import { Bars3Icon, BellIcon } from '@heroicons/react/24/outline';
 
 // Roles que tienen acceso al panel de administración
 // Aligned with database role codes from roles table
@@ -32,8 +32,9 @@ export default function AdminLayout({
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-30 bg-black/50 backdrop-blur-[1px] lg:hidden"
           onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
         />
       )}
 
@@ -42,8 +43,11 @@ export default function AdminLayout({
         className={`fixed inset-y-0 left-0 z-40 w-64 transform transition-transform duration-300 ease-in-out lg:hidden ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Menú lateral"
       >
-        <AdminSidebar />
+        <AdminSidebar mobile onNavigate={() => setSidebarOpen(false)} />
       </div>
 
       {/* Desktop sidebar */}

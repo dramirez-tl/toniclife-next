@@ -27,6 +27,7 @@ import {
   TrashIcon,
   XMarkIcon,
   GlobeAltIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { PermissionGuard } from '@/components/auth';
@@ -247,6 +248,13 @@ export default function SucursalesPage() {
 
   const handleFilterStatus = (value: string) => {
     setFilterStatus(value);
+    setCurrentPage(1);
+  };
+
+  const resetFilters = () => {
+    setSearchQuery('');
+    setFilterType('all');
+    setFilterStatus('all');
     setCurrentPage(1);
   };
 
@@ -491,24 +499,25 @@ export default function SucursalesPage() {
 
   const branches = branchesData?.data ?? [];
   const totalPages = branchesData?.totalPages ?? 1;
+  const hasActiveFilters = Boolean(searchQuery || filterType !== 'all' || filterStatus !== 'all');
 
   return (
     <PermissionGuard permissions={['settings:read', 'settings:*']}>
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex items-center justify-between">
+      <div className="bg-gradient-to-r from-[#003B7A] to-[#0A4B94] text-white">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="flex items-center gap-3 mb-2">
-                <BuildingOffice2Icon className="h-10 w-10" />
-                <h1 className="text-4xl font-bold">Gestion de Sucursales</h1>
+              <div className="mb-2 flex items-center gap-3">
+                <BuildingOffice2Icon className="h-9 w-9" />
+                <h1 className="text-3xl font-bold sm:text-4xl">Gestion de Sucursales</h1>
               </div>
-              <p className="text-white/80 text-lg">
+              <p className="text-base text-white/80 sm:text-lg">
                 Administra sucursales, almacenes y puntos de venta
               </p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <Link href="/admin">
                 <Button variant="secondary">Volver al Panel Principal</Button>
               </Link>
@@ -525,10 +534,10 @@ export default function SucursalesPage() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
+        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -542,7 +551,7 @@ export default function SucursalesPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -556,7 +565,7 @@ export default function SucursalesPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -570,7 +579,7 @@ export default function SucursalesPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -586,9 +595,28 @@ export default function SucursalesPage() {
         </div>
 
         {/* Filters and Search */}
-        <Card className="mb-6">
+        <Card className="mb-6 border-gray-100 shadow-sm">
           <CardContent className="p-6">
-            <div className="flex flex-col lg:flex-row gap-4">
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-sm font-medium text-gray-700">Busqueda y filtros</p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2 text-gray-600"
+                  onClick={() => refetch()}
+                >
+                  <ArrowPathIcon className="h-4 w-4" />
+                  Actualizar
+                </Button>
+                {hasActiveFilters && (
+                  <Button variant="outline" size="sm" onClick={resetFilters}>
+                    Limpiar filtros
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-col gap-4 lg:flex-row">
               {/* Search */}
               <div className="flex-1">
                 <div className="relative">
@@ -631,14 +659,42 @@ export default function SucursalesPage() {
                 </select>
               </div>
             </div>
+            {hasActiveFilters && (
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+                <span className="rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-700">
+                  Filtros activos
+                </span>
+                {searchQuery && (
+                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
+                    Busqueda: {searchQuery}
+                  </span>
+                )}
+                {filterType !== 'all' && (
+                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
+                    Tipo: {filterType}
+                  </span>
+                )}
+                {filterStatus !== 'all' && (
+                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
+                    Estado: {filterStatus}
+                  </span>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {/* Branches Table */}
-        <Card>
+        <Card className="border-gray-100 shadow-sm">
           <CardContent className="p-6">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-base font-semibold text-gray-900">Listado de sucursales</h2>
+              <p className="text-sm text-gray-600">
+                Mostrando {branches.length} de {branchesData?.total ?? 0}
+              </p>
+            </div>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[920px]">
                 <thead>
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
@@ -700,35 +756,39 @@ export default function SucursalesPage() {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => handleOpenEditModal(branch)}
-                            className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                            className="rounded-lg p-2 transition-colors hover:bg-blue-50"
                             title="Editar sucursal"
+                            aria-label={`Editar ${branch.name}`}
                           >
                             <PencilIcon className="h-4 w-4 text-blue-600" />
                           </button>
                           {branch.isActive ? (
                             <button
                               onClick={() => handleToggleActive(branch)}
-                              className="p-2 hover:bg-yellow-50 rounded-lg transition-colors"
+                              className="rounded-lg p-2 transition-colors hover:bg-yellow-50"
                               title="Desactivar sucursal"
                               disabled={updateBranch.isPending}
+                              aria-label={`Desactivar ${branch.name}`}
                             >
                               <XCircleIcon className="h-4 w-4 text-yellow-600" />
                             </button>
                           ) : (
                             <button
                               onClick={() => handleToggleActive(branch)}
-                              className="p-2 hover:bg-green-50 rounded-lg transition-colors"
+                              className="rounded-lg p-2 transition-colors hover:bg-green-50"
                               title="Activar sucursal"
                               disabled={updateBranch.isPending}
+                              aria-label={`Activar ${branch.name}`}
                             >
                               <CheckCircleIcon className="h-4 w-4 text-green-600" />
                             </button>
                           )}
                           <button
                             onClick={() => handleDeleteBranch(branch)}
-                            className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                            className="rounded-lg p-2 transition-colors hover:bg-red-50"
                             title="Eliminar sucursal"
                             disabled={deleteBranch.isPending}
+                            aria-label={`Eliminar ${branch.name}`}
                           >
                             <TrashIcon className="h-4 w-4 text-red-600" />
                           </button>
@@ -746,13 +806,27 @@ export default function SucursalesPage() {
                 <h3 className="text-xl font-bold text-gray-900 mb-2">
                   No se encontraron sucursales
                 </h3>
-                <p className="text-gray-600">Intenta ajustar los filtros de busqueda</p>
+                <p className="text-gray-600">Intenta ajustar los filtros de busqueda o crear una nueva sucursal.</p>
+                <div className="mt-4 flex justify-center gap-2">
+                  {hasActiveFilters && (
+                    <Button variant="outline" onClick={resetFilters}>
+                      Limpiar filtros
+                    </Button>
+                  )}
+                  <Button
+                    variant="primary"
+                    leftIcon={<PlusIcon className="h-4 w-4" />}
+                    onClick={handleOpenCreateModal}
+                  >
+                    Nueva Sucursal
+                  </Button>
+                </div>
               </div>
             )}
 
             {/* Pagination */}
             {branches.length > 0 && (
-              <div className="mt-6 flex items-center justify-between">
+              <div className="mt-6 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm text-gray-600">
                   Mostrando {branches.length} de {branchesData?.total ?? 0} sucursales
                   {totalPages > 1 && ` (Pagina ${currentPage} de ${totalPages})`}

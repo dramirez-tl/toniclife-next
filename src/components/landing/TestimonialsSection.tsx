@@ -74,7 +74,7 @@ export function TestimonialsSection() {
               </svg>
             </div>
 
-            <div className="relative">
+            <div className="relative" aria-live="polite">
               {/* Stars */}
               <div className="flex items-center gap-1 mb-4">
                 {[...Array(testimonials[activeIndex].rating)].map((_, i) => (
@@ -122,6 +122,7 @@ export function TestimonialsSection() {
             <button
               onClick={prevTestimonial}
               className="p-3 rounded-full bg-white shadow-md hover:bg-[#7AB82E] hover:text-white transition-colors"
+              aria-label="Testimonio anterior"
             >
               <ChevronLeftIcon className="h-5 w-5" />
             </button>
@@ -132,6 +133,8 @@ export function TestimonialsSection() {
                 <button
                   key={index}
                   onClick={() => setActiveIndex(index)}
+                  aria-label={`Ver testimonio ${index + 1}`}
+                  aria-current={index === activeIndex}
                   className={`w-2.5 h-2.5 rounded-full transition-all ${
                     index === activeIndex
                       ? 'bg-[#7AB82E] w-8'
@@ -144,6 +147,7 @@ export function TestimonialsSection() {
             <button
               onClick={nextTestimonial}
               className="p-3 rounded-full bg-white shadow-md hover:bg-[#7AB82E] hover:text-white transition-colors"
+              aria-label="Siguiente testimonio"
             >
               <ChevronRightIcon className="h-5 w-5" />
             </button>
@@ -156,7 +160,10 @@ export function TestimonialsSection() {
             <Card
               key={testimonial.id}
               hover
-              className={`${index === activeIndex ? 'ring-2 ring-[#7AB82E]' : ''}`}
+              className={`cursor-pointer transition-all ${index === activeIndex ? 'ring-2 ring-[#7AB82E]' : ''}`}
+              onClick={() => setActiveIndex(index)}
+              role="button"
+              aria-label={`Seleccionar testimonio de ${testimonial.name}`}
             >
               {/* Stars */}
               <div className="flex items-center gap-1 mb-3">

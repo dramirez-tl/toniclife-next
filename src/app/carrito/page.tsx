@@ -109,7 +109,7 @@ export default function CartPage() {
   return (
     <>
       <Header />
-      <main className="min-h-screen pt-32 pb-20 bg-gray-50">
+      <main className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50 pb-20 pt-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Breadcrumb */}
           <div className="mb-8">
@@ -123,38 +123,57 @@ export default function CartPage() {
           </div>
 
           {/* Page Title */}
-          <div className="flex items-center gap-4 mb-8">
-            <ShoppingBagIcon className="h-10 w-10 text-[#003B7A]" />
-            <div>
-              <h1 className="text-3xl font-bold text-[#003B7A]">Tu Carrito</h1>
-              <p className="text-gray-500">
-                {itemCount} {itemCount === 1 ? 'producto' : 'productos'}
-              </p>
+          <div className="mb-8 rounded-2xl border border-gray-100 bg-white/90 p-5 shadow-sm backdrop-blur sm:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="rounded-2xl bg-[#003B7A]/10 p-3">
+                  <ShoppingBagIcon className="h-8 w-8 text-[#003B7A]" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold text-[#003B7A]">Tu Carrito</h1>
+                  <p className="text-gray-500">
+                    {itemCount} {itemCount === 1 ? 'producto' : 'productos'}
+                  </p>
+                </div>
+              </div>
+              <Badge variant="info" className="text-xs sm:text-sm">
+                Compra segura
+              </Badge>
             </div>
           </div>
 
           {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003B7A]"></div>
+            <div className="space-y-4 py-4">
+              {[...Array(3)].map((_, i) => (
+                <Card key={i} className="border-gray-100 shadow-sm" padding="none">
+                  <div className="animate-pulse p-5">
+                    <div className="mb-4 h-4 w-44 rounded bg-gray-200" />
+                    <div className="h-3 w-64 rounded bg-gray-100" />
+                    <div className="mt-4 h-10 w-full rounded bg-gray-100" />
+                  </div>
+                </Card>
+              ))}
             </div>
           ) : !cart || cart.items.length === 0 ? (
             /* Empty Cart */
-            <Card className="text-center py-16">
-              <ShoppingBagIcon className="h-20 w-20 mx-auto text-gray-300 mb-6" />
-              <h2 className="text-2xl font-bold text-[#003B7A] mb-2">
+            <Card className="border-dashed border-gray-200 py-16 text-center">
+              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#003B7A]/5">
+                <ShoppingBagIcon className="h-10 w-10 text-[#003B7A]/60" />
+              </div>
+              <h2 className="mb-2 text-2xl font-bold text-[#003B7A]">
                 Tu carrito está vacío
               </h2>
-              <p className="text-gray-500 mb-8 max-w-md mx-auto">
+              <p className="mb-8 max-w-md mx-auto text-gray-500">
                 Parece que aún no has agregado productos. Explora nuestro catálogo
                 y encuentra los productos ideales para ti.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button size="lg">
-                  <Link href="/productos">Ver Productos</Link>
-                </Button>
-                <Button variant="outline" size="lg">
-                  <Link href="/quiz">Iniciar mi Evaluación</Link>
-                </Button>
+              <div className="flex flex-col justify-center gap-4 sm:flex-row">
+                <Link href="/productos">
+                  <Button size="lg">Ver Productos</Button>
+                </Link>
+                <Link href="/quiz">
+                  <Button variant="outline" size="lg">Iniciar mi Evaluación</Button>
+                </Link>
               </div>
             </Card>
           ) : (
@@ -163,7 +182,7 @@ export default function CartPage() {
               <div className="lg:col-span-2 space-y-4">
                 {/* Free Shipping Progress */}
                 {subtotal < FREE_SHIPPING_THRESHOLD && (
-                  <Card className="bg-[#7AB82E]/10 border-[#7AB82E]/20" padding="md">
+                  <Card className="border-[#7AB82E]/20 bg-[#7AB82E]/10 shadow-sm" padding="md">
                     <div className="flex items-center gap-4">
                       <TruckIcon className="h-8 w-8 text-[#7AB82E] flex-shrink-0" />
                       <div className="flex-grow">
@@ -176,6 +195,9 @@ export default function CartPage() {
                             style={{ width: `${Math.min((subtotal / FREE_SHIPPING_THRESHOLD) * 100, 100)}%` }}
                           />
                         </div>
+                        <p className="mt-2 text-xs text-[#003B7A]/70">
+                          Progreso: {Math.round(Math.min((subtotal / FREE_SHIPPING_THRESHOLD) * 100, 100))}%
+                        </p>
                       </div>
                     </div>
                   </Card>
@@ -194,7 +216,7 @@ export default function CartPage() {
 
                 {/* Cart Items List */}
                 {cart.items.map((item) => (
-                  <Card key={item.id} className="overflow-hidden" padding="none">
+                  <Card key={item.id} className="overflow-hidden border-gray-100 shadow-sm transition-all hover:shadow-md" padding="none">
                     <div className="flex flex-col sm:flex-row">
                       {/* Product Image */}
                       <div className="sm:w-40 h-40 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center flex-shrink-0 overflow-hidden">
@@ -249,6 +271,7 @@ export default function CartPage() {
                             onClick={() => handleRemoveItem(item.id)}
                             disabled={removeItem.isPending}
                             className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                            aria-label={`Eliminar ${item.productSnapshot?.name || 'producto'} del carrito`}
                           >
                             <TrashIcon className="h-5 w-5" />
                           </button>
@@ -259,11 +282,11 @@ export default function CartPage() {
                           {/* Quantity Controls */}
                           <div className="flex items-center gap-3">
                             <span className="text-sm text-gray-500">Cantidad:</span>
-                            <div className="flex items-center">
+                            <div className="flex items-center rounded-lg border border-gray-200 bg-white">
                               <button
                                 onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
                                 disabled={item.quantity <= 1 || updateItem.isPending}
-                                className="p-2 rounded-l-lg bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50"
+                                className="p-2 text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
                               >
                                 <MinusIcon className="h-4 w-4" />
                               </button>
@@ -272,12 +295,12 @@ export default function CartPage() {
                                 min={1}
                                 value={item.quantity}
                                 onChange={(e) => handleUpdateQuantity(item.id, parseInt(e.target.value) || 1)}
-                                className="w-14 text-center py-2 border-y border-gray-200 focus:outline-none"
+                                className="w-14 border-x border-gray-200 py-2 text-center focus:outline-none"
                               />
                               <button
                                 onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
                                 disabled={updateItem.isPending}
-                                className="p-2 rounded-r-lg bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50"
+                                className="p-2 text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
                               >
                                 <PlusIcon className="h-4 w-4" />
                               </button>
@@ -301,7 +324,7 @@ export default function CartPage() {
                   <button
                     onClick={handleClearCart}
                     disabled={clearCart.isPending}
-                    className="text-sm text-red-500 hover:text-red-600 hover:underline disabled:opacity-50"
+                    className="rounded-lg px-3 py-1.5 text-sm text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                   >
                     Vaciar carrito
                   </button>
@@ -310,10 +333,15 @@ export default function CartPage() {
 
               {/* Order Summary */}
               <div className="lg:col-span-1">
-                <Card className="sticky top-32" padding="lg">
-                  <h2 className="text-xl font-bold text-[#003B7A] mb-6">
-                    Resumen del Pedido
-                  </h2>
+                <Card className="sticky top-32 border-gray-100 shadow-sm" padding="lg">
+                  <div className="mb-6 flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-[#003B7A]">
+                      Resumen del Pedido
+                    </h2>
+                    <Badge variant="info" size="sm">
+                      {itemCount} {itemCount === 1 ? 'item' : 'items'}
+                    </Badge>
+                  </div>
 
                   {/* Coupon Code */}
                   {!hasCoupon ? (
@@ -412,6 +440,9 @@ export default function CartPage() {
                       Finalizar Compra
                     </Button>
                   </Link>
+                  <p className="mt-2 text-center text-xs text-gray-400">
+                    Pago protegido y cifrado
+                  </p>
 
                   {/* Trust Badges */}
                   <div className="mt-6 pt-6 border-t border-gray-100">

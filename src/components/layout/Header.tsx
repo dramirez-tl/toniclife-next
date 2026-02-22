@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui';
 import {
   Bars3Icon,
@@ -37,9 +38,12 @@ const navigation = [
 ];
 
 export function Header() {
+  const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [language, setLanguage] = useState<'es' | 'en'>('es');
+  const [shippingCurrency, setShippingCurrency] = useState<'USD' | 'MXN'>('USD');
+  const closeDropdownTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Get cart item count from API
   const { data: cartSummary } = useCartSummary();
@@ -61,13 +65,53 @@ export function Header() {
     return '/distribuidor';
   }, [isAuthenticated, userRoles]);
 
+  const isActive = (href: string) => {
+    if (href === '/') return pathname === '/';
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
+  const clearCloseDropdownTimeout = () => {
+    if (closeDropdownTimeoutRef.current) {
+      clearTimeout(closeDropdownTimeoutRef.current);
+      closeDropdownTimeoutRef.current = null;
+    }
+  };
+
+  const handleDropdownEnter = (name: string) => {
+    clearCloseDropdownTimeout();
+    setActiveDropdown(name);
+  };
+
+  const handleDropdownLeave = () => {
+    clearCloseDropdownTimeout();
+    closeDropdownTimeoutRef.current = setTimeout(() => {
+      setActiveDropdown(null);
+    }, 120);
+  };
+
+  useEffect(() => {
+    const browserLocale = navigator.language || '';
+    const region = browserLocale.split('-')[1]?.toUpperCase();
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+    const isMexico = region === 'MX' || timeZone.includes('Mexico');
+
+    setShippingCurrency(isMexico ? 'MXN' : 'USD');
+  }, []);
+
+  useEffect(() => {
+    return () => clearCloseDropdownTimeout();
+  }, []);
+
+  const shippingDesktopText = `Envío gratis en pedidos mayores a $99 ${shippingCurrency}`;
+  const shippingMobileText = `Envío gratis +$99 ${shippingCurrency}`;
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md shadow-sm">
       {/* Top bar */}
       <div className="bg-[#003B7A] text-white text-sm py-2">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <p className="hidden sm:block">Envío gratis en pedidos mayores a $99 USD</p>
-          <p className="sm:hidden text-center w-full">Envío gratis +$99 USD</p>
+          <p className="hidden sm:block">{shippingDesktopText}</p>
+          <p className="sm:hidden text-center w-full">{shippingMobileText}</p>
           <div className="hidden sm:flex items-center gap-4">
             <button
               onClick={() => setLanguage(language === 'es' ? 'en' : 'es')}
@@ -86,7 +130,7 @@ export function Header() {
 
       {/* Main header */}
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 lg:h-20">
+        <div className="flex items-center justify-between h-16 lg:h-[4.5rem] xl:h-20">
           {/* Logo */}
           <Link href="/" className="flex items-center">
             <Image
@@ -100,23 +144,25 @@ export function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center gap-1">
+          <div className="hidden lg:flex items-center gap-0.5 rounded-full border border-gray-100 bg-white/70 px-1.5 py-1 shadow-sm">
             {navigation.map((item) => (
               <div
                 key={item.name}
                 className="relative"
-                onMouseEnter={() => item.children && setActiveDropdown(item.name)}
-                onMouseLeave={() => setActiveDropdown(null)}
+                onMouseEnter={() => item.children && handleDropdownEnter(item.name)}
+                onMouseLeave={handleDropdownLeave}
               >
                 {item.children ? (
                   <>
                     <button
                       className={`
-                        flex items-center gap-1 px-4 py-2 rounded-full
-                        text-[#003B7A] font-medium
+                        flex items-center gap-1 px-3 xl:px-4 py-2 rounded-full
+                        text-sm xl:text-base text-[#003B7A] font-medium
                         hover:bg-[#003B7A]/5 transition-colors
+                        ${activeDropdown === item.name || isActive(item.href) ? 'bg-[#003B7A]/8 text-[#003B7A]' : ''}
                         ${item.highlight ? 'bg-[#7AB82E]/10 text-[#7AB82E]' : ''}
                       `}
+                      aria-expanded={activeDropdown === item.name}
                     >
                       {item.name}
                       <ChevronDownIcon className="h-4 w-4" />
@@ -124,28 +170,37 @@ export function Header() {
 
                     {/* Dropdown */}
                     {activeDropdown === item.name && (
-                      <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                        {item.children.map((child) => (
-                          <Link
-                            key={child.name}
-                            href={child.href}
-                            className="block px-4 py-2 text-gray-700 hover:bg-[#7AB82E]/10 hover:text-[#7AB82E] transition-colors"
-                          >
-                            {child.name}
-                          </Link>
-                        ))}
+                      <div
+                        className="absolute top-full left-0 z-20 w-56 pt-2"
+                        onMouseEnter={() => handleDropdownEnter(item.name)}
+                        onMouseLeave={handleDropdownLeave}
+                      >
+                        <div className="rounded-xl border border-gray-100 bg-white py-2 shadow-lg animate-in fade-in slide-in-from-top-2 duration-200">
+                          {item.children.map((child) => (
+                            <Link
+                              key={child.name}
+                              href={child.href}
+                              className="block px-4 py-2 text-gray-700 hover:bg-[#7AB82E]/10 hover:text-[#7AB82E] transition-colors"
+                            >
+                              {child.name}
+                            </Link>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </>
                 ) : (
                   <Link
                     href={item.href}
+                    aria-current={isActive(item.href) ? 'page' : undefined}
                     className={`
-                      px-4 py-2 rounded-full
-                      font-medium transition-colors
+                      px-3 xl:px-4 py-2 rounded-full
+                      text-sm xl:text-base font-medium transition-colors
                       ${item.highlight
                         ? 'bg-[#7AB82E] text-white hover:bg-[#6aa025]'
-                        : 'text-[#003B7A] hover:bg-[#003B7A]/5'
+                        : isActive(item.href)
+                          ? 'bg-[#003B7A]/8 text-[#003B7A]'
+                          : 'text-[#003B7A] hover:bg-[#003B7A]/5'
                       }
                     `}
                   >
@@ -180,7 +235,7 @@ export function Header() {
             </Link>
 
             {/* CTA Button - Desktop */}
-            <div className="hidden lg:block ml-2">
+            <div className="hidden xl:block ml-2">
               <Link href="/quiz">
                 <Button size="md">
                   Mi Evaluación
@@ -242,11 +297,14 @@ export function Header() {
                 ) : (
                   <Link
                     href={item.href}
+                    aria-current={isActive(item.href) ? 'page' : undefined}
                     className={`
                       block px-4 py-3 rounded-xl font-medium
                       ${item.highlight
                         ? 'bg-[#7AB82E] text-white'
-                        : 'text-[#003B7A] hover:bg-gray-50'
+                        : isActive(item.href)
+                          ? 'bg-[#003B7A]/10 text-[#003B7A]'
+                          : 'text-[#003B7A] hover:bg-gray-50'
                       }
                     `}
                     onClick={() => setMobileMenuOpen(false)}
