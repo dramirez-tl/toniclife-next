@@ -3,6 +3,9 @@ import {
   authService,
   UserResponse,
   LoginCredentials,
+  LoginResult,
+  EmailLinkRequired,
+  isEmailLinkRequired,
   RegisterData,
   ChangePasswordData,
   ForgotPasswordData,
@@ -17,6 +20,7 @@ export interface AuthState {
   isLoading: boolean;
   isInitialized: boolean;
   error: string | null;
+  emailLinkRequired: EmailLinkRequired | null;
 }
 
 interface ApiError {
@@ -46,6 +50,19 @@ const getErrorMessage = (error: unknown): string => {
   return 'Error desconocido';
 };
 
+// SessionStorage key for emailLinkRequired (survives full-page navigations)
+const EMAIL_LINK_KEY = 'emailLinkRequired';
+
+const getStoredEmailLink = (): EmailLinkRequired | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = sessionStorage.getItem(EMAIL_LINK_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+};
+
 // Initial state
 const initialState: AuthState = {
   user: null,
@@ -53,6 +70,7 @@ const initialState: AuthState = {
   isLoading: false,
   isInitialized: false,
   error: null,
+  emailLinkRequired: null,
 };
 
 // Async thunks
@@ -83,7 +101,7 @@ export const loginAsync = createAsyncThunk(
   async (credentials: LoginCredentials, { rejectWithValue }) => {
     try {
       const response = await authService.login(credentials);
-      return response.user;
+      return response;
     } catch (error) {
       return rejectWithValue(getErrorMessage(error));
     }
@@ -224,6 +242,10 @@ const authSlice = createSlice({
     setInitialized: (state, action: PayloadAction<boolean>) => {
       state.isInitialized = action.payload;
     },
+    clearEmailLinkRequired: (state) => {
+      state.emailLinkRequired = null;
+      try { sessionStorage.removeItem(EMAIL_LINK_KEY); } catch {}
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -247,12 +269,26 @@ const authSlice = createSlice({
       .addCase(loginAsync.pending, (state) => {
         state.isLoading = true;
         state.error = null;
+        state.emailLinkRequired = null;
       })
       .addCase(loginAsync.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.user = action.payload;
-        state.isAuthenticated = true;
         state.error = null;
+
+        if (isEmailLinkRequired(action.payload)) {
+          // Usuario migrado necesita vincular email
+          state.emailLinkRequired = action.payload;
+          state.isAuthenticated = false;
+          state.user = null;
+          // Persist so it survives full-page navigation
+          try { sessionStorage.setItem(EMAIL_LINK_KEY, JSON.stringify(action.payload)); } catch {}
+        } else {
+          // Login normal exitoso
+          state.user = action.payload.user;
+          state.isAuthenticated = true;
+          state.emailLinkRequired = null;
+          try { sessionStorage.removeItem(EMAIL_LINK_KEY); } catch {}
+        }
       })
       .addCase(loginAsync.rejected, (state, action) => {
         state.isLoading = false;
@@ -336,7 +372,7 @@ const authSlice = createSlice({
   },
 });
 
-export const { setUser, clearUser, setError, clearError, setInitialized } = authSlice.actions;
+export const { setUser, clearUser, setError, clearError, setInitialized, clearEmailLinkRequired } = authSlice.actions;
 export default authSlice.reducer;
 
 // Empty arrays for stable references (prevents re-renders)
@@ -354,3 +390,4 @@ export const selectUserRoles = (state: { auth: AuthState }): string[] => {
 };
 export const selectUserPermissions = (state: { auth: AuthState }) => state.auth.user?.permissions ?? EMPTY_PERMISSIONS;
 export const selectIsEmailVerified = (state: { auth: AuthState }) => !!state.auth.user?.emailVerifiedAt;
+export const selectEmailLinkRequired = (state: { auth: AuthState }) => state.auth.emailLinkRequired;

@@ -38,28 +38,28 @@ class DistributorApi {
 
   /**
    * Obtiene los puntos del periodo actual
-   * TODO: Endpoint not implemented in backend
+   * Backend: GET /distributor/points
    */
   async getPeriodPoints(): Promise<PeriodPoints> {
-    const { data } = await api.get<PeriodPoints>('/mlm/points');
+    const { data } = await api.get<PeriodPoints>('/distributor/points');
     return data;
   }
 
   /**
    * Obtiene el progreso de rango
-   * TODO: Endpoint not implemented in backend
+   * Backend: GET /distributor/rank-progress
    */
   async getRankProgress(): Promise<RankProgress> {
-    const { data } = await api.get<RankProgress>('/mlm/rank/progress');
+    const { data } = await api.get<RankProgress>('/distributor/rank-progress');
     return data;
   }
 
   /**
    * Obtiene el resumen de la red
-   * TODO: Endpoint not implemented in backend
+   * Backend: GET /distributor/network-summary
    */
   async getNetworkSummary(): Promise<NetworkSummary> {
-    const { data } = await api.get<NetworkSummary>('/mlm/network/summary');
+    const { data } = await api.get<NetworkSummary>('/distributor/network-summary');
     return data;
   }
 
@@ -79,7 +79,7 @@ class DistributorApi {
    * TODO: Endpoint not implemented in backend
    */
   async getTopPerformers(limit: number = 5): Promise<TopPerformer[]> {
-    const { data } = await api.get<TopPerformer[]>('/mlm/network/top-performers', {
+    const { data } = await api.get<TopPerformer[]>('/distributor/top-performers', {
       params: { limit: limit.toString() },
     });
     return data;

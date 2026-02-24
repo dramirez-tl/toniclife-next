@@ -3,7 +3,7 @@
 
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { networkApi, RootUserData } from '@/services/networkApi';
-import { NetworkNode, NetworkTreeResponse } from '@/types/network';
+import { NetworkNode, NetworkTreeResponse, DownlineQuery } from '@/types/network';
 
 // Re-exportar RootUserData para facilitar su uso
 export type { RootUserData } from '@/services/networkApi';
@@ -25,10 +25,11 @@ export const networkKeys = {
  * @param depth - Profundidad máxima del árbol
  * @param rootUserData - Datos opcionales del usuario raíz (para mock en desarrollo)
  */
-export const useNetworkTree = (userId: string, depth: number = 3, rootUserData?: RootUserData) => {
+export const useNetworkTree = (userId: string, depth: number = 3, rootUserData?: RootUserData, enabled: boolean = true) => {
   return useQuery({
     queryKey: networkKeys.tree(userId, depth),
     queryFn: () => networkApi.getTree(userId, depth, rootUserData),
+    enabled,
     staleTime: 5 * 60 * 1000, // 5 minutos
     gcTime: 10 * 60 * 1000, // 10 minutos (antes cacheTime)
   });
@@ -73,13 +74,13 @@ export const useNetworkSearch = (query: string) => {
 };
 
 /**
- * Hook para obtener los downlines directos de un distribuidor
+ * Hook para obtener los downlines del distribuidor (paginado con filtros)
  */
-export const useNetworkDownlines = (userId: string, enabled: boolean = true) => {
+export const useNetworkDownlines = (query: DownlineQuery = {}, enabled: boolean = true) => {
   return useQuery({
-    queryKey: networkKeys.downlines(userId),
-    queryFn: () => networkApi.getDownlines(userId),
-    enabled: enabled && !!userId,
+    queryKey: [...networkKeys.all, 'downlines', query] as const,
+    queryFn: () => networkApi.getDownlines(query),
+    enabled,
     staleTime: 5 * 60 * 1000,
   });
 };
@@ -139,7 +140,11 @@ export const useExpandNode = () => {
     onSuccess: (data, nodeId) => {
       // Actualizar el árbol en cache agregando los hijos cargados
       queryClient.setQueriesData(
-        { queryKey: networkKeys.all },
+        {
+          queryKey: networkKeys.all,
+          predicate: (query) =>
+            Array.isArray(query.queryKey) && query.queryKey[1] === 'tree',
+        },
         (oldData: NetworkTreeResponse | undefined) => {
           if (!oldData) return oldData;
 

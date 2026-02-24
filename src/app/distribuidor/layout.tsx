@@ -5,8 +5,8 @@ import { AuthGuard } from '@/components/auth/AuthGuard';
 import { DistributorSidebar } from '@/components/distributor/DistributorSidebar';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 
-// Roles que tienen acceso al panel de distribuidor
-const DISTRIBUTOR_ROLES = ['distributor', 'super_admin', 'admin'];
+// Roles que tienen acceso al panel de distribuidor (DB role codes)
+const DISTRIBUTOR_ROLES = ['customer', 'distribuidor', 'distributor', 'super_admin', 'administrador', 'admin'];
 
 export default function DistributorLayout({
   children,
@@ -32,7 +32,7 @@ export default function DistributorLayout({
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
-          <DistributorSidebar />
+          <DistributorSidebar onNavigate={() => setSidebarOpen(false)} />
           <button
             onClick={() => setSidebarOpen(false)}
             className="absolute top-4 right-4 text-white/70 hover:text-white"
@@ -60,7 +60,6 @@ export default function DistributorLayout({
               <div className="w-8 h-8 bg-[#003B7A] rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">TL</span>
               </div>
-              <span className="font-semibold text-gray-900">Centro de Negocio</span>
             </div>
           </header>
 

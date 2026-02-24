@@ -1,4 +1,5 @@
 // services/networkApi.ts - Llamadas API al backend para red MLM (axios)
+// Usa endpoints de /distributor/network/ (JWT only, sin permisos admin)
 
 import api from '@/lib/axios';
 import type {
@@ -8,6 +9,8 @@ import type {
   NetworkSearchResult,
   NetworkNode,
   RankType,
+  DownlineListResponse,
+  DownlineQuery,
 } from '@/types/network';
 
 // Mapeo de codigos de rango del backend a tipos del frontend
@@ -30,15 +33,15 @@ interface BackendNetworkNode {
   customerId: string;
   customerName: string;
   customerEmail?: string;
-  uplineId?: string;
-  sponsorId?: string;
-  level: number;
+  parentId?: string;
+  sponsorMemberId?: string;
+  depth: number;
   path?: string;
   rank?: {
     id: string;
     code: string;
     name: string;
-    level: number;
+    rankNumber: number;
   };
   personalPoints?: number;
   groupPoints?: number;
@@ -46,25 +49,30 @@ interface BackendNetworkNode {
   status?: string;
   directDownlinesCount: number;
   children?: BackendNetworkNode[];
+  // Indicadores
+  monthlyStatus?: {
+    status: 'qualified' | 'purchased' | 'inactive';
+    currentPoints: number;
+    qualificationThreshold: number;
+  };
+  rankProgress?: {
+    currentRankCode: string;
+    nextRankCode: string;
+    nextRankName: string;
+    progressPercent: number;
+    currentGroupPoints: number;
+    requiredGroupPoints: number;
+    isNearPromotion: boolean;
+  };
+  isNewMember?: boolean;
+  joinDate?: string;
+  daysSinceJoin?: number;
 }
 
 interface BackendTreeResponse {
   root: BackendNetworkNode;
   totalNodes: number;
   levelsLoaded: number;
-}
-
-interface BackendStatsResponse {
-  totalMembers: number;
-  activeMembers: number;
-  inactiveMembers: number;
-  directDownlines: number;
-  networkDepth: number;
-  levelBreakdown?: {
-    level: number;
-    count: number;
-    activeCount: number;
-  }[];
 }
 
 // Interfaz para datos del usuario raiz
@@ -99,13 +107,22 @@ function transformBackendNode(backendNode: BackendNetworkNode, customerNumber?: 
     code: customerNumber || `TL-${backendNode.customerId.substring(0, 6).toUpperCase()}`,
     name: backendNode.customerName,
     rank: rankType,
-    level: backendNode.level,
+    level: backendNode.depth,
     directCount: backendNode.directDownlinesCount,
     networkCount: networkCount,
     hasChildren: hasChildren ?? false,
     isExpanded: (backendNode.children && backendNode.children.length > 0) ?? false,
     isLoaded: backendNode.children !== undefined,
     children: backendNode.children?.map(child => transformBackendNode(child)),
+    // Indicadores
+    monthlyStatus: backendNode.monthlyStatus,
+    rankProgress: backendNode.rankProgress ? {
+      ...backendNode.rankProgress,
+      nextRank: rankCodeToType[backendNode.rankProgress.nextRankCode] || 'distribuidor',
+    } : undefined,
+    isNewMember: backendNode.isNewMember,
+    joinDate: backendNode.joinDate,
+    daysSinceJoin: backendNode.daysSinceJoin,
   };
 }
 
@@ -140,12 +157,12 @@ function transformBackendTreeResponse(
 
 class NetworkApi {
   /**
-   * Obtiene el arbol de red con limite de profundidad
-   * Backend: GET /mlm/network/:customerId/tree?depth=N
+   * Obtiene el arbol de red del distribuidor autenticado
+   * Backend: GET /distributor/network/tree?depth=N
    */
   async getTree(userId: string, depth: number = 3, rootUserData?: RootUserData): Promise<NetworkTreeResponse> {
     const { data: backendResponse } = await api.get<BackendTreeResponse>(
-      `/mlm/network/${userId}/tree`,
+      `/distributor/network/tree`,
       { params: { depth: depth.toString() } },
     );
     return transformBackendTreeResponse(backendResponse, rootUserData);
@@ -153,108 +170,89 @@ class NetworkApi {
 
   /**
    * Obtiene los hijos directos de un nodo (lazy loading)
-   * Backend: GET /mlm/network/:customerId/tree?depth=1
+   * Backend: GET /distributor/network/tree/:customerId?depth=1
    */
-  async getChildren(userId: string): Promise<NetworkChildrenResponse> {
+  async getChildren(customerId: string): Promise<NetworkChildrenResponse> {
     const { data: backendResponse } = await api.get<BackendTreeResponse>(
-      `/mlm/network/${userId}/tree`,
+      `/distributor/network/tree/${customerId}`,
       { params: { depth: '1' } },
     );
     const rootNode = transformBackendNode(backendResponse.root);
 
     return {
-      parentId: userId,
+      parentId: customerId,
       children: rootNode.children || [],
       hasMore: false,
     };
   }
 
   /**
-   * Obtiene estadisticas detalladas de un distribuidor
-   * Backend: GET /mlm/network/:customerId/stats + GET /customers/:customerId
+   * Obtiene estadisticas detalladas de un miembro de la red
+   * Backend: GET /distributor/network/member/:customerId
    */
-  async getStats(userId: string): Promise<NetworkMemberDetail> {
-    // Fetch stats and customer data in parallel
-    const [statsResponse, customerResponse] = await Promise.all([
-      api.get<BackendStatsResponse>(`/mlm/network/${userId}/stats`),
-      api.get(`/customers/${userId}`),
-    ]);
+  async getStats(customerId: string): Promise<NetworkMemberDetail> {
+    const { data: member } = await api.get(`/distributor/network/member/${customerId}`);
 
-    const stats = statsResponse.data;
-    const customer = customerResponse.data;
-
-    // Fetch period data for points and commissions
-    let periodData: any = null;
-    try {
-      const periodResponse = await api.get(`/mlm/network-stats/customer/${userId}`);
-      periodData = periodResponse.data;
-    } catch {
-      // Period data may not be available
-    }
-
-    // Fetch sponsor name if exists
-    let sponsorName: string | undefined;
-    if (customer.sponsorId) {
-      try {
-        const sponsorResponse = await api.get(`/customers/${customer.sponsorId}`);
-        const sponsor = sponsorResponse.data;
-        sponsorName = `${sponsor.firstName} ${sponsor.lastName}`;
-      } catch {
-        // Ignore errors fetching sponsor
-      }
-    }
-
-    const rankType = customer.rank?.code
-      ? rankCodeToType[customer.rank.code] || 'distribuidor'
+    const rankType = member.rank?.code
+      ? rankCodeToType[member.rank.code] || 'distribuidor'
       : 'distribuidor';
 
     return {
-      id: customer.id,
-      code: customer.customerNumber || `TL-${customer.id.substring(0, 6).toUpperCase()}`,
-      firstName: customer.firstName,
-      lastName: customer.lastName,
-      email: customer.email,
-      phone: customer.phone,
+      id: member.id,
+      code: member.customerNumber || `TL-${member.id.substring(0, 6).toUpperCase()}`,
+      firstName: member.firstName,
+      lastName: member.lastName,
+      email: member.email,
+      phone: member.phone,
       rank: rankType,
-      rankLabel: customer.rank?.name || 'Distribuidor',
-      sponsorId: customer.sponsorId,
-      sponsorName,
-      joinDate: customer.createdAt,
-      status: customer.status || 'active',
+      rankLabel: member.rank?.name || 'Distribuidor',
+      sponsorId: member.sponsorId,
+      sponsorName: member.sponsorName,
+      joinDate: member.joinDate,
+      status: member.status || 'active',
       stats: {
-        customerId: customer.id,
-        networkCount: stats.totalMembers,
-        directCount: stats.directDownlines,
-        maxDepth: stats.networkDepth,
-        totalBusinessPoints: periodData?.points?.businessPointsMxn?.toString() || '0',
-        personalSales: periodData?.sales?.personalSales || 0,
-        teamSales: periodData?.sales?.teamSales || 0,
-        currentCommission: periodData?.commissions?.totalNet || 0,
-        historicCommission: periodData?.commissions?.totalPaid || 0,
+        customerId: member.id,
+        networkCount: member.stats?.networkCount || 0,
+        directCount: member.stats?.directCount || 0,
+        maxDepth: member.stats?.maxDepth || 0,
+        totalBusinessPoints: member.stats?.totalBusinessPoints || '0',
+        personalSales: member.stats?.personalSales || 0,
+        teamSales: member.stats?.teamSales || 0,
+        currentCommission: member.stats?.currentCommission || 0,
+        historicCommission: member.stats?.historicCommission || 0,
       },
     };
   }
 
   /**
-   * Obtiene los downlines directos de un distribuidor
-   * Backend: GET /mlm/network/:customerId/downlines
+   * Obtiene los downlines del distribuidor autenticado (paginado)
+   * Backend: GET /distributor/network/downlines
    */
-  async getDownlines(customerId: string): Promise<NetworkNode[]> {
-    const { data } = await api.get(`/mlm/network/${customerId}/downlines`);
-    return Array.isArray(data) ? data.map((node: BackendNetworkNode) => transformBackendNode(node)) : [];
+  async getDownlines(query: DownlineQuery = {}): Promise<DownlineListResponse> {
+    const params: Record<string, string> = {};
+    if (query.search) params.search = query.search;
+    if (query.level !== undefined) params.level = query.level.toString();
+    if (query.status) params.status = query.status;
+    if (query.page) params.page = query.page.toString();
+    if (query.limit) params.limit = query.limit.toString();
+    if (query.sortBy) params.sortBy = query.sortBy;
+    if (query.sortOrder) params.sortOrder = query.sortOrder;
+
+    const { data } = await api.get<DownlineListResponse>(`/distributor/network/downlines`, { params });
+    return data;
   }
 
   /**
-   * Obtiene la upline (linea ascendente) de un distribuidor
-   * Backend: GET /mlm/network/:customerId/upline
+   * Obtiene la upline (linea ascendente) del distribuidor autenticado
+   * Backend: GET /distributor/network/upline
    */
   async getUpline(customerId: string): Promise<NetworkNode[]> {
-    const { data } = await api.get(`/mlm/network/${customerId}/upline`);
+    const { data } = await api.get(`/distributor/network/upline`);
     return Array.isArray(data) ? data.map((node: BackendNetworkNode) => transformBackendNode(node)) : [];
   }
 
   /**
-   * Agrega un distribuidor a la red
+   * Agrega un distribuidor a la red (admin)
    * Backend: POST /mlm/network/:customerId/add
    */
   async addToNetwork(customerId: string, body: { sponsorId: string; position?: string }): Promise<{ success: boolean }> {
@@ -263,11 +261,10 @@ class NetworkApi {
   }
 
   /**
-   * Mueve un distribuidor dentro de la red
+   * Mueve un distribuidor dentro de la red (admin)
    * Backend: PUT /mlm/network/:customerId/move
    */
   async moveInNetwork(customerId: string, body: { newSponsorId: string; reason?: string }): Promise<{ success: boolean }> {
-    // Backend expects { newUplineId }, map from frontend field name
     const { data } = await api.put<{ message: string }>(`/mlm/network/${customerId}/move`, {
       newUplineId: body.newSponsorId,
     });

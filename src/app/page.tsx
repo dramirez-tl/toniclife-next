@@ -2,9 +2,8 @@ import { Header, Footer } from '@/components/layout';
 import {
   HeroSection,
   FeaturedProducts,
-  QuizCTA,
-  TestimonialsSection,
-  CategoriesSection
+  CategoriesSection,
+  RecognitionHallSection,
 } from '@/components/landing';
 
 export default function HomePage() {
@@ -15,8 +14,7 @@ export default function HomePage() {
         <HeroSection />
         <FeaturedProducts />
         <CategoriesSection />
-        <QuizCTA />
-        <TestimonialsSection />
+        <RecognitionHallSection />
       </main>
       <Footer />
     </>

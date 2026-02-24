@@ -30,6 +30,8 @@ import {
   useShareReferralLink,
 } from '@/hooks/useDistributor';
 import { toast } from 'sonner';
+import { useActivePrograms, useMyProgress } from '@/hooks/useStartupProgram';
+import { RocketLaunchIcon } from '@heroicons/react/24/outline';
 
 // Mapa de íconos para tipos de actividad
 const activityIcons: Record<string, typeof ChartBarIcon> = {
@@ -184,6 +186,22 @@ export default function DistribuidorDashboard() {
     toast.success('Actualizando datos...');
   };
 
+  const handleDownloadQr = () => {
+    if (!dynamicPersonalLink) {
+      toast.error('No se pudo generar el enlace de referido');
+      return;
+    }
+
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1024x1024&data=${encodeURIComponent(dynamicPersonalLink)}`;
+    const downloadLink = document.createElement('a');
+    downloadLink.href = qrUrl;
+    downloadLink.download = `qr-referido-${referralCode || 'toniclife'}.png`;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+    toast.success('Descargando QR...');
+  };
+
   // Loading skeleton
   if (isLoading) {
     return (
@@ -261,7 +279,7 @@ export default function DistribuidorDashboard() {
                       Ir al inicio
                     </Button>
                   </Link>
-                  <Link href="/soporte" className="flex-1">
+                  <Link href="/distribuidor/soporte" className="flex-1">
                     <Button variant="ghost" className="w-full">
                       Contactar soporte
                     </Button>
@@ -345,7 +363,13 @@ export default function DistribuidorDashboard() {
           >
             Compartir
           </Button>
-          <Button variant="primary" size="sm" leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}>
+          <Button
+            variant="primary"
+            size="sm"
+            leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
+            onClick={handleDownloadQr}
+            disabled={!dynamicPersonalLink}
+          >
             Descargar QR
           </Button>
         </div>
@@ -462,6 +486,9 @@ export default function DistribuidorDashboard() {
             </CardContent>
           </Card>
       </div>
+
+      {/* Programa de Arranque Widget */}
+      <StartupProgramWidget />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
@@ -781,7 +808,7 @@ export default function DistribuidorDashboard() {
                     </div>
                   )}
 
-                  <Link href="/distribuidor/rango">
+                  <Link href="/distribuidor/ranking">
                     <Button variant="primary" className="w-full">
                       Ver requisitos completos
                     </Button>
@@ -837,5 +864,72 @@ export default function DistribuidorDashboard() {
           </div>
         </div>
     </div>
+  );
+}
+
+// ─── Startup Program Widget ─────────────────────────────────────────────────
+
+function StartupProgramWidget() {
+  const { data: activePrograms, isLoading } = useActivePrograms();
+  const program = activePrograms?.[0];
+  const programId = program?.id ?? '';
+  const currency = program?.currencyCode ?? 'MXN';
+
+  const { data: progress } = useMyProgress(programId, !!programId);
+
+  if (isLoading) return null;
+  if (!program) return null;
+
+  const recruits = progress?.totalRecruits ?? 0;
+  const nextMilestone = progress?.nextMilestone;
+  const progressPct = nextMilestone && nextMilestone.recruitsNeeded > 0
+    ? Math.min(100, Math.round((recruits / nextMilestone.recruitsNeeded) * 100))
+    : 0;
+
+  const fmtCurrency = (amount: string | number) => {
+    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (isNaN(num)) return '$0';
+    const sym = currency === 'USD' ? 'US$' : '$';
+    return `${sym}${num.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  };
+
+  return (
+    <Link href="/distribuidor/programa-arranque">
+      <Card className="border-0 shadow-md hover:shadow-lg transition-shadow cursor-pointer overflow-hidden">
+        <div className="flex items-stretch">
+          <div className="bg-gradient-to-b from-[#003B7A] to-[#002a5c] p-4 flex items-center justify-center">
+            <RocketLaunchIcon className="h-8 w-8 text-white" />
+          </div>
+          <CardContent className="p-4 flex-1">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Programa de Arranque</p>
+                <p className="text-xs text-gray-500">{program.name}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-bold text-[#003B7A]">{recruits}</p>
+                <p className="text-xs text-gray-500">inscritos</p>
+              </div>
+            </div>
+            {nextMilestone && (
+              <div className="mt-3">
+                <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                  <span>Proximo hito: {nextMilestone.recruitsNeeded} inscritos</span>
+                  <span className="font-medium text-[#7AB82E]">
+                    {fmtCurrency(nextMilestone.bonusAmount)}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-[#7AB82E] h-2 rounded-full transition-all"
+                    style={{ width: `${progressPct}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </div>
+      </Card>
+    </Link>
   );
 }

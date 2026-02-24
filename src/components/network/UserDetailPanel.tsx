@@ -156,7 +156,8 @@ export function UserDetailPanel({
         {onClose && (
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-1 hover:bg-gray-100 rounded lg:hidden"
+            className="absolute top-4 right-4 p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Cerrar panel"
           >
             <XMarkIcon className="h-5 w-5 text-gray-500" />
           </button>

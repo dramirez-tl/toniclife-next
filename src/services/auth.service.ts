@@ -2,8 +2,31 @@ import api from '@/lib/axios';
 
 // Types
 export interface LoginCredentials {
-  email: string;
+  identifier: string;
   password: string;
+}
+
+export interface EmailLinkRequired {
+  requiresEmailLink: true;
+  linkToken: string;
+  distributorName: string;
+  legacyId: string;
+}
+
+export interface LinkEmailData {
+  linkToken: string;
+  email: string;
+}
+
+export interface VerifyLinkEmailData {
+  linkToken: string;
+  code: string;
+}
+
+export type LoginResult = AuthResponse | EmailLinkRequired;
+
+export function isEmailLinkRequired(result: LoginResult): result is EmailLinkRequired {
+  return 'requiresEmailLink' in result && result.requiresEmailLink === true;
 }
 
 export interface RegisterData {
@@ -26,6 +49,8 @@ export interface UserResponse {
   roles: string[];
   permissions: string[];
   customerId?: string;
+  countryCode?: string;
+  currencyCode?: string;
 }
 
 export interface AuthResponse {
@@ -128,8 +153,28 @@ class AuthService {
   }
 
   // API calls
-  async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await api.post<AuthResponse>('/auth/login', credentials);
+  async login(credentials: LoginCredentials): Promise<LoginResult> {
+    const response = await api.post<LoginResult>('/auth/login', credentials);
+
+    // Si requiere vinculación de email, no guardar tokens
+    if (isEmailLinkRequired(response.data)) {
+      return response.data;
+    }
+
+    // Login normal: guardar tokens
+    const authResponse = response.data as AuthResponse;
+    this.setTokens(authResponse.accessToken);
+    this.setStoredUser(authResponse.user);
+    return authResponse;
+  }
+
+  async linkEmail(data: LinkEmailData): Promise<MessageResponse> {
+    const response = await api.post<MessageResponse>('/auth/link-email', data);
+    return response.data;
+  }
+
+  async verifyLinkEmail(data: VerifyLinkEmailData): Promise<AuthResponse> {
+    const response = await api.post<AuthResponse>('/auth/verify-link-email', data);
     this.setTokens(response.data.accessToken);
     this.setStoredUser(response.data.user);
     return response.data;

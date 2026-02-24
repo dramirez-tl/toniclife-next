@@ -27,6 +27,7 @@ import {
   ArrowLeftOnRectangleIcon,
   ArrowRightOnRectangleIcon,
   SparklesIcon,
+  RocketLaunchIcon,
 } from '@heroicons/react/24/outline';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutAsync, selectUser } from '@/store/slices/authSlice';
@@ -39,6 +40,16 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   badge?: string;
   children?: { name: string; href: string }[];
+}
+
+// Convierte código de país ISO a emoji de bandera (ej: "MX" → 🇲🇽)
+const countryCodeToFlag = (code: string): string =>
+  code.toUpperCase().split('').map(c =>
+    String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65)
+  ).join('');
+
+interface DistributorSidebarProps {
+  onNavigate?: () => void;
 }
 
 const navigation: NavItem[] = [
@@ -57,6 +68,7 @@ const navigation: NavItem[] = [
       { name: 'Actividad', href: '/distribuidor/actividad' },
     ],
   },
+  { name: 'Programa Arranque', href: '/distribuidor/programa-arranque', icon: RocketLaunchIcon },
   { name: 'Prospectos', href: '/distribuidor/prospectos', icon: UserGroupIcon },
   { name: 'Clientes', href: '/distribuidor/clientes', icon: ClipboardDocumentListIcon },
   {
@@ -76,11 +88,11 @@ const navigation: NavItem[] = [
 ];
 
 const bottomNavigation: NavItem[] = [
-  { name: 'Notificaciones', href: '/distribuidor/notificaciones', icon: BellIcon, badge: '3' },
+  { name: 'Notificaciones', href: '/distribuidor/notificaciones', icon: BellIcon },
   { name: 'Configuración', href: '/distribuidor/configuracion', icon: Cog6ToothIcon },
 ];
 
-export function DistributorSidebar() {
+export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -164,6 +176,7 @@ export function DistributorSidebar() {
                   <li key={child.name}>
                     <Link
                       href={child.href}
+                      onClick={onNavigate}
                       className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
                         childIsActive
                           ? 'bg-[#7AB82E] text-white font-medium'
@@ -185,6 +198,7 @@ export function DistributorSidebar() {
       <Link
         key={item.name}
         href={item.href}
+        onClick={onNavigate}
         className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
           active
             ? 'bg-[#7AB82E] text-white'
@@ -208,7 +222,12 @@ export function DistributorSidebar() {
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-gradient-to-b from-[#003B7A] to-[#002a5c] text-white flex flex-col">
       {/* Logo */}
       <div className="flex h-16 items-center justify-center border-b border-white/10 px-4">
-        <Link href="/distribuidor" className="flex items-center gap-2">
+        <Link
+          href="/distribuidor"
+          className="flex items-center"
+          aria-label="Ir al panel de distribuidor"
+          onClick={onNavigate}
+        >
           <Image
             src="/images/logo-white.png"
             alt="Tonic Life"
@@ -221,15 +240,6 @@ export function DistributorSidebar() {
               target.style.display = 'none';
             }}
           />
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-[#7AB82E] rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">TL</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-bold leading-tight">Centro de</span>
-              <span className="text-sm font-bold leading-tight">Negocio</span>
-            </div>
-          </div>
         </Link>
       </div>
 
@@ -241,7 +251,10 @@ export function DistributorSidebar() {
               <span className="text-white font-bold">{getUserInitials()}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white truncate">{getUserDisplayName()}</p>
+              <p className="text-sm font-semibold text-white truncate">
+                {user?.countryCode && <span className="mr-1">{countryCodeToFlag(user.countryCode)}</span>}
+                {getUserDisplayName()}
+              </p>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <TrophyIcon className="h-3.5 w-3.5 text-yellow-400" />
                 <span className="text-xs text-yellow-400 font-medium">
@@ -260,9 +273,16 @@ export function DistributorSidebar() {
             </div>
             <div className="bg-white/5 rounded-lg p-2 text-center">
               <p className="text-lg font-bold text-[#7AB82E]">
-                ${(commissionsSummary?.totalNet || 0).toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                ${(commissionsSummary?.totalNet || 0).toLocaleString(user?.currencyCode === 'USD' ? 'en-US' : 'es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </p>
-              <p className="text-[10px] text-white/60 uppercase tracking-wide">Comisiones</p>
+              <div className="flex items-center justify-center gap-1">
+                <p className="text-[10px] text-white/60 uppercase tracking-wide">Comisiones</p>
+                {user?.currencyCode && (
+                  <span className="text-[9px] bg-white/10 text-white/70 px-1 py-0.5 rounded font-medium">
+                    {user.currencyCode}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -292,6 +312,7 @@ export function DistributorSidebar() {
         <div className="space-y-1">
           <Link
             href="/productos"
+            onClick={onNavigate}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors"
           >
             <ShoppingCartIcon className="h-5 w-5" />
@@ -299,6 +320,7 @@ export function DistributorSidebar() {
           </Link>
           <Link
             href="/"
+            onClick={onNavigate}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors"
           >
             <ArrowLeftOnRectangleIcon className="h-5 w-5" />

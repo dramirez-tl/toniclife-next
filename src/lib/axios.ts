@@ -41,6 +41,8 @@ const AUTH_ENDPOINTS = [
   '/auth/reset-password',
   '/auth/verify-email',
   '/auth/refresh',
+  '/auth/link-email',
+  '/auth/verify-link-email',
 ];
 
 // Public endpoints that should NOT redirect to login on 401

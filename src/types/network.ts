@@ -25,6 +25,26 @@ export interface NetworkNode {
   isLoaded: boolean;         // Si ya se cargaron los hijos
   sponsorId?: string;        // ID del patrocinador
   children?: NetworkNode[];  // Hijos directos
+
+  // Indicadores visuales
+  monthlyStatus?: {
+    status: 'qualified' | 'purchased' | 'inactive';
+    currentPoints: number;
+    qualificationThreshold: number;
+  };
+  rankProgress?: {
+    currentRankCode: string;
+    nextRankCode: string;
+    nextRankName: string;
+    nextRank: RankType;
+    progressPercent: number;
+    currentGroupPoints: number;
+    requiredGroupPoints: number;
+    isNearPromotion: boolean;
+  };
+  isNewMember?: boolean;
+  joinDate?: string;
+  daysSinceJoin?: number;
 }
 
 export interface NetworkStats {
@@ -74,6 +94,37 @@ export interface NetworkSearchResult {
   name: string;
   rank: RankType;
   path: string; // Path desde la raíz para navegación
+}
+
+// Tipos para vista de lista de downlines
+export interface DownlineItem {
+  id: string;
+  fullName: string;
+  email: string;
+  phone?: string;
+  level: number;
+  rankName?: string;
+  personalPoints?: number;
+  status: string;
+  createdAt: string;
+}
+
+export interface DownlineListResponse {
+  data: DownlineItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface DownlineQuery {
+  search?: string;
+  level?: number;
+  status?: 'active' | 'inactive' | 'suspended';
+  page?: number;
+  limit?: number;
+  sortBy?: 'name' | 'email' | 'createdAt' | 'level';
+  sortOrder?: 'asc' | 'desc';
 }
 
 // Tipos para React Flow

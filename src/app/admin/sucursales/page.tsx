@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
+import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import {
   useBranches,
   useCreateBranch,
@@ -188,10 +189,11 @@ const initialFormState: CreateBranchDto = {
 
 export default function SucursalesPage() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 20;
+  const [pageSize, setPageSize] = useState(20);
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -214,10 +216,10 @@ export default function SucursalesPage() {
     }
 
     return params;
-  }, [searchQuery, filterType, filterStatus, currentPage]);
+  }, [searchQuery, filterType, filterStatus, currentPage, pageSize]);
 
   // API Hooks
-  const { data: branchesData, isLoading, error, refetch } = useBranches(queryParams);
+  const { data: branchesData, isLoading, isFetching, error, refetch } = useBranches(queryParams);
   const createBranch = useCreateBranch();
   const updateBranch = useUpdateBranch();
   const deleteBranch = useDeleteBranch();
@@ -236,8 +238,8 @@ export default function SucursalesPage() {
   }, [branchesData]);
 
   // Handlers
-  const handleSearch = (value: string) => {
-    setSearchQuery(value);
+  const handleSearch = () => {
+    setSearchQuery(searchInput.trim());
     setCurrentPage(1);
   };
 
@@ -251,8 +253,18 @@ export default function SucursalesPage() {
     setCurrentPage(1);
   };
 
+  const handlePageSizeChange = (value: string) => {
+    setPageSize(Number(value));
+    setCurrentPage(1);
+  };
+
+  const handleRefresh = async () => {
+    await refetch();
+  };
+
   const resetFilters = () => {
     setSearchQuery('');
+    setSearchInput('');
     setFilterType('all');
     setFilterStatus('all');
     setCurrentPage(1);
@@ -437,8 +449,24 @@ export default function SucursalesPage() {
     return parts.length > 0 ? parts.join(', ') : '-';
   };
 
+  const branches = branchesData?.data ?? [];
+  const totalPages = branchesData?.totalPages ?? 1;
+  const backendTotalPages = branchesData?.totalPages;
+  const hasActiveFilters = Boolean(searchQuery || filterType !== 'all' || filterStatus !== 'all');
+  const totalBranches = branchesData?.total ?? 0;
+  const pageStart = totalBranches === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const pageEnd = totalBranches === 0 ? 0 : Math.min(currentPage * pageSize, totalBranches);
+
+  useEffect(() => {
+    // Solo ajustar cuando el backend ya devolvió totalPages real;
+    // evita volver a página 1 durante estados transitorios de carga.
+    if (backendTotalPages && currentPage > backendTotalPages) {
+      setCurrentPage(backendTotalPages);
+    }
+  }, [backendTotalPages, currentPage]);
+
   // Loading state
-  if (isLoading) {
+  if (isLoading && !branchesData) {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
@@ -469,7 +497,7 @@ export default function SucursalesPage() {
   }
 
   // Error state
-  if (error) {
+  if (error && !branchesData) {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
@@ -497,9 +525,111 @@ export default function SucursalesPage() {
     );
   }
 
-  const branches = branchesData?.data ?? [];
-  const totalPages = branchesData?.totalPages ?? 1;
-  const hasActiveFilters = Boolean(searchQuery || filterType !== 'all' || filterStatus !== 'all');
+  const branchTableColumns: DataTableColumn<Branch>[] = [
+    {
+      key: 'name',
+      header: 'Nombre',
+      sortable: true,
+      sortValue: (branch) => branch.name,
+      render: (branch) => (
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 flex-shrink-0 rounded-full bg-[#003B7A]/10 flex items-center justify-center">
+            <BuildingOffice2Icon className="h-5 w-5 text-[#003B7A]" />
+          </div>
+          <div>
+            <p className="font-semibold text-gray-900">{branch.name}</p>
+            {branch.addressEmail && (
+              <p className="text-sm text-gray-500">{branch.addressEmail}</p>
+            )}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'code',
+      header: 'Codigo',
+      sortable: true,
+      sortValue: (branch) => branch.code,
+      render: (branch) => (
+        <span className="inline-flex items-center rounded-md bg-gray-100 px-2.5 py-1 text-sm font-mono font-medium text-gray-800">
+          {branch.code}
+        </span>
+      ),
+    },
+    {
+      key: 'location',
+      header: 'Ciudad / Estado',
+      sortable: true,
+      sortValue: (branch) => getLocationString(branch),
+      render: (branch) => (
+        <span className="text-sm text-gray-600">{getLocationString(branch)}</span>
+      ),
+    },
+    {
+      key: 'type',
+      header: 'Tipo',
+      render: (branch) => (
+        <div className="flex flex-wrap gap-1">
+          {getTypeBadges(branch)}
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      sortable: true,
+      sortValue: (branch) => (branch.isActive ? 1 : 0),
+      render: (branch) => getStatusBadge(branch.isActive),
+    },
+    {
+      key: 'actions',
+      header: 'Acciones',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (branch) => (
+        <div className="flex items-center justify-end gap-2">
+          <button
+            onClick={() => handleOpenEditModal(branch)}
+            className="rounded-lg p-2 transition-colors hover:bg-blue-50"
+            title="Editar sucursal"
+            aria-label={`Editar ${branch.name}`}
+          >
+            <PencilIcon className="h-4 w-4 text-blue-600" />
+          </button>
+          {branch.isActive ? (
+            <button
+              onClick={() => handleToggleActive(branch)}
+              className="rounded-lg p-2 transition-colors hover:bg-yellow-50"
+              title="Desactivar sucursal"
+              disabled={updateBranch.isPending}
+              aria-label={`Desactivar ${branch.name}`}
+            >
+              <XCircleIcon className="h-4 w-4 text-yellow-600" />
+            </button>
+          ) : (
+            <button
+              onClick={() => handleToggleActive(branch)}
+              className="rounded-lg p-2 transition-colors hover:bg-green-50"
+              title="Activar sucursal"
+              disabled={updateBranch.isPending}
+              aria-label={`Activar ${branch.name}`}
+            >
+              <CheckCircleIcon className="h-4 w-4 text-green-600" />
+            </button>
+          )}
+          <button
+            onClick={() => handleDeleteBranch(branch)}
+            className="rounded-lg p-2 transition-colors hover:bg-red-50"
+            title="Eliminar sucursal"
+            disabled={deleteBranch.isPending}
+            aria-label={`Eliminar ${branch.name}`}
+          >
+            <TrashIcon className="h-4 w-4 text-red-600" />
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <PermissionGuard permissions={['settings:read', 'settings:*']}>
@@ -596,18 +726,19 @@ export default function SucursalesPage() {
 
         {/* Filters and Search */}
         <Card className="mb-6 border-gray-100 shadow-sm">
-          <CardContent className="p-6">
-            <div className="mb-4 flex items-center justify-between">
+          <CardContent className="p-4 sm:p-6">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm font-medium text-gray-700">Busqueda y filtros</p>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   variant="ghost"
                   size="sm"
                   className="gap-2 text-gray-600"
-                  onClick={() => refetch()}
+                  onClick={handleRefresh}
+                  disabled={isFetching}
                 >
-                  <ArrowPathIcon className="h-4 w-4" />
-                  Actualizar
+                  <ArrowPathIcon className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+                  {isFetching ? 'Actualizando...' : 'Actualizar'}
                 </Button>
                 {hasActiveFilters && (
                   <Button variant="outline" size="sm" onClick={resetFilters}>
@@ -616,47 +747,67 @@ export default function SucursalesPage() {
                 )}
               </div>
             </div>
-            <div className="flex flex-col gap-4 lg:flex-row">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:gap-4">
               {/* Search */}
-              <div className="flex-1">
-                <div className="relative">
+              <div className="lg:col-span-6">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <div className="relative flex-1">
                   <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
                     type="text"
                     placeholder="Buscar por nombre o codigo..."
-                    value={searchQuery}
-                    onChange={(e) => handleSearch(e.target.value)}
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSearch();
+                      }
+                    }}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
                   />
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="h-10 px-4 sm:min-w-[96px]"
+                    onClick={handleSearch}
+                  >
+                    Buscar
+                  </Button>
                 </div>
               </div>
 
               {/* Type Filter */}
-              <div className="flex items-center gap-2">
-                <FunnelIcon className="h-5 w-5 text-gray-400" />
+              <div className="lg:col-span-3">
+                <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3">
+                  <FunnelIcon className="h-4 w-4 text-gray-400" />
                 <select
                   value={filterType}
                   onChange={(e) => handleFilterType(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="w-full bg-transparent py-2.5 text-sm focus:outline-none"
                 >
                   <option value="all">Todos los Tipos</option>
                   <option value="warehouse">Almacenes</option>
                   <option value="pickup">Puntos de Recogida</option>
                   <option value="pos">Punto de Venta</option>
                 </select>
+                </div>
               </div>
 
               {/* Status Filter */}
-              <div>
+              <div className="lg:col-span-3">
+                <div className="rounded-lg border border-gray-200 bg-white px-3">
                 <select
                   value={filterStatus}
                   onChange={(e) => handleFilterStatus(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="w-full bg-transparent py-2.5 text-sm focus:outline-none"
                 >
                   <option value="all">Todos los Estados</option>
                   <option value="active">Activas</option>
                   <option value="inactive">Inactivas</option>
                 </select>
+                </div>
               </div>
             </div>
             {hasActiveFilters && (
@@ -693,163 +844,53 @@ export default function SucursalesPage() {
                 Mostrando {branches.length} de {branchesData?.total ?? 0}
               </p>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[920px]">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                      Nombre
-                    </th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                      Codigo
-                    </th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                      Ciudad / Estado
-                    </th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                      Tipo
-                    </th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                      Estado
-                    </th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {branches.map((branch) => (
-                    <tr
-                      key={branch.id}
-                      className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-[#003B7A]/10 rounded-full flex items-center justify-center flex-shrink-0">
-                            <BuildingOffice2Icon className="h-5 w-5 text-[#003B7A]" />
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-900">{branch.name}</p>
-                            {branch.addressEmail && (
-                              <p className="text-sm text-gray-500">{branch.addressEmail}</p>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="inline-flex items-center px-2.5 py-1 bg-gray-100 text-gray-800 rounded-md text-sm font-mono font-medium">
-                          {branch.code}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-sm text-gray-600">
-                        {getLocationString(branch)}
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex flex-wrap gap-1">
-                          {getTypeBadges(branch)}
-                        </div>
-                      </td>
-                      <td className="py-4 px-4">
-                        {getStatusBadge(branch.isActive)}
-                      </td>
-                      <td className="py-4 px-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleOpenEditModal(branch)}
-                            className="rounded-lg p-2 transition-colors hover:bg-blue-50"
-                            title="Editar sucursal"
-                            aria-label={`Editar ${branch.name}`}
-                          >
-                            <PencilIcon className="h-4 w-4 text-blue-600" />
-                          </button>
-                          {branch.isActive ? (
-                            <button
-                              onClick={() => handleToggleActive(branch)}
-                              className="rounded-lg p-2 transition-colors hover:bg-yellow-50"
-                              title="Desactivar sucursal"
-                              disabled={updateBranch.isPending}
-                              aria-label={`Desactivar ${branch.name}`}
-                            >
-                              <XCircleIcon className="h-4 w-4 text-yellow-600" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleToggleActive(branch)}
-                              className="rounded-lg p-2 transition-colors hover:bg-green-50"
-                              title="Activar sucursal"
-                              disabled={updateBranch.isPending}
-                              aria-label={`Activar ${branch.name}`}
-                            >
-                              <CheckCircleIcon className="h-4 w-4 text-green-600" />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleDeleteBranch(branch)}
-                            className="rounded-lg p-2 transition-colors hover:bg-red-50"
-                            title="Eliminar sucursal"
-                            disabled={deleteBranch.isPending}
-                            aria-label={`Eliminar ${branch.name}`}
-                          >
-                            <TrashIcon className="h-4 w-4 text-red-600" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {branches.length === 0 && (
-              <div className="text-center py-12">
-                <BuildingOffice2Icon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  No se encontraron sucursales
-                </h3>
-                <p className="text-gray-600">Intenta ajustar los filtros de busqueda o crear una nueva sucursal.</p>
-                <div className="mt-4 flex justify-center gap-2">
-                  {hasActiveFilters && (
-                    <Button variant="outline" onClick={resetFilters}>
-                      Limpiar filtros
-                    </Button>
-                  )}
-                  <Button
-                    variant="primary"
-                    leftIcon={<PlusIcon className="h-4 w-4" />}
-                    onClick={handleOpenCreateModal}
-                  >
-                    Nueva Sucursal
-                  </Button>
-                </div>
+            {isFetching && (
+              <div className="mb-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700">
+                Actualizando resultados...
               </div>
             )}
+            <DataTable
+              columns={branchTableColumns}
+              data={branches}
+              isLoading={isLoading && !branchesData}
+              getRowKey={(branch) => branch.id}
+              minWidthClassName="min-w-[920px]"
+              emptyState={
+                <div className="py-2 text-center">
+                  <BuildingOffice2Icon className="mx-auto mb-4 h-16 w-16 text-gray-400" />
+                  <h3 className="mb-2 text-xl font-bold text-gray-900">
+                    No se encontraron sucursales
+                  </h3>
+                  <p className="text-gray-600">Intenta ajustar los filtros de busqueda o crear una nueva sucursal.</p>
+                  <div className="mt-4 flex justify-center gap-2">
+                    {hasActiveFilters && (
+                      <Button variant="outline" onClick={resetFilters}>
+                        Limpiar filtros
+                      </Button>
+                    )}
+                    <Button
+                      variant="primary"
+                      leftIcon={<PlusIcon className="h-4 w-4" />}
+                      onClick={handleOpenCreateModal}
+                    >
+                      Nueva Sucursal
+                    </Button>
+                  </div>
+                </div>
+              }
+            />
 
             {/* Pagination */}
             {branches.length > 0 && (
-              <div className="mt-6 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-gray-600">
-                  Mostrando {branches.length} de {branchesData?.total ?? 0} sucursales
-                  {totalPages > 1 && ` (Pagina ${currentPage} de ${totalPages})`}
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentPage <= 1}
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  >
-                    Anterior
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentPage >= totalPages}
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  >
-                    Siguiente
-                  </Button>
-                </div>
-              </div>
+              <DataTablePagination
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={totalBranches}
+                isLoading={isLoading || isFetching}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={(size) => handlePageSizeChange(String(size))}
+                pageSizeOptions={[10, 20, 50, 100]}
+              />
             )}
           </CardContent>
         </Card>

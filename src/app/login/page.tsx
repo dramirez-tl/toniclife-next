@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import {
-  EnvelopeIcon,
+  UserIcon,
   LockClosedIcon,
   EyeIcon,
   EyeSlashIcon,
@@ -17,10 +17,12 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { isEmailLinkRequired } from '@/services/auth.service';
 import {
   loginAsync,
   selectIsLoading,
   selectAuthError,
+  selectEmailLinkRequired,
   clearError,
 } from '@/store/slices/authSlice';
 
@@ -29,10 +31,11 @@ export default function LoginPage() {
 
   const isLoading = useAppSelector(selectIsLoading);
   const authError = useAppSelector(selectAuthError);
+  const emailLinkRequired = useAppSelector(selectEmailLinkRequired);
 
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    email: '',
+    identifier: '',
     password: '',
     remember: false,
   });
@@ -45,6 +48,13 @@ export default function LoginPage() {
       dispatch(clearError());
     }
   }, [authError, dispatch]);
+
+  // Redirect to email linking page when required
+  useEffect(() => {
+    if (emailLinkRequired) {
+      window.location.href = '/vincular-correo';
+    }
+  }, [emailLinkRequired]);
 
   const navigateAfterLogin = (roleCode?: string) => {
     // Read redirect param directly from the URL (avoids useSearchParams/Suspense)
@@ -68,12 +78,17 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation
+    // Validation: acepta email O número de distribuidor
     const newErrors: Record<string, string> = {};
-    if (!formData.email) {
-      newErrors.email = 'El email es requerido';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Email inválido';
+    const trimmedId = formData.identifier.trim();
+    if (!trimmedId) {
+      newErrors.identifier = 'El correo o número de distribuidor es requerido';
+    } else {
+      const isNumeric = /^\d+$/.test(trimmedId);
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedId);
+      if (!isNumeric && !isEmail) {
+        newErrors.identifier = 'Ingresa un correo válido o tu número de distribuidor';
+      }
     }
     if (!formData.password) {
       newErrors.password = 'La contraseña es requerida';
@@ -90,12 +105,17 @@ export default function LoginPage() {
 
     try {
       const result = await dispatch(loginAsync({
-        email: formData.email,
+        identifier: trimmedId,
         password: formData.password,
       })).unwrap();
 
+      // Si requiere vincular email, el useEffect se encarga del redirect
+      if (isEmailLinkRequired(result)) {
+        return;
+      }
+
       toast.success('¡Bienvenido de nuevo!');
-      navigateAfterLogin(result.roles?.[0]);
+      navigateAfterLogin(result.user.roles?.[0]);
     } catch {
       // Error is handled via authError state
     }
@@ -130,16 +150,16 @@ export default function LoginPage() {
           <Card className="rounded-3xl border border-gray-100 bg-white/95 shadow-2xl shadow-gray-200/70 backdrop-blur">
             <CardContent className="p-7 sm:p-8 lg:p-9">
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Email */}
+                {/* Identifier (email o usuario) */}
                 <Input
-                  label="Correo electrónico"
-                  type="email"
-                  placeholder="tu@email.com"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  error={errors.email}
-                  leftIcon={<EnvelopeIcon className="h-5 w-5" />}
-                  autoComplete="email"
+                  label="Correo electrónico o usuario"
+                  type="text"
+                  placeholder="tu@email.com o tu usuario"
+                  value={formData.identifier}
+                  onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
+                  error={errors.identifier}
+                  leftIcon={<UserIcon className="h-5 w-5" />}
+                  autoComplete="username"
                   disabled={isLoading}
                 />
 

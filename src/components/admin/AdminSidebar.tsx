@@ -27,6 +27,7 @@ import {
   GlobeAltIcon,
   BellIcon,
   XMarkIcon,
+  RocketLaunchIcon,
 } from '@heroicons/react/24/outline';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutAsync, selectUser, selectUserPermissions } from '@/store/slices/authSlice';
@@ -73,6 +74,7 @@ const navigation: NavItem[] = [
       { name: 'Estadísticas de Red', href: '/admin/mlm/estadisticas' },
     ],
   },
+  { name: 'Programa Arranque', href: '/admin/programa-arranque', icon: RocketLaunchIcon, permissions: ['startup-program:read', 'startup-program:*', 'config'] },
   {
     name: 'Facturación',
     href: '/admin/facturacion',
@@ -274,11 +276,10 @@ export function AdminSidebar({ mobile = false, onNavigate }: AdminSidebarProps) 
     >
       {/* Logo */}
       <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
-        <Link href="/admin" className="flex items-center gap-2" onClick={onNavigate}>
+        <Link href="/admin" className="flex items-center" onClick={onNavigate} aria-label="Ir al panel de administración">
           <div className="w-8 h-8 bg-[#7AB82E] rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-sm">TL</span>
           </div>
-          <span className="text-lg font-bold">Tonic Life Admin</span>
         </Link>
         {mobile && (
           <button

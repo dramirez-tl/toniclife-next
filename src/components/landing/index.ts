@@ -4,3 +4,4 @@ export { FeaturedProducts } from './FeaturedProducts';
 export { QuizCTA } from './QuizCTA';
 export { TestimonialsSection } from './TestimonialsSection';
 export { CategoriesSection } from './CategoriesSection';
+export { RecognitionHallSection } from './RecognitionHallSection';

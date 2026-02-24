@@ -146,6 +146,7 @@ export function useDistributorDashboard() {
   // Si el dashboard completo está disponible, usamos esos datos
   // De lo contrario, combinamos las queries individuales
   const dashboard = dashboardQuery.data?.dashboard;
+  const hasDashboardData = !!dashboard;
 
   return {
     // Datos del dashboard
@@ -161,15 +162,14 @@ export function useDistributorDashboard() {
     goals: goalsQuery.data,
     lastUpdated: dashboardQuery.data?.lastUpdated,
 
-    // Estados de carga
-    isLoading:
-      dashboardQuery.isLoading ||
-      profileQuery.isLoading ||
-      pointsQuery.isLoading,
+    // Estados de carga: si el dashboard ya tiene datos, no bloquear por queries individuales
+    isLoading: hasDashboardData
+      ? false
+      : dashboardQuery.isLoading || profileQuery.isLoading || pointsQuery.isLoading,
     isRefreshing: dashboardQuery.isFetching,
 
-    // Errores
-    isError: dashboardQuery.isError,
+    // Errores: solo mostrar error si el dashboard Y los fallbacks fallan
+    isError: dashboardQuery.isError && profileQuery.isError,
     error: dashboardQuery.error,
 
     // Funciones de refetch

@@ -11,6 +11,7 @@ const protectedRoutes = [
 const authRoutes = [
   '/login',
   '/forgot-password',
+  '/vincular-correo',
 ];
 
 // Public registration routes that should be accessible even when authenticated
@@ -37,8 +38,8 @@ const ADMIN_ROLES = [
   'viewer',
 ];
 
-// Distributor role for /distribuidor/* routes
-const DISTRIBUTOR_ROLE = 'distribuidor';
+// Distributor roles for /distribuidor/* routes (DB uses 'customer' as role code)
+const DISTRIBUTOR_ROLES = ['distribuidor', 'customer'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -91,8 +92,8 @@ export function middleware(request: NextRequest) {
     // /admin/* — only admin roles may enter
     if (pathname.startsWith('/admin')) {
       if (!role || !ADMIN_ROLES.includes(role)) {
-        // If the user is a distribuidor, send them to their dashboard
-        if (role === DISTRIBUTOR_ROLE) {
+        // If the user is a distribuidor/customer, send them to their dashboard
+        if (role && DISTRIBUTOR_ROLES.includes(role)) {
           return NextResponse.redirect(new URL('/distribuidor', request.url));
         }
         // Otherwise redirect to the homepage
@@ -100,9 +101,9 @@ export function middleware(request: NextRequest) {
       }
     }
 
-    // /distribuidor/* — only the distribuidor role (and admin roles for impersonation)
+    // /distribuidor/* — only distributor roles (and admin roles for impersonation)
     if (pathname.startsWith('/distribuidor')) {
-      const allowedForDistribuidor = [DISTRIBUTOR_ROLE, ...ADMIN_ROLES];
+      const allowedForDistribuidor = [...DISTRIBUTOR_ROLES, ...ADMIN_ROLES];
       if (!role || !allowedForDistribuidor.includes(role)) {
         return NextResponse.redirect(new URL('/', request.url));
       }

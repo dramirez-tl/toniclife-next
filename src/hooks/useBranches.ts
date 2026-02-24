@@ -1,7 +1,7 @@
 // useBranches.ts - React Query hooks for Branches API
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 4.2.4
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { branchesService } from '@/services/branches.service';
 import type { Branch, BranchQueryParams, CreateBranchDto, UpdateBranchDto } from '@/types/branch';
 
@@ -33,6 +33,7 @@ export function useBranches(params: BranchQueryParams = {}) {
   return useQuery({
     queryKey: branchKeys.list(params),
     queryFn: () => branchesService.getBranches(params),
+    placeholderData: keepPreviousData,
   });
 }
 

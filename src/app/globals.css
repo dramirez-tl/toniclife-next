@@ -261,6 +261,11 @@ input[type="range"]::-webkit-slider-runnable-track {
   color: white;
 }
 
+/* ReactFlow - Allow node buttons to overflow */
+.react-flow__node {
+  overflow: visible !important;
+}
+
 /* Print Styles */
 @media print {
   .no-print {
