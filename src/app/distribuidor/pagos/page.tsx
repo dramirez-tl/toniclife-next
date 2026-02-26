@@ -125,6 +125,8 @@ export default function PagosPage() {
   };
 
   const handleDeleteMethod = (methodId: string) => {
+    const shouldDelete = window.confirm('¿Seguro que deseas eliminar este método de pago?');
+    if (!shouldDelete) return;
     setPaymentMethods(methods => methods.filter(m => m.id !== methodId));
     toast.success('Método de pago eliminado');
   };
@@ -143,19 +145,19 @@ export default function PagosPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <BanknotesIcon className="h-10 w-10" />
-                <h1 className="text-4xl font-bold">Gestión de Pagos</h1>
+                <BanknotesIcon className="h-7 w-7 sm:h-8 sm:w-8 lg:h-10 lg:w-10" />
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold">Gestión de Pagos</h1>
               </div>
-              <p className="text-white/80 text-lg">
+              <p className="text-white/80 text-sm sm:text-base lg:text-lg">
                 Administra tus métodos de pago y retiros
               </p>
             </div>
-            <Link href="/distribuidor">
-              <Button variant="secondary">
+            <Link href="/distribuidor" className="w-full lg:w-auto">
+              <Button variant="secondary" className="w-full lg:w-auto">
                 Volver al Panel Principal
               </Button>
             </Link>
@@ -230,81 +232,98 @@ export default function PagosPage() {
                 </div>
 
                 <div className="space-y-4">
-                  {paymentMethods.map((method) => (
-                    <div
-                      key={method.id}
-                      className={`border rounded-lg p-4 ${
-                        method.isDefault ? 'border-[#7AB82E] bg-green-50' : 'border-gray-200'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          {method.type === 'bank' ? (
-                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                              <CreditCardIcon className="h-5 w-5 text-blue-600" />
-                            </div>
-                          ) : (
-                            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                              <span className="text-purple-600 font-bold text-xs">PP</span>
-                            </div>
-                          )}
-                          <div>
+                  {paymentMethods.length > 0 ? (
+                    paymentMethods.map((method) => (
+                      <div
+                        key={method.id}
+                        className={`border rounded-lg p-4 ${
+                          method.isDefault ? 'border-[#7AB82E] bg-green-50' : 'border-gray-200'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
                             {method.type === 'bank' ? (
-                              <>
-                                <p className="font-semibold text-gray-900">{method.bank}</p>
-                                <p className="text-sm text-gray-600">{method.accountNumber}</p>
-                              </>
+                              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                                <CreditCardIcon className="h-5 w-5 text-blue-600" />
+                              </div>
                             ) : (
-                              <>
-                                <p className="font-semibold text-gray-900">PayPal</p>
-                                <p className="text-sm text-gray-600">{method.email}</p>
-                              </>
+                              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                                <span className="text-purple-600 font-bold text-xs">PP</span>
+                              </div>
                             )}
+                            <div>
+                              {method.type === 'bank' ? (
+                                <>
+                                  <p className="font-semibold text-gray-900">{method.bank}</p>
+                                  <p className="text-sm text-gray-600">{method.accountNumber}</p>
+                                </>
+                              ) : (
+                                <>
+                                  <p className="font-semibold text-gray-900">PayPal</p>
+                                  <p className="text-sm text-gray-600">{method.email}</p>
+                                </>
+                              )}
+                            </div>
                           </div>
+                          {method.verified && (
+                            <CheckCircleIcon className="h-5 w-5 text-green-500" />
+                          )}
                         </div>
-                        {method.verified && (
-                          <CheckCircleIcon className="h-5 w-5 text-green-500" />
+
+                        {method.isDefault && (
+                          <div className="mb-3">
+                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-[#7AB82E] text-white">
+                              Predeterminado
+                            </span>
+                          </div>
                         )}
-                      </div>
 
-                      {method.isDefault && (
-                        <div className="mb-3">
-                          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-[#7AB82E] text-white">
-                            Predeterminado
-                          </span>
-                        </div>
-                      )}
-
-                      <div className="flex gap-2">
-                        {!method.isDefault && (
+                        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                          {!method.isDefault && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full sm:flex-1"
+                              onClick={() => handleSetDefault(method.id)}
+                            >
+                              Hacer Predeterminado
+                            </Button>
+                          )}
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
-                            className="flex-1"
-                            onClick={() => handleSetDefault(method.id)}
+                            className="w-full sm:w-auto"
+                            leftIcon={<PencilIcon className="h-4 w-4" />}
+                            onClick={() => toast.info('Abriendo edición')}
                           >
-                            Hacer Predeterminado
+                            Editar
                           </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          leftIcon={<PencilIcon className="h-4 w-4" />}
-                          onClick={() => toast.info('Abriendo edición')}
-                        >
-                          Editar
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          leftIcon={<TrashIcon className="h-4 w-4" />}
-                          onClick={() => handleDeleteMethod(method.id)}
-                        >
-                          Eliminar
-                        </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full sm:w-auto text-red-600 hover:bg-red-50 hover:text-red-700"
+                            leftIcon={<TrashIcon className="h-4 w-4" />}
+                            onClick={() => handleDeleteMethod(method.id)}
+                          >
+                            Eliminar
+                          </Button>
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-5 text-center">
+                      <p className="text-sm text-gray-600">Aún no tienes métodos de pago configurados.</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-3"
+                        leftIcon={<PlusIcon className="h-4 w-4" />}
+                        onClick={() => setShowAddMethodModal(true)}
+                      >
+                        Agregar método
+                      </Button>
                     </div>
-                  ))}
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -344,12 +363,12 @@ export default function PagosPage() {
           <div className="lg:col-span-2 space-y-6">
             <Card>
               <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-6">
+                <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="text-xl font-bold text-gray-900">Historial de Retiros</h2>
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent text-sm"
+                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent text-sm"
                   >
                     <option value="all">Todos los estados</option>
                     <option value="completed">Completados</option>
@@ -360,13 +379,13 @@ export default function PagosPage() {
                 </div>
 
                 <div className="space-y-4">
-                  {filteredWithdrawals.map((withdrawal) => {
+                  {filteredWithdrawals.length > 0 ? filteredWithdrawals.map((withdrawal) => {
                     const status = statusConfig[withdrawal.status as keyof typeof statusConfig];
                     const StatusIcon = status.icon;
 
                     return (
                       <div key={withdrawal.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                        <div className="flex items-start justify-between mb-3">
+                        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div className="flex items-start gap-3">
                             <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                               withdrawal.status === 'completed' ? 'bg-green-100' :
@@ -396,7 +415,7 @@ export default function PagosPage() {
                           </span>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 pt-3 border-t">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t">
                           <div>
                             <p className="text-xs text-gray-500">Fecha de Solicitud</p>
                             <p className="text-sm font-medium text-gray-900">
@@ -413,10 +432,11 @@ export default function PagosPage() {
                           )}
                         </div>
 
-                        <div className="flex gap-2 mt-3">
+                        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                           <Button
                             variant="outline"
                             size="sm"
+                            className="w-full sm:w-auto"
                             leftIcon={<DocumentTextIcon className="h-4 w-4" />}
                             onClick={() => toast.info('Descargando comprobante')}
                           >
@@ -425,6 +445,7 @@ export default function PagosPage() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            className="w-full sm:w-auto"
                             leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
                             onClick={() => toast.success('Exportando detalles')}
                           >
@@ -433,7 +454,13 @@ export default function PagosPage() {
                         </div>
                       </div>
                     );
-                  })}
+                  }) : (
+                    <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
+                      <p className="text-sm text-gray-600">
+                        No hay retiros para el filtro seleccionado.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -475,11 +502,11 @@ export default function PagosPage() {
 
         {/* Withdrawal Request Modal */}
         {showWithdrawModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <Card className="max-w-lg w-full">
-              <CardContent className="p-6">
+          <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+            <Card className="max-w-lg w-full rounded-t-2xl sm:rounded-xl max-h-[92vh] overflow-y-auto">
+              <CardContent className="p-5 sm:p-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">Solicitar Retiro</h2>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Solicitar Retiro</h2>
                   <button
                     onClick={() => setShowWithdrawModal(false)}
                     className="text-gray-400 hover:text-gray-600"
@@ -553,11 +580,11 @@ export default function PagosPage() {
 
         {/* Add Payment Method Modal */}
         {showAddMethodModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <Card className="max-w-lg w-full">
-              <CardContent className="p-6">
+          <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+            <Card className="max-w-lg w-full rounded-t-2xl sm:rounded-xl max-h-[92vh] overflow-y-auto">
+              <CardContent className="p-5 sm:p-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">Agregar Método de Pago</h2>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Agregar Método de Pago</h2>
                   <button
                     onClick={() => setShowAddMethodModal(false)}
                     className="text-gray-400 hover:text-gray-600"

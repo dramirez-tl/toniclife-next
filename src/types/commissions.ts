@@ -53,6 +53,8 @@ export interface CommissionSummary {
   totalRetentions: string;
   totalNetMxn: string;
   transactionCount: number;
+  personalSales?: string;
+  networkSalesVolume?: string;
 }
 
 export interface CommissionPercentage {
@@ -63,6 +65,38 @@ export interface CommissionPercentage {
   upgradedPercentage?: string;
   qualifiersRequired?: number;
   isActive: boolean;
+}
+
+export interface GenerationCommission {
+  id: string;
+  generationNumber: number;
+  percentage: string;
+  isActive: boolean;
+}
+
+export interface MlmRank {
+  id: string;
+  code: string;
+  name: string;
+  rankNumber: number;
+  pointsPersonalRequired: number;
+  pointsGroupRequired: number;
+  qualifiersFirstLevel: number;
+  levelMax?: number;
+  generationMax?: number;
+  autoBonusMxn?: string;
+  autoBonusUsd?: string;
+}
+
+export interface CommissionStructure {
+  levels: CommissionPercentage[];
+  generations: GenerationCommission[];
+  ranks: MlmRank[];
+  userLevelMax?: number;
+  userGenerationMax?: number;
+  userQualifiedCount?: number;
+  userRankName?: string;
+  userRankNumber?: number;
 }
 
 // Response types

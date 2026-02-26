@@ -264,13 +264,32 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
             </div>
           </div>
           {/* Quick Stats */}
-          <div className="grid grid-cols-2 gap-2 mt-3">
-            <div className="bg-white/5 rounded-lg p-2 text-center">
-              <p className="text-lg font-bold text-[#7AB82E]">
-                {networkSummary?.totalDistributors || 0}
-              </p>
-              <p className="text-[10px] text-white/60 uppercase tracking-wide">Red</p>
+          <div className="space-y-2 mt-3">
+            {/* Network breakdown */}
+            <div className="bg-white/5 rounded-lg p-2">
+              <p className="text-[10px] text-white/60 uppercase tracking-wide text-center mb-1.5">Mi Red</p>
+              <div className="grid grid-cols-3 gap-1">
+                <div className="text-center">
+                  <p className="text-sm font-bold text-[#7AB82E]">
+                    {(networkSummary?.totalNetwork || 0).toLocaleString()}
+                  </p>
+                  <p className="text-[9px] text-white/50">Total</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-bold text-emerald-400">
+                    {(networkSummary?.totalDistributors || 0).toLocaleString()}
+                  </p>
+                  <p className="text-[9px] text-white/50">Activos</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-bold text-white/40">
+                    {(networkSummary?.inactiveDistributors || 0).toLocaleString()}
+                  </p>
+                  <p className="text-[9px] text-white/50">Inactivos</p>
+                </div>
+              </div>
             </div>
+            {/* Commissions */}
             <div className="bg-white/5 rounded-lg p-2 text-center">
               <p className="text-lg font-bold text-[#7AB82E]">
                 ${(commissionsSummary?.totalNet || 0).toLocaleString(user?.currencyCode === 'USD' ? 'en-US' : 'es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}

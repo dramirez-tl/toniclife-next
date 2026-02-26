@@ -29,6 +29,8 @@ import {
   useCopyReferralLink,
   useShareReferralLink,
 } from '@/hooks/useDistributor';
+import { useAppSelector } from '@/store/hooks';
+import { selectUser } from '@/store/slices/authSlice';
 import { toast } from 'sonner';
 import { useActivePrograms, useMyProgress } from '@/hooks/useStartupProgram';
 import { RocketLaunchIcon } from '@heroicons/react/24/outline';
@@ -66,6 +68,17 @@ const rankLabels: Record<string, string> = {
 };
 
 export default function DistribuidorDashboard() {
+  const user = useAppSelector(selectUser);
+  const currencyCode = user?.currencyCode || 'MXN';
+  const isUsd = currencyCode === 'USD';
+  const formatMoney = (amount: number) =>
+    new Intl.NumberFormat(isUsd ? 'en-US' : 'es-MX', {
+      style: 'currency',
+      currency: currencyCode,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+
   const [selectedPeriod] = useState<'week' | 'month' | 'year'>('month');
 
   // React Query hooks
@@ -421,7 +434,8 @@ export default function DistribuidorDashboard() {
               </div>
               <p className="text-sm font-medium text-white/70 mb-1">Comisiones del mes</p>
               <p className="text-3xl font-bold text-white tracking-tight">
-                ${(stats?.monthlyCommission || commissionsSummary?.totalNet || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                {formatMoney(stats?.monthlyCommission || commissionsSummary?.totalNet || 0)}
+                <span className="text-[10px] font-semibold bg-white/20 text-white/80 px-1.5 py-0.5 rounded ml-1">{currencyCode}</span>
               </p>
               <div className="mt-3 pt-3 border-t border-white/10">
                 <p className="text-xs text-white/50 flex items-center gap-1">
@@ -441,7 +455,8 @@ export default function DistribuidorDashboard() {
               </div>
               <p className="text-sm text-gray-600 mb-1">Ventas totales</p>
               <p className="text-3xl font-bold text-[#003B7A]">
-                ${(stats?.totalSales || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                {formatMoney(stats?.totalSales || 0)}
+                <span className="inline-flex text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 ml-1">{currencyCode}</span>
               </p>
               <div className="mt-2 text-sm text-gray-500">
                 Puntos negocio: {(points?.businessPointsMxn || 0).toLocaleString()}
@@ -518,7 +533,8 @@ export default function DistribuidorDashboard() {
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                               {activity.amount !== undefined && (
                                 <span className="text-sm font-semibold text-[#7AB82E]">
-                                  +${activity.amount.toFixed(2)}
+                                  +{formatMoney(activity.amount)}
+                                  <span className="text-[9px] font-semibold text-gray-400 ml-0.5">{currencyCode}</span>
                                 </span>
                               )}
                               {activity.personName && (
@@ -579,7 +595,8 @@ export default function DistribuidorDashboard() {
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-[#003B7A]">
-                            ${performer.sales.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                            {formatMoney(performer.sales)}
+                            <span className="text-[9px] font-semibold text-gray-400 ml-0.5">{currencyCode}</span>
                           </p>
                           <p className="text-xs text-gray-500">en ventas</p>
                         </div>
@@ -894,7 +911,7 @@ function StartupProgramWidget() {
   };
 
   return (
-    <Link href="/distribuidor/programa-arranque">
+    <Link href="/distribuidor/programa-arranque" className="block mb-2">
       <Card className="border-0 shadow-md hover:shadow-lg transition-shadow cursor-pointer overflow-hidden">
         <div className="flex items-stretch">
           <div className="bg-gradient-to-b from-[#003B7A] to-[#002a5c] p-4 flex items-center justify-center">
@@ -917,6 +934,7 @@ function StartupProgramWidget() {
                   <span>Proximo hito: {nextMilestone.recruitsNeeded} inscritos</span>
                   <span className="font-medium text-[#7AB82E]">
                     {fmtCurrency(nextMilestone.bonusAmount)}
+                    <span className="text-[8px] font-semibold text-gray-400 ml-0.5">{currency}</span>
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">

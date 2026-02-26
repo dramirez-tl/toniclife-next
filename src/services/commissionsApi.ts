@@ -7,6 +7,7 @@ import type {
   CommissionsListResponse,
   CommissionFilters,
   CommissionPercentage,
+  CommissionStructure,
   MonthlyCommissionTrend,
   CommissionType,
   CommissionStatus,
@@ -101,11 +102,29 @@ class CommissionsApi {
   }
 
   /**
+   * Obtiene el periodo actual (abierto)
+   * Backend: GET /mlm/periods/current
+   */
+  async getCurrentPeriod(): Promise<any> {
+    const { data } = await api.get('/mlm/periods/current');
+    return data;
+  }
+
+  /**
    * Obtiene estructura de porcentajes de comisiones
    * Backend: GET /mlm/commissions/percentages
    */
   async getPercentages(): Promise<CommissionPercentage[]> {
     const { data } = await api.get<CommissionPercentage[]>('/mlm/commissions/percentages');
+    return data;
+  }
+
+  /**
+   * Obtiene estructura completa de comisiones (niveles + generaciones + contexto del usuario)
+   * Backend: GET /mlm/commissions/structure/:customerId
+   */
+  async getCommissionStructure(customerId: string): Promise<CommissionStructure> {
+    const { data } = await api.get<CommissionStructure>(`/mlm/commissions/structure/${customerId}`);
     return data;
   }
 
@@ -144,13 +163,26 @@ class CommissionsApi {
   }
 
   /**
-   * Obtiene comisiones de un cliente especifico
+   * Obtiene comisiones de un cliente especifico con filtros
    * Backend: GET /mlm/commissions/customer/:customerId
+   * Returns: CommissionListResponseDto { data, summary, total, page, limit, totalPages }
    */
-  async getCustomerCommissions(customerId: string): Promise<Commission[]> {
-    const { data } = await api.get<CommissionsListResponse>(`/mlm/commissions/customer/${customerId}`);
-    // The backend returns CommissionListResponseDto with data field
-    return (data as any).data ?? data;
+  async getCustomerCommissions(
+    customerId: string,
+    filters: CommissionFilters = {},
+  ): Promise<CommissionsListResponse> {
+    const params: Record<string, string> = {};
+    if (filters.periodId) params.periodId = filters.periodId;
+    if (filters.commissionType) params.commissionType = filters.commissionType;
+    if (filters.status) params.status = filters.status;
+    if (filters.page) params.page = filters.page.toString();
+    if (filters.limit) params.limit = filters.limit.toString();
+
+    const { data } = await api.get<CommissionsListResponse>(
+      `/mlm/commissions/customer/${customerId}`,
+      { params },
+    );
+    return data;
   }
 
   /**

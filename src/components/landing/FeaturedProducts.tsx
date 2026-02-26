@@ -42,6 +42,8 @@ interface ProductCardProps {
     pointsValue: string;
     isFeatured: boolean;
     healthBenefits?: string[];
+    imageUrl?: string;
+    price?: string;
   };
 }
 
@@ -81,12 +83,20 @@ function FeaturedProductCard({ product }: ProductCardProps) {
       <Link href={productHref}>
         <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center overflow-hidden cursor-pointer">
           <div className="relative w-full h-full flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
-            {/* Placeholder product image */}
-            <div className="w-32 h-32 bg-gradient-to-br from-[#7AB82E]/20 to-[#003B7A]/20 rounded-2xl flex items-center justify-center">
-              <span className="text-4xl font-bold text-[#003B7A]">
-                {product.name.substring(0, 2).toUpperCase()}
-              </span>
-            </div>
+            {product.imageUrl ? (
+              <img
+                src={product.imageUrl}
+                alt={product.name}
+                className="w-full h-full object-contain p-4"
+                loading="lazy"
+              />
+            ) : (
+              <div className="w-32 h-32 bg-gradient-to-br from-[#7AB82E]/20 to-[#003B7A]/20 rounded-2xl flex items-center justify-center">
+                <span className="text-4xl font-bold text-[#003B7A]">
+                  {product.name.substring(0, 2).toUpperCase()}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </Link>
@@ -130,12 +140,14 @@ function FeaturedProductCard({ product }: ProductCardProps) {
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xl font-bold text-[#003B7A]">
-                ${parseFloat(product.pointsValue || '0').toFixed(2)}
+                ${parseFloat(product.price || product.pointsValue || '0').toFixed(2)}
               </span>
             </div>
-            <span className="text-xs text-gray-500">
-              {product.pointsValue} pts
-            </span>
+            {parseFloat(product.pointsValue || '0') > 0 && (
+              <span className="text-xs text-gray-500">
+                {product.pointsValue} pts
+              </span>
+            )}
           </div>
           <Button
             size="sm"

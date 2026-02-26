@@ -17,6 +17,7 @@ import { useState } from 'react';
 interface CommissionTableProps {
   commissions: Commission[];
   showTaxDetails?: boolean;
+  currencyCode?: string;
 }
 
 const typeConfig: Record<CommissionType, { label: string; icon: typeof UserIcon; color: string }> = {
@@ -49,16 +50,23 @@ const statusConfig: Record<CommissionStatus, { label: string; color: string }> =
   cancelled: { label: 'Cancelada', color: 'bg-red-100 text-red-700' },
 };
 
-export function CommissionTable({ commissions, showTaxDetails = false }: CommissionTableProps) {
+export function CommissionTable({ commissions, showTaxDetails = false, currencyCode = 'MXN' }: CommissionTableProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const isUsd = currencyCode === 'USD';
 
   const formatCurrency = (amount: string | number) => {
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return new Intl.NumberFormat('es-MX', {
+    return new Intl.NumberFormat(isUsd ? 'en-US' : 'es-MX', {
       style: 'currency',
-      currency: 'MXN',
+      currency: currencyCode,
     }).format(num);
   };
+
+  const CurrBadge = () => (
+    <span className="inline-flex text-[9px] font-semibold px-1 py-0.5 rounded bg-gray-100 text-gray-400 ml-1">
+      {currencyCode}
+    </span>
+  );
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('es-MX', {
@@ -156,26 +164,26 @@ export function CommissionTable({ commissions, showTaxDetails = false }: Commiss
                   </td>
                   <td className="py-4 px-4 text-right">
                     <span className="text-sm text-gray-900">
-                      {formatCurrency(commission.subtotalEarnings)}
+                      {formatCurrency(commission.subtotalEarnings)}<CurrBadge />
                     </span>
                   </td>
                   {showTaxDetails && (
                     <>
                       <td className="py-4 px-4 text-right">
                         <span className="text-sm text-gray-600">
-                          +{formatCurrency(commission.ivaAmount || '0')}
+                          +{formatCurrency(commission.ivaAmount || '0')}<CurrBadge />
                         </span>
                       </td>
                       <td className="py-4 px-4 text-right">
                         <span className="text-sm text-red-600">
-                          -{formatCurrency(commission.ivaWithholding || '0')}
+                          -{formatCurrency(commission.ivaWithholding || '0')}<CurrBadge />
                         </span>
                       </td>
                     </>
                   )}
                   <td className="py-4 px-4 text-right">
                     <span className="text-sm font-bold text-[#7AB82E]">
-                      {formatCurrency(commission.totalAmount)}
+                      {formatCurrency(commission.totalAmount)}<CurrBadge />
                     </span>
                   </td>
                   <td className="py-4 px-4 text-center">
@@ -203,37 +211,37 @@ export function CommissionTable({ commissions, showTaxDetails = false }: Commiss
                         </div>
                         <div>
                           <p className="text-gray-500 text-xs">Subtotal Ganancias</p>
-                          <p className="text-gray-900">{formatCurrency(commission.subtotalEarnings)}</p>
+                          <p className="text-gray-900">{formatCurrency(commission.subtotalEarnings)}<CurrBadge /></p>
                         </div>
                         {commission.autoBonus && (
                           <div>
                             <p className="text-gray-500 text-xs">Auto Bono</p>
-                            <p className="text-green-600">+{formatCurrency(commission.autoBonus)}</p>
+                            <p className="text-green-600">+{formatCurrency(commission.autoBonus)}<CurrBadge /></p>
                           </div>
                         )}
                         <div>
                           <p className="text-gray-500 text-xs">IVA</p>
-                          <p className="text-green-600">+{formatCurrency(commission.ivaAmount || '0')}</p>
+                          <p className="text-green-600">+{formatCurrency(commission.ivaAmount || '0')}<CurrBadge /></p>
                         </div>
                         <div>
                           <p className="text-gray-500 text-xs">Ret. IVA</p>
-                          <p className="text-red-600">-{formatCurrency(commission.ivaWithholding || '0')}</p>
+                          <p className="text-red-600">-{formatCurrency(commission.ivaWithholding || '0')}<CurrBadge /></p>
                         </div>
                         {parseFloat(commission.isrAmount || '0') > 0 && (
                           <div>
                             <p className="text-gray-500 text-xs">ISR</p>
-                            <p className="text-red-600">-{formatCurrency(commission.isrAmount || '0')}</p>
+                            <p className="text-red-600">-{formatCurrency(commission.isrAmount || '0')}<CurrBadge /></p>
                           </div>
                         )}
                         {parseFloat(commission.resicoAmount || '0') > 0 && (
                           <div>
                             <p className="text-gray-500 text-xs">RESICO (1.25%)</p>
-                            <p className="text-red-600">-{formatCurrency(commission.resicoAmount || '0')}</p>
+                            <p className="text-red-600">-{formatCurrency(commission.resicoAmount || '0')}<CurrBadge /></p>
                           </div>
                         )}
                         <div>
                           <p className="text-gray-500 text-xs">Total Neto</p>
-                          <p className="font-bold text-[#003B7A]">{formatCurrency(commission.totalAmount)}</p>
+                          <p className="font-bold text-[#003B7A]">{formatCurrency(commission.totalAmount)}<CurrBadge /></p>
                         </div>
                         {commission.approvedAt && (
                           <div>
@@ -255,7 +263,7 @@ export function CommissionTable({ commissions, showTaxDetails = false }: Commiss
               Total:
             </td>
             <td className="py-4 px-4 text-right text-[#003B7A]">
-              {formatCurrency(commissions.reduce((sum, c) => sum + parseFloat(c.totalAmount), 0))}
+              {formatCurrency(commissions.reduce((sum, c) => sum + parseFloat(c.totalAmount), 0))}<CurrBadge />
             </td>
             <td colSpan={2}></td>
           </tr>

@@ -1,136 +1,197 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
+import { useDistributorDashboard } from '@/hooks/useDistributor';
+import { useAppSelector } from '@/store/hooks';
+import { selectUser } from '@/store/slices/authSlice';
 import {
   ChartBarIcon,
   ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
-  CalendarIcon,
   TrophyIcon,
   UserGroupIcon,
   CurrencyDollarIcon,
-  FunnelIcon,
+  ShoppingBagIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 
-const mockSalesData = {
-  thisMonth: {
-    personal: 12500,
-    team: 32500,
-    total: 45000,
-    growth: 18.5,
-    orders: 45,
-    avgOrder: 1000,
-  },
-  lastMonth: {
-    personal: 10600,
-    team: 27400,
-    total: 38000,
-    growth: 12.3,
-    orders: 38,
-    avgOrder: 1000,
-  },
-  goals: {
-    monthly: 50000,
-    nextRank: 75000,
-  },
-  weeklyData: [
-    { week: 'Sem 1', personal: 2800, team: 7200 },
-    { week: 'Sem 2', personal: 3100, team: 8500 },
-    { week: 'Sem 3', personal: 3500, team: 8800 },
-    { week: 'Sem 4', personal: 3100, team: 8000 },
-  ],
-  topProducts: [
-    { name: 'Vitamina D3 + K2', sales: 15, revenue: 6735 },
-    { name: 'Omega 3 Premium', sales: 12, revenue: 7188 },
-    { name: 'Magnesio Bisglicinato', sales: 10, revenue: 3990 },
-    { name: 'Colágeno Hidrolizado', sales: 8, revenue: 5592 },
-  ],
-  topPerformers: [
-    { name: 'Laura Pérez', sales: 8500, growth: 25 },
-    { name: 'Carlos Rodríguez', sales: 7200, growth: 15 },
-    { name: 'Ana Martínez', sales: 3200, growth: 32 },
-    { name: 'José García', sales: 2800, growth: 8 },
-  ],
-};
-
 export default function VentasPage() {
-  const [period, setPeriod] = useState<'week' | 'month' | 'quarter' | 'year'>('month');
+  const user = useAppSelector(selectUser);
+  const {
+    salesSummary,
+    topPerformers,
+    points,
+    isLoading,
+    isRefreshing,
+    isError,
+    error,
+    refetch,
+  } = useDistributorDashboard();
 
-  const data = mockSalesData.thisMonth;
-  const goalProgress = (data.total / mockSalesData.goals.monthly) * 100;
-  const rankProgress = (data.total / mockSalesData.goals.nextRank) * 100;
+  const currencyCode = user?.currencyCode || 'MXN';
+  const isUsd = currencyCode === 'USD';
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat(isUsd ? 'en-US' : 'es-MX', {
+      style: 'currency',
+      currency: currencyCode,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+
+  const CurrencyBadge = ({ className = '' }: { className?: string }) => (
+    <span className={`inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 ml-1 ${className}`}>
+      {currencyCode}
+    </span>
+  );
+
+  const personal = salesSummary?.personalSales || 0;
+  const team = salesSummary?.teamSales || 0;
+  const total = salesSummary?.totalSales || 0;
+  const orderCount = salesSummary?.orderCount || 0;
+  const avgOrder = orderCount > 0 ? personal / orderCount : 0;
+  const personalPercent = total > 0 ? ((personal / total) * 100).toFixed(0) : '0';
+  const teamPercent = total > 0 ? ((team / total) * 100).toFixed(0) : '0';
+  const products = salesSummary?.topProducts || [];
+  const performers = topPerformers || [];
+  const topProductAmount = products.length > 0 ? Math.max(...products.map((product) => product.amount || 0), 0) : 0;
+
+  const handleRefresh = () => {
+    refetch();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div className="flex items-center gap-3 mb-2">
+              <ChartBarIcon className="h-10 w-10" />
+              <h1 className="text-4xl font-bold">Rendimiento de Ventas</h1>
+            </div>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="animate-pulse bg-white rounded-xl p-6 shadow-sm">
+                <div className="h-8 w-8 bg-gray-200 rounded-lg mb-4" />
+                <div className="h-4 w-24 bg-gray-200 rounded mb-2" />
+                <div className="h-8 w-32 bg-gray-200 rounded" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <Card className="border-red-100 shadow-sm">
+            <CardContent className="p-8 text-center">
+              <ChartBarIcon className="h-12 w-12 mx-auto text-red-300 mb-3" />
+              <h2 className="text-xl font-bold text-gray-900 mb-2">No pudimos cargar tus ventas</h2>
+              <p className="text-gray-600 mb-5">
+                Ocurrió un problema al obtener la información. Intenta nuevamente.
+              </p>
+              {process.env.NODE_ENV === 'development' && error instanceof Error && (
+                <p className="text-xs text-gray-400 mb-4 break-all">{error.message}</p>
+              )}
+              <div className="flex flex-wrap justify-center gap-3">
+                <Button
+                  variant="primary"
+                  leftIcon={<ArrowPathIcon className="h-4 w-4" />}
+                  onClick={handleRefresh}
+                >
+                  Reintentar
+                </Button>
+                <Link href="/distribuidor">
+                  <Button variant="outline">Volver al Panel Principal</Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-2">
-                <ChartBarIcon className="h-10 w-10" />
-                <h1 className="text-4xl font-bold">Rendimiento de Ventas</h1>
+                <ChartBarIcon className="h-7 w-7 sm:h-8 sm:w-8 lg:h-10 lg:w-10" />
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold">Rendimiento de Ventas</h1>
               </div>
-              <p className="text-white/80 text-lg">
-                Analiza tu desempeño y el de tu equipo
+              <p className="text-white/80 text-sm sm:text-base lg:text-lg">
+                {points?.periodName || 'Periodo actual'} &mdash; Analiza tu desempeño y el de tu equipo
               </p>
+              {isRefreshing && (
+                <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs text-white/90">
+                  <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
+                  Actualizando datos...
+                </div>
+              )}
             </div>
-            <Link href="/distribuidor">
-              <Button variant="secondary">
-                Volver al Panel Principal
-              </Button>
-            </Link>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <Link href="/productos">
+                <Button variant="primary" className="bg-[#7AB82E] hover:bg-[#6aa025]">
+                  Registrar venta
+                </Button>
+              </Link>
+              <button
+                onClick={handleRefresh}
+                className="p-2.5 text-white/70 hover:text-white hover:bg-white/10 rounded-xl transition-all disabled:opacity-50"
+                title="Actualizar datos"
+                aria-label="Actualizar datos de ventas"
+                disabled={isRefreshing}
+              >
+                <ArrowPathIcon className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </button>
+              <Link href="/distribuidor">
+                <Button variant="secondary">
+                  Volver al Panel Principal
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Period Selector */}
-        <div className="flex gap-2 mb-6">
-          {(['week', 'month', 'quarter', 'year'] as const).map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                period === p
-                  ? 'bg-[#003B7A] text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-              }`}
-            >
-              {p === 'week' ? 'Esta Semana' : p === 'month' ? 'Este Mes' : p === 'quarter' ? 'Este Trimestre' : 'Este Año'}
-            </button>
-          ))}
-        </div>
-
         {/* Main Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card className="bg-gradient-to-br from-[#7AB82E] to-[#7AB82E]/90 text-white">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <CurrencyDollarIcon className="h-8 w-8 text-white/80" />
-                <div className="flex items-center gap-1 text-sm">
-                  <ArrowTrendingUpIcon className="h-4 w-4" />
-                  <span>+{data.growth}%</span>
-                </div>
               </div>
               <p className="text-sm text-white/80 mb-1">Ventas Totales</p>
-              <p className="text-3xl font-bold">${data.total.toLocaleString('es-MX')}</p>
+              <p className="text-3xl font-bold flex items-baseline gap-1">
+                {formatCurrency(total)}
+                <span className="text-xs font-semibold bg-white/20 px-1.5 py-0.5 rounded">{currencyCode}</span>
+              </p>
+              <p className="text-xs text-white/70 mt-1">Personal + Equipo</p>
             </CardContent>
           </Card>
 
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <UserGroupIcon className="h-8 w-8 text-blue-500" />
+                <ShoppingBagIcon className="h-8 w-8 text-blue-500" />
               </div>
               <p className="text-sm text-gray-600 mb-1">Ventas Personales</p>
-              <p className="text-3xl font-bold text-gray-900">${data.personal.toLocaleString('es-MX')}</p>
+              <p className="text-3xl font-bold text-gray-900">{formatCurrency(personal)}<CurrencyBadge /></p>
               <p className="text-xs text-gray-500 mt-1">
-                {((data.personal / data.total) * 100).toFixed(0)}% del total
+                {personalPercent}% del total
               </p>
             </CardContent>
           </Card>
@@ -141,9 +202,9 @@ export default function VentasPage() {
                 <UserGroupIcon className="h-8 w-8 text-purple-500" />
               </div>
               <p className="text-sm text-gray-600 mb-1">Ventas de Equipo</p>
-              <p className="text-3xl font-bold text-gray-900">${data.team.toLocaleString('es-MX')}</p>
+              <p className="text-3xl font-bold text-gray-900">{formatCurrency(team)}<CurrencyBadge /></p>
               <p className="text-xs text-gray-500 mt-1">
-                {((data.team / data.total) * 100).toFixed(0)}% del total
+                {teamPercent}% del total
               </p>
             </CardContent>
           </Card>
@@ -153,10 +214,10 @@ export default function VentasPage() {
               <div className="flex items-center justify-between mb-4">
                 <ChartBarIcon className="h-8 w-8 text-orange-500" />
               </div>
-              <p className="text-sm text-gray-600 mb-1">Pedidos</p>
-              <p className="text-3xl font-bold text-gray-900">{data.orders}</p>
+              <p className="text-sm text-gray-600 mb-1">Pedidos Personales</p>
+              <p className="text-3xl font-bold text-gray-900">{orderCount}</p>
               <p className="text-xs text-gray-500 mt-1">
-                Ticket promedio: ${data.avgOrder.toLocaleString('es-MX')}
+                Ticket promedio: {formatCurrency(avgOrder)} {currencyCode}
               </p>
             </CardContent>
           </Card>
@@ -165,123 +226,93 @@ export default function VentasPage() {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Left Column */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Goals Progress */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-6">Metas del Mes</h3>
-
-                {/* Monthly Goal */}
-                <div className="mb-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">Meta Mensual</span>
-                    <span className="text-sm font-bold text-gray-900">
-                      ${data.total.toLocaleString('es-MX')} / ${mockSalesData.goals.monthly.toLocaleString('es-MX')}
-                    </span>
-                  </div>
-                  <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-[#7AB82E] rounded-full transition-all"
-                      style={{ width: `${Math.min(goalProgress, 100)}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {goalProgress >= 100 ? '¡Meta alcanzada! 🎉' : `Faltan $${(mockSalesData.goals.monthly - data.total).toLocaleString('es-MX')} (${(100 - goalProgress).toFixed(0)}%)`}
-                  </p>
-                </div>
-
-                {/* Rank Goal */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">Progreso a Diamante</span>
-                    <span className="text-sm font-bold text-gray-900">
-                      ${data.total.toLocaleString('es-MX')} / ${mockSalesData.goals.nextRank.toLocaleString('es-MX')}
-                    </span>
-                  </div>
-                  <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all"
-                      style={{ width: `${Math.min(rankProgress, 100)}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Faltan $${(mockSalesData.goals.nextRank - data.total).toLocaleString('es-MX')} para siguiente rango
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Weekly Trend */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-6">Tendencia Semanal</h3>
-                <div className="space-y-4">
-                  {mockSalesData.weeklyData.map((week, index) => (
-                    <div key={index}>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-gray-700">{week.week}</span>
-                        <span className="text-sm font-bold text-gray-900">
-                          ${(week.personal + week.team).toLocaleString('es-MX')}
-                        </span>
-                      </div>
-                      <div className="flex gap-1 h-8">
-                        <div
-                          className="bg-blue-500 rounded"
-                          style={{ width: `${(week.personal / 12000) * 100}%` }}
-                          title={`Personal: $${week.personal}`}
-                        />
-                        <div
-                          className="bg-purple-500 rounded"
-                          style={{ width: `${(week.team / 12000) * 100}%` }}
-                          title={`Equipo: $${week.team}`}
-                        />
-                      </div>
-                      <div className="flex justify-between text-xs text-gray-500 mt-1">
-                        <span>Personal: ${week.personal.toLocaleString('es-MX')}</span>
-                        <span>Equipo: ${week.team.toLocaleString('es-MX')}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex gap-4 mt-6 pt-6 border-t">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-blue-500 rounded" />
-                    <span className="text-sm text-gray-600">Ventas Personales</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-purple-500 rounded" />
-                    <span className="text-sm text-gray-600">Ventas de Equipo</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* Top Products */}
             <Card>
               <CardContent className="p-6">
                 <h3 className="text-xl font-bold text-gray-900 mb-6">Productos Más Vendidos</h3>
+                {products.length > 0 ? (
+                  <div className="space-y-4">
+                    {products.map((product, index) => (
+                      <div key={product.productId} className="flex items-center gap-4">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                          index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                          index === 1 ? 'bg-gray-100 text-gray-700' :
+                          index === 2 ? 'bg-orange-100 text-orange-700' :
+                          'bg-gray-50 text-gray-600'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900">{product.productName}</p>
+                          <p className="text-sm text-gray-500">{product.quantity} unidades</p>
+                          <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-[#7AB82E] rounded-full"
+                              style={{
+                                width: `${topProductAmount > 0 ? (product.amount / topProductAmount) * 100 : 0}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-[#003B7A]">
+                            {formatCurrency(product.amount)} <span className="text-[10px] font-semibold text-gray-400">{currencyCode}</span>
+                          </p>
+                          <p className="text-[11px] text-gray-500">
+                            {total > 0 ? `${((product.amount / total) * 100).toFixed(1)}% del total` : '0% del total'}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-center py-8">No hay productos vendidos en este periodo</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Sales Breakdown */}
+            <Card>
+              <CardContent className="p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-6">Distribución de Ventas</h3>
                 <div className="space-y-4">
-                  {mockSalesData.topProducts.map((product, index) => (
-                    <div key={index} className="flex items-center gap-4">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold ${
-                        index === 0 ? 'bg-yellow-100 text-yellow-700' :
-                        index === 1 ? 'bg-gray-100 text-gray-700' :
-                        index === 2 ? 'bg-orange-100 text-orange-700' :
-                        'bg-gray-50 text-gray-600'
-                      }`}>
-                        {index + 1}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">{product.name}</p>
-                        <p className="text-sm text-gray-500">{product.sales} ventas</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-[#003B7A]">
-                          ${product.revenue.toLocaleString('es-MX')}
-                        </p>
-                      </div>
+                  {/* Personal vs Team bar */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Ventas Personales</span>
+                      <span className="text-sm font-bold text-gray-900">{formatCurrency(personal)} <span className="text-[10px] text-gray-400">{currencyCode}</span></span>
                     </div>
-                  ))}
+                    <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-500 rounded-full transition-all"
+                        style={{ width: `${total > 0 ? (personal / total) * 100 : 0}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700">Ventas de Equipo</span>
+                      <span className="text-sm font-bold text-gray-900">{formatCurrency(team)} <span className="text-[10px] text-gray-400">{currencyCode}</span></span>
+                    </div>
+                    <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-purple-500 rounded-full transition-all"
+                        style={{ width: `${total > 0 ? (team / total) * 100 : 0}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4 mt-4 pt-4 border-t">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-blue-500 rounded" />
+                      <span className="text-sm text-gray-600">Personal ({personalPercent}%)</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-purple-500 rounded" />
+                      <span className="text-sm text-gray-600">Equipo ({teamPercent}%)</span>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -296,69 +327,121 @@ export default function VentasPage() {
                   <TrophyIcon className="h-5 w-5 text-yellow-500" />
                   Líderes del Mes
                 </h3>
-                <div className="space-y-3">
-                  {mockSalesData.topPerformers.map((performer, index) => (
-                    <div key={index} className="flex items-center gap-3">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                        index === 0 ? 'bg-yellow-100 text-yellow-700' :
-                        index === 1 ? 'bg-gray-100 text-gray-700' :
-                        index === 2 ? 'bg-orange-100 text-orange-700' :
-                        'bg-gray-50 text-gray-600'
-                      }`}>
-                        {index + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">
-                          {performer.name}
+                {performers.length > 0 ? (
+                  <div className="space-y-3">
+                    {performers.map((performer: { id: string; name: string; sales: number }, index: number) => (
+                      <div key={performer.id} className="flex items-center gap-3">
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                          index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                          index === 1 ? 'bg-gray-100 text-gray-700' :
+                          index === 2 ? 'bg-orange-100 text-orange-700' :
+                          'bg-gray-50 text-gray-600'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {performer.name}
+                          </p>
+                        </div>
+                        <p className="text-sm font-bold text-[#003B7A]">
+                          {formatCurrency(performer.sales)} <span className="text-[9px] text-gray-400">{currencyCode}</span>
                         </p>
-                        <p className="text-xs text-gray-500">
-                          ${performer.sales.toLocaleString('es-MX')}
-                        </p>
                       </div>
-                      <div className="flex items-center gap-1 text-xs">
-                        <ArrowTrendingUpIcon className="h-3 w-3 text-green-600" />
-                        <span className="text-green-600 font-medium">+{performer.growth}%</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-500 text-center py-4 text-sm">
+                    Sin datos de líderes en este periodo
+                  </p>
+                )}
               </CardContent>
             </Card>
 
             {/* Quick Actions */}
-            <Card className="bg-gradient-to-br from-[#003B7A] to-[#003B7A]/90 text-white">
+            <Card className="overflow-hidden border-0 bg-gradient-to-br from-[#003B7A] via-[#003B7A] to-[#0A4B94] text-white shadow-lg">
               <CardContent className="p-6">
-                <h3 className="font-bold text-lg mb-4">Acciones Rápidas</h3>
-                <div className="space-y-2">
-                  <Link href="/distribuidor/comisiones">
-                    <Button variant="secondary" size="sm" className="w-full justify-start">
-                      Ver Comisiones
-                    </Button>
+                <div className="mb-4">
+                  <h3 className="text-lg font-bold !text-white">Acciones Rápidas</h3>
+                  <p className="mt-1 text-xs text-white/75">Atajos para mantener activo tu ritmo comercial</p>
+                </div>
+
+                <div className="space-y-2.5">
+                  <Link
+                    href="/productos"
+                    className="group flex items-center gap-3 rounded-xl border border-white/15 bg-white/10 px-3.5 py-3 transition-all hover:-translate-y-0.5 hover:bg-white/15"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#7AB82E]/25">
+                      <ShoppingBagIcon className="h-4.5 w-4.5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-white">Registrar venta</p>
+                      <p className="text-[11px] text-white/70">Agrega un nuevo pedido</p>
+                    </div>
+                    <ArrowTrendingUpIcon className="h-4 w-4 text-white/60 transition-transform group-hover:translate-x-0.5" />
                   </Link>
-                  <Link href="/distribuidor/red">
-                    <Button variant="secondary" size="sm" className="w-full justify-start">
-                      Ver Red
-                    </Button>
+
+                  <Link
+                    href="/distribuidor/prospectos"
+                    className="group flex items-center gap-3 rounded-xl border border-white/15 bg-white/10 px-3.5 py-3 transition-all hover:-translate-y-0.5 hover:bg-white/15"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#7AB82E]/25">
+                      <UserGroupIcon className="h-4.5 w-4.5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-white">Contactar prospectos</p>
+                      <p className="text-[11px] text-white/70">Da seguimiento a oportunidades</p>
+                    </div>
+                    <ArrowTrendingUpIcon className="h-4 w-4 text-white/60 transition-transform group-hover:translate-x-0.5" />
                   </Link>
-                  <Button variant="secondary" size="sm" className="w-full justify-start">
-                    Exportar Reporte
-                  </Button>
+
+                  <Link
+                    href="/distribuidor/comisiones"
+                    className="group flex items-center gap-3 rounded-xl border border-white/15 bg-white/10 px-3.5 py-3 transition-all hover:-translate-y-0.5 hover:bg-white/15"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#7AB82E]/25">
+                      <CurrencyDollarIcon className="h-4.5 w-4.5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-white">Ver comisiones</p>
+                      <p className="text-[11px] text-white/70">Revisa tus ingresos del periodo</p>
+                    </div>
+                    <ArrowTrendingUpIcon className="h-4 w-4 text-white/60 transition-transform group-hover:translate-x-0.5" />
+                  </Link>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Tips */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="font-bold text-gray-900 mb-3">💡 Tips para Mejorar</h3>
-                <ul className="text-sm text-gray-600 space-y-2">
-                  <li>• Enfócate en productos con mejor margen</li>
-                  <li>• Capacita a tu equipo regularmente</li>
-                  <li>• Usa las redes sociales diariamente</li>
-                  <li>• Haz seguimiento a prospectos</li>
-                </ul>
-              </CardContent>
-            </Card>
+            {/* Period Info */}
+            {points && (
+              <Card>
+                <CardContent className="p-6">
+                  <h3 className="font-bold text-gray-900 mb-3">Periodo Actual</h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Periodo</span>
+                      <span className="font-medium text-gray-900">{points.periodName}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Días restantes</span>
+                      <span className="font-medium text-gray-900">{points.daysRemaining}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Puntos personales</span>
+                      <span className="font-medium text-[#7AB82E]">
+                        {points.personalPoints.toLocaleString()} / {points.personalPointsRequired.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Calificado</span>
+                      <span className={`font-medium ${points.isPersonalQualified ? 'text-green-600' : 'text-orange-500'}`}>
+                        {points.isPersonalQualified ? 'Sí' : 'Pendiente'}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>

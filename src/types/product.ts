@@ -87,8 +87,10 @@ export interface Product {
   createdAt: string;
   updatedAt: string;
 
-  // UI-only fields (not in backend DTO, used by frontend pages)
+  // Fields from backend JOINs
   imageUrl?: string;
+  price?: string;
+  // UI-only fields (not in backend DTO, used by frontend pages)
   galleryUrls?: string[];
   videoUrl?: string;
   healthBenefits?: string[];

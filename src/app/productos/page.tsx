@@ -32,7 +32,7 @@ function adaptAPIProductToMock(apiProduct: APIProduct): MockProduct {
     // Use categoryName from API directly, fallback to 'General' if not present
     category: (apiProduct.categoryName || 'General') as MockProduct['category'],
     tags: [],
-    price: parseFloat(apiProduct.pointsValue || '0'),
+    price: parseFloat(apiProduct.price || apiProduct.pointsValue || '0'),
     compareAtPrice: undefined,
     image: apiProduct.imageUrl || '',
     images: apiProduct.galleryUrls,

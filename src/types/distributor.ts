@@ -74,6 +74,8 @@ export interface RankRequirement {
 
 export interface NetworkSummary {
   totalDistributors: number;
+  inactiveDistributors: number;
+  totalNetwork: number;
   activeDistributors: number;
   directDistributors: number;
   qualifiedDistributors: number;
@@ -92,6 +94,7 @@ export interface SalesSummary {
   personalSales: number;
   teamSales: number;
   totalSales: number;
+  orderCount?: number;
 
   // Comparación con periodo anterior
   personalSalesChange: number;

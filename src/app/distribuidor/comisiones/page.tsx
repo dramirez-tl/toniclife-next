@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -9,16 +9,20 @@ import {
   CommissionTable,
   CommissionChart,
   CommissionPercentagesTable,
+  RankProgressStepper,
 } from '@/components/commissions';
 import {
-  useCommissions,
+  useCustomerCommissions,
+  useCurrentPeriod,
   useCommissionPeriods,
   useCommissionProjection,
   useCommissionTrends,
-  useCommissionPercentages,
+  useCommissionStructure,
   useRequestPayment,
   useDownloadStatement,
 } from '@/hooks/useCommissions';
+import { useAppSelector } from '@/store/hooks';
+import { selectUser } from '@/store/slices/authSlice';
 import { Commission, CommissionType, CommissionStatus } from '@/types/commissions';
 import {
   CurrencyDollarIcon,
@@ -38,12 +42,24 @@ import { toast } from 'sonner';
 type ViewMode = 'summary' | 'table' | 'chart' | 'structure';
 
 export default function ComisionesPage() {
-  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('period-2025-01');
+  const user = useAppSelector(selectUser);
+
+  const currencyCode = user?.currencyCode || 'MXN';
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
   const [filterType, setFilterType] = useState<CommissionType | 'all'>('all');
   const [filterStatus, setFilterStatus] = useState<CommissionStatus | 'all'>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('summary');
   const [showTaxDetails, setShowTaxDetails] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+
+  // Obtener periodo actual para default
+  const { data: currentPeriodData } = useCurrentPeriod();
+
+  useEffect(() => {
+    if (currentPeriodData?.id && !selectedPeriodId) {
+      setSelectedPeriodId(currentPeriodData.id);
+    }
+  }, [currentPeriodData, selectedPeriodId]);
 
   // React Query hooks
   const { data: periodsData } = useCommissionPeriods();
@@ -51,14 +67,21 @@ export default function ComisionesPage() {
     data: commissionsData,
     isLoading: isLoadingCommissions,
     refetch: refetchCommissions,
-  } = useCommissions({
-    periodId: selectedPeriodId,
-    commissionType: filterType !== 'all' ? filterType : undefined,
-    status: filterStatus !== 'all' ? filterStatus : undefined,
-  });
+  } = useCustomerCommissions(
+    user?.customerId || '',
+    {
+      periodId: selectedPeriodId || undefined,
+      commissionType: filterType !== 'all' ? filterType : undefined,
+      status: filterStatus !== 'all' ? filterStatus : undefined,
+    },
+    !!user?.customerId && !!selectedPeriodId,
+  );
   const { data: projection } = useCommissionProjection();
   const { data: trends } = useCommissionTrends(6);
-  const { data: percentages } = useCommissionPercentages();
+  const { data: commissionStructure } = useCommissionStructure(
+    user?.customerId || '',
+    !!user?.customerId,
+  );
 
   const requestPaymentMutation = useRequestPayment();
   const downloadStatementMutation = useDownloadStatement();
@@ -148,16 +171,18 @@ export default function ComisionesPage() {
                     <SparklesIcon className="h-4 w-4 text-[#7AB82E]" />
                     <span className="text-white/80 text-sm">Total Neto:</span>
                     <span className="text-white font-bold">
-                      ${parseFloat(commissionsData.summary.totalNetMxn).toLocaleString('es-MX')}
+                      {new Intl.NumberFormat(currencyCode === 'USD' ? 'en-US' : 'es-MX', { style: 'currency', currency: currencyCode, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(parseFloat(commissionsData.summary.totalNetMxn))}
                     </span>
+                    <span className="text-[10px] font-semibold bg-white/20 text-white/80 px-1.5 py-0.5 rounded">{currencyCode}</span>
                   </div>
                   {parseFloat(commissionsData.summary.totalRetentions) > 0 && (
                     <div className="flex items-center gap-2 bg-yellow-500/20 backdrop-blur-sm rounded-full px-4 py-2 border border-yellow-400/30">
                       <ArrowTrendingUpIcon className="h-4 w-4 text-yellow-400" />
                       <span className="text-white/80 text-sm">Retenciones:</span>
                       <span className="text-yellow-300 font-bold">
-                        ${parseFloat(commissionsData.summary.totalRetentions).toLocaleString('es-MX')}
+                        {new Intl.NumberFormat(currencyCode === 'USD' ? 'en-US' : 'es-MX', { style: 'currency', currency: currencyCode, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(parseFloat(commissionsData.summary.totalRetentions))}
                       </span>
+                      <span className="text-[10px] font-semibold bg-yellow-400/30 text-yellow-200 px-1.5 py-0.5 rounded">{currencyCode}</span>
                     </div>
                   )}
                 </div>
@@ -347,6 +372,7 @@ export default function ComisionesPage() {
           <CommissionSummaryCards
             summary={commissionsData?.summary || null}
             isLoading={isLoadingCommissions}
+            currencyCode={user?.currencyCode}
           />
         )}
 
@@ -376,6 +402,7 @@ export default function ComisionesPage() {
                 <CommissionTable
                   commissions={commissionsData?.data || []}
                   showTaxDetails={showTaxDetails}
+                  currencyCode={currencyCode}
                 />
               )}
             </CardContent>
@@ -399,13 +426,22 @@ export default function ComisionesPage() {
           </Card>
         )}
 
-        {/* Always show commission structure below */}
-        {percentages && percentages.length > 0 && (
+        {/* Rank progression stepper */}
+        {commissionStructure?.ranks && commissionStructure.ranks.length > 0 && (
           <div className="mt-8">
+            <RankProgressStepper
+              ranks={commissionStructure.ranks}
+              currentRankNumber={commissionStructure.userRankNumber ?? 1}
+              currencyCode={currencyCode}
+            />
+          </div>
+        )}
+
+        {/* Commission structure tables */}
+        {commissionStructure && (
+          <div className="mt-6">
             <CommissionPercentagesTable
-              percentages={percentages}
-              currentQualified={3}
-              currentLevel={5}
+              structure={commissionStructure}
             />
           </div>
         )}

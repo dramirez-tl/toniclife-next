@@ -8,6 +8,7 @@ import {
   CommissionsListResponse,
   CommissionSummary,
   CommissionPercentage,
+  CommissionStructure,
   MonthlyCommissionTrend,
 } from '@/types/commissions';
 
@@ -21,8 +22,10 @@ export const commissionKeys = {
   projection: () => [...commissionKeys.all, 'projection'] as const,
   periods: () => [...commissionKeys.all, 'periods'] as const,
   percentages: () => [...commissionKeys.all, 'percentages'] as const,
+  structure: (customerId: string) => [...commissionKeys.all, 'structure', customerId] as const,
   trends: (months: number) => [...commissionKeys.all, 'trends', months] as const,
   customer: (customerId: string) => [...commissionKeys.all, 'customer', customerId] as const,
+  currentPeriod: () => [...commissionKeys.all, 'currentPeriod'] as const,
 };
 
 /**
@@ -121,6 +124,18 @@ export function useCommissionPercentages() {
 }
 
 /**
+ * Hook para obtener estructura completa de comisiones (niveles + generaciones + contexto del usuario)
+ */
+export function useCommissionStructure(customerId: string, enabled = true) {
+  return useQuery<CommissionStructure>({
+    queryKey: commissionKeys.structure(customerId),
+    queryFn: () => commissionsApi.getCommissionStructure(customerId),
+    enabled: enabled && !!customerId,
+    staleTime: 10 * 60 * 1000, // 10 minutos
+  });
+}
+
+/**
  * Hook para obtener tendencia mensual
  */
 export function useCommissionTrends(months: number = 6) {
@@ -196,12 +211,27 @@ export function useCommissionsDashboard(periodId: string) {
 }
 
 /**
- * Hook para obtener comisiones de un cliente específico
+ * Hook para obtener el periodo actual (abierto)
  */
-export function useCustomerCommissions(customerId: string, enabled = true) {
-  return useQuery<Commission[]>({
-    queryKey: commissionKeys.customer(customerId),
-    queryFn: () => commissionsApi.getCustomerCommissions(customerId),
+export function useCurrentPeriod() {
+  return useQuery({
+    queryKey: commissionKeys.currentPeriod(),
+    queryFn: () => commissionsApi.getCurrentPeriod(),
+    staleTime: 10 * 60 * 1000, // 10 minutos
+  });
+}
+
+/**
+ * Hook para obtener comisiones de un cliente específico con filtros
+ */
+export function useCustomerCommissions(
+  customerId: string,
+  filters: CommissionFilters = {},
+  enabled = true,
+) {
+  return useQuery<CommissionsListResponse>({
+    queryKey: [...commissionKeys.customer(customerId), filters],
+    queryFn: () => commissionsApi.getCustomerCommissions(customerId, filters),
     enabled: enabled && !!customerId,
     staleTime: 2 * 60 * 1000,
   });
