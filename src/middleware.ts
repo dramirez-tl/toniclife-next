@@ -2,28 +2,14 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // ── Coming Soon / Countdown gate ───────────────────────────────────────────
-// Set LAUNCH_DATE and WHITELIST_IPS in .env to enable the countdown gate.
+// Set LAUNCH_DATE in .env to enable the countdown gate.
+// Users can bypass it via /config_sistemas (sets a cookie).
 // After the launch date passes, the gate disables itself automatically.
 const LAUNCH_DATE = process.env.LAUNCH_DATE || '';
-const WHITELIST_IPS = (process.env.WHITELIST_IPS || '')
-  .split(',')
-  .map((ip) => ip.trim())
-  .filter(Boolean);
 
 function isBeforeLaunch(): boolean {
   if (!LAUNCH_DATE) return false;
   return new Date().getTime() < new Date(LAUNCH_DATE).getTime();
-}
-
-function getClientIp(request: NextRequest): string {
-  // Check common proxy headers
-  const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0].trim();
-
-  const realIp = request.headers.get('x-real-ip');
-  if (realIp) return realIp.trim();
-
-  return '127.0.0.1';
 }
 
 // Routes that require authentication
@@ -71,14 +57,17 @@ export function middleware(request: NextRequest) {
 
   // ── Coming Soon gate ───────────────────────────────────────────────────
   // Redirect all visitors to /coming-soon UNLESS:
-  //   1. They're already on /coming-soon
-  //   2. Their IP is in the whitelist
+  //   1. They're on /coming-soon or /config_sistemas (always allowed)
+  //   2. They have the bypass cookie (set via /config_sistemas toggle)
   //   3. The launch date has passed (or is not configured)
-  if (pathname !== '/coming-soon' && isBeforeLaunch()) {
-    const clientIp = getClientIp(request);
-    if (!WHITELIST_IPS.includes(clientIp)) {
-      return NextResponse.redirect(new URL('/coming-soon', request.url));
-    }
+  const bypassCountdown = request.cookies.get('bypass_countdown')?.value === '1';
+  if (
+    pathname !== '/coming-soon' &&
+    pathname !== '/config_sistemas' &&
+    isBeforeLaunch() &&
+    !bypassCountdown
+  ) {
+    return NextResponse.redirect(new URL('/coming-soon', request.url));
   }
   // If launch date has passed but user is still on /coming-soon, send them home
   if (pathname === '/coming-soon' && !isBeforeLaunch()) {
