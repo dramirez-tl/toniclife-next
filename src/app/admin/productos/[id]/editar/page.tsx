@@ -233,7 +233,7 @@ export default function EditarProductoAdminPage() {
     );
   };
 
-  const inputClass = 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]';
+  const inputClass = 'w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]';
   const labelClass = 'block text-sm font-medium text-gray-700 mb-2';
 
   // Loading state
@@ -241,7 +241,7 @@ export default function EditarProductoAdminPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <ArrowPathIcon className="h-12 w-12 text-[#003B7A] animate-spin mx-auto mb-4" />
+          <ArrowPathIcon className="h-12 w-12 text-[#3E667D] animate-spin mx-auto mb-4" />
           <p className="text-gray-600 text-lg">Cargando producto...</p>
         </div>
       </div>
@@ -296,7 +296,7 @@ export default function EditarProductoAdminPage() {
               <button
                 onClick={handleSubmit}
                 disabled={updateProduct.isPending}
-                className="px-6 py-2 bg-[#003B7A] text-white rounded-lg hover:bg-[#002855] transition-colors disabled:opacity-50"
+                className="px-6 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#002855] transition-colors disabled:opacity-50"
               >
                 {updateProduct.isPending ? 'Guardando...' : 'Guardar Cambios'}
               </button>
@@ -493,7 +493,7 @@ export default function EditarProductoAdminPage() {
                         id="isTaxExempt"
                         checked={formData.isTaxExempt}
                         onChange={handleChange}
-                        className="h-4 w-4 text-[#003B7A] focus:ring-[#003B7A] border-gray-300 rounded"
+                        className="h-4 w-4 text-[#3E667D] focus:ring-[#3E667D] border-gray-300 rounded"
                       />
                       <label htmlFor="isTaxExempt" className="ml-2 text-sm text-gray-700">
                         Exento de impuestos
@@ -509,7 +509,7 @@ export default function EditarProductoAdminPage() {
                           id="kitDeductsInventory"
                           checked={formData.kitDeductsInventory}
                           onChange={handleChange}
-                          className="h-4 w-4 text-[#003B7A] focus:ring-[#003B7A] border-gray-300 rounded"
+                          className="h-4 w-4 text-[#3E667D] focus:ring-[#3E667D] border-gray-300 rounded"
                         />
                         <label htmlFor="kitDeductsInventory" className="ml-2 text-sm text-gray-700">
                           El kit deduce inventario de componentes
@@ -663,7 +663,7 @@ export default function EditarProductoAdminPage() {
                   <button
                     type="button"
                     onClick={addHealthBenefit}
-                    className="flex items-center gap-2 px-3 py-1 text-sm bg-[#7AB82E] text-white rounded-lg hover:bg-[#6ba625]"
+                    className="flex items-center gap-2 px-3 py-1 text-sm bg-[#3E667D] text-white rounded-lg hover:bg-[#6ba625]"
                   >
                     <PlusIcon className="h-4 w-4" />
                     Agregar
@@ -751,7 +751,7 @@ export default function EditarProductoAdminPage() {
                       id="isActive"
                       checked={formData.isActive}
                       onChange={handleChange}
-                      className="h-4 w-4 text-[#003B7A] focus:ring-[#003B7A] border-gray-300 rounded"
+                      className="h-4 w-4 text-[#3E667D] focus:ring-[#3E667D] border-gray-300 rounded"
                     />
                     <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">
                       Producto Activo
@@ -764,7 +764,7 @@ export default function EditarProductoAdminPage() {
                       id="isVisibleEcommerce"
                       checked={formData.isVisibleEcommerce}
                       onChange={handleChange}
-                      className="h-4 w-4 text-[#003B7A] focus:ring-[#003B7A] border-gray-300 rounded"
+                      className="h-4 w-4 text-[#3E667D] focus:ring-[#3E667D] border-gray-300 rounded"
                     />
                     <label htmlFor="isVisibleEcommerce" className="ml-2 text-sm text-gray-700">
                       Visible en E-commerce
@@ -777,7 +777,7 @@ export default function EditarProductoAdminPage() {
                       id="isFeatured"
                       checked={formData.isFeatured}
                       onChange={handleChange}
-                      className="h-4 w-4 text-[#003B7A] focus:ring-[#003B7A] border-gray-300 rounded"
+                      className="h-4 w-4 text-[#3E667D] focus:ring-[#3E667D] border-gray-300 rounded"
                     />
                     <label htmlFor="isFeatured" className="ml-2 text-sm text-gray-700">
                       Producto Destacado
@@ -790,7 +790,7 @@ export default function EditarProductoAdminPage() {
                       id="tracksInventory"
                       checked={formData.tracksInventory}
                       onChange={handleChange}
-                      className="h-4 w-4 text-[#003B7A] focus:ring-[#003B7A] border-gray-300 rounded"
+                      className="h-4 w-4 text-[#3E667D] focus:ring-[#3E667D] border-gray-300 rounded"
                     />
                     <label htmlFor="tracksInventory" className="ml-2 text-sm text-gray-700">
                       Controla Inventario
@@ -803,7 +803,7 @@ export default function EditarProductoAdminPage() {
                       id="tracksLots"
                       checked={formData.tracksLots}
                       onChange={handleChange}
-                      className="h-4 w-4 text-[#003B7A] focus:ring-[#003B7A] border-gray-300 rounded"
+                      className="h-4 w-4 text-[#3E667D] focus:ring-[#3E667D] border-gray-300 rounded"
                     />
                     <label htmlFor="tracksLots" className="ml-2 text-sm text-gray-700">
                       Controla Lotes
@@ -816,7 +816,7 @@ export default function EditarProductoAdminPage() {
                       id="qualifiesForCommission"
                       checked={formData.qualifiesForCommission}
                       onChange={handleChange}
-                      className="h-4 w-4 text-[#003B7A] focus:ring-[#003B7A] border-gray-300 rounded"
+                      className="h-4 w-4 text-[#3E667D] focus:ring-[#3E667D] border-gray-300 rounded"
                     />
                     <label htmlFor="qualifiesForCommission" className="ml-2 text-sm text-gray-700">
                       Califica para Comisiones
@@ -869,7 +869,7 @@ export default function EditarProductoAdminPage() {
                     <p className="text-sm text-gray-600 mb-2">Arrastra imagenes aqui o</p>
                     <button
                       type="button"
-                      className="text-sm text-[#003B7A] font-medium hover:underline"
+                      className="text-sm text-[#3E667D] font-medium hover:underline"
                     >
                       Seleccionar archivos
                     </button>

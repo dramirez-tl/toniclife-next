@@ -246,7 +246,7 @@ export default function VideosPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#7AB82E] text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
             <div className="flex justify-center mb-4">
@@ -288,8 +288,8 @@ export default function VideosPage() {
                   onClick={() => setSelectedCategory(category.value)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
                     selectedCategory === category.value
-                      ? 'bg-[#003B7A] text-white border-[#003B7A]'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-[#003B7A]'
+                      ? 'bg-[#3E667D] text-white border-[#3E667D]'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-[#3E667D]'
                   }`}
                 >
                   <Icon className="h-5 w-5" />
@@ -332,7 +332,7 @@ export default function VideosPage() {
                     </div>
                   </div>
                   <div className="p-6">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-[#003B7A] transition-colors">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-[#3E667D] transition-colors">
                       {video.title}
                     </h3>
                     <p className="text-gray-600 mb-4 line-clamp-2">{video.description}</p>
@@ -392,7 +392,7 @@ export default function VideosPage() {
                     </div>
                   </div>
                   <div className="p-4">
-                    <h3 className="font-bold text-gray-900 mb-2 group-hover:text-[#003B7A] transition-colors line-clamp-2">
+                    <h3 className="font-bold text-gray-900 mb-2 group-hover:text-[#3E667D] transition-colors line-clamp-2">
                       {video.title}
                     </h3>
                     <p className="text-sm text-gray-600 mb-3 line-clamp-2">{video.description}</p>
@@ -424,7 +424,7 @@ export default function VideosPage() {
                 setSelectedCategory('all');
                 setSearchQuery('');
               }}
-              className="mt-4 text-[#003B7A] hover:text-[#002855] font-medium"
+              className="mt-4 text-[#3E667D] hover:text-[#002855] font-medium"
             >
               Limpiar filtros
             </button>

@@ -330,7 +330,7 @@ function RegistroDistribuidorContent() {
         <div className="text-center mb-8">
           <Link href="/">
             <Image
-              src="/images/logo.png"
+              src="/images/logo/logo-text-dark.png"
               alt="Tonic Life"
               width={200}
               height={80}
@@ -353,7 +353,7 @@ function RegistroDistribuidorContent() {
                 <div
                   className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
                     currentStep >= step.number
-                      ? 'bg-[#003B7A] border-[#003B7A] text-white'
+                      ? 'bg-[#3E667D] border-[#3E667D] text-white'
                       : 'border-gray-300 text-gray-500'
                   }`}
                 >
@@ -366,7 +366,7 @@ function RegistroDistribuidorContent() {
                 {index < steps.length - 1 && (
                   <div
                     className={`w-16 sm:w-24 h-1 mx-2 ${
-                      currentStep > step.number ? 'bg-[#003B7A]' : 'bg-gray-300'
+                      currentStep > step.number ? 'bg-[#3E667D]' : 'bg-gray-300'
                     }`}
                   />
                 )}
@@ -386,7 +386,7 @@ function RegistroDistribuidorContent() {
                 <div className="space-y-6">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                      <UserGroupIcon className="h-5 w-5 text-[#003B7A]" />
+                      <UserGroupIcon className="h-5 w-5 text-[#3E667D]" />
                       Código de Patrocinador
                     </h3>
 
@@ -419,7 +419,7 @@ function RegistroDistribuidorContent() {
 
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                      <GiftIcon className="h-5 w-5 text-[#003B7A]" />
+                      <GiftIcon className="h-5 w-5 text-[#3E667D]" />
                       Selecciona tu Kit de Inicio
                     </h3>
 
@@ -438,22 +438,22 @@ function RegistroDistribuidorContent() {
                           onClick={() => setFormData({ ...formData, kitType: kit.id })}
                           className={`relative p-4 border-2 rounded-lg text-left transition-all hover:shadow-md ${
                             formData.kitType === kit.id
-                              ? 'border-[#003B7A] bg-blue-50'
+                              ? 'border-[#3E667D] bg-blue-50'
                               : 'border-gray-200 hover:border-gray-300'
                           }`}
                         >
                           {kit.popular && (
-                            <span className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-[#7AB82E] text-white text-xs font-medium rounded">
+                            <span className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-[#3E667D] text-white text-xs font-medium rounded">
                               Más popular
                             </span>
                           )}
                           <h4 className="font-semibold text-gray-900">{kit.name}</h4>
-                          <p className="text-xl font-bold text-[#003B7A] mt-1">{kit.price}</p>
+                          <p className="text-xl font-bold text-[#3E667D] mt-1">{kit.price}</p>
                           <p className="text-sm text-gray-500 mt-1">{kit.description}</p>
                           <ul className="mt-3 space-y-1">
                             {kit.features.map((feature, idx) => (
                               <li key={idx} className="flex items-center gap-1 text-xs text-gray-600">
-                                <CheckCircleIcon className="h-4 w-4 text-[#7AB82E] flex-shrink-0" />
+                                <CheckCircleIcon className="h-4 w-4 text-[#3E667D] flex-shrink-0" />
                                 {feature}
                               </li>
                             ))}
@@ -469,7 +469,7 @@ function RegistroDistribuidorContent() {
               {currentStep === 2 && (
                 <div className="space-y-5">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <UserIcon className="h-5 w-5 text-[#003B7A]" />
+                    <UserIcon className="h-5 w-5 text-[#3E667D]" />
                     Datos Personales
                   </h3>
 
@@ -550,7 +550,7 @@ function RegistroDistribuidorContent() {
                 <div className="space-y-5">
                   <div className="mb-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                      <IdentificationIcon className="h-5 w-5 text-[#003B7A]" />
+                      <IdentificationIcon className="h-5 w-5 text-[#3E667D]" />
                       Datos Fiscales (Opcional)
                     </h3>
                     <p className="text-sm text-gray-500">
@@ -588,7 +588,7 @@ function RegistroDistribuidorContent() {
               {currentStep === 4 && (
                 <div className="space-y-5">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <LockClosedIcon className="h-5 w-5 text-[#003B7A]" />
+                    <LockClosedIcon className="h-5 w-5 text-[#3E667D]" />
                     Crea tu Cuenta
                   </h3>
 
@@ -630,7 +630,7 @@ function RegistroDistribuidorContent() {
                           <div key={index} className="flex items-center gap-2">
                             <CheckCircleIcon
                               className={`h-4 w-4 ${
-                                req.met ? 'text-[#7AB82E]' : 'text-gray-300'
+                                req.met ? 'text-[#3E667D]' : 'text-gray-300'
                               }`}
                             />
                             <span className={`text-xs ${
@@ -680,19 +680,19 @@ function RegistroDistribuidorContent() {
                         type="checkbox"
                         checked={formData.acceptTerms}
                         onChange={(e) => setFormData({ ...formData, acceptTerms: e.target.checked })}
-                        className="mt-1 h-4 w-4 text-[#003B7A] border-gray-300 rounded focus:ring-[#7AB82E]"
+                        className="mt-1 h-4 w-4 text-[#3E667D] border-gray-300 rounded focus:ring-[#a7c1e2]"
                       />
                       <span className="text-sm text-gray-600">
                         Acepto los{' '}
-                        <Link href="/terminos" className="text-[#003B7A] hover:text-[#7AB82E] underline" target="_blank">
+                        <Link href="/terminos" className="text-[#3E667D] hover:text-[#3E667D] underline" target="_blank">
                           términos y condiciones
                         </Link>
                         , la{' '}
-                        <Link href="/privacidad" className="text-[#003B7A] hover:text-[#7AB82E] underline" target="_blank">
+                        <Link href="/privacidad" className="text-[#3E667D] hover:text-[#3E667D] underline" target="_blank">
                           política de privacidad
                         </Link>
                         {' '}y el{' '}
-                        <Link href="/contrato-distribuidor" className="text-[#003B7A] hover:text-[#7AB82E] underline" target="_blank">
+                        <Link href="/contrato-distribuidor" className="text-[#3E667D] hover:text-[#3E667D] underline" target="_blank">
                           contrato de distribuidor
                         </Link>
                       </span>
@@ -724,7 +724,7 @@ function RegistroDistribuidorContent() {
                       </div>
                       <div className="flex justify-between border-t pt-2 mt-2">
                         <dt className="text-gray-500">Total a pagar:</dt>
-                        <dd className="font-bold text-[#003B7A]">
+                        <dd className="font-bold text-[#3E667D]">
                           {kitOptions.find(k => k.id === formData.kitType)?.price || '-'}
                         </dd>
                       </div>
@@ -777,7 +777,7 @@ function RegistroDistribuidorContent() {
         {/* Help Link */}
         <div className="mt-6 text-center text-sm text-gray-500">
           ¿Tienes dudas?{' '}
-          <Link href="/contacto" className="text-[#003B7A] hover:text-[#7AB82E]">
+          <Link href="/contacto" className="text-[#3E667D] hover:text-[#3E667D]">
             Contáctanos
           </Link>
         </div>
@@ -791,7 +791,7 @@ export default function RegistroDistribuidorPage() {
     <Suspense fallback={
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-12 px-4 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003B7A] mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3E667D] mx-auto"></div>
           <p className="mt-4 text-gray-600">Cargando...</p>
         </div>
       </div>

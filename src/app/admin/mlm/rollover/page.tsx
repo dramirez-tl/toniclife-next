@@ -96,7 +96,7 @@ export default function RolloverPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -136,7 +136,7 @@ export default function RolloverPage() {
               <select
                 value={selectedPeriodId}
                 onChange={(e) => setSelectedPeriodId(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
               >
                 <option value="">
                   {currentPeriod ? `Actual: ${currentPeriod.name}` : 'Seleccionar periodo'}
@@ -168,7 +168,7 @@ export default function RolloverPage() {
                   )}
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <ClockIcon className="h-6 w-6 text-[#003B7A]" />
+                  <ClockIcon className="h-6 w-6 text-[#3E667D]" />
                 </div>
               </div>
             </CardContent>
@@ -179,12 +179,12 @@ export default function RolloverPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Total Procesados</p>
-                  <p className="text-3xl font-bold text-[#003B7A]">
+                  <p className="text-3xl font-bold text-[#3E667D]">
                     {formatNumber(rolloverStatus?.totalProcessed || 0)}
                   </p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <UserGroupIcon className="h-6 w-6 text-[#003B7A]" />
+                  <UserGroupIcon className="h-6 w-6 text-[#3E667D]" />
                 </div>
               </div>
             </CardContent>
@@ -195,12 +195,12 @@ export default function RolloverPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Total Puntos Acumulados</p>
-                  <p className="text-3xl font-bold text-[#7AB82E]">
+                  <p className="text-3xl font-bold text-[#3E667D]">
                     {formatNumber(rolloverStatus?.totalRolledOver || 0)}
                   </p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <ArrowsRightLeftIcon className="h-6 w-6 text-[#7AB82E]" />
+                  <ArrowsRightLeftIcon className="h-6 w-6 text-[#3E667D]" />
                 </div>
               </div>
             </CardContent>
@@ -235,11 +235,11 @@ export default function RolloverPage() {
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4">
                   <p className="text-sm text-gray-600 mb-1">Total Acumulados Aplicados</p>
-                  <p className="text-2xl font-bold text-[#7AB82E]">{formatNumber(rolloverStats.totalRolledOver)}</p>
+                  <p className="text-2xl font-bold text-[#3E667D]">{formatNumber(rolloverStats.totalRolledOver)}</p>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4">
                   <p className="text-sm text-gray-600 mb-1">Promedio Monto Acumulado</p>
-                  <p className="text-2xl font-bold text-[#003B7A]">
+                  <p className="text-2xl font-bold text-[#3E667D]">
                     {new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(
                       rolloverStats.averageRolloverAmount
                     )}
@@ -262,7 +262,7 @@ export default function RolloverPage() {
                   placeholder="ID del distribuidor..."
                   value={searchCustomerId}
                   onChange={(e) => setSearchCustomerId(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 />
               </div>
               <Button variant="primary" type="submit">
@@ -272,7 +272,7 @@ export default function RolloverPage() {
 
             {historyLoading ? (
               <div className="text-center py-8">
-                <div className="inline-block w-8 h-8 border-4 border-[#003B7A] border-t-transparent rounded-full animate-spin" />
+                <div className="inline-block w-8 h-8 border-4 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
                 <p className="mt-2 text-gray-600">Cargando historial...</p>
               </div>
             ) : searchedCustomerId && rolloverHistory ? (
@@ -293,7 +293,7 @@ export default function RolloverPage() {
                         <tr key={entry.id} className="border-b border-gray-100 hover:bg-gray-50">
                           <td className="py-3 px-4 text-sm text-gray-700">{entry.periodId}</td>
                           <td className="py-3 px-4 text-sm text-gray-700">{entry.originalSponsorId}</td>
-                          <td className="py-3 px-4 text-sm font-medium text-[#003B7A]">{entry.newSponsorId}</td>
+                          <td className="py-3 px-4 text-sm font-medium text-[#3E667D]">{entry.newSponsorId}</td>
                           <td className="py-3 px-4 text-sm text-gray-600">{entry.reason}</td>
                           <td className="py-3 px-4 text-sm text-gray-700">{formatDate(entry.createdAt)}</td>
                         </tr>

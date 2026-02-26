@@ -158,7 +158,7 @@ export default function ProspectosPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -240,7 +240,7 @@ export default function ProspectosPage() {
         </div>
 
         {/* Scripts Quick Access */}
-        <Card className="mb-6 bg-gradient-to-r from-[#7AB82E] to-[#7AB82E]/90 text-white">
+        <Card className="mb-6 bg-gradient-to-r from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -274,13 +274,13 @@ export default function ProspectosPage() {
                   placeholder="Buscar prospectos..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                 />
               </div>
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
               >
                 <option value="all">Todos los estados</option>
                 <option value="hot">Calientes</option>
@@ -301,7 +301,7 @@ export default function ProspectosPage() {
                 <CardContent className="p-6">
                   <div className="flex items-start gap-4">
                     {/* Avatar */}
-                    <div className="w-12 h-12 bg-gradient-to-br from-[#003B7A] to-[#7AB82E] rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
+                    <div className="w-12 h-12 bg-gradient-to-br from-[#3E667D] to-[#C8DDF2] rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
                       {prospect.name.split(' ').map(n => n[0]).join('')}
                     </div>
 
@@ -327,7 +327,7 @@ export default function ProspectosPage() {
                         </div>
                         <div>
                           <p className="text-sm text-gray-600 mb-1">🎯 Próxima acción:</p>
-                          <p className="text-sm font-medium text-[#003B7A]">{prospect.nextAction}</p>
+                          <p className="text-sm font-medium text-[#3E667D]">{prospect.nextAction}</p>
                         </div>
                       </div>
 

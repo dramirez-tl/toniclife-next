@@ -68,7 +68,7 @@ export default function ConfiguracionPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -139,7 +139,7 @@ export default function ConfiguracionPage() {
             <Card id="notifications">
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-6">
-                  <BellIcon className="h-6 w-6 text-[#003B7A]" />
+                  <BellIcon className="h-6 w-6 text-[#3E667D]" />
                   <h2 className="text-2xl font-bold text-gray-900">Notificaciones</h2>
                 </div>
 
@@ -155,7 +155,7 @@ export default function ConfiguracionPage() {
                     <button
                       onClick={() => handleToggle('emailNotifications')}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        settings.emailNotifications ? 'bg-[#7AB82E]' : 'bg-gray-300'
+                        settings.emailNotifications ? 'bg-[#C8DDF2]' : 'bg-gray-300'
                       }`}
                     >
                       <span
@@ -177,7 +177,7 @@ export default function ConfiguracionPage() {
                     <button
                       onClick={() => handleToggle('smsNotifications')}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        settings.smsNotifications ? 'bg-[#7AB82E]' : 'bg-gray-300'
+                        settings.smsNotifications ? 'bg-[#C8DDF2]' : 'bg-gray-300'
                       }`}
                     >
                       <span
@@ -199,7 +199,7 @@ export default function ConfiguracionPage() {
                     <button
                       onClick={() => handleToggle('pushNotifications')}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        settings.pushNotifications ? 'bg-[#7AB82E]' : 'bg-gray-300'
+                        settings.pushNotifications ? 'bg-[#C8DDF2]' : 'bg-gray-300'
                       }`}
                     >
                       <span
@@ -230,7 +230,7 @@ export default function ConfiguracionPage() {
                         <button
                           onClick={() => handleToggle(item.key)}
                           className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                            settings[item.key as keyof typeof settings] ? 'bg-[#7AB82E]' : 'bg-gray-300'
+                            settings[item.key as keyof typeof settings] ? 'bg-[#C8DDF2]' : 'bg-gray-300'
                           }`}
                         >
                           <span
@@ -250,7 +250,7 @@ export default function ConfiguracionPage() {
             <Card id="privacy">
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-6">
-                  <ShieldCheckIcon className="h-6 w-6 text-[#003B7A]" />
+                  <ShieldCheckIcon className="h-6 w-6 text-[#3E667D]" />
                   <h2 className="text-2xl font-bold text-gray-900">Privacidad</h2>
                 </div>
 
@@ -262,7 +262,7 @@ export default function ConfiguracionPage() {
                     <select
                       value={settings.profileVisibility}
                       onChange={(e) => handleChange('profileVisibility', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                     >
                       <option value="public">Público - Visible para todos</option>
                       <option value="team">Equipo - Solo mi red puede verlo</option>
@@ -281,7 +281,7 @@ export default function ConfiguracionPage() {
                     <button
                       onClick={() => handleToggle('showEmail')}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        settings.showEmail ? 'bg-[#7AB82E]' : 'bg-gray-300'
+                        settings.showEmail ? 'bg-[#C8DDF2]' : 'bg-gray-300'
                       }`}
                     >
                       <span
@@ -303,7 +303,7 @@ export default function ConfiguracionPage() {
                     <button
                       onClick={() => handleToggle('showPhone')}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        settings.showPhone ? 'bg-[#7AB82E]' : 'bg-gray-300'
+                        settings.showPhone ? 'bg-[#C8DDF2]' : 'bg-gray-300'
                       }`}
                     >
                       <span
@@ -325,7 +325,7 @@ export default function ConfiguracionPage() {
                     <button
                       onClick={() => handleToggle('allowMessages')}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        settings.allowMessages ? 'bg-[#7AB82E]' : 'bg-gray-300'
+                        settings.allowMessages ? 'bg-[#C8DDF2]' : 'bg-gray-300'
                       }`}
                     >
                       <span
@@ -343,7 +343,7 @@ export default function ConfiguracionPage() {
             <Card id="language">
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-6">
-                  <GlobeAltIcon className="h-6 w-6 text-[#003B7A]" />
+                  <GlobeAltIcon className="h-6 w-6 text-[#3E667D]" />
                   <h2 className="text-2xl font-bold text-gray-900">Idioma y Región</h2>
                 </div>
 
@@ -355,7 +355,7 @@ export default function ConfiguracionPage() {
                     <select
                       value={settings.language}
                       onChange={(e) => handleChange('language', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                     >
                       <option value="es">Español</option>
                       <option value="en">English</option>
@@ -369,7 +369,7 @@ export default function ConfiguracionPage() {
                     <select
                       value={settings.timezone}
                       onChange={(e) => handleChange('timezone', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                     >
                       <option value="America/Mexico_City">Ciudad de México (GMT-6)</option>
                       <option value="America/Monterrey">Monterrey (GMT-6)</option>
@@ -384,7 +384,7 @@ export default function ConfiguracionPage() {
                     <select
                       value={settings.currency}
                       onChange={(e) => handleChange('currency', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                     >
                       <option value="MXN">MXN - Peso Mexicano</option>
                       <option value="USD">USD - Dólar Americano</option>
@@ -398,7 +398,7 @@ export default function ConfiguracionPage() {
                     <select
                       value={settings.dateFormat}
                       onChange={(e) => handleChange('dateFormat', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                     >
                       <option value="DD/MM/YYYY">DD/MM/YYYY</option>
                       <option value="MM/DD/YYYY">MM/DD/YYYY</option>
@@ -413,7 +413,7 @@ export default function ConfiguracionPage() {
             <Card id="security">
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-6">
-                  <LockClosedIcon className="h-6 w-6 text-[#003B7A]" />
+                  <LockClosedIcon className="h-6 w-6 text-[#3E667D]" />
                   <h2 className="text-2xl font-bold text-gray-900">Seguridad</h2>
                 </div>
 
@@ -429,7 +429,7 @@ export default function ConfiguracionPage() {
                     <button
                       onClick={() => handleToggle('twoFactorEnabled')}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        settings.twoFactorEnabled ? 'bg-[#7AB82E]' : 'bg-gray-300'
+                        settings.twoFactorEnabled ? 'bg-[#C8DDF2]' : 'bg-gray-300'
                       }`}
                     >
                       <span
@@ -447,7 +447,7 @@ export default function ConfiguracionPage() {
                     <select
                       value={settings.sessionTimeout}
                       onChange={(e) => handleChange('sessionTimeout', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                     >
                       <option value="15">15 minutos</option>
                       <option value="30">30 minutos</option>
@@ -467,7 +467,7 @@ export default function ConfiguracionPage() {
                     <button
                       onClick={() => handleToggle('loginAlerts')}
                       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        settings.loginAlerts ? 'bg-[#7AB82E]' : 'bg-gray-300'
+                        settings.loginAlerts ? 'bg-[#C8DDF2]' : 'bg-gray-300'
                       }`}
                     >
                       <span
@@ -495,7 +495,7 @@ export default function ConfiguracionPage() {
             <Card id="account">
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-6">
-                  <UserCircleIcon className="h-6 w-6 text-[#003B7A]" />
+                  <UserCircleIcon className="h-6 w-6 text-[#3E667D]" />
                   <h2 className="text-2xl font-bold text-gray-900">Gestión de Cuenta</h2>
                 </div>
 

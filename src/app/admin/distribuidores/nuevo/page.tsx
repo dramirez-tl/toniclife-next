@@ -158,7 +158,7 @@ export default function NuevoDistribuidorPage() {
               <label
                 className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
                   formData.customerType === 'distributor'
-                    ? 'border-[#003B7A] bg-blue-50'
+                    ? 'border-[#3E667D] bg-blue-50'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
@@ -170,7 +170,7 @@ export default function NuevoDistribuidorPage() {
                   onChange={handleChange}
                   className="sr-only"
                 />
-                <UserGroupIcon className="h-6 w-6 text-[#003B7A]" />
+                <UserGroupIcon className="h-6 w-6 text-[#3E667D]" />
                 <div>
                   <p className="font-medium text-gray-900">Distribuidor</p>
                   <p className="text-sm text-gray-500">Puede vender y reclutar</p>
@@ -179,7 +179,7 @@ export default function NuevoDistribuidorPage() {
               <label
                 className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
                   formData.customerType === 'retail'
-                    ? 'border-[#003B7A] bg-blue-50'
+                    ? 'border-[#3E667D] bg-blue-50'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
@@ -216,7 +216,7 @@ export default function NuevoDistribuidorPage() {
                     value={formData.firstName}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
                     placeholder="Nombre(s)"
                   />
                 </div>
@@ -233,7 +233,7 @@ export default function NuevoDistribuidorPage() {
                     value={formData.lastName}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
                     placeholder="Apellido paterno y materno"
                   />
                 </div>
@@ -250,7 +250,7 @@ export default function NuevoDistribuidorPage() {
                     value={formData.email}
                     onChange={handleChange}
                     required
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
                     placeholder="correo@ejemplo.com"
                   />
                 </div>
@@ -266,7 +266,7 @@ export default function NuevoDistribuidorPage() {
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
                     placeholder="+52 55 1234 5678"
                   />
                 </div>
@@ -282,7 +282,7 @@ export default function NuevoDistribuidorPage() {
                     name="lastNameMother"
                     value={(formData as any).lastNameMother ?? ''}
                     onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
                     placeholder="Apellido materno"
                   />
                 </div>
@@ -298,7 +298,7 @@ export default function NuevoDistribuidorPage() {
                     name="birthDate"
                     value={formData.birthDate}
                     onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
                   />
                 </div>
               </div>
@@ -319,7 +319,7 @@ export default function NuevoDistribuidorPage() {
                     value={formData.rfc}
                     onChange={handleChange}
                     maxLength={13}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A] uppercase"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D] uppercase"
                     placeholder="ABCD123456XYZ"
                   />
                 </div>
@@ -335,7 +335,7 @@ export default function NuevoDistribuidorPage() {
                     value={formData.curp}
                     onChange={handleChange}
                     maxLength={18}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A] uppercase"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D] uppercase"
                     placeholder="ABCD123456HDFRRL01"
                   />
                 </div>
@@ -352,7 +352,7 @@ export default function NuevoDistribuidorPage() {
                     name="taxRegime"
                     value={(formData as any).taxRegime ?? ''}
                     onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
                     placeholder="Regimen fiscal (si aplica)"
                   />
                 </div>
@@ -379,7 +379,7 @@ export default function NuevoDistribuidorPage() {
                         type="text"
                         value={sponsorCode}
                         onChange={(e) => setSponsorCode(e.target.value.toUpperCase())}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A] uppercase"
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D] uppercase"
                         placeholder="Código de referido"
                       />
                     </div>
@@ -387,7 +387,7 @@ export default function NuevoDistribuidorPage() {
                       type="button"
                       onClick={handleSearchSponsor}
                       disabled={searchingSponsor}
-                      className="px-4 py-2 bg-[#003B7A] text-white rounded-lg hover:bg-[#002855] disabled:opacity-50"
+                      className="px-4 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#002855] disabled:opacity-50"
                     >
                       {searchingSponsor ? 'Buscando...' : 'Buscar'}
                     </button>
@@ -425,7 +425,7 @@ export default function NuevoDistribuidorPage() {
                         key={kit.value}
                         className={`flex flex-col items-center p-4 border-2 rounded-lg cursor-pointer transition-colors ${
                           formData.kitType === kit.value
-                            ? 'border-[#003B7A] bg-blue-50'
+                            ? 'border-[#3E667D] bg-blue-50'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
@@ -438,7 +438,7 @@ export default function NuevoDistribuidorPage() {
                           className="sr-only"
                         />
                         <span className="font-medium text-gray-900">{kit.label}</span>
-                        <span className="text-sm text-[#7AB82E] font-semibold">
+                        <span className="text-sm text-[#3E667D] font-semibold">
                           {kit.price}
                         </span>
                       </label>
@@ -460,7 +460,7 @@ export default function NuevoDistribuidorPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="px-6 py-2 bg-[#003B7A] text-white rounded-lg hover:bg-[#002855] disabled:opacity-50 transition-colors flex items-center gap-2"
+              className="px-6 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#002855] disabled:opacity-50 transition-colors flex items-center gap-2"
             >
               {isLoading ? (
                 <>

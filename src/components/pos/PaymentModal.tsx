@@ -162,7 +162,7 @@ export function PaymentModal({ isOpen, onClose, total, onPaymentComplete }: Paym
               </button>
               <button
                 onClick={onClose}
-                className="px-6 py-3 bg-[#7AB82E] text-white rounded-xl hover:bg-[#6aa526] font-medium"
+                className="px-6 py-3 bg-[#3E667D] text-white rounded-xl hover:bg-[#6aa526] font-medium"
               >
                 Nueva Venta
               </button>
@@ -172,7 +172,7 @@ export function PaymentModal({ isOpen, onClose, total, onPaymentComplete }: Paym
           // Payment Form
           <div className="p-6 space-y-6">
             {/* Total Display */}
-            <div className="text-center p-6 bg-[#003B7A] rounded-xl text-white">
+            <div className="text-center p-6 bg-[#3E667D] rounded-xl text-white">
               <p className="text-sm opacity-80">Total a pagar</p>
               <p className="text-4xl font-bold">{posService.formatCurrency(total)}</p>
               {payments.length > 0 && remainingAmount > 0 && (
@@ -192,15 +192,15 @@ export function PaymentModal({ isOpen, onClose, total, onPaymentComplete }: Paym
                     onClick={() => setSelectedMethod(method.id)}
                     className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
                       selectedMethod === method.id
-                        ? 'border-[#7AB82E] bg-[#7AB82E]/10'
+                        ? 'border-[#a7c1e2] bg-[#C8DDF2]/10'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
                     <Icon className={`h-8 w-8 ${
-                      selectedMethod === method.id ? 'text-[#7AB82E]' : 'text-gray-400'
+                      selectedMethod === method.id ? 'text-[#3E667D]' : 'text-gray-400'
                     }`} />
                     <span className={`font-medium ${
-                      selectedMethod === method.id ? 'text-[#7AB82E]' : 'text-gray-600'
+                      selectedMethod === method.id ? 'text-[#3E667D]' : 'text-gray-600'
                     }`}>
                       {method.name}
                     </span>
@@ -221,7 +221,7 @@ export function PaymentModal({ isOpen, onClose, total, onPaymentComplete }: Paym
                   value={amountReceived}
                   onChange={(e) => setAmountReceived(e.target.value)}
                   placeholder="0.00"
-                  className="w-full pl-10 pr-4 py-4 text-2xl font-bold text-right border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-4 text-2xl font-bold text-right border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                   step="0.01"
                   min="0"
                 />
@@ -232,7 +232,7 @@ export function PaymentModal({ isOpen, onClose, total, onPaymentComplete }: Paym
                 <div className="flex gap-2 mt-3">
                   <button
                     onClick={handleExactAmount}
-                    className="px-4 py-2 bg-[#003B7A] text-white rounded-lg text-sm font-medium hover:bg-[#002d5f]"
+                    className="px-4 py-2 bg-[#3E667D] text-white rounded-lg text-sm font-medium hover:bg-[#002d5f]"
                   >
                     Exacto
                   </button>
@@ -261,7 +261,7 @@ export function PaymentModal({ isOpen, onClose, total, onPaymentComplete }: Paym
                       onChange={(e) => setCardLast4(e.target.value.slice(0, 4))}
                       placeholder="1234"
                       maxLength={4}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2]"
                     />
                   </div>
                   <div>
@@ -273,7 +273,7 @@ export function PaymentModal({ isOpen, onClose, total, onPaymentComplete }: Paym
                       value={authCode}
                       onChange={(e) => setAuthCode(e.target.value)}
                       placeholder="ABC123"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2]"
                     />
                   </div>
                 </div>
@@ -290,7 +290,7 @@ export function PaymentModal({ isOpen, onClose, total, onPaymentComplete }: Paym
                     value={referenceNumber}
                     onChange={(e) => setReferenceNumber(e.target.value)}
                     placeholder="Referencia de transferencia"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E]"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2]"
                   />
                 </div>
               )}
@@ -346,7 +346,7 @@ export function PaymentModal({ isOpen, onClose, total, onPaymentComplete }: Paym
             <button
               onClick={handleCompletePayment}
               disabled={remainingAmount > 0.01 && payments.length === 0 && receivedNum < remainingAmount}
-              className="w-full py-4 bg-[#7AB82E] text-white text-xl font-bold rounded-xl hover:bg-[#6aa526] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full py-4 bg-[#3E667D] text-white text-xl font-bold rounded-xl hover:bg-[#6aa526] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isProcessing ? (
                 <span className="flex items-center justify-center gap-2">

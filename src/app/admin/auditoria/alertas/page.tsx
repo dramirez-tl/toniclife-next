@@ -88,7 +88,7 @@ export default function AuditAlertsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -129,7 +129,7 @@ export default function AuditAlertsPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <Card
             className={`cursor-pointer transition hover:shadow-md ${
-              statusFilter === 'pending' ? 'ring-2 ring-[#003B7A]' : ''
+              statusFilter === 'pending' ? 'ring-2 ring-[#3E667D]' : ''
             }`}
             onClick={() => setStatusFilter('pending')}
           >
@@ -224,7 +224,7 @@ export default function AuditAlertsPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent text-sm"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
               >
                 <option value="">Todos los estados</option>
                 <option value="pending">Pendientes</option>
@@ -236,7 +236,7 @@ export default function AuditAlertsPage() {
               <select
                 value={severityFilter}
                 onChange={(e) => setSeverityFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent text-sm"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
               >
                 <option value="">Todas las severidades</option>
                 <option value="critical">Crítica</option>
@@ -281,7 +281,7 @@ export default function AuditAlertsPage() {
           <CardContent className="p-0">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003B7A]"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3E667D]"></div>
               </div>
             ) : filteredAlerts.length === 0 ? (
               <div className="text-center py-12">

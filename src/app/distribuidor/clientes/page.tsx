@@ -160,7 +160,7 @@ export default function ClientesPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -230,7 +230,7 @@ export default function ClientesPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-[#7AB82E] to-[#7AB82E]/90 text-white">
+          <Card className="bg-gradient-to-br from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
             <CardContent className="p-6">
               <div>
                 <p className="text-sm text-white/80 mb-1">Ingresos Totales</p>
@@ -252,7 +252,7 @@ export default function ClientesPage() {
                   placeholder="Buscar por nombre, email o teléfono..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                 />
               </div>
 
@@ -265,7 +265,7 @@ export default function ClientesPage() {
                   <select
                     value={filterType}
                     onChange={(e) => setFilterType(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                   >
                     {customerTypes.map(type => (
                       <option key={type} value={type}>{type}</option>
@@ -280,7 +280,7 @@ export default function ClientesPage() {
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                   >
                     <option value="all">Todos</option>
                     <option value="active">Activos</option>
@@ -313,7 +313,7 @@ export default function ClientesPage() {
               <CardContent className="p-6">
                 {/* Header */}
                 <div className="flex items-start gap-4 mb-4">
-                  <div className="w-16 h-16 bg-gradient-to-br from-[#003B7A] to-[#7AB82E] rounded-full flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
+                  <div className="w-16 h-16 bg-gradient-to-br from-[#3E667D] to-[#C8DDF2] rounded-full flex items-center justify-center text-white font-bold text-xl flex-shrink-0">
                     {customer.avatar}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -352,7 +352,7 @@ export default function ClientesPage() {
                   </div>
                   <div className="text-center">
                     <p className="text-xs text-gray-600 mb-1">Total Gastado</p>
-                    <p className="font-bold text-[#003B7A]">${(customer.totalSpent / 1000).toFixed(1)}k</p>
+                    <p className="font-bold text-[#3E667D]">${(customer.totalSpent / 1000).toFixed(1)}k</p>
                   </div>
                   <div className="text-center">
                     <p className="text-xs text-gray-600 mb-1">Última Compra</p>
@@ -427,7 +427,7 @@ export default function ClientesPage() {
               <CardContent className="p-6">
                 <div className="flex items-start justify-between mb-6">
                   <div className="flex items-start gap-4">
-                    <div className="w-20 h-20 bg-gradient-to-br from-[#003B7A] to-[#7AB82E] rounded-full flex items-center justify-center text-white font-bold text-2xl">
+                    <div className="w-20 h-20 bg-gradient-to-br from-[#3E667D] to-[#C8DDF2] rounded-full flex items-center justify-center text-white font-bold text-2xl">
                       {selectedCustomer.avatar}
                     </div>
                     <div>
@@ -487,7 +487,7 @@ export default function ClientesPage() {
                       </p>
                       <p className="flex items-center justify-between">
                         <span className="text-gray-600">Total Gastado:</span>
-                        <span className="font-semibold text-[#003B7A]">${selectedCustomer.totalSpent.toLocaleString('es-MX')}</span>
+                        <span className="font-semibold text-[#3E667D]">${selectedCustomer.totalSpent.toLocaleString('es-MX')}</span>
                       </p>
                       <p className="flex items-center justify-between">
                         <span className="text-gray-600">Última Compra:</span>

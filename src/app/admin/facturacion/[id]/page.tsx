@@ -137,7 +137,7 @@ export default function InvoiceDetailPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block w-12 h-12 border-4 border-[#003B7A] border-t-transparent rounded-full animate-spin" />
+          <div className="inline-block w-12 h-12 border-4 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
           <p className="mt-4 text-gray-600">Cargando factura...</p>
         </div>
       </div>
@@ -170,7 +170,7 @@ export default function InvoiceDetailPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -352,7 +352,7 @@ export default function InvoiceDetailPage() {
                         >
                           Total:
                         </td>
-                        <td className="py-3 px-3 text-right font-bold text-xl text-[#003B7A]">
+                        <td className="py-3 px-3 text-right font-bold text-xl text-[#3E667D]">
                           {formatCurrency(invoice.total)}
                         </td>
                       </tr>
@@ -471,7 +471,7 @@ export default function InvoiceDetailPage() {
                       <p className="text-sm text-gray-600">Pedido Relacionado</p>
                       <Link
                         href={`/admin/pedidos/${invoice.orderId}`}
-                        className="font-medium text-[#003B7A] hover:underline"
+                        className="font-medium text-[#3E667D] hover:underline"
                       >
                         {invoice.order.orderNumber}
                       </Link>
@@ -563,7 +563,7 @@ export default function InvoiceDetailPage() {
                   <select
                     value={cancelReason}
                     onChange={(e) => setCancelReason(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   >
                     {CANCELLATION_REASONS.map((reason) => (
                       <option key={reason.Value} value={reason.Value}>
@@ -583,7 +583,7 @@ export default function InvoiceDetailPage() {
                       value={replacementUuid}
                       onChange={(e) => setReplacementUuid(e.target.value)}
                       placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     />
                   </div>
                 )}

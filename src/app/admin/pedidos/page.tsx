@@ -239,7 +239,7 @@ export default function PedidosPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block w-12 h-12 border-4 border-[#003B7A] border-t-transparent rounded-full animate-spin mb-4" />
+          <div className="inline-block w-12 h-12 border-4 border-[#3E667D] border-t-transparent rounded-full animate-spin mb-4" />
           <p className="text-gray-600">Cargando pedidos...</p>
         </div>
       </div>
@@ -266,7 +266,7 @@ export default function PedidosPage() {
     <PermissionGuard permissions={['orders:read', 'orders:*']}>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -361,7 +361,7 @@ export default function PedidosPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Ingresos Totales (Pedidos Pagados)</p>
-                <p className="text-3xl font-bold text-[#003B7A]">{formatCurrency(totalRevenue)}</p>
+                <p className="text-3xl font-bold text-[#3E667D]">{formatCurrency(totalRevenue)}</p>
               </div>
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
                 <CurrencyDollarIcon className="h-8 w-8 text-green-600" />
@@ -386,7 +386,7 @@ export default function PedidosPage() {
                       setSearchQuery(e.target.value);
                       setCurrentPage(1);
                     }}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -400,7 +400,7 @@ export default function PedidosPage() {
                     setFilterStatus(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 >
                   <option value="all">Todos los Estados</option>
                   <option value="pending">Pendientes</option>
@@ -423,7 +423,7 @@ export default function PedidosPage() {
                     setFilterPayment(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 >
                   <option value="all">Todos los Pagos</option>
                   <option value="paid">Pagados</option>
@@ -470,7 +470,7 @@ export default function PedidosPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-[#003B7A]">
+                        <p className="text-2xl font-bold text-[#3E667D]">
                           {formatCurrency(order.total)}
                         </p>
                         <p className="text-sm text-gray-600 mt-1">{order.items?.length || 0} productos</p>

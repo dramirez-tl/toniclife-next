@@ -317,7 +317,7 @@ export default function RecetasPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#7AB82E] text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
             <h1 className="text-4xl font-bold mb-4">Recetas Saludables</h1>
@@ -361,8 +361,8 @@ export default function RecetasPage() {
                       onClick={() => setSelectedMealType(type.value)}
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors text-sm ${
                         selectedMealType === type.value
-                          ? 'bg-[#003B7A] text-white border-[#003B7A]'
-                          : 'bg-white text-gray-700 border-gray-300 hover:border-[#003B7A]'
+                          ? 'bg-[#3E667D] text-white border-[#3E667D]'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-[#3E667D]'
                       }`}
                     >
                       <Icon className="h-4 w-4" />
@@ -385,8 +385,8 @@ export default function RecetasPage() {
                     onClick={() => setSelectedGoal(goal.value)}
                     className={`px-3 py-2 rounded-lg border transition-colors text-sm ${
                       selectedGoal === goal.value
-                        ? 'bg-[#7AB82E] text-white border-[#7AB82E]'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-[#7AB82E]'
+                        ? 'bg-[#3E667D] text-white border-[#a7c1e2]'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-[#a7c1e2]'
                     }`}
                   >
                     {goal.label}
@@ -449,7 +449,7 @@ export default function RecetasPage() {
                 </div>
 
                 <div className="p-6">
-                  <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-[#003B7A] transition-colors line-clamp-2">
+                  <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-[#3E667D] transition-colors line-clamp-2">
                     {recipe.title}
                   </h3>
                   <p className="text-sm text-gray-600 mb-4 line-clamp-2">{recipe.description}</p>
@@ -483,11 +483,11 @@ export default function RecetasPage() {
                   <div className="grid grid-cols-3 gap-2 mb-4 p-3 bg-gray-50 rounded-lg">
                     <div className="text-center">
                       <p className="text-xs text-gray-600">Proteína</p>
-                      <p className="text-sm font-bold text-[#003B7A]">{recipe.protein}g</p>
+                      <p className="text-sm font-bold text-[#3E667D]">{recipe.protein}g</p>
                     </div>
                     <div className="text-center">
                       <p className="text-xs text-gray-600">Carbos</p>
-                      <p className="text-sm font-bold text-[#7AB82E]">{recipe.carbs}g</p>
+                      <p className="text-sm font-bold text-[#3E667D]">{recipe.carbs}g</p>
                     </div>
                     <div className="text-center">
                       <p className="text-xs text-gray-600">Grasas</p>
@@ -529,7 +529,7 @@ export default function RecetasPage() {
                 setSelectedDifficulty('all');
                 setSearchQuery('');
               }}
-              className="mt-4 text-[#003B7A] hover:text-[#002855] font-medium"
+              className="mt-4 text-[#3E667D] hover:text-[#002855] font-medium"
             >
               Limpiar filtros
             </button>

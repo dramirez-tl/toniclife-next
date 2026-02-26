@@ -150,7 +150,7 @@ export default function ProductosPage() {
     <PermissionGuard permissions={['products:read', 'products:*']}>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -248,7 +248,7 @@ export default function ProductosPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Catálogo de Productos</p>
-                <p className="text-lg font-semibold text-[#003B7A]">
+                <p className="text-lg font-semibold text-[#3E667D]">
                   {total} productos en el sistema
                 </p>
               </div>
@@ -286,7 +286,7 @@ export default function ProductosPage() {
                     placeholder="Buscar por nombre o SKU..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -300,7 +300,7 @@ export default function ProductosPage() {
                     setFilterCategoryId(e.target.value);
                     setPage(1);
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 >
                   <option value="">Todas las Categorías</option>
                   {categories?.map((category) => (
@@ -319,7 +319,7 @@ export default function ProductosPage() {
                     setFilterStatus(e.target.value as 'all' | 'active' | 'inactive');
                     setPage(1);
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 >
                   <option value="all">Todos los Estados</option>
                   <option value="active">Activos</option>
@@ -339,7 +339,7 @@ export default function ProductosPage() {
           <CardContent className="p-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
-                <ArrowPathIcon className="h-8 w-8 text-[#003B7A] animate-spin" />
+                <ArrowPathIcon className="h-8 w-8 text-[#3E667D] animate-spin" />
                 <span className="ml-3 text-gray-600">Cargando productos...</span>
               </div>
             ) : (

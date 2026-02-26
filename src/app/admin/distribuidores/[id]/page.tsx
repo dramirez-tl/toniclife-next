@@ -75,7 +75,7 @@ export default function DetalleDistribuidorPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="flex items-center gap-3">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#003B7A]"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3E667D]"></div>
           <span className="text-gray-600">Cargando información...</span>
         </div>
       </div>
@@ -91,7 +91,7 @@ export default function DetalleDistribuidorPage() {
           <p className="text-gray-600 mb-4">{error}</p>
           <Link
             href="/admin/distribuidores"
-            className="text-[#003B7A] hover:underline"
+            className="text-[#3E667D] hover:underline"
           >
             Volver a la lista
           </Link>
@@ -109,7 +109,7 @@ export default function DetalleDistribuidorPage() {
           <p className="text-gray-600 mb-4">El cliente no fue encontrado</p>
           <Link
             href="/admin/distribuidores"
-            className="text-[#003B7A] hover:underline"
+            className="text-[#3E667D] hover:underline"
           >
             Volver a la lista
           </Link>
@@ -166,7 +166,7 @@ export default function DetalleDistribuidorPage() {
                 value={customer.status}
                 onChange={(e) => handleStatusChange(e.target.value as CustomerStatus)}
                 disabled={statusChangeLoading}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
               >
                 <option value="active">Activar</option>
                 <option value="inactive">Desactivar</option>
@@ -264,7 +264,7 @@ export default function DetalleDistribuidorPage() {
                 </h2>
                 <Link
                   href={`/admin/distribuidores/${customer.id}/direcciones/nueva`}
-                  className="text-sm text-[#003B7A] hover:underline"
+                  className="text-sm text-[#3E667D] hover:underline"
                 >
                   + Agregar
                 </Link>
@@ -275,7 +275,7 @@ export default function DetalleDistribuidorPage() {
                     <div
                       key={address.id}
                       className={`p-4 border rounded-lg ${
-                        address.isDefault ? 'border-[#003B7A] bg-blue-50' : 'border-gray-200'
+                        address.isDefault ? 'border-[#3E667D] bg-blue-50' : 'border-gray-200'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-2">
@@ -289,7 +289,7 @@ export default function DetalleDistribuidorPage() {
                           {address.type === 'shipping' ? 'Envío' : 'Facturación'}
                         </span>
                         {address.isDefault && (
-                          <span className="text-xs text-[#003B7A] font-medium">
+                          <span className="text-xs text-[#3E667D] font-medium">
                             Predeterminada
                           </span>
                         )}
@@ -322,7 +322,7 @@ export default function DetalleDistribuidorPage() {
                 </h2>
                 <Link
                   href={`/admin/distribuidores/${customer.id}/cuentas/nueva`}
-                  className="text-sm text-[#003B7A] hover:underline"
+                  className="text-sm text-[#3E667D] hover:underline"
                 >
                   + Agregar
                 </Link>
@@ -333,7 +333,7 @@ export default function DetalleDistribuidorPage() {
                     <div
                       key={account.id}
                       className={`p-4 border rounded-lg ${
-                        account.isDefault ? 'border-[#003B7A] bg-blue-50' : 'border-gray-200'
+                        account.isDefault ? 'border-[#3E667D] bg-blue-50' : 'border-gray-200'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-2">
@@ -341,7 +341,7 @@ export default function DetalleDistribuidorPage() {
                           {account.bankName || 'Banco no especificado'}
                         </span>
                         {account.isDefault && (
-                          <span className="text-xs text-[#003B7A] font-medium">
+                          <span className="text-xs text-[#3E667D] font-medium">
                             Predeterminada
                           </span>
                         )}
@@ -384,7 +384,7 @@ export default function DetalleDistribuidorPage() {
                 <div className="space-y-4">
                   <div>
                     <label className="text-sm text-gray-500">Numero de Cliente</label>
-                    <p className="font-mono font-bold text-lg text-[#003B7A]">
+                    <p className="font-mono font-bold text-lg text-[#3E667D]">
                       {customer.customerNumber || '-'}
                     </p>
                   </div>
@@ -399,7 +399,7 @@ export default function DetalleDistribuidorPage() {
                     {customer.sponsor ? (
                       <Link
                         href={`/admin/distribuidores/${customer.sponsor.id}`}
-                        className="block text-[#003B7A] hover:underline"
+                        className="block text-[#3E667D] hover:underline"
                       >
                         {customer.sponsor.firstName} {customer.sponsor.lastName}
                         <span className="text-gray-500 text-sm ml-2">

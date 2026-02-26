@@ -6,28 +6,28 @@ import { SparklesIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 
 export function HeroSection() {
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-gray-50 via-white to-[#7AB82E]/5">
+    <section className="relative min-h-screen flex items-center overflow-hidden bg-gradient-to-br from-gray-50 via-white to-[#C8DDF2]/5">
       {/* Background decorative elements */}
       <div className="absolute inset-0 overflow-hidden">
         {/* Large gradient circle */}
-        <div className="absolute -top-40 -right-40 w-[600px] h-[600px] bg-[#7AB82E]/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-[500px] h-[500px] bg-[#003B7A]/5 rounded-full blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-[600px] h-[600px] bg-[#C8DDF2]/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-[500px] h-[500px] bg-[#3E667D]/5 rounded-full blur-3xl" />
 
         {/* Floating elements */}
-        <div className="absolute top-1/4 left-10 w-20 h-20 bg-[#7AB82E]/20 rounded-full animate-pulse" />
-        <div className="absolute bottom-1/4 right-20 w-16 h-16 bg-[#003B7A]/10 rounded-full animate-pulse delay-1000" />
-        <div className="absolute top-1/3 right-1/4 w-12 h-12 bg-[#7AB82E]/15 rounded-full animate-bounce" />
+        <div className="absolute top-1/4 left-10 w-20 h-20 bg-[#C8DDF2]/20 rounded-full animate-pulse" />
+        <div className="absolute bottom-1/4 right-20 w-16 h-16 bg-[#3E667D]/10 rounded-full animate-pulse delay-1000" />
+        <div className="absolute top-1/3 right-1/4 w-12 h-12 bg-[#C8DDF2]/15 rounded-full animate-bounce" />
 
         {/* Leaf patterns */}
         <svg
-          className="absolute top-20 right-10 w-32 h-32 text-[#7AB82E]/10 animate-float"
+          className="absolute top-20 right-10 w-32 h-32 text-[#3E667D]/10 animate-float"
           viewBox="0 0 100 100"
           fill="currentColor"
         >
           <path d="M50 0C50 50 0 50 0 100C50 100 50 50 100 50C100 50 50 50 50 0Z" />
         </svg>
         <svg
-          className="absolute bottom-40 left-20 w-24 h-24 text-[#003B7A]/10 rotate-180 animate-float delay-500"
+          className="absolute bottom-40 left-20 w-24 h-24 text-[#3E667D]/10 rotate-180 animate-float delay-500"
           viewBox="0 0 100 100"
           fill="currentColor"
         >
@@ -40,23 +40,23 @@ export function HeroSection() {
           {/* Content */}
           <div className="text-center lg:text-left">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 bg-[#7AB82E]/10 text-[#7AB82E] px-4 py-2 rounded-full text-sm font-medium mb-6">
+            <div className="inline-flex items-center gap-2 bg-[#C8DDF2]/10 text-[#3E667D] px-4 py-2 rounded-full text-sm font-medium mb-6">
               <SparklesIcon className="h-4 w-4" />
               Bienestar natural desde 1996
             </div>
 
             {/* Main Heading */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold leading-tight">
-              <span className="text-[#003B7A]">Bienestar Natural,</span>
+              <span className="text-[#3E667D]">Bienestar Natural,</span>
               <br />
-              <span className="text-[#003B7A]">Vida</span>{' '}
-              <span className="text-[#7AB82E] font-serif italic">Plena</span>
+              <span className="text-[#3E667D]">Vida</span>{' '}
+              <span className="text-[#3E667D] font-serif italic">Plena</span>
             </h1>
 
             {/* Subtitle */}
             <p className="mt-6 text-lg sm:text-xl text-gray-600 max-w-xl mx-auto lg:mx-0">
               Descubre tu fórmula ideal de bienestar con nuestro{' '}
-              <span className="font-semibold text-[#003B7A]">Evaluación de Salud personalizada</span>.
+              <span className="font-semibold text-[#3E667D]">Evaluación de Salud personalizada</span>.
               Productos naturales diseñados para transformar tu vida.
             </p>
 
@@ -73,19 +73,19 @@ export function HeroSection() {
             {/* Trust badges */}
             <div className="mt-10 flex flex-wrap items-center justify-center lg:justify-start gap-6">
               <div className="flex items-center gap-2 text-gray-500">
-                <svg className="h-5 w-5 text-[#7AB82E]" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="h-5 w-5 text-[#3E667D]" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
                 <span className="text-sm">100% Natural</span>
               </div>
               <div className="flex items-center gap-2 text-gray-500">
-                <svg className="h-5 w-5 text-[#7AB82E]" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="h-5 w-5 text-[#3E667D]" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
                 <span className="text-sm">Envío Gratis +$99</span>
               </div>
               <div className="flex items-center gap-2 text-gray-500">
-                <svg className="h-5 w-5 text-[#7AB82E]" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="h-5 w-5 text-[#3E667D]" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
                 <span className="text-sm">+1M Clientes Felices</span>
@@ -96,24 +96,24 @@ export function HeroSection() {
           {/* Hero Image/Visual */}
           <div className="relative">
             {/* Main product showcase container */}
-            <div className="relative bg-gradient-to-br from-[#003B7A]/5 to-[#7AB82E]/10 rounded-[3rem] p-8 lg:p-12">
+            <div className="relative bg-gradient-to-br from-[#3E667D]/5 to-[#C8DDF2]/10 rounded-[3rem] p-8 lg:p-12">
               {/* Central product image placeholder */}
               <div className="aspect-square bg-white rounded-[2rem] shadow-2xl flex items-center justify-center overflow-hidden">
                 <div className="text-center p-8">
                   {/* Placeholder for product collage */}
                   <div className="grid grid-cols-2 gap-4">
                     {/* Product placeholders */}
-                    <div className="aspect-square bg-gradient-to-br from-[#7AB82E]/20 to-[#7AB82E]/5 rounded-2xl flex items-center justify-center">
-                      <div className="text-[#7AB82E] text-4xl font-bold">TL</div>
+                    <div className="aspect-square bg-gradient-to-br from-[#C8DDF2]/20 to-[#C8DDF2]/5 rounded-2xl flex items-center justify-center">
+                      <div className="text-[#3E667D] text-4xl font-bold">TL</div>
                     </div>
-                    <div className="aspect-square bg-gradient-to-br from-[#003B7A]/20 to-[#003B7A]/5 rounded-2xl flex items-center justify-center">
-                      <div className="text-[#003B7A] text-4xl font-bold">EG</div>
+                    <div className="aspect-square bg-gradient-to-br from-[#3E667D]/20 to-[#3E667D]/5 rounded-2xl flex items-center justify-center">
+                      <div className="text-[#3E667D] text-4xl font-bold">EG</div>
                     </div>
-                    <div className="aspect-square bg-gradient-to-br from-[#003B7A]/20 to-[#003B7A]/5 rounded-2xl flex items-center justify-center">
-                      <div className="text-[#003B7A] text-4xl font-bold">OX</div>
+                    <div className="aspect-square bg-gradient-to-br from-[#3E667D]/20 to-[#3E667D]/5 rounded-2xl flex items-center justify-center">
+                      <div className="text-[#3E667D] text-4xl font-bold">OX</div>
                     </div>
-                    <div className="aspect-square bg-gradient-to-br from-[#7AB82E]/20 to-[#7AB82E]/5 rounded-2xl flex items-center justify-center">
-                      <div className="text-[#7AB82E] text-4xl font-bold">CL</div>
+                    <div className="aspect-square bg-gradient-to-br from-[#C8DDF2]/20 to-[#C8DDF2]/5 rounded-2xl flex items-center justify-center">
+                      <div className="text-[#3E667D] text-4xl font-bold">CL</div>
                     </div>
                   </div>
                   <p className="mt-4 text-gray-500 text-sm">
@@ -125,11 +125,11 @@ export function HeroSection() {
               {/* Floating cards */}
               <div className="absolute -top-4 -right-4 bg-white rounded-2xl shadow-lg p-4 animate-float">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-[#7AB82E]/10 rounded-xl flex items-center justify-center">
-                    <SparklesIcon className="h-6 w-6 text-[#7AB82E]" />
+                  <div className="w-12 h-12 bg-[#C8DDF2]/10 rounded-xl flex items-center justify-center">
+                    <SparklesIcon className="h-6 w-6 text-[#3E667D]" />
                   </div>
                   <div>
-                    <p className="font-bold text-[#003B7A]">+50,000</p>
+                    <p className="font-bold text-[#3E667D]">+50,000</p>
                     <p className="text-xs text-gray-500">Evaluaciones completadas</p>
                   </div>
                 </div>
@@ -138,9 +138,9 @@ export function HeroSection() {
               <div className="absolute -bottom-4 -left-4 bg-white rounded-2xl shadow-lg p-4 animate-float delay-300">
                 <div className="flex items-center gap-3">
                   <div className="flex -space-x-2">
-                    <div className="w-8 h-8 bg-[#003B7A] rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold">M</div>
-                    <div className="w-8 h-8 bg-[#7AB82E] rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold">C</div>
-                    <div className="w-8 h-8 bg-[#003B7A] rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold">A</div>
+                    <div className="w-8 h-8 bg-[#3E667D] rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold">M</div>
+                    <div className="w-8 h-8 bg-[#C8DDF2] rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold">C</div>
+                    <div className="w-8 h-8 bg-[#3E667D] rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold">A</div>
                   </div>
                   <div>
                     <div className="flex items-center gap-1">

@@ -91,7 +91,7 @@ export default function ContactoPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#7AB82E] text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="text-center">
             <EnvelopeIcon className="h-16 w-16 mx-auto mb-6" />
@@ -124,7 +124,7 @@ export default function ContactoPage() {
                       required
                       value={formData.name}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
                       placeholder="Tu nombre"
                     />
                   </div>
@@ -140,7 +140,7 @@ export default function ContactoPage() {
                       required
                       value={formData.email}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
                       placeholder="tu@email.com"
                     />
                   </div>
@@ -157,7 +157,7 @@ export default function ContactoPage() {
                       name="phone"
                       value={formData.phone}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
                       placeholder="+52 55 1234 5678"
                     />
                   </div>
@@ -172,7 +172,7 @@ export default function ContactoPage() {
                       required
                       value={formData.reason}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
                     >
                       {contactReasons.map((reason) => (
                         <option key={reason.value} value={reason.value}>
@@ -194,14 +194,14 @@ export default function ContactoPage() {
                     rows={6}
                     value={formData.message}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A] resize-none"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D] resize-none"
                     placeholder="Cuéntanos cómo podemos ayudarte..."
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full px-8 py-4 bg-[#003B7A] text-white font-bold rounded-lg hover:bg-[#002855] transition-colors"
+                  className="w-full px-8 py-4 bg-[#3E667D] text-white font-bold rounded-lg hover:bg-[#002855] transition-colors"
                 >
                   Enviar Mensaje
                 </button>
@@ -217,7 +217,7 @@ export default function ContactoPage() {
 
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <PhoneIcon className="h-6 w-6 text-[#7AB82E] flex-shrink-0 mt-1" />
+                  <PhoneIcon className="h-6 w-6 text-[#3E667D] flex-shrink-0 mt-1" />
                   <div>
                     <p className="font-medium text-gray-900">Teléfono</p>
                     <p className="text-gray-600">+52 55 1234 5678</p>
@@ -226,7 +226,7 @@ export default function ContactoPage() {
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <EnvelopeIcon className="h-6 w-6 text-[#7AB82E] flex-shrink-0 mt-1" />
+                  <EnvelopeIcon className="h-6 w-6 text-[#3E667D] flex-shrink-0 mt-1" />
                   <div>
                     <p className="font-medium text-gray-900">Correo electrónico</p>
                     <p className="text-gray-600">soporte@toniclife.com</p>
@@ -235,11 +235,11 @@ export default function ContactoPage() {
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <ChatBubbleLeftRightIcon className="h-6 w-6 text-[#7AB82E] flex-shrink-0 mt-1" />
+                  <ChatBubbleLeftRightIcon className="h-6 w-6 text-[#3E667D] flex-shrink-0 mt-1" />
                   <div>
                     <p className="font-medium text-gray-900">Chat en Vivo</p>
                     <p className="text-gray-600">Disponible ahora</p>
-                    <button className="text-sm text-[#003B7A] font-medium hover:underline">
+                    <button className="text-sm text-[#3E667D] font-medium hover:underline">
                       Iniciar chat →
                     </button>
                   </div>
@@ -267,7 +267,7 @@ export default function ContactoPage() {
             </div>
 
             {/* FAQ Link */}
-            <div className="bg-gradient-to-br from-[#003B7A] to-[#7AB82E] rounded-lg p-6 text-white">
+            <div className="bg-gradient-to-br from-[#3E667D] to-[#C8DDF2] rounded-lg p-6 text-white">
               <QuestionMarkCircleIcon className="h-10 w-10 mb-3" />
               <h3 className="text-lg font-bold mb-2">¿Tienes una pregunta?</h3>
               <p className="text-blue-100 text-sm mb-4">
@@ -275,7 +275,7 @@ export default function ContactoPage() {
               </p>
               <a
                 href="/faq"
-                className="inline-block px-4 py-2 bg-white text-[#003B7A] font-medium rounded-lg hover:bg-blue-50 transition-colors text-sm"
+                className="inline-block px-4 py-2 bg-white text-[#3E667D] font-medium rounded-lg hover:bg-blue-50 transition-colors text-sm"
               >
                 Ver Preguntas Frecuentes
               </a>
@@ -289,22 +289,22 @@ export default function ContactoPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {offices.map((office, index) => (
               <div key={index} className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
-                <h3 className="text-xl font-bold text-[#003B7A] mb-4">{office.country}</h3>
+                <h3 className="text-xl font-bold text-[#3E667D] mb-4">{office.country}</h3>
                 <div className="space-y-3 text-sm">
                   <div className="flex items-start gap-2">
-                    <MapPinIcon className="h-5 w-5 text-[#7AB82E] flex-shrink-0 mt-0.5" />
+                    <MapPinIcon className="h-5 w-5 text-[#3E667D] flex-shrink-0 mt-0.5" />
                     <p className="text-gray-600">{office.address}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <PhoneIcon className="h-5 w-5 text-[#7AB82E] flex-shrink-0" />
+                    <PhoneIcon className="h-5 w-5 text-[#3E667D] flex-shrink-0" />
                     <p className="text-gray-900 font-medium">{office.phone}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <EnvelopeIcon className="h-5 w-5 text-[#7AB82E] flex-shrink-0" />
+                    <EnvelopeIcon className="h-5 w-5 text-[#3E667D] flex-shrink-0" />
                     <p className="text-gray-900">{office.email}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <ClockIcon className="h-5 w-5 text-[#7AB82E] flex-shrink-0" />
+                    <ClockIcon className="h-5 w-5 text-[#3E667D] flex-shrink-0" />
                     <p className="text-gray-600">{office.hours}</p>
                   </div>
                 </div>

@@ -258,7 +258,7 @@ export default function BannersAdminPage() {
             </div>
             <button
               onClick={() => toast.success('Crear nuevo banner')}
-              className="flex items-center gap-2 px-4 py-2 bg-[#003B7A] text-white rounded-lg hover:bg-[#002855] transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#002855] transition-colors"
             >
               <PlusIcon className="h-5 w-5" />
               Nuevo Banner
@@ -273,7 +273,7 @@ export default function BannersAdminPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center gap-2 mb-2">
-              <PhotoIcon className="h-5 w-5 text-[#003B7A]" />
+              <PhotoIcon className="h-5 w-5 text-[#3E667D]" />
               <span className="text-sm text-gray-600">Total</span>
             </div>
             <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
@@ -315,7 +315,7 @@ export default function BannersAdminPage() {
 
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center gap-2 mb-2">
-              <CheckCircleIcon className="h-5 w-5 text-[#7AB82E]" />
+              <CheckCircleIcon className="h-5 w-5 text-[#3E667D]" />
               <span className="text-sm text-gray-600">CTR Promedio</span>
             </div>
             <p className="text-2xl font-bold text-gray-900">{stats.averageCtr}%</p>
@@ -329,7 +329,7 @@ export default function BannersAdminPage() {
               <select
                 value={filterLocation}
                 onChange={(e) => setFilterLocation(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
               >
                 <option value="all">Todas las Ubicaciones</option>
                 {locations.map((location) => (
@@ -344,7 +344,7 @@ export default function BannersAdminPage() {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
               >
                 <option value="all">Todos los Estados</option>
                 <option value="active">Activos</option>
@@ -414,7 +414,7 @@ export default function BannersAdminPage() {
                   </div>
                   <div>
                     <p className="text-xs text-gray-600">CTR</p>
-                    <p className="text-lg font-bold text-[#7AB82E]">{banner.ctr.toFixed(2)}%</p>
+                    <p className="text-lg font-bold text-[#3E667D]">{banner.ctr.toFixed(2)}%</p>
                   </div>
                 </div>
 
@@ -464,7 +464,7 @@ export default function BannersAdminPage() {
 
                   <button
                     onClick={() => toast.success('Editar banner')}
-                    className="p-2 text-[#003B7A] hover:bg-blue-50 rounded-lg"
+                    className="p-2 text-[#3E667D] hover:bg-blue-50 rounded-lg"
                     title="Editar"
                   >
                     <PencilIcon className="h-5 w-5" />

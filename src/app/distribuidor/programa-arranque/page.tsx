@@ -138,7 +138,7 @@ export default function DistribuidorProgramaArranquePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/80 rounded-xl p-6 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/80 rounded-xl p-6 text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center">
@@ -161,7 +161,7 @@ export default function DistribuidorProgramaArranquePage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <KpiCard
-          icon={<UserGroupIcon className="h-5 w-5 text-[#003B7A]" />}
+          icon={<UserGroupIcon className="h-5 w-5 text-[#3E667D]" />}
           label="Inscritos"
           value={progressLoading ? '...' : String(progress?.totalRecruits ?? 0)}
           subtitle={progress?.nextMilestone
@@ -170,7 +170,7 @@ export default function DistribuidorProgramaArranquePage() {
           }
         />
         <KpiCard
-          icon={<CurrencyDollarIcon className="h-5 w-5 text-[#7AB82E]" />}
+          icon={<CurrencyDollarIcon className="h-5 w-5 text-[#3E667D]" />}
           label="Bonos Brutos"
           value={progressLoading ? '...' : formatCurrency(progress?.totalBonusesGross ?? '0', currency)}
           subtitle="Total generado"
@@ -197,7 +197,7 @@ export default function DistribuidorProgramaArranquePage() {
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3">
               <div
-                className="bg-gradient-to-r from-[#7AB82E] to-[#5a9420] h-3 rounded-full transition-all duration-500"
+                className="bg-gradient-to-r from-[#C8DDF2] to-[#5a9420] h-3 rounded-full transition-all duration-500"
                 style={{
                   width: `${Math.min(100, progress.nextMilestone.recruitsNeeded > 0
                     ? (progress.totalRecruits / progress.nextMilestone.recruitsNeeded) * 100
@@ -262,7 +262,7 @@ export default function DistribuidorProgramaArranquePage() {
             onClick={() => setSelectedSection(tab.key)}
             className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
               selectedSection === tab.key
-                ? 'border-[#003B7A] text-[#003B7A]'
+                ? 'border-[#3E667D] text-[#3E667D]'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}
           >
@@ -340,7 +340,7 @@ function SectionDesglose({
                   </div>
                   <div className="w-full bg-gray-100 rounded-full h-2">
                     <div
-                      className="bg-[#7AB82E] h-2 rounded-full transition-all"
+                      className="bg-[#C8DDF2] h-2 rounded-full transition-all"
                       style={{ width: `${pct}%` }}
                     />
                   </div>

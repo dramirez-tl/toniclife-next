@@ -127,7 +127,7 @@ export default function TraspasosPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -230,7 +230,7 @@ export default function TraspasosPage() {
                     placeholder="Buscar por número de traspaso..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -241,7 +241,7 @@ export default function TraspasosPage() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as TransferStatus | '')}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 >
                   <option value="">Todos los Estados</option>
                   <option value={TransferStatus.PENDING}>Pendiente</option>
@@ -255,7 +255,7 @@ export default function TraspasosPage() {
               <select
                 value={sourceBranchFilter}
                 onChange={(e) => setSourceBranchFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
               >
                 <option value="">Origen: Todas</option>
                 {branches?.map((branch) => (
@@ -269,7 +269,7 @@ export default function TraspasosPage() {
               <select
                 value={destBranchFilter}
                 onChange={(e) => setDestBranchFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
               >
                 <option value="">Destino: Todas</option>
                 {branches?.map((branch) => (
@@ -287,7 +287,7 @@ export default function TraspasosPage() {
           <CardContent className="p-6">
             {isLoading ? (
               <div className="text-center py-12">
-                <div className="inline-block w-12 h-12 border-4 border-[#003B7A] border-t-transparent rounded-full animate-spin" />
+                <div className="inline-block w-12 h-12 border-4 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
                 <p className="mt-4 text-gray-600">Cargando traspasos...</p>
               </div>
             ) : (
@@ -326,7 +326,7 @@ export default function TraspasosPage() {
                           className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                         >
                           <td className="py-4 px-4">
-                            <span className="font-mono font-semibold text-[#003B7A]">
+                            <span className="font-mono font-semibold text-[#3E667D]">
                               {transfer.transferNumber}
                             </span>
                           </td>

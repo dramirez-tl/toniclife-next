@@ -318,7 +318,7 @@ export default function EmpleadosPage() {
                     placeholder="Buscar por nombre, email o número de empleado..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -327,7 +327,7 @@ export default function EmpleadosPage() {
               <select
                 value={filterDepartment}
                 onChange={(e) => setFilterDepartment(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
               >
                 <option value="all">Todos los Departamentos</option>
                 {departments.map(dept => (
@@ -339,7 +339,7 @@ export default function EmpleadosPage() {
               <select
                 value={filterBranch}
                 onChange={(e) => setFilterBranch(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
               >
                 <option value="all">Todas las Sucursales</option>
                 {branches.map(branch => (
@@ -351,7 +351,7 @@ export default function EmpleadosPage() {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value as 'all' | 'ACTIVE' | 'INACTIVE' | 'ON_LEAVE' | 'TERMINATED')}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
               >
                 <option value="all">Todos los Estados</option>
                 <option value="ACTIVE">Activos</option>
@@ -580,7 +580,7 @@ function EmployeeFormModal({
   };
 
   const inputClassName =
-    'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent';
+    'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -801,7 +801,7 @@ function EmployeeFormModal({
               id="isManager"
               checked={formData.isManager ?? false}
               onChange={(e) => handleChange('isManager', e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-[#003B7A] focus:ring-[#003B7A]"
+              className="h-4 w-4 rounded border-gray-300 text-[#3E667D] focus:ring-[#3E667D]"
             />
             <label htmlFor="isManager" className="text-sm font-medium text-gray-700">
               Es Gerente / Supervisor

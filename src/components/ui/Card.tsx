@@ -82,7 +82,7 @@ export const CardTitle = forwardRef<HTMLHeadingElement, CardTitleProps>(
     return (
       <Component
         ref={ref}
-        className={`text-xl font-bold text-[#003B7A] ${className}`}
+        className={`text-xl font-bold text-[#3E667D] ${className}`}
         {...props}
       >
         {children}

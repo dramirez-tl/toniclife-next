@@ -229,7 +229,7 @@ export default function NotificacionesPage() {
     return (
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
-        <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+        <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="flex items-center gap-3 mb-2">
               <BellIcon className="h-10 w-10" />
@@ -293,7 +293,7 @@ export default function NotificacionesPage() {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+        <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="flex items-center gap-3 mb-2">
               <BellIcon className="h-10 w-10" />
@@ -330,7 +330,7 @@ export default function NotificacionesPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -412,7 +412,7 @@ export default function NotificacionesPage() {
                       onClick={() => handleFilterCategory(cat.id)}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
                         filterCategory === cat.id
-                          ? 'bg-[#003B7A] text-white'
+                          ? 'bg-[#3E667D] text-white'
                           : 'hover:bg-gray-100 text-gray-700'
                       }`}
                     >
@@ -459,7 +459,7 @@ export default function NotificacionesPage() {
                       onClick={() => handleFilterRead(status.value)}
                       className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                         filterRead === status.value
-                          ? 'bg-[#7AB82E] text-white font-medium'
+                          ? 'bg-[#3E667D] text-white font-medium'
                           : 'hover:bg-gray-100 text-gray-700'
                       }`}
                     >

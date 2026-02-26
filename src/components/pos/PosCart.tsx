@@ -103,7 +103,7 @@ export function PosCart({ onCheckout, disabled }: PosCartProps) {
 
               {/* Total */}
               <div className="text-right w-20 flex-shrink-0">
-                <p className="font-bold text-[#003B7A] text-sm">
+                <p className="font-bold text-[#3E667D] text-sm">
                   ${item.total.toFixed(2)}
                 </p>
               </div>
@@ -145,7 +145,7 @@ export function PosCart({ onCheckout, disabled }: PosCartProps) {
 
           <div className="flex justify-between text-lg font-bold pt-2 border-t">
             <span>Total</span>
-            <span className="text-[#003B7A]">${cart.total.toFixed(2)}</span>
+            <span className="text-[#3E667D]">${cart.total.toFixed(2)}</span>
           </div>
 
           {/* Customer Info */}
@@ -169,7 +169,7 @@ export function PosCart({ onCheckout, disabled }: PosCartProps) {
         <button
           onClick={onCheckout}
           disabled={!hasItems || disabled}
-          className="w-full py-4 px-6 bg-[#7AB82E] text-white font-bold text-lg rounded-xl hover:bg-[#6aa526] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full py-4 px-6 bg-[#3E667D] text-white font-bold text-lg rounded-xl hover:bg-[#6aa526] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Cobrar ${cart.total.toFixed(2)}
         </button>

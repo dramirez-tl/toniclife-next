@@ -103,14 +103,14 @@ function RankingCard({
             className="h-14 w-14 rounded-full object-cover ring-2 ring-white shadow"
             loading="lazy"
           />
-          <span className="absolute -bottom-1 -right-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#003B7A] text-xs font-bold text-white">
+          <span className="absolute -bottom-1 -right-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#3E667D] text-xs font-bold text-white">
             {rank}
           </span>
         </div>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold text-[#003B7A]">{name}</p>
+          <p className="truncate font-semibold text-[#3E667D]">{name}</p>
           <p className="text-xs text-gray-500">{location}</p>
-          <p className="mt-1 text-sm font-medium text-[#7AB82E]">{metric}</p>
+          <p className="mt-1 text-sm font-medium text-[#3E667D]">{metric}</p>
           <p className="text-xs text-gray-500">{label}</p>
         </div>
       </div>
@@ -133,14 +133,14 @@ function AchievementList({
     <Card className="border-gray-100 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center gap-2">
         <div className={`rounded-xl p-2 ${accent}`}>{icon}</div>
-        <h3 className="text-lg font-bold text-[#003B7A]">{title}</h3>
+        <h3 className="text-lg font-bold text-[#3E667D]">{title}</h3>
       </div>
       <div className="space-y-3">
         {items.map((item) => (
           <div key={item.id} className="rounded-xl border border-gray-100 bg-gray-50/70 p-3">
-            <p className="font-semibold text-[#003B7A]">{item.name}</p>
+            <p className="font-semibold text-[#3E667D]">{item.name}</p>
             <p className="text-xs text-gray-500">{item.zone}</p>
-            <p className="mt-1 text-sm font-medium text-[#7AB82E]">{item.achievement}</p>
+            <p className="mt-1 text-sm font-medium text-[#3E667D]">{item.achievement}</p>
           </div>
         ))}
       </div>
@@ -159,7 +159,7 @@ export function RecognitionHallSection() {
               Paseo de la Fama
             </span>
           </Badge>
-          <h2 className="text-3xl font-bold text-[#003B7A] sm:text-4xl lg:text-5xl">
+          <h2 className="text-3xl font-bold text-[#3E667D] sm:text-4xl lg:text-5xl">
             Reconocimientos del Mes
           </h2>
           <p className="mx-auto mt-4 max-w-3xl text-lg text-gray-600">
@@ -169,15 +169,15 @@ export function RecognitionHallSection() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="border-[#003B7A]/10 bg-white p-6 shadow-sm lg:p-7">
+          <Card className="border-[#3E667D]/10 bg-white p-6 shadow-sm lg:p-7">
             <div className="mb-5 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="rounded-xl bg-[#003B7A]/10 p-2">
-                  <ArrowTrendingUpIcon className="h-5 w-5 text-[#003B7A]" />
+                <div className="rounded-xl bg-[#3E667D]/10 p-2">
+                  <ArrowTrendingUpIcon className="h-5 w-5 text-[#3E667D]" />
                 </div>
-                <h3 className="text-xl font-bold text-[#003B7A]">Top Ventas</h3>
+                <h3 className="text-xl font-bold text-[#3E667D]">Top Ventas</h3>
               </div>
-              <span className="rounded-full bg-[#003B7A]/10 px-3 py-1 text-xs font-medium text-[#003B7A]">
+              <span className="rounded-full bg-[#3E667D]/10 px-3 py-1 text-xs font-medium text-[#3E667D]">
                 Mes actual
               </span>
             </div>
@@ -196,15 +196,15 @@ export function RecognitionHallSection() {
             </div>
           </Card>
 
-          <Card className="border-[#7AB82E]/20 bg-white p-6 shadow-sm lg:p-7">
+          <Card className="border-[#a7c1e2]/20 bg-white p-6 shadow-sm lg:p-7">
             <div className="mb-5 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="rounded-xl bg-[#7AB82E]/15 p-2">
-                  <UserGroupIcon className="h-5 w-5 text-[#7AB82E]" />
+                <div className="rounded-xl bg-[#C8DDF2]/15 p-2">
+                  <UserGroupIcon className="h-5 w-5 text-[#3E667D]" />
                 </div>
-                <h3 className="text-xl font-bold text-[#003B7A]">Top Reclutadores</h3>
+                <h3 className="text-xl font-bold text-[#3E667D]">Top Reclutadores</h3>
               </div>
-              <span className="rounded-full bg-[#7AB82E]/15 px-3 py-1 text-xs font-medium text-[#2E6E0F]">
+              <span className="rounded-full bg-[#C8DDF2]/15 px-3 py-1 text-xs font-medium text-[#2E6E0F]">
                 Mes actual
               </span>
             </div>
@@ -227,20 +227,20 @@ export function RecognitionHallSection() {
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <AchievementList
             title="Quienes lograron 5to Estudio"
-            icon={<AcademicCapIcon className="h-5 w-5 text-[#003B7A]" />}
+            icon={<AcademicCapIcon className="h-5 w-5 text-[#3E667D]" />}
             items={fifthStudyAchievers}
-            accent="bg-[#003B7A]/10"
+            accent="bg-[#3E667D]/10"
           />
           <AchievementList
             title="Nuevos Rangos del Mes"
-            icon={<ArrowUpCircleIcon className="h-5 w-5 text-[#7AB82E]" />}
+            icon={<ArrowUpCircleIcon className="h-5 w-5 text-[#3E667D]" />}
             items={newRangeAchievers}
-            accent="bg-[#7AB82E]/15"
+            accent="bg-[#C8DDF2]/15"
           />
         </div>
 
-        <div className="mt-10 rounded-2xl border border-dashed border-[#003B7A]/20 bg-[#003B7A]/5 p-5 text-center">
-          <p className="mx-auto max-w-3xl text-sm text-[#003B7A]/85">
+        <div className="mt-10 rounded-2xl border border-dashed border-[#3E667D]/20 bg-[#3E667D]/5 p-5 text-center">
+          <p className="mx-auto max-w-3xl text-sm text-[#3E667D]/85">
             <span className="font-semibold">Versión demo con información estática.</span>{' '}
             Después conectaremos estos bloques a datos reales por periodo para mostrar rankings
             oficiales y alimentar también el futuro módulo “Mi Top para Reconocimientos”.

@@ -398,7 +398,7 @@ export default function ReconocimientosPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#7AB82E] text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
             <div className="flex justify-center mb-4">
@@ -421,7 +421,7 @@ export default function ReconocimientosPage() {
               onClick={() => setViewMode('recognitions')}
               className={`px-6 py-2 rounded-md font-medium transition-colors ${
                 viewMode === 'recognitions'
-                  ? 'bg-[#003B7A] text-white'
+                  ? 'bg-[#3E667D] text-white'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -434,7 +434,7 @@ export default function ReconocimientosPage() {
               onClick={() => setViewMode('wall-of-fame')}
               className={`px-6 py-2 rounded-md font-medium transition-colors ${
                 viewMode === 'wall-of-fame'
-                  ? 'bg-[#003B7A] text-white'
+                  ? 'bg-[#3E667D] text-white'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -465,8 +465,8 @@ export default function ReconocimientosPage() {
                           onClick={() => setSelectedType(type.value)}
                           className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
                             selectedType === type.value
-                              ? 'bg-[#003B7A] text-white border-[#003B7A]'
-                              : 'bg-white text-gray-700 border-gray-300 hover:border-[#003B7A]'
+                              ? 'bg-[#3E667D] text-white border-[#3E667D]'
+                              : 'bg-white text-gray-700 border-gray-300 hover:border-[#3E667D]'
                           }`}
                         >
                           <Icon className="h-5 w-5" />
@@ -489,8 +489,8 @@ export default function ReconocimientosPage() {
                         onClick={() => setSelectedPeriod(period.value)}
                         className={`px-4 py-2 rounded-lg border transition-colors ${
                           selectedPeriod === period.value
-                            ? 'bg-[#7AB82E] text-white border-[#7AB82E]'
-                            : 'bg-white text-gray-700 border-gray-300 hover:border-[#7AB82E]'
+                            ? 'bg-[#3E667D] text-white border-[#a7c1e2]'
+                            : 'bg-white text-gray-700 border-gray-300 hover:border-[#a7c1e2]'
                         }`}
                       >
                         <span className="text-sm">{period.label}</span>
@@ -560,7 +560,7 @@ export default function ReconocimientosPage() {
                             <div className="grid grid-cols-3 gap-3 mb-4">
                               {recognition.stats.map((stat, idx) => (
                                 <div key={idx} className="bg-gray-50 rounded-lg p-3 text-center">
-                                  <div className="flex justify-center mb-1 text-[#003B7A]">
+                                  <div className="flex justify-center mb-1 text-[#3E667D]">
                                     {getStatIcon(stat.icon)}
                                   </div>
                                   <p className="text-lg font-bold text-gray-900">{stat.value}</p>
@@ -572,7 +572,7 @@ export default function ReconocimientosPage() {
 
                           {/* Quote */}
                           {recognition.quote && (
-                            <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-lg p-4 border-l-4 border-[#7AB82E]">
+                            <div className="bg-gradient-to-r from-blue-50 to-green-50 rounded-lg p-4 border-l-4 border-[#a7c1e2]">
                               <p className="italic text-gray-700">&ldquo;{recognition.quote}&rdquo;</p>
                             </div>
                           )}
@@ -684,7 +684,7 @@ export default function ReconocimientosPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {wallOfFame.filter(entry => entry.featured).map((entry) => (
                   <div key={entry.id} className="bg-white rounded-lg shadow-xl overflow-hidden border-2 border-yellow-400">
-                    <div className="bg-gradient-to-r from-[#003B7A] to-[#7AB82E] p-6 text-white">
+                    <div className="bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] p-6 text-white">
                       <div className="flex justify-center mb-4">
                         <div className="relative">
                           <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white">
@@ -714,11 +714,11 @@ export default function ReconocimientosPage() {
                       {/* Stats */}
                       <div className="grid grid-cols-3 gap-3 mb-4">
                         <div className="text-center">
-                          <p className="text-2xl font-bold text-[#003B7A]">{entry.yearsActive}</p>
+                          <p className="text-2xl font-bold text-[#3E667D]">{entry.yearsActive}</p>
                           <p className="text-xs text-gray-600">Años</p>
                         </div>
                         <div className="text-center">
-                          <p className="text-2xl font-bold text-[#7AB82E]">{entry.teamSize}</p>
+                          <p className="text-2xl font-bold text-[#3E667D]">{entry.teamSize}</p>
                           <p className="text-xs text-gray-600">Equipo</p>
                         </div>
                         <div className="text-center">
@@ -777,7 +777,7 @@ export default function ReconocimientosPage() {
                         <div className="flex-1 min-w-0">
                           <h3 className="text-lg font-bold text-gray-900">{entry.name}</h3>
                           <p className="text-sm text-gray-600">{entry.country}</p>
-                          <span className="inline-block mt-1 px-2 py-1 bg-gradient-to-r from-[#003B7A] to-[#7AB82E] text-white text-xs font-medium rounded">
+                          <span className="inline-block mt-1 px-2 py-1 bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] text-white text-xs font-medium rounded">
                             {entry.rank}
                           </span>
                         </div>

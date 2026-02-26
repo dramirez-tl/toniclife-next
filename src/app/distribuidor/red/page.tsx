@@ -152,7 +152,7 @@ export default function RedPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
             <div>
@@ -197,7 +197,7 @@ export default function RedPage() {
                     aria-pressed={viewMode === 'graph'}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                       viewMode === 'graph'
-                        ? 'bg-[#003B7A] text-white'
+                        ? 'bg-[#3E667D] text-white'
                         : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
                     }`}
                   >
@@ -209,7 +209,7 @@ export default function RedPage() {
                     aria-pressed={viewMode === 'tree'}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                       viewMode === 'tree'
-                        ? 'bg-[#003B7A] text-white'
+                        ? 'bg-[#3E667D] text-white'
                         : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
                     }`}
                   >
@@ -245,7 +245,7 @@ export default function RedPage() {
         )}
 
         {/* Help CTA */}
-        <Card className="mt-8 bg-gradient-to-r from-[#7AB82E] to-[#7AB82E]/90 text-white">
+        <Card className="mt-8 bg-gradient-to-r from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
           <CardContent className="p-6 lg:p-8">
             <h3 className="text-xl lg:text-2xl font-bold mb-4">Haz Crecer tu Red</h3>
             <p className="text-white/90 mb-6 max-w-2xl">
@@ -285,8 +285,8 @@ export default function RedPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto px-5 py-5">
-            <div className="rounded-xl border border-[#7AB82E]/25 bg-[#7AB82E]/10 p-4">
-              <p className="text-sm font-semibold text-[#003B7A]">¿Cómo invitar?</p>
+            <div className="rounded-xl border border-[#a7c1e2]/25 bg-[#C8DDF2]/10 p-4">
+              <p className="text-sm font-semibold text-[#3E667D]">¿Cómo invitar?</p>
               <p className="mt-1 text-sm text-gray-600">
                 Comparte este enlace con la persona que deseas invitar. Al registrarse con este link,
                 quedará vinculada a tu red.
@@ -295,7 +295,7 @@ export default function RedPage() {
 
             <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Enlace de Registro</p>
-              <p className="mt-2 break-all font-mono text-sm text-[#003B7A]">
+              <p className="mt-2 break-all font-mono text-sm text-[#3E667D]">
                 {dynamicPersonalLink || 'Cargando enlace...'}
               </p>
             </div>
@@ -395,14 +395,14 @@ function TreeListView({ currentUserId }: { currentUserId: string }) {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar por nombre o email..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
               />
             </div>
             {/* Filtro de nivel */}
             <select
               value={levelFilter ?? ''}
               onChange={(e) => { setLevelFilter(e.target.value ? parseInt(e.target.value) : undefined); setPage(1); }}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
             >
               <option value="">Todos los niveles</option>
               {[1, 2, 3, 4, 5].map(n => (
@@ -413,7 +413,7 @@ function TreeListView({ currentUserId }: { currentUserId: string }) {
             <select
               value={statusFilter ?? ''}
               onChange={(e) => { setStatusFilter((e.target.value || undefined) as DownlineQuery['status']); setPage(1); }}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
             >
               <option value="">Todos los estados</option>
               <option value="active">Activos</option>
@@ -428,7 +428,7 @@ function TreeListView({ currentUserId }: { currentUserId: string }) {
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
           <div className="text-center">
-            <ArrowPathIcon className="h-8 w-8 text-[#003B7A] animate-spin mx-auto mb-3" />
+            <ArrowPathIcon className="h-8 w-8 text-[#3E667D] animate-spin mx-auto mb-3" />
             <p className="text-sm text-gray-500">Cargando distribuidores...</p>
           </div>
         </div>
@@ -484,7 +484,7 @@ function TreeListView({ currentUserId }: { currentUserId: string }) {
                 <Card key={member.id}>
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
-                      <div className="w-11 h-11 bg-gradient-to-br from-[#003B7A] to-[#7AB82E] rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                      <div className="w-11 h-11 bg-gradient-to-br from-[#3E667D] to-[#C8DDF2] rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                         {initials}
                       </div>
                       <div className="flex-1 min-w-0">

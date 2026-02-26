@@ -224,7 +224,7 @@ export default function TestimoniosPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="text-center">
             <div className="flex justify-center mb-4">
@@ -264,7 +264,7 @@ export default function TestimoniosPage() {
                     placeholder="Buscar testimonios..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -275,7 +275,7 @@ export default function TestimoniosPage() {
                 <select
                   value={filterCategory}
                   onChange={(e) => setFilterCategory(e.target.value)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 >
                   {categories.map((cat) => (
                     <option key={cat} value={cat}>{cat}</option>
@@ -288,7 +288,7 @@ export default function TestimoniosPage() {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as 'recent' | 'helpful' | 'rating')}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 >
                   <option value="recent">Más Recientes</option>
                   <option value="helpful">Más Útiles</option>
@@ -357,7 +357,7 @@ export default function TestimoniosPage() {
                         height={500}
                         className="rounded-lg object-cover w-full h-48"
                       />
-                      <div className="absolute top-2 left-2 bg-[#7AB82E] text-white px-2 py-1 rounded text-xs font-medium">
+                      <div className="absolute top-2 left-2 bg-[#3E667D] text-white px-2 py-1 rounded text-xs font-medium">
                         Después
                       </div>
                     </div>
@@ -404,7 +404,7 @@ export default function TestimoniosPage() {
                   </p>
                   <button
                     onClick={() => handleMarkHelpful(testimonial.id)}
-                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-[#7AB82E] transition-colors"
+                    className="flex items-center gap-2 text-sm text-gray-600 hover:text-[#3E667D] transition-colors"
                   >
                     <HandThumbUpIcon className="h-5 w-5" />
                     <span>Útil ({testimonial.helpful})</span>
@@ -432,7 +432,7 @@ export default function TestimoniosPage() {
         )}
 
         {/* CTA Section */}
-        <Card className="bg-gradient-to-br from-[#003B7A] to-[#003B7A]/90 text-white">
+        <Card className="bg-gradient-to-br from-[#3E667D] to-[#3E667D]/90 text-white">
           <CardContent className="p-12">
             <div className="text-center max-w-3xl mx-auto">
               <h2 className="text-3xl font-bold mb-4">¿Tienes una historia que compartir?</h2>

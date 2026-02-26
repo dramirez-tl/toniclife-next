@@ -111,7 +111,7 @@ function ResetPasswordForm() {
           <div className="text-center mb-8">
             <Link href="/">
               <Image
-                src="/images/logo.png"
+                src="/images/logo/logo-text-dark.png"
                 alt="Tonic Life"
                 width={200}
                 height={80}
@@ -159,7 +159,7 @@ function ResetPasswordForm() {
         <div className="text-center mb-8">
           <Link href="/">
             <Image
-              src="/images/logo.png"
+              src="/images/logo/logo-text-dark.png"
               alt="Tonic Life"
               width={200}
               height={80}
@@ -215,7 +215,7 @@ function ResetPasswordForm() {
                         <div key={index} className="flex items-center gap-2">
                           <CheckCircleIcon
                             className={`h-4 w-4 ${
-                              passes ? 'text-[#7AB82E]' : 'text-gray-300'
+                              passes ? 'text-[#3E667D]' : 'text-gray-300'
                             }`}
                           />
                           <span className={`text-xs ${
@@ -275,7 +275,7 @@ function ResetPasswordForm() {
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
             ¿Recordaste tu contraseña?{' '}
-            <Link href="/login" className="font-medium text-[#003B7A] hover:text-[#7AB82E] transition-colors">
+            <Link href="/login" className="font-medium text-[#3E667D] hover:text-[#3E667D] transition-colors">
               Inicia sesión
             </Link>
           </p>
@@ -291,7 +291,7 @@ export default function ResetPasswordPage() {
       fallback={
         <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7AB82E] mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#a7c1e2] mx-auto mb-4"></div>
             <p className="text-gray-600">Cargando...</p>
           </div>
         </div>

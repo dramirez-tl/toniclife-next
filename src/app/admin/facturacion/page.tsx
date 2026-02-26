@@ -133,7 +133,7 @@ export default function FacturacionPage() {
     <PermissionGuard permissions={['billing:read', 'billing:*']}>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -202,7 +202,7 @@ export default function FacturacionPage() {
                 {facturamaStatus.configured && facturamaStatus.Balance >= 0 && (
                   <div className="text-sm">
                     <span className="text-gray-600">Timbres disponibles: </span>
-                    <span className="font-bold text-[#003B7A]">
+                    <span className="font-bold text-[#3E667D]">
                       {facturamaStatus.Balance}
                     </span>
                   </div>
@@ -283,7 +283,7 @@ export default function FacturacionPage() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Buscar por UUID, folio, RFC, razón social..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 />
               </div>
 
@@ -293,7 +293,7 @@ export default function FacturacionPage() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as InvoiceStatus | '')}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 >
                   <option value="">Todos los estados</option>
                   <option value={InvoiceStatus.PENDING}>Pendientes</option>
@@ -317,7 +317,7 @@ export default function FacturacionPage() {
           <CardContent className="p-6">
             {isLoading ? (
               <div className="text-center py-12">
-                <div className="inline-block w-12 h-12 border-4 border-[#003B7A] border-t-transparent rounded-full animate-spin" />
+                <div className="inline-block w-12 h-12 border-4 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
                 <p className="mt-4 text-gray-600">Cargando facturas...</p>
               </div>
             ) : filteredInvoices && filteredInvoices.length > 0 ? (
@@ -359,7 +359,7 @@ export default function FacturacionPage() {
                         >
                           <td className="py-4 px-4">
                             <div>
-                              <span className="font-mono text-sm font-medium text-[#003B7A]">
+                              <span className="font-mono text-sm font-medium text-[#3E667D]">
                                 {formatInvoiceNumber(invoice.series, invoice.folio)}
                               </span>
                               {invoice.uuid && (

@@ -174,20 +174,20 @@ export default function VincularCorreoPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-[#003B7A]/10 px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-[#3E667D]/10 px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
       <div className="mx-auto flex w-full max-w-5xl items-center justify-center">
         <div className="w-full max-w-md space-y-6">
           <div className="text-center">
             <Link href="/">
               <Image
-                src="/images/logo.png"
+                src="/images/logo/logo-text-dark.png"
                 alt="Tonic Life"
                 width={180}
                 height={64}
                 className="mx-auto mb-4 h-10 w-auto"
               />
             </Link>
-            <div className="inline-flex items-center gap-2 rounded-full bg-[#003B7A]/8 px-3 py-1 text-xs font-medium text-[#003B7A]">
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#3E667D]/8 px-3 py-1 text-xs font-medium text-[#3E667D]">
               <ShieldCheckIcon className="h-3.5 w-3.5" />
               Vinculación de correo
             </div>
@@ -195,9 +195,9 @@ export default function VincularCorreoPage() {
               Vincular correo electrónico
             </h2>
             <p className="mt-2 text-sm text-gray-600">
-              Hola <span className="font-semibold text-[#003B7A]">{emailLinkData.distributorName}</span>,
+              Hola <span className="font-semibold text-[#3E667D]">{emailLinkData.distributorName}</span>,
               vincula un correo electrónico a tu cuenta de distribuidor
-              <span className="font-mono font-semibold text-[#7AB82E]"> #{emailLinkData.legacyId}</span>.
+              <span className="font-mono font-semibold text-[#3E667D]"> #{emailLinkData.legacyId}</span>.
             </p>
           </div>
 
@@ -207,15 +207,15 @@ export default function VincularCorreoPage() {
               <div className="mb-6 flex items-center justify-center gap-3">
                 <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
                   step === 1
-                    ? 'bg-[#003B7A] text-white'
-                    : 'bg-[#7AB82E] text-white'
+                    ? 'bg-[#3E667D] text-white'
+                    : 'bg-[#3E667D] text-white'
                 }`}>
                   {step > 1 ? <CheckCircleIcon className="h-5 w-5" /> : '1'}
                 </div>
-                <div className={`h-0.5 w-12 ${step > 1 ? 'bg-[#7AB82E]' : 'bg-gray-200'}`} />
+                <div className={`h-0.5 w-12 ${step > 1 ? 'bg-[#C8DDF2]' : 'bg-gray-200'}`} />
                 <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ${
                   step === 2
-                    ? 'bg-[#003B7A] text-white'
+                    ? 'bg-[#3E667D] text-white'
                     : 'bg-gray-200 text-gray-500'
                 }`}>
                   2
@@ -258,7 +258,7 @@ export default function VincularCorreoPage() {
                   <div className="text-center">
                     <Link
                       href="/login"
-                      className="inline-flex items-center gap-1 text-sm font-medium text-gray-500 transition-colors hover:text-[#003B7A]"
+                      className="inline-flex items-center gap-1 text-sm font-medium text-gray-500 transition-colors hover:text-[#3E667D]"
                       onClick={() => dispatch(clearEmailLinkRequired())}
                     >
                       <ArrowLeftIcon className="h-4 w-4" />
@@ -272,7 +272,7 @@ export default function VincularCorreoPage() {
                   <div className="rounded-2xl border border-green-100 bg-green-50/50 p-4">
                     <p className="text-sm text-gray-700">
                       Enviamos un código de 6 dígitos a{' '}
-                      <span className="font-semibold text-[#003B7A]">{email}</span>.
+                      <span className="font-semibold text-[#3E667D]">{email}</span>.
                       Revisa tu bandeja de entrada y spam.
                     </p>
                   </div>
@@ -292,7 +292,7 @@ export default function VincularCorreoPage() {
                           value={digit}
                           onChange={(e) => handleCodeChange(index, e.target.value)}
                           onKeyDown={(e) => handleCodeKeyDown(index, e)}
-                          className={`h-14 w-12 rounded-xl border-2 text-center text-2xl font-bold transition-colors focus:border-[#003B7A] focus:outline-none focus:ring-2 focus:ring-[#003B7A]/20 ${
+                          className={`h-14 w-12 rounded-xl border-2 text-center text-2xl font-bold transition-colors focus:border-[#3E667D] focus:outline-none focus:ring-2 focus:ring-[#3E667D]/20 ${
                             codeError ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'
                           }`}
                           disabled={isLoading}
@@ -318,7 +318,7 @@ export default function VincularCorreoPage() {
                     <button
                       type="button"
                       onClick={handleBackToEmail}
-                      className="inline-flex items-center gap-1 text-sm font-medium text-gray-500 transition-colors hover:text-[#003B7A]"
+                      className="inline-flex items-center gap-1 text-sm font-medium text-gray-500 transition-colors hover:text-[#3E667D]"
                       disabled={isLoading}
                     >
                       <ArrowLeftIcon className="h-4 w-4" />

@@ -115,7 +115,7 @@ export default function CartPage() {
           <div className="mb-8">
             <Link
               href="/productos"
-              className="inline-flex items-center gap-2 text-gray-500 hover:text-[#7AB82E] transition-colors"
+              className="inline-flex items-center gap-2 text-gray-500 hover:text-[#3E667D] transition-colors"
             >
               <ArrowLeftIcon className="h-4 w-4" />
               Seguir comprando
@@ -126,11 +126,11 @@ export default function CartPage() {
           <div className="mb-8 rounded-2xl border border-gray-100 bg-white/90 p-5 shadow-sm backdrop-blur sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="rounded-2xl bg-[#003B7A]/10 p-3">
-                  <ShoppingBagIcon className="h-8 w-8 text-[#003B7A]" />
+                <div className="rounded-2xl bg-[#3E667D]/10 p-3">
+                  <ShoppingBagIcon className="h-8 w-8 text-[#3E667D]" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-[#003B7A]">Tu Carrito</h1>
+                  <h1 className="text-3xl font-bold text-[#3E667D]">Tu Carrito</h1>
                   <p className="text-gray-500">
                     {itemCount} {itemCount === 1 ? 'producto' : 'productos'}
                   </p>
@@ -157,10 +157,10 @@ export default function CartPage() {
           ) : !cart || cart.items.length === 0 ? (
             /* Empty Cart */
             <Card className="border-dashed border-gray-200 py-16 text-center">
-              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#003B7A]/5">
-                <ShoppingBagIcon className="h-10 w-10 text-[#003B7A]/60" />
+              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#3E667D]/5">
+                <ShoppingBagIcon className="h-10 w-10 text-[#3E667D]/60" />
               </div>
-              <h2 className="mb-2 text-2xl font-bold text-[#003B7A]">
+              <h2 className="mb-2 text-2xl font-bold text-[#3E667D]">
                 Tu carrito está vacío
               </h2>
               <p className="mb-8 max-w-md mx-auto text-gray-500">
@@ -182,20 +182,20 @@ export default function CartPage() {
               <div className="lg:col-span-2 space-y-4">
                 {/* Free Shipping Progress */}
                 {subtotal < FREE_SHIPPING_THRESHOLD && (
-                  <Card className="border-[#7AB82E]/20 bg-[#7AB82E]/10 shadow-sm" padding="md">
+                  <Card className="border-[#a7c1e2]/20 bg-[#C8DDF2]/10 shadow-sm" padding="md">
                     <div className="flex items-center gap-4">
-                      <TruckIcon className="h-8 w-8 text-[#7AB82E] flex-shrink-0" />
+                      <TruckIcon className="h-8 w-8 text-[#3E667D] flex-shrink-0" />
                       <div className="flex-grow">
-                        <p className="font-medium text-[#003B7A]">
+                        <p className="font-medium text-[#3E667D]">
                           ¡Agrega {cartService.formatCurrency(FREE_SHIPPING_THRESHOLD - subtotal)} más para envío gratis!
                         </p>
                         <div className="mt-2 h-2 bg-white rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-[#7AB82E] rounded-full transition-all"
+                            className="h-full bg-[#C8DDF2] rounded-full transition-all"
                             style={{ width: `${Math.min((subtotal / FREE_SHIPPING_THRESHOLD) * 100, 100)}%` }}
                           />
                         </div>
-                        <p className="mt-2 text-xs text-[#003B7A]/70">
+                        <p className="mt-2 text-xs text-[#3E667D]/70">
                           Progreso: {Math.round(Math.min((subtotal / FREE_SHIPPING_THRESHOLD) * 100, 100))}%
                         </p>
                       </div>
@@ -204,10 +204,10 @@ export default function CartPage() {
                 )}
 
                 {subtotal >= FREE_SHIPPING_THRESHOLD && (
-                  <Card className="bg-[#7AB82E]/10 border-[#7AB82E]/20" padding="md">
+                  <Card className="bg-[#C8DDF2]/10 border-[#a7c1e2]/20" padding="md">
                     <div className="flex items-center gap-4">
-                      <TruckIcon className="h-8 w-8 text-[#7AB82E] flex-shrink-0" />
-                      <p className="font-medium text-[#7AB82E]">
+                      <TruckIcon className="h-8 w-8 text-[#3E667D] flex-shrink-0" />
+                      <p className="font-medium text-[#3E667D]">
                         ¡Felicidades! Tu pedido califica para envío gratis
                       </p>
                     </div>
@@ -227,8 +227,8 @@ export default function CartPage() {
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="w-24 h-24 bg-gradient-to-br from-[#7AB82E]/20 to-[#003B7A]/20 rounded-2xl flex items-center justify-center">
-                            <span className="text-2xl font-bold text-[#003B7A]">
+                          <div className="w-24 h-24 bg-gradient-to-br from-[#C8DDF2]/20 to-[#3E667D]/20 rounded-2xl flex items-center justify-center">
+                            <span className="text-2xl font-bold text-[#3E667D]">
                               {(item.productSnapshot?.name || 'P').substring(0, 2).toUpperCase()}
                             </span>
                           </div>
@@ -242,7 +242,7 @@ export default function CartPage() {
                             <p className="text-xs text-gray-500 mb-1">
                               SKU: {item.productSnapshot?.sku}
                             </p>
-                            <h3 className="font-bold text-lg text-[#003B7A]">
+                            <h3 className="font-bold text-lg text-[#3E667D]">
                               {item.productSnapshot?.name || 'Producto'}
                             </h3>
 
@@ -260,7 +260,7 @@ export default function CartPage() {
 
                             {/* Points */}
                             {item.points > 0 && (
-                              <p className="text-xs text-[#7AB82E] mt-1">
+                              <p className="text-xs text-[#3E667D] mt-1">
                                 +{item.points} puntos por unidad
                               </p>
                             )}
@@ -309,7 +309,7 @@ export default function CartPage() {
 
                           {/* Line Total */}
                           <div className="text-right">
-                            <span className="text-xl font-bold text-[#003B7A]">
+                            <span className="text-xl font-bold text-[#3E667D]">
                               {cartService.formatCurrency(item.lineTotal)}
                             </span>
                           </div>
@@ -335,7 +335,7 @@ export default function CartPage() {
               <div className="lg:col-span-1">
                 <Card className="sticky top-32 border-gray-100 shadow-sm" padding="lg">
                   <div className="mb-6 flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-[#003B7A]">
+                    <h2 className="text-xl font-bold text-[#3E667D]">
                       Resumen del Pedido
                     </h2>
                     <Badge variant="info" size="sm">
@@ -416,19 +416,19 @@ export default function CartPage() {
 
                     <div className="flex justify-between">
                       <span className="text-gray-600">Envío</span>
-                      <span className={shipping === 0 ? 'text-[#7AB82E] font-medium' : ''}>
+                      <span className={shipping === 0 ? 'text-[#3E667D] font-medium' : ''}>
                         {shipping === 0 ? 'Calculado en checkout' : cartService.formatCurrency(shipping)}
                       </span>
                     </div>
 
-                    <div className="flex justify-between text-lg font-bold text-[#003B7A] pt-3 border-t border-gray-200">
+                    <div className="flex justify-between text-lg font-bold text-[#3E667D] pt-3 border-t border-gray-200">
                       <span>Total</span>
                       <span>{cartService.formatCurrency(total)}</span>
                     </div>
 
                     {/* Points */}
                     {cart.totalPoints > 0 && (
-                      <p className="text-sm text-[#7AB82E] text-center pt-2">
+                      <p className="text-sm text-[#3E667D] text-center pt-2">
                         +{cart.totalPoints} puntos por esta compra
                       </p>
                     )}
@@ -447,15 +447,15 @@ export default function CartPage() {
                   {/* Trust Badges */}
                   <div className="mt-6 pt-6 border-t border-gray-100">
                     <div className="flex items-center gap-2 text-gray-500 text-sm mb-3">
-                      <ShieldCheckIcon className="h-5 w-5 text-[#7AB82E]" />
+                      <ShieldCheckIcon className="h-5 w-5 text-[#3E667D]" />
                       <span>Compra 100% segura</span>
                     </div>
                     <div className="flex items-center gap-2 text-gray-500 text-sm mb-3">
-                      <TruckIcon className="h-5 w-5 text-[#7AB82E]" />
+                      <TruckIcon className="h-5 w-5 text-[#3E667D]" />
                       <span>Envío gratis en pedidos +{cartService.formatCurrency(FREE_SHIPPING_THRESHOLD)}</span>
                     </div>
                     <div className="flex items-center gap-2 text-gray-500 text-sm">
-                      <svg className="h-5 w-5 text-[#7AB82E]" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="h-5 w-5 text-[#3E667D]" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
                       </svg>
                       <span>30 días de garantía</span>

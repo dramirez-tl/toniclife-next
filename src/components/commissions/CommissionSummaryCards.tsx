@@ -84,9 +84,9 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
   return (
     <div className="space-y-6">
       {/* Hero Card - Total del Periodo */}
-      <Card className="overflow-hidden border-0 shadow-xl shadow-[#7AB82E]/10">
+      <Card className="overflow-hidden border-0 shadow-xl shadow-[#3E667D]/10">
         <CardContent className="p-0">
-          <div className="relative bg-gradient-to-br from-[#7AB82E] via-[#6aa025] to-[#5a8a20] text-white">
+          <div className="relative bg-gradient-to-br from-[#3E667D] via-[#2f5165] to-[#3E667D] text-white">
             {/* Decorative elements */}
             <div className="absolute inset-0 overflow-hidden">
               <div className="absolute -top-24 -right-24 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
@@ -162,11 +162,11 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
       {/* Sales Volume Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Personal Sales */}
-        <Card className="group hover:shadow-lg hover:shadow-[#7AB82E]/10 transition-all duration-300 border-0 shadow-md overflow-hidden">
+        <Card className="group hover:shadow-lg hover:shadow-[#3E667D]/10 transition-all duration-300 border-0 shadow-md overflow-hidden">
           <CardContent className="p-0">
             <div className="p-5">
               <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#7AB82E] to-[#6aa025] rounded-xl flex items-center justify-center shadow-lg shadow-[#7AB82E]/30 group-hover:scale-110 transition-transform duration-300">
+                <div className="w-12 h-12 bg-gradient-to-br from-[#abc9ba] to-[#3E667D] rounded-xl flex items-center justify-center shadow-lg shadow-[#3E667D]/30 group-hover:scale-110 transition-transform duration-300">
                   <ShoppingBagIcon className="h-6 w-6 text-white" />
                 </div>
               </div>
@@ -176,21 +176,21 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
               </p>
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <p className="text-xs text-gray-500 flex items-center gap-1">
-                  <ShoppingBagIcon className="h-3.5 w-3.5 text-[#7AB82E]" />
+                  <ShoppingBagIcon className="h-3.5 w-3.5 text-[#3E667D]" />
                   Tus compras en el periodo
                 </p>
               </div>
             </div>
-            <div className="h-1 bg-gradient-to-r from-[#7AB82E] to-[#6aa025]" />
+            <div className="h-1 bg-gradient-to-r from-[#abc9ba] to-[#3E667D]" />
           </CardContent>
         </Card>
 
         {/* Network Sales Volume */}
-        <Card className="group hover:shadow-lg hover:shadow-[#003B7A]/10 transition-all duration-300 border-0 shadow-md overflow-hidden">
+        <Card className="group hover:shadow-lg hover:shadow-[#3E667D]/10 transition-all duration-300 border-0 shadow-md overflow-hidden">
           <CardContent className="p-0">
             <div className="p-5">
               <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-[#003B7A] to-[#004d99] rounded-xl flex items-center justify-center shadow-lg shadow-[#003B7A]/30 group-hover:scale-110 transition-transform duration-300">
+                <div className="w-12 h-12 bg-gradient-to-br from-[#3E667D] to-[#4d7a8f] rounded-xl flex items-center justify-center shadow-lg shadow-[#3E667D]/30 group-hover:scale-110 transition-transform duration-300">
                   <UserGroupIcon className="h-6 w-6 text-white" />
                 </div>
               </div>
@@ -200,12 +200,12 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
               </p>
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <p className="text-xs text-gray-500 flex items-center gap-1">
-                  <UserGroupIcon className="h-3.5 w-3.5 text-[#003B7A]" />
+                  <UserGroupIcon className="h-3.5 w-3.5 text-[#3E667D]" />
                   Ventas de tu red en el periodo
                 </p>
               </div>
             </div>
-            <div className="h-1 bg-gradient-to-r from-[#003B7A] to-[#004d99]" />
+            <div className="h-1 bg-gradient-to-r from-[#3E667D] to-[#4d7a8f]" />
           </CardContent>
         </Card>
       </div>
@@ -326,12 +326,12 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
               </div>
               <p className="font-bold text-orange-600 text-lg">{formatCurrency(summary.adjustmentsMxn)} <span className="text-[10px] font-semibold text-orange-400">{currencyCode}</span></p>
             </div>
-            <div className="bg-gradient-to-br from-[#003B7A]/5 to-[#003B7A]/10 rounded-xl p-4 border border-[#003B7A]/20">
+            <div className="bg-gradient-to-br from-[#3E667D]/5 to-[#3E667D]/10 rounded-xl p-4 border border-[#3E667D]/20">
               <div className="flex items-center gap-2 mb-2">
-                <CheckCircleSolidIcon className="w-4 h-4 text-[#003B7A]" />
+                <CheckCircleSolidIcon className="w-4 h-4 text-[#3E667D]" />
                 <p className="text-gray-600 text-xs font-medium">Total Neto</p>
               </div>
-              <p className="font-bold text-[#003B7A] text-lg">{formatCurrency(summary.totalNetMxn)} <span className="text-[10px] font-semibold text-[#003B7A]/50">{currencyCode}</span></p>
+              <p className="font-bold text-[#3E667D] text-lg">{formatCurrency(summary.totalNetMxn)} <span className="text-[10px] font-semibold text-[#3E667D]/50">{currencyCode}</span></p>
             </div>
           </div>
         </CardContent>

@@ -67,7 +67,7 @@ export default function AdminLayout({
             <Bars3Icon className="h-6 w-6" />
           </button>
           <div className="flex-1">
-            <span className="font-semibold text-[#003B7A]">Tonic Life Admin</span>
+            <span className="font-semibold text-[#3E667D]">Tonic Life Admin</span>
           </div>
           <NotificationBell />
         </header>

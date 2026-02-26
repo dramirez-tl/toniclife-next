@@ -256,7 +256,7 @@ export default function RecursosPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#7AB82E] text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
             <div className="flex justify-center mb-4">
@@ -303,8 +303,8 @@ export default function RecursosPage() {
                       onClick={() => setSelectedType(type.value)}
                       className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors text-sm ${
                         selectedType === type.value
-                          ? 'bg-[#003B7A] text-white border-[#003B7A]'
-                          : 'bg-white text-gray-700 border-gray-300 hover:border-[#003B7A]'
+                          ? 'bg-[#3E667D] text-white border-[#3E667D]'
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-[#3E667D]'
                       }`}
                     >
                       <Icon className="h-4 w-4" />
@@ -327,8 +327,8 @@ export default function RecursosPage() {
                     onClick={() => setSelectedCategory(category.value)}
                     className={`px-3 py-2 rounded-lg border transition-colors text-sm ${
                       selectedCategory === category.value
-                        ? 'bg-[#7AB82E] text-white border-[#7AB82E]'
-                        : 'bg-white text-gray-700 border-gray-300 hover:border-[#7AB82E]'
+                        ? 'bg-[#3E667D] text-white border-[#a7c1e2]'
+                        : 'bg-white text-gray-700 border-gray-300 hover:border-[#a7c1e2]'
                     }`}
                   >
                     {category.label}
@@ -351,7 +351,7 @@ export default function RecursosPage() {
                 const TypeIcon = getTypeIcon(resource.type);
                 return (
                   <div key={resource.id} className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
-                    <div className="relative h-48 bg-gradient-to-br from-[#003B7A] to-[#7AB82E]">
+                    <div className="relative h-48 bg-gradient-to-br from-[#3E667D] to-[#C8DDF2]">
                       <Image
                         src={resource.thumbnail}
                         alt={resource.title}
@@ -369,7 +369,7 @@ export default function RecursosPage() {
                     </div>
                     <div className="p-6">
                       <div className="flex items-center gap-2 mb-3">
-                        <TypeIcon className="h-5 w-5 text-[#003B7A]" />
+                        <TypeIcon className="h-5 w-5 text-[#3E667D]" />
                         <span className="text-sm font-medium text-gray-600">
                           {types.find(t => t.value === resource.type)?.label}
                         </span>
@@ -382,7 +382,7 @@ export default function RecursosPage() {
                       </div>
                       <button
                         onClick={() => handleDownload(resource)}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#003B7A] text-white rounded-lg hover:bg-[#002855] transition-colors font-medium"
+                        className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#3E667D] text-white rounded-lg hover:bg-[#002855] transition-colors font-medium"
                       >
                         <ArrowDownTrayIcon className="h-5 w-5" />
                         <span>Descargar Gratis</span>
@@ -419,7 +419,7 @@ export default function RecursosPage() {
                     </div>
                     <div className="p-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <TypeIcon className="h-4 w-4 text-[#003B7A]" />
+                        <TypeIcon className="h-4 w-4 text-[#3E667D]" />
                         <span className="text-xs font-medium text-gray-600">
                           {types.find(t => t.value === resource.type)?.label}
                         </span>
@@ -432,7 +432,7 @@ export default function RecursosPage() {
                       </div>
                       <button
                         onClick={() => handleDownload(resource)}
-                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-[#7AB82E] text-white rounded-lg hover:bg-[#6ba625] transition-colors text-sm font-medium"
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#6ba625] transition-colors text-sm font-medium"
                       >
                         <ArrowDownTrayIcon className="h-4 w-4" />
                         <span>Descargar</span>
@@ -455,7 +455,7 @@ export default function RecursosPage() {
                 setSelectedCategory('all');
                 setSearchQuery('');
               }}
-              className="mt-4 text-[#003B7A] hover:text-[#002855] font-medium"
+              className="mt-4 text-[#3E667D] hover:text-[#002855] font-medium"
             >
               Limpiar filtros
             </button>

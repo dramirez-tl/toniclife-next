@@ -166,7 +166,7 @@ export default function SuperUserPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -266,7 +266,7 @@ export default function SuperUserPage() {
 
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003B7A]"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3E667D]"></div>
           </div>
         ) : (
           <>
@@ -367,7 +367,7 @@ export default function SuperUserPage() {
                         return (
                           <div key={entry.date} className="flex-1 flex flex-col items-center">
                             <div
-                              className="w-full bg-gradient-to-t from-[#003B7A] to-[#003B7A]/70 rounded-t"
+                              className="w-full bg-gradient-to-t from-[#3E667D] to-[#3E667D]/70 rounded-t"
                               style={{ height: `${height}%` }}
                               title={`${entry.date}: ${entry.count} acciones`}
                             >
@@ -399,7 +399,7 @@ export default function SuperUserPage() {
                     {/* Legend */}
                     <div className="flex items-center gap-4 justify-center text-sm">
                       <div className="flex items-center gap-1">
-                        <div className="w-3 h-3 bg-[#003B7A] rounded" />
+                        <div className="w-3 h-3 bg-[#3E667D] rounded" />
                         <span className="text-gray-600">Normal</span>
                       </div>
                       <div className="flex items-center gap-1">
@@ -434,7 +434,7 @@ export default function SuperUserPage() {
                         href={`/admin/auditoria/superusuario/usuario/${user.userId}`}
                         className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
                       >
-                        <div className="w-8 h-8 bg-[#003B7A] text-white rounded-full flex items-center justify-center font-bold text-sm">
+                        <div className="w-8 h-8 bg-[#3E667D] text-white rounded-full flex items-center justify-center font-bold text-sm">
                           {index + 1}
                         </div>
                         <div className="flex-1 min-w-0">

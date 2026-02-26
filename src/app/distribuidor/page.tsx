@@ -46,7 +46,7 @@ const activityIcons: Record<string, typeof ChartBarIcon> = {
 
 // Colores para tipos de actividad
 const activityColors: Record<string, string> = {
-  sale: 'bg-[#7AB82E]/10 text-[#7AB82E]',
+  sale: 'bg-[#C8DDF2]/10 text-[#3E667D]',
   recruit: 'bg-blue-50 text-blue-600',
   commission: 'bg-purple-50 text-purple-600',
   qualification: 'bg-yellow-50 text-yellow-600',
@@ -279,7 +279,7 @@ export default function DistribuidorDashboard() {
               <div className="pt-4 space-y-3">
                 <Button
                   variant="primary"
-                  className="w-full bg-[#003B7A] hover:bg-[#002a5c]"
+                  className="w-full bg-[#3E667D] hover:bg-[#002a5c]"
                   leftIcon={<ArrowPathIcon className="h-5 w-5" />}
                   onClick={() => refetch()}
                 >
@@ -390,7 +390,7 @@ export default function DistribuidorDashboard() {
 
       {/* Period Info Banner */}
       {points && (
-        <div className="bg-gradient-to-r from-[#003B7A]/10 to-[#7AB82E]/10 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="bg-gradient-to-r from-[#3E667D]/10 to-[#C8DDF2]/10 rounded-lg p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <p className="text-sm text-gray-600">Periodo actual</p>
             <p className="font-semibold text-gray-900">{points.periodName}</p>
@@ -398,11 +398,11 @@ export default function DistribuidorDashboard() {
           <div className="flex items-center gap-4">
             <div className="text-right">
               <p className="text-sm text-gray-600">Días restantes</p>
-              <p className="font-bold text-lg text-[#003B7A]">{points.daysRemaining}</p>
+              <p className="font-bold text-lg text-[#3E667D]">{points.daysRemaining}</p>
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-600">Puntos personales</p>
-              <p className="font-bold text-lg text-[#7AB82E]">
+              <p className="font-bold text-lg text-[#3E667D]">
                 {points.personalPoints.toLocaleString()} / {points.personalPointsRequired.toLocaleString()}
               </p>
             </div>
@@ -414,8 +414,8 @@ export default function DistribuidorDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Comisiones del Mes - Diseño mejorado */}
           <Card className="relative overflow-hidden border-0 shadow-lg">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#003B7A] via-[#004a99] to-[#002a5c]" />
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#7AB82E]/20 rounded-full -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute inset-0 bg-gradient-to-br from-[#3E667D] via-[#004a99] to-[#002a5c]" />
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#C8DDF2]/20 rounded-full -translate-y-1/2 translate-x-1/2" />
             <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
             <CardContent className="relative p-6">
               <div className="flex items-start justify-between mb-3">
@@ -423,7 +423,7 @@ export default function DistribuidorDashboard() {
                   <CurrencyDollarIcon className="h-6 w-6 text-white" />
                 </div>
                 {commissionsSummary?.changeFromLastPeriod !== undefined && (
-                  <div className="flex items-center gap-1 bg-[#7AB82E] px-2.5 py-1 rounded-full">
+                  <div className="flex items-center gap-1 bg-[#C8DDF2] px-2.5 py-1 rounded-full">
                     <ArrowTrendingUpIcon className="h-3.5 w-3.5 text-white" />
                     <span className="text-xs font-bold text-white">
                       {commissionsSummary.changeFromLastPeriod >= 0 ? '+' : ''}
@@ -439,7 +439,7 @@ export default function DistribuidorDashboard() {
               </p>
               <div className="mt-3 pt-3 border-t border-white/10">
                 <p className="text-xs text-white/50 flex items-center gap-1">
-                  <CheckCircleIcon className="h-3.5 w-3.5 text-[#7AB82E]" />
+                  <CheckCircleIcon className="h-3.5 w-3.5 text-[#3E667D]" />
                   Neto después de impuestos
                 </p>
               </div>
@@ -450,11 +450,11 @@ export default function DistribuidorDashboard() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <ChartBarIcon className="h-8 w-8 text-[#7AB82E]" />
-                <ArrowTrendingUpIcon className="h-5 w-5 text-[#7AB82E]" />
+                <ChartBarIcon className="h-8 w-8 text-[#3E667D]" />
+                <ArrowTrendingUpIcon className="h-5 w-5 text-[#3E667D]" />
               </div>
               <p className="text-sm text-gray-600 mb-1">Ventas totales</p>
-              <p className="text-3xl font-bold text-[#003B7A]">
+              <p className="text-3xl font-bold text-[#3E667D]">
                 {formatMoney(stats?.totalSales || 0)}
                 <span className="inline-flex text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 ml-1">{currencyCode}</span>
               </p>
@@ -468,11 +468,11 @@ export default function DistribuidorDashboard() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <UsersIcon className="h-8 w-8 text-[#7AB82E]" />
+                <UsersIcon className="h-8 w-8 text-[#3E667D]" />
                 <Badge variant="info">{networkSummary?.activeDistributors || 0} activos</Badge>
               </div>
               <p className="text-sm text-gray-600 mb-1">Red de distribuidores</p>
-              <p className="text-3xl font-bold text-[#003B7A]">
+              <p className="text-3xl font-bold text-[#3E667D]">
                 {networkSummary?.totalDistributors || 0}
               </p>
               <div className="mt-2 text-sm text-gray-500">
@@ -482,7 +482,7 @@ export default function DistribuidorDashboard() {
           </Card>
 
           {/* Progreso de Rango */}
-          <Card className="bg-gradient-to-br from-[#7AB82E] to-[#7AB82E]/80 text-white">
+          <Card className="bg-gradient-to-br from-[#C8DDF2] to-[#C8DDF2]/80 text-white">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <TrophyIcon className="h-8 w-8 text-white/80" />
@@ -532,7 +532,7 @@ export default function DistribuidorDashboard() {
                             <p className="font-medium text-gray-900">{activity.title}</p>
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                               {activity.amount !== undefined && (
-                                <span className="text-sm font-semibold text-[#7AB82E]">
+                                <span className="text-sm font-semibold text-[#3E667D]">
                                   +{formatMoney(activity.amount)}
                                   <span className="text-[9px] font-semibold text-gray-400 ml-0.5">{currencyCode}</span>
                                 </span>
@@ -594,7 +594,7 @@ export default function DistribuidorDashboard() {
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold text-[#003B7A]">
+                          <p className="font-bold text-[#3E667D]">
                             {formatMoney(performer.sales)}
                             <span className="text-[9px] font-semibold text-gray-400 ml-0.5">{currencyCode}</span>
                           </p>
@@ -622,7 +622,7 @@ export default function DistribuidorDashboard() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
-                    <AcademicCapIcon className="h-6 w-6 text-[#003B7A]" />
+                    <AcademicCapIcon className="h-6 w-6 text-[#3E667D]" />
                     Capacitación
                   </CardTitle>
                   <Link href="/distribuidor/capacitacion">
@@ -645,8 +645,8 @@ export default function DistribuidorDashboard() {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Personal Links Card - Mejorado con mejor contraste */}
-            <Card className="border-2 border-[#7AB82E] bg-gradient-to-br from-white to-gray-50 overflow-hidden">
-              <div className="bg-[#7AB82E] px-6 py-3">
+            <Card className="border-2 border-[#a7c1e2] bg-gradient-to-br from-white to-gray-50 overflow-hidden">
+              <div className="bg-[#C8DDF2] px-6 py-3">
                 <h3 className="font-bold text-white flex items-center gap-2">
                   <ShareIcon className="h-5 w-5" />
                   Tus Enlaces Personales
@@ -659,7 +659,7 @@ export default function DistribuidorDashboard() {
                     <p className="text-xs text-blue-600 uppercase tracking-wide mb-1 font-medium">
                       Enlace de Tienda
                     </p>
-                    <p className="font-mono text-sm text-[#003B7A] break-all font-medium">
+                    <p className="font-mono text-sm text-[#3E667D] break-all font-medium">
                       {dynamicStoreLink || 'Cargando...'}
                     </p>
                     <p className="text-xs text-gray-500 mt-2">
@@ -670,7 +670,7 @@ export default function DistribuidorDashboard() {
                     <Button
                       variant="primary"
                       size="sm"
-                      className="flex-1 bg-[#003B7A] hover:bg-[#002a5c]"
+                      className="flex-1 bg-[#3E667D] hover:bg-[#002a5c]"
                       leftIcon={<ClipboardDocumentIcon className="h-4 w-4" />}
                       onClick={handleCopyStoreLink}
                       disabled={copyLinkMutation.isPending}
@@ -680,7 +680,7 @@ export default function DistribuidorDashboard() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1 border-[#7AB82E] text-[#7AB82E] hover:bg-[#7AB82E]/10"
+                      className="flex-1 border-[#a7c1e2] text-[#3E667D] hover:bg-[#C8DDF2]/10"
                       leftIcon={<ShareIcon className="h-4 w-4" />}
                       onClick={handleShareStoreLink}
                       disabled={shareLinkMutation.isPending}
@@ -699,7 +699,7 @@ export default function DistribuidorDashboard() {
                     <p className="text-xs text-gray-500 uppercase tracking-wide mb-1 font-medium">
                       Enlace de Registro
                     </p>
-                    <p className="font-mono text-sm text-[#003B7A] break-all font-medium">
+                    <p className="font-mono text-sm text-[#3E667D] break-all font-medium">
                       {dynamicPersonalLink || 'Cargando...'}
                     </p>
                     <p className="text-xs text-gray-500 mt-2">
@@ -710,7 +710,7 @@ export default function DistribuidorDashboard() {
                     <Button
                       variant="primary"
                       size="sm"
-                      className="flex-1 bg-[#003B7A] hover:bg-[#002a5c]"
+                      className="flex-1 bg-[#3E667D] hover:bg-[#002a5c]"
                       leftIcon={<ClipboardDocumentIcon className="h-4 w-4" />}
                       onClick={handleCopyLink}
                       disabled={copyLinkMutation.isPending}
@@ -720,7 +720,7 @@ export default function DistribuidorDashboard() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1 border-[#7AB82E] text-[#7AB82E] hover:bg-[#7AB82E]/10"
+                      className="flex-1 border-[#a7c1e2] text-[#3E667D] hover:bg-[#C8DDF2]/10"
                       leftIcon={<ShareIcon className="h-4 w-4" />}
                       onClick={handleShareLink}
                       disabled={shareLinkMutation.isPending}
@@ -740,17 +740,17 @@ export default function DistribuidorDashboard() {
               <CardContent className="pt-2">
                 <div className="grid grid-cols-2 gap-3">
                   <Link href="/distribuidor/ventas" className="block">
-                    <div className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-100 hover:border-[#7AB82E] hover:bg-[#7AB82E]/5 transition-all cursor-pointer group">
-                      <div className="w-10 h-10 rounded-full bg-[#7AB82E]/10 flex items-center justify-center group-hover:bg-[#7AB82E]/20 transition-colors">
-                        <ChartBarIcon className="h-5 w-5 text-[#7AB82E]" />
+                    <div className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-100 hover:border-[#a7c1e2] hover:bg-[#C8DDF2]/5 transition-all cursor-pointer group">
+                      <div className="w-10 h-10 rounded-full bg-[#C8DDF2]/10 flex items-center justify-center group-hover:bg-[#C8DDF2]/20 transition-colors">
+                        <ChartBarIcon className="h-5 w-5 text-[#3E667D]" />
                       </div>
                       <span className="text-sm font-medium text-gray-700 text-center">Registrar venta</span>
                     </div>
                   </Link>
                   <Link href="/distribuidor/red" className="block">
-                    <div className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-100 hover:border-[#003B7A] hover:bg-[#003B7A]/5 transition-all cursor-pointer group">
-                      <div className="w-10 h-10 rounded-full bg-[#003B7A]/10 flex items-center justify-center group-hover:bg-[#003B7A]/20 transition-colors">
-                        <UsersIcon className="h-5 w-5 text-[#003B7A]" />
+                    <div className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-100 hover:border-[#3E667D] hover:bg-[#3E667D]/5 transition-all cursor-pointer group">
+                      <div className="w-10 h-10 rounded-full bg-[#3E667D]/10 flex items-center justify-center group-hover:bg-[#3E667D]/20 transition-colors">
+                        <UsersIcon className="h-5 w-5 text-[#3E667D]" />
                       </div>
                       <span className="text-sm font-medium text-gray-700 text-center">Ver mi red</span>
                     </div>
@@ -801,7 +801,7 @@ export default function DistribuidorDashboard() {
                             <div className="flex justify-between mb-1">
                               <span className="text-gray-600">{req.name}</span>
                               {req.isMet ? (
-                                <span className="font-medium text-[#7AB82E]">
+                                <span className="font-medium text-[#3E667D]">
                                   <CheckCircleIcon className="h-4 w-4 inline mr-1" />
                                   Completado
                                 </span>
@@ -814,7 +814,7 @@ export default function DistribuidorDashboard() {
                             {!req.isMet && (
                               <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden">
                                 <div
-                                  className="h-full bg-[#7AB82E] rounded-full transition-all"
+                                  className="h-full bg-[#C8DDF2] rounded-full transition-all"
                                   style={{ width: `${Math.min(req.percentComplete, 100)}%` }}
                                 />
                               </div>
@@ -844,33 +844,33 @@ export default function DistribuidorDashboard() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-center pb-2 border-b">
                       <span className="text-gray-600">Puntos personales</span>
-                      <span className="font-bold text-[#003B7A]">
+                      <span className="font-bold text-[#3E667D]">
                         {points.personalPoints.toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between items-center pb-2 border-b">
                       <span className="text-gray-600">Puntos de negocio (MXN)</span>
-                      <span className="font-bold text-[#003B7A]">
+                      <span className="font-bold text-[#3E667D]">
                         {points.businessPointsMxn.toLocaleString()}
                       </span>
                     </div>
                     <div className="flex justify-between items-center pb-2 border-b">
                       <span className="text-gray-600">Puntos de grupo</span>
-                      <span className="font-bold text-[#003B7A]">
+                      <span className="font-bold text-[#3E667D]">
                         {points.groupPoints.toLocaleString()}
                       </span>
                     </div>
                     {points.rolloverPoints > 0 && (
                       <div className="flex justify-between items-center pb-2 border-b">
                         <span className="text-gray-600">Puntos Acumulados</span>
-                        <span className="font-bold text-[#7AB82E]">
+                        <span className="font-bold text-[#3E667D]">
                           +{points.rolloverPoints.toLocaleString()}
                         </span>
                       </div>
                     )}
                     <div className="flex justify-between items-center pt-2">
                       <span className="font-semibold text-gray-800">Total</span>
-                      <span className="font-bold text-lg text-[#003B7A]">
+                      <span className="font-bold text-lg text-[#3E667D]">
                         {points.totalPoints.toLocaleString()}
                       </span>
                     </div>
@@ -914,7 +914,7 @@ function StartupProgramWidget() {
     <Link href="/distribuidor/programa-arranque" className="block mb-2">
       <Card className="border-0 shadow-md hover:shadow-lg transition-shadow cursor-pointer overflow-hidden">
         <div className="flex items-stretch">
-          <div className="bg-gradient-to-b from-[#003B7A] to-[#002a5c] p-4 flex items-center justify-center">
+          <div className="bg-gradient-to-b from-[#3E667D] to-[#002a5c] p-4 flex items-center justify-center">
             <RocketLaunchIcon className="h-8 w-8 text-white" />
           </div>
           <CardContent className="p-4 flex-1">
@@ -924,7 +924,7 @@ function StartupProgramWidget() {
                 <p className="text-xs text-gray-500">{program.name}</p>
               </div>
               <div className="text-right">
-                <p className="text-lg font-bold text-[#003B7A]">{recruits}</p>
+                <p className="text-lg font-bold text-[#3E667D]">{recruits}</p>
                 <p className="text-xs text-gray-500">inscritos</p>
               </div>
             </div>
@@ -932,14 +932,14 @@ function StartupProgramWidget() {
               <div className="mt-3">
                 <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
                   <span>Proximo hito: {nextMilestone.recruitsNeeded} inscritos</span>
-                  <span className="font-medium text-[#7AB82E]">
+                  <span className="font-medium text-[#3E667D]">
                     {fmtCurrency(nextMilestone.bonusAmount)}
                     <span className="text-[8px] font-semibold text-gray-400 ml-0.5">{currency}</span>
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
-                    className="bg-[#7AB82E] h-2 rounded-full transition-all"
+                    className="bg-[#C8DDF2] h-2 rounded-full transition-all"
                     style={{ width: `${progressPct}%` }}
                   />
                 </div>

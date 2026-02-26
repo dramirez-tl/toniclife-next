@@ -225,7 +225,7 @@ export default function ComunidadPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="text-center">
             <div className="flex justify-center mb-4">
@@ -276,7 +276,7 @@ export default function ComunidadPage() {
                         onClick={() => setFilter(item.id)}
                         className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-colors ${
                           filter === item.id
-                            ? 'bg-[#003B7A] text-white'
+                            ? 'bg-[#3E667D] text-white'
                             : 'hover:bg-gray-100 text-gray-700'
                         }`}
                       >
@@ -299,7 +299,7 @@ export default function ComunidadPage() {
                 <div className="space-y-3">
                   {trendingTopics.map((topic) => (
                     <div key={topic.name} className="flex items-center justify-between">
-                      <span className="text-sm text-[#003B7A] font-medium hover:underline cursor-pointer">
+                      <span className="text-sm text-[#3E667D] font-medium hover:underline cursor-pointer">
                         #{topic.name}
                       </span>
                       <span className="text-xs text-gray-500">{topic.count} publicaciones</span>
@@ -310,7 +310,7 @@ export default function ComunidadPage() {
             </Card>
 
             {/* CTA Card */}
-            <Card className="bg-gradient-to-br from-[#003B7A] to-[#003B7A]/90 text-white">
+            <Card className="bg-gradient-to-br from-[#3E667D] to-[#3E667D]/90 text-white">
               <CardContent className="p-6">
                 <h3 className="font-bold text-lg mb-2">¿Tienes una historia que contar?</h3>
                 <p className="text-white/90 text-sm mb-4">
@@ -392,7 +392,7 @@ export default function ComunidadPage() {
                       {post.tags.map((tag) => (
                         <span
                           key={tag}
-                          className="text-xs text-[#003B7A] bg-blue-50 px-2 py-1 rounded-full hover:bg-blue-100 cursor-pointer"
+                          className="text-xs text-[#3E667D] bg-blue-50 px-2 py-1 rounded-full hover:bg-blue-100 cursor-pointer"
                         >
                           #{tag}
                         </span>
@@ -416,14 +416,14 @@ export default function ComunidadPage() {
                       </button>
                       <button
                         onClick={() => handleComment(post.id)}
-                        className="flex items-center gap-2 text-gray-600 hover:text-[#003B7A] transition-colors"
+                        className="flex items-center gap-2 text-gray-600 hover:text-[#3E667D] transition-colors"
                       >
                         <ChatBubbleLeftIcon className="h-6 w-6" />
                         <span className="text-sm font-medium">{post.comments}</span>
                       </button>
                       <button
                         onClick={() => handleShare(post.id)}
-                        className="flex items-center gap-2 text-gray-600 hover:text-[#7AB82E] transition-colors"
+                        className="flex items-center gap-2 text-gray-600 hover:text-[#3E667D] transition-colors"
                       >
                         <ShareIcon className="h-6 w-6" />
                         <span className="text-sm font-medium">{post.shares}</span>

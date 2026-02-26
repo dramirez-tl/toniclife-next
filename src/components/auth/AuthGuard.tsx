@@ -73,7 +73,7 @@ export function AuthGuard({
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003B7A] mx-auto mb-4" />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3E667D] mx-auto mb-4" />
           <p className="text-gray-500 text-sm">Cargando...</p>
         </div>
       </div>
@@ -85,7 +85,7 @@ export function AuthGuard({
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003B7A] mx-auto mb-4" />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3E667D] mx-auto mb-4" />
           <p className="text-gray-500 text-sm">Redirigiendo al login...</p>
         </div>
       </div>
@@ -99,7 +99,7 @@ export function AuthGuard({
       return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003B7A] mx-auto mb-4" />
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3E667D] mx-auto mb-4" />
             <p className="text-gray-500 text-sm">Acceso denegado, redirigiendo...</p>
           </div>
         </div>

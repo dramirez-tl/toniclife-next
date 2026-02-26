@@ -60,12 +60,12 @@ export default function ForgotPasswordPage() {
 
   if (emailSent) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-[#003B7A]/5 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-[#3E667D]/5 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full">
           <div className="text-center mb-8">
             <Link href="/">
               <Image
-                src="/images/logo.png"
+                src="/images/logo/logo-text-dark.png"
                 alt="Tonic Life"
                 width={200}
                 height={80}
@@ -76,8 +76,8 @@ export default function ForgotPasswordPage() {
 
           <Card className="rounded-3xl border-gray-100 shadow-xl shadow-gray-100/70">
             <CardContent className="p-8 text-center">
-              <div className="w-16 h-16 bg-[#7AB82E]/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircleIcon className="h-10 w-10 text-[#7AB82E]" />
+              <div className="w-16 h-16 bg-[#C8DDF2]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircleIcon className="h-10 w-10 text-[#3E667D]" />
               </div>
 
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
@@ -89,7 +89,7 @@ export default function ForgotPasswordPage() {
               </p>
 
               <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                <p className="font-medium text-[#003B7A]">{email}</p>
+                <p className="font-medium text-[#3E667D]">{email}</p>
               </div>
 
               <div className="text-sm text-gray-600 mb-6 space-y-2">
@@ -110,7 +110,7 @@ export default function ForgotPasswordPage() {
                     setEmailSent(false);
                     setEmail('');
                   }}
-                  className="w-full rounded-lg px-3 py-2 text-sm text-[#003B7A] hover:bg-[#003B7A]/5 hover:text-[#7AB82E] transition-colors"
+                  className="w-full rounded-lg px-3 py-2 text-sm text-[#3E667D] hover:bg-[#3E667D]/5 hover:text-[#3E667D] transition-colors"
                 >
                   ¿No recibiste el email? Reenviar
                 </button>
@@ -123,19 +123,19 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-[#003B7A]/5 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-[#3E667D]/5 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <Link href="/">
             <Image
-              src="/images/logo.png"
+              src="/images/logo/logo-text-dark.png"
               alt="Tonic Life"
               width={200}
               height={80}
               className="h-12 w-auto mx-auto mb-6"
             />
           </Link>
-          <div className="inline-flex items-center gap-2 rounded-full bg-[#003B7A]/8 px-3 py-1 text-xs font-medium text-[#003B7A] mb-3">
+          <div className="inline-flex items-center gap-2 rounded-full bg-[#3E667D]/8 px-3 py-1 text-xs font-medium text-[#3E667D] mb-3">
             <EnvelopeIcon className="h-3.5 w-3.5" />
             Recuperación segura
           </div>
@@ -150,8 +150,8 @@ export default function ForgotPasswordPage() {
         <Card className="rounded-3xl border-gray-100 shadow-xl shadow-gray-100/70">
           <CardContent className="p-8">
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="rounded-xl border border-[#003B7A]/15 bg-[#003B7A]/5 p-4">
-                <p className="text-sm text-[#003B7A]/90">
+              <div className="rounded-xl border border-[#3E667D]/15 bg-[#3E667D]/5 p-4">
+                <p className="text-sm text-[#3E667D]/90">
                   Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.
                 </p>
               </div>
@@ -199,7 +199,7 @@ export default function ForgotPasswordPage() {
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-600">
             ¿Necesitas ayuda?{' '}
-            <Link href="/contacto" className="font-medium text-[#003B7A] hover:text-[#7AB82E] transition-colors">
+            <Link href="/contacto" className="font-medium text-[#3E667D] hover:text-[#3E667D] transition-colors">
               Contacta a soporte
             </Link>
           </p>

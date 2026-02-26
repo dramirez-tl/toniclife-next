@@ -129,7 +129,7 @@ export default function RegistroPage() {
         <div className="text-center mb-8">
           <Link href="/">
             <Image
-              src="/images/logo.png"
+              src="/images/logo/logo-text-dark.png"
               alt="Tonic Life"
               width={200}
               height={80}
@@ -141,7 +141,7 @@ export default function RegistroPage() {
           </h2>
           <p className="mt-2 text-sm text-gray-600">
             ¿Ya tienes cuenta?{' '}
-            <Link href="/login" className="font-medium text-[#003B7A] hover:text-[#7AB82E] transition-colors">
+            <Link href="/login" className="font-medium text-[#3E667D] hover:text-[#3E667D] transition-colors">
               Inicia sesión
             </Link>
           </p>
@@ -236,7 +236,7 @@ export default function RegistroPage() {
                       <div key={index} className="flex items-center gap-2">
                         <CheckCircleIcon
                           className={`h-4 w-4 ${
-                            req.met ? 'text-[#7AB82E]' : 'text-gray-300'
+                            req.met ? 'text-[#3E667D]' : 'text-gray-300'
                           }`}
                         />
                         <span className={`text-xs ${
@@ -284,16 +284,16 @@ export default function RegistroPage() {
                     type="checkbox"
                     checked={formData.acceptTerms}
                     onChange={(e) => setFormData({ ...formData, acceptTerms: e.target.checked })}
-                    className="mt-1 h-4 w-4 text-[#003B7A] border-gray-300 rounded focus:ring-[#7AB82E]"
+                    className="mt-1 h-4 w-4 text-[#3E667D] border-gray-300 rounded focus:ring-[#a7c1e2]"
                     disabled={isLoading}
                   />
                   <span className="text-sm text-gray-600">
                     Acepto los{' '}
-                    <Link href="/terminos" className="text-[#003B7A] hover:text-[#7AB82E] underline">
+                    <Link href="/terminos" className="text-[#3E667D] hover:text-[#3E667D] underline">
                       términos y condiciones
                     </Link>
                     {' '}y la{' '}
-                    <Link href="/privacidad" className="text-[#003B7A] hover:text-[#7AB82E] underline">
+                    <Link href="/privacidad" className="text-[#3E667D] hover:text-[#3E667D] underline">
                       política de privacidad
                     </Link>
                   </span>
@@ -307,7 +307,7 @@ export default function RegistroPage() {
                     type="checkbox"
                     checked={formData.acceptMarketing}
                     onChange={(e) => setFormData({ ...formData, acceptMarketing: e.target.checked })}
-                    className="mt-1 h-4 w-4 text-[#003B7A] border-gray-300 rounded focus:ring-[#7AB82E]"
+                    className="mt-1 h-4 w-4 text-[#3E667D] border-gray-300 rounded focus:ring-[#a7c1e2]"
                     disabled={isLoading}
                   />
                   <span className="text-sm text-gray-600">
@@ -332,7 +332,7 @@ export default function RegistroPage() {
         </Card>
 
         {/* Distributor CTA */}
-        <Card className="mt-6 bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+        <Card className="mt-6 bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>

@@ -228,9 +228,9 @@ export default function EventosPage() {
       {/* Hero Header */}
       <div className="relative overflow-hidden">
         {/* Background with gradient and pattern */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#003B7A] via-[#0052a3] to-[#003B7A]">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#3E667D] via-[#0052a3] to-[#3E667D]">
           <div className="absolute inset-0 opacity-30">
-            <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#7AB82E] rounded-full blur-[150px] transform translate-x-1/3 -translate-y-1/2" />
+            <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#C8DDF2] rounded-full blur-[150px] transform translate-x-1/3 -translate-y-1/2" />
             <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-400 rounded-full blur-[120px] transform -translate-x-1/3 translate-y-1/2" />
           </div>
           {/* Animated grid pattern */}
@@ -297,7 +297,7 @@ export default function EventosPage() {
                 <div>
                   <p className="text-sm font-medium text-gray-500 mb-1">Registrado en</p>
                   <p className="text-4xl font-bold text-gray-900">{registeredEvents.length}</p>
-                  <p className="text-xs text-[#7AB82E] mt-1 flex items-center gap-1">
+                  <p className="text-xs text-[#3E667D] mt-1 flex items-center gap-1">
                     <CheckCircleSolid className="h-3 w-3" /> Confirmados
                   </p>
                 </div>
@@ -307,7 +307,7 @@ export default function EventosPage() {
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-[#7AB82E] to-[#5d9020] rounded-2xl p-6 shadow-xl shadow-[#7AB82E]/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
+            <div className="bg-gradient-to-br from-[#C8DDF2] to-[#5d9020] rounded-2xl p-6 shadow-xl shadow-[#3E667D]/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-white/80 mb-1">Recordatorios</p>
@@ -328,7 +328,7 @@ export default function EventosPage() {
         {/* Featured Event - Redesigned */}
         {featuredEvent && (
           <div className="mb-10">
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#003B7A] via-[#004d99] to-[#003B7A] shadow-2xl">
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#3E667D] via-[#4d7a8f] to-[#3E667D] shadow-2xl">
               {/* Background Image with overlay */}
               <div className="absolute inset-0">
                 <Image
@@ -337,11 +337,11 @@ export default function EventosPage() {
                   fill
                   className="object-cover opacity-20"
                 />
-                <div className="absolute inset-0 bg-gradient-to-r from-[#003B7A] via-[#003B7A]/95 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-r from-[#3E667D] via-[#3E667D]/95 to-transparent" />
               </div>
 
               {/* Decorative elements */}
-              <div className="absolute top-0 right-0 w-96 h-96 bg-[#7AB82E]/20 rounded-full blur-[100px]" />
+              <div className="absolute top-0 right-0 w-96 h-96 bg-[#C8DDF2]/20 rounded-full blur-[100px]" />
               <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-blue-500/20 rounded-full blur-[80px]" />
 
               <div className="relative p-8 lg:p-12">
@@ -368,18 +368,18 @@ export default function EventosPage() {
 
                     <div className="flex flex-wrap gap-4 mb-8">
                       <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 text-white/90">
-                        <CalendarIcon className="h-5 w-5 text-[#7AB82E]" />
+                        <CalendarIcon className="h-5 w-5 text-[#3E667D]" />
                         <span className="font-medium">
                           {new Date(featuredEvent.date).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
                           {featuredEvent.endDate && ` - ${new Date(featuredEvent.endDate).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}`}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 text-white/90">
-                        <MapPinIcon className="h-5 w-5 text-[#7AB82E]" />
+                        <MapPinIcon className="h-5 w-5 text-[#3E667D]" />
                         <span className="font-medium">{featuredEvent.location}</span>
                       </div>
                       <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 text-white/90">
-                        <UserGroupIcon className="h-5 w-5 text-[#7AB82E]" />
+                        <UserGroupIcon className="h-5 w-5 text-[#3E667D]" />
                         <span className="font-medium">{featuredEvent.attendees?.toLocaleString()} registrados</span>
                       </div>
                     </div>
@@ -388,7 +388,7 @@ export default function EventosPage() {
                       <Button
                         variant="primary"
                         size="lg"
-                        className="bg-[#7AB82E] hover:bg-[#6aa025] shadow-xl shadow-[#7AB82E]/30 text-base px-8"
+                        className="bg-[#3E667D] hover:bg-[#2f5165] shadow-xl shadow-[#3E667D]/30 text-base px-8"
                         onClick={() => handleRegister(featuredEvent.id, featuredEvent.title)}
                       >
                         Registrarse Ahora
@@ -418,7 +418,7 @@ export default function EventosPage() {
                       </div>
                       <div className="h-3 bg-white/20 rounded-full overflow-hidden mb-2">
                         <div
-                          className="h-full bg-gradient-to-r from-[#7AB82E] to-emerald-400 rounded-full transition-all duration-500"
+                          className="h-full bg-gradient-to-r from-[#C8DDF2] to-emerald-400 rounded-full transition-all duration-500"
                           style={{ width: `${((featuredEvent.attendees || 0) / (featuredEvent.maxAttendees || 2000)) * 100}%` }}
                         />
                       </div>
@@ -439,7 +439,7 @@ export default function EventosPage() {
             <Card className="overflow-hidden border-0 shadow-xl shadow-gray-200/50">
               <CardContent className="p-0">
                 {/* Calendar Header */}
-                <div className="bg-gradient-to-r from-[#003B7A] to-[#004d99] p-5">
+                <div className="bg-gradient-to-r from-[#3E667D] to-[#4d7a8f] p-5">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-bold text-white capitalize">
                       {currentMonth.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' })}
@@ -492,9 +492,9 @@ export default function EventosPage() {
                           onMouseLeave={() => setHoveredDay(null)}
                           className={`aspect-square flex flex-col items-center justify-center text-sm rounded-xl cursor-pointer transition-all duration-200 relative ${
                             isToday
-                              ? 'bg-[#003B7A] text-white font-bold shadow-lg shadow-[#003B7A]/30 scale-105'
+                              ? 'bg-[#3E667D] text-white font-bold shadow-lg shadow-[#3E667D]/30 scale-105'
                               : hasEvents
-                              ? 'bg-[#7AB82E]/10 text-gray-900 font-semibold hover:bg-[#7AB82E]/20 hover:scale-105'
+                              ? 'bg-[#C8DDF2]/10 text-gray-900 font-semibold hover:bg-[#C8DDF2]/20 hover:scale-105'
                               : 'text-gray-600 hover:bg-gray-100'
                           }`}
                         >
@@ -506,7 +506,7 @@ export default function EventosPage() {
                                 return (
                                   <div
                                     key={idx}
-                                    className={`w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : config?.color || 'bg-[#7AB82E]'}`}
+                                    className={`w-1.5 h-1.5 rounded-full ${isToday ? 'bg-white' : config?.color || 'bg-[#C8DDF2]'}`}
                                   />
                                 );
                               })}
@@ -543,7 +543,7 @@ export default function EventosPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full border-dashed border-2 hover:border-[#7AB82E] hover:text-[#7AB82E] hover:bg-[#7AB82E]/5"
+                    className="w-full border-dashed border-2 hover:border-[#a7c1e2] hover:text-[#3E667D] hover:bg-[#C8DDF2]/5"
                     leftIcon={<PlusIcon className="h-4 w-4" />}
                     onClick={() => toast.info('Función próximamente disponible')}
                   >
@@ -558,7 +558,7 @@ export default function EventosPage() {
               <CardContent className="p-0">
                 <div className="p-5 bg-gradient-to-br from-gray-50 to-white">
                   <h4 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <SparklesIcon className="h-5 w-5 text-[#7AB82E]" />
+                    <SparklesIcon className="h-5 w-5 text-[#3E667D]" />
                     Acciones Rápidas
                   </h4>
                   <div className="space-y-2">
@@ -605,7 +605,7 @@ export default function EventosPage() {
                     <select
                       value={filterType}
                       onChange={(e) => setFilterType(e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-[#7AB82E] text-sm font-medium"
+                      className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-[#a7c1e2] text-sm font-medium"
                     >
                       <option value="all">Todos los tipos</option>
                       <option value="webinar">Webinars</option>
@@ -623,7 +623,7 @@ export default function EventosPage() {
                     <select
                       value={filterStatus}
                       onChange={(e) => setFilterStatus(e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-[#7AB82E] text-sm font-medium"
+                      className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-[#a7c1e2] text-sm font-medium"
                     >
                       <option value="all">Todos</option>
                       <option value="upcoming">Próximos</option>
@@ -692,7 +692,7 @@ export default function EventosPage() {
                                     </span>
                                   )}
                                 </div>
-                                <h3 className="font-bold text-gray-900 text-lg group-hover:text-[#003B7A] transition-colors">
+                                <h3 className="font-bold text-gray-900 text-lg group-hover:text-[#3E667D] transition-colors">
                                   {event.title}
                                 </h3>
                               </div>
@@ -755,7 +755,7 @@ export default function EventosPage() {
                                         <Button
                                           variant="primary"
                                           size="sm"
-                                          className="bg-[#7AB82E] hover:bg-[#6aa025]"
+                                          className="bg-[#3E667D] hover:bg-[#2f5165]"
                                           leftIcon={<VideoCameraIcon className="h-4 w-4" />}
                                           onClick={() => window.open(event.link, '_blank')}
                                         >
@@ -774,7 +774,7 @@ export default function EventosPage() {
                                     <Button
                                       variant="primary"
                                       size="sm"
-                                      className="bg-[#003B7A] hover:bg-[#002d5c]"
+                                      className="bg-[#3E667D] hover:bg-[#2f5165]"
                                       onClick={() => handleRegister(event.id, event.title)}
                                     >
                                       Registrarse

@@ -153,7 +153,7 @@ export default function CapacitacionPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -229,7 +229,7 @@ export default function CapacitacionPage() {
 
         {/* Continue Learning */}
         {stats.inProgress > 0 && (
-          <Card className="mb-8 bg-gradient-to-r from-[#7AB82E] to-[#7AB82E]/90 text-white">
+          <Card className="mb-8 bg-gradient-to-r from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -267,7 +267,7 @@ export default function CapacitacionPage() {
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
           >
             {categories.map(cat => (
               <option key={cat} value={cat}>{cat}</option>
@@ -277,7 +277,7 @@ export default function CapacitacionPage() {
           <select
             value={filterLevel}
             onChange={(e) => setFilterLevel(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
           >
             {levels.map(level => (
               <option key={level} value={level}>{level}</option>
@@ -292,7 +292,7 @@ export default function CapacitacionPage() {
               <CardContent className="p-6">
                 <div className="flex gap-4">
                   {/* Course Icon */}
-                  <div className="w-20 h-20 bg-gradient-to-br from-[#003B7A] to-[#7AB82E] rounded-lg flex items-center justify-center flex-shrink-0">
+                  <div className="w-20 h-20 bg-gradient-to-br from-[#3E667D] to-[#C8DDF2] rounded-lg flex items-center justify-center flex-shrink-0">
                     {course.completed ? (
                       <CheckCircleSolid className="h-10 w-10 text-white" />
                     ) : (
@@ -350,7 +350,7 @@ export default function CapacitacionPage() {
                         </div>
                         <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-[#7AB82E] rounded-full transition-all"
+                            className="h-full bg-[#C8DDF2] rounded-full transition-all"
                             style={{ width: `${course.progress}%` }}
                           />
                         </div>

@@ -42,7 +42,7 @@ export default function AuditDashboardPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003B7A]"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3E667D]"></div>
       </div>
     );
   }
@@ -51,7 +51,7 @@ export default function AuditDashboardPage() {
     <PermissionGuard permissions={['audit:read', 'audit:*']}>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -222,7 +222,7 @@ export default function AuditDashboardPage() {
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
                             <div
-                              className="h-2 rounded-full bg-[#003B7A]"
+                              className="h-2 rounded-full bg-[#3E667D]"
                               style={{ width: `${percentage}%` }}
                             />
                           </div>

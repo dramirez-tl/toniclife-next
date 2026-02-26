@@ -69,7 +69,7 @@ export function CategoriesSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-16">
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#003B7A]">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#3E667D]">
             Explora por Categoría
           </h2>
           <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
@@ -125,7 +125,7 @@ export function CategoriesSection() {
         <div className="mt-16 bg-white rounded-3xl p-8 lg:p-12 shadow-lg">
           <div className="grid lg:grid-cols-2 gap-8 items-center">
             <div>
-              <h3 className="text-2xl lg:text-3xl font-bold text-[#003B7A]">
+              <h3 className="text-2xl lg:text-3xl font-bold text-[#3E667D]">
                 ¿No sabes por dónde empezar?
               </h3>
               <p className="mt-4 text-gray-600">
@@ -134,19 +134,19 @@ export function CategoriesSection() {
               </p>
               <div className="mt-6 flex flex-wrap gap-4">
                 <div className="flex items-center gap-2 text-gray-600">
-                  <svg className="h-5 w-5 text-[#7AB82E]" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="h-5 w-5 text-[#3E667D]" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                   <span className="text-sm">10 preguntas simples</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-600">
-                  <svg className="h-5 w-5 text-[#7AB82E]" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="h-5 w-5 text-[#3E667D]" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                   <span className="text-sm">Resultados instantáneos</span>
                 </div>
                 <div className="flex items-center gap-2 text-gray-600">
-                  <svg className="h-5 w-5 text-[#7AB82E]" fill="currentColor" viewBox="0 0 20 20">
+                  <svg className="h-5 w-5 text-[#3E667D]" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                   <span className="text-sm">Combos con descuento</span>
@@ -155,7 +155,7 @@ export function CategoriesSection() {
               <div className="mt-8">
                 <Link
                   href="/quiz"
-                  className="inline-flex items-center gap-2 bg-[#7AB82E] hover:bg-[#6aa025] text-white font-semibold px-6 py-3 rounded-full transition-colors"
+                  className="inline-flex items-center gap-2 bg-[#3E667D] hover:bg-[#2f5165] text-white font-semibold px-6 py-3 rounded-full transition-colors"
                 >
                   Iniciar mi Evaluación
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -167,7 +167,7 @@ export function CategoriesSection() {
 
             {/* Visual */}
             <div className="relative">
-              <div className="bg-gradient-to-br from-[#003B7A]/5 to-[#7AB82E]/10 rounded-2xl p-8">
+              <div className="bg-gradient-to-br from-[#3E667D]/5 to-[#C8DDF2]/10 rounded-2xl p-8">
                 <div className="grid grid-cols-3 gap-3">
                   {categories?.slice(0, 6).map((cat) => {
                     const catSlug = cat.slug || '';

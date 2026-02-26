@@ -64,7 +64,7 @@ export default function PerfilPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -93,7 +93,7 @@ export default function PerfilPage() {
             <CardContent className="p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4">Foto de Perfil</h3>
               <div className="flex items-center gap-6">
-                <div className="w-24 h-24 bg-gradient-to-br from-[#003B7A] to-[#7AB82E] rounded-full flex items-center justify-center text-white text-3xl font-bold">
+                <div className="w-24 h-24 bg-gradient-to-br from-[#3E667D] to-[#C8DDF2] rounded-full flex items-center justify-center text-white text-3xl font-bold">
                   {formData.firstName[0]}{formData.lastName[0]}
                 </div>
                 <div>
@@ -153,7 +153,7 @@ export default function PerfilPage() {
                   value={formData.bio}
                   onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                   rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                   placeholder="Cuéntanos sobre ti..."
                 />
                 <p className="text-xs text-gray-500 mt-1">
@@ -198,7 +198,7 @@ export default function PerfilPage() {
           </Card>
 
           {/* Referral Link */}
-          <Card className="bg-gradient-to-r from-[#7AB82E] to-[#7AB82E]/90 text-white">
+          <Card className="bg-gradient-to-r from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
             <CardContent className="p-6">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                 <ShareIcon className="h-5 w-5" />
@@ -254,7 +254,7 @@ export default function PerfilPage() {
                           type="checkbox"
                           checked={notifications[item.key as keyof typeof notifications]}
                           onChange={(e) => setNotifications({ ...notifications, [item.key]: e.target.checked })}
-                          className="h-4 w-4 text-[#003B7A] rounded focus:ring-[#7AB82E]"
+                          className="h-4 w-4 text-[#3E667D] rounded focus:ring-[#a7c1e2]"
                         />
                         <span className="text-sm text-gray-700">{item.label}</span>
                       </label>
@@ -274,7 +274,7 @@ export default function PerfilPage() {
                           type="checkbox"
                           checked={notifications[item.key as keyof typeof notifications]}
                           onChange={(e) => setNotifications({ ...notifications, [item.key]: e.target.checked })}
-                          className="h-4 w-4 text-[#003B7A] rounded focus:ring-[#7AB82E]"
+                          className="h-4 w-4 text-[#3E667D] rounded focus:ring-[#a7c1e2]"
                         />
                         <span className="text-sm text-gray-700">{item.label}</span>
                       </label>

@@ -110,7 +110,7 @@ export function UserDetailPanel({
     return (
       <div className="h-full flex items-center justify-center p-6">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#003B7A] mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#3E667D] mx-auto mb-4"></div>
           <p className="text-gray-500">Cargando información...</p>
         </div>
       </div>
@@ -197,14 +197,14 @@ export function UserDetailPanel({
           <div className="space-y-2">
             <div className="flex items-center gap-3 text-sm">
               <EnvelopeIcon className="h-4 w-4 text-gray-400" />
-              <a href={`mailto:${memberDetail.email}`} className="text-[#003B7A] hover:underline truncate">
+              <a href={`mailto:${memberDetail.email}`} className="text-[#3E667D] hover:underline truncate">
                 {memberDetail.email}
               </a>
             </div>
             {memberDetail.phone && (
               <div className="flex items-center gap-3 text-sm">
                 <PhoneIcon className="h-4 w-4 text-gray-400" />
-                <a href={`tel:${memberDetail.phone}`} className="text-gray-700 hover:text-[#003B7A]">
+                <a href={`tel:${memberDetail.phone}`} className="text-gray-700 hover:text-[#3E667D]">
                   {memberDetail.phone}
                 </a>
               </div>
@@ -224,7 +224,7 @@ export function UserDetailPanel({
             </h3>
             <button
               onClick={() => onNavigateToSponsor?.(memberDetail.sponsorId!)}
-              className="flex items-center gap-2 text-sm text-[#003B7A] hover:underline"
+              className="flex items-center gap-2 text-sm text-[#3E667D] hover:underline"
             >
               <UserIcon className="h-4 w-4" />
               {memberDetail.sponsorName}
@@ -319,7 +319,7 @@ export function UserDetailPanel({
       <div className="p-4 border-t border-gray-200">
         <Link
           href={`/distribuidor/perfil/${memberDetail.id}`}
-          className="block w-full py-2 px-4 bg-[#003B7A] text-white text-center font-medium rounded-lg hover:bg-[#003B7A]/90 transition-colors"
+          className="block w-full py-2 px-4 bg-[#3E667D] text-white text-center font-medium rounded-lg hover:bg-[#3E667D]/90 transition-colors"
         >
           Ver Perfil Completo
         </Link>

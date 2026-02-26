@@ -69,7 +69,7 @@ export function NotificationBell() {
         aria-label={`Notificaciones${unreadCount > 0 ? ` (${unreadCount} sin leer)` : ''}`}
       >
         {unreadCount > 0 ? (
-          <BellAlertIcon className="h-6 w-6 text-[#003B7A]" />
+          <BellAlertIcon className="h-6 w-6 text-[#3E667D]" />
         ) : (
           <BellIcon className="h-6 w-6" />
         )}
@@ -89,7 +89,7 @@ export function NotificationBell() {
             {unreadCount > 0 && (
               <button
                 onClick={() => markAllAsRead.mutate()}
-                className="text-xs text-[#003B7A] hover:text-[#7AB82E] font-medium transition-colors"
+                className="text-xs text-[#3E667D] hover:text-[#3E667D] font-medium transition-colors"
                 disabled={markAllAsRead.isPending}
               >
                 Marcar todo como leido
@@ -149,7 +149,7 @@ export function NotificationBell() {
             <Link
               href="/admin/notificaciones"
               onClick={() => setOpen(false)}
-              className="block text-center text-xs font-medium text-[#003B7A] hover:text-[#7AB82E] transition-colors"
+              className="block text-center text-xs font-medium text-[#3E667D] hover:text-[#3E667D] transition-colors"
             >
               Ver todas las notificaciones
             </Link>

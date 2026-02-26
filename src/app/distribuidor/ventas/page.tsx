@@ -63,7 +63,7 @@ export default function VentasPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+        <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="flex items-center gap-3 mb-2">
               <ChartBarIcon className="h-10 w-10" />
@@ -122,7 +122,7 @@ export default function VentasPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
@@ -142,7 +142,7 @@ export default function VentasPage() {
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <Link href="/productos">
-                <Button variant="primary" className="bg-[#7AB82E] hover:bg-[#6aa025]">
+                <Button variant="primary" className="bg-[#3E667D] hover:bg-[#2f5165]">
                   Registrar venta
                 </Button>
               </Link>
@@ -169,7 +169,7 @@ export default function VentasPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Main Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-[#7AB82E] to-[#7AB82E]/90 text-white">
+          <Card className="bg-gradient-to-br from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <CurrencyDollarIcon className="h-8 w-8 text-white/80" />
@@ -247,7 +247,7 @@ export default function VentasPage() {
                           <p className="text-sm text-gray-500">{product.quantity} unidades</p>
                           <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-[#7AB82E] rounded-full"
+                              className="h-full bg-[#C8DDF2] rounded-full"
                               style={{
                                 width: `${topProductAmount > 0 ? (product.amount / topProductAmount) * 100 : 0}%`,
                               }}
@@ -255,7 +255,7 @@ export default function VentasPage() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold text-[#003B7A]">
+                          <p className="font-bold text-[#3E667D]">
                             {formatCurrency(product.amount)} <span className="text-[10px] font-semibold text-gray-400">{currencyCode}</span>
                           </p>
                           <p className="text-[11px] text-gray-500">
@@ -344,7 +344,7 @@ export default function VentasPage() {
                             {performer.name}
                           </p>
                         </div>
-                        <p className="text-sm font-bold text-[#003B7A]">
+                        <p className="text-sm font-bold text-[#3E667D]">
                           {formatCurrency(performer.sales)} <span className="text-[9px] text-gray-400">{currencyCode}</span>
                         </p>
                       </div>
@@ -359,7 +359,7 @@ export default function VentasPage() {
             </Card>
 
             {/* Quick Actions */}
-            <Card className="overflow-hidden border-0 bg-gradient-to-br from-[#003B7A] via-[#003B7A] to-[#0A4B94] text-white shadow-lg">
+            <Card className="overflow-hidden border-0 bg-gradient-to-br from-[#3E667D] via-[#3E667D] to-[#0A4B94] text-white shadow-lg">
               <CardContent className="p-6">
                 <div className="mb-4">
                   <h3 className="text-lg font-bold !text-white">Acciones Rápidas</h3>
@@ -371,7 +371,7 @@ export default function VentasPage() {
                     href="/productos"
                     className="group flex items-center gap-3 rounded-xl border border-white/15 bg-white/10 px-3.5 py-3 transition-all hover:-translate-y-0.5 hover:bg-white/15"
                   >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#7AB82E]/25">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#C8DDF2]/25">
                       <ShoppingBagIcon className="h-4.5 w-4.5 text-white" />
                     </div>
                     <div className="flex-1">
@@ -385,7 +385,7 @@ export default function VentasPage() {
                     href="/distribuidor/prospectos"
                     className="group flex items-center gap-3 rounded-xl border border-white/15 bg-white/10 px-3.5 py-3 transition-all hover:-translate-y-0.5 hover:bg-white/15"
                   >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#7AB82E]/25">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#C8DDF2]/25">
                       <UserGroupIcon className="h-4.5 w-4.5 text-white" />
                     </div>
                     <div className="flex-1">
@@ -399,7 +399,7 @@ export default function VentasPage() {
                     href="/distribuidor/comisiones"
                     className="group flex items-center gap-3 rounded-xl border border-white/15 bg-white/10 px-3.5 py-3 transition-all hover:-translate-y-0.5 hover:bg-white/15"
                   >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#7AB82E]/25">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#C8DDF2]/25">
                       <CurrencyDollarIcon className="h-4.5 w-4.5 text-white" />
                     </div>
                     <div className="flex-1">
@@ -428,7 +428,7 @@ export default function VentasPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Puntos personales</span>
-                      <span className="font-medium text-[#7AB82E]">
+                      <span className="font-medium text-[#3E667D]">
                         {points.personalPoints.toLocaleString()} / {points.personalPointsRequired.toLocaleString()}
                       </span>
                     </div>

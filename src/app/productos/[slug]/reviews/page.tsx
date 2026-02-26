@@ -205,7 +205,7 @@ export default function ProductReviewsPage() {
       {/* Header */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <Link href="/productos/proteina-vegana" className="text-[#003B7A] hover:underline mb-2 inline-block">
+          <Link href="/productos/proteina-vegana" className="text-[#3E667D] hover:underline mb-2 inline-block">
             ← Volver al Producto
           </Link>
           <h1 className="text-3xl font-bold text-gray-900">Reseñas de Clientes</h1>
@@ -237,7 +237,7 @@ export default function ProductReviewsPage() {
                 <p className="text-gray-600">
                   Basado en {totalReviews} reseñas
                 </p>
-                <p className="text-sm text-[#7AB82E] mt-1">
+                <p className="text-sm text-[#3E667D] mt-1">
                   {verifiedPercentage.toFixed(0)}% compras verificadas
                 </p>
               </div>
@@ -273,7 +273,7 @@ export default function ProductReviewsPage() {
               <div className="pt-6">
                 <button
                   onClick={() => setShowWriteReview(!showWriteReview)}
-                  className="w-full px-4 py-3 bg-[#003B7A] text-white rounded-lg hover:bg-[#002855] transition-colors font-medium flex items-center justify-center gap-2"
+                  className="w-full px-4 py-3 bg-[#3E667D] text-white rounded-lg hover:bg-[#002855] transition-colors font-medium flex items-center justify-center gap-2"
                 >
                   <PencilIcon className="h-5 w-5" />
                   Escribir Reseña
@@ -322,7 +322,7 @@ export default function ProductReviewsPage() {
                       required
                       value={newReview.title}
                       onChange={(e) => setNewReview({ ...newReview, title: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
                       placeholder="Resume tu experiencia"
                     />
                   </div>
@@ -337,7 +337,7 @@ export default function ProductReviewsPage() {
                       rows={6}
                       value={newReview.content}
                       onChange={(e) => setNewReview({ ...newReview, content: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A] resize-none"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D] resize-none"
                       placeholder="Cuéntanos sobre tu experiencia con el producto..."
                     />
                   </div>
@@ -346,7 +346,7 @@ export default function ProductReviewsPage() {
                   <div className="flex gap-3">
                     <button
                       type="submit"
-                      className="flex-1 px-4 py-2 bg-[#003B7A] text-white rounded-lg hover:bg-[#002855] transition-colors"
+                      className="flex-1 px-4 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#002855] transition-colors"
                     >
                       Publicar Reseña
                     </button>
@@ -370,7 +370,7 @@ export default function ProductReviewsPage() {
                   <select
                     value={filterRating}
                     onChange={(e) => setFilterRating(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
                   >
                     <option value="all">Todas las calificaciones</option>
                     <option value="5">5 estrellas</option>
@@ -386,7 +386,7 @@ export default function ProductReviewsPage() {
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
                   >
                     <option value="helpful">Más útiles</option>
                     <option value="recent">Más recientes</option>
@@ -403,14 +403,14 @@ export default function ProductReviewsPage() {
                 {/* Review Header */}
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-[#003B7A] to-[#7AB82E] rounded-full flex items-center justify-center text-white font-bold">
+                    <div className="w-12 h-12 bg-gradient-to-br from-[#3E667D] to-[#C8DDF2] rounded-full flex items-center justify-center text-white font-bold">
                       {review.userName.charAt(0)}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-gray-900">{review.userName}</span>
                         {review.verified && (
-                          <CheckCircleIcon className="h-5 w-5 text-[#7AB82E]" title="Compra verificada" />
+                          <CheckCircleIcon className="h-5 w-5 text-[#3E667D]" title="Compra verificada" />
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-1">
@@ -466,9 +466,9 @@ export default function ProductReviewsPage() {
 
                 {/* Response from Company */}
                 {review.response && (
-                  <div className="mt-4 ml-12 bg-blue-50 border-l-4 border-[#003B7A] p-4 rounded">
+                  <div className="mt-4 ml-12 bg-blue-50 border-l-4 border-[#3E667D] p-4 rounded">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="font-medium text-[#003B7A]">{review.response.author}</span>
+                      <span className="font-medium text-[#3E667D]">{review.response.author}</span>
                       <span className="text-sm text-gray-600">{review.response.date}</span>
                     </div>
                     <p className="text-gray-700">{review.response.content}</p>

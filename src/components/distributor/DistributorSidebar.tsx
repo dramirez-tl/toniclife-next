@@ -179,7 +179,7 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
                       onClick={onNavigate}
                       className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
                         childIsActive
-                          ? 'bg-[#7AB82E] text-white font-medium'
+                          ? 'bg-[#3E667D] text-white font-medium'
                           : 'text-white/60 hover:bg-white/5 hover:text-white'
                       }`}
                     >
@@ -201,7 +201,7 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
         onClick={onNavigate}
         className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
           active
-            ? 'bg-[#7AB82E] text-white'
+            ? 'bg-[#3E667D] text-white'
             : 'text-white/70 hover:bg-white/5 hover:text-white'
         }`}
       >
@@ -219,7 +219,7 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
   };
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-gradient-to-b from-[#003B7A] to-[#002a5c] text-white flex flex-col">
+    <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-gradient-to-b from-[#3E667D] to-[#002a5c] text-white flex flex-col">
       {/* Logo */}
       <div className="flex h-16 items-center justify-center border-b border-white/10 px-4">
         <Link
@@ -229,7 +229,7 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
           onClick={onNavigate}
         >
           <Image
-            src="/images/logo-white.png"
+            src="/images/logo/logo-text-light.png"
             alt="Tonic Life"
             width={120}
             height={40}
@@ -247,7 +247,7 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
       <div className="px-3 py-4 border-b border-white/10">
         <div className="bg-white/5 rounded-xl p-3">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-[#7AB82E] to-[#5a9420] rounded-full flex items-center justify-center shadow-lg">
+            <div className="w-12 h-12 bg-gradient-to-br from-[#C8DDF2] to-[#5a9420] rounded-full flex items-center justify-center shadow-lg">
               <span className="text-white font-bold">{getUserInitials()}</span>
             </div>
             <div className="flex-1 min-w-0">
@@ -270,7 +270,7 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
               <p className="text-[10px] text-white/60 uppercase tracking-wide text-center mb-1.5">Mi Red</p>
               <div className="grid grid-cols-3 gap-1">
                 <div className="text-center">
-                  <p className="text-sm font-bold text-[#7AB82E]">
+                  <p className="text-sm font-bold text-[#3E667D]">
                     {(networkSummary?.totalNetwork || 0).toLocaleString()}
                   </p>
                   <p className="text-[9px] text-white/50">Total</p>
@@ -291,7 +291,7 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
             </div>
             {/* Commissions */}
             <div className="bg-white/5 rounded-lg p-2 text-center">
-              <p className="text-lg font-bold text-[#7AB82E]">
+              <p className="text-lg font-bold text-[#3E667D]">
                 ${(commissionsSummary?.totalNet || 0).toLocaleString(user?.currencyCode === 'USD' ? 'en-US' : 'es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </p>
               <div className="flex items-center justify-center gap-1">

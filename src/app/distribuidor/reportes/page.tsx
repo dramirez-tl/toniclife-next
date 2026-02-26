@@ -167,7 +167,7 @@ export default function ReportesPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -228,7 +228,7 @@ export default function ReportesPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-[#7AB82E] to-[#7AB82E]/90 text-white">
+          <Card className="bg-gradient-to-br from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -261,7 +261,7 @@ export default function ReportesPage() {
                         onClick={() => setFilterCategory(category)}
                         className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                           filterCategory === category
-                            ? 'bg-[#003B7A] text-white'
+                            ? 'bg-[#3E667D] text-white'
                             : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
                         }`}
                       >
@@ -285,7 +285,7 @@ export default function ReportesPage() {
                           onClick={() => setSelectedTemplate(template.id)}
                           className={`border rounded-lg p-4 cursor-pointer transition-all ${
                             selectedTemplate === template.id
-                              ? 'border-[#7AB82E] bg-green-50 shadow-md'
+                              ? 'border-[#a7c1e2] bg-green-50 shadow-md'
                               : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
                           }`}
                         >
@@ -326,7 +326,7 @@ export default function ReportesPage() {
                               </span>
                             </div>
                             {selectedTemplate === template.id && (
-                              <CheckCircleIcon className="h-6 w-6 text-[#7AB82E] flex-shrink-0" />
+                              <CheckCircleIcon className="h-6 w-6 text-[#3E667D] flex-shrink-0" />
                             )}
                           </div>
                         </div>
@@ -347,7 +347,7 @@ export default function ReportesPage() {
                         type="date"
                         value={dateRange.start}
                         onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                       />
                     </div>
                     <div>
@@ -356,7 +356,7 @@ export default function ReportesPage() {
                         type="date"
                         value={dateRange.end}
                         onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                       />
                     </div>
                   </div>
@@ -374,7 +374,7 @@ export default function ReportesPage() {
                         onClick={() => setSelectedFormat(format.id)}
                         className={`border rounded-lg p-3 cursor-pointer text-center transition-all ${
                           selectedFormat === format.id
-                            ? 'border-[#7AB82E] bg-green-50'
+                            ? 'border-[#a7c1e2] bg-green-50'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
@@ -507,7 +507,7 @@ export default function ReportesPage() {
             </Card>
 
             {/* Export All Data */}
-            <Card className="bg-gradient-to-br from-[#003B7A] to-[#003B7A]/90 text-white">
+            <Card className="bg-gradient-to-br from-[#3E667D] to-[#3E667D]/90 text-white">
               <CardContent className="p-6">
                 <h3 className="font-bold text-lg mb-2">Exportación Completa</h3>
                 <p className="text-white/90 text-sm mb-4">

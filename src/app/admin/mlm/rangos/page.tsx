@@ -126,7 +126,7 @@ export default function RangosPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -174,10 +174,10 @@ export default function RangosPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Total Rangos</p>
-                  <p className="text-3xl font-bold text-[#003B7A]">{totalRanks}</p>
+                  <p className="text-3xl font-bold text-[#3E667D]">{totalRanks}</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <TrophyIcon className="h-6 w-6 text-[#003B7A]" />
+                  <TrophyIcon className="h-6 w-6 text-[#3E667D]" />
                 </div>
               </div>
             </CardContent>
@@ -226,7 +226,7 @@ export default function RangosPage() {
                     type="text"
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     required
                   />
                 </div>
@@ -236,7 +236,7 @@ export default function RangosPage() {
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     required
                   />
                 </div>
@@ -246,7 +246,7 @@ export default function RangosPage() {
                     type="number"
                     value={formData.rankNumber}
                     onChange={(e) => setFormData({ ...formData, rankNumber: Number(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     required
                     min={1}
                   />
@@ -257,7 +257,7 @@ export default function RangosPage() {
                     type="number"
                     value={formData.pointsPersonalRequired}
                     onChange={(e) => setFormData({ ...formData, pointsPersonalRequired: Number(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     required
                     min={0}
                   />
@@ -268,7 +268,7 @@ export default function RangosPage() {
                     type="number"
                     value={formData.pointsGroupRequired}
                     onChange={(e) => setFormData({ ...formData, pointsGroupRequired: Number(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     required
                     min={0}
                   />
@@ -279,7 +279,7 @@ export default function RangosPage() {
                     type="number"
                     value={formData.qualifiersFirstLevel}
                     onChange={(e) => setFormData({ ...formData, qualifiersFirstLevel: Number(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     min={0}
                   />
                 </div>
@@ -289,7 +289,7 @@ export default function RangosPage() {
                       type="checkbox"
                       checked={formIsActive}
                       onChange={(e) => setFormIsActive(e.target.checked)}
-                      className="w-4 h-4 rounded border-gray-300 text-[#7AB82E] focus:ring-[#7AB82E]"
+                      className="w-4 h-4 rounded border-gray-300 text-[#3E667D] focus:ring-[#a7c1e2]"
                     />
                     <span className="text-sm font-medium text-gray-700">Activo</span>
                   </label>
@@ -321,7 +321,7 @@ export default function RangosPage() {
                 placeholder="Buscar por nombre o codigo..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
               />
             </div>
           </CardContent>
@@ -332,7 +332,7 @@ export default function RangosPage() {
           <Card>
             <CardContent className="p-12">
               <div className="text-center">
-                <div className="inline-block w-12 h-12 border-4 border-[#003B7A] border-t-transparent rounded-full animate-spin" />
+                <div className="inline-block w-12 h-12 border-4 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
                 <p className="mt-4 text-gray-600">Cargando rangos...</p>
               </div>
             </CardContent>
@@ -361,7 +361,7 @@ export default function RangosPage() {
                         .map((rank) => (
                           <tr key={rank.id} className="border-b border-gray-100 hover:bg-gray-50">
                             <td className="py-3 px-4">
-                              <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#003B7A] text-white text-sm font-bold">
+                              <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#3E667D] text-white text-sm font-bold">
                                 {rank.rankNumber}
                               </span>
                             </td>

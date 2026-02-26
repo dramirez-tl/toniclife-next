@@ -180,7 +180,7 @@ export default function InventarioPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -226,7 +226,7 @@ export default function InventarioPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-[#7AB82E] to-[#7AB82E]/90 text-white">
+          <Card className="bg-gradient-to-br from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -300,7 +300,7 @@ export default function InventarioPage() {
                   placeholder="Buscar por nombre o SKU..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                 />
               </div>
 
@@ -313,7 +313,7 @@ export default function InventarioPage() {
                   <select
                     value={filterCategory}
                     onChange={(e) => setFilterCategory(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                   >
                     {categories.map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
@@ -328,7 +328,7 @@ export default function InventarioPage() {
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                   >
                     <option value="all">Todos</option>
                     <option value="in_stock">En Existencia</option>
@@ -435,7 +435,7 @@ export default function InventarioPage() {
 
                         {/* Value */}
                         <td className="py-4 px-4 text-right">
-                          <p className="font-bold text-[#003B7A]">
+                          <p className="font-bold text-[#3E667D]">
                             ${(item.stock * item.price).toLocaleString('es-MX')}
                           </p>
                         </td>

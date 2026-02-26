@@ -99,7 +99,7 @@ function VerifyEmailContent() {
           <div className="text-center mb-8">
             <Link href="/">
               <Image
-                src="/images/logo.png"
+                src="/images/logo/logo-text-dark.png"
                 alt="Tonic Life"
                 width={200}
                 height={80}
@@ -110,7 +110,7 @@ function VerifyEmailContent() {
 
           <Card>
             <CardContent className="p-8 text-center">
-              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-[#7AB82E] mx-auto mb-6"></div>
+              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-[#a7c1e2] mx-auto mb-6"></div>
 
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
                 Verificando tu email...
@@ -134,7 +134,7 @@ function VerifyEmailContent() {
           <div className="text-center mb-8">
             <Link href="/">
               <Image
-                src="/images/logo.png"
+                src="/images/logo/logo-text-dark.png"
                 alt="Tonic Life"
                 width={200}
                 height={80}
@@ -145,8 +145,8 @@ function VerifyEmailContent() {
 
           <Card>
             <CardContent className="p-8 text-center">
-              <div className="w-16 h-16 bg-[#7AB82E]/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircleIcon className="h-10 w-10 text-[#7AB82E]" />
+              <div className="w-16 h-16 bg-[#C8DDF2]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircleIcon className="h-10 w-10 text-[#3E667D]" />
               </div>
 
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
@@ -177,7 +177,7 @@ function VerifyEmailContent() {
         <div className="text-center mb-8">
           <Link href="/">
             <Image
-              src="/images/logo.png"
+              src="/images/logo/logo-text-dark.png"
               alt="Tonic Life"
               width={200}
               height={80}
@@ -232,8 +232,8 @@ function VerifyEmailContent() {
               </div>
             ) : (
               <div className="border-t border-gray-200 pt-6">
-                <div className="bg-[#7AB82E]/10 rounded-lg p-4 mb-4">
-                  <p className="text-sm text-[#7AB82E] font-medium">
+                <div className="bg-[#C8DDF2]/10 rounded-lg p-4 mb-4">
+                  <p className="text-sm text-[#3E667D] font-medium">
                     Se ha enviado un nuevo enlace de verificación a tu email.
                   </p>
                 </div>
@@ -260,7 +260,7 @@ export default function VerifyEmailPage() {
       fallback={
         <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7AB82E] mx-auto mb-4"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#a7c1e2] mx-auto mb-4"></div>
             <p className="text-gray-600">Cargando...</p>
           </div>
         </div>

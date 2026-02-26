@@ -99,7 +99,7 @@ export default function InventarioPage() {
     <PermissionGuard permissions={['inventory:read', 'inventory:*']}>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -203,7 +203,7 @@ export default function InventarioPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <BuildingStorefrontIcon className="h-8 w-8 text-[#003B7A]" />
+                <BuildingStorefrontIcon className="h-8 w-8 text-[#3E667D]" />
                 <div>
                   <p className="text-sm text-gray-600">Sucursal Seleccionada</p>
                   {branchesLoading ? (
@@ -212,7 +212,7 @@ export default function InventarioPage() {
                     <select
                       value={selectedBranch}
                       onChange={(e) => setSelectedBranch(e.target.value)}
-                      className="text-xl font-bold text-[#003B7A] bg-transparent border-none focus:ring-0 cursor-pointer"
+                      className="text-xl font-bold text-[#3E667D] bg-transparent border-none focus:ring-0 cursor-pointer"
                     >
                       {branches?.map((branch) => (
                         <option key={branch.id} value={branch.id}>
@@ -249,7 +249,7 @@ export default function InventarioPage() {
                     placeholder="Buscar por nombre o SKU..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -261,7 +261,7 @@ export default function InventarioPage() {
                     type="checkbox"
                     checked={showLowStock}
                     onChange={(e) => setShowLowStock(e.target.checked)}
-                    className="rounded border-gray-300 text-[#003B7A] focus:ring-[#003B7A]"
+                    className="rounded border-gray-300 text-[#3E667D] focus:ring-[#3E667D]"
                   />
                   <span className="text-sm text-gray-600">Existencias Bajas</span>
                 </label>
@@ -270,7 +270,7 @@ export default function InventarioPage() {
                     type="checkbox"
                     checked={showOutOfStock}
                     onChange={(e) => setShowOutOfStock(e.target.checked)}
-                    className="rounded border-gray-300 text-[#003B7A] focus:ring-[#003B7A]"
+                    className="rounded border-gray-300 text-[#3E667D] focus:ring-[#3E667D]"
                   />
                   <span className="text-sm text-gray-600">Sin Existencias</span>
                 </label>
@@ -282,7 +282,7 @@ export default function InventarioPage() {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as BranchStockQueryDto['sortBy'])}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 >
                   <option value="productName">Nombre</option>
                   <option value="quantityOnHand">Cantidad Total</option>
@@ -305,7 +305,7 @@ export default function InventarioPage() {
           <CardContent className="p-6">
             {isLoading ? (
               <div className="text-center py-12">
-                <div className="inline-block w-12 h-12 border-4 border-[#003B7A] border-t-transparent rounded-full animate-spin" />
+                <div className="inline-block w-12 h-12 border-4 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
                 <p className="mt-4 text-gray-600">Cargando inventario...</p>
               </div>
             ) : error ? (

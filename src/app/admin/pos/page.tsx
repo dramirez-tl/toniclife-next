@@ -97,7 +97,7 @@ export default function PosPage() {
     <PermissionGuard permissions={['pos:read', 'pos:*']}>
     <div className="h-screen flex flex-col bg-gray-100">
       {/* Top Bar */}
-      <header className="bg-[#003B7A] text-white px-4 py-3 flex items-center justify-between shadow-lg">
+      <header className="bg-[#3E667D] text-white px-4 py-3 flex items-center justify-between shadow-lg">
         <div className="flex items-center gap-4">
           <button
             onClick={() => setShowSidebar(!showSidebar)}
@@ -174,7 +174,7 @@ export default function PosPage() {
                   <p className="text-sm text-gray-600">
                     {sale.items.length} productos
                   </p>
-                  <p className="font-bold text-[#003B7A]">
+                  <p className="font-bold text-[#3E667D]">
                     {posService.formatCurrency(sale.total)}
                   </p>
                 </div>
@@ -255,13 +255,13 @@ export default function PosPage() {
         <button
           onClick={handleCheckout}
           disabled={!hasActiveSession || cart.items.length === 0}
-          className="flex items-center gap-2 px-6 py-4 bg-[#7AB82E] text-white rounded-full shadow-lg hover:bg-[#6aa526] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex items-center gap-2 px-6 py-4 bg-[#3E667D] text-white rounded-full shadow-lg hover:bg-[#6aa526] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <span className="font-bold">
             Cobrar {posService.formatCurrency(cart.total)}
           </span>
           {cart.items.length > 0 && (
-            <span className="bg-white text-[#7AB82E] px-2 py-0.5 rounded-full text-sm font-bold">
+            <span className="bg-white text-[#3E667D] px-2 py-0.5 rounded-full text-sm font-bold">
               {cart.items.length}
             </span>
           )}

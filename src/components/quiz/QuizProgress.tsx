@@ -15,7 +15,7 @@ export function QuizProgress({ current, total }: QuizProgressProps) {
         <span className="text-sm font-medium text-gray-600">
           Pregunta {current} de {total}
         </span>
-        <span className="text-sm font-medium text-[#7AB82E]">
+        <span className="text-sm font-medium text-[#3E667D]">
           {Math.round(percentage)}% completado
         </span>
       </div>
@@ -23,7 +23,7 @@ export function QuizProgress({ current, total }: QuizProgressProps) {
       {/* Progress bar */}
       <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
         <div
-          className="h-full bg-gradient-to-r from-[#7AB82E] to-[#003B7A] rounded-full transition-all duration-500 ease-out"
+          className="h-full bg-gradient-to-r from-[#C8DDF2] to-[#3E667D] rounded-full transition-all duration-500 ease-out"
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -36,9 +36,9 @@ export function QuizProgress({ current, total }: QuizProgressProps) {
             className={`
               w-2 h-2 rounded-full transition-all
               ${i < current
-                ? 'bg-[#7AB82E]'
+                ? 'bg-[#C8DDF2]'
                 : i === current - 1
-                ? 'bg-[#003B7A] scale-150'
+                ? 'bg-[#3E667D] scale-150'
                 : 'bg-gray-300'
               }
             `}

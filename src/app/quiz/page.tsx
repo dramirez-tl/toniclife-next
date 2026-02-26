@@ -225,7 +225,7 @@ function QuizPageContent() {
           {/* Loading Stage */}
           {stage === 'loading' && (
             <div className="text-center py-20">
-              <div className="inline-block w-12 h-12 border-4 border-[#7AB82E] border-t-transparent rounded-full animate-spin" />
+              <div className="inline-block w-12 h-12 border-4 border-[#a7c1e2] border-t-transparent rounded-full animate-spin" />
               <p className="mt-4 text-gray-600">Preparando tu evaluación personalizada...</p>
             </div>
           )}
@@ -249,7 +249,7 @@ function QuizPageContent() {
             <>
               {isLoadingResults ? (
                 <div className="text-center py-20">
-                  <div className="inline-block w-12 h-12 border-4 border-[#7AB82E] border-t-transparent rounded-full animate-spin" />
+                  <div className="inline-block w-12 h-12 border-4 border-[#a7c1e2] border-t-transparent rounded-full animate-spin" />
                   <p className="mt-4 text-gray-600">Generando tus recomendaciones...</p>
                 </div>
               ) : quizResults ? (
@@ -263,7 +263,7 @@ function QuizPageContent() {
                   <p className="text-gray-600">No se pudieron cargar los resultados.</p>
                   <button
                     onClick={handleRestart}
-                    className="mt-4 text-[#7AB82E] hover:underline"
+                    className="mt-4 text-[#3E667D] hover:underline"
                   >
                     Intentar de nuevo
                   </button>
@@ -285,7 +285,7 @@ function QuizLoadingFallback() {
       <main className="min-h-screen pt-32 pb-20 bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center py-20">
-            <div className="inline-block w-12 h-12 border-4 border-[#7AB82E] border-t-transparent rounded-full animate-spin" />
+            <div className="inline-block w-12 h-12 border-4 border-[#a7c1e2] border-t-transparent rounded-full animate-spin" />
             <p className="mt-4 text-gray-600">Cargando...</p>
           </div>
         </div>

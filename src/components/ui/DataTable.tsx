@@ -245,7 +245,7 @@ export function DataTable<T>({
                       }
                     }}
                     onChange={toggleSelectAllVisible}
-                    className="h-4 w-4 rounded border-gray-300 text-[#003B7A] focus:ring-[#7AB82E]"
+                    className="h-4 w-4 rounded border-gray-300 text-[#3E667D] focus:ring-[#a7c1e2]"
                     aria-label="Seleccionar todas las filas visibles"
                   />
                 )}
@@ -267,15 +267,15 @@ export function DataTable<T>({
                   <button
                     type="button"
                     onClick={() => handleSort(column)}
-                    className="inline-flex items-center gap-1.5 transition-colors hover:text-[#003B7A]"
+                    className="inline-flex items-center gap-1.5 transition-colors hover:text-[#3E667D]"
                   >
                     <span>{column.header}</span>
                     {activeSortState?.key !== column.key ? (
                       <ArrowsUpDownIcon className="h-4 w-4 text-gray-400" />
                     ) : activeSortState.direction === 'asc' ? (
-                      <ChevronUpIcon className="h-4 w-4 text-[#003B7A]" />
+                      <ChevronUpIcon className="h-4 w-4 text-[#3E667D]" />
                     ) : (
-                      <ChevronDownIcon className="h-4 w-4 text-[#003B7A]" />
+                      <ChevronDownIcon className="h-4 w-4 text-[#3E667D]" />
                     )}
                   </button>
                 ) : (
@@ -302,7 +302,7 @@ export function DataTable<T>({
                       <select
                         value={value}
                         onChange={(e) => handleFilterChange(column.key, e.target.value)}
-                        className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 focus:border-[#003B7A] focus:outline-none"
+                        className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 focus:border-[#3E667D] focus:outline-none"
                       >
                         <option value="">{filterConfig.placeholder || 'Todos'}</option>
                         {(filterConfig.options ?? []).map((option) => (
@@ -317,7 +317,7 @@ export function DataTable<T>({
                         value={value}
                         onChange={(e) => handleFilterChange(column.key, e.target.value)}
                         placeholder={filterConfig.placeholder || 'Filtrar'}
-                        className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 placeholder:text-gray-400 focus:border-[#003B7A] focus:outline-none"
+                        className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 placeholder:text-gray-400 focus:border-[#3E667D] focus:outline-none"
                       />
                     )}
                   </th>
@@ -360,7 +360,7 @@ export function DataTable<T>({
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => toggleRowSelection(rowKey)}
-                      className="h-4 w-4 rounded border-gray-300 text-[#003B7A] focus:ring-[#7AB82E]"
+                      className="h-4 w-4 rounded border-gray-300 text-[#3E667D] focus:ring-[#a7c1e2]"
                       aria-label="Seleccionar fila"
                     />
                   </td>
@@ -425,7 +425,7 @@ export function DataTablePagination({
             <select
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm text-gray-700 focus:border-[#003B7A] focus:outline-none"
+              className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm text-gray-700 focus:border-[#3E667D] focus:outline-none"
             >
               {pageSizeOptions.map((size) => (
                 <option key={size} value={size}>
@@ -453,7 +453,7 @@ export function DataTablePagination({
             type="button"
             className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
               page === currentPage
-                ? 'bg-[#003B7A] text-white'
+                ? 'bg-[#3E667D] text-white'
                 : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
             }`}
             disabled={isLoading}

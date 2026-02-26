@@ -57,7 +57,7 @@ export default function DistributorLayout({
               <Bars3Icon className="h-6 w-6" />
             </button>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-[#003B7A] rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-[#3E667D] rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">TL</span>
               </div>
             </div>

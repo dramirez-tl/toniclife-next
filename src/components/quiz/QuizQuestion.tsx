@@ -120,7 +120,7 @@ export function QuizQuestion({
     <div className="animate-in fade-in slide-in-from-right-4 duration-300">
       <Card className="max-w-2xl mx-auto overflow-hidden" padding="none">
         {/* Question Header */}
-        <div className="bg-[#003B7A] text-white p-6 sm:p-8">
+        <div className="bg-[#3E667D] text-white p-6 sm:p-8">
           {/* Category Badge */}
           <div className="inline-flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full text-sm mb-4">
             <span>{emoji}</span>
@@ -154,10 +154,10 @@ export function QuizQuestion({
               disabled={isLoading}
               className={`
                 w-full text-left p-4 sm:p-5 rounded-xl border-2 transition-all duration-200
-                hover:border-[#7AB82E] hover:bg-[#7AB82E]/5
+                hover:border-[#a7c1e2] hover:bg-[#C8DDF2]/5
                 disabled:opacity-50 disabled:cursor-not-allowed
                 ${isOptionSelected(option.value)
-                  ? 'border-[#7AB82E] bg-[#7AB82E]/10 ring-2 ring-[#7AB82E]/30'
+                  ? 'border-[#a7c1e2] bg-[#C8DDF2]/10 ring-2 ring-[#C8DDF2]/30'
                   : 'border-gray-200 bg-gray-50'
                 }
               `}
@@ -168,8 +168,8 @@ export function QuizQuestion({
                   className={`
                     w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-sm font-bold
                     ${isOptionSelected(option.value)
-                      ? 'bg-[#7AB82E] text-white'
-                      : 'bg-[#003B7A]/10 text-[#003B7A]'
+                      ? 'bg-[#3E667D] text-white'
+                      : 'bg-[#3E667D]/10 text-[#3E667D]'
                     }
                   `}
                 >
@@ -186,7 +186,7 @@ export function QuizQuestion({
                     className={`
                       text-base sm:text-lg block
                       ${isOptionSelected(option.value)
-                        ? 'text-[#003B7A] font-medium'
+                        ? 'text-[#3E667D] font-medium'
                         : 'text-gray-700'
                       }
                     `}
@@ -231,7 +231,7 @@ export function QuizQuestion({
             <button
               onClick={onPrevious}
               disabled={isLoading}
-              className="flex items-center gap-2 text-gray-500 hover:text-[#003B7A] transition-colors disabled:opacity-50"
+              className="flex items-center gap-2 text-gray-500 hover:text-[#3E667D] transition-colors disabled:opacity-50"
             >
               <ChevronLeftIcon className="h-5 w-5" />
               <span>Pregunta anterior</span>

@@ -55,7 +55,7 @@ export function RankProgressStepper({
           <div className="flex items-center gap-2 text-sm">
             <TrophyIcon className="h-5 w-5 text-yellow-500" />
             <span className="font-medium text-gray-700">
-              Rango actual: <span className="text-[#003B7A] font-bold">{ranks.find((r) => r.rankNumber === currentRankNumber)?.name || 'Distribuidor'}</span>
+              Rango actual: <span className="text-[#3E667D] font-bold">{ranks.find((r) => r.rankNumber === currentRankNumber)?.name || 'Distribuidor'}</span>
             </span>
           </div>
         </div>
@@ -128,9 +128,9 @@ export function RankProgressStepper({
                       <div
                         className={`w-8 h-0.5 ${
                           rank.rankNumber < currentRankNumber
-                            ? 'bg-[#7AB82E]'
+                            ? 'bg-[#C8DDF2]'
                             : rank.rankNumber === currentRankNumber
-                              ? 'bg-gradient-to-r from-[#7AB82E] to-gray-200'
+                              ? 'bg-gradient-to-r from-[#C8DDF2] to-gray-200'
                               : 'bg-gray-200'
                         }`}
                       />
@@ -144,8 +144,8 @@ export function RankProgressStepper({
 
         {/* Next rank requirements card */}
         {nextRank && (
-          <div className="mt-6 p-4 bg-gradient-to-r from-[#003B7A]/5 to-[#7AB82E]/5 rounded-xl border border-[#003B7A]/10">
-            <p className="text-sm font-semibold text-[#003B7A] mb-3">
+          <div className="mt-6 p-4 bg-gradient-to-r from-[#3E667D]/5 to-[#C8DDF2]/5 rounded-xl border border-[#3E667D]/10">
+            <p className="text-sm font-semibold text-[#3E667D] mb-3">
               Siguiente rango: {nextRank.name}
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -172,7 +172,7 @@ export function RankProgressStepper({
                   <p className="text-[10px] uppercase tracking-wider text-gray-400 font-medium">
                     Bono Auto {currencyCode}
                   </p>
-                  <p className="text-lg font-bold text-[#7AB82E] mt-0.5">
+                  <p className="text-lg font-bold text-[#3E667D] mt-0.5">
                     ${currencyCode === 'USD'
                       ? parseFloat(nextRank.autoBonusUsd || '0').toLocaleString('en-US')
                       : parseFloat(nextRank.autoBonusMxn).toLocaleString('es-MX')

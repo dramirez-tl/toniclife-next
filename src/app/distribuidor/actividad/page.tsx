@@ -229,7 +229,7 @@ export default function ActividadPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -290,7 +290,7 @@ export default function ActividadPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-[#7AB82E] to-[#7AB82E]/90 text-white">
+          <Card className="bg-gradient-to-br from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -327,7 +327,7 @@ export default function ActividadPage() {
                           onClick={() => setFilterType(type.id)}
                           className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
                             filterType === type.id
-                              ? 'bg-[#003B7A] text-white'
+                              ? 'bg-[#3E667D] text-white'
                               : 'hover:bg-gray-100 text-gray-700'
                           }`}
                         >
@@ -351,7 +351,7 @@ export default function ActividadPage() {
                         onClick={() => setFilterTime(filter)}
                         className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
                           filterTime === filter
-                            ? 'bg-[#7AB82E] text-white font-medium'
+                            ? 'bg-[#3E667D] text-white font-medium'
                             : 'hover:bg-gray-100 text-gray-700'
                         }`}
                       >
@@ -425,7 +425,7 @@ export default function ActividadPage() {
                                 {activity.details}
                               </span>
                               {activity.amount && (
-                                <span className="text-sm font-bold text-[#7AB82E]">
+                                <span className="text-sm font-bold text-[#3E667D]">
                                   +${activity.amount.toLocaleString('es-MX')}
                                 </span>
                               )}

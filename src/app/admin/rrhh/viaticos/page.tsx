@@ -270,7 +270,7 @@ export default function ViaticosPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-[#7AB82E] to-[#7AB82E]/90 text-white">
+          <Card className="bg-gradient-to-br from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
@@ -298,7 +298,7 @@ export default function ViaticosPage() {
                     placeholder="Buscar por nombre, número o título..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -307,7 +307,7 @@ export default function ViaticosPage() {
               <select
                 value={filterDepartment}
                 onChange={(e) => setFilterDepartment(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
               >
                 <option value="all">Todos los Departamentos</option>
                 {departments.map(dept => (
@@ -319,7 +319,7 @@ export default function ViaticosPage() {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value as ExpenseStatus | 'all')}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
               >
                 <option value="all">Todos los Estados</option>
                 <option value="PENDING">Pendientes</option>
@@ -427,7 +427,7 @@ export default function ViaticosPage() {
                         {statusConfig[expense.status]?.label || expense.status}
                       </span>
 
-                      <p className="text-2xl font-bold text-[#003B7A]">
+                      <p className="text-2xl font-bold text-[#3E667D]">
                         {formatCurrency(expense.totalAmount)}
                       </p>
 

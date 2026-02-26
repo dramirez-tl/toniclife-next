@@ -251,11 +251,11 @@ export default function RecetaDetailPage({ params }: { params: { slug: string } 
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center p-4 bg-blue-50 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">Proteína</p>
-                  <p className="text-3xl font-bold text-[#003B7A]">{recipe.protein}g</p>
+                  <p className="text-3xl font-bold text-[#3E667D]">{recipe.protein}g</p>
                 </div>
                 <div className="text-center p-4 bg-green-50 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">Carbohidratos</p>
-                  <p className="text-3xl font-bold text-[#7AB82E]">{recipe.carbs}g</p>
+                  <p className="text-3xl font-bold text-[#3E667D]">{recipe.carbs}g</p>
                 </div>
                 <div className="text-center p-4 bg-yellow-50 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">Grasas</p>
@@ -287,7 +287,7 @@ export default function RecetaDetailPage({ params }: { params: { slug: string } 
               <div className="space-y-2">
                 {recipe.ingredients.map((ingredient, index) => (
                   <div key={index} className="flex items-start gap-3 p-2 hover:bg-gray-50 rounded">
-                    <CheckCircleIcon className="h-5 w-5 text-[#7AB82E] mt-0.5 flex-shrink-0" />
+                    <CheckCircleIcon className="h-5 w-5 text-[#3E667D] mt-0.5 flex-shrink-0" />
                     <div>
                       <span className="font-medium">{ingredient.amount}</span>
                       <span className="text-gray-700"> {ingredient.item}</span>
@@ -301,7 +301,7 @@ export default function RecetaDetailPage({ params }: { params: { slug: string } 
                 <div className="space-y-2">
                   {recipe.toppings.map((topping, index) => (
                     <div key={index} className="flex items-start gap-3 p-2 hover:bg-gray-50 rounded">
-                      <CheckCircleIcon className="h-5 w-5 text-[#7AB82E] mt-0.5 flex-shrink-0" />
+                      <CheckCircleIcon className="h-5 w-5 text-[#3E667D] mt-0.5 flex-shrink-0" />
                       <div>
                         <span className="font-medium">{topping.amount}</span>
                         <span className="text-gray-700"> {topping.item}</span>
@@ -323,7 +323,7 @@ export default function RecetaDetailPage({ params }: { params: { slug: string } 
                         onClick={() => toggleStep(index)}
                         className={`w-8 h-8 rounded-full flex items-center justify-center font-bold transition-colors ${
                           completedSteps.includes(index)
-                            ? 'bg-[#7AB82E] text-white'
+                            ? 'bg-[#3E667D] text-white'
                             : 'bg-gray-200 text-gray-700'
                         }`}
                       >
@@ -344,7 +344,7 @@ export default function RecetaDetailPage({ params }: { params: { slug: string } 
               <ul className="space-y-2">
                 {recipe.tips.map((tip, index) => (
                   <li key={index} className="flex gap-3">
-                    <span className="text-[#7AB82E] font-bold">•</span>
+                    <span className="text-[#3E667D] font-bold">•</span>
                     <span className="text-gray-700">{tip}</span>
                   </li>
                 ))}
@@ -371,7 +371,7 @@ export default function RecetaDetailPage({ params }: { params: { slug: string } 
           <div className="lg:col-span-1">
             {/* Tonic Products */}
             {recipe.tonicProducts && recipe.tonicProducts.length > 0 && (
-              <div className="bg-gradient-to-br from-[#003B7A] to-[#7AB82E] rounded-lg shadow-lg p-6 text-white mb-6 sticky top-4">
+              <div className="bg-gradient-to-br from-[#3E667D] to-[#C8DDF2] rounded-lg shadow-lg p-6 text-white mb-6 sticky top-4">
                 <h3 className="text-xl font-bold mb-3">Complementa con Tonic Life</h3>
                 <p className="text-blue-100 mb-4 text-sm">
                   Productos recomendados para esta receta
@@ -390,7 +390,7 @@ export default function RecetaDetailPage({ params }: { params: { slug: string } 
                 </div>
                 <Link
                   href="/productos"
-                  className="mt-4 block w-full py-3 bg-white text-[#003B7A] font-medium rounded-lg text-center hover:bg-blue-50 transition-colors"
+                  className="mt-4 block w-full py-3 bg-white text-[#3E667D] font-medium rounded-lg text-center hover:bg-blue-50 transition-colors"
                 >
                   Ver Todos los Productos
                 </Link>

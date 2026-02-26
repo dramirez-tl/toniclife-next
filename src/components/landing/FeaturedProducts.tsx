@@ -91,8 +91,8 @@ function FeaturedProductCard({ product }: ProductCardProps) {
                 loading="lazy"
               />
             ) : (
-              <div className="w-32 h-32 bg-gradient-to-br from-[#7AB82E]/20 to-[#003B7A]/20 rounded-2xl flex items-center justify-center">
-                <span className="text-4xl font-bold text-[#003B7A]">
+              <div className="w-32 h-32 bg-gradient-to-br from-[#C8DDF2]/20 to-[#3E667D]/20 rounded-2xl flex items-center justify-center">
+                <span className="text-4xl font-bold text-[#3E667D]">
                   {product.name.substring(0, 2).toUpperCase()}
                 </span>
               </div>
@@ -104,13 +104,13 @@ function FeaturedProductCard({ product }: ProductCardProps) {
       {/* Product Info */}
       <div className="p-5">
         {/* Category */}
-        <div className="flex items-center gap-2 text-[#7AB82E] mb-2">
+        <div className="flex items-center gap-2 text-[#3E667D] mb-2">
           {categoryIcons[(product.slug || '').split('-')[0]] || <SparklesIcon className="h-6 w-6" />}
           <span className="text-sm font-medium">{product.code}</span>
         </div>
 
         {/* Name */}
-        <h3 className="font-bold text-lg text-[#003B7A] group-hover:text-[#7AB82E] transition-colors">
+        <h3 className="font-bold text-lg text-[#3E667D] group-hover:text-[#3E667D] transition-colors">
           <Link href={productHref}>
             {product.name}
           </Link>
@@ -127,7 +127,7 @@ function FeaturedProductCard({ product }: ProductCardProps) {
             {product.healthBenefits.slice(0, 2).map((benefit, index) => (
               <span
                 key={index}
-                className="text-xs bg-[#003B7A]/5 text-[#003B7A] px-2 py-1 rounded-full"
+                className="text-xs bg-[#3E667D]/5 text-[#3E667D] px-2 py-1 rounded-full"
               >
                 {benefit}
               </span>
@@ -139,7 +139,7 @@ function FeaturedProductCard({ product }: ProductCardProps) {
         <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xl font-bold text-[#003B7A]">
+              <span className="text-xl font-bold text-[#3E667D]">
                 ${parseFloat(product.price || product.pointsValue || '0').toFixed(2)}
               </span>
             </div>
@@ -198,7 +198,7 @@ export function FeaturedProducts() {
           <Badge variant="success" size="lg" className="mb-4">
             Más Vendidos
           </Badge>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#003B7A]">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#3E667D]">
             Productos Destacados
           </h2>
           <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
@@ -209,14 +209,14 @@ export function FeaturedProducts() {
 
         {/* Categories Pills */}
         <div className="flex flex-wrap justify-center gap-3 mb-12">
-          <button className="px-5 py-2.5 rounded-full bg-[#003B7A] text-white font-medium transition-all">
+          <button className="px-5 py-2.5 rounded-full bg-[#3E667D] text-white font-medium transition-all">
             Todos
           </button>
           {!loadingCategories && categories?.slice(0, 5).map((category) => (
             <Link
               key={category.id}
               href={`/productos?categoria=${category.slug}`}
-              className="px-5 py-2.5 rounded-full bg-gray-100 text-gray-700 font-medium hover:bg-[#7AB82E]/10 hover:text-[#7AB82E] transition-all"
+              className="px-5 py-2.5 rounded-full bg-gray-100 text-gray-700 font-medium hover:bg-[#C8DDF2]/10 hover:text-[#3E667D] transition-all"
             >
               {category.name}
             </Link>

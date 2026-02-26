@@ -162,7 +162,7 @@ export default function NotificacionesAdminPage() {
   // ================================
 
   const inputClassName =
-    'w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent text-gray-900';
+    'w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-gray-900';
 
   const getPriorityBadge = (p: NotificationPriority) => {
     const styles: Record<NotificationPriority, string> = {
@@ -188,7 +188,7 @@ export default function NotificacionesAdminPage() {
     <PermissionGuard permissions={['notifications:read']}>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -265,7 +265,7 @@ export default function NotificacionesAdminPage() {
             onClick={() => setActiveTab('send')}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-colors ${
               activeTab === 'send'
-                ? 'bg-[#003B7A] text-white shadow-md'
+                ? 'bg-[#3E667D] text-white shadow-md'
                 : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
             }`}
           >
@@ -276,7 +276,7 @@ export default function NotificacionesAdminPage() {
             onClick={() => setActiveTab('history')}
             className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-colors ${
               activeTab === 'history'
-                ? 'bg-[#003B7A] text-white shadow-md'
+                ? 'bg-[#3E667D] text-white shadow-md'
                 : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
             }`}
           >
@@ -293,7 +293,7 @@ export default function NotificacionesAdminPage() {
               <Card>
                 <CardContent className="p-6">
                   <div className="flex items-center gap-3 mb-6">
-                    <MegaphoneIcon className="h-6 w-6 text-[#003B7A]" />
+                    <MegaphoneIcon className="h-6 w-6 text-[#3E667D]" />
                     <h2 className="text-xl font-bold text-gray-900">
                       Nueva Notificacion
                     </h2>
@@ -344,7 +344,7 @@ export default function NotificacionesAdminPage() {
                           onClick={() => setSendMode('bulk')}
                           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                             sendMode === 'bulk'
-                              ? 'bg-[#003B7A] text-white'
+                              ? 'bg-[#3E667D] text-white'
                               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                           }`}
                         >
@@ -356,7 +356,7 @@ export default function NotificacionesAdminPage() {
                           onClick={() => setSendMode('specific')}
                           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                             sendMode === 'specific'
-                              ? 'bg-[#003B7A] text-white'
+                              ? 'bg-[#3E667D] text-white'
                               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                           }`}
                         >
@@ -578,7 +578,7 @@ export default function NotificacionesAdminPage() {
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center gap-3 mb-6">
-                <ClockIcon className="h-6 w-6 text-[#003B7A]" />
+                <ClockIcon className="h-6 w-6 text-[#3E667D]" />
                 <h2 className="text-xl font-bold text-gray-900">
                   Historial de Notificaciones Enviadas
                 </h2>

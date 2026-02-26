@@ -158,7 +158,7 @@ export default function MaterialesPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -232,7 +232,7 @@ export default function MaterialesPage() {
                   placeholder="Buscar materiales..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                 />
               </div>
 
@@ -240,7 +240,7 @@ export default function MaterialesPage() {
               <select
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
               >
                 {categories.map(cat => (
                   <option key={cat} value={cat}>{cat}</option>
@@ -251,7 +251,7 @@ export default function MaterialesPage() {
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
               >
                 {types.map(type => (
                   <option key={type} value={type}>{type}</option>
@@ -262,7 +262,7 @@ export default function MaterialesPage() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
               >
                 <option value="recent">Más Recientes</option>
                 <option value="popular">Más Descargados</option>
@@ -294,13 +294,13 @@ export default function MaterialesPage() {
                   <CardContent className="p-6">
                     {/* Preview Image */}
                     <div className="aspect-video bg-gray-100 rounded-lg mb-4 flex items-center justify-center relative overflow-hidden">
-                      <div className="absolute inset-0 bg-gradient-to-br from-[#003B7A]/20 to-[#7AB82E]/20 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-gradient-to-br from-[#3E667D]/20 to-[#C8DDF2]/20 flex items-center justify-center">
                         <IconComponent className="h-16 w-16 text-gray-400" />
                       </div>
                       {material.type === 'Video' && (
                         <div className="absolute inset-0 flex items-center justify-center">
                           <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
-                            <div className="w-0 h-0 border-t-6 border-t-transparent border-l-10 border-l-[#003B7A] border-b-6 border-b-transparent ml-1" />
+                            <div className="w-0 h-0 border-t-6 border-t-transparent border-l-10 border-l-[#3E667D] border-b-6 border-b-transparent ml-1" />
                           </div>
                         </div>
                       )}
@@ -372,7 +372,7 @@ export default function MaterialesPage() {
         )}
 
         {/* Help Section */}
-        <Card className="mt-8 bg-gradient-to-r from-[#7AB82E] to-[#7AB82E]/90 text-white">
+        <Card className="mt-8 bg-gradient-to-r from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
           <CardContent className="p-8">
             <div className="grid md:grid-cols-2 gap-8">
               <div>

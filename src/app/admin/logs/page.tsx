@@ -322,7 +322,7 @@ export default function LogsPage() {
                   placeholder="Buscar en logs..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 />
               </div>
             </div>
@@ -333,7 +333,7 @@ export default function LogsPage() {
               <select
                 value={filterRiskLevel}
                 onChange={(e) => setFilterRiskLevel(e.target.value as RiskLevel | 'all')}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
               >
                 <option value="all">Todos los Niveles</option>
                 <option value="critical">Crítico</option>
@@ -348,7 +348,7 @@ export default function LogsPage() {
               <select
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
               >
                 <option value="all">Todas las Categorías</option>
                 {ACTION_CATEGORIES.map((cat) => (
@@ -366,7 +366,7 @@ export default function LogsPage() {
                   setAutoRefresh(e.target.checked);
                   toast.info(e.target.checked ? 'Auto-refresh activado' : 'Auto-refresh desactivado');
                 }}
-                className="w-5 h-5 text-[#003B7A] border-gray-300 rounded focus:ring-[#003B7A]"
+                className="w-5 h-5 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
               />
               <span className="text-sm font-medium text-gray-700">Auto-refresh</span>
             </label>

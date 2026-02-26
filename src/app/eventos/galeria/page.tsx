@@ -235,7 +235,7 @@ export default function GaleriaEventosPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="text-center">
             <div className="flex justify-center mb-4">
@@ -275,7 +275,7 @@ export default function GaleriaEventosPage() {
                     placeholder="Buscar eventos..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -286,7 +286,7 @@ export default function GaleriaEventosPage() {
                 <select
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 >
                   {eventTypes.map((type) => (
                     <option key={type.id} value={type.id}>{type.name}</option>
@@ -299,7 +299,7 @@ export default function GaleriaEventosPage() {
                 <select
                   value={filterYear}
                   onChange={(e) => setFilterYear(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 >
                   {years.map((year) => (
                     <option key={year} value={year}>{year}</option>
@@ -312,7 +312,7 @@ export default function GaleriaEventosPage() {
                 <select
                   value={filterCountry}
                   onChange={(e) => setFilterCountry(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 >
                   {countries.map((country) => (
                     <option key={country} value={country}>{country}</option>
@@ -371,7 +371,7 @@ export default function GaleriaEventosPage() {
                       <ul className="space-y-1">
                         {event.highlights.map((highlight, idx) => (
                           <li key={idx} className="text-sm text-gray-700 flex items-start gap-2">
-                            <span className="text-[#7AB82E] mt-1">✓</span>
+                            <span className="text-[#3E667D] mt-1">✓</span>
                             <span>{highlight}</span>
                           </li>
                         ))}
@@ -442,7 +442,7 @@ export default function GaleriaEventosPage() {
         )}
 
         {/* CTA */}
-        <Card className="mt-12 bg-gradient-to-br from-[#003B7A] to-[#003B7A]/90 text-white">
+        <Card className="mt-12 bg-gradient-to-br from-[#3E667D] to-[#3E667D]/90 text-white">
           <CardContent className="p-12">
             <div className="text-center max-w-3xl mx-auto">
               <h2 className="text-3xl font-bold mb-4">¿Listo para ser parte del próximo evento?</h2>

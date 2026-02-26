@@ -133,7 +133,7 @@ export default function ReportesPage() {
     <PermissionGuard permissions={['reports:read', 'reports:*']}>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -175,7 +175,7 @@ export default function ReportesPage() {
                 <select
                   value={dateRange}
                   onChange={(e) => setDateRange(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 >
                   <option value="last-7-days">Últimos 7 días</option>
                   <option value="last-30-days">Últimos 30 días</option>
@@ -262,7 +262,7 @@ export default function ReportesPage() {
                   onClick={() => setSelectedMetric('sales')}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     selectedMetric === 'sales'
-                      ? 'bg-[#003B7A] text-white'
+                      ? 'bg-[#3E667D] text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -272,7 +272,7 @@ export default function ReportesPage() {
                   onClick={() => setSelectedMetric('orders')}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     selectedMetric === 'orders'
-                      ? 'bg-[#003B7A] text-white'
+                      ? 'bg-[#3E667D] text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -282,7 +282,7 @@ export default function ReportesPage() {
                   onClick={() => setSelectedMetric('customers')}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                     selectedMetric === 'customers'
-                      ? 'bg-[#003B7A] text-white'
+                      ? 'bg-[#3E667D] text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -295,7 +295,7 @@ export default function ReportesPage() {
             <div className="space-y-4">
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#003B7A]"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3E667D]"></div>
                 </div>
               ) : salesTrend.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
@@ -323,7 +323,7 @@ export default function ReportesPage() {
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-8">
                         <div
-                          className="bg-gradient-to-r from-[#003B7A] to-[#7AB82E] h-8 rounded-full flex items-center justify-end pr-3 transition-all duration-500"
+                          className="bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] h-8 rounded-full flex items-center justify-end pr-3 transition-all duration-500"
                           style={{ width: `${Math.max(percentage, 5)}%` }}
                         >
                           <span className="text-xs font-bold text-white">
@@ -356,7 +356,7 @@ export default function ReportesPage() {
               <div className="space-y-4">
                 {isLoading ? (
                   <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#003B7A]"></div>
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3E667D]"></div>
                   </div>
                 ) : topProducts.length === 0 ? (
                   <div className="text-center py-4 text-gray-500 text-sm">Sin datos</div>
@@ -403,7 +403,7 @@ export default function ReportesPage() {
               <div className="space-y-4">
                 {isLoading ? (
                   <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#003B7A]"></div>
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3E667D]"></div>
                   </div>
                 ) : topDistributors.length === 0 ? (
                   <div className="text-center py-4 text-gray-500 text-sm">Sin datos</div>
@@ -456,7 +456,7 @@ export default function ReportesPage() {
             <div className="space-y-6">
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#003B7A]"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3E667D]"></div>
                 </div>
               ) : categoryPerformance.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">Sin datos de categorías</div>
@@ -475,7 +475,7 @@ export default function ReportesPage() {
                     <div className="flex items-center gap-3">
                       <div className="flex-1 bg-gray-200 rounded-full h-6">
                         <div
-                          className="bg-gradient-to-r from-[#003B7A] to-[#7AB82E] h-6 rounded-full flex items-center justify-end pr-3"
+                          className="bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] h-6 rounded-full flex items-center justify-end pr-3"
                           style={{ width: `${Math.max(category.percentage, 5)}%` }}
                         >
                           <span className="text-xs font-bold text-white">

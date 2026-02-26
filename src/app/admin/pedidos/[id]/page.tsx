@@ -323,7 +323,7 @@ export default function OrderDetailAdminPage() {
                     <div className="flex flex-col items-center">
                       <div
                         className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          step.completed ? 'bg-[#7AB82E] text-white' : 'bg-gray-200 text-gray-400'
+                          step.completed ? 'bg-[#3E667D] text-white' : 'bg-gray-200 text-gray-400'
                         }`}
                       >
                         {step.completed ? (
@@ -335,7 +335,7 @@ export default function OrderDetailAdminPage() {
                       {index < orderData.timeline.length - 1 && (
                         <div
                           className={`w-0.5 h-16 ${
-                            step.completed ? 'bg-[#7AB82E]' : 'bg-gray-200'
+                            step.completed ? 'bg-[#C8DDF2]' : 'bg-gray-200'
                           }`}
                         />
                       )}
@@ -374,11 +374,11 @@ export default function OrderDetailAdminPage() {
                   value={newNote}
                   onChange={(e) => setNewNote(e.target.value)}
                   placeholder="Agregar una nota..."
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
                 />
                 <button
                   onClick={handleAddNote}
-                  className="px-6 py-2 bg-[#003B7A] text-white rounded-lg hover:bg-[#002855]"
+                  className="px-6 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#002855]"
                 >
                   Agregar
                 </button>
@@ -394,7 +394,7 @@ export default function OrderDetailAdminPage() {
               <select
                 value={status}
                 onChange={(e) => handleStatusChange(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A] mb-3"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D] mb-3"
               >
                 {statusOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -419,7 +419,7 @@ export default function OrderDetailAdminPage() {
                     <p className="font-medium text-gray-900">{orderData.customer.name}</p>
                     <Link
                       href={`/admin/usuarios/${orderData.customer.userId}`}
-                      className="text-sm text-[#003B7A] hover:underline"
+                      className="text-sm text-[#3E667D] hover:underline"
                     >
                       Ver perfil →
                     </Link>
@@ -429,7 +429,7 @@ export default function OrderDetailAdminPage() {
                   <EnvelopeIcon className="h-5 w-5 text-gray-400" />
                   <a
                     href={`mailto:${orderData.customer.email}`}
-                    className="text-gray-700 hover:text-[#003B7A]"
+                    className="text-gray-700 hover:text-[#3E667D]"
                   >
                     {orderData.customer.email}
                   </a>
@@ -438,7 +438,7 @@ export default function OrderDetailAdminPage() {
                   <PhoneIcon className="h-5 w-5 text-gray-400" />
                   <a
                     href={`tel:${orderData.customer.phone}`}
-                    className="text-gray-700 hover:text-[#003B7A]"
+                    className="text-gray-700 hover:text-[#3E667D]"
                   >
                     {orderData.customer.phone}
                   </a>
@@ -474,7 +474,7 @@ export default function OrderDetailAdminPage() {
                     <DocumentTextIcon className="h-5 w-5 text-gray-400 mt-0.5" />
                     <div>
                       <p className="text-sm font-medium text-gray-900">Tracking</p>
-                      <p className="text-sm text-[#003B7A] font-mono">
+                      <p className="text-sm text-[#3E667D] font-mono">
                         {orderData.shipping.trackingNumber}
                       </p>
                     </div>

@@ -157,7 +157,7 @@ export default function MetasPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -203,7 +203,7 @@ export default function MetasPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-br from-[#7AB82E] to-[#7AB82E]/90 text-white">
+          <Card className="bg-gradient-to-br from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -255,7 +255,7 @@ export default function MetasPage() {
                       onClick={() => setFilterCategory(category)}
                       className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                         filterCategory === category
-                          ? 'bg-[#003B7A] text-white'
+                          ? 'bg-[#3E667D] text-white'
                           : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
                       }`}
                     >
@@ -272,7 +272,7 @@ export default function MetasPage() {
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                 >
                   <option value="all">Todas</option>
                   <option value="active">Activas</option>
@@ -337,7 +337,7 @@ export default function MetasPage() {
                           goal.status === 'completed'
                             ? 'bg-green-500'
                             : goal.progress >= 75
-                            ? 'bg-[#7AB82E]'
+                            ? 'bg-[#C8DDF2]'
                             : goal.progress >= 50
                             ? 'bg-yellow-500'
                             : 'bg-orange-500'
@@ -448,7 +448,7 @@ export default function MetasPage() {
                     <input
                       type="text"
                       placeholder="Ej: Alcanzar $100,000 en ventas"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                     />
                   </div>
 
@@ -457,7 +457,7 @@ export default function MetasPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Categoría
                       </label>
-                      <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent">
+                      <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent">
                         <option value="Ventas">Ventas</option>
                         <option value="Equipo">Equipo</option>
                         <option value="Rango">Rango</option>
@@ -470,7 +470,7 @@ export default function MetasPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Prioridad
                       </label>
-                      <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent">
+                      <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent">
                         <option value="high">Alta</option>
                         <option value="medium">Media</option>
                         <option value="low">Baja</option>
@@ -486,7 +486,7 @@ export default function MetasPage() {
                       <input
                         type="number"
                         placeholder="50000"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                       />
                     </div>
 
@@ -497,7 +497,7 @@ export default function MetasPage() {
                       <input
                         type="text"
                         placeholder="MXN / personas / pedidos"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                       />
                     </div>
                   </div>
@@ -511,7 +511,7 @@ export default function MetasPage() {
                         type="number"
                         placeholder="0"
                         defaultValue="0"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                       />
                     </div>
 
@@ -521,7 +521,7 @@ export default function MetasPage() {
                       </label>
                       <input
                         type="date"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                       />
                     </div>
                   </div>
@@ -530,7 +530,7 @@ export default function MetasPage() {
                     <input
                       type="checkbox"
                       id="isMonthly"
-                      className="w-4 h-4 text-[#7AB82E] border-gray-300 rounded focus:ring-[#7AB82E]"
+                      className="w-4 h-4 text-[#3E667D] border-gray-300 rounded focus:ring-[#a7c1e2]"
                     />
                     <label htmlFor="isMonthly" className="text-sm text-gray-700">
                       Meta mensual recurrente

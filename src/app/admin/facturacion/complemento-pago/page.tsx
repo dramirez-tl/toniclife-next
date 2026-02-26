@@ -92,7 +92,7 @@ export default function ComplementoPagoPage() {
     <PermissionGuard permissions={['billing:create', 'billing:*']}>
       <div className="min-h-screen bg-gray-50">
         {/* Header */}
-        <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+        <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="flex items-center justify-between">
               <div>
@@ -140,7 +140,7 @@ export default function ComplementoPagoPage() {
                         value={invoiceUuid}
                         onChange={(e) => setInvoiceUuid(e.target.value)}
                         placeholder="Ej: 6F8E2D3A-B1C4-4E5F-9A0D-1234567890AB"
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent font-mono text-sm"
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent font-mono text-sm"
                       />
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
@@ -160,7 +160,7 @@ export default function ComplementoPagoPage() {
                           type="date"
                           value={paymentDate}
                           onChange={(e) => setPaymentDate(e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                     </div>
@@ -178,7 +178,7 @@ export default function ComplementoPagoPage() {
                           placeholder="0.00"
                           min="0.01"
                           step="0.01"
-                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                     </div>
@@ -194,7 +194,7 @@ export default function ComplementoPagoPage() {
                         placeholder="1"
                         min="1"
                         step="1"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                       />
                     </div>
                   </div>
@@ -207,7 +207,7 @@ export default function ComplementoPagoPage() {
                     <select
                       value={paymentForm}
                       onChange={(e) => setPaymentForm(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     >
                       <option value="01">01 - Efectivo</option>
                       <option value="02">02 - Cheque nominativo</option>
@@ -272,7 +272,7 @@ export default function ComplementoPagoPage() {
 
                   <div className="bg-gray-50 rounded-lg p-4 mb-6 inline-block">
                     <p className="text-xs text-gray-500 mb-1">ID del Complemento</p>
-                    <p className="font-mono text-sm text-[#003B7A] font-medium">
+                    <p className="font-mono text-sm text-[#3E667D] font-medium">
                       {createdComplement.complementInvoiceId || createdComplement.id}
                     </p>
                   </div>

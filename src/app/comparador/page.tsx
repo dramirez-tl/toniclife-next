@@ -167,7 +167,7 @@ export default function ComparadorPage() {
   const renderFeatureValue = (value: any) => {
     if (typeof value === 'boolean') {
       return value ? (
-        <CheckIcon className="h-6 w-6 text-[#7AB82E] mx-auto" />
+        <CheckIcon className="h-6 w-6 text-[#3E667D] mx-auto" />
       ) : (
         <XIcon className="h-6 w-6 text-red-500 mx-auto" />
       );
@@ -178,7 +178,7 @@ export default function ComparadorPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -275,7 +275,7 @@ export default function ComparadorPage() {
                         <button
                           key={product.id}
                           onClick={() => handleAddProduct(product.id)}
-                          className="p-3 border border-gray-200 rounded-lg hover:border-[#7AB82E] hover:bg-[#7AB82E]/5 transition-colors text-left"
+                          className="p-3 border border-gray-200 rounded-lg hover:border-[#a7c1e2] hover:bg-[#C8DDF2]/5 transition-colors text-left"
                         >
                           <p className="font-medium text-sm text-gray-900">{product.name}</p>
                           <p className="text-xs text-gray-500">{product.category}</p>
@@ -353,7 +353,7 @@ export default function ComparadorPage() {
                                   )}
                                 </div>
                                 {product.originalPrice && (
-                                  <p className="text-xs text-[#7AB82E] font-medium mt-1">
+                                  <p className="text-xs text-[#3E667D] font-medium mt-1">
                                     Ahorra ${product.originalPrice - product.price}
                                   </p>
                                 )}
@@ -417,7 +417,7 @@ export default function ComparadorPage() {
             </div>
 
             {/* Bottom CTA */}
-            <Card className="mt-8 bg-gradient-to-r from-[#7AB82E] to-[#7AB82E]/90 text-white">
+            <Card className="mt-8 bg-gradient-to-r from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
               <CardContent className="p-8">
                 <div className="flex items-center justify-between">
                   <div>

@@ -71,7 +71,7 @@ export function CartItem({ item }: CartItemProps) {
 
         {/* Price */}
         <div className="mt-1 flex items-center gap-2">
-          <span className="font-bold text-[#003B7A]">
+          <span className="font-bold text-[#3E667D]">
             {cartService.formatCurrency(item.unitPrice)}
           </span>
           {hasDiscount && (
@@ -83,7 +83,7 @@ export function CartItem({ item }: CartItemProps) {
 
         {/* Points */}
         {item.points > 0 && (
-          <p className="text-xs text-[#7AB82E]">+{item.points} puntos</p>
+          <p className="text-xs text-[#3E667D]">+{item.points} puntos</p>
         )}
       </div>
 

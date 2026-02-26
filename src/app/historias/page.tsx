@@ -206,7 +206,7 @@ export default function HistoriasPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="text-center">
             <div className="flex justify-center mb-4">
@@ -247,7 +247,7 @@ export default function HistoriasPage() {
                     placeholder="Buscar historias..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -258,7 +258,7 @@ export default function HistoriasPage() {
                 <select
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value as any)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 >
                   <option value="all">Todas las Historias</option>
                   <option value="health">Solo Salud</option>
@@ -274,7 +274,7 @@ export default function HistoriasPage() {
         {featuredStories.length > 0 && (
           <div className="mb-12">
             <h2 className="text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-              <SparklesIcon className="h-8 w-8 text-[#7AB82E]" />
+              <SparklesIcon className="h-8 w-8 text-[#3E667D]" />
               Historias Destacadas
             </h2>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -327,7 +327,7 @@ export default function HistoriasPage() {
                           <div className="flex justify-center mb-1">
                             {getStatIcon(stat.icon)}
                           </div>
-                          <p className="text-lg font-bold text-[#003B7A]">{stat.value}</p>
+                          <p className="text-lg font-bold text-[#3E667D]">{stat.value}</p>
                           <p className="text-xs text-gray-600">{stat.label}</p>
                         </div>
                       ))}
@@ -441,7 +441,7 @@ export default function HistoriasPage() {
         )}
 
         {/* CTA Section */}
-        <Card className="mt-12 bg-gradient-to-br from-[#7AB82E] to-[#7AB82E]/90 text-white">
+        <Card className="mt-12 bg-gradient-to-br from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
           <CardContent className="p-12">
             <div className="text-center max-w-3xl mx-auto">
               <h2 className="text-3xl font-bold mb-4">¿Listo para escribir tu propia historia de éxito?</h2>

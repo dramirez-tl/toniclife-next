@@ -56,14 +56,14 @@ export default function ConfirmacionContent() {
         angle: 60,
         spread: 55,
         origin: { x: 0 },
-        colors: ['#003B7A', '#7AB82E', '#FFD700'],
+        colors: ['#3E667D', '#C8DDF2', '#FFD700'],
       });
       confetti({
         particleCount: 2,
         angle: 120,
         spread: 55,
         origin: { x: 1 },
-        colors: ['#003B7A', '#7AB82E', '#FFD700'],
+        colors: ['#3E667D', '#C8DDF2', '#FFD700'],
       });
 
       if (Date.now() < end) {
@@ -92,7 +92,7 @@ export default function ConfirmacionContent() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-[#7AB82E] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-16 h-16 border-4 border-[#a7c1e2] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-600 text-lg">Cargando confirmación del pedido...</p>
         </div>
       </div>
@@ -145,10 +145,10 @@ export default function ConfirmacionContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Success Header */}
-      <div className="bg-gradient-to-r from-[#7AB82E] to-[#7AB82E]/90 text-white">
+      <div className="bg-gradient-to-r from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
           <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircleIcon className="h-12 w-12 text-[#7AB82E]" />
+            <CheckCircleIcon className="h-12 w-12 text-[#3E667D]" />
           </div>
 
           <h1 className="text-4xl sm:text-5xl font-bold mb-4">
@@ -227,7 +227,7 @@ export default function ConfirmacionContent() {
               {/* Step 1 - Confirmed */}
               <div className="flex gap-4">
                 <div className="flex-shrink-0">
-                  <div className="w-10 h-10 bg-[#7AB82E] rounded-full flex items-center justify-center ring-4 ring-[#7AB82E]/20">
+                  <div className="w-10 h-10 bg-[#C8DDF2] rounded-full flex items-center justify-center ring-4 ring-[#C8DDF2]/20">
                     <CheckCircleIcon className="h-6 w-6 text-white" />
                   </div>
                 </div>
@@ -327,7 +327,7 @@ export default function ConfirmacionContent() {
                   <span className="text-gray-600">Envío</span>
                   <span className="font-medium">
                     {shipping === 0 ? (
-                      <span className="text-[#7AB82E]">Gratis</span>
+                      <span className="text-[#3E667D]">Gratis</span>
                     ) : (
                       `$${shipping.toLocaleString('es-MX')}`
                     )}
@@ -347,7 +347,7 @@ export default function ConfirmacionContent() {
                 </div>
                 <div className="flex justify-between text-lg font-bold border-t pt-3 mt-3">
                   <span>Total</span>
-                  <span className="text-[#003B7A]">${total.toLocaleString('es-MX')}</span>
+                  <span className="text-[#3E667D]">${total.toLocaleString('es-MX')}</span>
                 </div>
               </div>
             </CardContent>
@@ -360,7 +360,7 @@ export default function ConfirmacionContent() {
               <Card>
                 <CardContent className="p-6">
                   <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <MapPinIcon className="h-5 w-5 text-[#003B7A]" />
+                    <MapPinIcon className="h-5 w-5 text-[#3E667D]" />
                     Dirección de Envío
                   </h3>
                   <div className="text-sm">
@@ -382,7 +382,7 @@ export default function ConfirmacionContent() {
             <Card>
               <CardContent className="p-6">
                 <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <CreditCardIcon className="h-5 w-5 text-[#003B7A]" />
+                  <CreditCardIcon className="h-5 w-5 text-[#3E667D]" />
                   Método de Pago
                 </h3>
                 <p className="text-sm text-gray-900 font-medium">
@@ -421,7 +421,7 @@ export default function ConfirmacionContent() {
 
         {/* CTAs */}
         <div className="grid md:grid-cols-2 gap-6">
-          <Card className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+          <Card className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
             <CardContent className="p-6">
               <h3 className="font-bold text-lg mb-2">Sigue tu Pedido</h3>
               <p className="text-white/80 text-sm mb-4">
@@ -439,7 +439,7 @@ export default function ConfirmacionContent() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-to-r from-[#7AB82E] to-[#7AB82E]/90 text-white">
+          <Card className="bg-gradient-to-r from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
             <CardContent className="p-6">
               <h3 className="font-bold text-lg mb-2">Sigue Comprando</h3>
               <p className="text-white/80 text-sm mb-4">

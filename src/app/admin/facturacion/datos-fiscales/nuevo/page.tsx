@@ -180,7 +180,7 @@ export default function NewFiscalDataPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center gap-4">
             <Link
@@ -261,14 +261,14 @@ export default function NewFiscalDataPage() {
                         value={customerSearch}
                         onChange={(e) => setCustomerSearch(e.target.value)}
                         placeholder="Buscar por nombre, número o email..."
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         autoFocus
                       />
                     </div>
                     <div className="max-h-64 overflow-y-auto space-y-2">
                       {isLoadingCustomers ? (
                         <div className="text-center py-4">
-                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#003B7A] mx-auto"></div>
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3E667D] mx-auto"></div>
                           <p className="text-sm text-gray-500 mt-2">Buscando...</p>
                         </div>
                       ) : customers.length > 0 ? (
@@ -277,7 +277,7 @@ export default function NewFiscalDataPage() {
                             key={customer.id}
                             type="button"
                             onClick={() => handleSelectCustomer(customer)}
-                            className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-[#003B7A] hover:bg-[#003B7A]/5 transition-colors"
+                            className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-[#3E667D] hover:bg-[#3E667D]/5 transition-colors"
                           >
                             <div className="font-medium">{customer.name}</div>
                             <div className="text-sm text-gray-500">
@@ -332,7 +332,7 @@ export default function NewFiscalDataPage() {
                         setFormData({ ...formData, rfc: e.target.value.toUpperCase() })
                       }
                       maxLength={13}
-                      className={`flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent font-mono uppercase ${
+                      className={`flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent font-mono uppercase ${
                         errors.rfc ? 'border-red-500' : 'border-gray-300'
                       }`}
                       placeholder="XAXX010101000"
@@ -362,7 +362,7 @@ export default function NewFiscalDataPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, legalName: e.target.value })
                     }
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent ${
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent ${
                       errors.legalName ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="Nombre o Razón Social como aparece en el SAT"
@@ -382,7 +382,7 @@ export default function NewFiscalDataPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, taxRegime: e.target.value })
                     }
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent ${
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent ${
                       errors.taxRegime ? 'border-red-500' : 'border-gray-300'
                     }`}
                   >
@@ -413,7 +413,7 @@ export default function NewFiscalDataPage() {
                       })
                     }
                     maxLength={5}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent ${
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent ${
                       errors.postalCode ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="12345"
@@ -433,7 +433,7 @@ export default function NewFiscalDataPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, defaultCfdiUse: e.target.value })
                     }
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent ${
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent ${
                       errors.defaultCfdiUse ? 'border-red-500' : 'border-gray-300'
                     }`}
                   >
@@ -458,7 +458,7 @@ export default function NewFiscalDataPage() {
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent ${
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent ${
                       errors.email ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="correo@ejemplo.com"
@@ -491,7 +491,7 @@ export default function NewFiscalDataPage() {
                     type="text"
                     value={formData.street}
                     onChange={(e) => setFormData({ ...formData, street: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     placeholder="Nombre de la calle"
                   />
                 </div>
@@ -507,7 +507,7 @@ export default function NewFiscalDataPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, exteriorNumber: e.target.value })
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     placeholder="123"
                   />
                 </div>
@@ -523,7 +523,7 @@ export default function NewFiscalDataPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, interiorNumber: e.target.value })
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     placeholder="Depto 5"
                   />
                 </div>
@@ -539,7 +539,7 @@ export default function NewFiscalDataPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, neighborhood: e.target.value })
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     placeholder="Nombre de la colonia"
                   />
                 </div>
@@ -553,7 +553,7 @@ export default function NewFiscalDataPage() {
                     type="text"
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     placeholder="Ciudad"
                   />
                 </div>
@@ -567,7 +567,7 @@ export default function NewFiscalDataPage() {
                     type="text"
                     value={formData.state}
                     onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     placeholder="Estado"
                   />
                 </div>

@@ -80,7 +80,7 @@ export function CommissionPercentagesTable({
                           <div
                             className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
                               isUnlocked
-                                ? 'bg-[#003B7A] text-white'
+                                ? 'bg-[#3E667D] text-white'
                                 : 'bg-gray-200 text-gray-500'
                             }`}
                           >
@@ -100,7 +100,7 @@ export function CommissionPercentagesTable({
                         <span
                           className={`text-lg font-medium ${
                             !hasIncreasedRate && isUnlocked
-                              ? 'text-[#003B7A] font-bold'
+                              ? 'text-[#3E667D] font-bold'
                               : 'text-gray-400'
                           }`}
                         >
@@ -112,7 +112,7 @@ export function CommissionPercentagesTable({
                           <span
                             className={`text-lg font-medium ${
                               hasIncreasedRate && isUnlocked
-                                ? 'text-[#7AB82E] font-bold'
+                                ? 'text-[#3E667D] font-bold'
                                 : 'text-gray-400'
                             }`}
                           >
@@ -142,14 +142,14 @@ export function CommissionPercentagesTable({
                             <span
                               className={`px-3 py-1 rounded-full text-sm font-medium ${
                                 hasIncreasedRate
-                                  ? 'bg-[#7AB82E]/10 text-[#7AB82E]'
-                                  : 'bg-[#003B7A]/10 text-[#003B7A]'
+                                  ? 'bg-[#C8DDF2]/10 text-[#3E667D]'
+                                  : 'bg-[#3E667D]/10 text-[#3E667D]'
                               }`}
                             >
                               {currentRate}%
                             </span>
                             {hasIncreasedRate && (
-                              <span className="text-xs text-[#7AB82E]">Aumentado</span>
+                              <span className="text-xs text-[#3E667D]">Aumentado</span>
                             )}
                           </div>
                         ) : (

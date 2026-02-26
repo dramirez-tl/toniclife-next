@@ -107,20 +107,30 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
   const goalInfo = goalLabels[primaryGoal] || goalLabels.energy;
 
   const handleShare = async () => {
+    const shareUrl = window.location.origin + '/quiz';
+    const shareText = `Descubrí mi fórmula ideal de bienestar: ${goalInfo.title}. ¡Haz tu evaluación!`;
+
     if (navigator.share) {
       try {
         await navigator.share({
           title: 'Mi Resultado de la Evaluación de Salud - Tonic Life',
-          text: `Descubrí mi fórmula ideal de bienestar: ${goalInfo.title}. ¡Haz tu evaluación!`,
-          url: window.location.origin + '/quiz',
+          text: shareText,
+          url: shareUrl,
         });
-      } catch (error) {
-        console.log('Error sharing:', error);
+      } catch (error: any) {
+        // User cancelled the share dialog - not an error
+        if (error?.name !== 'AbortError') {
+          console.log('Error sharing:', error);
+        }
       }
     } else {
       // Fallback: copy to clipboard
-      navigator.clipboard.writeText(window.location.origin + '/quiz');
-      toast.success('Enlace copiado al portapapeles');
+      try {
+        await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+        toast.success('Enlace copiado al portapapeles');
+      } catch {
+        toast.error('No se pudo copiar al portapapeles');
+      }
     }
   };
 
@@ -189,10 +199,10 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Success Header */}
       <div className="text-center mb-10">
-        <div className="inline-flex items-center justify-center w-20 h-20 bg-[#7AB82E]/10 rounded-full mb-6">
-          <CheckCircleIcon className="h-10 w-10 text-[#7AB82E]" />
+        <div className="inline-flex items-center justify-center w-20 h-20 bg-[#C8DDF2]/10 rounded-full mb-6">
+          <CheckCircleIcon className="h-10 w-10 text-[#3E667D]" />
         </div>
-        <h1 className="text-3xl sm:text-4xl font-bold text-[#003B7A]">
+        <h1 className="text-3xl sm:text-4xl font-bold text-[#3E667D]">
           ¡Evaluación completada!
         </h1>
         <p className="mt-3 text-lg text-gray-600">
@@ -202,9 +212,9 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
 
       {/* Primary Goal Card */}
       <Card className="mb-8 overflow-hidden" padding="none">
-        <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white p-8">
+        <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white p-8">
           <div className="flex items-start gap-6">
-            <div className="p-4 bg-[#7AB82E]/20 rounded-2xl text-[#7AB82E]">
+            <div className="p-4 bg-[#C8DDF2]/20 rounded-2xl text-[#3E667D]">
               {goalInfo.icon}
             </div>
             <div>
@@ -244,7 +254,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
             <Badge variant="info" className="mb-2">
               Tu Combo Recomendado
             </Badge>
-            <h2 className="text-2xl font-bold text-[#003B7A]">
+            <h2 className="text-2xl font-bold text-[#3E667D]">
               Top {topRecommendations.length} Productos para Ti
             </h2>
           </div>
@@ -253,7 +263,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
               <div className="text-sm text-gray-500 line-through">
                 ${totalOriginalPrice.toFixed(2)}
               </div>
-              <div className="text-3xl font-bold text-[#7AB82E]">
+              <div className="text-3xl font-bold text-[#3E667D]">
                 ${totalBundlePrice.toFixed(2)}
               </div>
               <Badge variant="error" size="sm">
@@ -302,7 +312,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
       {/* More Recommendations */}
       {result.recommendations.length > 3 && (
         <Card className="mb-8" padding="lg">
-          <h3 className="text-xl font-bold text-[#003B7A] mb-4">
+          <h3 className="text-xl font-bold text-[#3E667D] mb-4">
             También te pueden interesar
           </h3>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -321,19 +331,19 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
                       className="object-cover"
                     />
                   ) : (
-                    <span className="text-2xl font-bold text-[#003B7A]">
+                    <span className="text-2xl font-bold text-[#3E667D]">
                       {product.productName.substring(0, 2).toUpperCase()}
                     </span>
                   )}
                 </div>
-                <h4 className="font-semibold text-[#003B7A] line-clamp-1">
+                <h4 className="font-semibold text-[#3E667D] line-clamp-1">
                   {product.productName}
                 </h4>
                 <p className="text-sm text-gray-500 mt-1">
                   ${product.price.toFixed(2)}
                 </p>
                 <div className="flex items-center justify-center gap-1 mt-2">
-                  <span className="text-xs text-[#7AB82E] font-medium">
+                  <span className="text-xs text-[#3E667D] font-medium">
                     Compatibilidad: {product.score}%
                   </span>
                 </div>
@@ -355,11 +365,11 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
       {onSaveEmail && !showEmailForm && (
         <Card className="mb-8" padding="lg">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-[#7AB82E]/10 rounded-full">
-              <EnvelopeIcon className="h-6 w-6 text-[#7AB82E]" />
+            <div className="p-3 bg-[#C8DDF2]/10 rounded-full">
+              <EnvelopeIcon className="h-6 w-6 text-[#3E667D]" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-[#003B7A]">
+              <h3 className="font-semibold text-[#3E667D]">
                 Guarda tus resultados
               </h3>
               <p className="text-sm text-gray-500">
@@ -375,7 +385,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
 
       {showEmailForm && (
         <Card className="mb-8" padding="lg">
-          <h3 className="font-semibold text-[#003B7A] mb-4">
+          <h3 className="font-semibold text-[#3E667D] mb-4">
             Envía tus resultados a tu correo
           </h3>
           <div className="space-y-4">
@@ -384,14 +394,14 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
               placeholder="Tu nombre (opcional)"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7AB82E]/50"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#a7c1e2]/50"
             />
             <input
               type="email"
               placeholder="tu@correo.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#7AB82E]/50"
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#a7c1e2]/50"
             />
             <div className="flex gap-2">
               <Button onClick={handleSaveEmail} fullWidth>
@@ -409,7 +419,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
       <div className="text-center space-y-4">
         <button
           onClick={onRestart}
-          className="inline-flex items-center gap-2 text-gray-500 hover:text-[#003B7A] transition-colors"
+          className="inline-flex items-center gap-2 text-gray-500 hover:text-[#3E667D] transition-colors"
         >
           <ArrowPathIcon className="h-5 w-5" />
           Volver a hacer la evaluación
@@ -418,7 +428,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
         <div className="pt-4">
           <Link
             href="/productos"
-            className="text-[#7AB82E] hover:underline font-medium"
+            className="text-[#3E667D] hover:underline font-medium"
           >
             Explorar todos los productos →
           </Link>
@@ -443,7 +453,7 @@ function ProductRecommendationCard({
   return (
     <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
       {/* Rank Badge */}
-      <div className="w-10 h-10 flex-shrink-0 bg-[#003B7A] text-white rounded-full flex items-center justify-center font-bold">
+      <div className="w-10 h-10 flex-shrink-0 bg-[#3E667D] text-white rounded-full flex items-center justify-center font-bold">
         #{rank}
       </div>
 
@@ -458,7 +468,7 @@ function ProductRecommendationCard({
             className="object-cover"
           />
         ) : (
-          <span className="text-2xl font-bold text-[#003B7A]">
+          <span className="text-2xl font-bold text-[#3E667D]">
             {product.productName.substring(0, 2).toUpperCase()}
           </span>
         )}
@@ -466,12 +476,12 @@ function ProductRecommendationCard({
 
       {/* Product Info */}
       <div className="flex-grow min-w-0">
-        <h4 className="font-bold text-[#003B7A] line-clamp-1">{product.productName}</h4>
+        <h4 className="font-bold text-[#3E667D] line-clamp-1">{product.productName}</h4>
         <p className="text-sm text-gray-500 line-clamp-2">{product.reason}</p>
 
         {/* Score and Category */}
         <div className="flex flex-wrap items-center gap-2 mt-2">
-          <span className="text-xs bg-[#7AB82E]/10 text-[#7AB82E] px-2 py-0.5 rounded-full font-medium">
+          <span className="text-xs bg-[#C8DDF2]/10 text-[#3E667D] px-2 py-0.5 rounded-full font-medium">
             Compatibilidad: {product.score}%
           </span>
           {product.categoryName && (
@@ -489,7 +499,7 @@ function ProductRecommendationCard({
             ${product.originalPrice.toFixed(2)}
           </div>
         )}
-        <div className="font-bold text-[#003B7A] text-lg">
+        <div className="font-bold text-[#3E667D] text-lg">
           ${product.price.toFixed(2)}
         </div>
         <div className="flex items-center gap-0.5 mt-1 justify-end">

@@ -85,8 +85,8 @@ function ProductCard({ product }: { product: Product }) {
                 loading="lazy"
               />
             ) : (
-              <div className="w-28 h-28 bg-gradient-to-br from-[#7AB82E]/20 to-[#003B7A]/20 rounded-2xl flex items-center justify-center">
-                <span className="text-3xl font-bold text-[#003B7A]">
+              <div className="w-28 h-28 bg-gradient-to-br from-[#C8DDF2]/20 to-[#3E667D]/20 rounded-2xl flex items-center justify-center">
+                <span className="text-3xl font-bold text-[#3E667D]">
                   {product.name.substring(0, 2).toUpperCase()}
                 </span>
               </div>
@@ -98,12 +98,12 @@ function ProductCard({ product }: { product: Product }) {
       {/* Product Info */}
       <div className="p-5">
         {/* Category */}
-        <span className="text-xs font-medium text-[#7AB82E] uppercase tracking-wide">
+        <span className="text-xs font-medium text-[#3E667D] uppercase tracking-wide">
           {product.category}
         </span>
 
         {/* Name */}
-        <h3 className="font-bold text-lg text-[#003B7A] mt-1 group-hover:text-[#7AB82E] transition-colors">
+        <h3 className="font-bold text-lg text-[#3E667D] mt-1 group-hover:text-[#3E667D] transition-colors">
           <Link href={`/productos/${product.slug}`}>
             {product.name}
           </Link>
@@ -126,7 +126,7 @@ function ProductCard({ product }: { product: Product }) {
         <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xl font-bold text-[#003B7A]">
+              <span className="text-xl font-bold text-[#3E667D]">
                 ${product.price.toFixed(2)}
               </span>
               {product.compareAtPrice && (
@@ -184,8 +184,8 @@ function ProductListItem({ product }: { product: Product }) {
               loading="lazy"
             />
           ) : (
-            <div className="w-24 h-24 bg-gradient-to-br from-[#7AB82E]/20 to-[#003B7A]/20 rounded-2xl flex items-center justify-center">
-              <span className="text-2xl font-bold text-[#003B7A]">
+            <div className="w-24 h-24 bg-gradient-to-br from-[#C8DDF2]/20 to-[#3E667D]/20 rounded-2xl flex items-center justify-center">
+              <span className="text-2xl font-bold text-[#3E667D]">
                 {product.name.substring(0, 2).toUpperCase()}
               </span>
             </div>
@@ -198,7 +198,7 @@ function ProductListItem({ product }: { product: Product }) {
             <div className="flex-grow">
               {/* Badges */}
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs font-medium text-[#7AB82E] uppercase tracking-wide">
+                <span className="text-xs font-medium text-[#3E667D] uppercase tracking-wide">
                   {product.category}
                 </span>
                 {product.featured && (
@@ -212,7 +212,7 @@ function ProductListItem({ product }: { product: Product }) {
               </div>
 
               {/* Name */}
-              <h3 className="font-bold text-lg text-[#003B7A] hover:text-[#7AB82E] transition-colors">
+              <h3 className="font-bold text-lg text-[#3E667D] hover:text-[#3E667D] transition-colors">
                 <Link href={`/productos/${product.slug}`}>
                   {product.name}
                 </Link>
@@ -228,7 +228,7 @@ function ProductListItem({ product }: { product: Product }) {
                 {product.benefits.slice(0, 3).map((benefit, index) => (
                   <span
                     key={index}
-                    className="text-xs bg-[#003B7A]/5 text-[#003B7A] px-2 py-1 rounded-full"
+                    className="text-xs bg-[#3E667D]/5 text-[#3E667D] px-2 py-1 rounded-full"
                   >
                     {benefit}
                   </span>
@@ -252,7 +252,7 @@ function ProductListItem({ product }: { product: Product }) {
                     ${product.compareAtPrice.toFixed(2)}
                   </span>
                 )}
-                <span className="text-2xl font-bold text-[#003B7A]">
+                <span className="text-2xl font-bold text-[#3E667D]">
                   ${product.price.toFixed(2)}
                 </span>
               </div>

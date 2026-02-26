@@ -202,14 +202,14 @@ export default function UserDetailAdminPage() {
                 <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
               </Link>
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-[#003B7A] to-[#7AB82E] rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                <div className="w-16 h-16 bg-gradient-to-br from-[#3E667D] to-[#C8DDF2] rounded-full flex items-center justify-center text-white text-2xl font-bold">
                   {userData.name.split(' ').map(n => n[0]).join('')}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <h1 className="text-2xl font-bold text-gray-900">{userData.name}</h1>
                     {userData.verified && (
-                      <CheckCircleIcon className="h-6 w-6 text-[#7AB82E]" />
+                      <CheckCircleIcon className="h-6 w-6 text-[#3E667D]" />
                     )}
                   </div>
                   <p className="text-gray-600">{userData.email}</p>
@@ -252,14 +252,14 @@ export default function UserDetailAdminPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-white rounded-lg shadow p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <ShoppingBagIcon className="h-5 w-5 text-[#003B7A]" />
+                  <ShoppingBagIcon className="h-5 w-5 text-[#3E667D]" />
                   <span className="text-sm text-gray-600">Pedidos</span>
                 </div>
                 <p className="text-2xl font-bold text-gray-900">{userData.stats.totalOrders}</p>
               </div>
               <div className="bg-white rounded-lg shadow p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <BanknotesIcon className="h-5 w-5 text-[#7AB82E]" />
+                  <BanknotesIcon className="h-5 w-5 text-[#3E667D]" />
                   <span className="text-sm text-gray-600">Total Gastado</span>
                 </div>
                 <p className="text-2xl font-bold text-gray-900">${userData.stats.totalSpent.toFixed(0)}</p>
@@ -288,7 +288,7 @@ export default function UserDetailAdminPage() {
                     onClick={() => setActiveTab('overview')}
                     className={`py-4 px-2 border-b-2 font-medium transition-colors ${
                       activeTab === 'overview'
-                        ? 'border-[#003B7A] text-[#003B7A]'
+                        ? 'border-[#3E667D] text-[#3E667D]'
                         : 'border-transparent text-gray-600 hover:text-gray-900'
                     }`}
                   >
@@ -298,7 +298,7 @@ export default function UserDetailAdminPage() {
                     onClick={() => setActiveTab('orders')}
                     className={`py-4 px-2 border-b-2 font-medium transition-colors ${
                       activeTab === 'orders'
-                        ? 'border-[#003B7A] text-[#003B7A]'
+                        ? 'border-[#3E667D] text-[#3E667D]'
                         : 'border-transparent text-gray-600 hover:text-gray-900'
                     }`}
                   >
@@ -308,7 +308,7 @@ export default function UserDetailAdminPage() {
                     onClick={() => setActiveTab('activity')}
                     className={`py-4 px-2 border-b-2 font-medium transition-colors ${
                       activeTab === 'activity'
-                        ? 'border-[#003B7A] text-[#003B7A]'
+                        ? 'border-[#3E667D] text-[#3E667D]'
                         : 'border-transparent text-gray-600 hover:text-gray-900'
                     }`}
                   >
@@ -423,7 +423,7 @@ export default function UserDetailAdminPage() {
                         </div>
                         <Link
                           href={`/admin/distribuidores/${userData.distributor.distributorId}`}
-                          className="inline-block mt-4 text-[#003B7A] font-medium hover:underline"
+                          className="inline-block mt-4 text-[#3E667D] font-medium hover:underline"
                         >
                           Ver perfil completo de distribuidor →
                         </Link>
@@ -440,7 +440,7 @@ export default function UserDetailAdminPage() {
                         <div className="flex items-center justify-between mb-2">
                           <Link
                             href={`/admin/pedidos/${order.id}`}
-                            className="font-medium text-[#003B7A] hover:underline"
+                            className="font-medium text-[#3E667D] hover:underline"
                           >
                             #{order.id}
                           </Link>
@@ -504,11 +504,11 @@ export default function UserDetailAdminPage() {
                   value={newNote}
                   onChange={(e) => setNewNote(e.target.value)}
                   placeholder="Agregar una nota interna..."
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
                 />
                 <button
                   onClick={handleAddNote}
-                  className="px-6 py-2 bg-[#003B7A] text-white rounded-lg hover:bg-[#002855]"
+                  className="px-6 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#002855]"
                 >
                   Agregar
                 </button>
@@ -524,7 +524,7 @@ export default function UserDetailAdminPage() {
               <select
                 value={status}
                 onChange={(e) => handleStatusChange(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A] mb-3"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D] mb-3"
               >
                 {statusOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -545,7 +545,7 @@ export default function UserDetailAdminPage() {
               <select
                 value={role}
                 onChange={(e) => handleRoleChange(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
               >
                 {roleOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -600,7 +600,7 @@ export default function UserDetailAdminPage() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">LTV</span>
-                  <span className="font-bold text-[#7AB82E]">${userData.stats.lifetimeValue.toFixed(2)}</span>
+                  <span className="font-bold text-[#3E667D]">${userData.stats.lifetimeValue.toFixed(2)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Favoritos</span>

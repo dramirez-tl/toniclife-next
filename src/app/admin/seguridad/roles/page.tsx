@@ -105,7 +105,7 @@ function RoleFormModal({
                 type="text"
                 value={formData.code}
                 onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 placeholder="ej: ventas_regional"
                 required
               />
@@ -117,7 +117,7 @@ function RoleFormModal({
               type="text"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
               placeholder="ej: Ventas Regional"
               required
             />
@@ -127,7 +127,7 @@ function RoleFormModal({
             <textarea
               value={formData.description || ''}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
               rows={3}
               placeholder="Descripcion del rol..."
             />
@@ -138,7 +138,7 @@ function RoleFormModal({
               type="text"
               value={formData.defaultModule || ''}
               onChange={(e) => setFormData({ ...formData, defaultModule: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
               placeholder="ej: ventas"
             />
           </div>
@@ -148,7 +148,7 @@ function RoleFormModal({
               id="requiresCashClose"
               checked={formData.requiresCashClose || false}
               onChange={(e) => setFormData({ ...formData, requiresCashClose: e.target.checked })}
-              className="h-4 w-4 text-[#003B7A] border-gray-300 rounded focus:ring-[#003B7A]"
+              className="h-4 w-4 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
             />
             <label htmlFor="requiresCashClose" className="text-sm text-gray-700">
               Requiere corte de caja
@@ -165,7 +165,7 @@ function RoleFormModal({
             <button
               type="submit"
               disabled={isPending}
-              className="px-4 py-2 text-sm text-white bg-[#003B7A] rounded-lg hover:bg-[#003B7A]/90 disabled:opacity-50"
+              className="px-4 py-2 text-sm text-white bg-[#3E667D] rounded-lg hover:bg-[#3E667D]/90 disabled:opacity-50"
             >
               {isPending ? 'Guardando...' : isEditing ? 'Guardar Cambios' : 'Crear Rol'}
             </button>
@@ -292,7 +292,7 @@ function PermissionsModal({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar modulo o permiso..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent text-sm"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
             />
           </div>
         </div>
@@ -300,7 +300,7 @@ function PermissionsModal({
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#003B7A]" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3E667D]" />
             </div>
           ) : (
             filteredModules.map((mod) => {
@@ -316,10 +316,10 @@ function PermissionsModal({
                         onClick={() => toggleModule(mod, !fullySelected)}
                         className={`h-5 w-5 rounded border-2 flex items-center justify-center transition-colors ${
                           fullySelected
-                            ? 'bg-[#003B7A] border-[#003B7A] text-white'
+                            ? 'bg-[#3E667D] border-[#3E667D] text-white'
                             : partiallySelected
-                            ? 'bg-[#003B7A]/30 border-[#003B7A] text-white'
-                            : 'border-gray-300 hover:border-[#003B7A]'
+                            ? 'bg-[#3E667D]/30 border-[#3E667D] text-white'
+                            : 'border-gray-300 hover:border-[#3E667D]'
                         }`}
                       >
                         {(fullySelected || partiallySelected) && (
@@ -334,7 +334,7 @@ function PermissionsModal({
                     <div className="flex gap-2">
                       <button
                         onClick={() => toggleModule(mod, true)}
-                        className="text-xs text-[#003B7A] hover:underline"
+                        className="text-xs text-[#3E667D] hover:underline"
                       >
                         Todos
                       </button>
@@ -357,7 +357,7 @@ function PermissionsModal({
                           type="checkbox"
                           checked={selectedIds.has(perm.id)}
                           onChange={() => togglePermission(perm.id)}
-                          className="mt-0.5 h-4 w-4 text-[#003B7A] border-gray-300 rounded focus:ring-[#003B7A]"
+                          className="mt-0.5 h-4 w-4 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
                         />
                         <div className="min-w-0">
                           <div className="text-sm font-medium text-gray-700 truncate">
@@ -384,7 +384,7 @@ function PermissionsModal({
           <button
             onClick={handleSave}
             disabled={updateMutation.isPending}
-            className="px-4 py-2 text-sm text-white bg-[#003B7A] rounded-lg hover:bg-[#003B7A]/90 disabled:opacity-50"
+            className="px-4 py-2 text-sm text-white bg-[#3E667D] rounded-lg hover:bg-[#3E667D]/90 disabled:opacity-50"
           >
             {updateMutation.isPending ? 'Guardando...' : 'Guardar Permisos'}
           </button>
@@ -441,7 +441,7 @@ export default function RolesPage() {
     <PermissionGuard roles={['administrador', 'super_admin']}>
       <div className="space-y-6">
         {/* Header */}
-        <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 rounded-2xl p-8 text-white">
+        <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 rounded-2xl p-8 text-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-white/10 rounded-xl">
@@ -493,7 +493,7 @@ export default function RolesPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar por nombre, codigo o descripcion..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent text-sm"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
             />
           </div>
         </div>
@@ -502,7 +502,7 @@ export default function RolesPage() {
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           {isLoading ? (
             <div className="flex items-center justify-center py-16">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#003B7A]" />
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3E667D]" />
             </div>
           ) : isError ? (
             <div className="text-center py-16 text-red-500">
@@ -571,7 +571,7 @@ export default function RolesPage() {
                               setPermissionsRoleName(role.name);
                             }}
                             title="Gestionar permisos"
-                            className="p-2 text-gray-400 hover:text-[#003B7A] hover:bg-[#003B7A]/5 rounded-lg transition-colors"
+                            className="p-2 text-gray-400 hover:text-[#3E667D] hover:bg-[#3E667D]/5 rounded-lg transition-colors"
                           >
                             <KeyIcon className="h-4 w-4" />
                           </button>
@@ -579,7 +579,7 @@ export default function RolesPage() {
                             onClick={() => setEditingRole(role)}
                             title="Editar rol"
                             disabled={role.isSystemRole}
-                            className="p-2 text-gray-400 hover:text-[#003B7A] hover:bg-[#003B7A]/5 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            className="p-2 text-gray-400 hover:text-[#3E667D] hover:bg-[#3E667D]/5 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                           >
                             <PencilSquareIcon className="h-4 w-4" />
                           </button>

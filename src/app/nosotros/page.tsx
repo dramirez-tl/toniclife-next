@@ -122,7 +122,7 @@ export default function NosotrosPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <div className="relative h-[500px] bg-gradient-to-r from-[#003B7A] to-[#7AB82E]">
+      <div className="relative h-[500px] bg-gradient-to-r from-[#3E667D] to-[#C8DDF2]">
         <div className="absolute inset-0 bg-black/20" />
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center">
           <div className="text-white max-w-3xl">
@@ -134,7 +134,7 @@ export default function NosotrosPage() {
             </p>
             <Link
               href="/distribuidores"
-              className="inline-block px-8 py-4 bg-white text-[#003B7A] font-bold rounded-lg hover:bg-blue-50 transition-colors"
+              className="inline-block px-8 py-4 bg-white text-[#3E667D] font-bold rounded-lg hover:bg-blue-50 transition-colors"
             >
               Únete a Nuestra Comunidad
             </Link>
@@ -151,11 +151,11 @@ export default function NosotrosPage() {
               return (
                 <div key={index} className="text-center">
                   <div className="flex justify-center mb-4">
-                    <div className="p-4 bg-[#003B7A] rounded-full">
+                    <div className="p-4 bg-[#3E667D] rounded-full">
                       <Icon className="h-8 w-8 text-white" />
                     </div>
                   </div>
-                  <p className="text-4xl font-bold text-[#003B7A] mb-2">{stat.number}</p>
+                  <p className="text-4xl font-bold text-[#3E667D] mb-2">{stat.number}</p>
                   <p className="text-gray-600">{stat.label}</p>
                 </div>
               );
@@ -168,7 +168,7 @@ export default function NosotrosPage() {
       <div className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-            <div className="bg-gradient-to-br from-[#003B7A] to-[#7AB82E] rounded-2xl p-8 text-white">
+            <div className="bg-gradient-to-br from-[#3E667D] to-[#C8DDF2] rounded-2xl p-8 text-white">
               <div className="flex items-center gap-3 mb-4">
                 <RocketLaunchIcon className="h-10 w-10" />
                 <h2 className="text-3xl font-bold">Misión</h2>
@@ -178,7 +178,7 @@ export default function NosotrosPage() {
               </p>
             </div>
 
-            <div className="bg-gradient-to-br from-[#7AB82E] to-[#003B7A] rounded-2xl p-8 text-white">
+            <div className="bg-gradient-to-br from-[#C8DDF2] to-[#3E667D] rounded-2xl p-8 text-white">
               <div className="flex items-center gap-3 mb-4">
                 <SparklesIcon className="h-10 w-10" />
                 <h2 className="text-3xl font-bold">Visión</h2>
@@ -207,7 +207,7 @@ export default function NosotrosPage() {
               return (
                 <div key={index} className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
                   <div className="flex justify-center mb-4">
-                    <div className="p-3 bg-[#7AB82E] rounded-full">
+                    <div className="p-3 bg-[#C8DDF2] rounded-full">
                       <Icon className="h-8 w-8 text-white" />
                     </div>
                   </div>
@@ -236,29 +236,29 @@ export default function NosotrosPage() {
 
           <div className="relative">
             {/* Timeline Line */}
-            <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-1 bg-[#7AB82E]" />
+            <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-1 bg-[#C8DDF2]" />
 
             <div className="space-y-12">
               {timeline.map((item, index) => (
                 <div key={index} className={`relative flex items-center ${index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'}`}>
                   {/* Content */}
                   <div className={`w-5/12 ${index % 2 === 0 ? 'text-right pr-8' : 'text-left pl-8'}`}>
-                    <div className={`bg-white rounded-lg shadow-lg p-6 ${item.milestone ? 'border-2 border-[#7AB82E]' : ''}`}>
-                      <div className={`text-3xl font-bold mb-2 ${item.milestone ? 'text-[#7AB82E]' : 'text-[#003B7A]'}`}>
+                    <div className={`bg-white rounded-lg shadow-lg p-6 ${item.milestone ? 'border-2 border-[#a7c1e2]' : ''}`}>
+                      <div className={`text-3xl font-bold mb-2 ${item.milestone ? 'text-[#3E667D]' : 'text-[#3E667D]'}`}>
                         {item.year}
                       </div>
                       <h3 className="text-xl font-bold text-gray-900 mb-2">{item.title}</h3>
                       <p className="text-gray-600">{item.description}</p>
                       {item.milestone && (
                         <div className="mt-3">
-                          <CheckBadgeIcon className="h-6 w-6 text-[#7AB82E] inline" />
+                          <CheckBadgeIcon className="h-6 w-6 text-[#3E667D] inline" />
                         </div>
                       )}
                     </div>
                   </div>
 
                   {/* Center Dot */}
-                  <div className="absolute left-1/2 transform -translate-x-1/2 w-6 h-6 bg-[#003B7A] rounded-full border-4 border-white shadow-lg z-10" />
+                  <div className="absolute left-1/2 transform -translate-x-1/2 w-6 h-6 bg-[#3E667D] rounded-full border-4 border-white shadow-lg z-10" />
 
                   {/* Spacer */}
                   <div className="w-5/12" />
@@ -292,7 +292,7 @@ export default function NosotrosPage() {
                 </div>
                 <div className="p-6">
                   <h3 className="text-xl font-bold text-gray-900 mb-1">{member.name}</h3>
-                  <p className="text-[#7AB82E] font-medium mb-3">{member.role}</p>
+                  <p className="text-[#3E667D] font-medium mb-3">{member.role}</p>
                   <p className="text-gray-600 text-sm">{member.bio}</p>
                 </div>
               </div>
@@ -330,7 +330,7 @@ export default function NosotrosPage() {
       </div>
 
       {/* CTA Section */}
-      <div className="py-16 bg-gradient-to-r from-[#003B7A] to-[#7AB82E]">
+      <div className="py-16 bg-gradient-to-r from-[#3E667D] to-[#C8DDF2]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
           <h2 className="text-4xl font-bold mb-6">
             Únete a Nuestra Historia de Éxito
@@ -341,7 +341,7 @@ export default function NosotrosPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/distribuidores"
-              className="px-8 py-4 bg-white text-[#003B7A] font-bold rounded-lg hover:bg-blue-50 transition-colors"
+              className="px-8 py-4 bg-white text-[#3E667D] font-bold rounded-lg hover:bg-blue-50 transition-colors"
             >
               Conviértete en Distribuidor
             </Link>

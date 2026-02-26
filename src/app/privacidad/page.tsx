@@ -214,7 +214,7 @@ Responderemos a su solicitud dentro de 30 días hábiles.`
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#7AB82E] text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="text-center">
             <ShieldCheckIcon className="h-16 w-16 mx-auto mb-6" />
@@ -236,7 +236,7 @@ Responderemos a su solicitud dentro de 30 días hábiles.`
 
             <div className="space-y-8">
               {sections.map((section, index) => (
-                <div key={index} className="border-l-4 border-[#7AB82E] pl-6">
+                <div key={index} className="border-l-4 border-[#a7c1e2] pl-6">
                   <h2 className="text-2xl font-bold text-gray-900 mb-4">{section.title}</h2>
                   <div className="text-gray-700 whitespace-pre-line leading-relaxed">
                     {section.content}

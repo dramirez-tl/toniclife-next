@@ -114,8 +114,8 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
-            <ShoppingBagIcon className="h-6 w-6 text-[#003B7A]" />
-            <h2 className="text-lg font-bold text-[#003B7A]">Tu Carrito</h2>
+            <ShoppingBagIcon className="h-6 w-6 text-[#3E667D]" />
+            <h2 className="text-lg font-bold text-[#3E667D]">Tu Carrito</h2>
             {cart && cart.itemCount > 0 && (
               <Badge variant="success">{cart.itemCount} items</Badge>
             )}
@@ -130,17 +130,17 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
 
         {/* Free Shipping Banner */}
         {cart && subtotal > 0 && subtotal < FREE_SHIPPING_THRESHOLD && (
-          <div className="bg-[#7AB82E]/10 px-4 py-3 flex items-center gap-2">
-            <TruckIcon className="h-5 w-5 text-[#7AB82E]" />
-            <p className="text-sm text-[#003B7A]">
+          <div className="bg-[#C8DDF2]/10 px-4 py-3 flex items-center gap-2">
+            <TruckIcon className="h-5 w-5 text-[#3E667D]" />
+            <p className="text-sm text-[#3E667D]">
               ¡Agrega <span className="font-bold">{cartService.formatCurrency(FREE_SHIPPING_THRESHOLD - subtotal)}</span> más para envío gratis!
             </p>
           </div>
         )}
         {cart && subtotal >= FREE_SHIPPING_THRESHOLD && (
-          <div className="bg-[#7AB82E]/10 px-4 py-3 flex items-center gap-2">
-            <TruckIcon className="h-5 w-5 text-[#7AB82E]" />
-            <p className="text-sm text-[#7AB82E] font-medium">
+          <div className="bg-[#C8DDF2]/10 px-4 py-3 flex items-center gap-2">
+            <TruckIcon className="h-5 w-5 text-[#3E667D]" />
+            <p className="text-sm text-[#3E667D] font-medium">
               ¡Felicidades! Tienes envío gratis
             </p>
           </div>
@@ -150,7 +150,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
         <div className="flex-grow overflow-y-auto p-4 space-y-4">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#003B7A]"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3E667D]"></div>
             </div>
           ) : !cart || cart.items.length === 0 ? (
             <div className="text-center py-12">
@@ -180,7 +180,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <span className="text-xl font-bold text-[#003B7A]">
+                      <span className="text-xl font-bold text-[#3E667D]">
                         {(item.productSnapshot?.name || 'P').substring(0, 2).toUpperCase()}
                       </span>
                     )}
@@ -188,19 +188,19 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
 
                   {/* Product Info */}
                   <div className="flex-grow min-w-0">
-                    <h3 className="font-semibold text-[#003B7A] truncate">
+                    <h3 className="font-semibold text-[#3E667D] truncate">
                       {item.productSnapshot?.name || 'Producto'}
                     </h3>
                     <p className="text-xs text-gray-500">
                       SKU: {item.productSnapshot?.sku}
                     </p>
-                    <p className="text-sm text-[#003B7A] font-medium">
+                    <p className="text-sm text-[#3E667D] font-medium">
                       {cartService.formatCurrency(item.unitPrice)} c/u
                     </p>
 
                     {/* Points */}
                     {item.points > 0 && (
-                      <p className="text-xs text-[#7AB82E]">+{item.points} puntos</p>
+                      <p className="text-xs text-[#3E667D]">+{item.points} puntos</p>
                     )}
 
                     {/* Quantity Controls */}
@@ -209,7 +209,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                         <button
                           onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
                           disabled={item.quantity <= 1 || updateItem.isPending}
-                          className="p-1 rounded-lg bg-white border border-gray-200 hover:border-[#7AB82E] transition-colors disabled:opacity-50"
+                          className="p-1 rounded-lg bg-white border border-gray-200 hover:border-[#a7c1e2] transition-colors disabled:opacity-50"
                         >
                           <MinusIcon className="h-4 w-4" />
                         </button>
@@ -219,14 +219,14 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                         <button
                           onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
                           disabled={updateItem.isPending}
-                          className="p-1 rounded-lg bg-white border border-gray-200 hover:border-[#7AB82E] transition-colors disabled:opacity-50"
+                          className="p-1 rounded-lg bg-white border border-gray-200 hover:border-[#a7c1e2] transition-colors disabled:opacity-50"
                         >
                           <PlusIcon className="h-4 w-4" />
                         </button>
                       </div>
 
                       <div className="flex items-center gap-3">
-                        <span className="font-bold text-[#003B7A]">
+                        <span className="font-bold text-[#3E667D]">
                           {cartService.formatCurrency(item.lineTotal)}
                         </span>
                         <button
@@ -267,7 +267,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                     placeholder="Código de descuento"
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#7AB82E]"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#a7c1e2]"
                   />
                 </div>
                 <Button
@@ -319,14 +319,14 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 <span>Envío</span>
                 <span>{shipping === 0 ? 'Calculado en checkout' : cartService.formatCurrency(shipping)}</span>
               </div>
-              <div className="flex justify-between text-lg font-bold text-[#003B7A] pt-2 border-t border-gray-100">
+              <div className="flex justify-between text-lg font-bold text-[#3E667D] pt-2 border-t border-gray-100">
                 <span>Total</span>
                 <span>{cartService.formatCurrency(total)}</span>
               </div>
 
               {/* Points */}
               {cart.totalPoints > 0 && (
-                <p className="text-xs text-[#7AB82E] text-center">
+                <p className="text-xs text-[#3E667D] text-center">
                   +{cart.totalPoints} puntos por esta compra
                 </p>
               )}
@@ -337,14 +337,14 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
               <Link
                 href="/carrito"
                 onClick={onClose}
-                className="block w-full py-3 text-center border-2 border-[#003B7A] text-[#003B7A] rounded-xl font-bold hover:bg-[#003B7A]/5 transition-colors"
+                className="block w-full py-3 text-center border-2 border-[#3E667D] text-[#3E667D] rounded-xl font-bold hover:bg-[#3E667D]/5 transition-colors"
               >
                 Ver Carrito Completo
               </Link>
               <Link
                 href="/checkout"
                 onClick={onClose}
-                className="flex items-center justify-center gap-2 w-full py-3 bg-[#7AB82E] text-white rounded-xl font-bold hover:bg-[#6aa526] transition-colors"
+                className="flex items-center justify-center gap-2 w-full py-3 bg-[#3E667D] text-white rounded-xl font-bold hover:bg-[#6aa526] transition-colors"
               >
                 Proceder al Checkout
                 <ArrowRightIcon className="h-5 w-5" />
@@ -354,7 +354,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             {/* Continue Shopping */}
             <button
               onClick={onClose}
-              className="w-full text-center text-sm text-gray-500 hover:text-[#7AB82E] transition-colors"
+              className="w-full text-center text-sm text-gray-500 hover:text-[#3E667D] transition-colors"
             >
               Continuar comprando
             </button>

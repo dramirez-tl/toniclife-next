@@ -210,7 +210,7 @@ export default function BuscarPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <h1 className="text-4xl font-bold mb-6">Búsqueda Avanzada de Productos</h1>
 
@@ -222,7 +222,7 @@ export default function BuscarPage() {
               placeholder="Busca por nombre, beneficio, ingrediente..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-14 pr-4 py-4 rounded-xl text-gray-900 text-lg focus:ring-2 focus:ring-[#7AB82E] focus:outline-none"
+              className="w-full pl-14 pr-4 py-4 rounded-xl text-gray-900 text-lg focus:ring-2 focus:ring-[#a7c1e2] focus:outline-none"
             />
           </div>
         </div>
@@ -247,7 +247,7 @@ export default function BuscarPage() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
             >
               {sortOptions.map(option => (
                 <option key={option.value} value={option.value}>
@@ -265,7 +265,7 @@ export default function BuscarPage() {
             >
               {showFilters ? 'Ocultar' : 'Mostrar'} Filtros
               {activeFiltersCount > 0 && (
-                <span className="ml-2 bg-[#7AB82E] text-white rounded-full px-2 py-0.5 text-xs">
+                <span className="ml-2 bg-[#3E667D] text-white rounded-full px-2 py-0.5 text-xs">
                   {activeFiltersCount}
                 </span>
               )}
@@ -305,7 +305,7 @@ export default function BuscarPage() {
                               type="radio"
                               checked={selectedCategory === cat}
                               onChange={() => setSelectedCategory(cat)}
-                              className="h-4 w-4 text-[#003B7A] focus:ring-[#7AB82E]"
+                              className="h-4 w-4 text-[#3E667D] focus:ring-[#a7c1e2]"
                             />
                             <span className="ml-2 text-sm text-gray-700">{cat}</span>
                           </label>
@@ -323,7 +323,7 @@ export default function BuscarPage() {
                               type="radio"
                               checked={selectedPriceRange.label === range.label}
                               onChange={() => setSelectedPriceRange(range)}
-                              className="h-4 w-4 text-[#003B7A] focus:ring-[#7AB82E]"
+                              className="h-4 w-4 text-[#3E667D] focus:ring-[#a7c1e2]"
                             />
                             <span className="ml-2 text-sm text-gray-700">{range.label}</span>
                           </label>
@@ -341,7 +341,7 @@ export default function BuscarPage() {
                               type="radio"
                               checked={selectedFormat === format}
                               onChange={() => setSelectedFormat(format)}
-                              className="h-4 w-4 text-[#003B7A] focus:ring-[#7AB82E]"
+                              className="h-4 w-4 text-[#3E667D] focus:ring-[#a7c1e2]"
                             />
                             <span className="ml-2 text-sm text-gray-700">{format}</span>
                           </label>
@@ -359,7 +359,7 @@ export default function BuscarPage() {
                               type="checkbox"
                               checked={selectedBenefits.includes(benefit)}
                               onChange={() => handleToggleBenefit(benefit)}
-                              className="h-4 w-4 text-[#003B7A] rounded focus:ring-[#7AB82E]"
+                              className="h-4 w-4 text-[#3E667D] rounded focus:ring-[#a7c1e2]"
                             />
                             <span className="ml-2 text-sm text-gray-700">{benefit}</span>
                           </label>
@@ -377,7 +377,7 @@ export default function BuscarPage() {
                               type="radio"
                               checked={minRating === rating}
                               onChange={() => setMinRating(rating)}
-                              className="h-4 w-4 text-[#003B7A] focus:ring-[#7AB82E]"
+                              className="h-4 w-4 text-[#3E667D] focus:ring-[#a7c1e2]"
                             />
                             <span className="ml-2 flex items-center gap-1">
                               {rating > 0 ? (
@@ -403,7 +403,7 @@ export default function BuscarPage() {
                             type="checkbox"
                             checked={inStock}
                             onChange={(e) => setInStock(e.target.checked)}
-                            className="h-4 w-4 text-[#003B7A] rounded focus:ring-[#7AB82E]"
+                            className="h-4 w-4 text-[#3E667D] rounded focus:ring-[#a7c1e2]"
                           />
                           <span className="ml-2 text-sm text-gray-700">Solo en stock</span>
                         </label>
@@ -412,7 +412,7 @@ export default function BuscarPage() {
                             type="checkbox"
                             checked={onSale}
                             onChange={(e) => setOnSale(e.target.checked)}
-                            className="h-4 w-4 text-[#003B7A] rounded focus:ring-[#7AB82E]"
+                            className="h-4 w-4 text-[#3E667D] rounded focus:ring-[#a7c1e2]"
                           />
                           <span className="ml-2 text-sm text-gray-700">En oferta</span>
                         </label>

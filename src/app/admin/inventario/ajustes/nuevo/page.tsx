@@ -187,7 +187,7 @@ export default function NuevoAjustePage() {
         {/* Adjustment Info */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <ClipboardDocumentCheckIcon className="h-5 w-5 text-[#7AB82E]" />
+            <ClipboardDocumentCheckIcon className="h-5 w-5 text-[#3E667D]" />
             Información del Ajuste
           </h2>
 
@@ -201,7 +201,7 @@ export default function NuevoAjustePage() {
                 onChange={(e) =>
                   setFormData({ ...formData, branchId: e.target.value })
                 }
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent ${
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent ${
                   errors.branchId ? 'border-red-500' : 'border-gray-300'
                 }`}
               >
@@ -226,7 +226,7 @@ export default function NuevoAjustePage() {
                 onChange={(e) =>
                   setFormData({ ...formData, adjustmentType: e.target.value as AdjustmentType })
                 }
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent ${
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent ${
                   errors.type ? 'border-red-500' : 'border-gray-300'
                 }`}
               >
@@ -250,7 +250,7 @@ export default function NuevoAjustePage() {
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 rows={3}
                 placeholder="Describir el motivo del ajuste, observaciones relevantes..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
               />
             </div>
           </div>
@@ -265,7 +265,7 @@ export default function NuevoAjustePage() {
             <button
               type="button"
               onClick={() => setShowProductSearch(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-[#7AB82E] text-white rounded-lg hover:bg-[#6da628] transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#6da628] transition-colors"
             >
               <PlusIcon className="h-5 w-5" />
               Agregar Producto
@@ -288,7 +288,7 @@ export default function NuevoAjustePage() {
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder="Buscar por nombre o SKU..."
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                     autoFocus
                   />
                 </div>
@@ -299,7 +299,7 @@ export default function NuevoAjustePage() {
                       type="button"
                       onClick={() => handleAddProduct(product)}
                       disabled={items.some((item) => item.productId === product.id)}
-                      className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-[#7AB82E] hover:bg-[#7AB82E]/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-[#a7c1e2] hover:bg-[#C8DDF2]/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <div className="font-medium">{product.name}</div>
                       <div className="text-sm text-gray-500">
@@ -374,7 +374,7 @@ export default function NuevoAjustePage() {
                               parseInt(e.target.value) || 0
                             )
                           }
-                          className="w-24 px-2 py-1 border border-gray-300 rounded text-right focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                          className="w-24 px-2 py-1 border border-gray-300 rounded text-right focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                         />
                       </td>
                       <td className="py-3 px-4 text-right">
@@ -407,7 +407,7 @@ export default function NuevoAjustePage() {
                             handleReasonChange(item.productId, e.target.value)
                           }
                           placeholder="Opcional..."
-                          className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent text-sm"
+                          className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent text-sm"
                         />
                       </td>
                       <td className="py-3 px-4 text-right">
@@ -462,7 +462,7 @@ export default function NuevoAjustePage() {
           <button
             type="submit"
             disabled={createAdjustment.isPending || items.length === 0}
-            className="px-6 py-2 bg-[#003B7A] text-white rounded-lg hover:bg-[#002d5c] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-6 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#2f5165] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {createAdjustment.isPending ? (
               <>

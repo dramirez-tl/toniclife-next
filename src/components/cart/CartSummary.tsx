@@ -75,13 +75,13 @@ export function CartSummary({ cart, showCouponInput = true }: CartSummaryProps) 
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                 placeholder="Código de cupón"
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
               />
             </div>
             <button
               onClick={handleApplyCoupon}
               disabled={!couponCode.trim() || isValidating}
-              className="px-4 py-2 bg-[#003B7A] text-white rounded-lg hover:bg-[#002b5c] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#002b5c] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isValidating ? '...' : 'Aplicar'}
             </button>
@@ -152,14 +152,14 @@ export function CartSummary({ cart, showCouponInput = true }: CartSummaryProps) 
       <div className="mt-4 pt-4 border-t border-gray-300">
         <div className="flex justify-between items-center">
           <span className="text-lg font-bold text-gray-900">Total</span>
-          <span className="text-2xl font-bold text-[#003B7A]">
+          <span className="text-2xl font-bold text-[#3E667D]">
             {cartService.formatCurrency(cart.total)}
           </span>
         </div>
 
         {/* Points */}
         {cart.totalPoints > 0 && (
-          <p className="text-sm text-[#7AB82E] mt-1 text-right">
+          <p className="text-sm text-[#3E667D] mt-1 text-right">
             +{cart.totalPoints} puntos por esta compra
           </p>
         )}

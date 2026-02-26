@@ -92,7 +92,7 @@ function StatusBadge({ active }: { active: boolean }) {
 
 function BoolIcon({ value }: { value: boolean }) {
   return value ? (
-    <svg className="h-5 w-5 text-[#7AB82E]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <svg className="h-5 w-5 text-[#3E667D]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
     </svg>
   ) : (
@@ -151,7 +151,7 @@ function FormInput({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         maxLength={maxLength}
-        className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+        className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
       />
     </FormField>
   );
@@ -175,7 +175,7 @@ function FormSelect({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+        className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
       >
         <option value="">Seleccionar...</option>
         {options.map((opt) => (
@@ -203,7 +203,7 @@ function FormCheckbox({
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="w-4 h-4 text-[#7AB82E] border-gray-300 rounded focus:ring-[#7AB82E]"
+        className="w-4 h-4 text-[#3E667D] border-gray-300 rounded focus:ring-[#a7c1e2]"
       />
       <span className="text-sm text-gray-700">{label}</span>
     </label>
@@ -1472,7 +1472,7 @@ export default function CatalogosPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* ── Header ────────────────────────────────────────────────────────────── */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
           <div className="flex items-center gap-3 mb-2">
             <svg
@@ -1513,7 +1513,7 @@ export default function CatalogosPage() {
                     whitespace-nowrap py-3.5 px-4 text-sm font-medium border-b-2 transition-colors duration-150
                     ${
                       isActive
-                        ? 'border-[#7AB82E] text-[#003B7A] font-medium'
+                        ? 'border-[#a7c1e2] text-[#3E667D] font-medium'
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }
                   `}

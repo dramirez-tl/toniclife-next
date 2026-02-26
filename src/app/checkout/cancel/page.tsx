@@ -23,7 +23,7 @@ export default function CheckoutCancelPage() {
         <div className="flex flex-col gap-3">
           <Link
             href="/carrito"
-            className="inline-flex items-center justify-center gap-2 bg-[#7AB82E] hover:bg-[#6aa025] text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+            className="inline-flex items-center justify-center gap-2 bg-[#3E667D] hover:bg-[#2f5165] text-white font-semibold py-3 px-6 rounded-lg transition-colors"
           >
             <ShoppingCart className="w-5 h-5" />
             Volver al carrito

@@ -286,7 +286,7 @@ export default function CuponesAdminPage() {
             </div>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-[#003B7A] text-white rounded-lg hover:bg-[#002855] transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#002855] transition-colors"
             >
               <PlusIcon className="h-5 w-5" />
               Nuevo Cupón
@@ -301,7 +301,7 @@ export default function CuponesAdminPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center gap-2 mb-2">
-              <TicketIcon className="h-5 w-5 text-[#003B7A]" />
+              <TicketIcon className="h-5 w-5 text-[#3E667D]" />
               <span className="text-sm text-gray-600">Total</span>
             </div>
             <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
@@ -341,7 +341,7 @@ export default function CuponesAdminPage() {
 
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center gap-2 mb-2">
-              <TagIcon className="h-5 w-5 text-[#7AB82E]" />
+              <TagIcon className="h-5 w-5 text-[#3E667D]" />
               <span className="text-sm text-gray-600">Promedio</span>
             </div>
             <p className="text-2xl font-bold text-gray-900">{stats.averageValue.toFixed(0)}%</p>
@@ -359,7 +359,7 @@ export default function CuponesAdminPage() {
                   placeholder="Buscar cupones..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
                 />
               </div>
             </div>
@@ -368,7 +368,7 @@ export default function CuponesAdminPage() {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
               >
                 <option value="all">Todos los Estados</option>
                 <option value="active">Activos</option>
@@ -382,7 +382,7 @@ export default function CuponesAdminPage() {
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
               >
                 <option value="all">Todos los Tipos</option>
                 <option value="percentage">Porcentaje</option>
@@ -476,7 +476,7 @@ export default function CuponesAdminPage() {
                         {coupon.usageLimit && (
                           <div className="mt-1 w-full bg-gray-200 rounded-full h-1.5">
                             <div
-                              className="bg-[#7AB82E] h-1.5 rounded-full"
+                              className="bg-[#C8DDF2] h-1.5 rounded-full"
                               style={{ width: `${Math.min((coupon.usedCount / coupon.usageLimit) * 100, 100)}%` }}
                             />
                           </div>
@@ -498,7 +498,7 @@ export default function CuponesAdminPage() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => toast.success('Editar cupón')}
-                          className="p-1 text-[#003B7A] hover:bg-blue-50 rounded"
+                          className="p-1 text-[#3E667D] hover:bg-blue-50 rounded"
                           title="Editar"
                         >
                           <PencilIcon className="h-5 w-5" />

@@ -247,7 +247,7 @@ export default function BlogPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#7AB82E] text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
             <h1 className="text-4xl font-bold mb-4">Blog de Tonic Life</h1>
@@ -286,8 +286,8 @@ export default function BlogPage() {
                   onClick={() => setSelectedCategory(category.value)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
                     selectedCategory === category.value
-                      ? 'bg-[#003B7A] text-white border-[#003B7A]'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-[#003B7A]'
+                      ? 'bg-[#3E667D] text-white border-[#3E667D]'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-[#3E667D]'
                   }`}
                 >
                   <Icon className="h-5 w-5" />
@@ -300,7 +300,7 @@ export default function BlogPage() {
 
         {/* Newsletter Signup */}
         {showNewsletter && (
-          <div className="mb-8 bg-gradient-to-r from-[#003B7A] to-[#7AB82E] rounded-lg shadow-lg p-8 text-white relative">
+          <div className="mb-8 bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] rounded-lg shadow-lg p-8 text-white relative">
             <button
               onClick={() => setShowNewsletter(false)}
               className="absolute top-4 right-4 text-white/80 hover:text-white"
@@ -318,7 +318,7 @@ export default function BlogPage() {
                   placeholder="Tu correo electrónico"
                   className="flex-1 px-4 py-3 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white"
                 />
-                <button className="px-6 py-3 bg-white text-[#003B7A] font-medium rounded-lg hover:bg-blue-50 transition-colors">
+                <button className="px-6 py-3 bg-white text-[#3E667D] font-medium rounded-lg hover:bg-blue-50 transition-colors">
                   Suscribirse
                 </button>
               </div>
@@ -351,7 +351,7 @@ export default function BlogPage() {
                       </div>
                     </div>
                     <div className="p-6">
-                      <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-[#003B7A] transition-colors">
+                      <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-[#3E667D] transition-colors">
                         {post.title}
                       </h3>
                       <p className="text-gray-600 mb-4 line-clamp-2">{post.excerpt}</p>
@@ -429,7 +429,7 @@ export default function BlogPage() {
                       </div>
                     </div>
                     <div className="p-6">
-                      <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-[#003B7A] transition-colors line-clamp-2">
+                      <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-[#3E667D] transition-colors line-clamp-2">
                         {post.title}
                       </h3>
                       <p className="text-gray-600 text-sm mb-4 line-clamp-2">{post.excerpt}</p>
@@ -484,7 +484,7 @@ export default function BlogPage() {
                 setSelectedCategory('all');
                 setSearchQuery('');
               }}
-              className="mt-4 text-[#003B7A] hover:text-[#002855] font-medium"
+              className="mt-4 text-[#3E667D] hover:text-[#002855] font-medium"
             >
               Limpiar filtros
             </button>

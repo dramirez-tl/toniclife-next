@@ -32,10 +32,10 @@ export function QuizCTA() {
   return (
     <section className="relative py-24 overflow-hidden">
       {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#003B7A] via-[#003B7A] to-[#002d5c]">
+      <div className="absolute inset-0 bg-gradient-to-br from-[#3E667D] via-[#3E667D] to-[#2f5165]">
         {/* Decorative elements */}
-        <div className="absolute top-0 left-0 w-96 h-96 bg-[#7AB82E]/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#7AB82E]/10 rounded-full blur-3xl" />
+        <div className="absolute top-0 left-0 w-96 h-96 bg-[#C8DDF2]/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-0 w-96 h-96 bg-[#C8DDF2]/10 rounded-full blur-3xl" />
 
         {/* Pattern overlay */}
         <div className="absolute inset-0 opacity-5">
@@ -54,14 +54,14 @@ export function QuizCTA() {
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           {/* Content */}
           <div className="text-center lg:text-left">
-            <div className="inline-flex items-center gap-2 bg-[#7AB82E]/20 text-[#7AB82E] px-4 py-2 rounded-full text-sm font-medium mb-6">
+            <div className="inline-flex items-center gap-2 bg-[#C8DDF2]/20 text-[#3E667D] px-4 py-2 rounded-full text-sm font-medium mb-6">
               <SparklesIcon className="h-4 w-4" />
               Evaluación Personalizada
             </div>
 
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight">
               Encuentra tu{' '}
-              <span className="text-[#7AB82E] font-serif italic">fórmula ideal</span>{' '}
+              <span className="text-[#3E667D] font-serif italic">fórmula ideal</span>{' '}
               de bienestar
             </h2>
 
@@ -79,7 +79,7 @@ export function QuizCTA() {
                 'Solo toma 2 minutos'
               ].map((benefit, index) => (
                 <li key={index} className="flex items-center gap-3 text-white/90">
-                  <CheckCircleIcon className="h-5 w-5 text-[#7AB82E] flex-shrink-0" />
+                  <CheckCircleIcon className="h-5 w-5 text-[#3E667D] flex-shrink-0" />
                   {benefit}
                 </li>
               ))}
@@ -89,7 +89,7 @@ export function QuizCTA() {
               <Link href="/quiz">
                 <Button
                   size="xl"
-                  className="bg-[#7AB82E] hover:bg-[#6aa025] text-white shadow-lg shadow-[#7AB82E]/30"
+                  className="bg-[#3E667D] hover:bg-[#2f5165] text-white shadow-lg shadow-[#3E667D]/30"
                   rightIcon={<ArrowRightIcon className="h-5 w-5" />}
                 >
                   Comenzar Evaluación de Salud
@@ -104,7 +104,7 @@ export function QuizCTA() {
           {/* Steps Visual */}
           <div className="relative">
             {/* Connecting Line - Behind the cards */}
-            <div className="absolute left-[28px] top-[70px] bottom-[70px] w-[2px] bg-gradient-to-b from-[#7AB82E] via-[#7AB82E]/50 to-[#7AB82E] -z-10" />
+            <div className="absolute left-[28px] top-[70px] bottom-[70px] w-[2px] bg-gradient-to-b from-[#abc9ba] via-[#C8DDF2]/50 to-[#C8DDF2] -z-10" />
 
             {/* Steps Cards */}
             <div className="space-y-4 relative">
@@ -116,7 +116,7 @@ export function QuizCTA() {
                   <div className="flex items-start gap-4">
                     {/* Step Number */}
                     <div className="flex-shrink-0 relative z-10">
-                      <div className="w-14 h-14 bg-[#7AB82E] rounded-xl flex items-center justify-center text-white shadow-lg shadow-[#7AB82E]/30 group-hover:scale-110 transition-transform">
+                      <div className="w-14 h-14 bg-[#C8DDF2] rounded-xl flex items-center justify-center text-white shadow-lg shadow-[#3E667D]/30 group-hover:scale-110 transition-transform">
                         {step.icon}
                       </div>
                     </div>
@@ -124,7 +124,7 @@ export function QuizCTA() {
                     {/* Step Content */}
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[#7AB82E] text-sm font-medium">
+                        <span className="text-[#3E667D] text-sm font-medium">
                           Paso {index + 1}
                         </span>
                       </div>
@@ -144,14 +144,14 @@ export function QuizCTA() {
             <div className="absolute -top-8 -right-6 hidden xl:block">
               <div className="rounded-2xl border border-white/70 bg-white/95 px-6 py-5 shadow-xl backdrop-blur">
                 <div className="flex items-center gap-4">
-                  <div className="relative flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-[#7AB82E]/10">
-                    <span className="absolute inset-[2px] rounded-[10px] ring-1 ring-[#7AB82E]/25" />
-                    <span className="text-xl font-bold leading-none tracking-tight text-[#7AB82E]">98%</span>
+                  <div className="relative flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-[#C8DDF2]/10">
+                    <span className="absolute inset-[2px] rounded-[10px] ring-1 ring-[#C8DDF2]/25" />
+                    <span className="text-xl font-bold leading-none tracking-tight text-[#3E667D]">98%</span>
                   </div>
                   <div>
-                    <p className="font-semibold leading-tight text-[#003B7A]">Satisfacción</p>
+                    <p className="font-semibold leading-tight text-[#3E667D]">Satisfacción</p>
                     <p className="text-xs text-gray-500">Con sus recomendaciones</p>
-                    <p className="mt-1 text-[11px] font-medium text-[#7AB82E]">+50,000 evaluaciones</p>
+                    <p className="mt-1 text-[11px] font-medium text-[#3E667D]">+50,000 evaluaciones</p>
                   </div>
                 </div>
               </div>

@@ -146,7 +146,7 @@ function CheckboxField({ label, description, checked, onChange }: CheckboxFieldP
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#7AB82E] focus:ring-[#7AB82E]"
+        className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#3E667D] focus:ring-[#a7c1e2]"
       />
       <div>
         <span className="text-sm font-medium text-gray-900">{label}</span>
@@ -469,7 +469,7 @@ export default function SucursalesPage() {
   if (isLoading && !branchesData) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+        <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="flex items-center gap-3 mb-2">
               <BuildingOffice2Icon className="h-10 w-10" />
@@ -500,7 +500,7 @@ export default function SucursalesPage() {
   if (error && !branchesData) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+        <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="flex items-center gap-3 mb-2">
               <BuildingOffice2Icon className="h-10 w-10" />
@@ -533,8 +533,8 @@ export default function SucursalesPage() {
       sortValue: (branch) => branch.name,
       render: (branch) => (
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 flex-shrink-0 rounded-full bg-[#003B7A]/10 flex items-center justify-center">
-            <BuildingOffice2Icon className="h-5 w-5 text-[#003B7A]" />
+          <div className="h-10 w-10 flex-shrink-0 rounded-full bg-[#3E667D]/10 flex items-center justify-center">
+            <BuildingOffice2Icon className="h-5 w-5 text-[#3E667D]" />
           </div>
           <div>
             <p className="font-semibold text-gray-900">{branch.name}</p>
@@ -635,7 +635,7 @@ export default function SucursalesPage() {
     <PermissionGuard permissions={['settings:read', 'settings:*']}>
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#0A4B94] text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
         <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -764,7 +764,7 @@ export default function SucursalesPage() {
                         handleSearch();
                       }
                     }}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                   </div>
                   <Button
@@ -913,7 +913,7 @@ export default function SucursalesPage() {
               value={formData.name}
               onChange={(e) => handleFormChange('name', e.target.value)}
               placeholder="Ej: Sucursal Monterrey Centro"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
             />
           </FormField>
           <FormField label="Codigo" required>
@@ -922,7 +922,7 @@ export default function SucursalesPage() {
               value={formData.code}
               onChange={(e) => handleFormChange('code', e.target.value.toUpperCase())}
               placeholder="Ej: MTY-CTR"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent text-sm font-mono"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm font-mono"
             />
           </FormField>
         </FormSection>
@@ -935,7 +935,7 @@ export default function SucursalesPage() {
               value={formData.addressStreet || ''}
               onChange={(e) => handleFormChange('addressStreet', e.target.value)}
               placeholder="Calle y numero"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
             />
           </FormField>
           <FormField label="Ciudad">
@@ -944,7 +944,7 @@ export default function SucursalesPage() {
               value={formData.addressCity || ''}
               onChange={(e) => handleFormChange('addressCity', e.target.value)}
               placeholder="Ciudad"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
             />
           </FormField>
           <FormField label="Estado">
@@ -953,7 +953,7 @@ export default function SucursalesPage() {
               value={formData.addressState || ''}
               onChange={(e) => handleFormChange('addressState', e.target.value)}
               placeholder="Estado"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
             />
           </FormField>
           <FormField label="Codigo Postal">
@@ -962,7 +962,7 @@ export default function SucursalesPage() {
               value={formData.addressZip || ''}
               onChange={(e) => handleFormChange('addressZip', e.target.value)}
               placeholder="C.P."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
             />
           </FormField>
         </FormSection>
@@ -975,7 +975,7 @@ export default function SucursalesPage() {
               value={formData.addressPhone || ''}
               onChange={(e) => handleFormChange('addressPhone', e.target.value)}
               placeholder="(81) 1234-5678"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
             />
           </FormField>
           <FormField label="Correo electrónico">
@@ -984,7 +984,7 @@ export default function SucursalesPage() {
               value={formData.addressEmail || ''}
               onChange={(e) => handleFormChange('addressEmail', e.target.value)}
               placeholder="sucursal@toniclife.com"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
             />
           </FormField>
         </FormSection>
@@ -1025,7 +1025,7 @@ export default function SucursalesPage() {
               value={formData.currencyCode || ''}
               onChange={(e) => handleFormChange('currencyCode', e.target.value.toUpperCase())}
               placeholder="Ej: MXN, USD"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent text-sm font-mono"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm font-mono"
               maxLength={3}
             />
           </FormField>
@@ -1041,7 +1041,7 @@ export default function SucursalesPage() {
                 )
               }
               placeholder="Monto minimo para envio gratis"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
               min={0}
               step={0.01}
             />
@@ -1057,7 +1057,7 @@ export default function SucursalesPage() {
                 )
               }
               placeholder="Costo base de envio"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
               min={0}
               step={0.01}
             />
@@ -1072,7 +1072,7 @@ export default function SucursalesPage() {
               value={formData.ticketName || ''}
               onChange={(e) => handleFormChange('ticketName', e.target.value)}
               placeholder="Nombre que aparece en el ticket de venta"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
             />
           </FormField>
           <FormField label="Encabezado del Ticket" fullWidth>
@@ -1081,7 +1081,7 @@ export default function SucursalesPage() {
               onChange={(e) => handleFormChange('ticketHeader', e.target.value)}
               placeholder="Texto que aparece en la parte superior del ticket"
               rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent text-sm resize-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm resize-none"
             />
           </FormField>
           <FormField label="Pie del Ticket" fullWidth>
@@ -1090,7 +1090,7 @@ export default function SucursalesPage() {
               onChange={(e) => handleFormChange('ticketFooter', e.target.value)}
               placeholder="Texto que aparece en la parte inferior del ticket"
               rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent text-sm resize-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm resize-none"
             />
           </FormField>
         </FormSection>

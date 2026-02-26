@@ -269,7 +269,7 @@ export function AdminSidebar({ mobile = false, onNavigate }: AdminSidebarProps) 
 
   return (
     <aside
-      className={`z-40 w-64 bg-[#003B7A] text-white flex flex-col ${
+      className={`z-40 w-64 bg-[#3E667D] text-white flex flex-col ${
         mobile ? 'h-full' : 'fixed left-0 top-0 h-screen'
       }`}
       aria-label="Barra lateral de administración"
@@ -277,7 +277,7 @@ export function AdminSidebar({ mobile = false, onNavigate }: AdminSidebarProps) 
       {/* Logo */}
       <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
         <Link href="/admin" className="flex items-center" onClick={onNavigate} aria-label="Ir al panel de administración">
-          <div className="w-8 h-8 bg-[#7AB82E] rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-[#C8DDF2] rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-sm">TL</span>
           </div>
         </Link>
@@ -337,7 +337,7 @@ export function AdminSidebar({ mobile = false, onNavigate }: AdminSidebarProps) 
                                 onClick={onNavigate}
                                 className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
                                   childIsActive
-                                    ? 'bg-[#7AB82E] text-white font-medium shadow-sm'
+                                    ? 'bg-[#3E667D] text-white font-medium shadow-sm'
                                     : 'text-white/60 hover:bg-white/5 hover:text-white'
                                 }`}
                               >
@@ -355,7 +355,7 @@ export function AdminSidebar({ mobile = false, onNavigate }: AdminSidebarProps) 
                     onClick={onNavigate}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                       active
-                        ? 'bg-[#7AB82E] text-white shadow-sm'
+                        ? 'bg-[#3E667D] text-white shadow-sm'
                         : 'text-white/70 hover:bg-white/5 hover:text-white'
                     }`}
                   >
@@ -372,7 +372,7 @@ export function AdminSidebar({ mobile = false, onNavigate }: AdminSidebarProps) 
       {/* User section */}
       <div className="border-t border-white/10 p-4">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 bg-[#7AB82E] rounded-full flex items-center justify-center">
+          <div className="w-10 h-10 bg-[#C8DDF2] rounded-full flex items-center justify-center">
             <span className="text-white font-bold text-sm">{getUserInitials()}</span>
           </div>
           <div className="flex-1 min-w-0">

@@ -414,7 +414,7 @@ export default function ComunidadDesafiosPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#7AB82E] text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="text-center">
             <div className="flex justify-center mb-4">
@@ -455,7 +455,7 @@ export default function ComunidadDesafiosPage() {
               onClick={() => setViewMode('challenges')}
               className={`px-6 py-2 rounded-md font-medium transition-colors ${
                 viewMode === 'challenges'
-                  ? 'bg-[#003B7A] text-white'
+                  ? 'bg-[#3E667D] text-white'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -468,7 +468,7 @@ export default function ComunidadDesafiosPage() {
               onClick={() => setViewMode('leaderboard')}
               className={`px-6 py-2 rounded-md font-medium transition-colors ${
                 viewMode === 'leaderboard'
-                  ? 'bg-[#003B7A] text-white'
+                  ? 'bg-[#3E667D] text-white'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
@@ -535,8 +535,8 @@ export default function ComunidadDesafiosPage() {
                           onClick={() => setSelectedType(type.value)}
                           className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
                             selectedType === type.value
-                              ? 'bg-[#003B7A] text-white border-[#003B7A]'
-                              : 'bg-white text-gray-700 border-gray-300 hover:border-[#003B7A]'
+                              ? 'bg-[#3E667D] text-white border-[#3E667D]'
+                              : 'bg-white text-gray-700 border-gray-300 hover:border-[#3E667D]'
                           }`}
                         >
                           <Icon className="h-5 w-5" />
@@ -559,8 +559,8 @@ export default function ComunidadDesafiosPage() {
                         onClick={() => setSelectedDifficulty(diff.value)}
                         className={`px-4 py-2 rounded-lg border transition-colors ${
                           selectedDifficulty === diff.value
-                            ? 'bg-[#7AB82E] text-white border-[#7AB82E]'
-                            : 'bg-white text-gray-700 border-gray-300 hover:border-[#7AB82E]'
+                            ? 'bg-[#3E667D] text-white border-[#a7c1e2]'
+                            : 'bg-white text-gray-700 border-gray-300 hover:border-[#a7c1e2]'
                         }`}
                       >
                         {diff.label}
@@ -623,11 +623,11 @@ export default function ComunidadDesafiosPage() {
                       <div className="mb-4">
                         <div className="flex justify-between items-center mb-2">
                           <span className="text-sm font-medium text-gray-700">Tu Progreso</span>
-                          <span className="text-sm font-bold text-[#003B7A]">{challenge.progress}%</span>
+                          <span className="text-sm font-bold text-[#3E667D]">{challenge.progress}%</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
                           <div
-                            className="bg-[#7AB82E] h-2 rounded-full transition-all"
+                            className="bg-[#C8DDF2] h-2 rounded-full transition-all"
                             style={{ width: `${challenge.progress}%` }}
                           />
                         </div>
@@ -677,7 +677,7 @@ export default function ComunidadDesafiosPage() {
                     ) : (
                       <button
                         onClick={() => handleJoinChallenge(challenge.id)}
-                        className="w-full bg-[#003B7A] text-white py-3 rounded-lg font-medium hover:bg-[#002855] transition-colors"
+                        className="w-full bg-[#3E667D] text-white py-3 rounded-lg font-medium hover:bg-[#002855] transition-colors"
                       >
                         Unirse al Desafío
                       </button>
@@ -697,7 +697,7 @@ export default function ComunidadDesafiosPage() {
         ) : (
           /* Leaderboard View */
           <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-            <div className="bg-gradient-to-r from-[#003B7A] to-[#7AB82E] text-white p-6">
+            <div className="bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] text-white p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold mb-2">Tabla de Clasificación</h2>
@@ -812,7 +812,7 @@ export default function ComunidadDesafiosPage() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-600">Completados</p>
-                        <p className="font-bold text-[#003B7A]">{entry.challengesCompleted}</p>
+                        <p className="font-bold text-[#3E667D]">{entry.challengesCompleted}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-gray-600">Racha</p>

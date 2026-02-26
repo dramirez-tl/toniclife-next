@@ -74,7 +74,7 @@ export default function AuditReportsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -110,14 +110,14 @@ export default function AuditReportsPage() {
                   type="date"
                   value={dateRange.startDate}
                   onChange={(e) => setDateRange((prev) => ({ ...prev, startDate: e.target.value }))}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent text-sm"
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
                 />
                 <span className="text-gray-500">a</span>
                 <input
                   type="date"
                   value={dateRange.endDate}
                   onChange={(e) => setDateRange((prev) => ({ ...prev, endDate: e.target.value }))}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent text-sm"
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
                 />
               </div>
               <div className="flex-1" />
@@ -161,7 +161,7 @@ export default function AuditReportsPage() {
               <Card
                 key={report.id}
                 className={`cursor-pointer transition hover:shadow-md ${
-                  isSelected ? 'ring-2 ring-[#003B7A] bg-blue-50' : ''
+                  isSelected ? 'ring-2 ring-[#3E667D] bg-blue-50' : ''
                 }`}
                 onClick={() => setSelectedReport(report.id)}
               >
@@ -169,7 +169,7 @@ export default function AuditReportsPage() {
                   <div className="flex items-start gap-3">
                     <div
                       className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        isSelected ? 'bg-[#003B7A]' : 'bg-gray-100'
+                        isSelected ? 'bg-[#3E667D]' : 'bg-gray-100'
                       }`}
                     >
                       <Icon className={`h-5 w-5 ${isSelected ? 'text-white' : 'text-gray-600'}`} />
@@ -190,7 +190,7 @@ export default function AuditReportsPage() {
           <Card>
             <CardContent className="p-12">
               <div className="flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003B7A]"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3E667D]"></div>
               </div>
             </CardContent>
           </Card>
@@ -275,7 +275,7 @@ export default function AuditReportsPage() {
                                     <td className="px-4 py-3">
                                       <div className="w-full bg-gray-200 rounded-full h-2">
                                         <div
-                                          className="h-2 rounded-full bg-[#003B7A]"
+                                          className="h-2 rounded-full bg-[#3E667D]"
                                           style={{ width: `${percentage}%` }}
                                         />
                                       </div>

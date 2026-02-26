@@ -166,7 +166,7 @@ export default function AjustesPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -266,7 +266,7 @@ export default function AjustesPage() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as AdjustmentStatus | '')}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 >
                   <option value="">Todos los Estados</option>
                   <option value={AdjustmentStatus.DRAFT}>Borrador</option>
@@ -282,7 +282,7 @@ export default function AjustesPage() {
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value as AdjustmentType | '')}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
               >
                 <option value="">Todos los Tipos</option>
                 <option value={AdjustmentType.COUNT}>Conteo Físico</option>
@@ -297,7 +297,7 @@ export default function AjustesPage() {
               <select
                 value={branchFilter}
                 onChange={(e) => setBranchFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
               >
                 <option value="">Todas las Sucursales</option>
                 {branches?.map((branch) => (
@@ -315,7 +315,7 @@ export default function AjustesPage() {
           <CardContent className="p-6">
             {isLoading ? (
               <div className="text-center py-12">
-                <div className="inline-block w-12 h-12 border-4 border-[#003B7A] border-t-transparent rounded-full animate-spin" />
+                <div className="inline-block w-12 h-12 border-4 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
                 <p className="mt-4 text-gray-600">Cargando ajustes...</p>
               </div>
             ) : (
@@ -357,7 +357,7 @@ export default function AjustesPage() {
                           className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
                         >
                           <td className="py-4 px-4">
-                            <span className="font-mono font-semibold text-[#003B7A]">
+                            <span className="font-mono font-semibold text-[#3E667D]">
                               {adjustment.adjustmentNumber}
                             </span>
                           </td>

@@ -101,7 +101,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
         <Header />
         <div className="min-h-screen flex items-center justify-center pt-20">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7AB82E] mx-auto"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#a7c1e2] mx-auto"></div>
             <p className="mt-4 text-gray-500">Cargando producto...</p>
           </div>
         </div>
@@ -158,9 +158,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
         <div className="bg-white border-b">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <nav className="flex items-center space-x-2 text-sm">
-              <Link href="/" className="text-gray-500 hover:text-[#003B7A]">Inicio</Link>
+              <Link href="/" className="text-gray-500 hover:text-[#3E667D]">Inicio</Link>
               <span className="text-gray-400">/</span>
-              <Link href="/productos" className="text-gray-500 hover:text-[#003B7A]">Productos</Link>
+              <Link href="/productos" className="text-gray-500 hover:text-[#3E667D]">Productos</Link>
               <span className="text-gray-400">/</span>
               <span className="text-gray-900 font-medium">{product.name}</span>
             </nav>
@@ -186,8 +186,8 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     className="object-contain"
                   />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-[#7AB82E]/20 to-[#003B7A]/20 rounded-2xl flex items-center justify-center">
-                    <span className="text-6xl font-bold text-[#003B7A]">
+                  <div className="w-full h-full bg-gradient-to-br from-[#C8DDF2]/20 to-[#3E667D]/20 rounded-2xl flex items-center justify-center">
+                    <span className="text-6xl font-bold text-[#3E667D]">
                       {product.name.substring(0, 2).toUpperCase()}
                     </span>
                   </div>
@@ -202,7 +202,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                       key={index}
                       onClick={() => setSelectedImage(index)}
                       className={`w-16 h-16 rounded-lg overflow-hidden border-2 ${
-                        selectedImage === index ? 'border-[#7AB82E]' : 'border-transparent'
+                        selectedImage === index ? 'border-[#a7c1e2]' : 'border-transparent'
                       }`}
                     >
                       <Image
@@ -222,21 +222,21 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             <div className="grid grid-cols-3 gap-4">
               <Card>
                 <CardContent className="p-4 text-center">
-                  <TruckIcon className="h-8 w-8 text-[#7AB82E] mx-auto mb-2" />
+                  <TruckIcon className="h-8 w-8 text-[#3E667D] mx-auto mb-2" />
                   <p className="text-xs font-medium text-gray-900">Envío Gratis</p>
                   <p className="text-xs text-gray-500">En pedidos +$999</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-4 text-center">
-                  <ShieldCheckIcon className="h-8 w-8 text-[#7AB82E] mx-auto mb-2" />
+                  <ShieldCheckIcon className="h-8 w-8 text-[#3E667D] mx-auto mb-2" />
                   <p className="text-xs font-medium text-gray-900">100% Seguro</p>
                   <p className="text-xs text-gray-500">Pago protegido</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-4 text-center">
-                  <CheckCircleIcon className="h-8 w-8 text-[#7AB82E] mx-auto mb-2" />
+                  <CheckCircleIcon className="h-8 w-8 text-[#3E667D] mx-auto mb-2" />
                   <p className="text-xs font-medium text-gray-900">Garantía</p>
                   <p className="text-xs text-gray-500">30 días</p>
                 </CardContent>
@@ -264,8 +264,8 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
               {/* MLM Points (from API) */}
               {apiProduct && parseFloat(apiProduct.pointsValue || '0') > 0 && (
-                <div className="bg-[#003B7A]/5 rounded-lg p-3 mb-4">
-                  <p className="text-sm text-[#003B7A] font-medium">
+                <div className="bg-[#3E667D]/5 rounded-lg p-3 mb-4">
+                  <p className="text-sm text-[#3E667D] font-medium">
                     Gana {apiProduct.pointsValue} puntos con esta compra
                   </p>
                 </div>
@@ -294,7 +294,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
               {/* Price */}
               <div className="flex items-baseline gap-3 mb-6">
-                <span className="text-4xl font-bold text-[#003B7A]">
+                <span className="text-4xl font-bold text-[#3E667D]">
                   ${product.price.toFixed(2)}
                 </span>
                 {product.originalPrice && (
@@ -328,7 +328,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 <ul className="space-y-2">
                   {components.map((comp) => (
                     <li key={comp.id} className="flex items-center gap-2">
-                      <CheckCircleIcon className="h-5 w-5 text-[#7AB82E]" />
+                      <CheckCircleIcon className="h-5 w-5 text-[#3E667D]" />
                       <span className="text-gray-700">
                         {comp.quantity}x {comp.componentProductName || comp.componentName || comp.componentProductCode}
                       </span>
@@ -409,7 +409,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   onClick={() => setActiveTab('description')}
                   className={`px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap ${
                     activeTab === 'description'
-                      ? 'border-[#003B7A] text-[#003B7A]'
+                      ? 'border-[#3E667D] text-[#3E667D]'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
@@ -419,7 +419,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   onClick={() => setActiveTab('benefits')}
                   className={`px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap ${
                     activeTab === 'benefits'
-                      ? 'border-[#003B7A] text-[#003B7A]'
+                      ? 'border-[#3E667D] text-[#3E667D]'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
@@ -429,7 +429,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   onClick={() => setActiveTab('usage')}
                   className={`px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap ${
                     activeTab === 'usage'
-                      ? 'border-[#003B7A] text-[#003B7A]'
+                      ? 'border-[#3E667D] text-[#3E667D]'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
@@ -439,7 +439,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   onClick={() => setActiveTab('ingredients')}
                   className={`px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap ${
                     activeTab === 'ingredients'
-                      ? 'border-[#003B7A] text-[#003B7A]'
+                      ? 'border-[#3E667D] text-[#3E667D]'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
@@ -468,7 +468,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   {product.benefits && product.benefits.length > 0 ? (
                     product.benefits.map((benefit, index) => (
                       <div key={index} className="flex items-start gap-3">
-                        <CheckCircleIcon className="h-6 w-6 text-[#7AB82E] flex-shrink-0 mt-0.5" />
+                        <CheckCircleIcon className="h-6 w-6 text-[#3E667D] flex-shrink-0 mt-0.5" />
                         <div>
                           <p className="font-medium text-gray-900">{benefit}</p>
                         </div>
@@ -484,7 +484,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 <div className="space-y-4">
                   {product.dosage && (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-[#003B7A] mb-2">Dosis recomendada</h4>
+                      <h4 className="font-semibold text-[#3E667D] mb-2">Dosis recomendada</h4>
                       <p className="text-gray-700">{product.dosage}</p>
                     </div>
                   )}
@@ -544,18 +544,18 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                             className="object-contain group-hover:scale-105 transition-transform duration-300"
                           />
                         ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-[#7AB82E]/20 to-[#003B7A]/20 flex items-center justify-center">
-                            <span className="text-2xl font-bold text-[#003B7A]">
+                          <div className="w-full h-full bg-gradient-to-br from-[#C8DDF2]/20 to-[#3E667D]/20 flex items-center justify-center">
+                            <span className="text-2xl font-bold text-[#3E667D]">
                               {relatedProduct.name.substring(0, 2).toUpperCase()}
                             </span>
                           </div>
                         )}
                       </div>
-                      <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-[#003B7A] transition-colors">
+                      <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-[#3E667D] transition-colors">
                         {relatedProduct.name}
                       </h3>
                       <div className="flex items-baseline gap-2 mb-3">
-                        <span className="text-xl font-bold text-[#003B7A]">
+                        <span className="text-xl font-bold text-[#3E667D]">
                           ${relatedProduct.price.toFixed(2)}
                         </span>
                         {relatedProduct.originalPrice && (

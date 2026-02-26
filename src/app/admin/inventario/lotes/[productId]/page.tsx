@@ -146,7 +146,7 @@ export default function LotesPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -193,7 +193,7 @@ export default function LotesPage() {
                   <select
                     value={newLot.branchId}
                     onChange={(e) => setNewLot({ ...newLot, branchId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   >
                     {branches?.map((branch) => (
                       <option key={branch.id} value={branch.id}>
@@ -212,7 +212,7 @@ export default function LotesPage() {
                     value={newLot.lotNumber}
                     onChange={(e) => setNewLot({ ...newLot, lotNumber: e.target.value })}
                     placeholder="LOT-2024-001"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
 
@@ -227,7 +227,7 @@ export default function LotesPage() {
                     onChange={(e) =>
                       setNewLot({ ...newLot, initialQuantity: parseInt(e.target.value) || 1 })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
 
@@ -239,7 +239,7 @@ export default function LotesPage() {
                     type="date"
                     value={newLot.expirationDate}
                     onChange={(e) => setNewLot({ ...newLot, expirationDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
 
@@ -251,7 +251,7 @@ export default function LotesPage() {
                     type="date"
                     value={newLot.manufactureDate}
                     onChange={(e) => setNewLot({ ...newLot, manufactureDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
 
@@ -262,7 +262,7 @@ export default function LotesPage() {
                     value={newLot.notes}
                     onChange={(e) => setNewLot({ ...newLot, notes: e.target.value })}
                     placeholder="Notas adicionales..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -289,7 +289,7 @@ export default function LotesPage() {
                 <select
                   value={branchFilter}
                   onChange={(e) => setBranchFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 >
                   <option value="">Todas las sucursales</option>
                   {branches?.map((branch) => (
@@ -304,7 +304,7 @@ export default function LotesPage() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as LotStatus | '')}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
               >
                 <option value="">Todos los Estados</option>
                 <option value={LotStatus.AVAILABLE}>Disponible</option>
@@ -321,7 +321,7 @@ export default function LotesPage() {
                   onChange={(e) =>
                     setExpiringDays(e.target.value ? parseInt(e.target.value) : '')
                   }
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 >
                   <option value="">Todas las fechas</option>
                   <option value="7">Vence en 7 días</option>
@@ -339,7 +339,7 @@ export default function LotesPage() {
           <CardContent className="p-6">
             {isLoading ? (
               <div className="text-center py-12">
-                <div className="inline-block w-12 h-12 border-4 border-[#003B7A] border-t-transparent rounded-full animate-spin" />
+                <div className="inline-block w-12 h-12 border-4 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
                 <p className="mt-4 text-gray-600">Cargando lotes...</p>
               </div>
             ) : (
@@ -376,7 +376,7 @@ export default function LotesPage() {
                         >
                           <td className="py-4 px-4">
                             <div>
-                              <span className="font-mono font-semibold text-[#003B7A]">
+                              <span className="font-mono font-semibold text-[#3E667D]">
                                 {lot.lotNumber}
                               </span>
                             </div>

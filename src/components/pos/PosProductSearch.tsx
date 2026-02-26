@@ -127,7 +127,7 @@ export function PosProductSearch({ onProductSelected, autoFocus = true }: PosPro
           onKeyDown={handleKeyDown}
           onFocus={() => query.length >= 2 && products && products.length > 0 && setIsOpen(true)}
           placeholder="Buscar producto por nombre o escanear código..."
-          className="w-full pl-12 pr-10 py-3 text-lg border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent transition-all"
+          className="w-full pl-12 pr-10 py-3 text-lg border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent transition-all"
         />
         {query && (
           <button
@@ -160,7 +160,7 @@ export function PosProductSearch({ onProductSelected, autoFocus = true }: PosPro
               key={product.id}
               onClick={() => handleSelectProduct(product)}
               className={`w-full flex items-center gap-4 p-4 text-left hover:bg-gray-50 transition-colors ${
-                index === selectedIndex ? 'bg-[#7AB82E]/10' : ''
+                index === selectedIndex ? 'bg-[#C8DDF2]/10' : ''
               } ${index !== products.length - 1 ? 'border-b' : ''}`}
             >
               {/* Product Image */}
@@ -191,7 +191,7 @@ export function PosProductSearch({ onProductSelected, autoFocus = true }: PosPro
 
               {/* Price */}
               <div className="text-right flex-shrink-0">
-                <p className="font-bold text-[#003B7A]">
+                <p className="font-bold text-[#3E667D]">
                   ${product.basePrice.toFixed(2)}
                 </p>
                 {product.stock !== undefined && (
@@ -211,7 +211,7 @@ export function PosProductSearch({ onProductSelected, autoFocus = true }: PosPro
           No se encontraron productos
           <button
             onClick={() => handleBarcodeInput(query)}
-            className="block w-full mt-2 text-[#7AB82E] hover:underline text-sm"
+            className="block w-full mt-2 text-[#3E667D] hover:underline text-sm"
           >
             Buscar por código exacto
           </button>

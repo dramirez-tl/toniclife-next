@@ -166,7 +166,7 @@ export default function EditFiscalDataPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block w-12 h-12 border-4 border-[#003B7A] border-t-transparent rounded-full animate-spin" />
+          <div className="inline-block w-12 h-12 border-4 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
           <p className="mt-4 text-gray-600">Cargando datos fiscales...</p>
         </div>
       </div>
@@ -176,7 +176,7 @@ export default function EditFiscalDataPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center gap-4">
             <Link
@@ -248,7 +248,7 @@ export default function EditFiscalDataPage() {
                         setFormData({ ...formData, rfc: e.target.value.toUpperCase() })
                       }
                       maxLength={13}
-                      className={`flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent font-mono uppercase ${
+                      className={`flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent font-mono uppercase ${
                         errors.rfc ? 'border-red-500' : 'border-gray-300'
                       }`}
                       placeholder="XAXX010101000"
@@ -278,7 +278,7 @@ export default function EditFiscalDataPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, legalName: e.target.value })
                     }
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent ${
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent ${
                       errors.legalName ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="Nombre o Razón Social como aparece en el SAT"
@@ -298,7 +298,7 @@ export default function EditFiscalDataPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, taxRegime: e.target.value })
                     }
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent ${
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent ${
                       errors.taxRegime ? 'border-red-500' : 'border-gray-300'
                     }`}
                   >
@@ -329,7 +329,7 @@ export default function EditFiscalDataPage() {
                       })
                     }
                     maxLength={5}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent ${
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent ${
                       errors.postalCode ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="12345"
@@ -349,7 +349,7 @@ export default function EditFiscalDataPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, defaultCfdiUse: e.target.value })
                     }
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent ${
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent ${
                       errors.defaultCfdiUse ? 'border-red-500' : 'border-gray-300'
                     }`}
                   >
@@ -374,7 +374,7 @@ export default function EditFiscalDataPage() {
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent ${
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent ${
                       errors.email ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="correo@ejemplo.com"
@@ -407,7 +407,7 @@ export default function EditFiscalDataPage() {
                     type="text"
                     value={formData.street}
                     onChange={(e) => setFormData({ ...formData, street: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     placeholder="Nombre de la calle"
                   />
                 </div>
@@ -423,7 +423,7 @@ export default function EditFiscalDataPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, exteriorNumber: e.target.value })
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     placeholder="123"
                   />
                 </div>
@@ -439,7 +439,7 @@ export default function EditFiscalDataPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, interiorNumber: e.target.value })
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     placeholder="Depto 5"
                   />
                 </div>
@@ -455,7 +455,7 @@ export default function EditFiscalDataPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, neighborhood: e.target.value })
                     }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     placeholder="Nombre de la colonia"
                   />
                 </div>
@@ -469,7 +469,7 @@ export default function EditFiscalDataPage() {
                     type="text"
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     placeholder="Ciudad"
                   />
                 </div>
@@ -483,7 +483,7 @@ export default function EditFiscalDataPage() {
                     type="text"
                     value={formData.state}
                     onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     placeholder="Estado"
                   />
                 </div>

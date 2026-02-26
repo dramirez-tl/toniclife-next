@@ -260,7 +260,7 @@ export default function BlogArticlePage({ params }: { params: { slug: string } }
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 p-8">
           <div className="max-w-4xl mx-auto">
-            <span className="inline-block px-3 py-1 bg-[#7AB82E] text-white rounded-full text-sm font-medium mb-4">
+            <span className="inline-block px-3 py-1 bg-[#3E667D] text-white rounded-full text-sm font-medium mb-4">
               {article.category}
             </span>
             <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
@@ -313,7 +313,7 @@ export default function BlogArticlePage({ params }: { params: { slug: string } }
                     className="p-2 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     {isSaved ? (
-                      <BookmarkSolidIcon className="h-6 w-6 text-[#003B7A]" />
+                      <BookmarkSolidIcon className="h-6 w-6 text-[#3E667D]" />
                     ) : (
                       <BookmarkIcon className="h-6 w-6 text-gray-600" />
                     )}
@@ -389,7 +389,7 @@ export default function BlogArticlePage({ params }: { params: { slug: string } }
                 </div>
                 <div>
                   <p className="font-bold text-gray-900 mb-1">Sobre el Autor</p>
-                  <p className="text-lg font-bold text-[#003B7A] mb-2">{article.author.name}</p>
+                  <p className="text-lg font-bold text-[#3E667D] mb-2">{article.author.name}</p>
                   <p className="text-gray-700">{article.author.bio}</p>
                 </div>
               </div>
@@ -403,7 +403,7 @@ export default function BlogArticlePage({ params }: { params: { slug: string } }
                 </h3>
                 <button
                   onClick={() => setShowComments(!showComments)}
-                  className="text-[#003B7A] hover:text-[#002855] font-medium"
+                  className="text-[#3E667D] hover:text-[#002855] font-medium"
                 >
                   {showComments ? 'Ocultar' : 'Mostrar'}
                 </button>
@@ -416,10 +416,10 @@ export default function BlogArticlePage({ params }: { params: { slug: string } }
                     <textarea
                       placeholder="Escribe tu comentario..."
                       rows={4}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A] resize-none"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D] resize-none"
                     />
                     <div className="flex justify-end mt-3">
-                      <button className="px-6 py-2 bg-[#003B7A] text-white rounded-lg hover:bg-[#002855] transition-colors">
+                      <button className="px-6 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#002855] transition-colors">
                         Publicar Comentario
                       </button>
                     </div>
@@ -448,7 +448,7 @@ export default function BlogArticlePage({ params }: { params: { slug: string } }
                                 <HeartIcon className="h-4 w-4" />
                                 <span>{comment.likes}</span>
                               </button>
-                              <button className="hover:text-[#003B7A] transition-colors">
+                              <button className="hover:text-[#3E667D] transition-colors">
                                 Responder
                               </button>
                             </div>
@@ -483,7 +483,7 @@ export default function BlogArticlePage({ params }: { params: { slug: string } }
                   <a
                     key={index}
                     href={`#${item.toLowerCase().replace(/\s+/g, '-')}`}
-                    className="block text-sm text-gray-600 hover:text-[#003B7A] transition-colors"
+                    className="block text-sm text-gray-600 hover:text-[#3E667D] transition-colors"
                   >
                     {index + 1}. {item}
                   </a>
@@ -492,14 +492,14 @@ export default function BlogArticlePage({ params }: { params: { slug: string } }
             </div>
 
             {/* CTA Card */}
-            <div className="bg-gradient-to-br from-[#003B7A] to-[#7AB82E] rounded-lg shadow-lg p-6 text-white mb-6">
+            <div className="bg-gradient-to-br from-[#3E667D] to-[#C8DDF2] rounded-lg shadow-lg p-6 text-white mb-6">
               <h3 className="text-xl font-bold mb-2">Productos Recomendados</h3>
               <p className="text-blue-100 mb-4">
                 Complementa tu rutina matutina con nuestros suplementos premium
               </p>
               <Link
                 href="/productos"
-                className="block w-full py-3 bg-white text-[#003B7A] font-medium rounded-lg text-center hover:bg-blue-50 transition-colors"
+                className="block w-full py-3 bg-white text-[#3E667D] font-medium rounded-lg text-center hover:bg-blue-50 transition-colors"
               >
                 Ver Productos
               </Link>
@@ -523,10 +523,10 @@ export default function BlogArticlePage({ params }: { params: { slug: string } }
                     />
                   </div>
                   <div className="p-4">
-                    <span className="text-xs font-medium text-[#7AB82E] mb-2 block">
+                    <span className="text-xs font-medium text-[#3E667D] mb-2 block">
                       {post.category}
                     </span>
-                    <h4 className="font-bold text-gray-900 mb-2 group-hover:text-[#003B7A] transition-colors line-clamp-2">
+                    <h4 className="font-bold text-gray-900 mb-2 group-hover:text-[#3E667D] transition-colors line-clamp-2">
                       {post.title}
                     </h4>
                     <div className="flex items-center gap-1 text-sm text-gray-600">
@@ -546,7 +546,7 @@ export default function BlogArticlePage({ params }: { params: { slug: string } }
         .prose h2 {
           font-size: 1.75rem;
           font-weight: bold;
-          color: #003B7A;
+          color: #3E667D;
           margin-top: 2rem;
           margin-bottom: 1rem;
         }
@@ -562,10 +562,10 @@ export default function BlogArticlePage({ params }: { params: { slug: string } }
           position: relative;
         }
         .prose li::marker {
-          color: #7AB82E;
+          color: #C8DDF2;
         }
         .prose strong {
-          color: #003B7A;
+          color: #3E667D;
           font-weight: 600;
         }
         .prose .lead {

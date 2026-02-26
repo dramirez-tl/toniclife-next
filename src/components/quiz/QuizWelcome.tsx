@@ -51,7 +51,7 @@ export function QuizWelcome({
         {/* Logo */}
         <div className="flex justify-center mb-8">
           <Image
-            src="/images/logo.png"
+            src="/images/logo/logo-text-dark.png"
             alt="Tonic Life - Tu Centro de Bienestar"
             width={200}
             height={80}
@@ -61,15 +61,15 @@ export function QuizWelcome({
         </div>
 
         {/* Title */}
-        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-[#003B7A] leading-tight">
+        <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-[#3E667D] leading-tight">
           <span className="font-serif italic">Encuentra tu fórmula ideal</span>
           <br />
-          <span className="text-[#7AB82E]">de bienestar</span>
+          <span className="text-[#3E667D]">de bienestar</span>
         </h1>
 
         {/* Subtitle */}
         <p className="mt-6 text-xl text-gray-600 max-w-2xl mx-auto">
-          Tu bienestar empieza con <strong className="text-[#003B7A]">conocerte</strong>.
+          Tu bienestar empieza con <strong className="text-[#3E667D]">conocerte</strong>.
           <br />
           Responde unas simples preguntas y descubre qué fórmula natural es ideal para ti.
         </p>
@@ -77,15 +77,15 @@ export function QuizWelcome({
         {/* Features */}
         <div className="mt-10 flex flex-wrap justify-center gap-6">
           <div className="flex items-center gap-2 text-gray-600">
-            <ClockIcon className="h-5 w-5 text-[#7AB82E]" />
+            <ClockIcon className="h-5 w-5 text-[#3E667D]" />
             <span>Solo 2 minutos</span>
           </div>
           <div className="flex items-center gap-2 text-gray-600">
-            <SparklesIcon className="h-5 w-5 text-[#7AB82E]" />
+            <SparklesIcon className="h-5 w-5 text-[#3E667D]" />
             <span>10 preguntas</span>
           </div>
           <div className="flex items-center gap-2 text-gray-600">
-            <ShieldCheckIcon className="h-5 w-5 text-[#7AB82E]" />
+            <ShieldCheckIcon className="h-5 w-5 text-[#3E667D]" />
             <span>100% personalizado</span>
           </div>
         </div>
@@ -105,7 +105,7 @@ export function QuizWelcome({
               <button
                 onClick={onResume}
                 disabled={isLoading}
-                className="inline-flex items-center gap-2 text-[#003B7A] hover:text-[#7AB82E] transition-colors"
+                className="inline-flex items-center gap-2 text-[#3E667D] hover:text-[#3E667D] transition-colors"
               >
                 <ArrowPathIcon className="h-5 w-5" />
                 <span>Continuar evaluación anterior</span>
@@ -116,7 +116,7 @@ export function QuizWelcome({
 
         {/* Referral Badge */}
         {referralCode && (
-          <div className="mt-6 inline-flex items-center gap-2 bg-[#7AB82E]/10 text-[#7AB82E] px-4 py-2 rounded-full text-sm">
+          <div className="mt-6 inline-flex items-center gap-2 bg-[#C8DDF2]/10 text-[#3E667D] px-4 py-2 rounded-full text-sm">
             <SparklesIcon className="h-4 w-4" />
             <span>Referido por: {referralCode}</span>
           </div>
@@ -134,11 +134,11 @@ export function QuizWelcome({
   return (
     <Card className="max-w-xl mx-auto" padding="lg">
       <div className="text-center mb-8">
-        <div className="inline-flex items-center gap-2 bg-[#7AB82E]/10 text-[#7AB82E] px-4 py-2 rounded-full text-sm font-medium mb-4">
+        <div className="inline-flex items-center gap-2 bg-[#C8DDF2]/10 text-[#3E667D] px-4 py-2 rounded-full text-sm font-medium mb-4">
           <SparklesIcon className="h-4 w-4" />
           Paso 1
         </div>
-        <h2 className="text-2xl font-bold text-[#003B7A]">
+        <h2 className="text-2xl font-bold text-[#3E667D]">
           Selecciona tu género
         </h2>
         <p className="text-gray-500 mt-2">
@@ -154,8 +154,8 @@ export function QuizWelcome({
             className={`
               p-6 rounded-xl border-2 transition-all
               ${selectedGender === QuizGender.FEMALE
-                ? 'border-[#7AB82E] bg-[#7AB82E]/10 text-[#7AB82E]'
-                : 'border-gray-200 hover:border-[#7AB82E]/50'
+                ? 'border-[#a7c1e2] bg-[#C8DDF2]/10 text-[#3E667D]'
+                : 'border-gray-200 hover:border-[#a7c1e2]/50'
               }
             `}
           >
@@ -168,8 +168,8 @@ export function QuizWelcome({
             className={`
               p-6 rounded-xl border-2 transition-all
               ${selectedGender === QuizGender.MALE
-                ? 'border-[#7AB82E] bg-[#7AB82E]/10 text-[#7AB82E]'
-                : 'border-gray-200 hover:border-[#7AB82E]/50'
+                ? 'border-[#a7c1e2] bg-[#C8DDF2]/10 text-[#3E667D]'
+                : 'border-gray-200 hover:border-[#a7c1e2]/50'
               }
             `}
           >
@@ -195,7 +195,7 @@ export function QuizWelcome({
 
         <button
           onClick={() => setStep('intro')}
-          className="w-full text-center text-sm text-gray-500 hover:text-[#003B7A] transition-colors"
+          className="w-full text-center text-sm text-gray-500 hover:text-[#3E667D] transition-colors"
         >
           ← Volver al inicio
         </button>

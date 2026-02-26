@@ -118,7 +118,7 @@ export default function RRHHDashboard() {
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
-          <UserGroupIcon className="h-8 w-8 text-[#003B7A]" />
+          <UserGroupIcon className="h-8 w-8 text-[#3E667D]" />
           <h1 className="text-2xl font-bold text-gray-900">Recursos Humanos</h1>
         </div>
         <p className="text-gray-600">
@@ -198,7 +198,7 @@ export default function RRHHDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-[#7AB82E] to-[#7AB82E]/90 text-white">
+        <Card className="bg-gradient-to-br from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">

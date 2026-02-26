@@ -11,8 +11,8 @@ interface CommissionChartProps {
 }
 
 const COLORS = {
-  mlm: '#003B7A',
-  cedea: '#7AB82E',
+  mlm: '#3E667D',
+  cedea: '#C8DDF2',
   autoBonus: '#F59E0B',
   adjustment: '#8B5CF6',
 };
@@ -182,7 +182,7 @@ export function CommissionMiniChart({ data }: { data: number[] }) {
       <polyline
         points={points}
         fill="none"
-        stroke="#7AB82E"
+        stroke="#C8DDF2"
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
@@ -194,8 +194,8 @@ export function CommissionMiniChart({ data }: { data: number[] }) {
       />
       <defs>
         <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#7AB82E" />
-          <stop offset="100%" stopColor="#7AB82E" stopOpacity="0" />
+          <stop offset="0%" stopColor="#C8DDF2" />
+          <stop offset="100%" stopColor="#C8DDF2" stopOpacity="0" />
         </linearGradient>
       </defs>
     </svg>

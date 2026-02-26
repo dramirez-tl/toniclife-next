@@ -95,7 +95,7 @@ export default function UserAuditPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -135,7 +135,7 @@ export default function UserAuditPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003B7A]"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3E667D]"></div>
           </div>
         ) : !userStats ? (
           <div className="text-center py-20">
@@ -235,7 +235,7 @@ export default function UserAuditPage() {
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-2">
                               <div
-                                className="h-2 rounded-full bg-[#003B7A]"
+                                className="h-2 rounded-full bg-[#3E667D]"
                                 style={{ width: `${percentage}%` }}
                               />
                             </div>
@@ -308,7 +308,7 @@ export default function UserAuditPage() {
                         key={action}
                         className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
                       >
-                        <div className="w-8 h-8 bg-[#003B7A] text-white rounded-full flex items-center justify-center font-bold text-sm">
+                        <div className="w-8 h-8 bg-[#3E667D] text-white rounded-full flex items-center justify-center font-bold text-sm">
                           {index + 1}
                         </div>
                         <div className="flex-1 min-w-0">

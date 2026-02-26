@@ -75,7 +75,7 @@ export default function EnviosPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#7AB82E] text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="text-center">
             <TruckIcon className="h-16 w-16 mx-auto mb-6" />
@@ -103,19 +103,19 @@ export default function EnviosPage() {
             {shippingZones.map((zone, index) => (
               <div key={index} className="bg-white rounded-lg shadow-lg p-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <MapPinIcon className="h-6 w-6 text-[#7AB82E]" />
+                  <MapPinIcon className="h-6 w-6 text-[#3E667D]" />
                   <h3 className="font-bold text-gray-900">{zone.zone}</h3>
                 </div>
                 <div className="space-y-3 text-sm">
                   <div>
                     <p className="text-gray-600">Estándar</p>
                     <p className="font-medium text-gray-900">{zone.standard}</p>
-                    <p className="text-[#7AB82E] font-medium">{zone.cost}</p>
+                    <p className="text-[#3E667D] font-medium">{zone.cost}</p>
                   </div>
                   <div className="pt-3 border-t">
                     <p className="text-gray-600">Express</p>
                     <p className="font-medium text-gray-900">{zone.express}</p>
-                    <p className="text-[#003B7A] font-medium">{zone.expressCoast}</p>
+                    <p className="text-[#3E667D] font-medium">{zone.expressCoast}</p>
                   </div>
                 </div>
               </div>
@@ -127,28 +127,28 @@ export default function EnviosPage() {
             <h3 className="text-2xl font-bold text-gray-900 mb-6">Características de Nuestro Servicio</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="flex gap-4">
-                <ShieldCheckIcon className="h-8 w-8 text-[#7AB82E] flex-shrink-0" />
+                <ShieldCheckIcon className="h-8 w-8 text-[#3E667D] flex-shrink-0" />
                 <div>
                   <h4 className="font-bold text-gray-900 mb-2">Envío Asegurado</h4>
                   <p className="text-gray-600">Todos nuestros envíos están asegurados contra pérdida o daño durante el transporte.</p>
                 </div>
               </div>
               <div className="flex gap-4">
-                <ClockIcon className="h-8 w-8 text-[#7AB82E] flex-shrink-0" />
+                <ClockIcon className="h-8 w-8 text-[#3E667D] flex-shrink-0" />
                 <div>
                   <h4 className="font-bold text-gray-900 mb-2">Procesamiento Rápido</h4>
                   <p className="text-gray-600">Los pedidos se procesan y envían dentro de 1-2 días hábiles.</p>
                 </div>
               </div>
               <div className="flex gap-4">
-                <MapPinIcon className="h-8 w-8 text-[#7AB82E] flex-shrink-0" />
+                <MapPinIcon className="h-8 w-8 text-[#3E667D] flex-shrink-0" />
                 <div>
                   <h4 className="font-bold text-gray-900 mb-2">Rastreo en Tiempo Real</h4>
                   <p className="text-gray-600">Recibe un número de seguimiento para rastrear tu pedido en todo momento.</p>
                 </div>
               </div>
               <div className="flex gap-4">
-                <CurrencyDollarIcon className="h-8 w-8 text-[#7AB82E] flex-shrink-0" />
+                <CurrencyDollarIcon className="h-8 w-8 text-[#3E667D] flex-shrink-0" />
                 <div>
                   <h4 className="font-bold text-gray-900 mb-2">Envío Gratis</h4>
                   <p className="text-gray-600">En pedidos mayores a $50 USD dentro de México.</p>
@@ -174,7 +174,7 @@ export default function EnviosPage() {
               {returnSteps.map((item, index) => (
                 <div key={index} className="flex gap-4">
                   <div className="flex-shrink-0">
-                    <div className="w-12 h-12 rounded-full bg-[#7AB82E] text-white flex items-center justify-center font-bold text-lg">
+                    <div className="w-12 h-12 rounded-full bg-[#3E667D] text-white flex items-center justify-center font-bold text-lg">
                       {item.step}
                     </div>
                   </div>
@@ -255,28 +255,28 @@ export default function EnviosPage() {
             <h3 className="text-2xl font-bold text-gray-900 mb-6">Reembolsos</h3>
             <div className="space-y-4 text-gray-700">
               <div className="flex gap-3">
-                <InformationCircleIcon className="h-6 w-6 text-[#003B7A] flex-shrink-0 mt-1" />
+                <InformationCircleIcon className="h-6 w-6 text-[#3E667D] flex-shrink-0 mt-1" />
                 <div>
                   <p className="font-medium text-gray-900 mb-1">Tiempo de Procesamiento</p>
                   <p>Una vez que recibamos y verifiquemos tu devolución, procesaremos tu reembolso en 5-7 días hábiles.</p>
                 </div>
               </div>
               <div className="flex gap-3">
-                <InformationCircleIcon className="h-6 w-6 text-[#003B7A] flex-shrink-0 mt-1" />
+                <InformationCircleIcon className="h-6 w-6 text-[#3E667D] flex-shrink-0 mt-1" />
                 <div>
                   <p className="font-medium text-gray-900 mb-1">Método de Reembolso</p>
                   <p>El reembolso se aplicará al método de pago original utilizado para la compra.</p>
                 </div>
               </div>
               <div className="flex gap-3">
-                <InformationCircleIcon className="h-6 w-6 text-[#003B7A] flex-shrink-0 mt-1" />
+                <InformationCircleIcon className="h-6 w-6 text-[#3E667D] flex-shrink-0 mt-1" />
                 <div>
                   <p className="font-medium text-gray-900 mb-1">Costos de Envío</p>
                   <p>Los costos de envío original no son reembolsables. El cliente es responsable de los costos de envío de devolución, excepto en casos de productos defectuosos.</p>
                 </div>
               </div>
               <div className="flex gap-3">
-                <InformationCircleIcon className="h-6 w-6 text-[#003B7A] flex-shrink-0 mt-1" />
+                <InformationCircleIcon className="h-6 w-6 text-[#3E667D] flex-shrink-0 mt-1" />
                 <div>
                   <p className="font-medium text-gray-900 mb-1">Productos Defectuosos</p>
                   <p>Si recibes un producto defectuoso o dañado, cubriremos todos los costos de envío y procesaremos un reembolso completo o reemplazo inmediato.</p>
@@ -287,7 +287,7 @@ export default function EnviosPage() {
         </div>
 
         {/* FAQ */}
-        <div className="bg-gradient-to-r from-[#003B7A] to-[#7AB82E] rounded-2xl p-8 text-white text-center">
+        <div className="bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] rounded-2xl p-8 text-white text-center">
           <h3 className="text-2xl font-bold mb-4">¿Tienes Más Preguntas?</h3>
           <p className="text-blue-100 mb-6">
             Consulta nuestra sección de preguntas frecuentes o contacta a nuestro equipo de soporte
@@ -295,7 +295,7 @@ export default function EnviosPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a
               href="/faq"
-              className="px-6 py-3 bg-white text-[#003B7A] font-bold rounded-lg hover:bg-blue-50 transition-colors"
+              className="px-6 py-3 bg-white text-[#3E667D] font-bold rounded-lg hover:bg-blue-50 transition-colors"
             >
               Ver Preguntas Frecuentes
             </a>

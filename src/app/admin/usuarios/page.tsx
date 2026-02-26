@@ -283,7 +283,7 @@ export default function UsuariosPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+        <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="flex items-center gap-3 mb-2">
               <UserGroupIcon className="h-10 w-10" />
@@ -314,7 +314,7 @@ export default function UsuariosPage() {
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+        <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="flex items-center gap-3 mb-2">
               <UserGroupIcon className="h-10 w-10" />
@@ -346,7 +346,7 @@ export default function UsuariosPage() {
     <PermissionGuard permissions={['users:read', 'users:*']}>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -448,7 +448,7 @@ export default function UsuariosPage() {
                     placeholder="Buscar por nombre o email..."
                     value={searchQuery}
                     onChange={(e) => handleSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
               </div>
@@ -459,7 +459,7 @@ export default function UsuariosPage() {
                 <select
                   value={filterRole}
                   onChange={(e) => handleFilterRole(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 >
                   <option value="all">Todos los Roles</option>
                   <option value="admin">Admin</option>
@@ -473,7 +473,7 @@ export default function UsuariosPage() {
                 <select
                   value={filterStatus}
                   onChange={(e) => handleFilterStatus(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 >
                   <option value="all">Todos los Estados</option>
                   <option value="active">Activos</option>
@@ -694,7 +694,7 @@ function UserFormModal({
   };
 
   const inputClassName =
-    'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent';
+    'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -816,7 +816,7 @@ function UserFormModal({
               id="isActive"
               checked={formData.isActive ?? true}
               onChange={(e) => handleChange('isActive', e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-[#003B7A] focus:ring-[#003B7A]"
+              className="h-4 w-4 rounded border-gray-300 text-[#3E667D] focus:ring-[#3E667D]"
             />
             <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
               Usuario activo

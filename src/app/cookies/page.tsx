@@ -156,7 +156,7 @@ La duración específica de cada cookie se indica en la sección de gestión de 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#7AB82E] text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="text-center">
             <CogIcon className="h-16 w-16 mx-auto mb-6" />
@@ -213,7 +213,7 @@ La duración específica de cada cookie se indica en la sección de gestión de 
                         disabled={type.required}
                         className="sr-only peer"
                       />
-                      <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-[#7AB82E]"></div>
+                      <div className="w-14 h-7 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-[#C8DDF2]"></div>
                     </label>
                   </div>
                 </div>
@@ -224,13 +224,13 @@ La duración específica de cada cookie se indica en la sección de gestión de 
           <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={handleAcceptAll}
-              className="px-8 py-3 bg-[#7AB82E] text-white font-bold rounded-lg hover:bg-[#6ba625] transition-colors"
+              className="px-8 py-3 bg-[#3E667D] text-white font-bold rounded-lg hover:bg-[#6ba625] transition-colors"
             >
               Aceptar Todas
             </button>
             <button
               onClick={handleSavePreferences}
-              className="px-8 py-3 bg-[#003B7A] text-white font-bold rounded-lg hover:bg-[#002855] transition-colors"
+              className="px-8 py-3 bg-[#3E667D] text-white font-bold rounded-lg hover:bg-[#002855] transition-colors"
             >
               Guardar Preferencias
             </button>
@@ -250,7 +250,7 @@ La duración específica de cada cookie se indica en la sección de gestión de 
           <div className="prose prose-lg max-w-none">
             <div className="space-y-8">
               {sections.map((section, index) => (
-                <div key={index} className="border-l-4 border-[#7AB82E] pl-6">
+                <div key={index} className="border-l-4 border-[#a7c1e2] pl-6">
                   <h2 className="text-2xl font-bold text-gray-900 mb-4">{section.title}</h2>
                   <div className="text-gray-700 whitespace-pre-line leading-relaxed">
                     {section.content}
@@ -258,7 +258,7 @@ La duración específica de cada cookie se indica en la sección de gestión de 
                 </div>
               ))}
 
-              <div className="border-l-4 border-[#7AB82E] pl-6">
+              <div className="border-l-4 border-[#a7c1e2] pl-6">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">Contacto</h2>
                 <p className="text-gray-700">
                   Si tiene preguntas sobre nuestra Política de Cookies, puede contactarnos en:

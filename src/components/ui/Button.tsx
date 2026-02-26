@@ -16,13 +16,13 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles: Record<ButtonVariant, string> = {
-  primary: 'bg-[#7AB82E] hover:bg-[#6aa025] text-white shadow-md hover:shadow-lg',
-  secondary: 'bg-[#003B7A] hover:bg-[#002d5c] text-white shadow-md hover:shadow-lg',
-  outline: 'border-2 border-[#003B7A] text-[#003B7A] hover:bg-[#003B7A] hover:text-white',
-  ghost: 'text-[#003B7A] hover:bg-[#003B7A]/10',
+  primary: 'bg-[#3E667D] hover:bg-[#2f5165] text-white shadow-md hover:shadow-lg',
+  secondary: 'bg-[#a7c1e2] hover:bg-[#8fb3d9] text-[#2f5165] shadow-md hover:shadow-lg',
+  outline: 'border-2 border-[#3E667D] text-[#3E667D] hover:bg-[#3E667D] hover:text-white',
+  ghost: 'text-[#3E667D] hover:bg-[#C8DDF2]/20',
   danger: 'bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg',
-  link: 'text-[#003B7A] underline-offset-4 hover:underline',
-  success: 'bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg'
+  link: 'text-[#3E667D] underline-offset-4 hover:underline',
+  success: 'bg-[#abc9ba] hover:bg-[#96b8a6] text-[#2f5165] shadow-md hover:shadow-lg'
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
@@ -56,7 +56,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           'inline-flex items-center justify-center gap-2',
           'font-semibold rounded-full',
           'transition-all duration-200 ease-in-out',
-          'focus:outline-none focus:ring-2 focus:ring-[#7AB82E] focus:ring-offset-2',
+          'focus:outline-none focus:ring-2 focus:ring-[#a7c1e2] focus:ring-offset-2',
           'disabled:opacity-50 disabled:cursor-not-allowed',
           variantStyles[variant],
           sizeStyles[size],

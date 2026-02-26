@@ -131,10 +131,10 @@ export default function ComisionesPage() {
       {/* Header - Rediseñado con mejor visual */}
       <div className="relative overflow-hidden">
         {/* Fondo con patrón decorativo */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#003B7A] via-[#004d99] to-[#003B7A]">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#3E667D] via-[#4d7a8f] to-[#3E667D]">
           <div className="absolute inset-0 opacity-10">
             <div className="absolute top-0 right-0 w-96 h-96 bg-white rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2" />
-            <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#7AB82E] rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#C8DDF2] rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2" />
           </div>
         </div>
 
@@ -168,7 +168,7 @@ export default function ComisionesPage() {
               {commissionsData?.summary && (
                 <div className="flex flex-wrap gap-4 mt-6">
                   <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 border border-white/20">
-                    <SparklesIcon className="h-4 w-4 text-[#7AB82E]" />
+                    <SparklesIcon className="h-4 w-4 text-[#3E667D]" />
                     <span className="text-white/80 text-sm">Total Neto:</span>
                     <span className="text-white font-bold">
                       {new Intl.NumberFormat(currencyCode === 'USD' ? 'en-US' : 'es-MX', { style: 'currency', currency: currencyCode, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(parseFloat(commissionsData.summary.totalNetMxn))}
@@ -205,7 +205,7 @@ export default function ComisionesPage() {
                 <Button
                   variant="primary"
                   size="sm"
-                  className="bg-[#7AB82E] hover:bg-[#6aa025] shadow-lg shadow-[#7AB82E]/30"
+                  className="bg-[#3E667D] hover:bg-[#2f5165] shadow-lg shadow-[#3E667D]/30"
                   onClick={handleRequestPayment}
                   disabled={requestPaymentMutation.isPending}
                 >
@@ -226,12 +226,12 @@ export default function ComisionesPage() {
             <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between p-4 bg-white">
               {/* Left: Period selector prominente */}
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-3 bg-gradient-to-r from-[#003B7A]/5 to-[#003B7A]/10 rounded-xl px-4 py-2.5 border border-[#003B7A]/10">
-                  <CalendarDaysIcon className="h-5 w-5 text-[#003B7A]" />
+                <div className="flex items-center gap-3 bg-gradient-to-r from-[#3E667D]/5 to-[#3E667D]/10 rounded-xl px-4 py-2.5 border border-[#3E667D]/10">
+                  <CalendarDaysIcon className="h-5 w-5 text-[#3E667D]" />
                   <select
                     value={selectedPeriodId}
                     onChange={(e) => setSelectedPeriodId(e.target.value)}
-                    className="bg-transparent border-0 focus:ring-0 text-[#003B7A] font-semibold text-sm cursor-pointer pr-8"
+                    className="bg-transparent border-0 focus:ring-0 text-[#3E667D] font-semibold text-sm cursor-pointer pr-8"
                   >
                     {periodsArray.map((period: any) => (
                       <option key={period.id} value={period.id}>
@@ -247,14 +247,14 @@ export default function ComisionesPage() {
                   onClick={() => setShowFilters(!showFilters)}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all text-sm font-medium ${
                     showFilters || hasActiveFilters
-                      ? 'bg-[#7AB82E]/10 border-[#7AB82E]/30 text-[#7AB82E]'
+                      ? 'bg-[#C8DDF2]/10 border-[#a7c1e2]/30 text-[#3E667D]'
                       : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
                   }`}
                 >
                   <FunnelIcon className="h-4 w-4" />
                   <span>Filtros</span>
                   {hasActiveFilters && (
-                    <span className="w-2 h-2 bg-[#7AB82E] rounded-full animate-pulse" />
+                    <span className="w-2 h-2 bg-[#C8DDF2] rounded-full animate-pulse" />
                   )}
                 </button>
               </div>
@@ -267,7 +267,7 @@ export default function ComisionesPage() {
                     onClick={() => setViewMode('summary')}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       viewMode === 'summary'
-                        ? 'bg-white text-[#003B7A] shadow-sm'
+                        ? 'bg-white text-[#3E667D] shadow-sm'
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
@@ -278,7 +278,7 @@ export default function ComisionesPage() {
                     onClick={() => setViewMode('table')}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       viewMode === 'table'
-                        ? 'bg-white text-[#003B7A] shadow-sm'
+                        ? 'bg-white text-[#3E667D] shadow-sm'
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
@@ -289,7 +289,7 @@ export default function ComisionesPage() {
                     onClick={() => setViewMode('chart')}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       viewMode === 'chart'
-                        ? 'bg-white text-[#003B7A] shadow-sm'
+                        ? 'bg-white text-[#3E667D] shadow-sm'
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
@@ -300,7 +300,7 @@ export default function ComisionesPage() {
 
                 <button
                   onClick={handleRefresh}
-                  className="p-2.5 text-gray-500 hover:text-[#003B7A] hover:bg-[#003B7A]/5 rounded-xl transition-all"
+                  className="p-2.5 text-gray-500 hover:text-[#3E667D] hover:bg-[#3E667D]/5 rounded-xl transition-all"
                   title="Actualizar datos"
                 >
                   <ArrowPathIcon className="h-5 w-5" />
@@ -320,7 +320,7 @@ export default function ComisionesPage() {
                     <select
                       value={filterType}
                       onChange={(e) => setFilterType(e.target.value as CommissionType | 'all')}
-                      className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent text-sm min-w-[180px]"
+                      className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent text-sm min-w-[180px]"
                     >
                       <option value="all">Todos los tipos</option>
                       <option value="mlm">Comisiones MLM</option>
@@ -338,7 +338,7 @@ export default function ComisionesPage() {
                     <select
                       value={filterStatus}
                       onChange={(e) => setFilterStatus(e.target.value as CommissionStatus | 'all')}
-                      className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent text-sm min-w-[160px]"
+                      className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent text-sm min-w-[160px]"
                     >
                       <option value="all">Todos los estados</option>
                       <option value="paid">Pagadas</option>
@@ -388,7 +388,7 @@ export default function ComisionesPage() {
                     type="checkbox"
                     checked={showTaxDetails}
                     onChange={(e) => setShowTaxDetails(e.target.checked)}
-                    className="rounded border-gray-300 text-[#7AB82E] focus:ring-[#7AB82E]"
+                    className="rounded border-gray-300 text-[#3E667D] focus:ring-[#a7c1e2]"
                   />
                   Mostrar detalles de impuestos
                 </label>
@@ -396,7 +396,7 @@ export default function ComisionesPage() {
 
               {isLoadingCommissions ? (
                 <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#003B7A]"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3E667D]"></div>
                 </div>
               ) : (
                 <CommissionTable
@@ -449,7 +449,7 @@ export default function ComisionesPage() {
         {/* Help CTA - Rediseñado */}
         <Card className="mt-8 overflow-hidden border-0 shadow-xl">
           <CardContent className="p-0">
-            <div className="relative bg-gradient-to-br from-[#7AB82E] via-[#6aa025] to-[#5a8a20] text-white">
+            <div className="relative bg-gradient-to-br from-[#3E667D] via-[#2f5165] to-[#3E667D] text-white">
               {/* Decorative pattern */}
               <div className="absolute inset-0 overflow-hidden">
                 <div className="absolute -top-20 -right-20 w-72 h-72 bg-white/10 rounded-full blur-3xl" />
@@ -481,7 +481,7 @@ export default function ComisionesPage() {
                         <Button
                           variant="secondary"
                           size="lg"
-                          className="bg-white text-[#7AB82E] hover:bg-white/90 shadow-lg shadow-black/10"
+                          className="bg-white text-[#3E667D] hover:bg-white/90 shadow-lg shadow-black/10"
                         >
                           <UserGroupIcon className="h-5 w-5 mr-2" />
                           Ver Mi Red

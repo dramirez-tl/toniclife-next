@@ -110,7 +110,7 @@ export default function ComoFuncionaPage() {
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#7AB82E] text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="text-center">
             <h1 className="text-5xl font-bold mb-6">¿Cómo Funciona Tonic Life?</h1>
@@ -145,7 +145,7 @@ export default function ComoFuncionaPage() {
 
                   {/* Content */}
                   <div className="w-full lg:w-1/2">
-                    <div className="inline-block px-4 py-2 bg-[#7AB82E] text-white rounded-full text-sm font-medium mb-4">
+                    <div className="inline-block px-4 py-2 bg-[#3E667D] text-white rounded-full text-sm font-medium mb-4">
                       Paso {step.number}
                     </div>
                     <h2 className="text-3xl font-bold text-gray-900 mb-4">{step.title}</h2>
@@ -154,7 +154,7 @@ export default function ComoFuncionaPage() {
                     <ul className="space-y-3">
                       {step.details.map((detail, idx) => (
                         <li key={idx} className="flex items-start gap-3">
-                          <CheckCircleIcon className="h-6 w-6 text-[#7AB82E] flex-shrink-0 mt-0.5" />
+                          <CheckCircleIcon className="h-6 w-6 text-[#3E667D] flex-shrink-0 mt-0.5" />
                           <span className="text-gray-700">{detail}</span>
                         </li>
                       ))}
@@ -168,7 +168,7 @@ export default function ComoFuncionaPage() {
       </div>
 
       {/* CTA Section */}
-      <div className="py-16 bg-gradient-to-r from-[#003B7A] to-[#7AB82E]">
+      <div className="py-16 bg-gradient-to-r from-[#3E667D] to-[#C8DDF2]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
           <h2 className="text-4xl font-bold mb-6">
             ¿Listo para Comenzar tu Transformación?
@@ -178,7 +178,7 @@ export default function ComoFuncionaPage() {
           </p>
           <Link
             href="/quiz"
-            className="inline-flex items-center gap-2 px-8 py-4 bg-white text-[#003B7A] font-bold rounded-lg hover:bg-blue-50 transition-colors"
+            className="inline-flex items-center gap-2 px-8 py-4 bg-white text-[#3E667D] font-bold rounded-lg hover:bg-blue-50 transition-colors"
           >
             <span>Comenzar la Evaluación</span>
             <ArrowRightIcon className="h-5 w-5" />
@@ -202,7 +202,7 @@ export default function ComoFuncionaPage() {
               return (
                 <div key={index} className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
                   <div className="flex justify-center mb-4">
-                    <div className="p-3 bg-[#003B7A] rounded-full">
+                    <div className="p-3 bg-[#3E667D] rounded-full">
                       <Icon className="h-8 w-8 text-white" />
                     </div>
                   </div>
@@ -231,12 +231,12 @@ export default function ComoFuncionaPage() {
             <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
               {['Evaluación', 'Análisis', 'Recomendaciones', 'Compra', 'Resultados'].map((label, index) => (
                 <div key={index} className="flex flex-col items-center">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#003B7A] to-[#7AB82E] text-white flex items-center justify-center text-2xl font-bold mb-3">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#3E667D] to-[#C8DDF2] text-white flex items-center justify-center text-2xl font-bold mb-3">
                     {index + 1}
                   </div>
                   <p className="text-sm font-medium text-gray-900 text-center">{label}</p>
                   {index < 4 && (
-                    <ArrowRightIcon className="h-6 w-6 text-[#7AB82E] mt-3 hidden md:block absolute right-0 translate-x-1/2" />
+                    <ArrowRightIcon className="h-6 w-6 text-[#3E667D] mt-3 hidden md:block absolute right-0 translate-x-1/2" />
                   )}
                 </div>
               ))}
@@ -257,13 +257,13 @@ export default function ComoFuncionaPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/quiz"
-              className="px-8 py-4 bg-[#003B7A] text-white font-bold rounded-lg hover:bg-[#002855] transition-colors"
+              className="px-8 py-4 bg-[#3E667D] text-white font-bold rounded-lg hover:bg-[#002855] transition-colors"
             >
               Comenzar Ahora
             </Link>
             <Link
               href="/productos"
-              className="px-8 py-4 bg-transparent border-2 border-[#003B7A] text-[#003B7A] font-bold rounded-lg hover:bg-[#003B7A] hover:text-white transition-colors"
+              className="px-8 py-4 bg-transparent border-2 border-[#3E667D] text-[#3E667D] font-bold rounded-lg hover:bg-[#3E667D] hover:text-white transition-colors"
             >
               Ver Productos
             </Link>

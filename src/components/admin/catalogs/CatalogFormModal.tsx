@@ -61,11 +61,11 @@ export function CatalogFormModal({
       >
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-[#003B7A]">{title}</h2>
+          <h2 className="text-lg font-bold text-[#3E667D]">{title}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#7AB82E] focus:ring-offset-2"
+            className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-[#a7c1e2] focus:ring-offset-2"
             aria-label="Cerrar"
           >
             <svg

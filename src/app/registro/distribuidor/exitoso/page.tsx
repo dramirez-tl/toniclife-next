@@ -50,7 +50,7 @@ function RegistroExitosoContent() {
         <div className="text-center mb-8">
           <Link href="/">
             <Image
-              src="/images/logo.png"
+              src="/images/logo/logo-text-dark.png"
               alt="Tonic Life"
               width={200}
               height={80}
@@ -61,7 +61,7 @@ function RegistroExitosoContent() {
 
         {/* Success Card */}
         <Card className="mb-6 overflow-hidden">
-          <div className="bg-gradient-to-r from-[#7AB82E] to-[#5fa31f] p-6 text-white text-center">
+          <div className="bg-gradient-to-r from-[#C8DDF2] to-[#5fa31f] p-6 text-white text-center">
             <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircleIcon className="h-12 w-12 text-white" />
             </div>
@@ -79,7 +79,7 @@ function RegistroExitosoContent() {
               <div className="bg-gray-50 rounded-lg p-4 mb-6">
                 <p className="text-sm text-gray-600 mb-2">Tu código de referido:</p>
                 <div className="flex items-center justify-between bg-white border rounded-lg p-3">
-                  <span className="text-2xl font-bold text-[#003B7A] tracking-wider">
+                  <span className="text-2xl font-bold text-[#3E667D] tracking-wider">
                     {referralCode}
                   </span>
                   <Button
@@ -102,8 +102,8 @@ function RegistroExitosoContent() {
             {sponsorName && (
               <div className="mb-6 p-4 border border-gray-200 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[#003B7A]/10 rounded-full flex items-center justify-center">
-                    <UserGroupIcon className="h-5 w-5 text-[#003B7A]" />
+                  <div className="w-10 h-10 bg-[#3E667D]/10 rounded-full flex items-center justify-center">
+                    <UserGroupIcon className="h-5 w-5 text-[#3E667D]" />
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Tu patrocinador</p>
@@ -122,8 +122,8 @@ function RegistroExitosoContent() {
                 {steps.map((step, index) => (
                   <div key={index} className="flex gap-4">
                     <div className="flex-shrink-0">
-                      <div className="w-8 h-8 bg-[#003B7A]/10 rounded-full flex items-center justify-center">
-                        <step.icon className="h-4 w-4 text-[#003B7A]" />
+                      <div className="w-8 h-8 bg-[#3E667D]/10 rounded-full flex items-center justify-center">
+                        <step.icon className="h-4 w-4 text-[#3E667D]" />
                       </div>
                     </div>
                     <div>
@@ -168,7 +168,7 @@ function RegistroExitosoContent() {
           <CardContent className="p-4">
             <p className="text-sm text-gray-600 text-center">
               ¿Tienes preguntas? Contacta a tu patrocinador o escríbenos a{' '}
-              <a href="mailto:soporte@toniclife.com" className="text-[#003B7A] hover:underline">
+              <a href="mailto:soporte@toniclife.com" className="text-[#3E667D] hover:underline">
                 soporte@toniclife.com
               </a>
             </p>
@@ -184,7 +184,7 @@ export default function RegistroExitosoPage() {
     <Suspense fallback={
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-gray-100 py-12 px-4 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7AB82E] mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#a7c1e2] mx-auto"></div>
           <p className="mt-4 text-gray-600">Cargando...</p>
         </div>
       </div>

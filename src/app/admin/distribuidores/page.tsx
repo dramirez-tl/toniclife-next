@@ -127,7 +127,7 @@ export default function DistribuidoresAdminPage() {
             </div>
             <Link
               href="/admin/distribuidores/nuevo"
-              className="flex items-center gap-2 px-4 py-2 bg-[#003B7A] text-white rounded-lg hover:bg-[#002855] transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#002855] transition-colors"
             >
               <PlusIcon className="h-5 w-5" />
               Nuevo Distribuidor
@@ -141,7 +141,7 @@ export default function DistribuidoresAdminPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center gap-2 mb-2">
-              <UserGroupIcon className="h-5 w-5 text-[#003B7A]" />
+              <UserGroupIcon className="h-5 w-5 text-[#3E667D]" />
               <span className="text-sm text-gray-600">Total</span>
             </div>
             <p className="text-2xl font-bold text-gray-900">{pagination.total}</p>
@@ -159,7 +159,7 @@ export default function DistribuidoresAdminPage() {
 
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center gap-2 mb-2">
-              <UserGroupIcon className="h-5 w-5 text-[#7AB82E]" />
+              <UserGroupIcon className="h-5 w-5 text-[#3E667D]" />
               <span className="text-sm text-gray-600">Distribuidores</span>
             </div>
             <p className="text-2xl font-bold text-gray-900">{distributorCount}</p>
@@ -197,7 +197,7 @@ export default function DistribuidoresAdminPage() {
                   placeholder="Buscar por nombre, email o código..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
                 />
               </div>
             </div>
@@ -209,7 +209,7 @@ export default function DistribuidoresAdminPage() {
                   setFilterType(e.target.value);
                   dispatch(setFilters({ page: 1 }));
                 }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
               >
                 <option value="all">Todos los Tipos</option>
                 <option value="distributor">Distribuidores</option>
@@ -224,7 +224,7 @@ export default function DistribuidoresAdminPage() {
                   setFilterStatus(e.target.value as CustomerStatus | 'all');
                   dispatch(setFilters({ page: 1 }));
                 }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
               >
                 <option value="all">Todos los Estados</option>
                 <option value="active">Activo</option>
@@ -243,7 +243,7 @@ export default function DistribuidoresAdminPage() {
                   setSortOrder(newSortOrder as 'asc' | 'desc');
                   dispatch(setFilters({ page: 1 }));
                 }}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003B7A]"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
               >
                 <option value="createdAt-desc">Más recientes</option>
                 <option value="createdAt-asc">Más antiguos</option>
@@ -259,7 +259,7 @@ export default function DistribuidoresAdminPage() {
         <div className="bg-white rounded-lg shadow overflow-hidden">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#003B7A]"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3E667D]"></div>
               <span className="ml-3 text-gray-600">Cargando...</span>
             </div>
           ) : (
@@ -364,7 +364,7 @@ export default function DistribuidoresAdminPage() {
                         <div className="flex items-center gap-2">
                           <Link
                             href={`/admin/distribuidores/${customer.id}`}
-                            className="p-1 text-[#003B7A] hover:bg-blue-50 rounded"
+                            className="p-1 text-[#3E667D] hover:bg-blue-50 rounded"
                             title="Ver detalles"
                           >
                             <EyeIcon className="h-5 w-5" />
@@ -442,7 +442,7 @@ export default function DistribuidoresAdminPage() {
                     onClick={() => handlePageChange(pageNum)}
                     className={`px-4 py-2 border rounded-lg ${
                       pagination.page === pageNum
-                        ? 'bg-[#003B7A] text-white border-[#003B7A]'
+                        ? 'bg-[#3E667D] text-white border-[#3E667D]'
                         : 'border-gray-300 hover:bg-gray-50'
                     }`}
                   >

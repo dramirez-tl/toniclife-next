@@ -247,7 +247,7 @@ export default function SoportePage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -280,7 +280,7 @@ export default function SoportePage() {
                 placeholder="Busca tu pregunta aquí..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                className="w-full pl-12 pr-4 py-4 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
               />
             </div>
           </CardContent>
@@ -332,7 +332,7 @@ export default function SoportePage() {
                     onClick={() => setSelectedCategory(null)}
                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                       selectedCategory === null
-                        ? 'bg-[#003B7A] text-white'
+                        ? 'bg-[#3E667D] text-white'
                         : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
                     }`}
                   >
@@ -346,7 +346,7 @@ export default function SoportePage() {
                         onClick={() => setSelectedCategory(category.id)}
                         className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
                           selectedCategory === category.id
-                            ? 'bg-[#003B7A] text-white'
+                            ? 'bg-[#3E667D] text-white'
                             : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
                         }`}
                       >
@@ -426,7 +426,7 @@ export default function SoportePage() {
           {/* Right Column - Support Tickets */}
           <div className="lg:col-span-1 space-y-6">
             {/* Create Ticket */}
-            <Card className="bg-gradient-to-br from-[#7AB82E] to-[#7AB82E]/90 text-white">
+            <Card className="bg-gradient-to-br from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
               <CardContent className="p-6">
                 <h3 className="font-bold text-lg mb-2">¿No encuentras lo que buscas?</h3>
                 <p className="text-white/90 text-sm mb-4">
@@ -543,7 +543,7 @@ export default function SoportePage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Categoría
                     </label>
-                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent">
+                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent">
                       <option value="">Selecciona una categoría</option>
                       <option value="productos">Productos</option>
                       <option value="pedidos">Pedidos y Envíos</option>
@@ -558,7 +558,7 @@ export default function SoportePage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Prioridad
                     </label>
-                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent">
+                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent">
                       <option value="low">Baja</option>
                       <option value="medium">Media</option>
                       <option value="high">Alta</option>
@@ -572,7 +572,7 @@ export default function SoportePage() {
                     <input
                       type="text"
                       placeholder="Describe brevemente tu problema"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                     />
                   </div>
 
@@ -583,7 +583,7 @@ export default function SoportePage() {
                     <textarea
                       rows={6}
                       placeholder="Proporciona todos los detalles posibles..."
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent resize-none"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent resize-none"
                     />
                   </div>
 
@@ -591,7 +591,7 @@ export default function SoportePage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Adjuntar Archivos (Opcional)
                     </label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#7AB82E] transition-colors cursor-pointer">
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-[#a7c1e2] transition-colors cursor-pointer">
                       <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
                       <p className="text-sm text-gray-600">
                         Arrastra archivos aquí o haz clic para seleccionar

@@ -171,7 +171,7 @@ export function SessionManager({ branchId, onSessionChange }: SessionManagerProp
                       placeholder="0.00"
                       step="0.01"
                       min="0"
-                      className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E]"
+                      className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2]"
                     />
                   </div>
                   {closingAmount && parseFloat(closingAmount) !== expectedBalance && (
@@ -192,7 +192,7 @@ export function SessionManager({ branchId, onSessionChange }: SessionManagerProp
                     onChange={(e) => setClosingNotes(e.target.value)}
                     placeholder="Observaciones del cierre..."
                     rows={3}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E]"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2]"
                   />
                 </div>
               </div>
@@ -230,7 +230,7 @@ export function SessionManager({ branchId, onSessionChange }: SessionManagerProp
           </div>
           <button
             onClick={() => setShowOpenModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#7AB82E] text-white rounded-lg hover:bg-[#6aa526] transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#6aa526] transition-colors"
           >
             <PlayIcon className="h-5 w-5" />
             Abrir Caja
@@ -259,12 +259,12 @@ export function SessionManager({ branchId, onSessionChange }: SessionManagerProp
                         onClick={() => setSelectedRegister(register)}
                         className={`w-full flex items-center gap-3 p-3 border-2 rounded-lg transition-all ${
                           selectedRegister?.id === register.id
-                            ? 'border-[#7AB82E] bg-[#7AB82E]/10'
+                            ? 'border-[#a7c1e2] bg-[#C8DDF2]/10'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
                         <BanknotesIcon className={`h-6 w-6 ${
-                          selectedRegister?.id === register.id ? 'text-[#7AB82E]' : 'text-gray-400'
+                          selectedRegister?.id === register.id ? 'text-[#3E667D]' : 'text-gray-400'
                         }`} />
                         <div className="text-left">
                           <p className="font-medium">{register.name}</p>
@@ -291,7 +291,7 @@ export function SessionManager({ branchId, onSessionChange }: SessionManagerProp
                     placeholder="0.00"
                     step="0.01"
                     min="0"
-                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E]"
+                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2]"
                   />
                 </div>
               </div>
@@ -311,7 +311,7 @@ export function SessionManager({ branchId, onSessionChange }: SessionManagerProp
               <button
                 onClick={handleOpenSession}
                 disabled={!selectedRegister || !openingAmount || openSession.isPending}
-                className="flex-1 px-4 py-2 bg-[#7AB82E] text-white rounded-lg hover:bg-[#6aa526] disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#6aa526] disabled:opacity-50"
               >
                 {openSession.isPending ? 'Abriendo...' : 'Abrir Caja'}
               </button>

@@ -123,7 +123,7 @@ export default function ProductsPage() {
             <Badge variant="success" size="lg" className="mb-4">
               Catálogo Completo
             </Badge>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#003B7A]">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#3E667D]">
               Nuestros Productos
             </h1>
             <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
@@ -140,7 +140,7 @@ export default function ProductsPage() {
                 placeholder="Buscar productos..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-3 pl-12 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                className="w-full px-4 py-3 pl-12 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
               />
               <svg
                 className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400"
@@ -167,8 +167,8 @@ export default function ProductsPage() {
                   onClick={() => setSelectedCategory('all')}
                   className={`px-4 py-2 rounded-full font-medium transition-all whitespace-nowrap ${
                     selectedCategory === 'all'
-                      ? 'bg-[#003B7A] text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-[#7AB82E]/10 hover:text-[#7AB82E]'
+                      ? 'bg-[#3E667D] text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-[#C8DDF2]/10 hover:text-[#3E667D]'
                   }`}
                 >
                   Todos ({totalProducts})
@@ -179,8 +179,8 @@ export default function ProductsPage() {
                     onClick={() => setSelectedCategory(category.id)}
                     className={`px-4 py-2 rounded-full font-medium transition-all whitespace-nowrap ${
                       selectedCategory === category.id
-                        ? 'bg-[#003B7A] text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-[#7AB82E]/10 hover:text-[#7AB82E]'
+                        ? 'bg-[#3E667D] text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-[#C8DDF2]/10 hover:text-[#3E667D]'
                     }`}
                   >
                     {category.name}
@@ -203,7 +203,7 @@ export default function ProductsPage() {
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as SortOption)}
-                  className="px-4 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#7AB82E]"
+                  className="px-4 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#a7c1e2]"
                 >
                   <option value="featured">Destacados</option>
                   <option value="newest">Más Recientes</option>
@@ -273,7 +273,7 @@ export default function ProductsPage() {
               {/* Loading State */}
               {productsLoading && (
                 <div className="text-center py-16">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#7AB82E] mx-auto"></div>
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#a7c1e2] mx-auto"></div>
                   <p className="mt-4 text-gray-500">Cargando productos...</p>
                 </div>
               )}
@@ -329,7 +329,7 @@ export default function ProductsPage() {
                       setPriceRange([0, 10000]);
                       setSearchTerm('');
                     }}
-                    className="mt-4 text-[#7AB82E] hover:underline"
+                    className="mt-4 text-[#3E667D] hover:underline"
                   >
                     Limpiar filtros
                   </button>

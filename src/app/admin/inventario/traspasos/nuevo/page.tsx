@@ -163,7 +163,7 @@ export default function NuevoTraspasoPage() {
         {/* Branch Selection */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <TruckIcon className="h-5 w-5 text-[#7AB82E]" />
+            <TruckIcon className="h-5 w-5 text-[#3E667D]" />
             Información del Traspaso
           </h2>
 
@@ -177,7 +177,7 @@ export default function NuevoTraspasoPage() {
                 onChange={(e) =>
                   setFormData({ ...formData, fromBranchId: e.target.value })
                 }
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent ${
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent ${
                   errors.fromBranchId ? 'border-red-500' : 'border-gray-300'
                 }`}
               >
@@ -202,7 +202,7 @@ export default function NuevoTraspasoPage() {
                 onChange={(e) =>
                   setFormData({ ...formData, toBranchId: e.target.value })
                 }
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent ${
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent ${
                   errors.toBranchId ? 'border-red-500' : 'border-gray-300'
                 }`}
               >
@@ -229,7 +229,7 @@ export default function NuevoTraspasoPage() {
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 rows={3}
                 placeholder="Agregar notas o comentarios sobre el traspaso..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
               />
             </div>
           </div>
@@ -244,7 +244,7 @@ export default function NuevoTraspasoPage() {
             <button
               type="button"
               onClick={() => setShowProductSearch(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-[#7AB82E] text-white rounded-lg hover:bg-[#6da628] transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#6da628] transition-colors"
             >
               <PlusIcon className="h-5 w-5" />
               Agregar Producto
@@ -267,7 +267,7 @@ export default function NuevoTraspasoPage() {
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder="Buscar por nombre o SKU..."
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                     autoFocus
                   />
                 </div>
@@ -278,7 +278,7 @@ export default function NuevoTraspasoPage() {
                       type="button"
                       onClick={() => handleAddProduct(product)}
                       disabled={items.some((item) => item.productId === product.id)}
-                      className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-[#7AB82E] hover:bg-[#7AB82E]/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-[#a7c1e2] hover:bg-[#C8DDF2]/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <div className="font-medium">{product.name}</div>
                       <div className="text-sm text-gray-500">
@@ -350,7 +350,7 @@ export default function NuevoTraspasoPage() {
                                 parseInt(e.target.value) || 1
                               )
                             }
-                            className={`w-20 px-2 py-1 border rounded text-right focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent ${
+                            className={`w-20 px-2 py-1 border rounded text-right focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent ${
                               errors[`quantity-${item.productId}`]
                                 ? 'border-red-500'
                                 : 'border-gray-300'
@@ -380,7 +380,7 @@ export default function NuevoTraspasoPage() {
                     <td colSpan={3} className="py-3 px-4 font-medium text-right">
                       Total de productos:
                     </td>
-                    <td className="py-3 px-4 font-bold text-right text-[#7AB82E]">
+                    <td className="py-3 px-4 font-bold text-right text-[#3E667D]">
                       {totalItems} unidades
                     </td>
                     <td></td>
@@ -408,7 +408,7 @@ export default function NuevoTraspasoPage() {
           <button
             type="submit"
             disabled={createTransfer.isPending || items.length === 0}
-            className="px-6 py-2 bg-[#003B7A] text-white rounded-lg hover:bg-[#002d5c] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-6 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#2f5165] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {createTransfer.isPending ? (
               <>

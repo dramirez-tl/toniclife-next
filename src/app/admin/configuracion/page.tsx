@@ -103,7 +103,7 @@ export default function ConfiguracionPage() {
     <PermissionGuard permissions={['settings:read', 'settings:*']}>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -149,7 +149,7 @@ export default function ConfiguracionPage() {
                         onClick={() => setActiveTab(tab.id)}
                         className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                           activeTab === tab.id
-                            ? 'bg-[#003B7A] text-white'
+                            ? 'bg-[#3E667D] text-white'
                             : 'text-gray-700 hover:bg-gray-100'
                         }`}
                       >
@@ -180,7 +180,7 @@ export default function ConfiguracionPage() {
                           type="text"
                           value={settings.siteName}
                           onChange={(e) => setSettings({ ...settings, siteName: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -191,7 +191,7 @@ export default function ConfiguracionPage() {
                           type="url"
                           value={settings.siteUrl}
                           onChange={(e) => setSettings({ ...settings, siteUrl: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -202,7 +202,7 @@ export default function ConfiguracionPage() {
                           type="email"
                           value={settings.supportEmail}
                           onChange={(e) => setSettings({ ...settings, supportEmail: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -213,7 +213,7 @@ export default function ConfiguracionPage() {
                           type="tel"
                           value={settings.supportPhone}
                           onChange={(e) => setSettings({ ...settings, supportPhone: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -223,7 +223,7 @@ export default function ConfiguracionPage() {
                         <select
                           value={settings.timezone}
                           onChange={(e) => setSettings({ ...settings, timezone: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         >
                           <option value="America/Mexico_City">México (CDMX)</option>
                           <option value="America/Monterrey">México (Monterrey)</option>
@@ -237,7 +237,7 @@ export default function ConfiguracionPage() {
                         <select
                           value={settings.language}
                           onChange={(e) => setSettings({ ...settings, language: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         >
                           <option value="es">Español</option>
                           <option value="en">English</option>
@@ -250,7 +250,7 @@ export default function ConfiguracionPage() {
                         <select
                           value={settings.currency}
                           onChange={(e) => setSettings({ ...settings, currency: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         >
                           <option value="MXN">MXN - Peso Mexicano</option>
                           <option value="USD">USD - Dólar Americano</option>
@@ -277,7 +277,7 @@ export default function ConfiguracionPage() {
                           type="number"
                           value={settings.taxRate}
                           onChange={(e) => setSettings({ ...settings, taxRate: parseFloat(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -288,7 +288,7 @@ export default function ConfiguracionPage() {
                           type="number"
                           value={settings.lowStockThreshold}
                           onChange={(e) => setSettings({ ...settings, lowStockThreshold: parseInt(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                     </div>
@@ -298,7 +298,7 @@ export default function ConfiguracionPage() {
                           type="checkbox"
                           checked={settings.enableInventoryTracking}
                           onChange={(e) => setSettings({ ...settings, enableInventoryTracking: e.target.checked })}
-                          className="w-5 h-5 text-[#003B7A] border-gray-300 rounded focus:ring-[#003B7A]"
+                          className="w-5 h-5 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
                         />
                         <span className="text-sm font-medium text-gray-700">
                           Habilitar seguimiento de inventario
@@ -309,7 +309,7 @@ export default function ConfiguracionPage() {
                           type="checkbox"
                           checked={settings.autoReorderEnabled}
                           onChange={(e) => setSettings({ ...settings, autoReorderEnabled: e.target.checked })}
-                          className="w-5 h-5 text-[#003B7A] border-gray-300 rounded focus:ring-[#003B7A]"
+                          className="w-5 h-5 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
                         />
                         <span className="text-sm font-medium text-gray-700">
                           Habilitar reorden automático de productos
@@ -336,7 +336,7 @@ export default function ConfiguracionPage() {
                           type="number"
                           value={settings.freeShippingThreshold}
                           onChange={(e) => setSettings({ ...settings, freeShippingThreshold: parseFloat(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -347,7 +347,7 @@ export default function ConfiguracionPage() {
                           type="number"
                           value={settings.standardShippingCost}
                           onChange={(e) => setSettings({ ...settings, standardShippingCost: parseFloat(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -358,7 +358,7 @@ export default function ConfiguracionPage() {
                           type="number"
                           value={settings.expressShippingCost}
                           onChange={(e) => setSettings({ ...settings, expressShippingCost: parseFloat(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -369,7 +369,7 @@ export default function ConfiguracionPage() {
                           type="number"
                           value={settings.shippingProcessingDays}
                           onChange={(e) => setSettings({ ...settings, shippingProcessingDays: parseInt(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                     </div>
@@ -393,7 +393,7 @@ export default function ConfiguracionPage() {
                           type="text"
                           value={settings.smtpHost}
                           onChange={(e) => setSettings({ ...settings, smtpHost: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -404,7 +404,7 @@ export default function ConfiguracionPage() {
                           type="number"
                           value={settings.smtpPort}
                           onChange={(e) => setSettings({ ...settings, smtpPort: parseInt(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -415,7 +415,7 @@ export default function ConfiguracionPage() {
                           type="email"
                           value={settings.emailFrom}
                           onChange={(e) => setSettings({ ...settings, emailFrom: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -426,7 +426,7 @@ export default function ConfiguracionPage() {
                           type="text"
                           value={settings.emailFromName}
                           onChange={(e) => setSettings({ ...settings, emailFromName: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                     </div>
@@ -436,7 +436,7 @@ export default function ConfiguracionPage() {
                           type="checkbox"
                           checked={settings.smtpSecure}
                           onChange={(e) => setSettings({ ...settings, smtpSecure: e.target.checked })}
-                          className="w-5 h-5 text-[#003B7A] border-gray-300 rounded focus:ring-[#003B7A]"
+                          className="w-5 h-5 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
                         />
                         <span className="text-sm font-medium text-gray-700">
                           Usar conexión segura (TLS)
@@ -459,7 +459,7 @@ export default function ConfiguracionPage() {
                         type="checkbox"
                         checked={settings.emailNotificationsEnabled}
                         onChange={(e) => setSettings({ ...settings, emailNotificationsEnabled: e.target.checked })}
-                        className="w-5 h-5 text-[#003B7A] border-gray-300 rounded focus:ring-[#003B7A]"
+                        className="w-5 h-5 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
                       />
                       <span className="text-sm font-medium text-gray-700">
                         Habilitar notificaciones por email
@@ -470,7 +470,7 @@ export default function ConfiguracionPage() {
                         type="checkbox"
                         checked={settings.orderNotifications}
                         onChange={(e) => setSettings({ ...settings, orderNotifications: e.target.checked })}
-                        className="w-5 h-5 text-[#003B7A] border-gray-300 rounded focus:ring-[#003B7A]"
+                        className="w-5 h-5 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
                       />
                       <span className="text-sm font-medium text-gray-700">
                         Notificar nuevos pedidos
@@ -481,7 +481,7 @@ export default function ConfiguracionPage() {
                         type="checkbox"
                         checked={settings.lowStockNotifications}
                         onChange={(e) => setSettings({ ...settings, lowStockNotifications: e.target.checked })}
-                        className="w-5 h-5 text-[#003B7A] border-gray-300 rounded focus:ring-[#003B7A]"
+                        className="w-5 h-5 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
                       />
                       <span className="text-sm font-medium text-gray-700">
                         Notificar stock bajo
@@ -492,7 +492,7 @@ export default function ConfiguracionPage() {
                         type="checkbox"
                         checked={settings.newUserNotifications}
                         onChange={(e) => setSettings({ ...settings, newUserNotifications: e.target.checked })}
-                        className="w-5 h-5 text-[#003B7A] border-gray-300 rounded focus:ring-[#003B7A]"
+                        className="w-5 h-5 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
                       />
                       <span className="text-sm font-medium text-gray-700">
                         Notificar nuevos usuarios
@@ -514,7 +514,7 @@ export default function ConfiguracionPage() {
                         type="checkbox"
                         checked={settings.stripeEnabled}
                         onChange={(e) => setSettings({ ...settings, stripeEnabled: e.target.checked })}
-                        className="w-5 h-5 text-[#003B7A] border-gray-300 rounded focus:ring-[#003B7A]"
+                        className="w-5 h-5 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
                       />
                       <span className="text-sm font-medium text-gray-700">
                         Stripe (Tarjetas de Crédito/Débito)
@@ -525,7 +525,7 @@ export default function ConfiguracionPage() {
                         type="checkbox"
                         checked={settings.paypalEnabled}
                         onChange={(e) => setSettings({ ...settings, paypalEnabled: e.target.checked })}
-                        className="w-5 h-5 text-[#003B7A] border-gray-300 rounded focus:ring-[#003B7A]"
+                        className="w-5 h-5 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
                       />
                       <span className="text-sm font-medium text-gray-700">
                         PayPal
@@ -536,7 +536,7 @@ export default function ConfiguracionPage() {
                         type="checkbox"
                         checked={settings.oxxoEnabled}
                         onChange={(e) => setSettings({ ...settings, oxxoEnabled: e.target.checked })}
-                        className="w-5 h-5 text-[#003B7A] border-gray-300 rounded focus:ring-[#003B7A]"
+                        className="w-5 h-5 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
                       />
                       <span className="text-sm font-medium text-gray-700">
                         OXXO
@@ -547,7 +547,7 @@ export default function ConfiguracionPage() {
                         type="checkbox"
                         checked={settings.transferEnabled}
                         onChange={(e) => setSettings({ ...settings, transferEnabled: e.target.checked })}
-                        className="w-5 h-5 text-[#003B7A] border-gray-300 rounded focus:ring-[#003B7A]"
+                        className="w-5 h-5 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
                       />
                       <span className="text-sm font-medium text-gray-700">
                         Transferencia Bancaria
@@ -574,7 +574,7 @@ export default function ConfiguracionPage() {
                           step="0.1"
                           value={settings.commissionRate}
                           onChange={(e) => setSettings({ ...settings, commissionRate: parseFloat(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -586,7 +586,7 @@ export default function ConfiguracionPage() {
                           step="0.1"
                           value={settings.teamCommissionRate}
                           onChange={(e) => setSettings({ ...settings, teamCommissionRate: parseFloat(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -597,7 +597,7 @@ export default function ConfiguracionPage() {
                           type="number"
                           value={settings.bonusThreshold}
                           onChange={(e) => setSettings({ ...settings, bonusThreshold: parseFloat(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -608,7 +608,7 @@ export default function ConfiguracionPage() {
                           type="number"
                           value={settings.bonusAmount}
                           onChange={(e) => setSettings({ ...settings, bonusAmount: parseFloat(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -619,7 +619,7 @@ export default function ConfiguracionPage() {
                           type="number"
                           value={settings.maxLevels}
                           onChange={(e) => setSettings({ ...settings, maxLevels: parseInt(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                     </div>
@@ -643,7 +643,7 @@ export default function ConfiguracionPage() {
                           type="number"
                           value={settings.sessionTimeout}
                           onChange={(e) => setSettings({ ...settings, sessionTimeout: parseInt(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -654,7 +654,7 @@ export default function ConfiguracionPage() {
                           type="number"
                           value={settings.maxLoginAttempts}
                           onChange={(e) => setSettings({ ...settings, maxLoginAttempts: parseInt(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                       <div>
@@ -665,7 +665,7 @@ export default function ConfiguracionPage() {
                           type="number"
                           value={settings.passwordMinLength}
                           onChange={(e) => setSettings({ ...settings, passwordMinLength: parseInt(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                     </div>
@@ -675,7 +675,7 @@ export default function ConfiguracionPage() {
                           type="checkbox"
                           checked={settings.enableTwoFactor}
                           onChange={(e) => setSettings({ ...settings, enableTwoFactor: e.target.checked })}
-                          className="w-5 h-5 text-[#003B7A] border-gray-300 rounded focus:ring-[#003B7A]"
+                          className="w-5 h-5 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
                         />
                         <span className="text-sm font-medium text-gray-700">
                           Habilitar autenticación de dos factores
@@ -686,7 +686,7 @@ export default function ConfiguracionPage() {
                           type="checkbox"
                           checked={settings.requireStrongPassword}
                           onChange={(e) => setSettings({ ...settings, requireStrongPassword: e.target.checked })}
-                          className="w-5 h-5 text-[#003B7A] border-gray-300 rounded focus:ring-[#003B7A]"
+                          className="w-5 h-5 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
                         />
                         <span className="text-sm font-medium text-gray-700">
                           Requerir contraseñas fuertes (mayúsculas, números, símbolos)

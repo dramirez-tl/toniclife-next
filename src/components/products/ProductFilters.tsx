@@ -54,7 +54,7 @@ export function ProductFilters({
       <div>
         <button
           onClick={() => toggleSection('categories')}
-          className="w-full flex items-center justify-between text-left font-bold text-[#003B7A] mb-3"
+          className="w-full flex items-center justify-between text-left font-bold text-[#3E667D] mb-3"
         >
           Categorías
           <ChevronDownIcon
@@ -70,9 +70,9 @@ export function ProductFilters({
                 name="category"
                 checked={selectedCategory === 'all'}
                 onChange={() => onCategoryChange('all')}
-                className="w-4 h-4 text-[#7AB82E] border-gray-300 focus:ring-[#7AB82E]"
+                className="w-4 h-4 text-[#3E667D] border-gray-300 focus:ring-[#a7c1e2]"
               />
-              <span className="text-gray-700 group-hover:text-[#7AB82E] transition-colors">
+              <span className="text-gray-700 group-hover:text-[#3E667D] transition-colors">
                 Todos los productos
               </span>
             </label>
@@ -84,9 +84,9 @@ export function ProductFilters({
                   name="category"
                   checked={selectedCategory === category.id}
                   onChange={() => onCategoryChange(category.id)}
-                  className="w-4 h-4 text-[#7AB82E] border-gray-300 focus:ring-[#7AB82E]"
+                  className="w-4 h-4 text-[#3E667D] border-gray-300 focus:ring-[#a7c1e2]"
                 />
-                <span className="text-gray-700 group-hover:text-[#7AB82E] transition-colors">
+                <span className="text-gray-700 group-hover:text-[#3E667D] transition-colors">
                   {category.name}
                 </span>
               </label>
@@ -102,7 +102,7 @@ export function ProductFilters({
       <div>
         <button
           onClick={() => toggleSection('price')}
-          className="w-full flex items-center justify-between text-left font-bold text-[#003B7A] mb-3"
+          className="w-full flex items-center justify-between text-left font-bold text-[#3E667D] mb-3"
         >
           Precio
           <ChevronDownIcon
@@ -121,7 +121,7 @@ export function ProductFilters({
                   max={priceRange[1]}
                   value={priceRange[0]}
                   onChange={(e) => onPriceRangeChange([Number(e.target.value), priceRange[1]])}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7AB82E]"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#a7c1e2]"
                 />
               </div>
               <span className="text-gray-400 mt-4">-</span>
@@ -133,7 +133,7 @@ export function ProductFilters({
                   max={100}
                   value={priceRange[1]}
                   onChange={(e) => onPriceRangeChange([priceRange[0], Number(e.target.value)])}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#7AB82E]"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#a7c1e2]"
                 />
               </div>
             </div>
@@ -146,7 +146,7 @@ export function ProductFilters({
                 max={100}
                 value={priceRange[1]}
                 onChange={(e) => onPriceRangeChange([priceRange[0], Number(e.target.value)])}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#7AB82E]"
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#C8DDF2]"
               />
             </div>
 
@@ -162,8 +162,8 @@ export function ProductFilters({
                   onClick={() => onPriceRangeChange(option.range)}
                   className={`px-3 py-1 text-xs rounded-full transition-colors ${
                     priceRange[0] === option.range[0] && priceRange[1] === option.range[1]
-                      ? 'bg-[#7AB82E] text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-[#7AB82E]/10'
+                      ? 'bg-[#3E667D] text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-[#C8DDF2]/10'
                   }`}
                 >
                   {option.label}
@@ -181,7 +181,7 @@ export function ProductFilters({
       <div>
         <button
           onClick={() => toggleSection('benefits')}
-          className="w-full flex items-center justify-between text-left font-bold text-[#003B7A] mb-3"
+          className="w-full flex items-center justify-between text-left font-bold text-[#3E667D] mb-3"
         >
           Beneficios
           <ChevronDownIcon
@@ -195,9 +195,9 @@ export function ProductFilters({
               <label key={benefit} className="flex items-center gap-3 cursor-pointer group">
                 <input
                   type="checkbox"
-                  className="w-4 h-4 text-[#7AB82E] border-gray-300 rounded focus:ring-[#7AB82E]"
+                  className="w-4 h-4 text-[#3E667D] border-gray-300 rounded focus:ring-[#a7c1e2]"
                 />
-                <span className="text-gray-700 group-hover:text-[#7AB82E] transition-colors">
+                <span className="text-gray-700 group-hover:text-[#3E667D] transition-colors">
                   {benefit}
                 </span>
               </label>
@@ -212,7 +212,7 @@ export function ProductFilters({
           onCategoryChange('all');
           onPriceRangeChange([0, 100]);
         }}
-        className="w-full py-2 text-sm text-gray-500 hover:text-[#7AB82E] transition-colors"
+        className="w-full py-2 text-sm text-gray-500 hover:text-[#3E667D] transition-colors"
       >
         Limpiar filtros
       </button>

@@ -144,7 +144,7 @@ export default function PagosPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -169,7 +169,7 @@ export default function PagosPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Balance Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-[#7AB82E] to-[#7AB82E]/90 text-white">
+          <Card className="bg-gradient-to-br from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-2">
                 <BanknotesIcon className="h-8 w-8 text-white/80" />
@@ -237,7 +237,7 @@ export default function PagosPage() {
                       <div
                         key={method.id}
                         className={`border rounded-lg p-4 ${
-                          method.isDefault ? 'border-[#7AB82E] bg-green-50' : 'border-gray-200'
+                          method.isDefault ? 'border-[#a7c1e2] bg-green-50' : 'border-gray-200'
                         }`}
                       >
                         <div className="flex items-start justify-between mb-3">
@@ -272,7 +272,7 @@ export default function PagosPage() {
 
                         {method.isDefault && (
                           <div className="mb-3">
-                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-[#7AB82E] text-white">
+                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-[#3E667D] text-white">
                               Predeterminado
                             </span>
                           </div>
@@ -368,7 +368,7 @@ export default function PagosPage() {
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value)}
-                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent text-sm"
+                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent text-sm"
                   >
                     <option value="all">Todos los estados</option>
                     <option value="completed">Completados</option>
@@ -517,7 +517,7 @@ export default function PagosPage() {
 
                 <div className="mb-6">
                   <p className="text-sm text-gray-600 mb-1">Saldo Disponible</p>
-                  <p className="text-3xl font-bold text-[#7AB82E]">
+                  <p className="text-3xl font-bold text-[#3E667D]">
                     ${availableBalance.toLocaleString('es-MX')}
                   </p>
                 </div>
@@ -530,7 +530,7 @@ export default function PagosPage() {
                     <input
                       type="number"
                       placeholder="0.00"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                     />
                     <p className="text-xs text-gray-500 mt-1">
                       Monto mínimo: $1,000 MXN
@@ -541,7 +541,7 @@ export default function PagosPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Método de Pago
                     </label>
-                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent">
+                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent">
                       {paymentMethods.map((method) => (
                         <option key={method.id} value={method.id}>
                           {method.type === 'bank' ? `${method.bank} ${method.accountNumber}` : `PayPal - ${method.email}`}
@@ -598,7 +598,7 @@ export default function PagosPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Tipo de Método
                     </label>
-                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent">
+                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent">
                       <option value="bank">Cuenta Bancaria</option>
                       <option value="paypal">PayPal</option>
                     </select>
@@ -608,7 +608,7 @@ export default function PagosPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Banco
                     </label>
-                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent">
+                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent">
                       <option>BBVA Bancomer</option>
                       <option>Santander</option>
                       <option>Banorte</option>
@@ -625,7 +625,7 @@ export default function PagosPage() {
                       type="text"
                       placeholder="18 dígitos"
                       maxLength={18}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                     />
                   </div>
 
@@ -636,7 +636,7 @@ export default function PagosPage() {
                     <input
                       type="text"
                       placeholder="Nombre completo"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                     />
                   </div>
                 </div>

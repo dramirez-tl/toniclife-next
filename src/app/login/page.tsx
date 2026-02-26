@@ -122,20 +122,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-[#003B7A]/10 px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-[#3E667D]/10 px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
       <div className="mx-auto flex w-full max-w-5xl items-center justify-center">
         <div className="w-full max-w-md space-y-6">
           <div className="text-center">
             <Link href="/">
               <Image
-                src="/images/logo.png"
+                src="/images/logo/logo-text-dark.png"
                 alt="Tonic Life"
                 width={180}
                 height={64}
                 className="mx-auto mb-4 h-10 w-auto"
               />
             </Link>
-            <div className="inline-flex items-center gap-2 rounded-full bg-[#003B7A]/8 px-3 py-1 text-xs font-medium text-[#003B7A]">
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#3E667D]/8 px-3 py-1 text-xs font-medium text-[#3E667D]">
               <ShieldCheckIcon className="h-3.5 w-3.5" />
               Acceso seguro
             </div>
@@ -198,14 +198,14 @@ export default function LoginPage() {
                       type="checkbox"
                       checked={formData.remember}
                       onChange={(e) => setFormData({ ...formData, remember: e.target.checked })}
-                      className="h-4 w-4 rounded border-gray-300 text-[#003B7A] focus:ring-[#7AB82E]"
+                      className="h-4 w-4 rounded border-gray-300 text-[#3E667D] focus:ring-[#a7c1e2]"
                       disabled={isLoading}
                     />
                     <span className="ml-2 text-sm text-gray-600">Recordarme</span>
                   </label>
                   <Link
                     href="/forgot-password"
-                    className="text-sm font-medium text-[#003B7A] transition-colors hover:text-[#7AB82E]"
+                    className="text-sm font-medium text-[#3E667D] transition-colors hover:text-[#3E667D]"
                   >
                     ¿Olvidaste tu contraseña?
                   </Link>
@@ -223,7 +223,7 @@ export default function LoginPage() {
                 </Button>
 
                 <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
-                  <SparklesIcon className="h-4 w-4 text-[#7AB82E]" />
+                  <SparklesIcon className="h-4 w-4 text-[#3E667D]" />
                   Tu destino se asigna automáticamente según tu rol
                 </div>
               </form>
@@ -233,7 +233,7 @@ export default function LoginPage() {
                   href="/ayuda"
                   className="group block transition-colors"
                 >
-                  <div className="mb-1 flex items-center gap-2 text-[#003B7A]">
+                  <div className="mb-1 flex items-center gap-2 text-[#3E667D]">
                     <LifebuoyIcon className="h-4 w-4" />
                     <span className="text-sm font-semibold">Soporte de acceso</span>
                   </div>

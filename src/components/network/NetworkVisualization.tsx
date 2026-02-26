@@ -214,7 +214,7 @@ export function NetworkVisualization({
           <p className="text-gray-500 mb-4">No pudimos cargar la información de tu red.</p>
           <button
             onClick={handleRefresh}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#003B7A] text-white rounded-lg hover:bg-[#003B7A]/90"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#3E667D]/90"
           >
             <ArrowPathIcon className="h-4 w-4" />
             Reintentar
@@ -247,7 +247,7 @@ export function NetworkVisualization({
                 <select
                   value={depth}
                   onChange={(e) => handleDepthChange(parseInt(e.target.value))}
-                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                 >
                   {Array.from({ length: Math.max(maxAvailableDepth - 1, 1) }, (_, i) => {
                     const n = i + 2;
@@ -291,7 +291,7 @@ export function NetworkVisualization({
               <strong className="text-gray-900">{stats.levels}</strong> niveles de profundidad
             </span>
             {expandNode.isPending && (
-              <span className="inline-flex items-center gap-1.5 text-[#7AB82E]">
+              <span className="inline-flex items-center gap-1.5 text-[#3E667D]">
                 <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
                 Cargando más nodos...
               </span>
@@ -334,7 +334,7 @@ export function NetworkVisualization({
           {!isLoadTriggered && !treeData ? (
             <div className="absolute inset-0 flex items-center justify-center bg-white">
               <div className="text-center max-w-sm">
-                <div className="w-20 h-20 bg-gradient-to-br from-[#003B7A] to-[#003B7A]/70 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                <div className="w-20 h-20 bg-gradient-to-br from-[#3E667D] to-[#3E667D]/70 rounded-2xl flex items-center justify-center mx-auto mb-5">
                   <UsersIcon className="h-10 w-10 text-white" />
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Visualizar tu Red</h3>
@@ -343,7 +343,7 @@ export function NetworkVisualization({
                 </p>
                 <button
                   onClick={() => setIsLoadTriggered(true)}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-[#7AB82E] text-white font-semibold rounded-lg hover:bg-[#6aa025] transition-colors shadow-md"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-[#3E667D] text-white font-semibold rounded-lg hover:bg-[#2f5165] transition-colors shadow-md"
                 >
                   <UsersIcon className="h-5 w-5" />
                   Cargar Red
@@ -353,7 +353,7 @@ export function NetworkVisualization({
           ) : isLoading ? (
             <div className="absolute inset-0 flex items-center justify-center bg-white">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003B7A] mx-auto mb-4"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3E667D] mx-auto mb-4"></div>
                 <p className="text-gray-600">Cargando visualización de red...</p>
               </div>
             </div>

@@ -63,7 +63,7 @@ const DEFAULT_MULTILEVEL_RULES: MultilevelBonusRule[] = [
 ];
 
 const inputClassName =
-  'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#003B7A] focus:border-transparent';
+  'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3E667D] focus:border-transparent';
 
 // ─── Page ───────────────────────────────────────────────────────────────────
 
@@ -154,7 +154,7 @@ function ProgramaArranqueContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -188,17 +188,17 @@ function ProgramaArranqueContent() {
           <StatCard
             label="Total Programas"
             value={programsData?.total ?? 0}
-            icon={<RocketLaunchIcon className="h-5 w-5 text-[#003B7A]" />}
+            icon={<RocketLaunchIcon className="h-5 w-5 text-[#3E667D]" />}
           />
           <StatCard
             label="Activos"
             value={programs.filter((p) => p.status === 'active').length}
-            icon={<PlayIcon className="h-5 w-5 text-[#7AB82E]" />}
+            icon={<PlayIcon className="h-5 w-5 text-[#3E667D]" />}
           />
           <StatCard
             label="Paises"
             value={[...new Set(programs.map((p) => p.countryCode))].length}
-            icon={<GlobeAmericasIcon className="h-5 w-5 text-[#003B7A]" />}
+            icon={<GlobeAmericasIcon className="h-5 w-5 text-[#3E667D]" />}
           />
           <StatCard
             label="En Borrador"
@@ -314,7 +314,7 @@ function ProgramaArranqueContent() {
                                   size="sm"
                                   onClick={() => handleChangeStatus(program.id, 'active')}
                                   title="Activar"
-                                  className="text-[#7AB82E]"
+                                  className="text-[#3E667D]"
                                 >
                                   <PlayIcon className="h-4 w-4" />
                                 </Button>
@@ -350,7 +350,7 @@ function ProgramaArranqueContent() {
                                     size="sm"
                                     onClick={() => handleChangeStatus(program.id, 'active')}
                                     title="Reactivar"
-                                    className="text-[#7AB82E]"
+                                    className="text-[#3E667D]"
                                   >
                                     <PlayIcon className="h-4 w-4" />
                                   </Button>

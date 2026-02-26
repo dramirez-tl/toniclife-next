@@ -161,7 +161,7 @@ export default function PeriodosPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -209,10 +209,10 @@ export default function PeriodosPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Total Periodos</p>
-                  <p className="text-3xl font-bold text-[#003B7A]">{totalPeriods}</p>
+                  <p className="text-3xl font-bold text-[#3E667D]">{totalPeriods}</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <CalendarDaysIcon className="h-6 w-6 text-[#003B7A]" />
+                  <CalendarDaysIcon className="h-6 w-6 text-[#3E667D]" />
                 </div>
               </div>
             </CardContent>
@@ -251,12 +251,12 @@ export default function PeriodosPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Periodo Actual</p>
-                  <p className="text-lg font-bold text-[#7AB82E] truncate">
+                  <p className="text-lg font-bold text-[#3E667D] truncate">
                     {currentPeriod?.name || 'N/A'}
                   </p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <ClockIcon className="h-6 w-6 text-[#7AB82E]" />
+                  <ClockIcon className="h-6 w-6 text-[#3E667D]" />
                 </div>
               </div>
             </CardContent>
@@ -278,7 +278,7 @@ export default function PeriodosPage() {
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                     placeholder="02-2026"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     required
                   />
                 </div>
@@ -289,7 +289,7 @@ export default function PeriodosPage() {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Febrero 2026"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     required
                   />
                 </div>
@@ -299,7 +299,7 @@ export default function PeriodosPage() {
                     type="date"
                     value={formData.startDate}
                     onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     required
                   />
                 </div>
@@ -309,7 +309,7 @@ export default function PeriodosPage() {
                     type="date"
                     value={formData.endDate}
                     onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                     required
                   />
                 </div>
@@ -335,7 +335,7 @@ export default function PeriodosPage() {
           <Card>
             <CardContent className="p-12">
               <div className="text-center">
-                <div className="inline-block w-12 h-12 border-4 border-[#003B7A] border-t-transparent rounded-full animate-spin" />
+                <div className="inline-block w-12 h-12 border-4 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
                 <p className="mt-4 text-gray-600">Cargando periodos...</p>
               </div>
             </CardContent>

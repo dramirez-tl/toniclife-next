@@ -4,11 +4,29 @@
    MY WELLNESS HUB - GLOBAL STYLES
    ========================================== */
 
-/* Custom Properties */
+/* Custom Properties — Tonic Life Brand Palette */
 :root {
-  --color-primary: #003B7A;
-  --color-secondary: #7AB82E;
-  --color-accent: #B8860B;
+  /* Primary */
+  --color-primary: #3E667D;        /* Dark teal — headers, text, buttons */
+  --color-primary-dark: #2f5165;   /* Darker teal — gradients, hover */
+  --color-primary-light: #4d7a8f;  /* Mid teal — gradient midpoints */
+
+  /* Accent Blues */
+  --color-accent-blue: #a7c1e2;    /* Medium blue — focus rings, borders, links */
+  --color-accent-blue-light: #C8DDF2; /* Sky blue — light backgrounds, badges */
+  --color-accent-periwinkle: #ccdef2; /* Periwinkle — alternative light accent */
+
+  /* Sage Greens */
+  --color-sage: #abc9ba;           /* Sage — secondary buttons, success accents */
+  --color-sage-light: #cbd8d1;     /* Light sage — subtle backgrounds */
+
+  /* Warm Neutrals */
+  --color-cream: #f5f7e7;          /* Cream — page backgrounds, cards */
+  --color-lime-light: #e1eabc;     /* Light lime — warm accent backgrounds */
+
+  /* Legacy alias */
+  --color-secondary: #C8DDF2;
+  --color-accent: #abc9ba;
 }
 
 /* Base Styles */
@@ -242,7 +260,7 @@ input[type="range"]::-webkit-slider-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #7AB82E;
+  background: #C8DDF2;
   cursor: pointer;
   margin-top: -6px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -257,7 +275,7 @@ input[type="range"]::-webkit-slider-runnable-track {
 
 /* Selection Color */
 ::selection {
-  background-color: #7AB82E;
+  background-color: #C8DDF2;
   color: white;
 }
 

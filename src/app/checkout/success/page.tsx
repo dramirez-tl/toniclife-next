@@ -22,7 +22,7 @@ function SuccessContent() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center">
-        <div className="w-16 h-16 border-4 border-[#7AB82E] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <div className="w-16 h-16 border-4 border-[#a7c1e2] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
         <p className="text-gray-600 text-lg">Procesando pago exitoso...</p>
         <p className="text-gray-400 text-sm mt-2">Redirigiendo a la confirmacion de tu pedido</p>
       </div>
@@ -35,7 +35,7 @@ export default function CheckoutSuccessPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="w-16 h-16 border-4 border-[#7AB82E] border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-16 h-16 border-4 border-[#a7c1e2] border-t-transparent rounded-full animate-spin mx-auto" />
         </div>
       }
     >

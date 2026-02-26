@@ -69,7 +69,7 @@ export function NetworkSearch({
           }}
           onFocus={() => query.length >= 2 && setIsOpen(true)}
           placeholder={placeholder}
-          className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
+          className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent bg-white text-gray-900 placeholder-gray-500"
         />
         {query && (
           <button
@@ -89,7 +89,7 @@ export function NetworkSearch({
         >
           {isLoading ? (
             <div className="p-4 text-center text-gray-500">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#003B7A] mx-auto mb-2"></div>
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#3E667D] mx-auto mb-2"></div>
               Buscando...
             </div>
           ) : results && results.length > 0 ? (

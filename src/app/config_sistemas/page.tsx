@@ -43,11 +43,11 @@ export default function ConfigSistemasPage() {
   if (!mounted) return null;
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#003B7A] via-[#00264d] to-[#001a33] px-6">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#3E667D] via-[#2d4f5e] to-[#001a33] px-6">
       <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-8 max-w-md w-full text-center">
         <div className="mb-6">
           <Image
-            src="/images/logo-white.png"
+            src="/images/logo/logo-text-light.png"
             alt="Tonic Life"
             width={160}
             height={50}
@@ -77,7 +77,7 @@ export default function ConfigSistemasPage() {
             <button
               onClick={handleToggle}
               className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-200 focus:outline-none ${
-                bypassed ? 'bg-[#7AB82E]' : 'bg-white/20'
+                bypassed ? 'bg-[#C8DDF2]' : 'bg-white/20'
               }`}
             >
               <span
@@ -91,7 +91,7 @@ export default function ConfigSistemasPage() {
           <div
             className={`mt-4 rounded-lg px-4 py-3 text-sm ${
               bypassed
-                ? 'bg-[#7AB82E]/20 text-[#7AB82E]'
+                ? 'bg-[#C8DDF2]/20 text-[#3E667D]'
                 : 'bg-blue-500/20 text-blue-300'
             }`}
           >

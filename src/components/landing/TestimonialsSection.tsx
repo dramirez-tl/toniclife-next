@@ -55,7 +55,7 @@ export function TestimonialsSection() {
           <Badge variant="info" size="lg" className="mb-4">
             Historias de Transformación
           </Badge>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#003B7A]">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#3E667D]">
             Lo que dicen nuestros clientes
           </h2>
           <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
@@ -68,7 +68,7 @@ export function TestimonialsSection() {
         <div className="max-w-4xl mx-auto mb-16">
           <Card className="relative overflow-hidden bg-white" padding="lg">
             {/* Quote Icon */}
-            <div className="absolute top-6 right-6 text-[#7AB82E]/20">
+            <div className="absolute top-6 right-6 text-[#3E667D]/20">
               <svg className="h-24 w-24" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
               </svg>
@@ -91,11 +91,11 @@ export function TestimonialsSection() {
               <div className="mt-8 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   {/* Avatar Placeholder */}
-                  <div className="w-14 h-14 bg-gradient-to-br from-[#7AB82E] to-[#003B7A] rounded-full flex items-center justify-center text-white font-bold text-xl">
+                  <div className="w-14 h-14 bg-gradient-to-br from-[#C8DDF2] to-[#3E667D] rounded-full flex items-center justify-center text-white font-bold text-xl">
                     {testimonials[activeIndex].name.charAt(0)}
                   </div>
                   <div>
-                    <p className="font-bold text-[#003B7A]">
+                    <p className="font-bold text-[#3E667D]">
                       {testimonials[activeIndex].name}
                     </p>
                     <p className="text-gray-500">
@@ -121,7 +121,7 @@ export function TestimonialsSection() {
           <div className="flex items-center justify-center gap-4 mt-6">
             <button
               onClick={prevTestimonial}
-              className="p-3 rounded-full bg-white shadow-md hover:bg-[#7AB82E] hover:text-white transition-colors"
+              className="p-3 rounded-full bg-white shadow-md hover:bg-[#C8DDF2] hover:text-white transition-colors"
               aria-label="Testimonio anterior"
             >
               <ChevronLeftIcon className="h-5 w-5" />
@@ -137,7 +137,7 @@ export function TestimonialsSection() {
                   aria-current={index === activeIndex}
                   className={`w-2.5 h-2.5 rounded-full transition-all ${
                     index === activeIndex
-                      ? 'bg-[#7AB82E] w-8'
+                      ? 'bg-[#C8DDF2] w-8'
                       : 'bg-gray-300 hover:bg-gray-400'
                   }`}
                 />
@@ -146,7 +146,7 @@ export function TestimonialsSection() {
 
             <button
               onClick={nextTestimonial}
-              className="p-3 rounded-full bg-white shadow-md hover:bg-[#7AB82E] hover:text-white transition-colors"
+              className="p-3 rounded-full bg-white shadow-md hover:bg-[#C8DDF2] hover:text-white transition-colors"
               aria-label="Siguiente testimonio"
             >
               <ChevronRightIcon className="h-5 w-5" />
@@ -160,7 +160,7 @@ export function TestimonialsSection() {
             <Card
               key={testimonial.id}
               hover
-              className={`cursor-pointer transition-all ${index === activeIndex ? 'ring-2 ring-[#7AB82E]' : ''}`}
+              className={`cursor-pointer transition-all ${index === activeIndex ? 'ring-2 ring-[#C8DDF2]' : ''}`}
               onClick={() => setActiveIndex(index)}
               role="button"
               aria-label={`Seleccionar testimonio de ${testimonial.name}`}
@@ -179,11 +179,11 @@ export function TestimonialsSection() {
 
               {/* Author */}
               <div className="mt-4 pt-4 border-t border-gray-100 flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-[#7AB82E] to-[#003B7A] rounded-full flex items-center justify-center text-white font-bold">
+                <div className="w-10 h-10 bg-gradient-to-br from-[#C8DDF2] to-[#3E667D] rounded-full flex items-center justify-center text-white font-bold">
                   {testimonial.name.charAt(0)}
                 </div>
                 <div>
-                  <p className="font-semibold text-[#003B7A] text-sm">
+                  <p className="font-semibold text-[#3E667D] text-sm">
                     {testimonial.name}
                   </p>
                   <p className="text-xs text-gray-500">{testimonial.location}</p>
@@ -202,7 +202,7 @@ export function TestimonialsSection() {
             { value: '50+', label: 'Productos Naturales' }
           ].map((stat, index) => (
             <div key={index} className="text-center">
-              <p className="text-3xl sm:text-4xl font-bold text-[#7AB82E]">
+              <p className="text-3xl sm:text-4xl font-bold text-[#3E667D]">
                 {stat.value}
               </p>
               <p className="text-gray-600 mt-1">{stat.label}</p>

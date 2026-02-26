@@ -50,7 +50,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               px-4 py-3
               text-gray-900 placeholder:text-gray-400
               transition-all duration-200
-              focus:outline-none focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent
+              focus:outline-none focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent
               disabled:bg-gray-100 disabled:cursor-not-allowed
               ${leftIcon ? 'pl-10' : ''}
               ${rightIcon ? 'pr-10' : ''}
@@ -107,7 +107,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
             px-4 py-3
             text-gray-900 placeholder:text-gray-400
             transition-all duration-200
-            focus:outline-none focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent
+            focus:outline-none focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent
             disabled:bg-gray-100 disabled:cursor-not-allowed
             resize-none
             ${error ? 'border-red-500 focus:ring-red-500' : 'border-gray-300'}
@@ -158,7 +158,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             px-4 py-3
             text-gray-900
             transition-all duration-200
-            focus:outline-none focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent
+            focus:outline-none focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent
             disabled:bg-gray-100 disabled:cursor-not-allowed
             ${error ? 'border-red-500 focus:ring-red-500' : 'border-gray-300'}
             ${className}

@@ -60,7 +60,7 @@ export default function CompareUsersPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -105,7 +105,7 @@ export default function CompareUsersPage() {
                     setUserId1(e.target.value);
                     setIsComparing(false);
                   }}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   disabled={isComparing}
                 >
                   <option value="">Seleccionar usuario...</option>
@@ -131,7 +131,7 @@ export default function CompareUsersPage() {
                     setUserId2(e.target.value);
                     setIsComparing(false);
                   }}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003B7A] focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   disabled={isComparing}
                 >
                   <option value="">Seleccionar usuario...</option>
@@ -168,7 +168,7 @@ export default function CompareUsersPage() {
         {/* Comparison Results */}
         {isLoading ? (
           <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003B7A]"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3E667D]"></div>
           </div>
         ) : comparison && isComparing ? (
           <>

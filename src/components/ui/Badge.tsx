@@ -12,11 +12,11 @@ interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 
 const variantStyles: Record<BadgeVariant, string> = {
   default: 'bg-gray-100 text-gray-800',
-  success: 'bg-[#7AB82E]/10 text-[#7AB82E]',
+  success: 'bg-[#C8DDF2]/10 text-[#3E667D]',
   warning: 'bg-amber-100 text-amber-800',
   error: 'bg-red-100 text-red-800',
-  info: 'bg-[#003B7A]/10 text-[#003B7A]',
-  outline: 'border border-[#003B7A] text-[#003B7A]'
+  info: 'bg-[#3E667D]/10 text-[#3E667D]',
+  outline: 'border border-[#3E667D] text-[#3E667D]'
 };
 
 const sizeStyles: Record<BadgeSize, string> = {

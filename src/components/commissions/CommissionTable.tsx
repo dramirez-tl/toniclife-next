@@ -182,7 +182,7 @@ export function CommissionTable({ commissions, showTaxDetails = false, currencyC
                     </>
                   )}
                   <td className="py-4 px-4 text-right">
-                    <span className="text-sm font-bold text-[#7AB82E]">
+                    <span className="text-sm font-bold text-[#3E667D]">
                       {formatCurrency(commission.totalAmount)}<CurrBadge />
                     </span>
                   </td>
@@ -241,7 +241,7 @@ export function CommissionTable({ commissions, showTaxDetails = false, currencyC
                         )}
                         <div>
                           <p className="text-gray-500 text-xs">Total Neto</p>
-                          <p className="font-bold text-[#003B7A]">{formatCurrency(commission.totalAmount)}<CurrBadge /></p>
+                          <p className="font-bold text-[#3E667D]">{formatCurrency(commission.totalAmount)}<CurrBadge /></p>
                         </div>
                         {commission.approvedAt && (
                           <div>
@@ -262,7 +262,7 @@ export function CommissionTable({ commissions, showTaxDetails = false, currencyC
             <td colSpan={showTaxDetails ? 6 : 4} className="py-4 px-4 text-right text-gray-700">
               Total:
             </td>
-            <td className="py-4 px-4 text-right text-[#003B7A]">
+            <td className="py-4 px-4 text-right text-[#3E667D]">
               {formatCurrency(commissions.reduce((sum, c) => sum + parseFloat(c.totalAmount), 0))}<CurrBadge />
             </td>
             <td colSpan={2}></td>

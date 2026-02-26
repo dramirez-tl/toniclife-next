@@ -178,7 +178,7 @@ export default function ComunicacionPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#003B7A]/90 text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center justify-between">
             <div>
@@ -215,7 +215,7 @@ export default function ComunicacionPage() {
                       placeholder="Buscar conversaciones..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent text-sm"
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent text-sm"
                     />
                   </div>
                   <Button
@@ -248,7 +248,7 @@ export default function ComunicacionPage() {
                       onClick={() => setSelectedConversation(conv)}
                       className={`w-full flex items-center gap-3 p-3 rounded-lg transition-colors text-left ${
                         selectedConversation.id === conv.id
-                          ? 'bg-[#003B7A] text-white'
+                          ? 'bg-[#3E667D] text-white'
                           : 'hover:bg-gray-50'
                       }`}
                     >
@@ -257,7 +257,7 @@ export default function ComunicacionPage() {
                         <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white ${
                           conv.type === 'group'
                             ? 'bg-gradient-to-br from-purple-400 to-purple-600 text-2xl'
-                            : 'bg-gradient-to-br from-[#003B7A] to-[#7AB82E]'
+                            : 'bg-gradient-to-br from-[#3E667D] to-[#C8DDF2]'
                         }`}>
                           {conv.avatar}
                         </div>
@@ -317,7 +317,7 @@ export default function ComunicacionPage() {
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-white ${
                       selectedConversation.type === 'group'
                         ? 'bg-gradient-to-br from-purple-400 to-purple-600 text-2xl'
-                        : 'bg-gradient-to-br from-[#003B7A] to-[#7AB82E]'
+                        : 'bg-gradient-to-br from-[#3E667D] to-[#C8DDF2]'
                     }`}>
                       {selectedConversation.avatar}
                     </div>
@@ -361,7 +361,7 @@ export default function ComunicacionPage() {
                     className={`flex gap-3 ${message.isMe ? 'flex-row-reverse' : ''}`}
                   >
                     {!message.isMe && (
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#003B7A] to-[#7AB82E] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#3E667D] to-[#C8DDF2] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                         {message.avatar}
                       </div>
                     )}
@@ -371,7 +371,7 @@ export default function ComunicacionPage() {
                       )}
                       <div className={`rounded-lg px-4 py-2 ${
                         message.isMe
-                          ? 'bg-[#7AB82E] text-white'
+                          ? 'bg-[#3E667D] text-white'
                           : 'bg-gray-100 text-gray-900'
                       }`}>
                         <p className="text-sm whitespace-pre-line">{message.content}</p>
@@ -425,7 +425,7 @@ export default function ComunicacionPage() {
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                   />
                   <Button
                     variant="primary"

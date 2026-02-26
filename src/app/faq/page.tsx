@@ -132,7 +132,7 @@ export default function FAQPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero */}
-      <div className="bg-gradient-to-r from-[#003B7A] to-[#7AB82E] text-white">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="text-center">
             <QuestionMarkCircleIcon className="h-16 w-16 mx-auto mb-6" />
@@ -171,7 +171,7 @@ export default function FAQPage() {
                   onClick={() => setSelectedCategory(cat.value)}
                   className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-colors ${
                     selectedCategory === cat.value
-                      ? 'bg-[#003B7A] text-white'
+                      ? 'bg-[#3E667D] text-white'
                       : 'bg-white text-gray-700 hover:bg-gray-50'
                   }`}
                 >
@@ -195,7 +195,7 @@ export default function FAQPage() {
                   >
                     <span className="font-medium text-gray-900 pr-8">{faq.question}</span>
                     {openItems.includes(index) ? (
-                      <ChevronUpIcon className="h-5 w-5 text-[#7AB82E] flex-shrink-0" />
+                      <ChevronUpIcon className="h-5 w-5 text-[#3E667D] flex-shrink-0" />
                     ) : (
                       <ChevronDownIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
                     )}
@@ -217,14 +217,14 @@ export default function FAQPage() {
         </div>
 
         {/* Contact CTA */}
-        <div className="mt-16 bg-gradient-to-r from-[#003B7A] to-[#7AB82E] rounded-2xl p-8 text-center text-white">
+        <div className="mt-16 bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] rounded-2xl p-8 text-center text-white">
           <h2 className="text-2xl font-bold mb-4">¿No encontraste tu respuesta?</h2>
           <p className="text-blue-100 mb-6">
             Nuestro equipo de soporte está listo para ayudarte
           </p>
           <a
             href="/contacto"
-            className="inline-block px-8 py-3 bg-white text-[#003B7A] font-bold rounded-lg hover:bg-blue-50 transition-colors"
+            className="inline-block px-8 py-3 bg-white text-[#3E667D] font-bold rounded-lg hover:bg-blue-50 transition-colors"
           >
             Contactar Soporte
           </a>

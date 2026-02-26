@@ -130,15 +130,15 @@ const DistributorNode = memo(function DistributorNode({ id, data }: { id: string
       onClick={handleClick}
       className={`
         relative bg-white rounded-xl shadow-lg border-2 transition-all duration-200 cursor-pointer
-        hover:shadow-xl hover:scale-[1.03] hover:border-[#7AB82E]
-        ${data.isSelected ? 'border-[#7AB82E] ring-2 ring-[#7AB82E]/30 shadow-xl' : 'border-gray-200'}
+        hover:shadow-xl hover:scale-[1.03] hover:border-[#a7c1e2]
+        ${data.isSelected ? 'border-[#a7c1e2] ring-2 ring-[#C8DDF2]/30 shadow-xl' : 'border-gray-200'}
       `}
       style={{ width: NODE_WIDTH, padding: '10px', paddingBottom: data.hasChildren ? 20 : 10 }}
     >
       <Handle
         type="target"
         position={Position.Top}
-        className="!w-3 !h-3 !bg-[#003B7A] !border-2 !border-white !-top-1.5"
+        className="!w-3 !h-3 !bg-[#3E667D] !border-2 !border-white !-top-1.5"
       />
 
       {/* Semáforo — esquina superior derecha */}
@@ -211,7 +211,7 @@ const DistributorNode = memo(function DistributorNode({ id, data }: { id: string
       {/* Stats */}
       <div className="flex items-center gap-2 text-[10px] text-gray-600 border-t border-gray-100 pt-1.5">
         <div className="flex items-center gap-1">
-          <UserGroupIcon className="w-3 h-3 text-[#003B7A]" />
+          <UserGroupIcon className="w-3 h-3 text-[#3E667D]" />
           <span><strong className="text-gray-900">{data.directCount}</strong> dir.</span>
         </div>
         <div className="text-gray-300">|</div>
@@ -233,7 +233,7 @@ const DistributorNode = memo(function DistributorNode({ id, data }: { id: string
             absolute -bottom-3.5 left-1/2 transform -translate-x-1/2
             w-7 h-7 rounded-full flex items-center justify-center
             border-2 border-white shadow-md cursor-pointer z-10 transition-colors
-            ${data.isVisuallyExpanded ? 'bg-[#7AB82E] hover:bg-[#6aa025]' : 'bg-[#003B7A] hover:bg-[#002d5e]'}
+            ${data.isVisuallyExpanded ? 'bg-[#3E667D] hover:bg-[#2f5165]' : 'bg-[#3E667D] hover:bg-[#002d5e]'}
           `}
           title={data.isVisuallyExpanded
             ? 'Colapsar'
@@ -264,7 +264,7 @@ const CollapsedGroupNode = memo(function CollapsedGroupNode({ data }: { id: stri
     <div
       onClick={handleClick}
       className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl shadow-sm cursor-pointer
-        hover:border-[#003B7A] hover:shadow-md transition-all duration-200 flex flex-col items-center justify-center"
+        hover:border-[#3E667D] hover:shadow-md transition-all duration-200 flex flex-col items-center justify-center"
       style={{ width: NODE_WIDTH, height: 60, padding: '8px' }}
     >
       <Handle type="target" position={Position.Top} className="!w-2 !h-2 !bg-gray-400 !border-white !-top-1" />
@@ -540,7 +540,7 @@ function NetworkGraphInner({
     return (
       <div className={`w-full h-full min-h-[600px] bg-white rounded-lg flex items-center justify-center ${className}`}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003B7A] mx-auto mb-4" />
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3E667D] mx-auto mb-4" />
           <p className="text-gray-600">Cargando visualización...</p>
         </div>
       </div>
@@ -580,19 +580,19 @@ function NetworkGraphInner({
             <p className="text-xs font-semibold text-gray-700 mb-2">Controles</p>
             <ul className="text-[11px] text-gray-600 space-y-1">
               <li className="flex items-start gap-1.5">
-                <span className="text-[#003B7A] font-medium">Click:</span>
+                <span className="text-[#3E667D] font-medium">Click:</span>
                 <span>Ver detalles</span>
               </li>
               <li className="flex items-start gap-1.5">
-                <span className="text-[#003B7A] font-medium">Botón ▼:</span>
+                <span className="text-[#3E667D] font-medium">Botón ▼:</span>
                 <span>Expandir/colapsar</span>
               </li>
               <li className="flex items-start gap-1.5">
-                <span className="text-[#003B7A] font-medium">Scroll:</span>
+                <span className="text-[#3E667D] font-medium">Scroll:</span>
                 <span>Zoom</span>
               </li>
               <li className="flex items-start gap-1.5">
-                <span className="text-[#003B7A] font-medium">Arrastrar:</span>
+                <span className="text-[#3E667D] font-medium">Arrastrar:</span>
                 <span>Mover vista</span>
               </li>
             </ul>

@@ -240,7 +240,7 @@ export default function CheckoutContent() {
   if (cartLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003B7A]"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3E667D]"></div>
       </div>
     );
   }
@@ -252,12 +252,12 @@ export default function CheckoutContent() {
         <div className="mb-8">
           <Link
             href="/carrito"
-            className="inline-flex items-center gap-2 text-gray-500 hover:text-[#7AB82E] transition-colors mb-4"
+            className="inline-flex items-center gap-2 text-gray-500 hover:text-[#3E667D] transition-colors mb-4"
           >
             <ArrowLeftIcon className="h-4 w-4" />
             Volver al carrito
           </Link>
-          <h1 className="text-3xl font-bold text-[#003B7A]">Finalizar Compra</h1>
+          <h1 className="text-3xl font-bold text-[#3E667D]">Finalizar Compra</h1>
         </div>
 
         {/* Progress Steps */}
@@ -274,9 +274,9 @@ export default function CheckoutContent() {
                     <div
                       className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
                         isCompleted
-                          ? 'bg-[#7AB82E] text-white'
+                          ? 'bg-[#3E667D] text-white'
                           : isActive
-                          ? 'bg-[#003B7A] text-white'
+                          ? 'bg-[#3E667D] text-white'
                           : 'bg-gray-200 text-gray-400'
                       }`}
                     >
@@ -297,7 +297,7 @@ export default function CheckoutContent() {
                   {index < steps.length - 1 && (
                     <div
                       className={`h-1 flex-1 mx-4 ${
-                        isCompleted ? 'bg-[#7AB82E]' : 'bg-gray-200'
+                        isCompleted ? 'bg-[#C8DDF2]' : 'bg-gray-200'
                       }`}
                     />
                   )}
@@ -315,7 +315,7 @@ export default function CheckoutContent() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <UserIcon className="h-6 w-6 text-[#003B7A]" />
+                    <UserIcon className="h-6 w-6 text-[#3E667D]" />
                     Información de contacto
                   </CardTitle>
                 </CardHeader>
@@ -376,7 +376,7 @@ export default function CheckoutContent() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <TruckIcon className="h-6 w-6 text-[#003B7A]" />
+                    <TruckIcon className="h-6 w-6 text-[#3E667D]" />
                     Dirección de envío
                   </CardTitle>
                 </CardHeader>
@@ -448,7 +448,7 @@ export default function CheckoutContent() {
                         <select
                           value={shippingAddress.state}
                           onChange={(e) => setShippingAddress({ ...shippingAddress, state: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                           required
                         >
                           <option value="">Seleccionar...</option>
@@ -486,7 +486,7 @@ export default function CheckoutContent() {
                             key={option.method}
                             className={`flex items-center justify-between p-4 border-2 rounded-lg cursor-pointer transition-all ${
                               selectedShippingMethod === option.method
-                                ? 'border-[#7AB82E] bg-[#7AB82E]/5'
+                                ? 'border-[#a7c1e2] bg-[#C8DDF2]/5'
                                 : 'border-gray-200 hover:border-gray-300'
                             }`}
                           >
@@ -497,7 +497,7 @@ export default function CheckoutContent() {
                                 value={option.method}
                                 checked={selectedShippingMethod === option.method}
                                 onChange={(e) => setSelectedShippingMethod(e.target.value as ShippingMethod)}
-                                className="w-4 h-4 text-[#7AB82E] focus:ring-[#7AB82E]"
+                                className="w-4 h-4 text-[#3E667D] focus:ring-[#a7c1e2]"
                               />
                               <div>
                                 <p className="font-medium text-gray-900">{option.name}</p>
@@ -509,7 +509,7 @@ export default function CheckoutContent() {
                                 )}
                               </div>
                             </div>
-                            <span className="font-bold text-[#003B7A]">
+                            <span className="font-bold text-[#3E667D]">
                               {parseFloat(option.cost) === 0 ? 'Gratis' : cartService.formatCurrency(option.cost)}
                             </span>
                           </label>
@@ -541,16 +541,16 @@ export default function CheckoutContent() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <CreditCardIcon className="h-6 w-6 text-[#003B7A]" />
+                    <CreditCardIcon className="h-6 w-6 text-[#3E667D]" />
                     Método de pago
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handlePaymentSubmit} className="space-y-6">
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
-                      <ShieldCheckIcon className="h-6 w-6 text-[#003B7A] flex-shrink-0" />
+                      <ShieldCheckIcon className="h-6 w-6 text-[#3E667D] flex-shrink-0" />
                       <div className="text-sm">
-                        <p className="font-semibold text-[#003B7A]">Pago 100% seguro</p>
+                        <p className="font-semibold text-[#3E667D]">Pago 100% seguro</p>
                         <p className="text-gray-600">Tu información está protegida con encriptación SSL</p>
                       </div>
                     </div>
@@ -567,7 +567,7 @@ export default function CheckoutContent() {
                           key={method.value}
                           className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
                             selectedPaymentMethod === method.value
-                              ? 'border-[#7AB82E] bg-[#7AB82E]/5'
+                              ? 'border-[#a7c1e2] bg-[#C8DDF2]/5'
                               : 'border-gray-200 hover:border-gray-300'
                           }`}
                         >
@@ -577,7 +577,7 @@ export default function CheckoutContent() {
                             value={method.value}
                             checked={selectedPaymentMethod === method.value}
                             onChange={(e) => setSelectedPaymentMethod(e.target.value as PaymentMethod)}
-                            className="w-4 h-4 text-[#7AB82E] focus:ring-[#7AB82E]"
+                            className="w-4 h-4 text-[#3E667D] focus:ring-[#a7c1e2]"
                           />
                           <span className="text-xl">{method.icon}</span>
                           <span className="font-medium text-gray-900">{method.label}</span>
@@ -592,7 +592,7 @@ export default function CheckoutContent() {
                           type="checkbox"
                           checked={requiresInvoice}
                           onChange={(e) => setRequiresInvoice(e.target.checked)}
-                          className="w-5 h-5 text-[#7AB82E] border-gray-300 rounded focus:ring-[#7AB82E]"
+                          className="w-5 h-5 text-[#3E667D] border-gray-300 rounded focus:ring-[#a7c1e2]"
                         />
                         <div className="flex items-center gap-2">
                           <DocumentTextIcon className="h-5 w-5 text-gray-500" />
@@ -630,7 +630,7 @@ export default function CheckoutContent() {
                               <select
                                 value={invoiceData.regime}
                                 onChange={(e) => setInvoiceData({ ...invoiceData, regime: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                                 required
                               >
                                 <option value="">Seleccionar...</option>
@@ -646,7 +646,7 @@ export default function CheckoutContent() {
                               <select
                                 value={invoiceData.useCfdi}
                                 onChange={(e) => setInvoiceData({ ...invoiceData, useCfdi: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                                 required
                               >
                                 {CFDI_USAGE_OPTIONS.map(option => (
@@ -687,7 +687,7 @@ export default function CheckoutContent() {
                         onChange={(e) => setNotes(e.target.value)}
                         placeholder="Instrucciones especiales para tu pedido..."
                         rows={3}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7AB82E] focus:border-transparent"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                         maxLength={500}
                       />
                     </div>
@@ -699,15 +699,15 @@ export default function CheckoutContent() {
                           type="checkbox"
                           checked={acceptTerms}
                           onChange={(e) => setAcceptTerms(e.target.checked)}
-                          className="w-5 h-5 mt-0.5 text-[#7AB82E] border-gray-300 rounded focus:ring-[#7AB82E]"
+                          className="w-5 h-5 mt-0.5 text-[#3E667D] border-gray-300 rounded focus:ring-[#a7c1e2]"
                         />
                         <span className="text-sm text-gray-600">
                           Acepto los{' '}
-                          <a href="/terminos" target="_blank" className="text-[#003B7A] hover:underline">
+                          <a href="/terminos" target="_blank" className="text-[#3E667D] hover:underline">
                             términos y condiciones
                           </a>
                           {' '}y la{' '}
-                          <a href="/privacidad" target="_blank" className="text-[#003B7A] hover:underline">
+                          <a href="/privacidad" target="_blank" className="text-[#3E667D] hover:underline">
                             política de privacidad
                           </a>
                         </span>
@@ -744,7 +744,7 @@ export default function CheckoutContent() {
             {currentStep === 'confirmation' && orderResult && (
               <Card>
                 <CardContent className="p-8 text-center">
-                  <div className="w-20 h-20 bg-[#7AB82E] rounded-full flex items-center justify-center mx-auto mb-6">
+                  <div className="w-20 h-20 bg-[#C8DDF2] rounded-full flex items-center justify-center mx-auto mb-6">
                     <CheckCircleIcon className="h-12 w-12 text-white" />
                   </div>
 
@@ -755,7 +755,7 @@ export default function CheckoutContent() {
 
                   <div className="bg-gray-50 rounded-lg p-6 mb-6">
                     <p className="text-sm text-gray-600 mb-1">Número de pedido</p>
-                    <p className="text-2xl font-bold text-[#003B7A]">{orderResult.orderNumber}</p>
+                    <p className="text-2xl font-bold text-[#3E667D]">{orderResult.orderNumber}</p>
                   </div>
 
                   <div className="border-t border-gray-200 pt-6 mb-6">
@@ -778,7 +778,7 @@ export default function CheckoutContent() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Total del pedido:</span>
-                        <span className="font-bold text-[#003B7A] text-lg">
+                        <span className="font-bold text-[#3E667D] text-lg">
                           {cartService.formatCurrency(orderResult.total)}
                         </span>
                       </div>
@@ -905,7 +905,7 @@ export default function CheckoutContent() {
                     <span className="font-medium text-gray-900">
                       {checkoutSummary
                         ? parseFloat(checkoutSummary.shippingAmount) === 0
-                          ? <span className="text-[#7AB82E]">¡Gratis!</span>
+                          ? <span className="text-[#3E667D]">¡Gratis!</span>
                           : cartService.formatCurrency(checkoutSummary.shippingAmount)
                         : 'Calculando...'
                       }
@@ -926,7 +926,7 @@ export default function CheckoutContent() {
                 <div className="border-t border-gray-200 pt-4">
                   <div className="flex justify-between">
                     <span className="text-lg font-bold text-gray-900">Total</span>
-                    <span className="text-2xl font-bold text-[#003B7A]">
+                    <span className="text-2xl font-bold text-[#3E667D]">
                       {checkoutSummary
                         ? cartService.formatCurrency(checkoutSummary.total)
                         : cartService.formatCurrency(cart?.total || '0')
@@ -936,7 +936,7 @@ export default function CheckoutContent() {
 
                   {/* Points */}
                   {checkoutSummary && checkoutSummary.totalPoints > 0 && (
-                    <p className="text-sm text-[#7AB82E] mt-2 text-center">
+                    <p className="text-sm text-[#3E667D] mt-2 text-center">
                       +{checkoutSummary.totalPoints} puntos por esta compra
                     </p>
                   )}

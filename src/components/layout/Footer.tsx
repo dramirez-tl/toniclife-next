@@ -84,9 +84,9 @@ const socialLinks = [
 
 export function Footer() {
   return (
-    <footer className="bg-[#003B7A] text-white">
+    <footer className="bg-[#3E667D] text-white">
       {/* Newsletter Section */}
-      <div className="bg-[#7AB82E]">
+      <div className="bg-[#C8DDF2]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
             <div className="text-center lg:text-left">
@@ -118,7 +118,7 @@ export function Footer() {
           <div className="col-span-2 md:col-span-3 lg:col-span-2">
             <Link href="/" className="inline-block">
               <Image
-                src="/images/logo-white.png"
+                src="/images/logo/logo-text-light.png"
                 alt="Tonic Life - Tu Centro de Bienestar"
                 width={180}
                 height={60}
@@ -155,7 +155,7 @@ export function Footer() {
                 <li key={link.name}>
                   <Link
                     href={link.href}
-                    className="text-white/70 hover:text-[#7AB82E] transition-colors text-sm"
+                    className="text-white/70 hover:text-[#3E667D] transition-colors text-sm"
                   >
                     {link.name}
                   </Link>
@@ -171,7 +171,7 @@ export function Footer() {
                 <li key={link.name}>
                   <Link
                     href={link.href}
-                    className="text-white/70 hover:text-[#7AB82E] transition-colors text-sm"
+                    className="text-white/70 hover:text-[#3E667D] transition-colors text-sm"
                   >
                     {link.name}
                   </Link>
@@ -187,7 +187,7 @@ export function Footer() {
                 <li key={link.name}>
                   <Link
                     href={link.href}
-                    className="text-white/70 hover:text-[#7AB82E] transition-colors text-sm"
+                    className="text-white/70 hover:text-[#3E667D] transition-colors text-sm"
                   >
                     {link.name}
                   </Link>
@@ -223,7 +223,7 @@ export function Footer() {
                   href={social.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-white/70 hover:text-[#7AB82E] transition-colors"
+                  className="text-white/70 hover:text-[#3E667D] transition-colors"
                   aria-label={social.name}
                 >
                   {social.icon}
@@ -246,7 +246,7 @@ export function Footer() {
                 <Link
                   key={link.name}
                   href={link.href}
-                  className="hover:text-[#7AB82E] transition-colors"
+                  className="hover:text-[#3E667D] transition-colors"
                 >
                   {link.name}
                 </Link>
