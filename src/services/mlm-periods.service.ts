@@ -61,7 +61,7 @@ class MlmPeriodsService {
    * Close a period
    */
   async closePeriod(id: string): Promise<MlmPeriod> {
-    const response = await api.post<MlmPeriod>(`/mlm/periods/${id}/close`);
+    const response = await api.post<MlmPeriod>(`/mlm/periods/${id}/close`, { confirm: true });
     return response.data;
   }
 

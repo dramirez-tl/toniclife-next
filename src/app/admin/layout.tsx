@@ -3,7 +3,8 @@
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useState } from 'react';
-import { Bars3Icon, BellIcon } from '@heroicons/react/24/outline';
+import { Bars3Icon } from '@heroicons/react/24/outline';
+import { NotificationBell } from '@/components/admin/NotificationBell';
 
 // Roles que tienen acceso al panel de administración
 // Aligned with database role codes from roles table
@@ -68,14 +69,16 @@ export default function AdminLayout({
           <div className="flex-1">
             <span className="font-semibold text-[#003B7A]">Tonic Life Admin</span>
           </div>
-          <button className="p-2 text-gray-600 hover:text-gray-900 relative">
-            <BellIcon className="h-6 w-6" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
-          </button>
+          <NotificationBell />
         </header>
 
+        {/* Desktop top bar (notification bell) */}
+        <div className="hidden lg:flex sticky top-0 z-20 h-12 items-center justify-end border-b bg-white/80 backdrop-blur-sm px-6">
+          <NotificationBell />
+        </div>
+
         {/* Page content */}
-        <main className="min-h-[calc(100vh-3.5rem)] lg:min-h-screen">
+        <main className="min-h-[calc(100vh-3.5rem)] lg:min-h-[calc(100vh-3rem)]">
           {children}
         </main>
       </div>

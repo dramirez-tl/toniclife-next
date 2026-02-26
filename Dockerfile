@@ -33,6 +33,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # Set environment
 ENV NODE_ENV=production
+ENV TZ=America/Mexico_City
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
