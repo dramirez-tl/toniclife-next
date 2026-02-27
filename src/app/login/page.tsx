@@ -130,9 +130,9 @@ export default function LoginPage() {
               <Image
                 src="/images/logo/logo-text-dark.png"
                 alt="Tonic Life"
-                width={280}
-                height={90}
-                className="mx-auto mb-4 h-20 w-auto"
+                width={400}
+                height={130}
+                className="mx-auto mb-4 h-32 w-auto sm:h-36"
               />
             </Link>
             <div className="inline-flex items-center gap-2 rounded-full bg-[#3E667D]/8 px-3 py-1 text-xs font-medium text-[#3E667D]">
