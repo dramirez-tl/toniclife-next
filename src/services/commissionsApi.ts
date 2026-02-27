@@ -121,10 +121,12 @@ class CommissionsApi {
 
   /**
    * Obtiene estructura completa de comisiones (niveles + generaciones + contexto del usuario)
-   * Backend: GET /mlm/commissions/structure/:customerId
+   * Backend: GET /mlm/commissions/structure/:customerId?periodId=...
    */
-  async getCommissionStructure(customerId: string): Promise<CommissionStructure> {
-    const { data } = await api.get<CommissionStructure>(`/mlm/commissions/structure/${customerId}`);
+  async getCommissionStructure(customerId: string, periodId?: string): Promise<CommissionStructure> {
+    const params: Record<string, string> = {};
+    if (periodId) params.periodId = periodId;
+    const { data } = await api.get<CommissionStructure>(`/mlm/commissions/structure/${customerId}`, { params });
     return data;
   }
 

@@ -151,7 +151,13 @@ export default function VincularCorreoPage() {
 
       // Redirect based on role
       const role = response.user.roles?.[0];
-      const adminRoles = ['super_admin', 'administrador', 'subadmin', 'almacen', 'ventas_mostrador', 'rh', 'contabilidad', 'auditor', 'viewer'];
+      const adminRoles = [
+        'super_admin', 'administrador', 'subadmin', 'almacen', 'ventas_mostrador',
+        'rh', 'contabilidad', 'auditor', 'viewer',
+        'ventas', 'asistencia', 'clientes', 'solicitud-viaticos', 'productos',
+        'ventas-totales-sucursal', 'documentos', 'aprobacion-viaticos',
+        'corte-caja-sucursal', 'inventario', 'rrhh-trabajadores', 'puntos-periodo', 'factura-libre',
+      ];
 
       if (role && adminRoles.includes(role)) {
         window.location.href = '/admin';

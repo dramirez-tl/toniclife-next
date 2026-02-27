@@ -14,6 +14,7 @@ interface CartItemProps {
 
 export function CartItem({ item }: CartItemProps) {
   const [isUpdating, setIsUpdating] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const updateItem = useUpdateCartItem();
   const removeItem = useRemoveCartItem();
 
@@ -46,17 +47,23 @@ export function CartItem({ item }: CartItemProps) {
     <div className="flex gap-4 py-4 border-b border-gray-100">
       {/* Product Image */}
       <div className="relative w-20 h-20 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
-        {item.productImageUrl ? (
+        {item.productImageUrl && !imgError ? (
           <Image
             src={item.productImageUrl}
             alt={item.productName}
             fill
             className="object-cover"
+            onError={() => setImgError(true)}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="text-2xl font-bold text-[#3E667D]">
-              {item.productName.substring(0, 2).toUpperCase()}
+          <div className="w-full h-full bg-gradient-to-br from-[#C8DDF2]/30 to-[#3E667D]/20 flex items-center justify-center">
+            <span className="text-lg font-bold text-[#3E667D]/70">
+              {(() => {
+                const words = item.productName.split(/\s+/).filter(w => w.length > 0);
+                return words.length >= 2
+                  ? (words[0][0] + words[1][0]).toUpperCase()
+                  : item.productName.substring(0, 2).toUpperCase();
+              })()}
             </span>
           </div>
         )}

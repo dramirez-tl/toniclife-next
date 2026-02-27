@@ -34,7 +34,7 @@ import { toast } from 'sonner';
 type ViewMode = 'graph' | 'tree';
 
 export default function RedPage() {
-  const [viewMode, setViewMode] = useState<ViewMode>('graph');
+  const [viewMode, setViewMode] = useState<ViewMode>('tree');
   const [isInvitePanelOpen, setIsInvitePanelOpen] = useState(false);
   const user = useSelector(selectUser);
 
@@ -193,18 +193,6 @@ export default function RedPage() {
                 <h2 className="text-lg font-semibold text-gray-900">Modo de Vista</h2>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setViewMode('graph')}
-                    aria-pressed={viewMode === 'graph'}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                      viewMode === 'graph'
-                        ? 'bg-[#3E667D] text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                    }`}
-                  >
-                    <EyeIcon className="h-4 w-4" />
-                    <span className="hidden sm:inline">Gráfico</span>
-                  </button>
-                  <button
                     onClick={() => setViewMode('tree')}
                     aria-pressed={viewMode === 'tree'}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -215,6 +203,18 @@ export default function RedPage() {
                   >
                     <Squares2X2Icon className="h-4 w-4" />
                     <span className="hidden sm:inline">Lista</span>
+                  </button>
+                  <button
+                    onClick={() => setViewMode('graph')}
+                    aria-pressed={viewMode === 'graph'}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                      viewMode === 'graph'
+                        ? 'bg-[#3E667D] text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                    }`}
+                  >
+                    <EyeIcon className="h-4 w-4" />
+                    <span className="hidden sm:inline">Gráfico</span>
                   </button>
                 </div>
               </div>

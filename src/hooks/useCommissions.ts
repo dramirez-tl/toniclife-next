@@ -22,7 +22,7 @@ export const commissionKeys = {
   projection: () => [...commissionKeys.all, 'projection'] as const,
   periods: () => [...commissionKeys.all, 'periods'] as const,
   percentages: () => [...commissionKeys.all, 'percentages'] as const,
-  structure: (customerId: string) => [...commissionKeys.all, 'structure', customerId] as const,
+  structure: (customerId: string, periodId?: string) => [...commissionKeys.all, 'structure', customerId, periodId] as const,
   trends: (months: number) => [...commissionKeys.all, 'trends', months] as const,
   customer: (customerId: string) => [...commissionKeys.all, 'customer', customerId] as const,
   currentPeriod: () => [...commissionKeys.all, 'currentPeriod'] as const,
@@ -125,11 +125,12 @@ export function useCommissionPercentages() {
 
 /**
  * Hook para obtener estructura completa de comisiones (niveles + generaciones + contexto del usuario)
+ * Acepta periodId opcional para obtener el rango del usuario en un periodo especifico
  */
-export function useCommissionStructure(customerId: string, enabled = true) {
+export function useCommissionStructure(customerId: string, enabled = true, periodId?: string) {
   return useQuery<CommissionStructure>({
-    queryKey: commissionKeys.structure(customerId),
-    queryFn: () => commissionsApi.getCommissionStructure(customerId),
+    queryKey: commissionKeys.structure(customerId, periodId),
+    queryFn: () => commissionsApi.getCommissionStructure(customerId, periodId),
     enabled: enabled && !!customerId,
     staleTime: 10 * 60 * 1000, // 10 minutos
   });

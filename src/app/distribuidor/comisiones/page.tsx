@@ -80,7 +80,8 @@ export default function ComisionesPage() {
   const { data: trends } = useCommissionTrends(6);
   const { data: commissionStructure } = useCommissionStructure(
     user?.customerId || '',
-    !!user?.customerId,
+    !!user?.customerId && !!selectedPeriodId,
+    selectedPeriodId || undefined,
   );
 
   const requestPaymentMutation = useRequestPayment();
@@ -189,29 +190,18 @@ export default function ComisionesPage() {
               )}
             </div>
 
-            {/* Actions */}
-            <div className="flex flex-wrap gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-white/10 border-white/20 text-white hover:bg-white/20 backdrop-blur-sm"
-                leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
-                onClick={handleDownloadStatement}
-                disabled={downloadStatementMutation.isPending}
-              >
-                {downloadStatementMutation.isPending ? 'Descargando...' : 'Estado de cuenta'}
-              </Button>
-              {commissionsData?.summary && commissionsData.data.some((c: Commission) => c.status === 'approved' || c.status === 'calculated') && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  className="bg-[#3E667D] hover:bg-[#2f5165] shadow-lg shadow-[#3E667D]/30"
-                  onClick={handleRequestPayment}
-                  disabled={requestPaymentMutation.isPending}
-                >
-                  {requestPaymentMutation.isPending ? 'Procesando...' : 'Solicitar Pago'}
-                </Button>
-              )}
+            {/* Actions - Temporalmente deshabilitadas */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2" title="Disponible pronto">
+                <ArrowDownTrayIcon className="h-4 w-4 text-white/30" />
+                <span className="text-sm text-white/30 cursor-not-allowed">Estado de cuenta</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2" title="Disponible pronto">
+                <span className="text-sm text-white/30 cursor-not-allowed">Solicitar Pago</span>
+              </div>
+              <p className="text-[11px] text-white/40 max-w-[200px] leading-tight">
+                Estas opciones se habilitarán en breve.
+              </p>
             </div>
           </div>
         </div>
@@ -367,12 +357,24 @@ export default function ComisionesPage() {
           </CardContent>
         </Card>
 
+        {/* Rank progression stepper - Prominente arriba */}
+        {commissionStructure?.ranks && commissionStructure.ranks.length > 0 && (
+          <div className="mb-6">
+            <RankProgressStepper
+              ranks={commissionStructure.ranks}
+              currentRankNumber={commissionStructure.userRankNumber ?? 1}
+              currencyCode={currencyCode}
+            />
+          </div>
+        )}
+
         {/* Content based on view mode */}
         {viewMode === 'summary' && (
           <CommissionSummaryCards
             summary={commissionsData?.summary || null}
             isLoading={isLoadingCommissions}
             currencyCode={user?.currencyCode}
+            isActivePeriod={currentPeriod?.status === 'open'}
           />
         )}
 
@@ -424,17 +426,6 @@ export default function ComisionesPage() {
               )}
             </CardContent>
           </Card>
-        )}
-
-        {/* Rank progression stepper */}
-        {commissionStructure?.ranks && commissionStructure.ranks.length > 0 && (
-          <div className="mt-8">
-            <RankProgressStepper
-              ranks={commissionStructure.ranks}
-              currentRankNumber={commissionStructure.userRankNumber ?? 1}
-              currencyCode={currencyCode}
-            />
-          </div>
         )}
 
         {/* Commission structure tables */}

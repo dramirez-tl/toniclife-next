@@ -5,8 +5,16 @@ import { AuthGuard } from '@/components/auth/AuthGuard';
 import { DistributorSidebar } from '@/components/distributor/DistributorSidebar';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 
-// Roles que tienen acceso al panel de distribuidor (DB role codes)
-const DISTRIBUTOR_ROLES = ['customer', 'distribuidor', 'distributor', 'super_admin', 'administrador', 'admin'];
+// Roles que tienen acceso al panel de distribuidor (canonical + legacy-migration + admin)
+const DISTRIBUTOR_ROLES = [
+  'customer', 'distribuidor', 'distributor', 'dashboard', 'cliente-dashboard',
+  'super_admin', 'administrador', 'admin',
+  // Legacy admin codes (also allowed to access distribuidor panel)
+  'ventas', 'asistencia', 'clientes', 'solicitud-viaticos', 'productos',
+  'ventas-totales-sucursal', 'documentos', 'aprobacion-viaticos',
+  'corte-caja-sucursal', 'inventario', 'rrhh-trabajadores', 'puntos-periodo', 'factura-libre',
+  'subadmin', 'almacen', 'ventas_mostrador', 'rh', 'contabilidad', 'auditor', 'viewer',
+];
 
 export default function DistributorLayout({
   children,

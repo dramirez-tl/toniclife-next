@@ -36,21 +36,30 @@ const authOnlyRoutes = [
   '/registro',
 ];
 
-// Admin roles that can access /admin/* routes (Spanish database role codes)
+// Admin roles that can access /admin/* routes
+// Includes both canonical codes and legacy-migration codes (e.g. 'ventas' = Administrador)
 const ADMIN_ROLES = [
-  'administrador',
-  'super_admin',
-  'subadmin',
-  'almacen',
-  'ventas_mostrador',
-  'rh',
-  'contabilidad',
-  'auditor',
-  'viewer',
+  // Canonical codes
+  'administrador', 'super_admin', 'subadmin', 'almacen', 'ventas_mostrador',
+  'rh', 'contabilidad', 'auditor', 'viewer',
+  // Legacy-migration codes (role.code came from legacy module names)
+  'ventas',                   // Administrador (54 users)
+  'asistencia',               // Sucursales (88)
+  'clientes',                 // Operaciones (23)
+  'solicitud-viaticos',       // Supervisor (20)
+  'productos',                // Soporte (13)
+  'ventas-totales-sucursal',  // Comercial Two (12)
+  'documentos',               // Contabilidad (9)
+  'aprobacion-viaticos',      // Viaticos (4)
+  'corte-caja-sucursal',      // Help (3)
+  'inventario',               // Almacen (2)
+  'rrhh-trabajadores',        // RH (2)
+  'puntos-periodo',           // Comercial USA (2)
+  'factura-libre',            // Aux Contabilidad (1)
 ];
 
-// Distributor roles for /distribuidor/* routes (DB uses 'customer' as role code)
-const DISTRIBUTOR_ROLES = ['distribuidor', 'customer'];
+// Distributor roles for /distribuidor/* routes
+const DISTRIBUTOR_ROLES = ['distribuidor', 'customer', 'dashboard', 'cliente-dashboard'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

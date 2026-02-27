@@ -3,6 +3,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { useState } from 'react';
 import { Header, Footer } from '@/components/layout';
 import { Button, Card, Badge } from '@/components/ui';
 import {
@@ -22,6 +23,36 @@ import {
 } from '@/hooks/useCart';
 import { cartService } from '@/services/cart.service';
 import { toast } from 'sonner';
+
+/** Renders a product image with initials fallback on error */
+function CartProductImage({ src, name, width, height, className }: { src?: string; name: string; width: number; height: number; className?: string }) {
+  const [error, setError] = useState(false);
+  const initials = (() => {
+    const words = name.split(/\s+/).filter(w => w.length > 0);
+    return words.length >= 2
+      ? (words[0][0] + words[1][0]).toUpperCase()
+      : name.substring(0, 2).toUpperCase();
+  })();
+
+  if (src && !error) {
+    return (
+      <Image
+        src={src}
+        alt={name}
+        width={width}
+        height={height}
+        className={className}
+        onError={() => setError(true)}
+      />
+    );
+  }
+
+  return (
+    <div className="w-24 h-24 bg-gradient-to-br from-[#C8DDF2]/30 to-[#3E667D]/20 rounded-2xl flex items-center justify-center">
+      <span className="text-2xl font-bold text-[#3E667D]/70">{initials}</span>
+    </div>
+  );
+}
 
 // Free shipping threshold
 const FREE_SHIPPING_THRESHOLD = 999;
@@ -187,21 +218,13 @@ export default function CartPage() {
                     <div className="flex flex-col sm:flex-row">
                       {/* Product Image */}
                       <div className="sm:w-40 h-40 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                        {item.productImageUrl ? (
-                          <Image
-                            src={item.productImageUrl}
-                            alt={item.productName}
-                            width={160}
-                            height={160}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-24 h-24 bg-gradient-to-br from-[#C8DDF2]/20 to-[#3E667D]/20 rounded-2xl flex items-center justify-center">
-                            <span className="text-2xl font-bold text-[#3E667D]">
-                              {item.productName.substring(0, 2).toUpperCase()}
-                            </span>
-                          </div>
-                        )}
+                        <CartProductImage
+                          src={item.productImageUrl}
+                          name={item.productName}
+                          width={160}
+                          height={160}
+                          className="w-full h-full object-cover"
+                        />
                       </div>
 
                       {/* Product Info */}

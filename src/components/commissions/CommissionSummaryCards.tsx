@@ -23,9 +23,10 @@ interface SummaryCardsProps {
   summary: CommissionSummary | null;
   isLoading?: boolean;
   currencyCode?: string;
+  isActivePeriod?: boolean;
 }
 
-export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN' }: SummaryCardsProps) {
+export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN', isActivePeriod }: SummaryCardsProps) {
   const isUsd = currencyCode === 'USD';
   const formatCurrency = (amount: string | number) => {
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -102,13 +103,26 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                       <BanknotesIcon className="h-6 w-6 text-white" />
                     </div>
                     <div>
-                      <p className="text-white/70 text-sm font-medium">Tu Balance del Periodo</p>
-                      <div className="flex items-baseline gap-2">
-                        <p className="text-4xl lg:text-5xl font-bold tracking-tight">
-                          {formatCurrency(summary.totalNetMxn)}
-                        </p>
-                        <span className="text-white/60 text-sm">{currencyCode}</span>
-                      </div>
+                      <p className="text-white/70 text-sm font-medium">
+                        {isActivePeriod ? 'Periodo Activo' : 'Tu Balance del Periodo'}
+                      </p>
+                      {isActivePeriod && totalNet === 0 ? (
+                        <div>
+                          <p className="text-2xl lg:text-3xl font-bold tracking-tight text-white/90 mt-1">
+                            En curso
+                          </p>
+                          <p className="text-white/50 text-sm mt-1">
+                            El balance se calculara al cierre del periodo
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex items-baseline gap-2">
+                          <p className="text-4xl lg:text-5xl font-bold tracking-tight">
+                            {formatCurrency(summary.totalNetMxn)}
+                          </p>
+                          <span className="text-white/60 text-sm">{currencyCode}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 

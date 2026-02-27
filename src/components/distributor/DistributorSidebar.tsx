@@ -28,6 +28,7 @@ import {
   ArrowRightOnRectangleIcon,
   SparklesIcon,
   RocketLaunchIcon,
+  WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutAsync, selectUser } from '@/store/slices/authSlice';
@@ -92,6 +93,18 @@ const bottomNavigation: NavItem[] = [
   { name: 'Configuración', href: '/distribuidor/configuracion', icon: Cog6ToothIcon },
 ];
 
+// Módulos temporalmente deshabilitados mientras se confirman ajustes
+const disabledModules = new Set([
+  'Mi Negocio',
+  'Prospectos',
+  'Clientes',
+  'Herramientas',
+  'Eventos',
+  'Pagos',
+  'Comunicación',
+  'Soporte',
+]);
+
 export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -143,9 +156,24 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
   };
 
   const renderNavItem = (item: NavItem) => {
+    const isDisabled = disabledModules.has(item.name);
     const active = isActive(item.href);
     const childActive = isChildActive(item.children);
     const isExpanded = expandedItems.includes(item.name) || childActive;
+
+    // Disabled items: non-clickable, grayed out
+    if (isDisabled) {
+      return (
+        <div
+          key={item.name}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/25 cursor-not-allowed select-none"
+          title="Disponible pronto"
+        >
+          <item.icon className="h-5 w-5 flex-shrink-0" />
+          <span>{item.name}</span>
+        </div>
+      );
+    }
 
     if (item.children) {
       return (
@@ -231,9 +259,9 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
           <Image
             src="/images/logo/logo-text-light.png"
             alt="Tonic Life"
-            width={120}
-            height={40}
-            className="h-8 w-auto"
+            width={280}
+            height={90}
+            className="h-20 w-auto"
             onError={(e) => {
               // Fallback si no existe el logo blanco
               const target = e.target as HTMLImageElement;
@@ -291,17 +319,26 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
             </div>
             {/* Commissions */}
             <div className="bg-white/5 rounded-lg p-2 text-center">
-              <p className="text-lg font-bold text-white">
-                ${(commissionsSummary?.totalNet || 0).toLocaleString(user?.currencyCode === 'USD' ? 'en-US' : 'es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-              </p>
-              <div className="flex items-center justify-center gap-1">
-                <p className="text-[10px] text-white/60 uppercase tracking-wide">Comisiones</p>
-                {user?.currencyCode && (
-                  <span className="text-[9px] bg-white/10 text-white/70 px-1 py-0.5 rounded font-medium">
-                    {user.currencyCode}
-                  </span>
-                )}
-              </div>
+              {(commissionsSummary?.totalNet || 0) === 0 ? (
+                <>
+                  <p className="text-sm font-semibold text-white/70">Periodo activo</p>
+                  <p className="text-[10px] text-white/40 uppercase tracking-wide">Comisiones al cierre</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-lg font-bold text-white">
+                    ${(commissionsSummary?.totalNet || 0).toLocaleString(user?.currencyCode === 'USD' ? 'en-US' : 'es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  </p>
+                  <div className="flex items-center justify-center gap-1">
+                    <p className="text-[10px] text-white/60 uppercase tracking-wide">Comisiones</p>
+                    {user?.currencyCode && (
+                      <span className="text-[9px] bg-white/10 text-white/70 px-1 py-0.5 rounded font-medium">
+                        {user.currencyCode}
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -314,6 +351,16 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
             <li key={item.name}>{renderNavItem(item)}</li>
           ))}
         </ul>
+
+        {/* Aviso de módulos en ajuste */}
+        <div className="mt-3 mx-1 p-3 bg-white/5 rounded-xl border border-white/10">
+          <div className="flex items-start gap-2">
+            <WrenchScrewdriverIcon className="h-4 w-4 text-amber-400/80 flex-shrink-0 mt-0.5" />
+            <p className="text-[11px] text-white/50 leading-relaxed">
+              Algunos módulos se habilitarán en breve. Estamos confirmando unos ajustes para ti.
+            </p>
+          </div>
+        </div>
 
         {/* Divider */}
         <div className="my-4 border-t border-white/10" />

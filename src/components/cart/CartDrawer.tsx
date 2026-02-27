@@ -3,6 +3,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { Button, Badge } from '@/components/ui';
 import {
   XMarkIcon,
@@ -16,6 +17,31 @@ import {
 import { useCart, useClearCart, useUpdateCartItem, useRemoveCartItem } from '@/hooks/useCart';
 import { cartService } from '@/services/cart.service';
 import { toast } from 'sonner';
+
+function DrawerProductImage({ src, name }: { src?: string; name: string }) {
+  const [error, setError] = useState(false);
+  const initials = (() => {
+    const words = name.split(/\s+/).filter(w => w.length > 0);
+    return words.length >= 2
+      ? (words[0][0] + words[1][0]).toUpperCase()
+      : name.substring(0, 2).toUpperCase();
+  })();
+
+  if (src && !error) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        className="w-full h-full object-cover"
+        onError={() => setError(true)}
+      />
+    );
+  }
+
+  return (
+    <span className="text-xl font-bold text-[#3E667D]/70">{initials}</span>
+  );
+}
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -149,17 +175,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 >
                   {/* Product Image */}
                   <div className="w-20 h-20 bg-white rounded-lg flex-shrink-0 flex items-center justify-center shadow-sm overflow-hidden">
-                    {item.productImageUrl ? (
-                      <img
-                        src={item.productImageUrl}
-                        alt={item.productName}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <span className="text-xl font-bold text-[#3E667D]">
-                        {item.productName.substring(0, 2).toUpperCase()}
-                      </span>
-                    )}
+                    <DrawerProductImage src={item.productImageUrl} name={item.productName} />
                   </div>
 
                   {/* Product Info */}

@@ -12,7 +12,7 @@ import {
   ChevronUpIcon,
   AdjustmentsHorizontalIcon,
 } from '@heroicons/react/24/outline';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 
 interface CommissionTableProps {
   commissions: Commission[];
@@ -132,9 +132,8 @@ export function CommissionTable({ commissions, showTaxDetails = false, currencyC
             const isExpanded = expandedRow === commission.id;
 
             return (
-              <>
+              <Fragment key={commission.id}>
                 <tr
-                  key={commission.id}
                   className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
                   onClick={() => toggleExpand(commission.id)}
                 >
@@ -253,7 +252,7 @@ export function CommissionTable({ commissions, showTaxDetails = false, currencyC
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             );
           })}
         </tbody>

@@ -35,6 +35,33 @@ import {
   type GuestCheckoutInput,
 } from '@/types/cart';
 
+function CheckoutProductImage({ src, name }: { src?: string; name: string }) {
+  const [error, setError] = useState(false);
+  const initials = (() => {
+    const words = name.split(/\s+/).filter(w => w.length > 0);
+    return words.length >= 2
+      ? (words[0][0] + words[1][0]).toUpperCase()
+      : name.substring(0, 2).toUpperCase();
+  })();
+
+  if (src && !error) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        className="w-full h-full object-cover"
+        onError={() => setError(true)}
+      />
+    );
+  }
+
+  return (
+    <div className="w-full h-full bg-gradient-to-br from-[#C8DDF2]/30 to-[#3E667D]/20 flex items-center justify-center">
+      <span className="text-sm font-bold text-[#3E667D]/70">{initials}</span>
+    </div>
+  );
+}
+
 type CheckoutStep = 'info' | 'shipping' | 'payment' | 'confirmation';
 
 // Mexican states
@@ -151,6 +178,11 @@ export default function CheckoutContent() {
 
     if (!customerInfo.email || !customerInfo.name || !customerInfo.phone) {
       toast.error('Por favor completa todos los campos requeridos');
+      return;
+    }
+
+    if (!referralCode.trim()) {
+      toast.error('El código de referido es obligatorio');
       return;
     }
 
@@ -352,14 +384,15 @@ export default function CheckoutContent() {
                     {/* Referral Code */}
                     <div className="pt-4 border-t border-gray-200">
                       <Input
-                        label="Código de referido (opcional)"
+                        label="Código de referido *"
                         type="text"
                         value={referralCode}
                         onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
                         placeholder="CODIGO123"
+                        required
                       />
                       <p className="text-xs text-gray-500 mt-1">
-                        Si te refirió un distribuidor, ingresa su código aquí
+                        Ingresa el código de tu distribuidor para continuar
                       </p>
                     </div>
 
@@ -536,7 +569,7 @@ export default function CheckoutContent() {
               </Card>
             )}
 
-            {/* Payment Step */}
+            {/* Payment Step — temporarily disabled */}
             {currentStep === 'payment' && (
               <Card>
                 <CardHeader>
@@ -546,196 +579,30 @@ export default function CheckoutContent() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <form onSubmit={handlePaymentSubmit} className="space-y-6">
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
-                      <ShieldCheckIcon className="h-6 w-6 text-[#3E667D] flex-shrink-0" />
-                      <div className="text-sm">
-                        <p className="font-semibold text-[#3E667D]">Pago 100% seguro</p>
-                        <p className="text-gray-600">Tu información está protegida con encriptación SSL</p>
-                      </div>
+                  <div className="py-8 text-center">
+                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-50">
+                      <ShieldCheckIcon className="h-8 w-8 text-amber-500" />
                     </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      Pagos en línea disponibles pronto
+                    </h3>
+                    <p className="text-gray-500 max-w-md mx-auto">
+                      Estamos confirmando algunos ajustes para habilitar los pagos en línea.
+                      Esta opción estará disponible en breve.
+                    </p>
+                  </div>
 
-                    {/* Payment Method Selection */}
-                    <div className="space-y-3">
-                      {[
-                        { value: PaymentMethod.STRIPE, label: 'Tarjeta de Crédito/Débito', icon: '💳' },
-                        { value: PaymentMethod.PAYPAL, label: 'PayPal', icon: '🅿️' },
-                        { value: PaymentMethod.MERCADOPAGO, label: 'Mercado Pago', icon: '💙' },
-                        { value: PaymentMethod.TRANSFER, label: 'Transferencia Bancaria', icon: '🏦' },
-                      ].map((method) => (
-                        <label
-                          key={method.value}
-                          className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                            selectedPaymentMethod === method.value
-                              ? 'border-[#a7c1e2] bg-[#C8DDF2]/5'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="paymentMethod"
-                            value={method.value}
-                            checked={selectedPaymentMethod === method.value}
-                            onChange={(e) => setSelectedPaymentMethod(e.target.value as PaymentMethod)}
-                            className="w-4 h-4 text-[#3E667D] focus:ring-[#a7c1e2]"
-                          />
-                          <span className="text-xl">{method.icon}</span>
-                          <span className="font-medium text-gray-900">{method.label}</span>
-                        </label>
-                      ))}
-                    </div>
-
-                    {/* Invoice Option */}
-                    <div className="pt-4 border-t border-gray-200">
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={requiresInvoice}
-                          onChange={(e) => setRequiresInvoice(e.target.checked)}
-                          className="w-5 h-5 text-[#3E667D] border-gray-300 rounded focus:ring-[#a7c1e2]"
-                        />
-                        <div className="flex items-center gap-2">
-                          <DocumentTextIcon className="h-5 w-5 text-gray-500" />
-                          <span className="font-medium text-gray-900">Requiero factura</span>
-                        </div>
-                      </label>
-
-                      {/* Invoice Form */}
-                      {requiresInvoice && (
-                        <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Input
-                              label="RFC *"
-                              type="text"
-                              value={invoiceData.rfc}
-                              onChange={(e) => setInvoiceData({ ...invoiceData, rfc: e.target.value.toUpperCase() })}
-                              placeholder="XAXX010101000"
-                              maxLength={13}
-                              required
-                            />
-                            <Input
-                              label="Razón social *"
-                              type="text"
-                              value={invoiceData.name}
-                              onChange={(e) => setInvoiceData({ ...invoiceData, name: e.target.value })}
-                              required
-                            />
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Régimen fiscal *
-                              </label>
-                              <select
-                                value={invoiceData.regime}
-                                onChange={(e) => setInvoiceData({ ...invoiceData, regime: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                                required
-                              >
-                                <option value="">Seleccionar...</option>
-                                {FISCAL_REGIME_OPTIONS.map(option => (
-                                  <option key={option.value} value={option.value}>{option.label}</option>
-                                ))}
-                              </select>
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Uso CFDI *
-                              </label>
-                              <select
-                                value={invoiceData.useCfdi}
-                                onChange={(e) => setInvoiceData({ ...invoiceData, useCfdi: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                                required
-                              >
-                                {CFDI_USAGE_OPTIONS.map(option => (
-                                  <option key={option.value} value={option.value}>{option.label}</option>
-                                ))}
-                              </select>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Input
-                              label="Código postal fiscal *"
-                              type="text"
-                              value={invoiceData.postalCode}
-                              onChange={(e) => setInvoiceData({ ...invoiceData, postalCode: e.target.value })}
-                              maxLength={5}
-                              required
-                            />
-                            <Input
-                              label="Email para factura"
-                              type="email"
-                              value={invoiceData.email || ''}
-                              onChange={(e) => setInvoiceData({ ...invoiceData, email: e.target.value })}
-                              placeholder="factura@email.com"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Notes */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Notas del pedido (opcional)
-                      </label>
-                      <textarea
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        placeholder="Instrucciones especiales para tu pedido..."
-                        rows={3}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                        maxLength={500}
-                      />
-                    </div>
-
-                    {/* Terms and Conditions */}
-                    <div className="pt-4 border-t border-gray-200">
-                      <label className="flex items-start gap-3 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={acceptTerms}
-                          onChange={(e) => setAcceptTerms(e.target.checked)}
-                          className="w-5 h-5 mt-0.5 text-[#3E667D] border-gray-300 rounded focus:ring-[#a7c1e2]"
-                        />
-                        <span className="text-sm text-gray-600">
-                          Acepto los{' '}
-                          <a href="/terminos" target="_blank" className="text-[#3E667D] hover:underline">
-                            términos y condiciones
-                          </a>
-                          {' '}y la{' '}
-                          <a href="/privacidad" target="_blank" className="text-[#3E667D] hover:underline">
-                            política de privacidad
-                          </a>
-                        </span>
-                      </label>
-                    </div>
-
-                    <div className="flex gap-3">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="lg"
-                        onClick={() => setCurrentStep('shipping')}
-                        className="flex-1"
-                      >
-                        Regresar
-                      </Button>
-                      <Button
-                        type="submit"
-                        size="lg"
-                        className="flex-1"
-                        disabled={!acceptTerms || guestCheckout.isPending}
-                      >
-                        {guestCheckout.isPending
-                          ? 'Procesando...'
-                          : `Pagar ${checkoutSummary ? cartService.formatCurrency(checkoutSummary.total) : ''}`}
-                      </Button>
-                    </div>
-                  </form>
+                  <div className="pt-4 border-t border-gray-200">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="lg"
+                      onClick={() => setCurrentStep('shipping')}
+                      className="w-full"
+                    >
+                      Regresar
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -851,19 +718,7 @@ export default function CheckoutContent() {
                   {cart?.items.map((item) => (
                     <div key={item.id} className="flex gap-3">
                       <div className="w-16 h-16 bg-gray-100 rounded-lg flex-shrink-0 relative overflow-hidden">
-                        {item.productImageUrl ? (
-                          <img
-                            src={item.productImageUrl}
-                            alt={item.productName}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <span className="text-sm font-bold text-[#3E667D]">
-                              {item.productName.substring(0, 2).toUpperCase()}
-                            </span>
-                          </div>
-                        )}
+                        <CheckoutProductImage src={item.productImageUrl} name={item.productName} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 text-sm truncate">

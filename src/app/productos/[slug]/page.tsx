@@ -15,6 +15,33 @@ import { Header, Footer } from '@/components/layout';
 import type { Product as APIProduct } from '@/types/product';
 import type { Product as MockProduct } from '@/types';
 
+function getInitials(name: string): string {
+  const words = name.split(/\s+/).filter(w => w.length > 0);
+  return words.length >= 2
+    ? (words[0][0] + words[1][0]).toUpperCase()
+    : name.substring(0, 2).toUpperCase();
+}
+
+function ProductImageWithFallback({ src, name, fill, width, height, className, textSize = 'text-6xl' }: {
+  src?: string; name: string; fill?: boolean; width?: number; height?: number; className?: string; textSize?: string;
+}) {
+  const [error, setError] = useState(false);
+
+  if (src && !error) {
+    return fill ? (
+      <Image src={src} alt={name} fill className={className} onError={() => setError(true)} />
+    ) : (
+      <Image src={src} alt={name} width={width} height={height} className={className} onError={() => setError(true)} />
+    );
+  }
+
+  return (
+    <div className="w-full h-full bg-gradient-to-br from-[#C8DDF2]/30 to-[#3E667D]/20 rounded-2xl flex items-center justify-center">
+      <span className={`${textSize} font-bold text-[#3E667D]/70`}>{getInitials(name)}</span>
+    </div>
+  );
+}
+
 // Adapter para convertir productos del API al formato mock para compatibilidad
 function adaptAPIProductToMock(apiProduct: APIProduct): MockProduct {
   return {
@@ -178,20 +205,12 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 </Badge>
               )}
               <div className="aspect-square relative mb-4">
-                {product.image ? (
-                  <Image
-                    src={product.image}
-                    alt={product.name}
-                    fill
-                    className="object-contain"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-[#C8DDF2]/20 to-[#3E667D]/20 rounded-2xl flex items-center justify-center">
-                    <span className="text-6xl font-bold text-[#3E667D]">
-                      {product.name.substring(0, 2).toUpperCase()}
-                    </span>
-                  </div>
-                )}
+                <ProductImageWithFallback
+                  src={product.image}
+                  name={product.name}
+                  fill
+                  className="object-contain"
+                />
               </div>
 
               {/* Image Gallery Thumbnails */}
@@ -205,12 +224,13 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                         selectedImage === index ? 'border-[#a7c1e2]' : 'border-transparent'
                       }`}
                     >
-                      <Image
+                      <ProductImageWithFallback
                         src={img}
-                        alt={`${product.name} - ${index + 1}`}
+                        name={product.name}
                         width={64}
                         height={64}
                         className="object-cover"
+                        textSize="text-sm"
                       />
                     </button>
                   ))}
@@ -536,20 +556,13 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                             {relatedProduct.badge}
                           </Badge>
                         )}
-                        {relatedProduct.image ? (
-                          <Image
-                            src={relatedProduct.image}
-                            alt={relatedProduct.name}
-                            fill
-                            className="object-contain group-hover:scale-105 transition-transform duration-300"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-[#C8DDF2]/20 to-[#3E667D]/20 flex items-center justify-center">
-                            <span className="text-2xl font-bold text-[#3E667D]">
-                              {relatedProduct.name.substring(0, 2).toUpperCase()}
-                            </span>
-                          </div>
-                        )}
+                        <ProductImageWithFallback
+                          src={relatedProduct.image}
+                          name={relatedProduct.name}
+                          fill
+                          className="object-contain group-hover:scale-105 transition-transform duration-300"
+                          textSize="text-2xl"
+                        />
                       </div>
                       <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-[#3E667D] transition-colors">
                         {relatedProduct.name}

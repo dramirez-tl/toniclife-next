@@ -8,6 +8,28 @@ import { useAddCartItem } from '@/hooks/useCart';
 import { useState } from 'react';
 import type { Product } from '@/types';
 
+/** Returns 2-letter initials from a product name (first letter of first two words) */
+function getProductInitials(name: string): string {
+  const words = name.split(/\s+/).filter(w => w.length > 0);
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+}
+
+/** Fallback placeholder shown when a product image is missing or broken */
+function ProductImageFallback({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
+  const dims = size === 'sm' ? 'w-24 h-24' : 'w-28 h-28';
+  const textSize = size === 'sm' ? 'text-2xl' : 'text-3xl';
+  return (
+    <div className={`${dims} bg-gradient-to-br from-[#C8DDF2]/30 to-[#3E667D]/20 rounded-2xl flex items-center justify-center`}>
+      <span className={`${textSize} font-bold text-[#3E667D]/70`}>
+        {getProductInitials(name)}
+      </span>
+    </div>
+  );
+}
+
 interface ProductGridProps {
   products: Product[];
   viewMode?: 'grid' | 'list';
@@ -37,6 +59,7 @@ export function ProductGrid({ products, viewMode = 'grid' }: ProductGridProps) {
 function ProductCard({ product }: { product: Product }) {
   const addToCart = useAddCartItem();
   const [added, setAdded] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   const handleAddToCart = () => {
     addToCart.mutate(
@@ -77,19 +100,16 @@ function ProductCard({ product }: { product: Product }) {
       <Link href={`/productos/${product.slug}`}>
         <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center overflow-hidden cursor-pointer">
           <div className="relative w-full h-full flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
-            {product.image ? (
+            {product.image && !imgError ? (
               <img
                 src={product.image}
                 alt={product.name}
                 className="w-full h-full object-contain p-4"
                 loading="lazy"
+                onError={() => setImgError(true)}
               />
             ) : (
-              <div className="w-28 h-28 bg-gradient-to-br from-[#C8DDF2]/20 to-[#3E667D]/20 rounded-2xl flex items-center justify-center">
-                <span className="text-3xl font-bold text-[#3E667D]">
-                  {product.name.substring(0, 2).toUpperCase()}
-                </span>
-              </div>
+              <ProductImageFallback name={product.name} />
             )}
           </div>
         </div>
@@ -155,6 +175,7 @@ function ProductCard({ product }: { product: Product }) {
 function ProductListItem({ product }: { product: Product }) {
   const addToCart = useAddCartItem();
   const [added, setAdded] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   const handleAddToCart = () => {
     addToCart.mutate(
@@ -176,19 +197,16 @@ function ProductListItem({ product }: { product: Product }) {
           href={`/productos/${product.slug}`}
           className="sm:w-48 aspect-square sm:aspect-auto bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center flex-shrink-0"
         >
-          {product.image ? (
+          {product.image && !imgError ? (
             <img
               src={product.image}
               alt={product.name}
               className="w-full h-full object-contain p-4"
               loading="lazy"
+              onError={() => setImgError(true)}
             />
           ) : (
-            <div className="w-24 h-24 bg-gradient-to-br from-[#C8DDF2]/20 to-[#3E667D]/20 rounded-2xl flex items-center justify-center">
-              <span className="text-2xl font-bold text-[#3E667D]">
-                {product.name.substring(0, 2).toUpperCase()}
-              </span>
-            </div>
+            <ProductImageFallback name={product.name} size="sm" />
           )}
         </Link>
 

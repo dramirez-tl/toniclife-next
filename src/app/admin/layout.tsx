@@ -6,18 +6,14 @@ import { useState } from 'react';
 import { Bars3Icon } from '@heroicons/react/24/outline';
 import { NotificationBell } from '@/components/admin/NotificationBell';
 
-// Roles que tienen acceso al panel de administración
-// Aligned with database role codes from roles table
+// Roles que tienen acceso al panel de administración (canonical + legacy-migration codes)
 const ADMIN_ROLES = [
-  'super_admin',
-  'administrador',
-  'subadmin',
-  'almacen',
-  'ventas_mostrador',
-  'rh',
-  'contabilidad',
-  'auditor',
-  'viewer',
+  'super_admin', 'administrador', 'subadmin', 'almacen', 'ventas_mostrador',
+  'rh', 'contabilidad', 'auditor', 'viewer',
+  // Legacy-migration codes
+  'ventas', 'asistencia', 'clientes', 'solicitud-viaticos', 'productos',
+  'ventas-totales-sucursal', 'documentos', 'aprobacion-viaticos',
+  'corte-caja-sucursal', 'inventario', 'rrhh-trabajadores', 'puntos-periodo', 'factura-libre',
 ];
 
 export default function AdminLayout({

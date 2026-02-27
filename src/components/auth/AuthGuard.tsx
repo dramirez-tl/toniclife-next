@@ -63,7 +63,9 @@ export function AuthGuard({
 
       if (!hasRequiredRole) {
         hasRedirected.current = true;
-        window.location.href = '/distribuidor';
+        // Avoid infinite loop: don't redirect to the current section
+        const fallback = pathname.startsWith('/distribuidor') ? '/' : '/distribuidor';
+        window.location.href = fallback;
       }
     }
   }, [isInitialized, isAuthenticated, userRoles, requiredRoles, pathname, redirectTo]);
