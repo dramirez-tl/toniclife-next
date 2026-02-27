@@ -122,7 +122,7 @@ export default function LoginPage() {
         // Cerrar la sesión recién creada
         dispatch(logoutAsync());
         toast.error(
-          `Tu cuenta ya tiene un correo vinculado. Por favor inicia sesión con: ${result.user.email}`,
+          'Tu cuenta ya tiene un correo vinculado. Por favor inicia sesión con tu correo electrónico.',
           { duration: 8000 },
         );
         setFormData({ identifier: '', password: '', remember: false });
