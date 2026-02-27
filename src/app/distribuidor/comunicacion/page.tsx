@@ -79,7 +79,7 @@ const mockConversations = [
     type: 'group',
     name: 'Nuevos Distribuidores',
     avatar: '⭐',
-    lastMessage: 'Tú: Bienvenidos! Les comparto el video de inducción',
+    lastMessage: 'Tú: Bienvenid@s! Les comparto el video de inducción',
     timestamp: '2025-01-24T10:00:00',
     unread: 0,
     members: 15,

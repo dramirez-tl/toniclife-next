@@ -42,22 +42,22 @@ export function CartItem({ item }: CartItemProps) {
     }
   };
 
-  const hasDiscount = item.originalPrice && item.discountAmount;
-
   return (
     <div className="flex gap-4 py-4 border-b border-gray-100">
       {/* Product Image */}
       <div className="relative w-20 h-20 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
-        {item.productSnapshot?.imageUrl ? (
+        {item.productImageUrl ? (
           <Image
-            src={item.productSnapshot.imageUrl}
-            alt={item.productSnapshot?.name || 'Producto'}
+            src={item.productImageUrl}
+            alt={item.productName}
             fill
             className="object-cover"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-gray-400">
-            <span className="text-2xl">📦</span>
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-2xl font-bold text-[#3E667D]">
+              {item.productName.substring(0, 2).toUpperCase()}
+            </span>
           </div>
         )}
       </div>
@@ -65,18 +65,18 @@ export function CartItem({ item }: CartItemProps) {
       {/* Product Details */}
       <div className="flex-grow min-w-0">
         <h4 className="font-medium text-gray-900 truncate">
-          {item.productSnapshot?.name || 'Producto'}
+          {item.productName}
         </h4>
-        <p className="text-sm text-gray-500">SKU: {item.productSnapshot?.sku}</p>
+        <p className="text-sm text-gray-500">SKU: {item.productCode}</p>
 
         {/* Price */}
         <div className="mt-1 flex items-center gap-2">
           <span className="font-bold text-[#3E667D]">
             {cartService.formatCurrency(item.unitPrice)}
           </span>
-          {hasDiscount && (
+          {item.originalPrice && (
             <span className="text-sm text-gray-400 line-through">
-              {cartService.formatCurrency(item.originalPrice!)}
+              {cartService.formatCurrency(item.originalPrice)}
             </span>
           )}
         </div>

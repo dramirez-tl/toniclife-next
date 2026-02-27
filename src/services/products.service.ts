@@ -20,6 +20,9 @@ import {
   type UpdateCategoryDto,
 } from '@/types/product';
 
+/** Sucursal por defecto para e-commerce público: MX CALL CENTER - VENTAS -TL */
+export const ECOMMERCE_BRANCH_ID = '0815bace-2bf6-4018-ac6e-0124b97dd07f';
+
 class ProductsService {
   // ================================
   // PRODUCTS
@@ -71,7 +74,7 @@ class ProductsService {
    * Get featured products
    */
   async getFeaturedProducts(limit = 10): Promise<ProductListResponse> {
-    return this.getProducts({ isFeatured: true, isVisibleEcommerce: true, isActive: true, limit });
+    return this.getProducts({ isFeatured: true, isVisibleEcommerce: true, isActive: true, branchId: ECOMMERCE_BRANCH_ID, limit });
   }
 
   /**

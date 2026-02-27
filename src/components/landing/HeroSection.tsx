@@ -1,8 +1,15 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
+import { Quicksand } from 'next/font/google';
 import { Button } from '@/components/ui';
 import { SparklesIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+
+const quicksand = Quicksand({
+  subsets: ['latin'],
+  weight: ['700'],
+});
 
 export function HeroSection() {
   return (
@@ -97,26 +104,32 @@ export function HeroSection() {
           <div className="relative">
             {/* Main product showcase container */}
             <div className="relative bg-gradient-to-br from-[#3E667D]/5 to-[#C8DDF2]/10 rounded-[3rem] p-8 lg:p-12">
-              {/* Central product image placeholder */}
-              <div className="aspect-square bg-white rounded-[2rem] shadow-2xl flex items-center justify-center overflow-hidden">
-                <div className="text-center p-8">
-                  {/* Placeholder for product collage */}
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* Product placeholders */}
-                    <div className="aspect-square bg-gradient-to-br from-[#C8DDF2]/20 to-[#C8DDF2]/5 rounded-2xl flex items-center justify-center">
-                      <div className="text-[#3E667D] text-4xl font-bold">TL</div>
+              {/* Product showcase */}
+              <div className="bg-white rounded-[2rem] shadow-2xl overflow-hidden max-w-xs mx-auto">
+                <div className="p-6">
+                  <div className={`grid grid-cols-2 gap-2 ${quicksand.className}`}>
+                    <div className="group aspect-square rounded-2xl bg-[#5F8A8B] flex items-end p-3 transition-all duration-500 hover:scale-[1.03] hover:shadow-lg hover:brightness-110 cursor-pointer">
+                      <span className="text-white font-bold text-2xl leading-[1.1] transition-transform duration-500 group-hover:translate-y-[-2px]">
+                        tnc<br />life
+                      </span>
                     </div>
-                    <div className="aspect-square bg-gradient-to-br from-[#3E667D]/20 to-[#3E667D]/5 rounded-2xl flex items-center justify-center">
-                      <div className="text-[#3E667D] text-4xl font-bold">EG</div>
+                    <div className="group aspect-square rounded-2xl bg-[#B0C9B5] flex items-end p-3 transition-all duration-500 hover:scale-[1.03] hover:shadow-lg hover:brightness-110 cursor-pointer">
+                      <span className="text-white font-bold text-2xl leading-[1.1] transition-transform duration-500 group-hover:translate-y-[-2px]">
+                        oxifilia
+                      </span>
                     </div>
-                    <div className="aspect-square bg-gradient-to-br from-[#3E667D]/20 to-[#3E667D]/5 rounded-2xl flex items-center justify-center">
-                      <div className="text-[#3E667D] text-4xl font-bold">OX</div>
+                    <div className="group aspect-square rounded-2xl bg-[#94B3CB] flex items-end p-3 transition-all duration-500 hover:scale-[1.03] hover:shadow-lg hover:brightness-110 cursor-pointer">
+                      <span className="text-white font-bold text-2xl leading-[1.1] transition-transform duration-500 group-hover:translate-y-[-2px]">
+                        tnc<br />clinté
+                      </span>
                     </div>
-                    <div className="aspect-square bg-gradient-to-br from-[#C8DDF2]/20 to-[#C8DDF2]/5 rounded-2xl flex items-center justify-center">
-                      <div className="text-[#3E667D] text-4xl font-bold">CL</div>
+                    <div className="group aspect-square rounded-2xl bg-[#ADA76A] flex items-end p-3 transition-all duration-500 hover:scale-[1.03] hover:shadow-lg hover:brightness-110 cursor-pointer">
+                      <span className="text-white font-bold text-2xl leading-[1.1] transition-transform duration-500 group-hover:translate-y-[-2px]">
+                        energy<br />gold
+                      </span>
                     </div>
                   </div>
-                  <p className="mt-4 text-gray-500 text-sm">
+                  <p className="mt-4 text-gray-500 text-sm text-center">
                     Productos Premium de Bienestar
                   </p>
                 </div>

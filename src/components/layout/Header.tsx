@@ -136,10 +136,10 @@ export function Header() {
             <Image
               src="/images/logo/logo-text-dark.png"
               alt="Tonic Life - Tu Centro de Bienestar"
-              width={220}
-              height={70}
+              width={280}
+              height={90}
               priority
-              className="h-14 lg:h-16 w-auto"
+              className="h-20 lg:h-24 w-auto"
             />
           </Link>
 

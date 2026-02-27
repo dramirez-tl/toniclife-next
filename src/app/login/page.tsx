@@ -78,17 +78,11 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validation: acepta email O número de distribuidor
+    // Validation: acepta email, número de distribuidor o nombre de usuario
     const newErrors: Record<string, string> = {};
     const trimmedId = formData.identifier.trim();
     if (!trimmedId) {
-      newErrors.identifier = 'El correo o número de distribuidor es requerido';
-    } else {
-      const isNumeric = /^\d+$/.test(trimmedId);
-      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedId);
-      if (!isNumeric && !isEmail) {
-        newErrors.identifier = 'Ingresa un correo válido o tu número de distribuidor';
-      }
+      newErrors.identifier = 'El correo, usuario o número de distribuidor es requerido';
     }
     if (!formData.password) {
       newErrors.password = 'La contraseña es requerida';
@@ -114,7 +108,7 @@ export default function LoginPage() {
         return;
       }
 
-      toast.success('¡Bienvenido de nuevo!');
+      toast.success('¡Bienvenid@ de nuevo!');
       navigateAfterLogin(result.user.roles?.[0]);
     } catch {
       // Error is handled via authError state
@@ -130,9 +124,9 @@ export default function LoginPage() {
               <Image
                 src="/images/logo/logo-text-dark.png"
                 alt="Tonic Life"
-                width={180}
-                height={64}
-                className="mx-auto mb-4 h-10 w-auto"
+                width={280}
+                height={90}
+                className="mx-auto mb-4 h-20 w-auto"
               />
             </Link>
             <div className="inline-flex items-center gap-2 rounded-full bg-[#3E667D]/8 px-3 py-1 text-xs font-medium text-[#3E667D]">

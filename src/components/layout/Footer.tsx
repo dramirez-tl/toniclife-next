@@ -120,9 +120,10 @@ export function Footer() {
               <Image
                 src="/images/logo/logo-text-light.png"
                 alt="Tonic Life - Tu Centro de Bienestar"
-                width={180}
-                height={60}
-                className="h-12 w-auto"
+                width={280}
+                height={90}
+                className="h-20 lg:h-24 w-auto"
+                priority
               />
             </Link>
             <p className="mt-4 text-white/70 text-sm leading-relaxed">

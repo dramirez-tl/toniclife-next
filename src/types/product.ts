@@ -143,6 +143,7 @@ export interface ProductComponent {
 export interface ProductQueryParams {
   search?: string;
   categoryId?: string;
+  branchId?: string;
   isActive?: boolean;
   isVisibleEcommerce?: boolean;
   isFeatured?: boolean;

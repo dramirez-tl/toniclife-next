@@ -2,7 +2,6 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.4 E-commerce
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { Button, Badge } from '@/components/ui';
 import {
@@ -12,10 +11,9 @@ import {
   MinusIcon,
   ShoppingBagIcon,
   TruckIcon,
-  TagIcon,
   ArrowRightIcon,
 } from '@heroicons/react/24/outline';
-import { useCart, useClearCart, useUpdateCartItem, useRemoveCartItem, useApplyCoupon, useRemoveCoupon } from '@/hooks/useCart';
+import { useCart, useClearCart, useUpdateCartItem, useRemoveCartItem } from '@/hooks/useCart';
 import { cartService } from '@/services/cart.service';
 import { toast } from 'sonner';
 
@@ -28,15 +26,10 @@ interface CartDrawerProps {
 const FREE_SHIPPING_THRESHOLD = 999;
 
 export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
-  const [couponCode, setCouponCode] = useState('');
-  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
-
   const { data: cart, isLoading } = useCart();
   const clearCart = useClearCart();
   const updateItem = useUpdateCartItem();
   const removeItem = useRemoveCartItem();
-  const applyCoupon = useApplyCoupon();
-  const removeCoupon = useRemoveCoupon();
 
   const handleUpdateQuantity = async (itemId: string, newQuantity: number) => {
     if (newQuantity < 1) return;
@@ -56,48 +49,31 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     }
   };
 
-  const handleClearCart = async () => {
-    if (confirm('¿Estás seguro de que deseas vaciar el carrito?')) {
-      try {
-        await clearCart.mutateAsync();
-        toast.success('Carrito vaciado');
-      } catch (error: any) {
-        toast.error(error.response?.data?.message || 'Error al vaciar carrito');
-      }
-    }
-  };
-
-  const handleApplyCoupon = async () => {
-    if (!couponCode.trim()) return;
-
-    setIsApplyingCoupon(true);
-    try {
-      await applyCoupon.mutateAsync({ code: couponCode.trim().toUpperCase() });
-      toast.success('Cupón aplicado exitosamente');
-      setCouponCode('');
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Cupón inválido');
-    } finally {
-      setIsApplyingCoupon(false);
-    }
-  };
-
-  const handleRemoveCoupon = async () => {
-    try {
-      await removeCoupon.mutateAsync();
-      toast.success('Cupón removido');
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Error al remover cupón');
-    }
+  const handleClearCart = () => {
+    toast('¿Vaciar el carrito?', {
+      description: 'Se eliminarán todos los productos.',
+      action: {
+        label: 'Vaciar',
+        onClick: async () => {
+          try {
+            await clearCart.mutateAsync();
+            toast.success('Carrito vaciado');
+          } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Error al vaciar carrito');
+          }
+        },
+      },
+      cancel: {
+        label: 'Cancelar',
+        onClick: () => {},
+      },
+    });
   };
 
   // Calculations
   const subtotal = cart ? parseFloat(cart.subtotal) : 0;
   const total = cart ? parseFloat(cart.total) : 0;
   const discount = cart ? parseFloat(cart.discountAmount) : 0;
-  const shipping = cart ? parseFloat(cart.shippingAmount) : 0;
-  const hasCoupon = !!cart?.coupon;
-  const couponDiscount = cart?.couponDiscountAmount ? parseFloat(cart.couponDiscountAmount) : 0;
 
   if (!isOpen) return null;
 
@@ -173,15 +149,15 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 >
                   {/* Product Image */}
                   <div className="w-20 h-20 bg-white rounded-lg flex-shrink-0 flex items-center justify-center shadow-sm overflow-hidden">
-                    {item.productSnapshot?.imageUrl ? (
+                    {item.productImageUrl ? (
                       <img
-                        src={item.productSnapshot.imageUrl}
-                        alt={item.productSnapshot.name}
+                        src={item.productImageUrl}
+                        alt={item.productName}
                         className="w-full h-full object-cover"
                       />
                     ) : (
                       <span className="text-xl font-bold text-[#3E667D]">
-                        {(item.productSnapshot?.name || 'P').substring(0, 2).toUpperCase()}
+                        {item.productName.substring(0, 2).toUpperCase()}
                       </span>
                     )}
                   </div>
@@ -189,10 +165,10 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                   {/* Product Info */}
                   <div className="flex-grow min-w-0">
                     <h3 className="font-semibold text-[#3E667D] truncate">
-                      {item.productSnapshot?.name || 'Producto'}
+                      {item.productName}
                     </h3>
                     <p className="text-xs text-gray-500">
-                      SKU: {item.productSnapshot?.sku}
+                      SKU: {item.productCode}
                     </p>
                     <p className="text-sm text-[#3E667D] font-medium">
                       {cartService.formatCurrency(item.unitPrice)} c/u
@@ -257,46 +233,6 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
         {/* Footer */}
         {cart && cart.items.length > 0 && (
           <div className="border-t border-gray-100 p-4 space-y-4 bg-white">
-            {/* Coupon Code */}
-            {!hasCoupon ? (
-              <div className="flex gap-2">
-                <div className="flex-grow relative">
-                  <TagIcon className="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Código de descuento"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#a7c1e2]"
-                  />
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={handleApplyCoupon}
-                  disabled={!couponCode.trim() || isApplyingCoupon}
-                >
-                  {isApplyingCoupon ? '...' : 'Aplicar'}
-                </Button>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
-                <div className="flex items-center gap-2 text-green-700">
-                  <TagIcon className="h-4 w-4" />
-                  <span className="text-sm font-medium">{cart.coupon!.code}</span>
-                  <span className="text-xs text-green-600">
-                    -{cartService.formatCurrency(couponDiscount)}
-                  </span>
-                </div>
-                <button
-                  onClick={handleRemoveCoupon}
-                  disabled={removeCoupon.isPending}
-                  className="text-green-600 hover:text-red-500 transition-colors"
-                >
-                  <XMarkIcon className="h-4 w-4" />
-                </button>
-              </div>
-            )}
-
             {/* Order Summary */}
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-gray-600">
@@ -309,15 +245,11 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                   <span>-{cartService.formatCurrency(discount)}</span>
                 </div>
               )}
-              {hasCoupon && couponDiscount > 0 && (
-                <div className="flex justify-between text-green-600">
-                  <span>Cupón ({cart.coupon!.code})</span>
-                  <span>-{cartService.formatCurrency(couponDiscount)}</span>
-                </div>
-              )}
               <div className="flex justify-between text-gray-600">
                 <span>Envío</span>
-                <span>{shipping === 0 ? 'Calculado en checkout' : cartService.formatCurrency(shipping)}</span>
+                <span>
+                  {subtotal >= FREE_SHIPPING_THRESHOLD ? 'Gratis' : 'Calculado en checkout'}
+                </span>
               </div>
               <div className="flex justify-between text-lg font-bold text-[#3E667D] pt-2 border-t border-gray-100">
                 <span>Total</span>

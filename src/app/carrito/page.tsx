@@ -1,29 +1,24 @@
 // app/carrito/page.tsx - Cart page with API integration
-// Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.4 E-commerce
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Header, Footer } from '@/components/layout';
-import { Button, Card, Badge, Input } from '@/components/ui';
+import { Button, Card, Badge } from '@/components/ui';
 import {
   TrashIcon,
   PlusIcon,
   MinusIcon,
   ShoppingBagIcon,
   TruckIcon,
-  TagIcon,
   ShieldCheckIcon,
   ArrowLeftIcon,
-  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import {
   useCart,
   useClearCart,
   useUpdateCartItem,
   useRemoveCartItem,
-  useApplyCoupon,
-  useRemoveCoupon,
 } from '@/hooks/useCart';
 import { cartService } from '@/services/cart.service';
 import { toast } from 'sonner';
@@ -32,16 +27,10 @@ import { toast } from 'sonner';
 const FREE_SHIPPING_THRESHOLD = 999;
 
 export default function CartPage() {
-  const [couponCode, setCouponCode] = useState('');
-  const [couponError, setCouponError] = useState('');
-  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
-
   const { data: cart, isLoading } = useCart();
   const clearCart = useClearCart();
   const updateItem = useUpdateCartItem();
   const removeItem = useRemoveCartItem();
-  const applyCouponMutation = useApplyCoupon();
-  const removeCouponMutation = useRemoveCoupon();
 
   const handleUpdateQuantity = async (itemId: string, newQuantity: number) => {
     if (newQuantity < 1) return;
@@ -61,49 +50,32 @@ export default function CartPage() {
     }
   };
 
-  const handleClearCart = async () => {
-    if (confirm('¿Estás seguro de que deseas vaciar el carrito?')) {
-      try {
-        await clearCart.mutateAsync();
-        toast.success('Carrito vaciado');
-      } catch (error: any) {
-        toast.error(error.response?.data?.message || 'Error al vaciar carrito');
-      }
-    }
-  };
-
-  const handleApplyCoupon = async () => {
-    if (!couponCode.trim()) return;
-
-    setCouponError('');
-    setIsApplyingCoupon(true);
-    try {
-      await applyCouponMutation.mutateAsync({ code: couponCode.trim().toUpperCase() });
-      toast.success('Cupón aplicado exitosamente');
-      setCouponCode('');
-    } catch (error: any) {
-      setCouponError(error.response?.data?.message || 'Cupón no válido');
-    } finally {
-      setIsApplyingCoupon(false);
-    }
-  };
-
-  const handleRemoveCoupon = async () => {
-    try {
-      await removeCouponMutation.mutateAsync();
-      toast.success('Cupón removido');
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Error al remover cupón');
-    }
+  const handleClearCart = () => {
+    toast('¿Vaciar el carrito?', {
+      description: 'Se eliminarán todos los productos.',
+      action: {
+        label: 'Vaciar',
+        onClick: async () => {
+          try {
+            await clearCart.mutateAsync();
+            toast.success('Carrito vaciado');
+          } catch (error: any) {
+            toast.error(error.response?.data?.message || 'Error al vaciar carrito');
+          }
+        },
+      },
+      cancel: {
+        label: 'Cancelar',
+        onClick: () => {},
+      },
+    });
   };
 
   // Calculations
   const subtotal = cart ? parseFloat(cart.subtotal) : 0;
-  const total = cart ? parseFloat(cart.total) : 0;
+  const tax = cart ? parseFloat(cart.taxAmount) : 0;
   const discount = cart ? parseFloat(cart.discountAmount) : 0;
-  const shipping = cart ? parseFloat(cart.shippingAmount) : 0;
-  const hasCoupon = !!cart?.coupon;
-  const couponDiscount = cart?.couponDiscountAmount ? parseFloat(cart.couponDiscountAmount) : 0;
+  const total = cart ? parseFloat(cart.total) : 0;
   const itemCount = cart?.itemCount || 0;
 
   return (
@@ -181,7 +153,7 @@ export default function CartPage() {
               {/* Cart Items */}
               <div className="lg:col-span-2 space-y-4">
                 {/* Free Shipping Progress */}
-                {subtotal < FREE_SHIPPING_THRESHOLD && (
+                {subtotal < FREE_SHIPPING_THRESHOLD ? (
                   <Card className="border-[#a7c1e2]/20 bg-[#C8DDF2]/10 shadow-sm" padding="md">
                     <div className="flex items-center gap-4">
                       <TruckIcon className="h-8 w-8 text-[#3E667D] flex-shrink-0" />
@@ -195,15 +167,10 @@ export default function CartPage() {
                             style={{ width: `${Math.min((subtotal / FREE_SHIPPING_THRESHOLD) * 100, 100)}%` }}
                           />
                         </div>
-                        <p className="mt-2 text-xs text-[#3E667D]/70">
-                          Progreso: {Math.round(Math.min((subtotal / FREE_SHIPPING_THRESHOLD) * 100, 100))}%
-                        </p>
                       </div>
                     </div>
                   </Card>
-                )}
-
-                {subtotal >= FREE_SHIPPING_THRESHOLD && (
+                ) : (
                   <Card className="bg-[#C8DDF2]/10 border-[#a7c1e2]/20" padding="md">
                     <div className="flex items-center gap-4">
                       <TruckIcon className="h-8 w-8 text-[#3E667D] flex-shrink-0" />
@@ -220,16 +187,18 @@ export default function CartPage() {
                     <div className="flex flex-col sm:flex-row">
                       {/* Product Image */}
                       <div className="sm:w-40 h-40 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                        {item.productSnapshot?.imageUrl ? (
-                          <img
-                            src={item.productSnapshot.imageUrl}
-                            alt={item.productSnapshot.name}
+                        {item.productImageUrl ? (
+                          <Image
+                            src={item.productImageUrl}
+                            alt={item.productName}
+                            width={160}
+                            height={160}
                             className="w-full h-full object-cover"
                           />
                         ) : (
                           <div className="w-24 h-24 bg-gradient-to-br from-[#C8DDF2]/20 to-[#3E667D]/20 rounded-2xl flex items-center justify-center">
                             <span className="text-2xl font-bold text-[#3E667D]">
-                              {(item.productSnapshot?.name || 'P').substring(0, 2).toUpperCase()}
+                              {item.productName.substring(0, 2).toUpperCase()}
                             </span>
                           </div>
                         )}
@@ -240,10 +209,10 @@ export default function CartPage() {
                         <div className="flex justify-between items-start gap-4">
                           <div className="flex-grow">
                             <p className="text-xs text-gray-500 mb-1">
-                              SKU: {item.productSnapshot?.sku}
+                              SKU: {item.productCode}
                             </p>
                             <h3 className="font-bold text-lg text-[#3E667D]">
-                              {item.productSnapshot?.name || 'Producto'}
+                              {item.productName}
                             </h3>
 
                             {/* Unit Price */}
@@ -271,7 +240,7 @@ export default function CartPage() {
                             onClick={() => handleRemoveItem(item.id)}
                             disabled={removeItem.isPending}
                             className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                            aria-label={`Eliminar ${item.productSnapshot?.name || 'producto'} del carrito`}
+                            aria-label={`Eliminar ${item.productName} del carrito`}
                           >
                             <TrashIcon className="h-5 w-5" />
                           </button>
@@ -343,49 +312,6 @@ export default function CartPage() {
                     </Badge>
                   </div>
 
-                  {/* Coupon Code */}
-                  {!hasCoupon ? (
-                    <div className="mb-6">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Código de descuento
-                      </label>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Código de cupón"
-                          value={couponCode}
-                          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                          error={couponError}
-                        />
-                        <Button
-                          variant="outline"
-                          onClick={handleApplyCoupon}
-                          disabled={!couponCode.trim() || isApplyingCoupon}
-                        >
-                          {isApplyingCoupon ? '...' : 'Aplicar'}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-green-700">
-                        <TagIcon className="h-4 w-4" />
-                        <div>
-                          <span className="font-medium">{cart.coupon!.code}</span>
-                          <p className="text-xs text-green-600">
-                            {cart.coupon!.name} - {cartService.formatCurrency(couponDiscount)} de descuento
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={handleRemoveCoupon}
-                        disabled={removeCouponMutation.isPending}
-                        className="text-green-600 hover:text-red-500 transition-colors"
-                      >
-                        <XMarkIcon className="h-5 w-5" />
-                      </button>
-                    </div>
-                  )}
-
                   {/* Order Details */}
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between">
@@ -400,24 +326,17 @@ export default function CartPage() {
                       </div>
                     )}
 
-                    {hasCoupon && couponDiscount > 0 && (
-                      <div className="flex justify-between text-green-600">
-                        <span>Cupón ({cart.coupon!.code})</span>
-                        <span>-{cartService.formatCurrency(couponDiscount)}</span>
-                      </div>
-                    )}
-
                     <div className="flex justify-between">
                       <span className="text-gray-600">IVA</span>
                       <span className="font-medium">
-                        {cartService.formatCurrency(cart.taxAmount)}
+                        {cartService.formatCurrency(tax)}
                       </span>
                     </div>
 
                     <div className="flex justify-between">
                       <span className="text-gray-600">Envío</span>
-                      <span className={shipping === 0 ? 'text-[#3E667D] font-medium' : ''}>
-                        {shipping === 0 ? 'Calculado en checkout' : cartService.formatCurrency(shipping)}
+                      <span className="text-[#3E667D] font-medium">
+                        {subtotal >= FREE_SHIPPING_THRESHOLD ? 'Gratis' : 'Calculado en checkout'}
                       </span>
                     </div>
 

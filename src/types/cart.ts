@@ -1,4 +1,5 @@
 // cart.ts - TypeScript types for e-commerce cart module
+// Aligned with API CartDto / CartItemDto responses
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.4 E-commerce
 
 // ================================
@@ -32,12 +33,6 @@ export enum CartStatus {
 // CART ITEM TYPES
 // ================================
 
-export interface CartItemProductSnapshot {
-  name: string;
-  sku: string;
-  imageUrl?: string;
-}
-
 export interface CartItem {
   id: string;
   productId: string;
@@ -45,13 +40,12 @@ export interface CartItem {
   unitPrice: string;
   originalPrice?: string;
   lineTotal: string;
-  discountAmount?: string;
-  discountType?: string;
-  taxRate: string;
-  taxAmount: string;
   points: number;
   businessValue: string;
-  productSnapshot?: CartItemProductSnapshot;
+  productName: string;
+  productCode: string;
+  productImageUrl?: string;
+  lotNumber?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -60,39 +54,25 @@ export interface CartItem {
 // CART TYPES
 // ================================
 
-export interface CartCoupon {
-  id: string;
-  code: string;
-  name: string;
-  discountType: string;
-  discountValue: string;
-}
-
 export interface Cart {
   id: string;
   customerId?: string;
-  sessionId?: string;
   branchId?: string;
-  currencyId?: string;
-  priceTypeId?: string;
-  couponId?: string;
-  couponDiscountAmount?: string;
+  cartType?: string;
   subtotal: string;
   taxAmount: string;
   discountAmount: string;
-  shippingAmount: string;
+  discountType?: number;
+  discountPercentage?: string;
   total: string;
   totalPoints: number;
   totalBusinessValue: string;
   itemCount: number;
-  notes?: string;
+  requiresShipping: boolean;
   status: string;
-  expiresAt?: string;
-  lastActivityAt: string;
   createdAt: string;
   updatedAt: string;
   items: CartItem[];
-  coupon?: CartCoupon;
 }
 
 export interface CartSummary {
@@ -109,7 +89,6 @@ export interface CartSummary {
 export interface AddCartItemInput {
   productId: string;
   quantity: number;
-  notes?: string;
 }
 
 export interface UpdateCartItemInput {

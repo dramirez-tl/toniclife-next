@@ -851,21 +851,23 @@ export default function CheckoutContent() {
                   {cart?.items.map((item) => (
                     <div key={item.id} className="flex gap-3">
                       <div className="w-16 h-16 bg-gray-100 rounded-lg flex-shrink-0 relative overflow-hidden">
-                        {item.productSnapshot?.imageUrl ? (
+                        {item.productImageUrl ? (
                           <img
-                            src={item.productSnapshot.imageUrl}
-                            alt={item.productSnapshot.name}
+                            src={item.productImageUrl}
+                            alt={item.productName}
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400">
-                            📦
+                          <div className="w-full h-full flex items-center justify-center">
+                            <span className="text-sm font-bold text-[#3E667D]">
+                              {item.productName.substring(0, 2).toUpperCase()}
+                            </span>
                           </div>
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 text-sm truncate">
-                          {item.productSnapshot?.name}
+                          {item.productName}
                         </p>
                         <p className="text-sm text-gray-500">Cantidad: {item.quantity}</p>
                       </div>

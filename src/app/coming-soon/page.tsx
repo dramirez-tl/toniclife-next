@@ -75,15 +75,17 @@ export default function ComingSoonPage() {
 
       <div className="relative z-10 flex flex-col items-center px-6 text-center max-w-2xl mx-auto">
         {/* Logo */}
-        <div className="mb-8">
-          <Image
-            src="/images/logo/logo-text-light.png"
-            alt="Tonic Life"
-            width={220}
-            height={70}
-            priority
-            className="drop-shadow-lg"
-          />
+        <div className="mb-8 flex items-center justify-center">
+          <div className="relative rounded-full bg-white h-36 w-36 sm:h-44 sm:w-44 shadow-xl shadow-black/20 flex items-center justify-center overflow-hidden">
+            <Image
+              src="/images/logo/logo-icon-blue-solid.png"
+              alt="Tonic Life"
+              width={320}
+              height={320}
+              priority
+              className="h-52 w-52 sm:h-64 sm:w-64 object-contain"
+            />
+          </div>
         </div>
 
         {/* Heading */}

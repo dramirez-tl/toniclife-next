@@ -1,6 +1,7 @@
 // useQuiz.ts - React Query hooks for Health Quiz
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 7 Health Quiz
 
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { quizService } from '@/services/quiz.service';
 import type {
@@ -216,7 +217,11 @@ export function useQuizFlow() {
   const setGender = useSetGender();
   const setGuestInfo = useSetGuestInfo();
 
-  const storedToken = quizService.getStoredSession();
+  // Defer localStorage read to avoid hydration mismatch
+  const [storedToken, setStoredToken] = useState<string | null>(null);
+  useEffect(() => {
+    setStoredToken(quizService.getStoredSession());
+  }, []);
 
   return {
     storedToken,

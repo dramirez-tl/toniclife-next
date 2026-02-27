@@ -270,7 +270,7 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
               <p className="text-[10px] text-white/60 uppercase tracking-wide text-center mb-1.5">Mi Red</p>
               <div className="grid grid-cols-3 gap-1">
                 <div className="text-center">
-                  <p className="text-sm font-bold text-[#3E667D]">
+                  <p className="text-sm font-bold text-white">
                     {(networkSummary?.totalNetwork || 0).toLocaleString()}
                   </p>
                   <p className="text-[9px] text-white/50">Total</p>
@@ -291,7 +291,7 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
             </div>
             {/* Commissions */}
             <div className="bg-white/5 rounded-lg p-2 text-center">
-              <p className="text-lg font-bold text-[#3E667D]">
+              <p className="text-lg font-bold text-white">
                 ${(commissionsSummary?.totalNet || 0).toLocaleString(user?.currencyCode === 'USD' ? 'en-US' : 'es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
               </p>
               <div className="flex items-center justify-center gap-1">

@@ -145,7 +145,7 @@ Dirección: Av. Insurgentes Sur 1602, Crédito Constructor, Benito Juárez, 0394
         <div className="bg-white rounded-lg shadow-lg p-8 md:p-12">
           <div className="prose prose-lg max-w-none">
             <p className="text-lg text-gray-700 mb-8">
-              Bienvenido a Tonic Life. Al utilizar nuestro sitio web y servicios, usted acepta cumplir y estar sujeto a los siguientes términos y condiciones de uso. Por favor, léalos cuidadosamente.
+              Bienvenid@ a Tonic Life. Al utilizar nuestro sitio web y servicios, usted acepta cumplir y estar sujeto a los siguientes términos y condiciones de uso. Por favor, léalos cuidadosamente.
             </p>
 
             <div className="space-y-8">

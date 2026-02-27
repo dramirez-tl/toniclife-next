@@ -7,6 +7,7 @@ import { ProductFilters } from '@/components/products/ProductFilters';
 import { Badge } from '@/components/ui';
 import { FunnelIcon, Squares2X2Icon, ListBulletIcon } from '@heroicons/react/24/outline';
 import { useProducts, useCategories } from '@/hooks/useProducts';
+import { ECOMMERCE_BRANCH_ID } from '@/services/products.service';
 import type { Product as APIProduct, Category } from '@/types/product';
 import type { Product as MockProduct } from '@/types';
 
@@ -75,6 +76,7 @@ export default function ProductsPage() {
     categoryId: selectedCategory !== 'all' ? selectedCategory : undefined,
     isActive: true,
     isVisibleEcommerce: true,
+    branchId: ECOMMERCE_BRANCH_ID,
     search: searchTerm || undefined,
     page: currentPage,
     limit,
