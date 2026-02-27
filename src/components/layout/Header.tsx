@@ -302,10 +302,17 @@ export function Header() {
               </div>
             ))}
 
-            <div className="pt-4 border-t border-gray-100 mt-4">
-              <Button fullWidth size="lg">
-                Iniciar mi Evaluación
-              </Button>
+            <div className="pt-4 border-t border-gray-100 mt-4 space-y-3">
+              <Link href={dashboardUrl} onClick={() => setMobileMenuOpen(false)}>
+                <Button fullWidth size="lg" variant={isAuthenticated ? 'outline' : 'primary'}>
+                  {isAuthenticated ? 'Mi Cuenta' : 'Iniciar Sesión'}
+                </Button>
+              </Link>
+              <Link href="/quiz" onClick={() => setMobileMenuOpen(false)}>
+                <Button fullWidth size="lg" variant={isAuthenticated ? 'primary' : 'outline'}>
+                  Mi Evaluación
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
