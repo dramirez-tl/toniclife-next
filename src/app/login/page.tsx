@@ -20,6 +20,7 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { isEmailLinkRequired } from '@/services/auth.service';
 import {
   loginAsync,
+  logoutAsync,
   selectIsLoading,
   selectAuthError,
   selectEmailLinkRequired,
@@ -114,18 +115,21 @@ export default function LoginPage() {
         return;
       }
 
-      toast.success('¡Bienvenid@ de nuevo!');
-
       // Si inició sesión con usuario/legacy ID pero ya tiene correo verificado,
-      // sugerirle que use su correo vinculado la próxima vez
+      // bloquear el login y obligar a usar el correo vinculado
       const usedEmail = trimmedId.includes('@');
       if (!usedEmail && result.user.emailVerifiedAt && result.user.email) {
-        toast.info(
-          `La próxima vez puedes iniciar sesión con tu correo vinculado: ${result.user.email}`,
-          { duration: 6000 },
+        // Cerrar la sesión recién creada
+        dispatch(logoutAsync());
+        toast.error(
+          `Tu cuenta ya tiene un correo vinculado. Por favor inicia sesión con: ${result.user.email}`,
+          { duration: 8000 },
         );
+        setFormData({ identifier: '', password: '', remember: false });
+        return;
       }
 
+      toast.success('¡Bienvenid@ de nuevo!');
       navigateAfterLogin(result.user.roles?.[0]);
     } catch {
       // Error is handled via authError state
