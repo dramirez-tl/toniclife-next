@@ -106,6 +106,20 @@ export function useHardDeleteUser() {
   });
 }
 
+/**
+ * Hook to reset email verification for a user
+ */
+export function useResetEmailVerification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => usersService.resetEmailVerification(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+}
+
 // ================================
 // STATS HOOKS
 // ================================
@@ -117,6 +131,17 @@ export function useEmailVerificationStats() {
   return useQuery({
     queryKey: ['users', 'stats', 'email-verification'],
     queryFn: () => usersService.getEmailVerificationStats(),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * Hook to fetch verified users list (paginated)
+ */
+export function useVerifiedUsers(params: { page?: number; limit?: number } = {}) {
+  return useQuery({
+    queryKey: ['users', 'stats', 'verified-users', params],
+    queryFn: () => usersService.getVerifiedUsers(params),
     staleTime: 5 * 60 * 1000,
   });
 }

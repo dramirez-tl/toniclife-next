@@ -9,6 +9,7 @@ import type {
   CreateUserDto,
   UpdateUserDto,
   EmailVerificationStats,
+  VerifiedUsersResponse,
 } from '@/types/user';
 
 class UsersService {
@@ -77,10 +78,29 @@ class UsersService {
   }
 
   /**
+   * Reset email verification for a user (clears email and verification status)
+   */
+  async resetEmailVerification(id: string): Promise<{ message: string }> {
+    const response = await api.post<{ message: string }>(`/users/${id}/reset-email`);
+    return response.data;
+  }
+
+  /**
    * Get email verification statistics
    */
   async getEmailVerificationStats(): Promise<EmailVerificationStats> {
     const response = await api.get<EmailVerificationStats>('/users/stats/email-verification');
+    return response.data;
+  }
+
+  /**
+   * Get verified users list (paginated)
+   */
+  async getVerifiedUsers(params: { page?: number; limit?: number } = {}): Promise<VerifiedUsersResponse> {
+    const queryParams = new URLSearchParams();
+    if (params.page) queryParams.append('page', String(params.page));
+    if (params.limit) queryParams.append('limit', String(params.limit));
+    const response = await api.get<VerifiedUsersResponse>(`/users/stats/verified-users?${queryParams.toString()}`);
     return response.data;
   }
 }

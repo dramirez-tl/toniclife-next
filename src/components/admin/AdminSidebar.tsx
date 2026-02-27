@@ -275,7 +275,7 @@ export function AdminSidebar({ mobile = false, onNavigate }: AdminSidebarProps) 
       materia_prima: 'Materia Prima',
       aux_materia_prima: 'Aux. Materia Prima',
       produccion: 'Producción',
-      soporte: 'Soporte',
+      soporte: 'Sistemas',
       mantenimiento: 'Mantenimiento',
       cedea: 'CEDEA',
       cedea_two: 'CEDEA',

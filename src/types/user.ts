@@ -94,5 +94,24 @@ export interface EmailVerificationStats {
   recentVerifications: { month: string; verified: number; registered: number }[];
 }
 
+export interface VerifiedUser {
+  id: string;
+  email: string;
+  username: string | null;
+  firstName: string;
+  lastName: string;
+  role: { name: string; code: string };
+  emailVerifiedAt: string;
+  createdAt: string;
+}
+
+export interface VerifiedUsersResponse {
+  data: VerifiedUser[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 // Legacy alias for backward compatibility
 export type Role = RoleDto;
