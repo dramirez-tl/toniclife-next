@@ -115,6 +115,17 @@ export default function LoginPage() {
       }
 
       toast.success('¡Bienvenid@ de nuevo!');
+
+      // Si inició sesión con usuario/legacy ID pero ya tiene correo verificado,
+      // sugerirle que use su correo vinculado la próxima vez
+      const usedEmail = trimmedId.includes('@');
+      if (!usedEmail && result.user.emailVerifiedAt && result.user.email) {
+        toast.info(
+          `La próxima vez puedes iniciar sesión con tu correo vinculado: ${result.user.email}`,
+          { duration: 6000 },
+        );
+      }
+
       navigateAfterLogin(result.user.roles?.[0]);
     } catch {
       // Error is handled via authError state
