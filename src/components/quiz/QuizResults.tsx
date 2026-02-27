@@ -327,19 +327,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
                     className="bg-gray-50 rounded-xl p-4 text-center hover:bg-gray-100 transition-colors"
                   >
                     <div className="w-16 h-16 mx-auto bg-white rounded-xl shadow-sm flex items-center justify-center mb-3 overflow-hidden">
-                      {product.productImage ? (
-                        <Image
-                          src={product.productImage}
-                          alt={product.productName}
-                          width={64}
-                          height={64}
-                          className="object-cover"
-                        />
-                      ) : (
-                        <span className="text-2xl font-bold text-[#3E667D]">
-                          {product.productName.substring(0, 2).toUpperCase()}
-                        </span>
-                      )}
+                      <QuizProductImage src={product.productImage} name={product.productName} width={64} height={64} size="sm" />
                     </div>
                     <h4 className="font-semibold text-[#3E667D] line-clamp-1">
                       {product.productName}
@@ -455,6 +443,42 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
   );
 }
 
+function getProductInitials(name: string): string {
+  const words = name.split(/\s+/).filter(w => w.length > 0);
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+}
+
+function ProductImageFallback({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
+  const textSize = size === 'sm' ? 'text-lg' : 'text-2xl';
+  return (
+    <div className="w-full h-full bg-gradient-to-br from-[#C8DDF2]/30 to-[#3E667D]/20 flex items-center justify-center">
+      <span className={`${textSize} font-bold text-[#3E667D]/70`}>{getProductInitials(name)}</span>
+    </div>
+  );
+}
+
+function QuizProductImage({ src, name, width, height, size = 'md' }: {
+  src?: string; name: string; width: number; height: number; size?: 'sm' | 'md';
+}) {
+  const [error, setError] = useState(false);
+  if (src && !error) {
+    return (
+      <Image
+        src={src}
+        alt={name}
+        width={width}
+        height={height}
+        className="object-cover"
+        onError={() => setError(true)}
+      />
+    );
+  }
+  return <ProductImageFallback name={name} size={size} />;
+}
+
 // Product Recommendation Card Component
 function ProductRecommendationCard({
   product,
@@ -476,19 +500,7 @@ function ProductRecommendationCard({
 
       {/* Product Image */}
       <div className="w-20 h-20 bg-white rounded-xl shadow-sm flex-shrink-0 flex items-center justify-center overflow-hidden">
-        {product.productImage ? (
-          <Image
-            src={product.productImage}
-            alt={product.productName}
-            width={80}
-            height={80}
-            className="object-cover"
-          />
-        ) : (
-          <span className="text-2xl font-bold text-[#3E667D]">
-            {product.productName.substring(0, 2).toUpperCase()}
-          </span>
-        )}
+        <QuizProductImage src={product.productImage} name={product.productName} width={80} height={80} />
       </div>
 
       {/* Product Info */}
