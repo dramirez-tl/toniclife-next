@@ -104,6 +104,7 @@ export interface CustomerQueryParams {
   search?: string;
   customerType?: string;
   status?: CustomerStatus;
+  countryId?: string;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }

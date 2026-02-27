@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
+import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import {
   ShoppingBagIcon,
   MagnifyingGlassIcon,
@@ -20,25 +21,31 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ArrowPathIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { useProducts, useCategories, useDeleteProduct } from '@/hooks/useProducts';
-import type { ProductQueryParams } from '@/types/product';
+import type { Product, ProductQueryParams } from '@/types/product';
 import { PermissionGuard } from '@/components/auth';
 
 export default function ProductosPage() {
   const router = useRouter();
+  const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategoryId, setFilterCategoryId] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
-  const [page, setPage] = useState(1);
-  const limit = 20;
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Build query params
   const queryParams: ProductQueryParams = useMemo(() => {
     const params: ProductQueryParams = {
-      page,
-      limit,
+      page: currentPage,
+      limit: pageSize,
       sortBy: 'createdAt',
       sortDir: 'desc',
     };
@@ -47,70 +54,82 @@ export default function ProductosPage() {
     if (filterStatus === 'active') params.isActive = true;
     if (filterStatus === 'inactive') params.isActive = false;
     return params;
-  }, [searchQuery, filterCategoryId, filterStatus, page]);
+  }, [searchQuery, filterCategoryId, filterStatus, currentPage, pageSize]);
 
   // Fetch products and categories
-  const { data: productsData, isLoading, isError, refetch } = useProducts(queryParams);
+  const { data: productsData, isLoading, isFetching, isError, refetch } = useProducts(queryParams);
   const { data: categories } = useCategories({ isActive: true });
   const deleteProduct = useDeleteProduct();
 
   const products = productsData?.data ?? [];
   const total = productsData?.total ?? 0;
-  const totalPages = productsData?.totalPages ?? 1;
 
   // Calculate stats
-  const stats = useMemo(() => {
-    return {
-      total: total,
-      active: products.filter(p => p.isActive).length,
-      lowStock: products.filter(p => p.minStockAlert && parseFloat(p.minStockAlert) > 0).length,
-      featured: products.filter(p => p.isFeatured).length,
-    };
-  }, [products, total]);
+  const stats = useMemo(() => ({
+    total,
+    active: products.filter(p => p.isActive).length,
+    featured: products.filter(p => p.isFeatured).length,
+    categories: categories?.length ?? 0,
+  }), [products, total, categories]);
 
-  const handleDeleteProduct = async (productId: string) => {
-    if (!confirm('¿Estás seguro de que deseas eliminar este producto?')) return;
+  const hasActiveFilters = Boolean(searchQuery || filterCategoryId || filterStatus !== 'all');
 
+  const handleSearch = () => {
+    setSearchQuery(searchInput.trim());
+    setCurrentPage(1);
+  };
+
+  const handleFilterCategory = (value: string) => {
+    setFilterCategoryId(value);
+    setCurrentPage(1);
+  };
+
+  const handleFilterStatus = (value: string) => {
+    setFilterStatus(value as 'all' | 'active' | 'inactive');
+    setCurrentPage(1);
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  };
+
+  const resetFilters = () => {
+    setSearchQuery('');
+    setSearchInput('');
+    setFilterCategoryId('');
+    setFilterStatus('all');
+    setCurrentPage(1);
+  };
+
+  const handleDeleteClick = (product: Product) => {
+    setProductToDelete(product);
+    setDeleteConfirmText('');
+    setDeleteModalOpen(true);
+  };
+
+  const handleCloseDeleteModal = () => {
+    setDeleteModalOpen(false);
+    setProductToDelete(null);
+    setDeleteConfirmText('');
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!productToDelete || deleteConfirmText !== 'ELIMINAR') return;
+    setIsDeleting(true);
     try {
-      await deleteProduct.mutateAsync(productId);
-      toast.success('Producto eliminado correctamente');
+      await deleteProduct.mutateAsync(productToDelete.id);
+      toast.success(`${productToDelete.name} ha sido eliminado correctamente`);
+      handleCloseDeleteModal();
     } catch {
       toast.error('Error al eliminar el producto');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   const handleExport = () => {
     toast.success('Exportando catálogo de productos...');
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setPage(1);
-  };
-
-  const getStatusBadge = (isActive: boolean, isFeatured: boolean) => {
-    if (!isActive) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
-          <XCircleIcon className="h-3 w-3" />
-          Inactivo
-        </span>
-      );
-    }
-    if (isFeatured) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
-          <TagIcon className="h-3 w-3" />
-          Destacado
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-        <CheckCircleIcon className="h-3 w-3" />
-        Activo
-      </span>
-    );
   };
 
   const formatCurrency = (amount: string | number) => {
@@ -129,373 +148,575 @@ export default function ProductosPage() {
     });
   };
 
-  if (isError) {
+  // Column definitions
+  const columns: DataTableColumn<Product>[] = [
+    {
+      key: 'name',
+      header: 'Producto',
+      sortable: true,
+      sortValue: (p) => p.name,
+      render: (product) => (
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+            {product.imageUrl ? (
+              <Image
+                src={product.imageUrl}
+                alt={product.name}
+                width={40}
+                height={40}
+                className="object-cover"
+              />
+            ) : (
+              <CubeIcon className="h-5 w-5 text-gray-400" />
+            )}
+          </div>
+          <div>
+            <p className="font-semibold text-gray-900">{product.name}</p>
+            {product.shortName && (
+              <p className="text-sm text-gray-500 truncate max-w-xs">{product.shortName}</p>
+            )}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'code',
+      header: 'SKU',
+      sortable: true,
+      sortValue: (p) => p.code,
+      render: (product) => (
+        <span className="inline-flex items-center rounded-md bg-gray-100 px-2.5 py-1 text-sm font-mono font-medium text-gray-800">
+          {product.code}
+        </span>
+      ),
+    },
+    {
+      key: 'category',
+      header: 'Categoría',
+      sortable: true,
+      sortValue: (p) => p.categoryName || '',
+      render: (product) =>
+        product.categoryName ? (
+          <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+            {product.categoryName}
+          </span>
+        ) : (
+          <span className="text-sm text-gray-400">Sin categoría</span>
+        ),
+    },
+    {
+      key: 'price',
+      header: 'Precio Base',
+      sortable: true,
+      sortValue: (p) => parseFloat(p.pointsValue) || 0,
+      render: (product) => (
+        <span className="text-sm font-semibold text-gray-900">
+          {formatCurrency(product.pointsValue)}
+        </span>
+      ),
+    },
+    {
+      key: 'points',
+      header: 'Puntos',
+      sortable: true,
+      sortValue: (p) => parseFloat(p.pointsValue) || 0,
+      render: (product) => (
+        <span className="text-sm text-gray-600">{product.pointsValue} pts</span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      sortable: true,
+      sortValue: (p) => (p.isFeatured ? 2 : p.isActive ? 1 : 0),
+      render: (product) => {
+        if (!product.isActive) {
+          return (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+              <XCircleIcon className="h-3 w-3" />
+              Inactivo
+            </span>
+          );
+        }
+        if (product.isFeatured) {
+          return (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
+              <TagIcon className="h-3 w-3" />
+              Destacado
+            </span>
+          );
+        }
+        return (
+          <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+            <CheckCircleIcon className="h-3 w-3" />
+            Activo
+          </span>
+        );
+      },
+    },
+    {
+      key: 'productType',
+      header: 'Tipo',
+      sortable: true,
+      sortValue: (p) => p.productType,
+      render: (product) => (
+        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+          product.productType === 'kit' ? 'bg-purple-100 text-purple-700' :
+          product.productType === 'promotional' ? 'bg-orange-100 text-orange-700' :
+          'bg-gray-100 text-gray-700'
+        }`}>
+          {product.productType}
+        </span>
+      ),
+    },
+    {
+      key: 'createdAt',
+      header: 'Creado',
+      sortable: true,
+      sortValue: (p) => p.createdAt,
+      render: (product) => (
+        <span className="text-sm text-gray-600">{formatDate(product.createdAt)}</span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Acciones',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (product) => (
+        <div className="flex items-center justify-end gap-2">
+          <button
+            onClick={() => router.push(`/admin/productos/${product.id}/editar`)}
+            className="rounded-lg p-2 transition-colors hover:bg-blue-50"
+            title="Ver detalles"
+          >
+            <EyeIcon className="h-4 w-4 text-blue-600" />
+          </button>
+          <button
+            onClick={() => router.push(`/admin/productos/${product.id}/editar`)}
+            className="rounded-lg p-2 transition-colors hover:bg-green-50"
+            title="Editar producto"
+          >
+            <PencilIcon className="h-4 w-4 text-green-600" />
+          </button>
+          <button
+            onClick={() => handleDeleteClick(product)}
+            className="rounded-lg p-2 transition-colors hover:bg-red-50"
+            title="Eliminar producto"
+          >
+            <TrashIcon className="h-4 w-4 text-red-600" />
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  // Error state
+  if (isError && !productsData) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card>
-          <CardContent className="p-8 text-center">
-            <XCircleIcon className="h-16 w-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Error al cargar productos</h2>
-            <p className="text-gray-600 mb-4">No se pudieron cargar los productos. Intenta de nuevo.</p>
-            <Button variant="primary" onClick={() => refetch()}>
-              Reintentar
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <PermissionGuard permissions={['products:read', 'products:*']}>
+        <div className="min-h-screen bg-gray-50">
+          <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+              <div className="flex items-center gap-3 mb-2">
+                <ShoppingBagIcon className="h-9 w-9" />
+                <h1 className="text-3xl font-bold sm:text-4xl">Gestión de Productos</h1>
+              </div>
+            </div>
+          </div>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <Card className="border-red-200 bg-red-50">
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3 text-red-700">
+                  <XCircleIcon className="h-6 w-6" />
+                  <p>Error al cargar los productos. Por favor, intenta de nuevo.</p>
+                </div>
+                <Button variant="outline" className="mt-4" onClick={() => refetch()}>
+                  Reintentar
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </PermissionGuard>
+    );
+  }
+
+  // Loading state
+  if (isLoading && !productsData) {
+    return (
+      <PermissionGuard permissions={['products:read', 'products:*']}>
+        <div className="min-h-screen bg-gray-50">
+          <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+              <div className="flex items-center gap-3 mb-2">
+                <ShoppingBagIcon className="h-9 w-9" />
+                <h1 className="text-3xl font-bold sm:text-4xl">Gestión de Productos</h1>
+              </div>
+              <p className="text-white/80 text-lg">Cargando productos...</p>
+            </div>
+          </div>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+              {[...Array(4)].map((_, i) => (
+                <Card key={i}>
+                  <CardContent className="p-6">
+                    <div className="animate-pulse">
+                      <div className="h-4 w-24 bg-gray-200 rounded mb-2" />
+                      <div className="h-8 w-16 bg-gray-200 rounded" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </div>
+      </PermissionGuard>
     );
   }
 
   return (
     <PermissionGuard permissions={['products:read', 'products:*']}>
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <ShoppingBagIcon className="h-10 w-10" />
-                <h1 className="text-4xl font-bold">Gestión de Productos</h1>
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
+          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+            <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <div className="mb-2 flex items-center gap-3">
+                  <ShoppingBagIcon className="h-9 w-9" />
+                  <h1 className="text-3xl font-bold sm:text-4xl">Gestión de Productos</h1>
+                </div>
+                <p className="text-base text-white/80 sm:text-lg">
+                  Administra el catálogo de productos y el inventario
+                </p>
               </div>
-              <p className="text-white/80 text-lg">
-                Administra el catálogo de productos y el inventario
-              </p>
-            </div>
-            <div className="flex gap-3">
-              <Link href="/admin">
-                <Button variant="secondary">
-                  Volver al Panel Principal
-                </Button>
-              </Link>
-              <Link href="/admin/productos/nuevo">
-                <Button
-                  variant="primary"
-                  leftIcon={<PlusIcon className="h-5 w-5" />}
-                >
-                  Nuevo Producto
-                </Button>
-              </Link>
+              <div className="flex flex-wrap gap-3">
+                <Link href="/admin">
+                  <Button variant="secondary">Volver al Panel Principal</Button>
+                </Link>
+                <Link href="/admin/productos/nuevo">
+                  <Button variant="primary" leftIcon={<PlusIcon className="h-5 w-5" />}>
+                    Nuevo Producto
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Productos</p>
-                  <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+        {/* Main Content */}
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          {/* Stats Cards */}
+          <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Total Productos</p>
+                    <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                    <CubeIcon className="h-6 w-6 text-blue-600" />
+                  </div>
                 </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <CubeIcon className="h-6 w-6 text-blue-600" />
+              </CardContent>
+            </Card>
+
+            <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Productos Activos</p>
+                    <p className="text-3xl font-bold text-green-600">{stats.active}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <CheckCircleIcon className="h-6 w-6 text-green-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Destacados</p>
+                    <p className="text-3xl font-bold text-yellow-600">{stats.featured}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                    <TagIcon className="h-6 w-6 text-yellow-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Categorías</p>
+                    <p className="text-3xl font-bold text-purple-600">{stats.categories}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                    <FunnelIcon className="h-6 w-6 text-purple-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Filters and Search */}
+          <Card className="mb-6 border-gray-100 shadow-sm">
+            <CardContent className="p-4 sm:p-6">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm font-medium text-gray-700">Búsqueda y filtros</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-2 text-gray-600"
+                    onClick={() => refetch()}
+                    disabled={isFetching}
+                  >
+                    <ArrowPathIcon className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+                    {isFetching ? 'Actualizando...' : 'Actualizar'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
+                    onClick={handleExport}
+                  >
+                    Exportar Catálogo
+                  </Button>
+                  {hasActiveFilters && (
+                    <Button variant="outline" size="sm" onClick={resetFilters}>
+                      Limpiar filtros
+                    </Button>
+                  )}
                 </div>
               </div>
+
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:gap-4">
+                {/* Search */}
+                <div className="lg:col-span-5">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <div className="relative flex-1">
+                      <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Buscar por nombre o SKU..."
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSearch();
+                          }
+                        }}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                      />
+                    </div>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="h-10 px-4 sm:min-w-[96px]"
+                      onClick={handleSearch}
+                    >
+                      Buscar
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Category Filter */}
+                <div className="lg:col-span-4">
+                  <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3">
+                    <FunnelIcon className="h-4 w-4 text-gray-400" />
+                    <select
+                      value={filterCategoryId}
+                      onChange={(e) => handleFilterCategory(e.target.value)}
+                      className="w-full bg-transparent py-2.5 text-sm focus:outline-none"
+                    >
+                      <option value="">Todas las Categorías</option>
+                      {categories?.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Status Filter */}
+                <div className="lg:col-span-3">
+                  <div className="rounded-lg border border-gray-200 bg-white px-3">
+                    <select
+                      value={filterStatus}
+                      onChange={(e) => handleFilterStatus(e.target.value)}
+                      className="w-full bg-transparent py-2.5 text-sm focus:outline-none"
+                    >
+                      <option value="all">Todos los Estados</option>
+                      <option value="active">Activos</option>
+                      <option value="inactive">Inactivos</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {hasActiveFilters && (
+                <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+                  <span className="rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-700">
+                    Filtros activos
+                  </span>
+                  {searchQuery && (
+                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
+                      Búsqueda: {searchQuery}
+                    </span>
+                  )}
+                  {filterCategoryId && (
+                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
+                      Categoría: {categories?.find(c => c.id === filterCategoryId)?.name || filterCategoryId}
+                    </span>
+                  )}
+                  {filterStatus !== 'all' && (
+                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
+                      Estado: {filterStatus === 'active' ? 'Activos' : 'Inactivos'}
+                    </span>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          <Card>
+          {/* Products Table */}
+          <Card className="border-gray-100 shadow-sm">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Productos Activos</p>
-                  <p className="text-3xl font-bold text-green-600">{stats.active}</p>
-                </div>
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <CheckCircleIcon className="h-6 w-6 text-green-600" />
-                </div>
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-base font-semibold text-gray-900">Catálogo de productos</h2>
+                <p className="text-sm text-gray-600">
+                  Mostrando {products.length} de {total}
+                </p>
               </div>
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Destacados</p>
-                  <p className="text-3xl font-bold text-yellow-600">{stats.featured}</p>
+              {isFetching && products.length > 0 && (
+                <div className="mb-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700">
+                  Actualizando resultados...
                 </div>
-                <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <TagIcon className="h-6 w-6 text-yellow-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              )}
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Categorías</p>
-                  <p className="text-3xl font-bold text-purple-600">{categories?.length ?? 0}</p>
-                </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                  <FunnelIcon className="h-6 w-6 text-purple-600" />
-                </div>
-              </div>
+              <DataTable
+                columns={columns}
+                data={products}
+                isLoading={isLoading && !productsData}
+                getRowKey={(product) => product.id}
+                minWidthClassName="min-w-[1100px]"
+                emptyState={
+                  <div className="py-2 text-center">
+                    <ShoppingBagIcon className="mx-auto mb-4 h-16 w-16 text-gray-400" />
+                    <h3 className="mb-2 text-xl font-bold text-gray-900">
+                      No se encontraron productos
+                    </h3>
+                    <p className="text-gray-600">
+                      Intenta ajustar los filtros de búsqueda o crear un nuevo producto.
+                    </p>
+                    <div className="mt-4 flex justify-center gap-2">
+                      {hasActiveFilters && (
+                        <Button variant="outline" onClick={resetFilters}>
+                          Limpiar filtros
+                        </Button>
+                      )}
+                      <Link href="/admin/productos/nuevo">
+                        <Button variant="primary" leftIcon={<PlusIcon className="h-4 w-4" />}>
+                          Nuevo Producto
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                }
+              />
+
+              {/* Pagination */}
+              {products.length > 0 && (
+                <DataTablePagination
+                  currentPage={currentPage}
+                  pageSize={pageSize}
+                  totalItems={total}
+                  isLoading={isLoading || isFetching}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={handlePageSizeChange}
+                  pageSizeOptions={[10, 20, 50, 100]}
+                />
+              )}
             </CardContent>
           </Card>
         </div>
 
-        {/* Export Card */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Catálogo de Productos</p>
-                <p className="text-lg font-semibold text-[#3E667D]">
-                  {total} productos en el sistema
-                </p>
+        {/* Delete Confirmation Modal */}
+        {deleteModalOpen && productToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="fixed inset-0 bg-black/50" onClick={handleCloseDeleteModal} />
+            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full mx-4">
+              {/* Red header */}
+              <div className="bg-red-600 rounded-t-2xl px-6 py-4">
+                <div className="flex items-center gap-3">
+                  <ExclamationTriangleIcon className="h-6 w-6 text-white" />
+                  <h3 className="text-lg font-semibold text-white">Eliminar producto</h3>
+                </div>
               </div>
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  leftIcon={<ArrowPathIcon className="h-5 w-5" />}
-                  onClick={() => refetch()}
-                  disabled={isLoading}
-                >
-                  Actualizar
-                </Button>
-                <Button
-                  variant="outline"
-                  leftIcon={<ArrowDownTrayIcon className="h-5 w-5" />}
-                  onClick={handleExport}
-                >
-                  Exportar Catálogo
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Filters and Search */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <form onSubmit={handleSearch} className="flex flex-col lg:flex-row gap-4">
-              {/* Search */}
-              <div className="flex-1">
-                <div className="relative">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <div className="px-6 py-5">
+                <p className="text-gray-600 mb-4">
+                  Estás a punto de eliminar el producto:
+                </p>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                  <p className="font-semibold text-gray-900">{productToDelete.name}</p>
+                  <p className="text-sm text-gray-600">SKU: <code className="bg-red-100 px-1.5 py-0.5 rounded text-xs">{productToDelete.code}</code></p>
+                  {productToDelete.categoryName && (
+                    <p className="text-sm text-gray-500 mt-1">Categoría: {productToDelete.categoryName}</p>
+                  )}
+                </div>
+                <p className="text-sm text-red-700 font-medium mb-4">
+                  Esta acción eliminará el producto del catálogo y no se puede deshacer.
+                </p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Escribe <span className="font-bold text-red-600">ELIMINAR</span> para confirmar:
+                  </label>
                   <input
                     type="text"
-                    placeholder="Buscar por nombre o SKU..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder="ELIMINAR"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && deleteConfirmText === 'ELIMINAR') {
+                        handleConfirmDelete();
+                      }
+                    }}
                   />
                 </div>
               </div>
 
-              {/* Category Filter */}
-              <div className="flex items-center gap-2">
-                <FunnelIcon className="h-5 w-5 text-gray-400" />
-                <select
-                  value={filterCategoryId}
-                  onChange={(e) => {
-                    setFilterCategoryId(e.target.value);
-                    setPage(1);
-                  }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+              <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
+                <Button variant="outline" onClick={handleCloseDeleteModal} disabled={isDeleting}>
+                  Cancelar
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={handleConfirmDelete}
+                  disabled={deleteConfirmText !== 'ELIMINAR' || isDeleting}
+                  isLoading={isDeleting}
                 >
-                  <option value="">Todas las Categorías</option>
-                  {categories?.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
+                  Eliminar producto
+                </Button>
               </div>
-
-              {/* Status Filter */}
-              <div>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => {
-                    setFilterStatus(e.target.value as 'all' | 'active' | 'inactive');
-                    setPage(1);
-                  }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  <option value="all">Todos los Estados</option>
-                  <option value="active">Activos</option>
-                  <option value="inactive">Inactivos</option>
-                </select>
-              </div>
-
-              <Button type="submit" variant="primary">
-                Buscar
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        {/* Products Table */}
-        <Card>
-          <CardContent className="p-6">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <ArrowPathIcon className="h-8 w-8 text-[#3E667D] animate-spin" />
-                <span className="ml-3 text-gray-600">Cargando productos...</span>
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Producto</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">SKU</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Categoría</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Precio Base</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Puntos</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Estado</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Tipo</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Creado</th>
-                        <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {products.map((product) => (
-                        <tr key={product.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                {product.imageUrl ? (
-                                  <Image
-                                    src={product.imageUrl}
-                                    alt={product.name}
-                                    width={48}
-                                    height={48}
-                                    className="object-cover"
-                                  />
-                                ) : (
-                                  <CubeIcon className="h-6 w-6 text-gray-400" />
-                                )}
-                              </div>
-                              <div>
-                                <p className="font-semibold text-gray-900">{product.name}</p>
-                                {product.shortName && (
-                                  <p className="text-sm text-gray-500 truncate max-w-xs">
-                                    {product.shortName}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-4 px-4 text-sm text-gray-600 font-mono">
-                            {product.code}
-                          </td>
-                          <td className="py-4 px-4">
-                            {product.categoryName ? (
-                              <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                                {product.categoryName}
-                              </span>
-                            ) : (
-                              <span className="text-gray-400 text-sm">Sin categoría</span>
-                            )}
-                          </td>
-                          <td className="py-4 px-4 text-sm text-gray-900 font-semibold">
-                            {formatCurrency(product.pointsValue)}
-                          </td>
-                          <td className="py-4 px-4 text-sm text-gray-900">
-                            {product.pointsValue} pts
-                          </td>
-                          <td className="py-4 px-4">
-                            {getStatusBadge(product.isActive, product.isFeatured)}
-                          </td>
-                          <td className="py-4 px-4">
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              product.productType === 'kit' ? 'bg-purple-100 text-purple-700' :
-                              product.productType === 'promotional' ? 'bg-orange-100 text-orange-700' :
-                              'bg-gray-100 text-gray-700'
-                            }`}>
-                              {product.productType}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4 text-sm text-gray-600">
-                            {formatDate(product.createdAt)}
-                          </td>
-                          <td className="py-4 px-4">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                onClick={() => router.push(`/admin/productos/${product.id}/editar`)}
-                                className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
-                                title="Ver detalles"
-                              >
-                                <EyeIcon className="h-4 w-4 text-blue-600" />
-                              </button>
-                              <button
-                                onClick={() => router.push(`/admin/productos/${product.id}/editar`)}
-                                className="p-2 hover:bg-green-50 rounded-lg transition-colors"
-                                title="Editar producto"
-                              >
-                                <PencilIcon className="h-4 w-4 text-green-600" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteProduct(product.id)}
-                                disabled={deleteProduct.isPending}
-                                className="p-2 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                                title="Eliminar producto"
-                              >
-                                <TrashIcon className="h-4 w-4 text-red-600" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {products.length === 0 && !isLoading && (
-                  <div className="text-center py-12">
-                    <ShoppingBagIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">
-                      No se encontraron productos
-                    </h3>
-                    <p className="text-gray-600">
-                      Intenta ajustar los filtros de búsqueda
-                    </p>
-                  </div>
-                )}
-
-                {/* Pagination */}
-                {products.length > 0 && (
-                  <div className="mt-6 flex items-center justify-between">
-                    <p className="text-sm text-gray-600">
-                      Mostrando {products.length} de {total} productos (Página {page} de {totalPages})
-                    </p>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={page <= 1}
-                        onClick={() => setPage(p => Math.max(1, p - 1))}
-                      >
-                        Anterior
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={page >= totalPages}
-                        onClick={() => setPage(p => p + 1)}
-                      >
-                        Siguiente
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+          </div>
+        )}
       </div>
-    </div>
     </PermissionGuard>
   );
 }
