@@ -97,7 +97,7 @@ export function Header() {
       {/* Top bar */}
       <div className="bg-[#3E667D] text-white text-sm py-2">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <p className="hidden sm:block">Bienestar natural desde 1996 — Tonic Life</p>
+          <p className="hidden sm:block">Bienestar natural desde 2004 — Tonic Life</p>
           <p className="sm:hidden text-center w-full">Bienestar natural — Tonic Life</p>
           <div className="hidden sm:flex items-center gap-4">
             <button

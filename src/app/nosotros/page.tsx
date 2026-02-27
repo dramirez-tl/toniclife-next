@@ -39,7 +39,7 @@ export default function NosotrosPage() {
 
   const timeline = [
     {
-      year: '1996',
+      year: '2004',
       title: 'Fundación de Tonic Life',
       description: 'Nace con la visión de transformar la industria del bienestar con productos naturales de la más alta calidad.',
       milestone: true
@@ -127,7 +127,7 @@ export default function NosotrosPage() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center">
           <div className="text-white max-w-3xl">
             <h1 className="text-5xl md:text-6xl font-bold mb-6">
-              Transformando Vidas Desde 1996
+              Transformando Vidas Desde 2004
             </h1>
             <p className="text-xl md:text-2xl text-blue-100 mb-8">
               Somos más que productos de bienestar. Somos una comunidad global comprometida con ayudar a las personas a alcanzar su máximo potencial de salud y prosperidad.

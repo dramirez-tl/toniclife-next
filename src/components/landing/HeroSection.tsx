@@ -49,7 +49,7 @@ export function HeroSection() {
             {/* Badge */}
             <div className="inline-flex items-center gap-2 bg-[#C8DDF2]/10 text-[#3E667D] px-4 py-2 rounded-full text-sm font-medium mb-6">
               <SparklesIcon className="h-4 w-4" />
-              Bienestar natural desde 1996
+              Bienestar natural desde 2004
             </div>
 
             {/* Main Heading */}
@@ -89,7 +89,7 @@ export function HeroSection() {
                 <svg className="h-5 w-5 text-[#3E667D]" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
-                <span className="text-sm">Desde 1996</span>
+                <span className="text-sm">Desde 2004</span>
               </div>
               <div className="flex items-center gap-2 text-gray-500">
                 <svg className="h-5 w-5 text-[#3E667D]" fill="currentColor" viewBox="0 0 20 20">

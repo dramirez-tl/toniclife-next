@@ -128,7 +128,7 @@ export function Footer() {
             </Link>
             <p className="mt-4 text-white/70 text-sm leading-relaxed">
               Transformando vidas a través de productos naturales de alta calidad.
-              Tu bienestar es nuestra misión desde 1996.
+              Tu bienestar es nuestra misión desde 2004.
             </p>
 
             {/* Certifications */}
