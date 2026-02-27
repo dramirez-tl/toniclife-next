@@ -8,6 +8,7 @@ import type {
   UserListResponse,
   CreateUserDto,
   UpdateUserDto,
+  EmailVerificationStats,
 } from '@/types/user';
 
 class UsersService {
@@ -72,6 +73,14 @@ class UsersService {
    */
   async activate(id: string): Promise<User> {
     const response = await api.patch<User>(`/users/${id}`, { isActive: true });
+    return response.data;
+  }
+
+  /**
+   * Get email verification statistics
+   */
+  async getEmailVerificationStats(): Promise<EmailVerificationStats> {
+    const response = await api.get<EmailVerificationStats>('/users/stats/email-verification');
     return response.data;
   }
 }

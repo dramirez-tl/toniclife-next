@@ -82,5 +82,17 @@ export interface UpdateUserDto {
   isActive?: boolean;
 }
 
+// ================================
+// STATS TYPES
+// ================================
+
+export interface EmailVerificationStats {
+  total: number;
+  verified: number;
+  notVerified: number;
+  verifiedPercent: number;
+  recentVerifications: { month: string; verified: number; registered: number }[];
+}
+
 // Legacy alias for backward compatibility
 export type Role = RoleDto;

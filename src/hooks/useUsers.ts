@@ -105,3 +105,18 @@ export function useHardDeleteUser() {
     },
   });
 }
+
+// ================================
+// STATS HOOKS
+// ================================
+
+/**
+ * Hook to fetch email verification statistics
+ */
+export function useEmailVerificationStats() {
+  return useQuery({
+    queryKey: ['users', 'stats', 'email-verification'],
+    queryFn: () => usersService.getEmailVerificationStats(),
+    staleTime: 5 * 60 * 1000,
+  });
+}

@@ -11,6 +11,7 @@ import {
   useActivateUser,
   useDeactivateUser,
   useHardDeleteUser,
+  useEmailVerificationStats,
 } from '@/hooks/useUsers';
 import type { UserQueryParams, User, CreateUserDto, UpdateUserDto } from '@/types/user';
 import {
@@ -27,13 +28,17 @@ import {
   UserIcon,
   BuildingStorefrontIcon,
   ChartBarIcon,
+  EnvelopeIcon,
   ExclamationTriangleIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { PermissionGuard } from '@/components/auth';
 
+type TabKey = 'users' | 'verification';
+
 export default function UsuariosPage() {
+  const [activeTab, setActiveTab] = useState<TabKey>('users');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -435,210 +440,246 @@ export default function UsuariosPage() {
           </Card>
         </div>
 
-        {/* Filters and Search */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <div className="flex flex-col lg:flex-row gap-4">
-              {/* Search */}
-              <div className="flex-1">
-                <div className="relative">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Buscar por nombre o email..."
-                    value={searchQuery}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                  />
+        {/* Tabs */}
+        <div className="flex gap-1 mb-6 bg-white rounded-xl border border-gray-200 p-1 w-fit">
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'users'
+                ? 'bg-[#3E667D] text-white'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <UserGroupIcon className="h-4 w-4" />
+            Usuarios
+          </button>
+          <button
+            onClick={() => setActiveTab('verification')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'verification'
+                ? 'bg-[#3E667D] text-white'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <EnvelopeIcon className="h-4 w-4" />
+            Verificación Email
+          </button>
+        </div>
+
+        {/* Tab: Users */}
+        {activeTab === 'users' && (
+          <>
+            {/* Filters and Search */}
+            <Card className="mb-6">
+              <CardContent className="p-6">
+                <div className="flex flex-col lg:flex-row gap-4">
+                  {/* Search */}
+                  <div className="flex-1">
+                    <div className="relative">
+                      <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Buscar por nombre o email..."
+                        value={searchQuery}
+                        onChange={(e) => handleSearch(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Role Filter */}
+                  <div className="flex items-center gap-2">
+                    <FunnelIcon className="h-5 w-5 text-gray-400" />
+                    <select
+                      value={filterRole}
+                      onChange={(e) => handleFilterRole(e.target.value)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                    >
+                      <option value="all">Todos los Roles</option>
+                      <option value="admin">Admin</option>
+                      <option value="distributor">Distribuidor</option>
+                      <option value="customer">Cliente</option>
+                    </select>
+                  </div>
+
+                  {/* Status Filter */}
+                  <div>
+                    <select
+                      value={filterStatus}
+                      onChange={(e) => handleFilterStatus(e.target.value)}
+                      className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                    >
+                      <option value="all">Todos los Estados</option>
+                      <option value="active">Activos</option>
+                      <option value="inactive">Inactivos</option>
+                    </select>
+                  </div>
+
+                  {/* Export Button */}
+                  <Button
+                    variant="outline"
+                    leftIcon={<ArrowDownTrayIcon className="h-5 w-5" />}
+                    onClick={handleExport}
+                  >
+                    Exportar
+                  </Button>
                 </div>
-              </div>
+              </CardContent>
+            </Card>
 
-              {/* Role Filter */}
-              <div className="flex items-center gap-2">
-                <FunnelIcon className="h-5 w-5 text-gray-400" />
-                <select
-                  value={filterRole}
-                  onChange={(e) => handleFilterRole(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  <option value="all">Todos los Roles</option>
-                  <option value="admin">Admin</option>
-                  <option value="distributor">Distribuidor</option>
-                  <option value="customer">Cliente</option>
-                </select>
-              </div>
-
-              {/* Status Filter */}
-              <div>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => handleFilterStatus(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  <option value="all">Todos los Estados</option>
-                  <option value="active">Activos</option>
-                  <option value="inactive">Inactivos</option>
-                </select>
-              </div>
-
-              {/* Export Button */}
-              <Button
-                variant="outline"
-                leftIcon={<ArrowDownTrayIcon className="h-5 w-5" />}
-                onClick={handleExport}
-              >
-                Exportar
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Users Table */}
-        <Card>
-          <CardContent className="p-6">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                      Usuario
-                    </th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                      Rol
-                    </th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                      Estado
-                    </th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                      Registro
-                    </th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                      Verificado
-                    </th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((user) => {
-                    const role = getUserRole(user);
-                    return (
-                      <tr
-                        key={user.id}
-                        className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={getAvatarUrl(user)}
-                              alt={`${user.firstName} ${user.lastName}`}
-                              className="w-10 h-10 rounded-full"
-                            />
-                            <div>
-                              <p className="font-semibold text-gray-900">
-                                {user.firstName} {user.lastName}
-                              </p>
-                              <p className="text-sm text-gray-600">{user.email}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-4 px-4">{getRoleBadge(role)}</td>
-                        <td className="py-4 px-4">{getStatusBadge(user.isActive)}</td>
-                        <td className="py-4 px-4 text-sm text-gray-600">
-                          {formatDate(user.createdAt)}
-                        </td>
-                        <td className="py-4 px-4 text-sm text-gray-600">
-                          {user.emailVerifiedAt ? (
-                            <span className="text-green-600">Sí</span>
-                          ) : (
-                            <span className="text-yellow-600">No</span>
-                          )}
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => openEditModal(user)}
-                              className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="Editar usuario"
-                            >
-                              <PencilIcon className="h-4 w-4 text-blue-600" />
-                            </button>
-                            {user.isActive ? (
-                              <button
-                                onClick={() => handleDeactivateUser(user.id)}
-                                className="p-2 hover:bg-yellow-50 rounded-lg transition-colors"
-                                title="Desactivar usuario"
-                                disabled={deactivateUser.isPending}
-                              >
-                                <XCircleIcon className="h-4 w-4 text-yellow-600" />
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleActivateUser(user.id)}
-                                className="p-2 hover:bg-green-50 rounded-lg transition-colors"
-                                title="Activar usuario"
-                                disabled={activateUser.isPending}
-                              >
-                                <CheckCircleIcon className="h-4 w-4 text-green-600" />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => handleDeleteUser(user.id)}
-                              className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Eliminar usuario"
-                              disabled={hardDeleteUser.isPending}
-                            >
-                              <TrashIcon className="h-4 w-4 text-red-600" />
-                            </button>
-                          </div>
-                        </td>
+            {/* Users Table */}
+            <Card>
+              <CardContent className="p-6">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
+                          Usuario
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
+                          Rol
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
+                          Estado
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
+                          Registro
+                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
+                          Verificado
+                        </th>
+                        <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">
+                          Acciones
+                        </th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {users.length === 0 && (
-              <div className="text-center py-12">
-                <UserGroupIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  No se encontraron usuarios
-                </h3>
-                <p className="text-gray-600">Intenta ajustar los filtros de búsqueda</p>
-              </div>
-            )}
-
-            {/* Pagination */}
-            {users.length > 0 && (
-              <div className="mt-6 flex items-center justify-between">
-                <p className="text-sm text-gray-600">
-                  Mostrando {users.length} de {usersData?.total ?? 0} usuarios
-                  {totalPages > 1 && ` (Página ${currentPage} de ${totalPages})`}
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentPage <= 1}
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  >
-                    Anterior
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={currentPage >= totalPages}
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  >
-                    Siguiente
-                  </Button>
+                    </thead>
+                    <tbody>
+                      {users.map((user) => {
+                        const role = getUserRole(user);
+                        return (
+                          <tr
+                            key={user.id}
+                            className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                          >
+                            <td className="py-4 px-4">
+                              <div className="flex items-center gap-3">
+                                <img
+                                  src={getAvatarUrl(user)}
+                                  alt={`${user.firstName} ${user.lastName}`}
+                                  className="w-10 h-10 rounded-full"
+                                />
+                                <div>
+                                  <p className="font-semibold text-gray-900">
+                                    {user.firstName} {user.lastName}
+                                  </p>
+                                  <p className="text-sm text-gray-600">{user.email}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4">{getRoleBadge(role)}</td>
+                            <td className="py-4 px-4">{getStatusBadge(user.isActive)}</td>
+                            <td className="py-4 px-4 text-sm text-gray-600">
+                              {formatDate(user.createdAt)}
+                            </td>
+                            <td className="py-4 px-4 text-sm text-gray-600">
+                              {user.emailVerifiedAt ? (
+                                <span className="text-green-600">Sí</span>
+                              ) : (
+                                <span className="text-yellow-600">No</span>
+                              )}
+                            </td>
+                            <td className="py-4 px-4">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => openEditModal(user)}
+                                  className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
+                                  title="Editar usuario"
+                                >
+                                  <PencilIcon className="h-4 w-4 text-blue-600" />
+                                </button>
+                                {user.isActive ? (
+                                  <button
+                                    onClick={() => handleDeactivateUser(user.id)}
+                                    className="p-2 hover:bg-yellow-50 rounded-lg transition-colors"
+                                    title="Desactivar usuario"
+                                    disabled={deactivateUser.isPending}
+                                  >
+                                    <XCircleIcon className="h-4 w-4 text-yellow-600" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleActivateUser(user.id)}
+                                    className="p-2 hover:bg-green-50 rounded-lg transition-colors"
+                                    title="Activar usuario"
+                                    disabled={activateUser.isPending}
+                                  >
+                                    <CheckCircleIcon className="h-4 w-4 text-green-600" />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => handleDeleteUser(user.id)}
+                                  className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Eliminar usuario"
+                                  disabled={hardDeleteUser.isPending}
+                                >
+                                  <TrashIcon className="h-4 w-4 text-red-600" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+
+                {users.length === 0 && (
+                  <div className="text-center py-12">
+                    <UserGroupIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">
+                      No se encontraron usuarios
+                    </h3>
+                    <p className="text-gray-600">Intenta ajustar los filtros de búsqueda</p>
+                  </div>
+                )}
+
+                {/* Pagination */}
+                {users.length > 0 && (
+                  <div className="mt-6 flex items-center justify-between">
+                    <p className="text-sm text-gray-600">
+                      Mostrando {users.length} de {usersData?.total ?? 0} usuarios
+                      {totalPages > 1 && ` (Página ${currentPage} de ${totalPages})`}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage <= 1}
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      >
+                        Anterior
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage >= totalPages}
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      >
+                        Siguiente
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </>
+        )}
+
+        {/* Tab: Email Verification */}
+        {activeTab === 'verification' && (
+          <EmailVerificationTab />
+        )}
       </div>
 
       {/* User Create/Edit Modal */}
@@ -653,6 +694,178 @@ export default function UsuariosPage() {
       />
     </div>
     </PermissionGuard>
+  );
+}
+
+// ================================
+// EMAIL VERIFICATION TAB COMPONENT
+// ================================
+
+function EmailVerificationTab() {
+  const { data: emailStats, isLoading } = useEmailVerificationStats();
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {[0, 1].map((i) => (
+          <Card key={i}>
+            <CardContent className="p-6">
+              <div className="animate-pulse space-y-4">
+                <div className="h-5 w-40 bg-gray-200 rounded" />
+                <div className="h-40 bg-gray-200 rounded" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (!emailStats) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-center text-gray-500">
+          No se pudieron cargar las estadísticas.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const { total, verified, notVerified, verifiedPercent } = emailStats;
+
+  // Donut chart values — use a minimum visible angle for very small percentages
+  const displayPercent = verifiedPercent > 0 && verifiedPercent < 1 ? 1 : verifiedPercent;
+  const donutStyle = {
+    background: `conic-gradient(#10b981 0% ${displayPercent}%, #e5e7eb ${displayPercent}% 100%)`,
+  };
+
+  const formatMonth = (month: string) => {
+    const [y, m] = month.split('-');
+    const date = new Date(Number(y), Number(m) - 1);
+    return date.toLocaleDateString('es-MX', { month: 'short', year: 'numeric' });
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Donut Chart Card */}
+      <Card>
+        <CardContent className="p-6">
+          <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <EnvelopeIcon className="h-5 w-5 text-[#3E667D]" />
+            Verificación de Email
+          </h3>
+
+          <div className="flex items-center gap-8">
+            {/* Donut */}
+            <div className="relative flex-shrink-0">
+              <div
+                className="w-40 h-40 rounded-full"
+                style={donutStyle}
+              />
+              {/* Inner circle (donut hole) */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-24 h-24 bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
+                  <span className="text-2xl font-bold text-[#3E667D]">
+                    {verifiedPercent}%
+                  </span>
+                  <span className="text-[10px] text-gray-500">verificados</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Legend */}
+            <div className="space-y-4 flex-1">
+              <div>
+                <p className="text-sm text-gray-500 mb-1">Total Usuarios</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {total.toLocaleString('es-MX')}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                <div>
+                  <p className="text-sm text-gray-600">Verificados</p>
+                  <p className="text-lg font-bold text-emerald-600">
+                    {verified.toLocaleString('es-MX')}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-gray-300" />
+                <div>
+                  <p className="text-sm text-gray-600">Sin verificar</p>
+                  <p className="text-lg font-bold text-gray-700">
+                    {notVerified.toLocaleString('es-MX')}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Monthly Breakdown Card */}
+      <Card>
+        <CardContent className="p-6">
+          <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+            <ChartBarIcon className="h-5 w-5 text-[#3E667D]" />
+            Actividad por Mes
+          </h3>
+
+          {emailStats.recentVerifications.length === 0 ? (
+            <p className="text-gray-500 text-sm">Sin datos en los últimos 6 meses.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-2 text-sm font-semibold text-gray-700">Mes</th>
+                    <th className="text-right py-2 text-sm font-semibold text-gray-700">Registros</th>
+                    <th className="text-right py-2 text-sm font-semibold text-gray-700">Verificados</th>
+                    <th className="text-right py-2 text-sm font-semibold text-gray-700">%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {emailStats.recentVerifications.map((row) => {
+                    const pct = row.registered > 0
+                      ? Math.round((row.verified / row.registered) * 10000) / 100
+                      : 0;
+                    return (
+                      <tr key={row.month} className="border-b border-gray-100">
+                        <td className="py-3 text-sm text-gray-700 font-medium">
+                          {formatMonth(row.month)}
+                        </td>
+                        <td className="py-3 text-sm text-gray-600 text-right">
+                          {row.registered.toLocaleString('es-MX')}
+                        </td>
+                        <td className="py-3 text-sm text-right">
+                          <span className={row.verified > 0 ? 'text-emerald-600 font-semibold' : 'text-gray-400'}>
+                            {row.verified.toLocaleString('es-MX')}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-emerald-500 rounded-full transition-all"
+                                style={{ width: `${Math.min(pct, 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-gray-500 w-12 text-right">
+                              {pct}%
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
