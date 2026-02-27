@@ -102,7 +102,6 @@ export default function CartPage() {
 
   // Calculations
   const subtotal = cart ? parseFloat(cart.subtotal) : 0;
-  const tax = cart ? parseFloat(cart.taxAmount) : 0;
   const discount = cart ? parseFloat(cart.discountAmount) : 0;
   const total = cart ? parseFloat(cart.total) : 0;
   const itemCount = cart?.itemCount || 0;
@@ -318,11 +317,8 @@ export default function CartPage() {
                       </div>
                     )}
 
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">IVA</span>
-                      <span className="font-medium">
-                        {cartService.formatCurrency(tax)}
-                      </span>
+                    <div className="flex justify-between text-gray-500 text-sm">
+                      <span>IVA incluido en precios</span>
                     </div>
 
                     <div className="flex justify-between">

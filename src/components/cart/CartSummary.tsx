@@ -10,7 +10,6 @@ interface CartSummaryProps {
 
 export function CartSummary({ cart }: CartSummaryProps) {
   const subtotal = parseFloat(cart.subtotal);
-  const tax = parseFloat(cart.taxAmount);
   const discount = parseFloat(cart.discountAmount);
   const total = parseFloat(cart.total);
 
@@ -32,9 +31,8 @@ export function CartSummary({ cart }: CartSummaryProps) {
           </div>
         )}
 
-        <div className="flex justify-between text-gray-600">
-          <span>IVA</span>
-          <span>{cartService.formatCurrency(tax)}</span>
+        <div className="flex justify-between text-gray-500 text-sm">
+          <span>IVA incluido en precios</span>
         </div>
 
         <div className="flex justify-between text-gray-500 text-sm">

@@ -769,14 +769,8 @@ export default function CheckoutContent() {
                     </span>
                   </div>
 
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">IVA</span>
-                    <span className="font-medium text-gray-900">
-                      {checkoutSummary
-                        ? cartService.formatCurrency(checkoutSummary.taxAmount)
-                        : '-'
-                      }
-                    </span>
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>IVA incluido en precios</span>
                   </div>
                 </div>
 
