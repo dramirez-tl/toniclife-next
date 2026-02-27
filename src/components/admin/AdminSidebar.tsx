@@ -250,16 +250,56 @@ export function AdminSidebar({ mobile = false, onNavigate }: AdminSidebarProps) 
   const getUserRoleLabel = () => {
     const code = user?.roles?.[0];
     if (!code) return 'Usuario';
-    if (code === 'super_admin') return 'Super Administrador';
-    if (code === 'administrador') return 'Administrador';
-    if (code === 'subadmin') return 'Sub-Administrador';
-    if (code === 'almacen') return 'Almacenista';
-    if (code === 'ventas_mostrador') return 'Ventas Mostrador';
-    if (code === 'contabilidad') return 'Contador';
-    if (code === 'rh') return 'RRHH';
-    if (code === 'auditor') return 'Auditor';
-    if (code === 'viewer') return 'Solo Lectura';
-    return 'Usuario';
+    const roleLabels: Record<string, string> = {
+      super_admin: 'Super Administrador',
+      administrador: 'Administrador',
+      subadmin: 'Sub-Administrador',
+      operaciones: 'Operaciones',
+      ventas_mostrador: 'Ventas Mostrador',
+      call_center: 'Call Center',
+      sucursales: 'Sucursales',
+      supervisor: 'Supervisor',
+      auxiliar_sucursal: 'Auxiliar Sucursal',
+      auxiliar: 'Auxiliar',
+      contabilidad: 'Contabilidad',
+      contabilidad_two: 'Contabilidad',
+      contabilidad_viaticos: 'Contabilidad',
+      aux_contabilidad: 'Aux. Contabilidad',
+      comisiones: 'Comisiones',
+      comercial: 'Comercial',
+      comercial_two: 'Comercial',
+      comercial_three: 'Comercial',
+      comercial_usa: 'Comercial USA',
+      almacen: 'Almacén',
+      laboratorio: 'Laboratorio',
+      materia_prima: 'Materia Prima',
+      aux_materia_prima: 'Aux. Materia Prima',
+      produccion: 'Producción',
+      soporte: 'Soporte',
+      mantenimiento: 'Mantenimiento',
+      cedea: 'CEDEA',
+      cedea_two: 'CEDEA',
+      cedeas: 'CEDEAS',
+      cedeas2: 'CEDEAS',
+      cedeas_viaticos: 'CEDEAS',
+      cedis: 'CEDIS',
+      rh: 'RRHH',
+      rh_viaticos: 'RRHH',
+      viaticos: 'Viáticos',
+      solicitud_viaticos: 'Viáticos',
+      asistente_direccion: 'Asistente Dirección',
+      auditor: 'Auditor',
+      auditor_two: 'Auditor',
+      checador: 'Checador',
+      dircomer: 'Dir. Comercial',
+      help: 'Soporte Caja',
+      jc: 'JC',
+      neo: 'Neo',
+      usa_admin: 'Admin USA',
+      compras: 'Compras',
+      viewer: 'Solo Lectura',
+    };
+    return roleLabels[code] || code.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
   };
 
   const toggleExpand = (name: string) => {

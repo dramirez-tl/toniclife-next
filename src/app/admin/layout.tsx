@@ -6,11 +6,28 @@ import { useState } from 'react';
 import { Bars3Icon } from '@heroicons/react/24/outline';
 import { NotificationBell } from '@/components/admin/NotificationBell';
 
-// Roles que tienen acceso al panel de administración (canonical + legacy-migration codes)
+// Roles que tienen acceso al panel de administración
 const ADMIN_ROLES = [
-  'super_admin', 'administrador', 'subadmin', 'almacen', 'ventas_mostrador',
-  'rh', 'contabilidad', 'auditor', 'viewer',
-  // Legacy-migration codes
+  // Core admin roles
+  'super_admin', 'administrador', 'subadmin',
+  // Operational roles
+  'operaciones', 'ventas_mostrador', 'call_center', 'sucursales', 'supervisor',
+  'auxiliar_sucursal', 'auxiliar',
+  // Finance & accounting
+  'contabilidad', 'contabilidad_two', 'contabilidad_viaticos', 'aux_contabilidad',
+  'comisiones', 'comercial', 'comercial_two', 'comercial_three', 'comercial_usa',
+  // Warehouse & production
+  'almacen', 'laboratorio', 'materia_prima', 'aux_materia_prima', 'produccion',
+  'soporte', 'mantenimiento',
+  // Distribution centers
+  'cedea', 'cedea_two', 'cedeas', 'cedeas2', 'cedeas_viaticos', 'cedis',
+  // HR & admin support
+  'rh', 'rh_viaticos', 'viaticos', 'solicitud_viaticos', 'asistente_direccion',
+  // Audit & special
+  'auditor', 'auditor_two', 'checador', 'dircomer',
+  // Other
+  'help', 'jc', 'neo', 'usa_admin', 'compras', 'viewer',
+  // Legacy-migration codes (default_module values used as role codes during migration)
   'ventas', 'asistencia', 'clientes', 'solicitud-viaticos', 'productos',
   'ventas-totales-sucursal', 'documentos', 'aprobacion-viaticos',
   'corte-caja-sucursal', 'inventario', 'rrhh-trabajadores', 'puntos-periodo', 'factura-libre',
