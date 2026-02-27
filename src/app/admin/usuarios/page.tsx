@@ -1066,10 +1066,17 @@ interface UserFormModalProps {
 }
 
 const ROLE_OPTIONS = [
+  { value: 'super_admin', label: 'Super Admin' },
   { value: 'administrador', label: 'Administrador' },
   { value: 'subadmin', label: 'Sub-Administrador' },
+  { value: 'operaciones', label: 'Operaciones' },
+  { value: 'sucursales', label: 'Sucursales' },
+  { value: 'call_center', label: 'Call Center' },
+  { value: 'contabilidad', label: 'Contabilidad' },
+  { value: 'soporte', label: 'Sistemas' },
   { value: 'almacen', label: 'Almacen' },
   { value: 'ventas_mostrador', label: 'Ventas Mostrador' },
+  { value: 'distributor', label: 'Distribuidor' },
   { value: 'customer', label: 'Cliente' },
 ];
 
