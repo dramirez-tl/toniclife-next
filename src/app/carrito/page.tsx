@@ -54,8 +54,6 @@ function CartProductImage({ src, name, width, height, className }: { src?: strin
   );
 }
 
-// Free shipping threshold
-const FREE_SHIPPING_THRESHOLD = 999;
 
 export default function CartPage() {
   const { data: cart, isLoading } = useCart();
@@ -183,35 +181,6 @@ export default function CartPage() {
             <div className="grid lg:grid-cols-3 gap-8">
               {/* Cart Items */}
               <div className="lg:col-span-2 space-y-4">
-                {/* Free Shipping Progress */}
-                {subtotal < FREE_SHIPPING_THRESHOLD ? (
-                  <Card className="border-[#a7c1e2]/20 bg-[#C8DDF2]/10 shadow-sm" padding="md">
-                    <div className="flex items-center gap-4">
-                      <TruckIcon className="h-8 w-8 text-[#3E667D] flex-shrink-0" />
-                      <div className="flex-grow">
-                        <p className="font-medium text-[#3E667D]">
-                          ¡Agrega {cartService.formatCurrency(FREE_SHIPPING_THRESHOLD - subtotal)} más para envío gratis!
-                        </p>
-                        <div className="mt-2 h-2 bg-white rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-[#C8DDF2] rounded-full transition-all"
-                            style={{ width: `${Math.min((subtotal / FREE_SHIPPING_THRESHOLD) * 100, 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                ) : (
-                  <Card className="bg-[#C8DDF2]/10 border-[#a7c1e2]/20" padding="md">
-                    <div className="flex items-center gap-4">
-                      <TruckIcon className="h-8 w-8 text-[#3E667D] flex-shrink-0" />
-                      <p className="font-medium text-[#3E667D]">
-                        ¡Felicidades! Tu pedido califica para envío gratis
-                      </p>
-                    </div>
-                  </Card>
-                )}
-
                 {/* Cart Items List */}
                 {cart.items.map((item) => (
                   <Card key={item.id} className="overflow-hidden border-gray-100 shadow-sm transition-all hover:shadow-md" padding="none">
@@ -359,7 +328,7 @@ export default function CartPage() {
                     <div className="flex justify-between">
                       <span className="text-gray-600">Envío</span>
                       <span className="text-[#3E667D] font-medium">
-                        {subtotal >= FREE_SHIPPING_THRESHOLD ? 'Gratis' : 'Calculado en checkout'}
+                        Calculado en checkout
                       </span>
                     </div>
 
@@ -394,7 +363,7 @@ export default function CartPage() {
                     </div>
                     <div className="flex items-center gap-2 text-gray-500 text-sm mb-3">
                       <TruckIcon className="h-5 w-5 text-[#3E667D]" />
-                      <span>Envío gratis en pedidos +{cartService.formatCurrency(FREE_SHIPPING_THRESHOLD)}</span>
+                      <span>Envíos a todo México</span>
                     </div>
                     <div className="flex items-center gap-2 text-gray-500 text-sm">
                       <svg className="h-5 w-5 text-[#3E667D]" fill="currentColor" viewBox="0 0 20 20">

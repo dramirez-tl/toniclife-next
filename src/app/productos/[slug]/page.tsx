@@ -243,8 +243,8 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               <Card>
                 <CardContent className="p-4 text-center">
                   <TruckIcon className="h-8 w-8 text-[#3E667D] mx-auto mb-2" />
-                  <p className="text-xs font-medium text-gray-900">Envío Gratis</p>
-                  <p className="text-xs text-gray-500">En pedidos +$999</p>
+                  <p className="text-xs font-medium text-gray-900">Envíos</p>
+                  <p className="text-xs text-gray-500">A todo México</p>
                 </CardContent>
               </Card>
               <Card>

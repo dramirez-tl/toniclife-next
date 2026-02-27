@@ -11,7 +11,6 @@ import {
   PlusIcon,
   MinusIcon,
   ShoppingBagIcon,
-  TruckIcon,
   ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import { useCart, useClearCart, useUpdateCartItem, useRemoveCartItem } from '@/hooks/useCart';
@@ -48,8 +47,6 @@ interface CartDrawerProps {
   onClose: () => void;
 }
 
-// Free shipping threshold
-const FREE_SHIPPING_THRESHOLD = 999;
 
 export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const { data: cart, isLoading } = useCart();
@@ -129,24 +126,6 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             <XMarkIcon className="h-6 w-6" />
           </button>
         </div>
-
-        {/* Free Shipping Banner */}
-        {cart && subtotal > 0 && subtotal < FREE_SHIPPING_THRESHOLD && (
-          <div className="bg-[#C8DDF2]/10 px-4 py-3 flex items-center gap-2">
-            <TruckIcon className="h-5 w-5 text-[#3E667D]" />
-            <p className="text-sm text-[#3E667D]">
-              ¡Agrega <span className="font-bold">{cartService.formatCurrency(FREE_SHIPPING_THRESHOLD - subtotal)}</span> más para envío gratis!
-            </p>
-          </div>
-        )}
-        {cart && subtotal >= FREE_SHIPPING_THRESHOLD && (
-          <div className="bg-[#C8DDF2]/10 px-4 py-3 flex items-center gap-2">
-            <TruckIcon className="h-5 w-5 text-[#3E667D]" />
-            <p className="text-sm text-[#3E667D] font-medium">
-              ¡Felicidades! Tienes envío gratis
-            </p>
-          </div>
-        )}
 
         {/* Cart Items */}
         <div className="flex-grow overflow-y-auto p-4 space-y-4">
@@ -263,9 +242,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
               )}
               <div className="flex justify-between text-gray-600">
                 <span>Envío</span>
-                <span>
-                  {subtotal >= FREE_SHIPPING_THRESHOLD ? 'Gratis' : 'Calculado en checkout'}
-                </span>
+                <span>Calculado en checkout</span>
               </div>
               <div className="flex justify-between text-lg font-bold text-[#3E667D] pt-2 border-t border-gray-100">
                 <span>Total</span>

@@ -8,8 +8,6 @@ interface CartSummaryProps {
   cart: Cart;
 }
 
-const FREE_SHIPPING_THRESHOLD = 999;
-
 export function CartSummary({ cart }: CartSummaryProps) {
   const subtotal = parseFloat(cart.subtotal);
   const tax = parseFloat(cart.taxAmount);
@@ -41,9 +39,7 @@ export function CartSummary({ cart }: CartSummaryProps) {
 
         <div className="flex justify-between text-gray-500 text-sm">
           <span>Envío</span>
-          <span>
-            {subtotal >= FREE_SHIPPING_THRESHOLD ? 'Gratis' : 'Calculado en checkout'}
-          </span>
+          <span>Calculado en checkout</span>
         </div>
       </div>
 
