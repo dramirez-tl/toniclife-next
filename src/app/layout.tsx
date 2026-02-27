@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'),
   title: "Tonic Life | Tu Centro de Bienestar Natural",
-  description: "Descubre tu fórmula ideal de bienestar con productos naturales de alta calidad. Evaluación de Salud personalizada, recomendaciones únicas y envío gratis en pedidos +$99.",
+  description: "Descubre tu fórmula ideal de bienestar con productos naturales de alta calidad. Evaluación de Salud personalizada y recomendaciones únicas.",
   keywords: "suplementos naturales, bienestar, salud, tonic life, evaluación de salud, productos naturales",
   icons: {
     icon: '/favicon.ico',

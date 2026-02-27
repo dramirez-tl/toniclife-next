@@ -42,7 +42,6 @@ export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [language, setLanguage] = useState<'es' | 'en'>('es');
-  const [shippingCurrency, setShippingCurrency] = useState<'USD' | 'MXN'>('USD');
   const closeDropdownTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Get cart item count from API
@@ -90,28 +89,16 @@ export function Header() {
   };
 
   useEffect(() => {
-    const browserLocale = navigator.language || '';
-    const region = browserLocale.split('-')[1]?.toUpperCase();
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
-    const isMexico = region === 'MX' || timeZone.includes('Mexico');
-
-    setShippingCurrency(isMexico ? 'MXN' : 'USD');
-  }, []);
-
-  useEffect(() => {
     return () => clearCloseDropdownTimeout();
   }, []);
-
-  const shippingDesktopText = `Envío gratis en pedidos mayores a $99 ${shippingCurrency}`;
-  const shippingMobileText = `Envío gratis +$99 ${shippingCurrency}`;
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md shadow-sm">
       {/* Top bar */}
       <div className="bg-[#3E667D] text-white text-sm py-2">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <p className="hidden sm:block">{shippingDesktopText}</p>
-          <p className="sm:hidden text-center w-full">{shippingMobileText}</p>
+          <p className="hidden sm:block">Bienestar natural desde 1996 — Tonic Life</p>
+          <p className="sm:hidden text-center w-full">Bienestar natural — Tonic Life</p>
           <div className="hidden sm:flex items-center gap-4">
             <button
               onClick={() => setLanguage(language === 'es' ? 'en' : 'es')}
