@@ -199,15 +199,28 @@ export function AdminSidebar({ mobile = false, onNavigate }: AdminSidebarProps) 
   const userPermissions = useAppSelector(selectUserPermissions);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
+  // Roles con acceso completo al sidebar
+  const FULL_ACCESS_ROLES = ['super_admin', 'administrador', 'subadmin'];
+
+  const isWorkerUser = useMemo(() => {
+    if (!user?.roles?.length) return true;
+    return !user.roles.some((r) => FULL_ACCESS_ROLES.includes(r));
+  }, [user?.roles]);
+
   // Filtrar navegación según permisos
   const filteredNavigation = useMemo(() => {
+    // Trabajadores solo ven Panel Principal
+    if (isWorkerUser) {
+      return navigation.filter((item) => item.href === '/admin');
+    }
+
     // Super admin ve todo
     if (user?.roles?.includes('super_admin')) {
       return navigation;
     }
 
     return navigation.filter((item) => hasAnyPermission(userPermissions, item.permissions));
-  }, [user?.roles, userPermissions]);
+  }, [user?.roles, userPermissions, isWorkerUser]);
 
   const handleLogout = async () => {
     try {
@@ -367,6 +380,16 @@ export function AdminSidebar({ mobile = false, onNavigate }: AdminSidebarProps) 
             );
           })}
         </ul>
+
+        {/* Mensaje para trabajadores */}
+        {isWorkerUser && (
+          <div className="mt-4 mx-1 rounded-lg bg-white/10 p-4 text-center">
+            <Cog6ToothIcon className="mx-auto h-8 w-8 text-white/40 mb-2" />
+            <p className="text-xs font-medium text-white/70">
+              Los módulos de tu área se habilitarán en breve.
+            </p>
+          </div>
+        )}
       </nav>
 
       {/* User section */}
