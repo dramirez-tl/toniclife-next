@@ -58,14 +58,6 @@ export default function LoginPage() {
   }, [emailLinkRequired]);
 
   const navigateAfterLogin = (roleCode?: string) => {
-    // Read redirect param directly from the URL (avoids useSearchParams/Suspense)
-    const params = new URLSearchParams(window.location.search);
-    const redirectPath = params.get('redirect');
-    if (redirectPath && redirectPath.startsWith('/')) {
-      window.location.href = redirectPath;
-      return;
-    }
-
     // Admin roles that should access the admin panel (canonical + legacy-migration codes)
     const adminRoles = [
       'super_admin', 'administrador', 'subadmin', 'almacen', 'ventas_mostrador',
@@ -74,8 +66,35 @@ export default function LoginPage() {
       'ventas-totales-sucursal', 'documentos', 'aprobacion-viaticos',
       'corte-caja-sucursal', 'inventario', 'rrhh-trabajadores', 'puntos-periodo', 'factura-libre',
     ];
+    const isAdmin = roleCode && adminRoles.includes(roleCode);
 
-    if (roleCode && adminRoles.includes(roleCode)) {
+    // Read redirect param directly from the URL (avoids useSearchParams/Suspense)
+    const params = new URLSearchParams(window.location.search);
+    const redirectPath = params.get('redirect');
+
+    // Honor the redirect only if it matches the user's section
+    // (don't send admins to /distribuidor or vice versa from a stale redirect)
+    if (redirectPath && redirectPath.startsWith('/')) {
+      const isAdminRedirect = redirectPath.startsWith('/admin');
+      const isDistribuidorRedirect = redirectPath.startsWith('/distribuidor');
+
+      if (isAdmin && isAdminRedirect) {
+        window.location.href = redirectPath;
+        return;
+      }
+      if (!isAdmin && isDistribuidorRedirect) {
+        window.location.href = redirectPath;
+        return;
+      }
+      // For neutral redirects (not /admin or /distribuidor), honor them
+      if (!isAdminRedirect && !isDistribuidorRedirect) {
+        window.location.href = redirectPath;
+        return;
+      }
+    }
+
+    // Default: route based on role
+    if (isAdmin) {
       window.location.href = '/admin';
     } else {
       window.location.href = '/distribuidor';
