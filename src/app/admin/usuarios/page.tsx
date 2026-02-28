@@ -35,8 +35,10 @@ import {
   EnvelopeIcon,
   ExclamationTriangleIcon,
   XMarkIcon,
+  EyeIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { usersService } from '@/services/users.service';
 import { PermissionGuard } from '@/components/auth';
 import { useAppSelector } from '@/store/hooks';
 import { selectUserRoles } from '@/store/slices/authSlice';
@@ -60,6 +62,9 @@ export default function UsuariosPage() {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [resetEmailTarget, setResetEmailTarget] = useState<User | null>(null);
+  const [passwordTarget, setPasswordTarget] = useState<User | null>(null);
+  const [decryptedPassword, setDecryptedPassword] = useState<string | null>(null);
+  const [isLoadingPassword, setIsLoadingPassword] = useState(false);
 
   // Build query params
   const queryParams: UserQueryParams = useMemo(() => {
@@ -157,6 +162,22 @@ export default function UsuariosPage() {
       setResetEmailTarget(null);
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Error al restablecer la verificación de email');
+    }
+  };
+
+  const handleViewPassword = async (user: User) => {
+    setPasswordTarget(user);
+    setDecryptedPassword(null);
+    setIsLoadingPassword(true);
+    try {
+      const result = await usersService.getDecryptedPassword(user.id);
+      setDecryptedPassword(result.password);
+    } catch {
+      setDecryptedPassword(null);
+      toast.error('Error al obtener la contraseña');
+      setPasswordTarget(null);
+    } finally {
+      setIsLoadingPassword(false);
     }
   };
 
@@ -433,6 +454,16 @@ export default function UsuariosPage() {
               aria-label={`Activar ${user.firstName}`}
             >
               <CheckCircleIcon className="h-4 w-4 text-green-600" />
+            </button>
+          )}
+          {isSuperAdmin && (
+            <button
+              onClick={() => handleViewPassword(user)}
+              className="rounded-lg p-2 transition-colors hover:bg-indigo-50"
+              title="Ver contraseña"
+              aria-label={`Ver contraseña de ${user.firstName}`}
+            >
+              <EyeIcon className="h-4 w-4 text-indigo-600" />
             </button>
           )}
           {isSuperAdmin && (
@@ -784,6 +815,61 @@ export default function UsuariosPage() {
           onCancel={() => setResetEmailTarget(null)}
           isResetting={resetEmailVerification.isPending}
         />
+      )}
+
+      {/* Password View Modal */}
+      {passwordTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setPasswordTarget(null)} />
+          <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 p-6 border-b border-indigo-100 bg-indigo-50 rounded-t-2xl">
+              <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                <EyeIcon className="h-5 w-5 text-indigo-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-indigo-900">Contraseña del usuario</h2>
+                <p className="text-sm text-indigo-700">{passwordTarget.firstName} {passwordTarget.lastName}</p>
+              </div>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <p className="text-sm text-gray-500 mb-1">Email</p>
+                <p className="font-medium text-gray-900">{passwordTarget.email}</p>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <p className="text-sm text-gray-500 mb-1">Contraseña</p>
+                {isLoadingPassword ? (
+                  <div className="h-6 w-32 animate-pulse rounded bg-gray-200" />
+                ) : decryptedPassword ? (
+                  <div className="flex items-center gap-2">
+                    <p className="font-mono text-lg font-bold text-gray-900">{decryptedPassword}</p>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(decryptedPassword);
+                        toast.success('Contraseña copiada al portapapeles');
+                      }}
+                      className="rounded-lg p-1.5 hover:bg-gray-200 transition-colors"
+                      title="Copiar contraseña"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4 text-gray-500">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-amber-600 font-medium">
+                    No disponible — la contraseña se encriptará cuando el usuario la cambie o se cree un nuevo usuario.
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+              <Button variant="primary" onClick={() => setPasswordTarget(null)}>
+                Cerrar
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
     </PermissionGuard>

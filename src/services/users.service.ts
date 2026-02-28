@@ -86,6 +86,14 @@ class UsersService {
   }
 
   /**
+   * Get decrypted password for a user (super_admin only)
+   */
+  async getDecryptedPassword(id: string): Promise<{ password: string | null }> {
+    const response = await api.get<{ password: string | null }>(`/users/${id}/password`);
+    return response.data;
+  }
+
+  /**
    * Get email verification statistics
    */
   async getEmailVerificationStats(): Promise<EmailVerificationStats> {
