@@ -6,6 +6,9 @@ import { DistributorSidebar } from '@/components/distributor/DistributorSidebar'
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 
 // Roles que tienen acceso al panel de distribuidor (canonical + legacy-migration + admin)
+// Legacy migration created generic "role1"–"role46" codes for ~170k distributor users,
+// so we generate them dynamically instead of listing all 46.
+const LEGACY_ROLE_CODES = Array.from({ length: 46 }, (_, i) => `role${i + 1}`);
 const DISTRIBUTOR_ROLES = [
   'customer', 'distribuidor', 'distributor', 'dashboard', 'cliente-dashboard',
   'super_admin', 'administrador', 'admin',
@@ -14,6 +17,8 @@ const DISTRIBUTOR_ROLES = [
   'ventas-totales-sucursal', 'documentos', 'aprobacion-viaticos',
   'corte-caja-sucursal', 'inventario', 'rrhh-trabajadores', 'puntos-periodo', 'factura-libre',
   'subadmin', 'almacen', 'ventas_mostrador', 'rh', 'contabilidad', 'auditor', 'viewer',
+  // Legacy generic distributor codes (role1 through role46)
+  ...LEGACY_ROLE_CODES,
 ];
 
 export default function DistributorLayout({
