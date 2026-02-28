@@ -121,10 +121,20 @@ api.interceptors.response.use(
         }
 
         const response = await api.post('/auth/refresh', { refreshToken });
-        const { accessToken } = response.data;
+        const { accessToken, refreshToken: newRefreshToken } = response.data;
 
         if (typeof window !== 'undefined') {
           localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+          if (newRefreshToken) {
+            localStorage.setItem('refreshToken', newRefreshToken);
+          }
+          // Renew auth cookies so middleware keeps routing correctly
+          document.cookie = `accessToken=1; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+          try {
+            const payload = JSON.parse(atob(accessToken.split('.')[1]));
+            const role = Array.isArray(payload.roles) ? payload.roles[0] : (payload.role || '');
+            document.cookie = `authRole=${role}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
+          } catch { /* ignore decode errors */ }
         }
 
         processQueue(null, accessToken);

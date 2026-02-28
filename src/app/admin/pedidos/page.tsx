@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { DataTable, DataTablePagination } from '@/components/ui/DataTable';
@@ -112,14 +113,48 @@ const formatDate = (dateString: string) => {
 // ================================
 
 export default function PedidosPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [filterPayment, setFilterPayment] = useState<string>('all');
-  const [filterBranch, setFilterBranch] = useState<string>('all');
-  const [dateFrom, setDateFrom] = useState<string>('');
-  const [dateTo, setDateTo] = useState<string>('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  return (
+    <Suspense>
+      <PedidosContent />
+    </Suspense>
+  );
+}
+
+function PedidosContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Read initial values from URL search params
+  const searchQuery = searchParams.get('search') || '';
+  const filterStatus = searchParams.get('status') || 'all';
+  const filterPayment = searchParams.get('payment') || 'all';
+  const filterBranch = searchParams.get('branch') || 'all';
+  const dateFrom = searchParams.get('dateFrom') || '';
+  const dateTo = searchParams.get('dateTo') || '';
+  const currentPage = Number(searchParams.get('page')) || 1;
+  const pageSize = Number(searchParams.get('limit')) || 20;
+
+  const [searchInput, setSearchInput] = useState(searchQuery);
+
+  // Helper to update URL search params
+  const setParams = useCallback(
+    (updates: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams.toString());
+      for (const [key, val] of Object.entries(updates)) {
+        if (val === null || val === '' || val === 'all') {
+          params.delete(key);
+        } else {
+          params.set(key, val);
+        }
+      }
+      // Reset to page 1 when changing filters (unless page is explicitly in updates)
+      if (!('page' in updates)) {
+        params.delete('page');
+      }
+      router.replace(`?${params.toString()}`, { scroll: false });
+    },
+    [searchParams, router],
+  );
 
   // Branches for dropdown
   const { data: branches = [] } = useActiveBranches();
@@ -199,9 +234,12 @@ export default function PedidosPage() {
     toast.success('Exportando datos de pedidos...');
   };
 
+  const handleSearch = () => {
+    setParams({ search: searchInput });
+  };
+
   const handlePageSizeChange = (size: number) => {
-    setPageSize(size);
-    setCurrentPage(1);
+    setParams({ limit: String(size), page: null });
   };
 
   // ================================
@@ -503,18 +541,23 @@ export default function PedidosPage() {
               <div className="flex flex-col lg:flex-row gap-4">
                 {/* Search */}
                 <div className="flex-1">
-                  <div className="relative">
-                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Buscar por número de orden o email..."
-                      value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                    />
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Buscar por número de orden o email..."
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSearch();
+                        }}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                      />
+                    </div>
+                    <Button variant="primary" onClick={handleSearch}>
+                      Buscar
+                    </Button>
                   </div>
                 </div>
 
@@ -523,10 +566,7 @@ export default function PedidosPage() {
                   <FunnelIcon className="h-5 w-5 text-gray-400" />
                   <select
                     value={filterStatus}
-                    onChange={(e) => {
-                      setFilterStatus(e.target.value);
-                      setCurrentPage(1);
-                    }}
+                    onChange={(e) => setParams({ status: e.target.value })}
                     className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   >
                     <option value="all">Todos los Estados</option>
@@ -546,10 +586,7 @@ export default function PedidosPage() {
                 <div>
                   <select
                     value={filterPayment}
-                    onChange={(e) => {
-                      setFilterPayment(e.target.value);
-                      setCurrentPage(1);
-                    }}
+                    onChange={(e) => setParams({ payment: e.target.value })}
                     className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   >
                     <option value="all">Todos los Pagos</option>
@@ -567,10 +604,7 @@ export default function PedidosPage() {
                 <SearchableSelect
                   options={branches.map((b) => ({ value: b.id, label: b.name }))}
                   value={filterBranch}
-                  onChange={(val) => {
-                    setFilterBranch(val);
-                    setCurrentPage(1);
-                  }}
+                  onChange={(val) => setParams({ branch: val })}
                   placeholder="Buscar sucursal..."
                   allLabel="Todas las Sucursales"
                   className="w-[220px]"
@@ -582,10 +616,7 @@ export default function PedidosPage() {
                   <input
                     type="date"
                     value={dateFrom}
-                    onChange={(e) => {
-                      setDateFrom(e.target.value);
-                      setCurrentPage(1);
-                    }}
+                    onChange={(e) => setParams({ dateFrom: e.target.value })}
                     className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
@@ -596,10 +627,7 @@ export default function PedidosPage() {
                   <input
                     type="date"
                     value={dateTo}
-                    onChange={(e) => {
-                      setDateTo(e.target.value);
-                      setCurrentPage(1);
-                    }}
+                    onChange={(e) => setParams({ dateTo: e.target.value })}
                     className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
@@ -610,11 +638,7 @@ export default function PedidosPage() {
                     variant="ghost"
                     size="sm"
                     className="text-gray-500"
-                    onClick={() => {
-                      setDateFrom('');
-                      setDateTo('');
-                      setCurrentPage(1);
-                    }}
+                    onClick={() => setParams({ dateFrom: null, dateTo: null })}
                   >
                     Limpiar fechas
                   </Button>
@@ -654,7 +678,7 @@ export default function PedidosPage() {
             pageSize={pageSize}
             totalItems={totalOrders}
             isLoading={isLoading || isFetching}
-            onPageChange={setCurrentPage}
+            onPageChange={(p) => setParams({ page: String(p) })}
             onPageSizeChange={handlePageSizeChange}
             pageSizeOptions={[10, 20, 50, 100]}
           />

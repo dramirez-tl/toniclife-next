@@ -55,6 +55,7 @@ export interface UserResponse {
 
 export interface AuthResponse {
   accessToken: string;
+  refreshToken?: string;
   expiresIn: number;
   tokenType: string;
   user: UserResponse;
@@ -115,13 +116,13 @@ class AuthService {
     // authenticated.  We intentionally do NOT store the full JWT here because
     // tokens with many permissions can exceed the 4 KB cookie limit and the
     // browser silently drops them.
-    document.cookie = `${AUTH_COOKIE}=1; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+    document.cookie = `${AUTH_COOKIE}=1; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
 
     // Store the role in a separate small cookie for middleware routing
     try {
       const payload = JSON.parse(atob(accessToken.split('.')[1]));
       const role: string = Array.isArray(payload.roles) ? payload.roles[0] : (payload.role || '');
-      document.cookie = `${ROLE_COOKIE}=${role}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+      document.cookie = `${ROLE_COOKIE}=${role}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
     } catch {
       // If decoding fails, just set the flag – middleware will allow through
     }
@@ -163,7 +164,7 @@ class AuthService {
 
     // Login normal: guardar tokens
     const authResponse = response.data as AuthResponse;
-    this.setTokens(authResponse.accessToken);
+    this.setTokens(authResponse.accessToken, authResponse.refreshToken);
     this.setStoredUser(authResponse.user);
     return authResponse;
   }
@@ -175,14 +176,14 @@ class AuthService {
 
   async verifyLinkEmail(data: VerifyLinkEmailData): Promise<AuthResponse> {
     const response = await api.post<AuthResponse>('/auth/verify-link-email', data);
-    this.setTokens(response.data.accessToken);
+    this.setTokens(response.data.accessToken, response.data.refreshToken);
     this.setStoredUser(response.data.user);
     return response.data;
   }
 
   async register(data: RegisterData): Promise<AuthResponse> {
     const response = await api.post<AuthResponse>('/auth/register', data);
-    this.setTokens(response.data.accessToken);
+    this.setTokens(response.data.accessToken, response.data.refreshToken);
     this.setStoredUser(response.data.user);
     return response.data;
   }
@@ -207,7 +208,7 @@ class AuthService {
   async refreshToken(): Promise<AuthResponse> {
     const refreshToken = this.getRefreshToken();
     const response = await api.post<AuthResponse>('/auth/refresh', { refreshToken });
-    this.setTokens(response.data.accessToken);
+    this.setTokens(response.data.accessToken, response.data.refreshToken);
     this.setStoredUser(response.data.user);
     return response.data;
   }
