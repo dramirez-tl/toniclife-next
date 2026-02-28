@@ -31,8 +31,10 @@ interface ApiError {
 // Helper to extract error message
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof AxiosError) {
-    // Handle 401 specifically for better UX
+    // Handle 401 — use backend message when available
     if (error.response?.status === 401) {
+      const msg = error.response?.data?.message;
+      if (msg && msg !== 'Unauthorized') return msg;
       return 'Credenciales incorrectas. Verifica tu email y contraseña.';
     }
     // Handle other common errors
