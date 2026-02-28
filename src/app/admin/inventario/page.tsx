@@ -25,6 +25,7 @@ import {
 import { toast } from 'sonner';
 import { useBranchStock } from '@/hooks/useInventory';
 import { useActiveBranches } from '@/hooks/useBranches';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import type { BranchStockQueryDto, ProductStockDto } from '@/types/inventory';
 import { PermissionGuard } from '@/components/auth';
 
@@ -387,22 +388,22 @@ export default function InventarioPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <BuildingStorefrontIcon className="h-8 w-8 text-[#3E667D]" />
-                  <div>
-                    <p className="text-sm text-gray-600">Sucursal Seleccionada</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-600 mb-1">Sucursal Seleccionada</p>
                     {branchesLoading ? (
                       <p className="text-xl font-bold text-gray-400">Cargando sucursales...</p>
                     ) : (
-                      <select
+                      <SearchableSelect
+                        options={(branches ?? []).map((b) => ({
+                          value: b.id,
+                          label: `${b.name} (${b.code})`,
+                        }))}
                         value={selectedBranch}
-                        onChange={(e) => handleBranchChange(e.target.value)}
-                        className="text-xl font-bold text-[#3E667D] bg-transparent border-none focus:ring-0 cursor-pointer"
-                      >
-                        {branches?.map((branch) => (
-                          <option key={branch.id} value={branch.id}>
-                            {branch.name} ({branch.code})
-                          </option>
-                        ))}
-                      </select>
+                        onChange={handleBranchChange}
+                        placeholder="Buscar sucursal..."
+                        showAllOption={false}
+                        className="max-w-sm"
+                      />
                     )}
                   </div>
                 </div>
