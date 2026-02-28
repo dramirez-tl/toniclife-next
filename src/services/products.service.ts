@@ -16,6 +16,7 @@ import {
   type Currency,
   type CreateProductDto,
   type UpdateProductDto,
+  type CreateProductPriceDto,
   type CreateCategoryDto,
   type UpdateCategoryDto,
 } from '@/types/product';
@@ -195,7 +196,7 @@ class ProductsService {
    */
   async createProductPrice(
     productId: string,
-    dto: { priceTypeId: string; price: number; effectiveFrom?: string }
+    dto: CreateProductPriceDto
   ): Promise<ProductPrice> {
     const response = await api.post<ProductPrice>(`/products/${productId}/prices`, dto);
     return response.data;

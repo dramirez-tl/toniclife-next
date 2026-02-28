@@ -14,6 +14,7 @@ import {
   type CategoryTree,
   type CreateProductDto,
   type UpdateProductDto,
+  type CreateProductPriceDto,
   type CreateCategoryDto,
   type UpdateCategoryDto,
 } from '@/types/product';
@@ -350,7 +351,7 @@ export const useCreateProductPrice = () => {
       dto,
     }: {
       productId: string;
-      dto: { priceTypeId: string; price: number; effectiveFrom?: string };
+      dto: CreateProductPriceDto;
     }) => productsService.createProductPrice(productId, dto),
     onSuccess: (_, { productId }) => {
       queryClient.invalidateQueries({ queryKey: productKeys.prices(productId) });

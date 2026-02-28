@@ -16,6 +16,9 @@ export enum OrderStatus {
 export interface OrderItem {
   id: string;
   productId: string;
+  productName?: string;
+  productCode?: string;
+  productSku?: string;
   quantity: number;
   unitPrice: string;
   totalPrice: string;

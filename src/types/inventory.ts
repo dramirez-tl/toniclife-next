@@ -103,6 +103,23 @@ export interface ProductStockDto {
   lastMovementAt?: string;
   locationId?: string;
   isActive: boolean;
+  // Per-branch overrides (null = using product default)
+  minStockAlertOverride?: number | null;
+  maxStockLevelOverride?: number | null;
+  reorderPointOverride?: number | null;
+  reorderQuantityOverride?: number | null;
+  // Effective values (COALESCE of override and product default)
+  minStockAlertEffective?: number;
+  maxStockLevelEffective?: number;
+  reorderPointEffective?: number;
+  reorderQuantityEffective?: number;
+}
+
+export interface UpdateStockSettingsDto {
+  minStockAlert?: number | null;
+  maxStockLevel?: number | null;
+  reorderPoint?: number | null;
+  reorderQuantity?: number | null;
 }
 
 export interface BranchInfo {

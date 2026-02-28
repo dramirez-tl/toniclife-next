@@ -36,6 +36,7 @@ import type {
   ApproveAdjustmentDto,
   RejectAdjustmentDto,
   ApplyAdjustmentDto,
+  UpdateStockSettingsDto,
 } from '@/types/inventory';
 
 class InventoryService {
@@ -67,6 +68,18 @@ class InventoryService {
   async getProductStock(productId: string): Promise<ProductStockDto[]> {
     const response = await api.get<ProductStockDto[]>(
       `/inventory/products/${productId}/stock`
+    );
+    return response.data;
+  }
+
+  async updateStockSettings(
+    branchId: string,
+    productId: string,
+    dto: UpdateStockSettingsDto,
+  ): Promise<ProductStockDto> {
+    const response = await api.patch<ProductStockDto>(
+      `/inventory/stock/${branchId}/${productId}/settings`,
+      dto,
     );
     return response.data;
   }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeftIcon,
@@ -10,158 +11,85 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ClockIcon,
-  CreditCardIcon,
   UserIcon,
   MapPinIcon,
-  PhoneIcon,
   DocumentTextIcon,
   ReceiptRefundIcon,
   EllipsisVerticalIcon,
-  PencilIcon,
-  TrashIcon,
+  ExclamationTriangleIcon,
+  CubeIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import {
+  useOrder,
+  useOrderTracking,
+  useUpdateOrderStatus,
+  useCancelOrder,
+} from '@/hooks/useOrders';
+import { OrderStatus } from '@/types/order';
 
-// Mock data - In real app, fetch based on [id]
-const orderData = {
-  id: '12345',
-  orderNumber: 'TL-2024-12345',
-  date: '2024-01-26 10:30 AM',
-  status: 'processing',
-  paymentStatus: 'paid',
-  customer: {
-    name: 'María González',
-    email: 'maria.gonzalez@email.com',
-    phone: '+52 55 1234 5678',
-    userId: 'USR-789'
-  },
-  shippingAddress: {
-    street: 'Av. Insurgentes Sur 1602',
-    city: 'Ciudad de México',
-    state: 'CDMX',
-    zip: '03940',
-    country: 'México'
-  },
-  billingAddress: {
-    street: 'Av. Insurgentes Sur 1602',
-    city: 'Ciudad de México',
-    state: 'CDMX',
-    zip: '03940',
-    country: 'México'
-  },
-  items: [
-    {
-      id: 'P1',
-      name: 'Proteína Vegana Chocolate',
-      sku: 'TL-PROT-001',
-      price: 45.00,
-      quantity: 2,
-      image: '/products/protein.jpg'
-    },
-    {
-      id: 'P2',
-      name: 'Omega-3 Plus',
-      sku: 'TL-OMG-002',
-      price: 32.00,
-      quantity: 1,
-      image: '/products/omega.jpg'
-    },
-    {
-      id: 'P3',
-      name: 'Multivitamínico Completo',
-      sku: 'TL-MLT-003',
-      price: 28.00,
-      quantity: 3,
-      image: '/products/multi.jpg'
-    }
-  ],
-  pricing: {
-    subtotal: 206.00,
-    shipping: 0.00,
-    discount: 20.60,
-    tax: 18.54,
-    total: 203.94
-  },
-  payment: {
-    method: 'Tarjeta de Crédito',
-    lastFour: '4242',
-    transactionId: 'TXN-789456123',
-    gateway: 'Stripe'
-  },
-  shipping: {
-    method: 'Envío Estándar',
-    carrier: 'DHL',
-    trackingNumber: 'DHL123456789MX',
-    estimatedDelivery: '2024-01-30'
-  },
-  timeline: [
-    {
-      status: 'Pedido Recibido',
-      date: '2024-01-26 10:30 AM',
-      description: 'El pedido ha sido recibido y está siendo procesado',
-      completed: true
-    },
-    {
-      status: 'Pago Confirmado',
-      date: '2024-01-26 10:31 AM',
-      description: 'El pago ha sido verificado exitosamente',
-      completed: true
-    },
-    {
-      status: 'En Preparación',
-      date: '2024-01-26 2:15 PM',
-      description: 'Los productos están siendo preparados para envío',
-      completed: true
-    },
-    {
-      status: 'Enviado',
-      date: '',
-      description: 'El pedido ha sido enviado',
-      completed: false
-    },
-    {
-      status: 'Entregado',
-      date: '',
-      description: 'El pedido ha sido entregado al cliente',
-      completed: false
-    }
-  ],
-  notes: [
-    {
-      id: 'N1',
-      author: 'Admin',
-      date: '2024-01-26 10:35 AM',
-      text: 'Cliente solicitó envío express, pero no está disponible en su zona. Se contactó por email.'
-    },
-    {
-      id: 'N2',
-      author: 'María González',
-      date: '2024-01-26 11:00 AM',
-      text: '¿Pueden incluir una nota de regalo? Es para mi hermana.'
-    }
-  ],
-  couponCode: 'WELCOME10',
-  isDistributor: false,
-  distributorId: null
-};
+// ================================
+// Helpers
+// ================================
 
 const statusOptions = [
   { value: 'pending', label: 'Pendiente', color: 'bg-yellow-100 text-yellow-800' },
+  { value: 'confirmed', label: 'Confirmado', color: 'bg-teal-100 text-teal-800' },
+  { value: 'paid', label: 'Pagado', color: 'bg-blue-100 text-blue-800' },
   { value: 'processing', label: 'Procesando', color: 'bg-blue-100 text-blue-800' },
   { value: 'shipped', label: 'Enviado', color: 'bg-purple-100 text-purple-800' },
+  { value: 'in_transit', label: 'En Tránsito', color: 'bg-purple-100 text-purple-800' },
   { value: 'delivered', label: 'Entregado', color: 'bg-green-100 text-green-800' },
+  { value: 'completed', label: 'Completado', color: 'bg-green-100 text-green-800' },
   { value: 'cancelled', label: 'Cancelado', color: 'bg-red-100 text-red-800' },
-  { value: 'refunded', label: 'Reembolsado', color: 'bg-gray-100 text-gray-800' }
 ];
 
+const formatCurrency = (amount: number | string) => {
+  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+  }).format(num);
+};
+
+const formatDate = (dateString: string | Date) => {
+  const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
+  return date.toLocaleDateString('es-MX', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+// ================================
+// Page Component
+// ================================
+
 export default function OrderDetailAdminPage() {
-  const [status, setStatus] = useState(orderData.status);
-  const [newNote, setNewNote] = useState('');
+  const params = useParams();
+  const id = params.id as string;
+
+  const { data: order, isLoading, error } = useOrder(id);
+  const { data: tracking } = useOrderTracking(id);
+  const updateStatus = useUpdateOrderStatus();
+  const cancelOrderMutation = useCancelOrder();
+
   const [showActions, setShowActions] = useState(false);
 
-  const handleStatusChange = (newStatus: string) => {
-    setStatus(newStatus);
-    toast.success(`Estado actualizado a: ${statusOptions.find(s => s.value === newStatus)?.label}`);
+  const handleStatusChange = async (newStatus: string) => {
+    try {
+      await updateStatus.mutateAsync({
+        id,
+        dto: { status: newStatus as OrderStatus },
+      });
+      toast.success(
+        `Estado actualizado a: ${statusOptions.find((s) => s.value === newStatus)?.label}`,
+      );
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Error al actualizar estado');
+    }
   };
 
   const handlePrint = () => {
@@ -172,27 +100,57 @@ export default function OrderDetailAdminPage() {
     toast.success('Correo de actualización enviado al cliente');
   };
 
-  const handleAddNote = () => {
-    if (newNote.trim()) {
-      toast.success('Nota agregada al pedido');
-      setNewNote('');
-    }
-  };
-
-  const handleRefund = () => {
-    if (confirm('¿Estás seguro de que deseas procesar un reembolso completo?')) {
-      toast.success('Reembolso procesado exitosamente');
-    }
-  };
-
-  const handleCancel = () => {
-    if (confirm('¿Estás seguro de que deseas cancelar este pedido?')) {
-      setStatus('cancelled');
+  const handleCancel = async () => {
+    if (!confirm('¿Estás seguro de que deseas cancelar este pedido?')) return;
+    try {
+      await cancelOrderMutation.mutateAsync({
+        id,
+        dto: { reason: 'Cancelado por administrador' },
+      });
       toast.success('Pedido cancelado');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Error al cancelar pedido');
     }
   };
 
-  const currentStatusOption = statusOptions.find(s => s.value === status);
+  // Loading
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block w-12 h-12 border-4 border-[#3E667D] border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-gray-600">Cargando pedido...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error
+  if (error || !order) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <ExclamationTriangleIcon className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Error al cargar el pedido</h2>
+          <p className="text-gray-600 mb-4">
+            {(error as any)?.response?.data?.message || 'Pedido no encontrado'}
+          </p>
+          <Link href="/admin/pedidos">
+            <button className="px-6 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#3E667D]/90">
+              Volver a Pedidos
+            </button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const currentStatusOption = statusOptions.find((s) => s.value === order.status);
+  const subtotal = parseFloat(order.subtotal);
+  const taxAmount = parseFloat(order.taxAmount);
+  const discountAmount = parseFloat(order.discountAmount);
+  const shippingAmount = parseFloat(order.shippingAmount);
+  const total = parseFloat(order.total);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -209,21 +167,23 @@ export default function OrderDetailAdminPage() {
               </Link>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  Pedido #{orderData.orderNumber}
+                  Pedido #{order.orderNumber}
                 </h1>
-                <p className="text-gray-600">{orderData.date}</p>
+                <p className="text-gray-600">{formatDate(order.createdAt)}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <button
                 onClick={handlePrint}
                 className="p-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                title="Imprimir"
               >
                 <PrinterIcon className="h-5 w-5" />
               </button>
               <button
                 onClick={handleSendEmail}
                 className="p-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                title="Enviar correo"
               >
                 <EnvelopeIcon className="h-5 w-5" />
               </button>
@@ -237,14 +197,10 @@ export default function OrderDetailAdminPage() {
                 {showActions && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-10">
                     <button
-                      onClick={handleRefund}
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                    >
-                      <ReceiptRefundIcon className="h-4 w-4" />
-                      Procesar Reembolso
-                    </button>
-                    <button
-                      onClick={handleCancel}
+                      onClick={() => {
+                        setShowActions(false);
+                        handleCancel();
+                      }}
                       className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 text-red-600 flex items-center gap-2"
                     >
                       <XCircleIcon className="h-4 w-4" />
@@ -267,121 +223,141 @@ export default function OrderDetailAdminPage() {
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-4">Productos</h2>
               <div className="space-y-4">
-                {orderData.items.map((item) => (
+                {order.items.map((item) => (
                   <div key={item.id} className="flex gap-4 pb-4 border-b last:border-0">
-                    <div className="w-20 h-20 bg-gray-100 rounded-lg flex-shrink-0" />
-                    <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">{item.name}</h3>
-                      <p className="text-sm text-gray-600">SKU: {item.sku}</p>
+                    <div className="w-16 h-16 bg-gray-100 rounded-lg flex-shrink-0 flex items-center justify-center">
+                      <CubeIcon className="h-8 w-8 text-gray-300" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-gray-900">
+                        {item.productName || `Producto ${item.productId.slice(0, 8)}...`}
+                      </h3>
+                      {(item.productSku || item.productCode) && (
+                        <p className="text-sm text-gray-500">
+                          {item.productSku && `SKU: ${item.productSku}`}
+                          {item.productSku && item.productCode && ' | '}
+                          {item.productCode && `Código: ${item.productCode}`}
+                        </p>
+                      )}
                       <p className="text-sm text-gray-600">Cantidad: {item.quantity}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="font-medium text-gray-900">${item.price.toFixed(2)}</p>
+                    <div className="text-right shrink-0">
+                      <p className="font-medium text-gray-900">{formatCurrency(item.unitPrice)}</p>
                       <p className="text-sm text-gray-600">
-                        Total: ${(item.price * item.quantity).toFixed(2)}
+                        Total: {formatCurrency(item.totalPrice)}
                       </p>
                     </div>
                   </div>
                 ))}
+
+                {order.items.length === 0 && (
+                  <p className="text-sm text-gray-400 text-center py-4">
+                    No hay productos en este pedido
+                  </p>
+                )}
               </div>
 
               {/* Pricing Summary */}
               <div className="mt-6 pt-6 border-t space-y-2">
                 <div className="flex justify-between text-gray-700">
                   <span>Subtotal</span>
-                  <span>${orderData.pricing.subtotal.toFixed(2)}</span>
+                  <span>{formatCurrency(subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-gray-700">
                   <span>Envío</span>
-                  <span>
-                    {orderData.pricing.shipping === 0 ? 'GRATIS' : `$${orderData.pricing.shipping.toFixed(2)}`}
-                  </span>
+                  <span>{shippingAmount === 0 ? 'GRATIS' : formatCurrency(shippingAmount)}</span>
                 </div>
-                {orderData.pricing.discount > 0 && (
+                {discountAmount > 0 && (
                   <div className="flex justify-between text-green-600">
-                    <span>Descuento ({orderData.couponCode})</span>
-                    <span>-${orderData.pricing.discount.toFixed(2)}</span>
+                    <span>Descuento</span>
+                    <span>-{formatCurrency(discountAmount)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-gray-700">
-                  <span>Impuestos</span>
-                  <span>${orderData.pricing.tax.toFixed(2)}</span>
-                </div>
+                {taxAmount > 0 && (
+                  <div className="flex justify-between text-gray-700">
+                    <span>Impuestos</span>
+                    <span>{formatCurrency(taxAmount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-lg font-bold text-gray-900 pt-2 border-t">
                   <span>Total</span>
-                  <span>${orderData.pricing.total.toFixed(2)}</span>
+                  <span>{formatCurrency(total)}</span>
                 </div>
               </div>
             </div>
 
-            {/* Timeline */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-6">Estado del Pedido</h2>
-              <div className="space-y-6">
-                {orderData.timeline.map((step, index) => (
-                  <div key={index} className="flex gap-4">
-                    <div className="flex flex-col items-center">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          step.completed ? 'bg-[#3E667D] text-white' : 'bg-gray-200 text-gray-400'
-                        }`}
-                      >
-                        {step.completed ? (
-                          <CheckCircleIcon className="h-6 w-6" />
-                        ) : (
-                          <ClockIcon className="h-6 w-6" />
+            {/* Timeline / Tracking */}
+            {tracking && tracking.statusHistory && tracking.statusHistory.length > 0 && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-6">Historial de Envío</h2>
+                <div className="space-y-6">
+                  {tracking.statusHistory.map((entry, index) => (
+                    <div key={index} className="flex gap-4">
+                      <div className="flex flex-col items-center">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[#3E667D] text-white">
+                          <TruckIcon className="h-5 w-5" />
+                        </div>
+                        {index < tracking.statusHistory.length - 1 && (
+                          <div className="w-0.5 h-12 bg-[#C8DDF2]" />
                         )}
                       </div>
-                      {index < orderData.timeline.length - 1 && (
-                        <div
-                          className={`w-0.5 h-16 ${
-                            step.completed ? 'bg-[#C8DDF2]' : 'bg-gray-200'
-                          }`}
-                        />
-                      )}
+                      <div className="flex-1 pb-4">
+                        <h3 className="font-medium text-gray-900 capitalize">{entry.status}</h3>
+                        <p className="text-sm text-gray-600">{formatDate(entry.createdAt)}</p>
+                        {entry.notes && (
+                          <p className="text-sm text-gray-500 mt-1">{entry.notes}</p>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-1 pb-6">
-                      <h3 className="font-medium text-gray-900">{step.status}</h3>
-                      {step.date && (
-                        <p className="text-sm text-gray-600">{step.date}</p>
-                      )}
-                      <p className="text-sm text-gray-500 mt-1">{step.description}</p>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Notes */}
+            {/* Order metadata */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Notas y Comentarios</h2>
-
-              <div className="space-y-4 mb-6">
-                {orderData.notes.map((note) => (
-                  <div key={note.id} className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-gray-900">{note.author}</span>
-                      <span className="text-sm text-gray-600">{note.date}</span>
-                    </div>
-                    <p className="text-gray-700">{note.text}</p>
+              <h2 className="text-lg font-bold text-gray-900 mb-4">Detalles Adicionales</h2>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                {order.source && (
+                  <div>
+                    <span className="text-gray-500">Origen:</span>{' '}
+                    <span className="font-medium text-gray-900 capitalize">{order.source}</span>
                   </div>
-                ))}
-              </div>
-
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                  placeholder="Agregar una nota..."
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
-                />
-                <button
-                  onClick={handleAddNote}
-                  className="px-6 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#002855]"
-                >
-                  Agregar
-                </button>
+                )}
+                {order.orderDate && (
+                  <div>
+                    <span className="text-gray-500">Fecha de orden:</span>{' '}
+                    <span className="font-medium text-gray-900">{formatDate(order.orderDate)}</span>
+                  </div>
+                )}
+                <div>
+                  <span className="text-gray-500">Puntos MLM:</span>{' '}
+                  <span className="font-medium text-gray-900">{order.totalPoints}</span>
+                </div>
+                <div>
+                  <span className="text-gray-500">Valor de Negocio:</span>{' '}
+                  <span className="font-medium text-gray-900">
+                    {formatCurrency(order.totalBusinessValue)}
+                  </span>
+                </div>
+                {order.observation && (
+                  <div className="col-span-2">
+                    <span className="text-gray-500">Observación:</span>{' '}
+                    <span className="font-medium text-gray-900">{order.observation}</span>
+                  </div>
+                )}
+                {order.confirmationNotes && (
+                  <div className="col-span-2">
+                    <span className="text-gray-500">Notas de confirmación:</span>{' '}
+                    <span className="font-medium text-gray-900">{order.confirmationNotes}</span>
+                  </div>
+                )}
+                {order.cancellationReason && (
+                  <div className="col-span-2">
+                    <span className="text-gray-500">Motivo de cancelación:</span>{' '}
+                    <span className="font-medium text-red-600">{order.cancellationReason}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -392,9 +368,10 @@ export default function OrderDetailAdminPage() {
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-4">Estado</h2>
               <select
-                value={status}
+                value={order.status}
                 onChange={(e) => handleStatusChange(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D] mb-3"
+                disabled={updateStatus.isPending}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D] mb-3 disabled:opacity-50"
               >
                 {statusOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -403,8 +380,10 @@ export default function OrderDetailAdminPage() {
                 ))}
               </select>
               <div className="flex justify-center">
-                <span className={`px-4 py-2 rounded-full text-sm font-medium ${currentStatusOption?.color}`}>
-                  {currentStatusOption?.label}
+                <span
+                  className={`px-4 py-2 rounded-full text-sm font-medium ${currentStatusOption?.color || 'bg-gray-100 text-gray-800'}`}
+                >
+                  {currentStatusOption?.label || order.status}
                 </span>
               </div>
             </div>
@@ -412,113 +391,130 @@ export default function OrderDetailAdminPage() {
             {/* Customer Info */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-4">Cliente</h2>
-              <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <UserIcon className="h-5 w-5 text-gray-400 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-gray-900">{orderData.customer.name}</p>
-                    <Link
-                      href={`/admin/usuarios/${orderData.customer.userId}`}
-                      className="text-sm text-[#3E667D] hover:underline"
+              {order.customer ? (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <UserIcon className="h-5 w-5 text-gray-400 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {order.customer.firstName} {order.customer.lastName}
+                      </p>
+                      {order.customerId && (
+                        <Link
+                          href={`/admin/distribuidores/${order.customerId}`}
+                          className="text-sm text-[#3E667D] hover:underline"
+                        >
+                          Ver perfil →
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <EnvelopeIcon className="h-5 w-5 text-gray-400" />
+                    <a
+                      href={`mailto:${order.customer.email}`}
+                      className="text-sm text-gray-700 hover:text-[#3E667D]"
                     >
-                      Ver perfil →
-                    </Link>
+                      {order.customer.email}
+                    </a>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <EnvelopeIcon className="h-5 w-5 text-gray-400" />
-                  <a
-                    href={`mailto:${orderData.customer.email}`}
-                    className="text-gray-700 hover:text-[#3E667D]"
-                  >
-                    {orderData.customer.email}
-                  </a>
-                </div>
-                <div className="flex items-center gap-3">
-                  <PhoneIcon className="h-5 w-5 text-gray-400" />
-                  <a
-                    href={`tel:${orderData.customer.phone}`}
-                    className="text-gray-700 hover:text-[#3E667D]"
-                  >
-                    {orderData.customer.phone}
-                  </a>
-                </div>
-              </div>
+              ) : (
+                <p className="text-sm text-gray-400">Sin información de cliente</p>
+              )}
             </div>
 
             {/* Shipping Info */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Envío</h2>
-              <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <MapPinIcon className="h-5 w-5 text-gray-400 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Dirección de Envío</p>
-                    <p className="text-sm text-gray-600">
-                      {orderData.shippingAddress.street}<br />
-                      {orderData.shippingAddress.city}, {orderData.shippingAddress.state} {orderData.shippingAddress.zip}<br />
-                      {orderData.shippingAddress.country}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <TruckIcon className="h-5 w-5 text-gray-400 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Método de Envío</p>
-                    <p className="text-sm text-gray-600">{orderData.shipping.method}</p>
-                    <p className="text-sm text-gray-600">Carrier: {orderData.shipping.carrier}</p>
-                  </div>
-                </div>
-                {orderData.shipping.trackingNumber && (
+            {order.shippingAddressSnapshot && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-4">Envío</h2>
+                <div className="space-y-3">
                   <div className="flex items-start gap-3">
-                    <DocumentTextIcon className="h-5 w-5 text-gray-400 mt-0.5" />
+                    <MapPinIcon className="h-5 w-5 text-gray-400 mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium text-gray-900">Tracking</p>
-                      <p className="text-sm text-[#3E667D] font-mono">
-                        {orderData.shipping.trackingNumber}
+                      <p className="text-sm font-medium text-gray-900">Dirección de Envío</p>
+                      <p className="text-sm text-gray-600">
+                        {order.shippingAddressSnapshot.street}
+                        {order.shippingAddressSnapshot.exteriorNumber &&
+                          ` #${order.shippingAddressSnapshot.exteriorNumber}`}
+                        <br />
+                        {order.shippingAddressSnapshot.neighborhood &&
+                          `${order.shippingAddressSnapshot.neighborhood}, `}
+                        {order.shippingAddressSnapshot.city},{' '}
+                        {order.shippingAddressSnapshot.state}{' '}
+                        {order.shippingAddressSnapshot.postalCode}
+                        <br />
+                        {order.shippingAddressSnapshot.country}
                       </p>
                     </div>
                   </div>
-                )}
-                <div className="flex items-start gap-3">
-                  <ClockIcon className="h-5 w-5 text-gray-400 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">Entrega Estimada</p>
-                    <p className="text-sm text-gray-600">{orderData.shipping.estimatedDelivery}</p>
-                  </div>
+
+                  {tracking && tracking.carrier && (
+                    <div className="flex items-start gap-3">
+                      <TruckIcon className="h-5 w-5 text-gray-400 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Carrier</p>
+                        <p className="text-sm text-gray-600">{tracking.carrier}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {tracking && tracking.trackingNumber && (
+                    <div className="flex items-start gap-3">
+                      <DocumentTextIcon className="h-5 w-5 text-gray-400 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Tracking</p>
+                        <p className="text-sm text-[#3E667D] font-mono">
+                          {tracking.trackingNumber}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {tracking && tracking.estimatedDeliveryDate && (
+                    <div className="flex items-start gap-3">
+                      <ClockIcon className="h-5 w-5 text-gray-400 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Entrega Estimada</p>
+                        <p className="text-sm text-gray-600">
+                          {formatDate(tracking.estimatedDeliveryDate)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Payment Info */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-4">Pago</h2>
-              <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <CreditCardIcon className="h-5 w-5 text-gray-400 mt-0.5" />
+              <div className="space-y-3 text-sm">
+                {order.paymentReference && (
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Método de Pago</p>
-                    <p className="text-sm text-gray-600">
-                      {orderData.payment.method} •••• {orderData.payment.lastFour}
-                    </p>
+                    <span className="text-gray-500">Referencia:</span>{' '}
+                    <span className="font-mono text-gray-900">{order.paymentReference}</span>
                   </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <CheckCircleIcon className="h-5 w-5 text-green-500 mt-0.5" />
+                )}
+                {order.paymentAmount1 != null && (
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Estado del Pago</p>
-                    <p className="text-sm text-green-600">Pagado</p>
+                    <span className="text-gray-500">Monto 1:</span>{' '}
+                    <span className="font-medium text-gray-900">
+                      {formatCurrency(order.paymentAmount1)}
+                    </span>
                   </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <DocumentTextIcon className="h-5 w-5 text-gray-400 mt-0.5" />
+                )}
+                {order.paymentAmount2 != null && order.paymentAmount2 > 0 && (
                   <div>
-                    <p className="text-sm font-medium text-gray-900">ID de Transacción</p>
-                    <p className="text-xs text-gray-600 font-mono">
-                      {orderData.payment.transactionId}
-                    </p>
+                    <span className="text-gray-500">Monto 2:</span>{' '}
+                    <span className="font-medium text-gray-900">
+                      {formatCurrency(order.paymentAmount2)}
+                    </span>
                   </div>
-                </div>
+                )}
+                {!order.paymentReference && !order.paymentAmount1 && (
+                  <p className="text-gray-400">Sin información de pago registrada</p>
+                )}
               </div>
             </div>
           </div>

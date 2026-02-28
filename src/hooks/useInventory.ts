@@ -21,6 +21,7 @@ import type {
   ApproveAdjustmentDto,
   RejectAdjustmentDto,
   ApplyAdjustmentDto,
+  UpdateStockSettingsDto,
 } from '@/types/inventory';
 
 // ================================
@@ -90,6 +91,24 @@ export function useProductStock(productId: string | null) {
     queryFn: () => inventoryService.getProductStock(productId!),
     enabled: !!productId,
     staleTime: 30 * 1000,
+  });
+}
+
+export function useUpdateStockSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      branchId,
+      productId,
+      dto,
+    }: {
+      branchId: string;
+      productId: string;
+      dto: UpdateStockSettingsDto;
+    }) => inventoryService.updateStockSettings(branchId, productId, dto),
+    onSuccess: (_, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: inventoryKeys.productStock(productId) });
+    },
   });
 }
 

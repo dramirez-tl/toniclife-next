@@ -17,6 +17,8 @@ import { Button } from '@/components/ui/Button';
 import { useProduct, useUpdateProduct, useCategories } from '@/hooks/useProducts';
 import type { UpdateProductDto } from '@/types/product';
 import { ProductType, KitType } from '@/types/product';
+import { ProductPricesSection } from '@/components/admin/products/ProductPricesSection';
+import { ProductInventoryByBranch } from '@/components/admin/products/ProductInventoryByBranch';
 
 export default function EditarProductoAdminPage() {
   const params = useParams();
@@ -521,6 +523,9 @@ export default function EditarProductoAdminPage() {
               </CardContent>
             </Card>
 
+            {/* Precios por País */}
+            {product && <ProductPricesSection productId={id} />}
+
             {/* Inventory */}
             <Card padding="none">
               <CardContent className="p-6">
@@ -601,6 +606,19 @@ export default function EditarProductoAdminPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Inventario por Sucursal */}
+            {product && (
+              <ProductInventoryByBranch
+                productId={id}
+                defaults={{
+                  minStockAlert: parseFloat(formData.minStockAlert) || 0,
+                  maxStockLevel: parseFloat(formData.maxStockLevel) || 0,
+                  reorderPoint: parseFloat(formData.reorderPoint) || 0,
+                  reorderQuantity: parseFloat(formData.reorderQuantity) || 0,
+                }}
+              />
+            )}
 
             {/* Usage & Health */}
             <Card padding="none">
