@@ -61,6 +61,15 @@ const ADMIN_ROLES = [
 // Distributor roles for /distribuidor/* routes
 const DISTRIBUTOR_ROLES = ['distribuidor', 'customer', 'dashboard', 'cliente-dashboard'];
 
+// Legacy migration created generic role codes "role1" through "role46" for distributors.
+// ~170k users have these codes, so we match the pattern instead of listing all 46.
+const LEGACY_ROLE_PATTERN = /^role\d+$/;
+
+function isDistributorRole(role: string | null): boolean {
+  if (!role) return false;
+  return DISTRIBUTOR_ROLES.includes(role) || LEGACY_ROLE_PATTERN.test(role);
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -132,7 +141,7 @@ export function middleware(request: NextRequest) {
     if (pathname.startsWith('/admin')) {
       if (!role || !ADMIN_ROLES.includes(role)) {
         // If the user is a distribuidor/customer, send them to their dashboard
-        if (role && DISTRIBUTOR_ROLES.includes(role)) {
+        if (isDistributorRole(role)) {
           return NextResponse.redirect(new URL('/distribuidor', request.url));
         }
         // Otherwise redirect to the homepage
@@ -142,8 +151,7 @@ export function middleware(request: NextRequest) {
 
     // /distribuidor/* — only distributor roles (and admin roles for impersonation)
     if (pathname.startsWith('/distribuidor')) {
-      const allowedForDistribuidor = [...DISTRIBUTOR_ROLES, ...ADMIN_ROLES];
-      if (!role || !allowedForDistribuidor.includes(role)) {
+      if (!role || (!isDistributorRole(role) && !ADMIN_ROLES.includes(role))) {
         return NextResponse.redirect(new URL('/', request.url));
       }
     }
