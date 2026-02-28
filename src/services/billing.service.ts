@@ -34,15 +34,29 @@ export interface FiscalDataQueryDto {
   offset?: number;
 }
 
-export interface FiscalDataWithCustomer extends FiscalData {
-  customer?: {
-    id: string;
-    customerNumber: string;
-    userId: string;
-  };
+export interface FiscalDataItem {
+  id: string;
+  customerId: string;
+  customerNumber: string | null;
+  rfc: string;
+  legalName: string;
+  taxRegime: string;
+  cfdiUseCode: string;
+  defaultCfdiUse: string;
+  postalCode: string;
+  email: string | null;
+  firstName: string;
+  lastName: string;
+  isValidated: boolean;
 }
 
-export async function listFiscalData(query?: FiscalDataQueryDto): Promise<FiscalDataWithCustomer[]> {
+export interface PaginatedFiscalData {
+  data: FiscalDataItem[];
+  total: number;
+  totalPages: number;
+}
+
+export async function listFiscalData(query?: FiscalDataQueryDto): Promise<PaginatedFiscalData> {
   const params = new URLSearchParams();
   if (query?.validated !== undefined) params.append('validated', String(query.validated));
   if (query?.search) params.append('search', query.search);
@@ -50,7 +64,7 @@ export async function listFiscalData(query?: FiscalDataQueryDto): Promise<Fiscal
   if (query?.offset) params.append('offset', String(query.offset));
 
   const url = `${BASE_URL}/fiscal-data${params.toString() ? `?${params.toString()}` : ''}`;
-  const response = await apiClient.get<FiscalDataWithCustomer[]>(url);
+  const response = await apiClient.get<PaginatedFiscalData>(url);
   return response.data;
 }
 
