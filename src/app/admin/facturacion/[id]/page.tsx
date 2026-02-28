@@ -38,7 +38,9 @@ export default function InvoiceDetailPage() {
   const router = useRouter();
   const invoiceId = params.id as string;
 
-  const { data: invoice, isLoading } = useInvoice(invoiceId);
+  const { data: invoiceRaw, isLoading } = useInvoice(invoiceId);
+  // Backend returns snake_case fields; cast to any for direct access
+  const invoice = invoiceRaw as any;
   const stampInvoice = useStampInvoice();
   const cancelInvoice = useCancelInvoice();
 
@@ -80,7 +82,7 @@ export default function InvoiceDetailPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `factura-${invoice?.folio || invoiceId}.pdf`;
+      a.download = `factura-${invoice?.invoice_number || invoiceId}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -97,7 +99,7 @@ export default function InvoiceDetailPage() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `factura-${invoice?.folio || invoiceId}.xml`;
+      a.download = `factura-${invoice?.invoice_number || invoiceId}.xml`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -165,7 +167,8 @@ export default function InvoiceDetailPage() {
     );
   }
 
-  const statusConfig = INVOICE_STATUS_CONFIG[invoice.status as InvoiceStatus];
+  const statusConfig = INVOICE_STATUS_CONFIG[invoice.provider_status as InvoiceStatus] ||
+    INVOICE_STATUS_CONFIG[invoice.status as InvoiceStatus];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -184,12 +187,12 @@ export default function InvoiceDetailPage() {
                 <div className="flex items-center gap-3">
                   <DocumentTextIcon className="h-8 w-8" />
                   <h1 className="text-3xl font-bold">
-                    Factura {formatInvoiceNumber(invoice.series, invoice.folio)}
+                    Factura {invoice.invoice_number || formatInvoiceNumber(invoice.series, invoice.folio)}
                   </h1>
                 </div>
-                {invoice.uuid && (
+                {invoice.sat_uuid && (
                   <p className="text-white/80 mt-1 font-mono text-sm">
-                    UUID: {invoice.uuid}
+                    UUID: {invoice.sat_uuid}
                   </p>
                 )}
               </div>
@@ -197,10 +200,10 @@ export default function InvoiceDetailPage() {
             <div className="flex items-center gap-3">
               {/* Status Badge */}
               <span
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium ${statusConfig?.color}`}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium ${statusConfig?.color || 'bg-gray-100 text-gray-800'}`}
               >
-                {getStatusIcon(invoice.status as InvoiceStatus)}
-                {statusConfig?.label}
+                {getStatusIcon((invoice.provider_status || invoice.status) as InvoiceStatus)}
+                {statusConfig?.label || invoice.provider_status || invoice.status}
               </span>
             </div>
           </div>
@@ -213,19 +216,14 @@ export default function InvoiceDetailPage() {
           {/* Main Info */}
           <div className="lg:col-span-2 space-y-6">
             {/* Error Message */}
-            {invoice.status === InvoiceStatus.ERROR && invoice.errorMessage && (
+            {invoice.provider_status === 'error' && invoice.provider_error && (
               <Card className="border-red-200 bg-red-50">
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
                     <ExclamationTriangleIcon className="h-6 w-6 text-red-600 flex-shrink-0" />
                     <div>
                       <h3 className="font-semibold text-red-800">Error en timbrado</h3>
-                      <p className="text-sm text-red-700 mt-1">{invoice.errorMessage}</p>
-                      {invoice.errorCode && (
-                        <p className="text-xs text-red-600 mt-1">
-                          Código: {invoice.errorCode}
-                        </p>
-                      )}
+                      <p className="text-sm text-red-700 mt-1">{invoice.provider_error}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -241,36 +239,30 @@ export default function InvoiceDetailPage() {
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <p className="text-sm text-gray-600">Razón Social</p>
-                    <p className="font-medium text-gray-900">{invoice.receiverName}</p>
+                    <p className="font-medium text-gray-900">{invoice.receiver_name}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">RFC</p>
                     <p className="font-mono font-medium text-gray-900">
-                      {invoice.receiverRfc}
+                      {invoice.receiver_rfc}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Régimen Fiscal</p>
                     <p className="font-medium text-gray-900">
-                      {getFiscalRegimeName(invoice.receiverTaxRegime)}
+                      {getFiscalRegimeName(invoice.receiver_tax_regime_code || '')}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Código Postal</p>
-                    <p className="font-medium text-gray-900">{invoice.receiverPostalCode}</p>
+                    <p className="font-medium text-gray-900">{invoice.receiver_zip_code}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Uso de CFDI</p>
                     <p className="font-medium text-gray-900">
-                      {getCfdiUseName(invoice.cfdiUse)}
+                      {getCfdiUseName(invoice.receiver_cfdi_use_code || '')}
                     </p>
                   </div>
-                  {invoice.receiverEmail && (
-                    <div>
-                      <p className="text-sm text-gray-600">Correo electrónico</p>
-                      <p className="font-medium text-gray-900">{invoice.receiverEmail}</p>
-                    </div>
-                  )}
                 </div>
               </CardContent>
             </Card>
@@ -298,22 +290,22 @@ export default function InvoiceDetailPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {invoice.items?.map((item, index) => (
+                      {invoice.items?.map((item: any, index: number) => (
                         <tr key={item.id || index} className="border-b border-gray-100">
                           <td className="py-3 px-3">
                             <p className="font-medium text-gray-900">{item.description}</p>
                             <p className="text-xs text-gray-500">
-                              Clave: {item.productCode} | Unidad: {item.unitCode}
+                              Clave: {item.sat_product_code} | Unidad: {item.sat_unit_code}
                             </p>
                           </td>
                           <td className="py-3 px-3 text-right text-gray-900">
                             {item.quantity}
                           </td>
                           <td className="py-3 px-3 text-right text-gray-900">
-                            {formatCurrency(item.unitPrice)}
+                            {formatCurrency(item.unit_price || 0)}
                           </td>
                           <td className="py-3 px-3 text-right font-medium text-gray-900">
-                            {formatCurrency(item.amount)}
+                            {formatCurrency(item.total || 0)}
                           </td>
                         </tr>
                       ))}
@@ -324,25 +316,15 @@ export default function InvoiceDetailPage() {
                           Subtotal:
                         </td>
                         <td className="py-3 px-3 text-right font-medium">
-                          {formatCurrency(invoice.subtotal)}
+                          {formatCurrency(invoice.subtotal || 0)}
                         </td>
                       </tr>
-                      {parseFloat(invoice.discount) > 0 && (
-                        <tr>
-                          <td colSpan={3} className="py-2 px-3 text-right text-gray-600">
-                            Descuento:
-                          </td>
-                          <td className="py-2 px-3 text-right text-red-600">
-                            -{formatCurrency(invoice.discount)}
-                          </td>
-                        </tr>
-                      )}
                       <tr>
                         <td colSpan={3} className="py-2 px-3 text-right text-gray-600">
-                          IVA (16%):
+                          IVA ({((Number(invoice.tax_rate) || 0.16) * 100).toFixed(0)}%):
                         </td>
                         <td className="py-2 px-3 text-right">
-                          {formatCurrency(invoice.taxAmount)}
+                          {formatCurrency(invoice.tax_amount || 0)}
                         </td>
                       </tr>
                       <tr className="bg-gray-50">
@@ -353,7 +335,7 @@ export default function InvoiceDetailPage() {
                           Total:
                         </td>
                         <td className="py-3 px-3 text-right font-bold text-xl text-[#3E667D]">
-                          {formatCurrency(invoice.total)}
+                          {formatCurrency(invoice.total || 0)}
                         </td>
                       </tr>
                     </tfoot>
@@ -370,7 +352,7 @@ export default function InvoiceDetailPage() {
               <CardContent className="p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Acciones</h2>
                 <div className="space-y-3">
-                  {invoice.status === InvoiceStatus.PENDING && (
+                  {invoice.provider_status === 'pending' && (
                     <>
                       <Button
                         variant="primary"
@@ -393,7 +375,7 @@ export default function InvoiceDetailPage() {
                     </>
                   )}
 
-                  {invoice.status === InvoiceStatus.STAMPED && (
+                  {invoice.provider_status === 'stamped' && (
                     <>
                       <Button
                         variant="outline"
@@ -422,7 +404,7 @@ export default function InvoiceDetailPage() {
                     </>
                   )}
 
-                  {invoice.status === InvoiceStatus.ERROR && (
+                  {invoice.provider_status === 'error' && (
                     <Button
                       variant="primary"
                       className="w-full"
@@ -445,35 +427,37 @@ export default function InvoiceDetailPage() {
                   <div>
                     <p className="text-sm text-gray-600">Tipo de Comprobante</p>
                     <p className="font-medium text-gray-900">
-                      {invoice.invoiceType === 'I' ? 'Ingreso' : invoice.invoiceType}
+                      {invoice.cfdi_type === 'I' ? 'Ingreso' : invoice.cfdi_type === 'E' ? 'Egreso' : invoice.cfdi_type === 'P' ? 'Pago' : invoice.cfdi_type}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Método de Pago</p>
                     <p className="font-medium text-gray-900">
-                      {invoice.paymentMethod === 'PUE'
+                      {invoice.payment_method_code === 'PUE'
                         ? 'Pago en Una Exhibición'
-                        : 'Pago en Parcialidades'}
+                        : invoice.payment_method_code === 'PPD'
+                          ? 'Pago en Parcialidades'
+                          : invoice.payment_method_code || '-'}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Forma de Pago</p>
                     <p className="font-medium text-gray-900">
-                      {getPaymentFormName(invoice.paymentForm)}
+                      {getPaymentFormName(invoice.payment_form_code || '')}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Moneda</p>
-                    <p className="font-medium text-gray-900">{invoice.currency}</p>
+                    <p className="font-medium text-gray-900">{invoice.currency_code || 'MXN'}</p>
                   </div>
                   {invoice.order && (
                     <div>
                       <p className="text-sm text-gray-600">Pedido Relacionado</p>
                       <Link
-                        href={`/admin/pedidos/${invoice.orderId}`}
+                        href={`/admin/pedidos/${invoice.order_id}`}
                         className="font-medium text-[#3E667D] hover:underline"
                       >
-                        {invoice.order.orderNumber}
+                        {invoice.order.order_number}
                       </Link>
                     </div>
                   )}
@@ -491,46 +475,35 @@ export default function InvoiceDetailPage() {
                     <div>
                       <p className="text-sm font-medium text-gray-900">Creada</p>
                       <p className="text-xs text-gray-500">
-                        {formatDate(invoice.createdAt)}
+                        {formatDate(invoice.created_at)}
                       </p>
                     </div>
                   </div>
-                  {invoice.stampedAt && (
+                  {invoice.stamped_at && (
                     <div className="flex gap-3">
                       <div className="w-2 h-2 rounded-full bg-green-500 mt-2" />
                       <div>
                         <p className="text-sm font-medium text-gray-900">Timbrada</p>
                         <p className="text-xs text-gray-500">
-                          {formatDate(invoice.stampedAt)}
+                          {formatDate(invoice.stamped_at)}
                         </p>
                       </div>
                     </div>
                   )}
-                  {invoice.sentAt && (
-                    <div className="flex gap-3">
-                      <div className="w-2 h-2 rounded-full bg-blue-500 mt-2" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Enviada</p>
-                        <p className="text-xs text-gray-500">
-                          {formatDate(invoice.sentAt)}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  {invoice.cancelledAt && (
+                  {invoice.cancelled_at && (
                     <div className="flex gap-3">
                       <div className="w-2 h-2 rounded-full bg-red-500 mt-2" />
                       <div>
                         <p className="text-sm font-medium text-gray-900">Cancelada</p>
                         <p className="text-xs text-gray-500">
-                          {formatDate(invoice.cancelledAt)}
+                          {formatDate(invoice.cancelled_at)}
                         </p>
-                        {invoice.cancellationReason && (
+                        {invoice.cancellation_reason && (
                           <p className="text-xs text-gray-500">
                             Motivo:{' '}
                             {
                               CANCELLATION_REASONS.find(
-                                (r) => r.Value === invoice.cancellationReason
+                                (r) => r.Value === invoice.cancellation_reason
                               )?.Name
                             }
                           </p>

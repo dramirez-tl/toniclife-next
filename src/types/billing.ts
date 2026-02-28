@@ -184,6 +184,12 @@ export interface InvoiceQueryDto {
   offset?: number;
 }
 
+export interface PaginatedInvoices {
+  data: Invoice[];
+  total: number;
+  stats: Record<string, number>;
+}
+
 // ================================
 // GLOBAL INVOICES
 // ================================

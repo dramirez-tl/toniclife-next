@@ -2,16 +2,16 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.5 Facturación
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
+import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import {
   DocumentTextIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
   ArrowDownTrayIcon,
-  PlusIcon,
   EyeIcon,
   XMarkIcon,
   CheckCircleIcon,
@@ -20,48 +20,54 @@ import {
   DocumentDuplicateIcon,
   GlobeAltIcon,
   BuildingOfficeIcon,
+  ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
-import { useInvoices, useFacturamaStatus, useCancelInvoice } from '@/hooks/useBilling';
+import { useInvoices, useFacturamaStatus } from '@/hooks/useBilling';
 import { billingService } from '@/services/billing.service';
 import {
   InvoiceStatus,
   INVOICE_STATUS_CONFIG,
-  formatInvoiceNumber,
   formatCurrency,
-  getPaymentFormName,
   type InvoiceQueryDto,
 } from '@/types/billing';
 import { PermissionGuard } from '@/components/auth';
 
 export default function FacturacionPage() {
-  const [filters, setFilters] = useState<InvoiceQueryDto>({
-    limit: 50,
-    offset: 0,
-  });
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | ''>('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
-  const { data: invoices, isLoading, refetch } = useInvoices({
-    ...filters,
+  const filters: InvoiceQueryDto = useMemo(() => ({
+    limit: pageSize,
+    offset: (currentPage - 1) * pageSize,
     status: statusFilter || undefined,
-  });
+  }), [pageSize, currentPage, statusFilter]);
+
+  const { data: invoicesResponse, isLoading, isFetching, refetch } = useInvoices(filters);
 
   const { data: facturamaStatus } = useFacturamaStatus();
-  const cancelInvoice = useCancelInvoice();
 
-  const filteredInvoices = invoices?.filter((inv) => {
-    if (!searchTerm) return true;
+  // Backend returns { data: [...], total: number, stats: {} } with snake_case fields
+  const paginatedResult = invoicesResponse as any;
+  const invoicesList: any[] | undefined = paginatedResult?.data;
+  const totalInvoices: number = paginatedResult?.total ?? 0;
+  const invoiceStats: Record<string, number> = paginatedResult?.stats ?? {};
+
+  const filteredInvoices = useMemo(() => {
+    if (!invoicesList) return [];
+    if (!searchTerm) return invoicesList;
     const search = searchTerm.toLowerCase();
-    return (
-      inv.uuid?.toLowerCase().includes(search) ||
-      inv.series?.toLowerCase().includes(search) ||
-      inv.folio?.toLowerCase().includes(search) ||
-      inv.receiverRfc.toLowerCase().includes(search) ||
-      inv.receiverName.toLowerCase().includes(search) ||
-      inv.order?.orderNumber?.toLowerCase().includes(search)
+    return invoicesList.filter((inv: any) =>
+      inv.sat_uuid?.toLowerCase().includes(search) ||
+      inv.invoice_number?.toLowerCase().includes(search) ||
+      inv.receiver_rfc?.toLowerCase().includes(search) ||
+      inv.receiver_name?.toLowerCase().includes(search) ||
+      inv.order_number?.toLowerCase().includes(search)
     );
-  });
+  }, [invoicesList, searchTerm]);
 
   const handleDownloadPdf = async (invoiceId: string) => {
     try {
@@ -121,13 +127,162 @@ export default function FacturacionPage() {
     });
   };
 
-  // Stats
-  const stats = {
-    total: invoices?.length || 0,
-    stamped: invoices?.filter((i) => i.status === InvoiceStatus.STAMPED).length || 0,
-    pending: invoices?.filter((i) => i.status === InvoiceStatus.PENDING).length || 0,
-    cancelled: invoices?.filter((i) => i.status === InvoiceStatus.CANCELLED).length || 0,
+  const handleSearch = () => {
+    setSearchTerm(searchInput.trim());
+    setCurrentPage(1);
   };
+
+  const handleStatusFilter = (value: string) => {
+    setStatusFilter(value as InvoiceStatus | '');
+    setCurrentPage(1);
+  };
+
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  };
+
+  const resetFilters = () => {
+    setSearchTerm('');
+    setSearchInput('');
+    setStatusFilter('');
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters = Boolean(searchTerm || statusFilter);
+
+  // Stats from backend aggregation (across all invoices, not just current page)
+  const allStatusTotal = Object.values(invoiceStats).reduce((sum, n) => sum + n, 0);
+  const stats = {
+    total: allStatusTotal || totalInvoices,
+    stamped: (invoiceStats['stamped'] || 0) + (invoiceStats['sent'] || 0),
+    pending: invoiceStats['pending'] || 0,
+    cancelled: invoiceStats['cancelled'] || 0,
+  };
+
+  // Column definitions
+  const invoiceColumns: DataTableColumn<any>[] = [
+    {
+      key: 'folio',
+      header: 'Folio',
+      sortable: true,
+      sortValue: (inv) => inv.invoice_number || '',
+      render: (inv) => (
+        <div>
+          <span className="font-mono text-sm font-medium text-[#3E667D]">
+            {inv.invoice_number || '-'}
+          </span>
+          {inv.sat_uuid && (
+            <div className="text-xs text-gray-500 mt-1 truncate max-w-[200px]">
+              UUID: {inv.sat_uuid}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'receiver',
+      header: 'Receptor',
+      sortable: true,
+      sortValue: (inv) => inv.receiver_name || '',
+      render: (inv) => (
+        <div>
+          <p className="font-medium text-gray-900">{inv.receiver_name}</p>
+          <p className="text-sm text-gray-500">RFC: {inv.receiver_rfc || '-'}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'order',
+      header: 'Pedido',
+      sortable: true,
+      sortValue: (inv) => inv.order_number || '',
+      render: (inv) => (
+        <code className="text-sm bg-gray-100 px-2 py-1 rounded">
+          {inv.order_number || '-'}
+        </code>
+      ),
+    },
+    {
+      key: 'total',
+      header: 'Total',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      sortable: true,
+      sortValue: (inv) => Number(inv.total) || 0,
+      render: (inv) => (
+        <span className="font-bold text-gray-900">
+          {formatCurrency(inv.total || 0)}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      sortable: true,
+      sortValue: (inv) => inv.provider_status || '',
+      render: (inv) => {
+        const statusConfig = INVOICE_STATUS_CONFIG[inv.provider_status as InvoiceStatus];
+        return (
+          <span
+            className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${statusConfig?.color || 'bg-gray-100 text-gray-800'}`}
+          >
+            {getStatusIcon(inv.provider_status as InvoiceStatus)}
+            {statusConfig?.label || inv.provider_status}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'date',
+      header: 'Fecha',
+      sortable: true,
+      sortValue: (inv) => inv.stamped_at || inv.created_at || '',
+      render: (inv) => (
+        <span className="text-sm text-gray-600">
+          {formatDate(inv.stamped_at || inv.created_at)}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Acciones',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (inv) => (
+        <div className="flex items-center justify-end gap-2">
+          <Link href={`/admin/facturacion/${inv.id}`}>
+            <button
+              className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Ver detalle"
+            >
+              <EyeIcon className="h-5 w-5" />
+            </button>
+          </Link>
+          {inv.provider_status === 'stamped' && (
+            <>
+              <button
+                onClick={() => handleDownloadPdf(inv.id)}
+                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Descargar PDF"
+              >
+                <ArrowDownTrayIcon className="h-5 w-5" />
+              </button>
+              <button
+                onClick={() => handleDownloadXml(inv.id)}
+                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                title="Descargar XML"
+              >
+                <DocumentDuplicateIcon className="h-5 w-5" />
+              </button>
+            </>
+          )}
+        </div>
+      ),
+    },
+  ];
 
   return (
     <PermissionGuard permissions={['billing:read', 'billing:*']}>
@@ -135,7 +290,7 @@ export default function FacturacionPage() {
       {/* Header */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <DocumentTextIcon className="h-10 w-10" />
@@ -214,238 +369,207 @@ export default function FacturacionPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <DocumentTextIcon className="h-5 w-5 text-blue-600" />
-                </div>
+          <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Total</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+                  <p className="text-sm text-gray-600 mb-1">Total</p>
+                  <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+                </div>
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                  <DocumentTextIcon className="h-6 w-6 text-blue-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                  <CheckCircleIcon className="h-5 w-5 text-green-600" />
-                </div>
+          <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Timbradas</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.stamped}</p>
+                  <p className="text-sm text-gray-600 mb-1">Timbradas</p>
+                  <p className="text-3xl font-bold text-green-600">{stats.stamped}</p>
+                </div>
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                  <CheckCircleIcon className="h-6 w-6 text-green-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                  <ClockIcon className="h-5 w-5 text-yellow-600" />
-                </div>
+          <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Pendientes</p>
-                  <p className="text-2xl font-bold text-yellow-600">{stats.pending}</p>
+                  <p className="text-sm text-gray-600 mb-1">Pendientes</p>
+                  <p className="text-3xl font-bold text-yellow-600">{stats.pending}</p>
+                </div>
+                <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                  <ClockIcon className="h-6 w-6 text-yellow-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                  <XMarkIcon className="h-5 w-5 text-red-600" />
-                </div>
+          <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Canceladas</p>
-                  <p className="text-2xl font-bold text-red-600">{stats.cancelled}</p>
+                  <p className="text-sm text-gray-600 mb-1">Canceladas</p>
+                  <p className="text-3xl font-bold text-red-600">{stats.cancelled}</p>
+                </div>
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <XMarkIcon className="h-6 w-6 text-red-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Filters */}
-        <Card className="mb-6">
-          <CardContent className="p-4">
-            <div className="flex flex-col lg:flex-row gap-4">
+        {/* Filters and Search */}
+        <Card className="mb-6 border-gray-100 shadow-sm">
+          <CardContent className="p-4 sm:p-6">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-medium text-gray-700">Busqueda y filtros</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2 text-gray-600"
+                  onClick={() => refetch()}
+                  disabled={isFetching}
+                >
+                  <ArrowPathIcon className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+                  {isFetching ? 'Actualizando...' : 'Actualizar'}
+                </Button>
+                {hasActiveFilters && (
+                  <Button variant="outline" size="sm" onClick={resetFilters}>
+                    Limpiar filtros
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:gap-4">
               {/* Search */}
-              <div className="flex-1 relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Buscar por UUID, folio, RFC, razón social..."
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                />
+              <div className="lg:col-span-8">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <div className="relative flex-1">
+                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                    <input
+                      type="text"
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSearch();
+                        }
+                      }}
+                      placeholder="Buscar por UUID, folio, RFC, razón social, pedido..."
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                    />
+                  </div>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="h-10 px-4 sm:min-w-[96px]"
+                    onClick={handleSearch}
+                  >
+                    Buscar
+                  </Button>
+                </div>
               </div>
 
               {/* Status Filter */}
-              <div className="flex items-center gap-2">
-                <FunnelIcon className="h-5 w-5 text-gray-400" />
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as InvoiceStatus | '')}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  <option value="">Todos los estados</option>
-                  <option value={InvoiceStatus.PENDING}>Pendientes</option>
-                  <option value={InvoiceStatus.STAMPED}>Timbradas</option>
-                  <option value={InvoiceStatus.SENT}>Enviadas</option>
-                  <option value={InvoiceStatus.CANCELLED}>Canceladas</option>
-                  <option value={InvoiceStatus.ERROR}>Con error</option>
-                </select>
+              <div className="lg:col-span-4">
+                <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3">
+                  <FunnelIcon className="h-4 w-4 text-gray-400" />
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => handleStatusFilter(e.target.value)}
+                    className="w-full bg-transparent py-2.5 text-sm focus:outline-none"
+                  >
+                    <option value="">Todos los estados</option>
+                    <option value={InvoiceStatus.PENDING}>Pendientes</option>
+                    <option value={InvoiceStatus.STAMPED}>Timbradas</option>
+                    <option value={InvoiceStatus.SENT}>Enviadas</option>
+                    <option value={InvoiceStatus.CANCELLED}>Canceladas</option>
+                    <option value={InvoiceStatus.ERROR}>Con error</option>
+                  </select>
+                </div>
               </div>
-
-              {/* Refresh */}
-              <Button variant="outline" onClick={() => refetch()}>
-                Actualizar
-              </Button>
             </div>
+            {hasActiveFilters && (
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+                <span className="rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-700">
+                  Filtros activos
+                </span>
+                {searchTerm && (
+                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
+                    Busqueda: {searchTerm}
+                  </span>
+                )}
+                {statusFilter && (
+                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
+                    Estado: {INVOICE_STATUS_CONFIG[statusFilter]?.label || statusFilter}
+                  </span>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
         {/* Invoices Table */}
-        <Card>
+        <Card className="border-gray-100 shadow-sm">
           <CardContent className="p-6">
-            {isLoading ? (
-              <div className="text-center py-12">
-                <div className="inline-block w-12 h-12 border-4 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
-                <p className="mt-4 text-gray-600">Cargando facturas...</p>
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-base font-semibold text-gray-900">Listado de facturas</h2>
+              <p className="text-sm text-gray-600">
+                Mostrando {filteredInvoices.length} de {totalInvoices}
+              </p>
+            </div>
+            {isFetching && (
+              <div className="mb-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700">
+                Actualizando resultados...
               </div>
-            ) : filteredInvoices && filteredInvoices.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                        Folio
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                        Receptor
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                        Pedido
-                      </th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">
-                        Total
-                      </th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">
-                        Estado
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                        Fecha
-                      </th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">
-                        Acciones
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredInvoices.map((invoice) => {
-                      const statusConfig =
-                        INVOICE_STATUS_CONFIG[invoice.status as InvoiceStatus];
-                      return (
-                        <tr
-                          key={invoice.id}
-                          className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                        >
-                          <td className="py-4 px-4">
-                            <div>
-                              <span className="font-mono text-sm font-medium text-[#3E667D]">
-                                {formatInvoiceNumber(invoice.series, invoice.folio)}
-                              </span>
-                              {invoice.uuid && (
-                                <div className="text-xs text-gray-500 mt-1 truncate max-w-[200px]">
-                                  UUID: {invoice.uuid}
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                          <td className="py-4 px-4">
-                            <div>
-                              <p className="font-medium text-gray-900">
-                                {invoice.receiverName}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                RFC: {invoice.receiverRfc}
-                              </p>
-                            </div>
-                          </td>
-                          <td className="py-4 px-4">
-                            <code className="text-sm bg-gray-100 px-2 py-1 rounded">
-                              {invoice.order?.orderNumber || '-'}
-                            </code>
-                          </td>
-                          <td className="py-4 px-4 text-right">
-                            <span className="font-bold text-gray-900">
-                              {formatCurrency(invoice.total)}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4 text-center">
-                            <span
-                              className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${statusConfig?.color}`}
-                            >
-                              {getStatusIcon(invoice.status as InvoiceStatus)}
-                              {statusConfig?.label}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4 text-sm text-gray-600">
-                            {formatDate(invoice.stampedAt || invoice.createdAt)}
-                          </td>
-                          <td className="py-4 px-4">
-                            <div className="flex items-center justify-end gap-2">
-                              <Link href={`/admin/facturacion/${invoice.id}`}>
-                                <button
-                                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                                  title="Ver detalle"
-                                >
-                                  <EyeIcon className="h-5 w-5" />
-                                </button>
-                              </Link>
-                              {invoice.status === InvoiceStatus.STAMPED && (
-                                <>
-                                  <button
-                                    onClick={() => handleDownloadPdf(invoice.id)}
-                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                    title="Descargar PDF"
-                                  >
-                                    <ArrowDownTrayIcon className="h-5 w-5" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDownloadXml(invoice.id)}
-                                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                    title="Descargar XML"
-                                  >
-                                    <DocumentDuplicateIcon className="h-5 w-5" />
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <DocumentTextIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  No hay facturas registradas
-                </h3>
-                <p className="text-gray-600">
-                  Las facturas se generan desde los pedidos completados
-                </p>
-              </div>
+            )}
+            <DataTable
+              columns={invoiceColumns}
+              data={filteredInvoices}
+              isLoading={isLoading && !paginatedResult}
+              getRowKey={(inv) => inv.id}
+              minWidthClassName="min-w-[920px]"
+              emptyState={
+                <div className="py-2 text-center">
+                  <DocumentTextIcon className="mx-auto mb-4 h-16 w-16 text-gray-400" />
+                  <h3 className="mb-2 text-xl font-bold text-gray-900">
+                    No hay facturas registradas
+                  </h3>
+                  <p className="text-gray-600">
+                    Las facturas se generan desde los pedidos completados
+                  </p>
+                  {hasActiveFilters && (
+                    <div className="mt-4">
+                      <Button variant="outline" onClick={resetFilters}>
+                        Limpiar filtros
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              }
+            />
+
+            {/* Pagination */}
+            {filteredInvoices.length > 0 && (
+              <DataTablePagination
+                currentPage={currentPage}
+                pageSize={pageSize}
+                totalItems={totalInvoices}
+                isLoading={isLoading || isFetching}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={handlePageSizeChange}
+                pageSizeOptions={[10, 20, 50, 100]}
+              />
             )}
           </CardContent>
         </Card>

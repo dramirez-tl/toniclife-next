@@ -10,6 +10,7 @@ import type {
   CreateInvoiceDto,
   CancelInvoiceDto,
   InvoiceQueryDto,
+  PaginatedInvoices,
   GlobalInvoice,
   CreateGlobalInvoiceDto,
   PaymentComplement,
@@ -87,7 +88,7 @@ export async function createInvoice(data: CreateInvoiceDto): Promise<Invoice> {
   return response.data;
 }
 
-export async function listInvoices(query?: InvoiceQueryDto): Promise<Invoice[]> {
+export async function listInvoices(query?: InvoiceQueryDto): Promise<PaginatedInvoices> {
   const params = new URLSearchParams();
   if (query?.customerId) params.append('customerId', query.customerId);
   if (query?.orderId) params.append('orderId', query.orderId);
@@ -98,7 +99,7 @@ export async function listInvoices(query?: InvoiceQueryDto): Promise<Invoice[]> 
   if (query?.offset) params.append('offset', String(query.offset));
 
   const url = `${BASE_URL}/invoices${params.toString() ? `?${params.toString()}` : ''}`;
-  const response = await apiClient.get<Invoice[]>(url);
+  const response = await apiClient.get<PaginatedInvoices>(url);
   return response.data;
 }
 

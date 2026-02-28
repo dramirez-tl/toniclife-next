@@ -199,8 +199,8 @@ export function AdminSidebar({ mobile = false, onNavigate }: AdminSidebarProps) 
   const userPermissions = useAppSelector(selectUserPermissions);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
-  // Roles con acceso completo al sidebar
-  const FULL_ACCESS_ROLES = ['super_admin', 'administrador', 'subadmin'];
+  // Roles con acceso completo al sidebar (solo admin y super admin por ahora)
+  const FULL_ACCESS_ROLES = ['super_admin', 'administrador'];
 
   const isWorkerUser = useMemo(() => {
     if (!user?.roles?.length) return true;

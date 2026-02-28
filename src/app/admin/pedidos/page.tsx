@@ -20,6 +20,7 @@ import {
   ArrowDownTrayIcon,
   CurrencyDollarIcon,
   ExclamationTriangleIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { useOrders, useUpdateOrderStatus, useCancelOrder } from '@/hooks/useOrders';
@@ -314,6 +315,40 @@ function PedidosContent() {
               }`}
             >
               {paymentLabels[ps] || ps}
+            </span>
+          );
+        },
+      },
+      {
+        key: 'invoice',
+        header: 'Factura',
+        headerClassName: 'text-center',
+        cellClassName: 'text-center',
+        render: (order) => {
+          if (order.isInvoiced && order.invoiceId) {
+            return (
+              <Link href={`/admin/facturacion/${order.invoiceId}`}>
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors">
+                  <DocumentTextIcon className="h-3 w-3" />
+                  Facturada
+                </span>
+              </Link>
+            );
+          }
+          if (order.isInvoiced && !order.invoiceId) {
+            return (
+              <span
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700"
+                title="Facturada en sistema anterior (factura global)"
+              >
+                <DocumentTextIcon className="h-3 w-3" />
+                Global v1
+              </span>
+            );
+          }
+          return (
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+              Sin factura
             </span>
           );
         },

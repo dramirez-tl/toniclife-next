@@ -40,6 +40,7 @@ import { toast } from 'sonner';
 import { PermissionGuard } from '@/components/auth';
 import { useAppSelector } from '@/store/hooks';
 import { selectUserRoles } from '@/store/slices/authSlice';
+import { useRoles } from '@/hooks/useRoles';
 
 type TabKey = 'users' | 'verification';
 
@@ -80,6 +81,7 @@ export default function UsuariosPage() {
 
   // API Hooks
   const { data: usersData, isLoading, isFetching, error, refetch } = useUsers(queryParams);
+  const { data: rolesData } = useRoles();
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
   const activateUser = useActivateUser();
@@ -221,7 +223,7 @@ export default function UsuariosPage() {
       firstName: user.firstName,
       lastName: user.lastName,
       phone: user.phone ?? '',
-      roleId: user.role?.code ?? '',
+      roleId: user.role?.id ?? '',
       isActive: user.isActive,
     });
     setIsModalOpen(true);
@@ -661,7 +663,7 @@ export default function UsuariosPage() {
                     )}
                     {filterRole !== 'all' && (
                       <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
-                        Rol: {filterRole}
+                        Rol: {ROLE_OPTIONS.find(r => r.value === filterRole)?.label ?? filterRole}
                       </span>
                     )}
                     {filterStatus !== 'all' && (
@@ -761,6 +763,7 @@ export default function UsuariosPage() {
         setFormData={setFormData}
         onSubmit={handleSubmit}
         isSubmitting={createUser.isPending || updateUser.isPending}
+        roles={rolesData?.data ?? []}
       />
 
       {/* Hard Delete Confirmation Modal */}
@@ -1063,6 +1066,7 @@ interface UserFormModalProps {
   setFormData: (data: Record<string, any>) => void;
   onSubmit: () => void;
   isSubmitting: boolean;
+  roles: { id: string; code: string; name: string }[];
 }
 
 const ROLE_OPTIONS = [
@@ -1088,6 +1092,7 @@ function UserFormModal({
   setFormData,
   onSubmit,
   isSubmitting,
+  roles,
 }: UserFormModalProps) {
   if (!isOpen) return null;
 
@@ -1203,9 +1208,9 @@ function UserFormModal({
               className={inputClassName}
             >
               <option value="">Seleccionar rol...</option>
-              {ROLE_OPTIONS.map((role) => (
-                <option key={role.value} value={role.value}>
-                  {role.label}
+              {roles.map((role) => (
+                <option key={role.id} value={role.id}>
+                  {role.name}
                 </option>
               ))}
             </select>
