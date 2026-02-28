@@ -17,11 +17,14 @@ import {
   ExclamationTriangleIcon,
   ClockIcon,
   DocumentDuplicateIcon,
-  PrinterIcon,
+  EyeIcon,
+  ShieldExclamationIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { useInvoice, useStampInvoice, useCancelInvoice } from '@/hooks/useBilling';
 import { billingService } from '@/services/billing.service';
+import { useAppSelector } from '@/store/hooks';
+import { selectUser } from '@/store/slices/authSlice';
 import {
   InvoiceStatus,
   INVOICE_STATUS_CONFIG,
@@ -44,19 +47,36 @@ export default function InvoiceDetailPage() {
   const stampInvoice = useStampInvoice();
   const cancelInvoice = useCancelInvoice();
 
+  const currentUser = useAppSelector(selectUser);
+
+  const [showStampModal, setShowStampModal] = useState(false);
+  const [stampSendEmail, setStampSendEmail] = useState(false);
+
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('02');
   const [replacementUuid, setReplacementUuid] = useState('');
+  const [cancelConfirmText, setCancelConfirmText] = useState('');
 
-  const handleStamp = async (sendEmail = false) => {
+  const openStampModal = (sendEmail: boolean) => {
+    setStampSendEmail(sendEmail);
+    setShowStampModal(true);
+  };
+
+  const handleStamp = async () => {
     try {
-      await stampInvoice.mutateAsync({ id: invoiceId, sendEmail });
+      await stampInvoice.mutateAsync({ id: invoiceId, sendEmail: stampSendEmail });
+      setShowStampModal(false);
     } catch (error) {
       // Error handled by mutation
     }
   };
 
   const handleCancel = async () => {
+    if (cancelConfirmText !== 'CANCELAR') {
+      toast.error('Escribe CANCELAR para confirmar');
+      return;
+    }
+
     if (cancelReason === '01' && !replacementUuid) {
       toast.error('El UUID de sustitución es requerido para el motivo 01');
       return;
@@ -71,9 +91,17 @@ export default function InvoiceDetailPage() {
         },
       });
       setShowCancelModal(false);
+      setCancelConfirmText('');
     } catch (error) {
       // Error handled by mutation
     }
+  };
+
+  const openCancelModal = () => {
+    setCancelConfirmText('');
+    setCancelReason('02');
+    setReplacementUuid('');
+    setShowCancelModal(true);
   };
 
   const handleDownloadPdf = async () => {
@@ -88,8 +116,28 @@ export default function InvoiceDetailPage() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       toast.success('PDF descargado');
-    } catch (error) {
-      toast.error('Error al descargar PDF');
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || '';
+      if (msg.includes('LEGACY_INVOICE')) {
+        toast.error('Esta factura fue generada en el sistema anterior y no está disponible para descarga.');
+      } else {
+        toast.error('Error al descargar PDF');
+      }
+    }
+  };
+
+  const handleViewPdf = async () => {
+    try {
+      const blob = await billingService.downloadInvoicePdf(invoiceId);
+      const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+      window.open(url, '_blank');
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || '';
+      if (msg.includes('LEGACY_INVOICE')) {
+        toast.error('Esta factura fue generada en el sistema anterior y no está disponible para descarga.');
+      } else {
+        toast.error('Error al visualizar PDF');
+      }
     }
   };
 
@@ -105,8 +153,13 @@ export default function InvoiceDetailPage() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       toast.success('XML descargado');
-    } catch (error) {
-      toast.error('Error al descargar XML');
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || '';
+      if (msg.includes('LEGACY_INVOICE')) {
+        toast.error('Esta factura fue generada en el sistema anterior y no está disponible para descarga.');
+      } else {
+        toast.error('Error al descargar XML');
+      }
     }
   };
 
@@ -169,6 +222,9 @@ export default function InvoiceDetailPage() {
 
   const statusConfig = INVOICE_STATUS_CONFIG[invoice.provider_status as InvoiceStatus] ||
     INVOICE_STATUS_CONFIG[invoice.status as InvoiceStatus];
+
+  // Legacy invoices from v1.0 migration don't have provider_invoice_id — can't download from Facturama
+  const isLegacyInvoice = !invoice.provider_invoice_id && invoice.provider_status === 'stamped';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -357,8 +413,7 @@ export default function InvoiceDetailPage() {
                       <Button
                         variant="primary"
                         className="w-full"
-                        onClick={() => handleStamp(false)}
-                        isLoading={stampInvoice.isPending}
+                        onClick={() => openStampModal(false)}
                         leftIcon={<CheckCircleIcon className="h-5 w-5" />}
                       >
                         Timbrar Factura
@@ -366,8 +421,7 @@ export default function InvoiceDetailPage() {
                       <Button
                         variant="outline"
                         className="w-full"
-                        onClick={() => handleStamp(true)}
-                        isLoading={stampInvoice.isPending}
+                        onClick={() => openStampModal(true)}
                         leftIcon={<EnvelopeIcon className="h-5 w-5" />}
                       >
                         Timbrar y Enviar
@@ -377,26 +431,48 @@ export default function InvoiceDetailPage() {
 
                   {invoice.provider_status === 'stamped' && (
                     <>
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={handleDownloadPdf}
-                        leftIcon={<ArrowDownTrayIcon className="h-5 w-5" />}
-                      >
-                        Descargar PDF
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={handleDownloadXml}
-                        leftIcon={<DocumentDuplicateIcon className="h-5 w-5" />}
-                      >
-                        Descargar XML
-                      </Button>
+                      {isLegacyInvoice && (
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg mb-1">
+                          <div className="flex items-start gap-2">
+                            <ExclamationTriangleIcon className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                            <p className="text-xs text-amber-700">
+                              Esta factura fue migrada del sistema anterior. La descarga de PDF/XML no está disponible.
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                      {!isLegacyInvoice && (
+                        <>
+                          <Button
+                            variant="primary"
+                            className="w-full"
+                            onClick={handleViewPdf}
+                            leftIcon={<EyeIcon className="h-5 w-5" />}
+                          >
+                            Visualizar PDF
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="w-full"
+                            onClick={handleDownloadPdf}
+                            leftIcon={<ArrowDownTrayIcon className="h-5 w-5" />}
+                          >
+                            Descargar PDF
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="w-full"
+                            onClick={handleDownloadXml}
+                            leftIcon={<DocumentDuplicateIcon className="h-5 w-5" />}
+                          >
+                            Descargar XML
+                          </Button>
+                        </>
+                      )}
                       <Button
                         variant="ghost"
                         className="w-full text-red-600 hover:bg-red-50"
-                        onClick={() => setShowCancelModal(true)}
+                        onClick={openCancelModal}
                         leftIcon={<XMarkIcon className="h-5 w-5" />}
                       >
                         Cancelar Factura
@@ -408,8 +484,7 @@ export default function InvoiceDetailPage() {
                     <Button
                       variant="primary"
                       className="w-full"
-                      onClick={() => handleStamp(false)}
-                      isLoading={stampInvoice.isPending}
+                      onClick={() => openStampModal(false)}
                       leftIcon={<CheckCircleIcon className="h-5 w-5" />}
                     >
                       Reintentar Timbrado
@@ -518,15 +593,126 @@ export default function InvoiceDetailPage() {
         </div>
       </div>
 
+      {/* Stamp Confirmation Modal */}
+      {showStampModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="max-w-lg w-full mx-4">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-[#3E667D]/10 rounded-full">
+                  <CheckCircleIcon className="h-6 w-6 text-[#3E667D]" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {stampSendEmail ? 'Timbrar y Enviar Factura' : 'Timbrar Factura'}
+                </h2>
+              </div>
+
+              {/* Invoice summary */}
+              <div className="bg-gray-50 rounded-lg p-4 mb-4 space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Factura:</span>
+                  <span className="font-semibold text-gray-900">{invoice.invoice_number}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Receptor:</span>
+                  <span className="font-medium text-gray-900">{invoice.receiver_name}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">RFC:</span>
+                  <span className="font-mono text-gray-900">{invoice.receiver_rfc}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Total:</span>
+                  <span className="font-bold text-gray-900">{formatCurrency(invoice.total || 0)}</span>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-blue-700">
+                  {stampSendEmail
+                    ? 'La factura será timbrada ante el SAT y enviada por correo electrónico al receptor.'
+                    : 'La factura será timbrada ante el SAT. Esta acción genera un CFDI con validez fiscal.'}
+                </p>
+              </div>
+
+              {/* Who is stamping */}
+              <div className="text-sm text-gray-600 mb-4">
+                Timbrando como: <span className="font-semibold text-gray-900">{currentUser?.firstName} {currentUser?.lastName}</span>
+                <span className="text-gray-400 ml-1">({currentUser?.email})</span>
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowStampModal(false)}
+                >
+                  Volver
+                </Button>
+                <Button
+                  variant="primary"
+                  className="flex-1"
+                  onClick={handleStamp}
+                  isLoading={stampInvoice.isPending}
+                  leftIcon={stampSendEmail ? <EnvelopeIcon className="h-5 w-5" /> : <CheckCircleIcon className="h-5 w-5" />}
+                >
+                  {stampSendEmail ? 'Timbrar y Enviar' : 'Confirmar Timbrado'}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Cancel Modal */}
       {showCancelModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="max-w-md w-full mx-4">
+          <Card className="max-w-lg w-full mx-4">
             <CardContent className="p-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Cancelar Factura</h2>
-              <p className="text-gray-600 mb-4">
-                Esta acción no se puede deshacer. La factura será cancelada ante el SAT.
-              </p>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-red-100 rounded-full">
+                  <ShieldExclamationIcon className="h-6 w-6 text-red-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">Cancelar Factura</h2>
+              </div>
+
+              {/* Invoice summary */}
+              <div className="bg-gray-50 rounded-lg p-4 mb-4 space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Factura:</span>
+                  <span className="font-semibold text-gray-900">{invoice.invoice_number}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Receptor:</span>
+                  <span className="font-medium text-gray-900">{invoice.receiver_name}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">RFC:</span>
+                  <span className="font-mono text-gray-900">{invoice.receiver_rfc}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Total:</span>
+                  <span className="font-bold text-gray-900">{formatCurrency(invoice.total || 0)}</span>
+                </div>
+                {invoice.sat_uuid && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">UUID:</span>
+                    <span className="font-mono text-xs text-gray-900">{invoice.sat_uuid}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-red-700 font-medium">
+                  Esta acción no se puede deshacer. La factura será cancelada ante el SAT.
+                </p>
+              </div>
+
+              {/* Who is cancelling */}
+              <div className="text-sm text-gray-600 mb-4">
+                Cancelando como: <span className="font-semibold text-gray-900">{currentUser?.firstName} {currentUser?.lastName}</span>
+                <span className="text-gray-400 ml-1">({currentUser?.email})</span>
+              </div>
 
               <div className="space-y-4">
                 <div>
@@ -560,6 +746,20 @@ export default function InvoiceDetailPage() {
                     />
                   </div>
                 )}
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Escribe <span className="font-bold text-red-600">CANCELAR</span> para confirmar
+                  </label>
+                  <input
+                    type="text"
+                    value={cancelConfirmText}
+                    onChange={(e) => setCancelConfirmText(e.target.value)}
+                    placeholder="CANCELAR"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    autoComplete="off"
+                  />
+                </div>
               </div>
 
               <div className="flex gap-3 mt-6">
@@ -568,13 +768,14 @@ export default function InvoiceDetailPage() {
                   className="flex-1"
                   onClick={() => setShowCancelModal(false)}
                 >
-                  Cancelar
+                  Volver
                 </Button>
                 <Button
                   variant="primary"
-                  className="flex-1 bg-red-600 hover:bg-red-700"
+                  className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-300"
                   onClick={handleCancel}
                   isLoading={cancelInvoice.isPending}
+                  disabled={cancelConfirmText !== 'CANCELAR' || cancelInvoice.isPending}
                 >
                   Confirmar Cancelación
                 </Button>
