@@ -15,6 +15,7 @@ import {
   PlayIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 interface Event {
   id: string;
@@ -283,41 +284,37 @@ export default function GaleriaEventosPage() {
               {/* Type Filter */}
               <div className="flex items-center gap-2">
                 <FunnelIcon className="h-5 w-5 text-gray-400" />
-                <select
+                <SearchableSelect
+                  options={eventTypes.filter(t => t.id !== 'all').map(t => ({ value: t.id, label: t.name }))}
                   value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  {eventTypes.map((type) => (
-                    <option key={type.id} value={type.id}>{type.name}</option>
-                  ))}
-                </select>
+                  onChange={setFilterType}
+                  allLabel="Todos los Eventos"
+                  allValue="all"
+                  className="flex-1"
+                />
               </div>
 
               {/* Year Filter */}
               <div>
-                <select
+                <SearchableSelect
+                  options={years.map(year => ({ value: year, label: year }))}
                   value={filterYear}
-                  onChange={(e) => setFilterYear(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  {years.map((year) => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
+                  onChange={setFilterYear}
+                  showAllOption={false}
+                  className="w-full"
+                />
               </div>
 
               {/* Country Filter */}
               <div>
-                <select
+                <SearchableSelect
+                  options={countries.filter(c => c !== 'Todos los Países').map(c => ({ value: c, label: c }))}
                   value={filterCountry}
-                  onChange={(e) => setFilterCountry(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  {countries.map((country) => (
-                    <option key={country} value={country}>{country}</option>
-                  ))}
-                </select>
+                  onChange={setFilterCountry}
+                  allLabel="Todos los Países"
+                  allValue="Todos los Países"
+                  className="w-full"
+                />
               </div>
             </div>
           </CardContent>

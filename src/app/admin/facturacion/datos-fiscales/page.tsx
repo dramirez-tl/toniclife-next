@@ -19,6 +19,7 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { getFiscalRegimeName, getCfdiUseName } from '@/types/billing';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useFiscalDataList } from '@/hooks/useBilling';
 import type { FiscalDataQueryDto, FiscalDataItem } from '@/services/billing.service';
 
@@ -338,18 +339,16 @@ export default function DatosFiscalesPage() {
 
               {/* Validation Filter */}
               <div className="lg:col-span-4">
-                <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3">
-                  <FunnelIcon className="h-4 w-4 text-gray-400" />
-                  <select
-                    value={filterValidated}
-                    onChange={(e) => handleFilterChange(e.target.value)}
-                    className="w-full bg-transparent py-2.5 text-sm focus:outline-none"
-                  >
-                    <option value="all">Todos los Estados</option>
-                    <option value="validated">Datos Completos</option>
-                    <option value="pending">Datos Incompletos</option>
-                  </select>
-                </div>
+                <SearchableSelect
+                  options={[
+                    { value: 'validated', label: 'Datos Completos' },
+                    { value: 'pending', label: 'Datos Incompletos' },
+                  ]}
+                  value={filterValidated}
+                  onChange={handleFilterChange}
+                  allLabel="Todos los Estados"
+                  allValue="all"
+                />
               </div>
             </div>
             {hasActiveFilters && (

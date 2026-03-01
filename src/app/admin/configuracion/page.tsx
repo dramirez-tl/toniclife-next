@@ -18,6 +18,7 @@ import {
   CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { PermissionGuard } from '@/components/auth';
 
 export default function ConfiguracionPage() {
@@ -220,41 +221,47 @@ export default function ConfiguracionPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Zona Horaria
                         </label>
-                        <select
+                        <SearchableSelect
+                          options={[
+                            { value: 'America/Mexico_City', label: 'México (CDMX)' },
+                            { value: 'America/Monterrey', label: 'México (Monterrey)' },
+                            { value: 'America/Cancun', label: 'México (Cancún)' },
+                          ]}
                           value={settings.timezone}
-                          onChange={(e) => setSettings({ ...settings, timezone: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                        >
-                          <option value="America/Mexico_City">México (CDMX)</option>
-                          <option value="America/Monterrey">México (Monterrey)</option>
-                          <option value="America/Cancun">México (Cancún)</option>
-                        </select>
+                          onChange={(val) => setSettings({ ...settings, timezone: val })}
+                          showAllOption={false}
+                          className="w-full"
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Idioma
                         </label>
-                        <select
+                        <SearchableSelect
+                          options={[
+                            { value: 'es', label: 'Español' },
+                            { value: 'en', label: 'English' },
+                          ]}
                           value={settings.language}
-                          onChange={(e) => setSettings({ ...settings, language: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                        >
-                          <option value="es">Español</option>
-                          <option value="en">English</option>
-                        </select>
+                          onChange={(val) => setSettings({ ...settings, language: val })}
+                          showAllOption={false}
+                          className="w-full"
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Moneda
                         </label>
-                        <select
+                        <SearchableSelect
+                          options={[
+                            { value: 'MXN', label: 'MXN - Peso Mexicano' },
+                            { value: 'USD', label: 'USD - Dólar Americano' },
+                          ]}
                           value={settings.currency}
-                          onChange={(e) => setSettings({ ...settings, currency: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                        >
-                          <option value="MXN">MXN - Peso Mexicano</option>
-                          <option value="USD">USD - Dólar Americano</option>
-                        </select>
+                          onChange={(val) => setSettings({ ...settings, currency: val })}
+                          showAllOption={false}
+                          className="w-full"
+                        />
                       </div>
                     </div>
                   </div>

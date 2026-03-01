@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 interface Testimonial {
   id: string;
@@ -272,28 +273,29 @@ export default function TestimoniosPage() {
               {/* Category Filter */}
               <div className="flex items-center gap-2">
                 <FunnelIcon className="h-5 w-5 text-gray-400" />
-                <select
+                <SearchableSelect
+                  options={categories.filter(c => c !== 'Todas las Categorías').map(c => ({ value: c, label: c }))}
                   value={filterCategory}
-                  onChange={(e) => setFilterCategory(e.target.value)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  {categories.map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
+                  onChange={setFilterCategory}
+                  allLabel="Todas las Categorías"
+                  allValue="Todas las Categorías"
+                  className="flex-1"
+                />
               </div>
 
               {/* Sort */}
               <div>
-                <select
+                <SearchableSelect
+                  options={[
+                    { value: 'recent', label: 'Más Recientes' },
+                    { value: 'helpful', label: 'Más Útiles' },
+                    { value: 'rating', label: 'Mejor Valorados' },
+                  ]}
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as 'recent' | 'helpful' | 'rating')}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  <option value="recent">Más Recientes</option>
-                  <option value="helpful">Más Útiles</option>
-                  <option value="rating">Mejor Valorados</option>
-                </select>
+                  onChange={(val) => setSortBy(val as 'recent' | 'helpful' | 'rating')}
+                  showAllOption={false}
+                  className="w-full"
+                />
               </div>
             </div>
           </CardContent>

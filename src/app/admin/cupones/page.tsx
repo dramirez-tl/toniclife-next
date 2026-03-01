@@ -20,6 +20,7 @@ import {
   ShoppingBagIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 const coupons = [
   {
@@ -365,30 +366,34 @@ export default function CuponesAdminPage() {
             </div>
 
             <div>
-              <select
+              <SearchableSelect
+                options={[
+                  { value: 'active', label: 'Activos' },
+                  { value: 'scheduled', label: 'Programados' },
+                  { value: 'expired', label: 'Expirados' },
+                  { value: 'inactive', label: 'Inactivos' },
+                ]}
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
-              >
-                <option value="all">Todos los Estados</option>
-                <option value="active">Activos</option>
-                <option value="scheduled">Programados</option>
-                <option value="expired">Expirados</option>
-                <option value="inactive">Inactivos</option>
-              </select>
+                onChange={setFilterStatus}
+                allLabel="Todos los Estados"
+                allValue="all"
+                className="w-full"
+              />
             </div>
 
             <div>
-              <select
+              <SearchableSelect
+                options={[
+                  { value: 'percentage', label: 'Porcentaje' },
+                  { value: 'fixed', label: 'Monto Fijo' },
+                  { value: 'free_shipping', label: 'Envío Gratis' },
+                ]}
                 value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
-              >
-                <option value="all">Todos los Tipos</option>
-                <option value="percentage">Porcentaje</option>
-                <option value="fixed">Monto Fijo</option>
-                <option value="free_shipping">Envío Gratis</option>
-              </select>
+                onChange={setFilterType}
+                allLabel="Todos los Tipos"
+                allValue="all"
+                className="w-full"
+              />
             </div>
           </div>
         </div>

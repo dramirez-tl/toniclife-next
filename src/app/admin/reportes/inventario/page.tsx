@@ -12,6 +12,7 @@ import {
   MagnifyingGlassIcon,
   CheckCircleIcon,
 } from '@heroicons/react/24/outline';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useInventoryReport, useLowStockReport, useExpiringProductsReport } from '@/hooks/useReports';
 import { useActiveBranches } from '@/hooks/useBranches';
 
@@ -183,18 +184,16 @@ export default function InventarioReportesPage() {
 
             <div className="flex items-center space-x-2">
               <FunnelIcon className="h-5 w-5 text-gray-400" />
-              <select
+              <SearchableSelect
+                options={branches.map((branch) => ({
+                  value: branch.id,
+                  label: branch.name,
+                }))}
                 value={selectedBranch}
-                onChange={(e) => setSelectedBranch(e.target.value)}
-                className="rounded-md border-gray-300 text-sm focus:border-green-500 focus:ring-green-500"
-              >
-                <option value="all">Todas las sucursales</option>
-                {branches.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedBranch}
+                allLabel="Todas las sucursales"
+                allValue="all"
+              />
             </div>
 
             <div className="flex rounded-lg bg-gray-100 p-1">

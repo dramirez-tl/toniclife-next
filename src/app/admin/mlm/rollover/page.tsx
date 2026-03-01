@@ -15,6 +15,7 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useCurrentPeriod, usePeriods } from '@/hooks/useMlmPeriods';
 import {
   useRolloverStatus,
@@ -133,20 +134,16 @@ export default function RolloverPage() {
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
               <label className="text-sm font-medium text-gray-700">Periodo:</label>
-              <select
+              <SearchableSelect
+                options={(periods || []).map((period) => ({
+                  value: period.id,
+                  label: `${period.name} (${period.status})`,
+                }))}
                 value={selectedPeriodId}
-                onChange={(e) => setSelectedPeriodId(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-              >
-                <option value="">
-                  {currentPeriod ? `Actual: ${currentPeriod.name}` : 'Seleccionar periodo'}
-                </option>
-                {(periods || []).map((period) => (
-                  <option key={period.id} value={period.id}>
-                    {period.name} ({period.status})
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedPeriodId}
+                placeholder={currentPeriod ? `Actual: ${currentPeriod.name}` : 'Seleccionar periodo'}
+                allLabel={currentPeriod ? `Actual: ${currentPeriod.name}` : 'Seleccionar periodo'}
+              />
             </div>
           </CardContent>
         </Card>

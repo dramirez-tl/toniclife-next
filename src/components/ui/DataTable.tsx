@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { ArrowsUpDownIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 type SortDirection = 'asc' | 'desc';
 type SortingMode = 'client' | 'server';
@@ -299,18 +300,14 @@ export function DataTable<T>({
                 return (
                   <th key={`filter-${column.key}`} className="px-4 py-2">
                     {filterType === 'select' ? (
-                      <select
+                      <SearchableSelect
+                        options={(filterConfig.options ?? []).map((option) => ({ value: option.value, label: option.label }))}
                         value={value}
-                        onChange={(e) => handleFilterChange(column.key, e.target.value)}
-                        className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 focus:border-[#3E667D] focus:outline-none"
-                      >
-                        <option value="">{filterConfig.placeholder || 'Todos'}</option>
-                        {(filterConfig.options ?? []).map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(val) => handleFilterChange(column.key, val)}
+                        allLabel={filterConfig.placeholder || 'Todos'}
+                        allValue=""
+                        className="w-full"
+                      />
                     ) : (
                       <input
                         type="text"
@@ -422,17 +419,12 @@ export function DataTablePagination({
         {onPageSizeChange && (
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-500">Ver</label>
-            <select
-              value={pageSize}
-              onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm text-gray-700 focus:border-[#3E667D] focus:outline-none"
-            >
-              {pageSizeOptions.map((size) => (
-                <option key={size} value={size}>
-                  {size}
-                </option>
-              ))}
-            </select>
+            <SearchableSelect
+              options={pageSizeOptions.map((size) => ({ value: String(size), label: String(size) }))}
+              value={String(pageSize)}
+              onChange={(val) => onPageSizeChange(Number(val))}
+              showAllOption={false}
+            />
           </div>
         )}
       </div>

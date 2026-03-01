@@ -16,6 +16,7 @@ import {
   LockClosedIcon,
   UserCircleIcon,
 } from '@heroicons/react/24/outline';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
 
 export default function ConfiguracionPage() {
@@ -259,15 +260,17 @@ export default function ConfiguracionPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Visibilidad del Perfil
                     </label>
-                    <select
+                    <SearchableSelect
+                      options={[
+                        { value: 'public', label: 'Público - Visible para todos' },
+                        { value: 'team', label: 'Equipo - Solo mi red puede verlo' },
+                        { value: 'private', label: 'Privado - Solo yo puedo verlo' },
+                      ]}
                       value={settings.profileVisibility}
-                      onChange={(e) => handleChange('profileVisibility', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                    >
-                      <option value="public">Público - Visible para todos</option>
-                      <option value="team">Equipo - Solo mi red puede verlo</option>
-                      <option value="private">Privado - Solo yo puedo verlo</option>
-                    </select>
+                      onChange={(val) => handleChange('profileVisibility', val)}
+                      showAllOption={false}
+                      className="w-full"
+                    />
                   </div>
 
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -352,58 +355,66 @@ export default function ConfiguracionPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Idioma
                     </label>
-                    <select
+                    <SearchableSelect
+                      options={[
+                        { value: 'es', label: 'Español' },
+                        { value: 'en', label: 'English' },
+                      ]}
                       value={settings.language}
-                      onChange={(e) => handleChange('language', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                    >
-                      <option value="es">Español</option>
-                      <option value="en">English</option>
-                    </select>
+                      onChange={(val) => handleChange('language', val)}
+                      showAllOption={false}
+                      className="w-full"
+                    />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Zona Horaria
                     </label>
-                    <select
+                    <SearchableSelect
+                      options={[
+                        { value: 'America/Mexico_City', label: 'Ciudad de México (GMT-6)' },
+                        { value: 'America/Monterrey', label: 'Monterrey (GMT-6)' },
+                        { value: 'America/Cancun', label: 'Cancún (GMT-5)' },
+                      ]}
                       value={settings.timezone}
-                      onChange={(e) => handleChange('timezone', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                    >
-                      <option value="America/Mexico_City">Ciudad de México (GMT-6)</option>
-                      <option value="America/Monterrey">Monterrey (GMT-6)</option>
-                      <option value="America/Cancun">Cancún (GMT-5)</option>
-                    </select>
+                      onChange={(val) => handleChange('timezone', val)}
+                      showAllOption={false}
+                      className="w-full"
+                    />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Moneda
                     </label>
-                    <select
+                    <SearchableSelect
+                      options={[
+                        { value: 'MXN', label: 'MXN - Peso Mexicano' },
+                        { value: 'USD', label: 'USD - Dólar Americano' },
+                      ]}
                       value={settings.currency}
-                      onChange={(e) => handleChange('currency', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                    >
-                      <option value="MXN">MXN - Peso Mexicano</option>
-                      <option value="USD">USD - Dólar Americano</option>
-                    </select>
+                      onChange={(val) => handleChange('currency', val)}
+                      showAllOption={false}
+                      className="w-full"
+                    />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Formato de Fecha
                     </label>
-                    <select
+                    <SearchableSelect
+                      options={[
+                        { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY' },
+                        { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
+                        { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },
+                      ]}
                       value={settings.dateFormat}
-                      onChange={(e) => handleChange('dateFormat', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                    >
-                      <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                      <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                      <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                    </select>
+                      onChange={(val) => handleChange('dateFormat', val)}
+                      showAllOption={false}
+                      className="w-full"
+                    />
                   </div>
                 </div>
               </CardContent>
@@ -444,16 +455,18 @@ export default function ConfiguracionPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Tiempo de Sesión (minutos)
                     </label>
-                    <select
+                    <SearchableSelect
+                      options={[
+                        { value: '15', label: '15 minutos' },
+                        { value: '30', label: '30 minutos' },
+                        { value: '60', label: '1 hora' },
+                        { value: '120', label: '2 horas' },
+                      ]}
                       value={settings.sessionTimeout}
-                      onChange={(e) => handleChange('sessionTimeout', e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                    >
-                      <option value="15">15 minutos</option>
-                      <option value="30">30 minutos</option>
-                      <option value="60">1 hora</option>
-                      <option value="120">2 horas</option>
-                    </select>
+                      onChange={(val) => handleChange('sessionTimeout', val)}
+                      showAllOption={false}
+                      className="w-full"
+                    />
                   </div>
 
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">

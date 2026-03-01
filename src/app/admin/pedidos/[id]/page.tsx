@@ -31,6 +31,7 @@ import { useCreateInvoice, useInvoices, useFiscalDataByCustomer } from '@/hooks/
 import { billingService } from '@/services/billing.service';
 import { CFDI_USES, PAYMENT_FORMS } from '@/types/billing';
 import { OrderStatus } from '@/types/order';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 // ================================
 // Helpers
@@ -433,18 +434,14 @@ export default function OrderDetailAdminPage() {
             {/* Status Card */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-4">Estado</h2>
-              <select
+              <SearchableSelect
+                options={statusOptions.map((option) => ({ value: option.value, label: option.label }))}
                 value={order.status}
-                onChange={(e) => handleStatusChange(e.target.value)}
+                onChange={handleStatusChange}
+                showAllOption={false}
                 disabled={updateStatus.isPending}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D] mb-3 disabled:opacity-50"
-              >
-                {statusOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                className="w-full mb-3"
+              />
               <div className="flex justify-center">
                 <span
                   className={`px-4 py-2 rounded-full text-sm font-medium ${currentStatusOption?.color || 'bg-gray-100 text-gray-800'}`}
@@ -726,38 +723,26 @@ export default function OrderDetailAdminPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Uso del CFDI
                   </label>
-                  <select
+                  <SearchableSelect
+                    options={CFDI_USES.map((use) => ({ value: use.Value, label: `${use.Value} - ${use.Name}` }))}
                     value={invoiceForm.cfdiUse}
-                    onChange={(e) =>
-                      setInvoiceForm((prev) => ({ ...prev, cfdiUse: e.target.value }))
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
-                  >
-                    {CFDI_USES.map((use) => (
-                      <option key={use.Value} value={use.Value}>
-                        {use.Value} - {use.Name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setInvoiceForm((prev) => ({ ...prev, cfdiUse: val }))}
+                    showAllOption={false}
+                    className="w-full"
+                  />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Forma de Pago
                   </label>
-                  <select
+                  <SearchableSelect
+                    options={PAYMENT_FORMS.map((form) => ({ value: form.Value, label: `${form.Value} - ${form.Name}` }))}
                     value={invoiceForm.paymentForm}
-                    onChange={(e) =>
-                      setInvoiceForm((prev) => ({ ...prev, paymentForm: e.target.value }))
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
-                  >
-                    {PAYMENT_FORMS.map((form) => (
-                      <option key={form.Value} value={form.Value}>
-                        {form.Value} - {form.Name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setInvoiceForm((prev) => ({ ...prev, paymentForm: val }))}
+                    showAllOption={false}
+                    className="w-full"
+                  />
                 </div>
 
                 <label className="flex items-center gap-2 text-sm text-gray-700">

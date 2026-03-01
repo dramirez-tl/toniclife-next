@@ -15,6 +15,7 @@ import {
   FunnelIcon,
   EyeIcon,
 } from '@heroicons/react/24/outline';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
 
 const mockMaterials = [
@@ -237,37 +238,34 @@ export default function MaterialesPage() {
               </div>
 
               {/* Category Filter */}
-              <select
+              <SearchableSelect
+                options={categories.filter(c => c !== 'Todas').map(cat => ({ value: cat, label: cat }))}
                 value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-              >
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
+                onChange={setFilterCategory}
+                allLabel="Todas"
+                allValue="Todas"
+              />
 
               {/* Type Filter */}
-              <select
+              <SearchableSelect
+                options={types.filter(t => t !== 'Todos').map(type => ({ value: type, label: type }))}
                 value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-              >
-                {types.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
-              </select>
+                onChange={setFilterType}
+                allLabel="Todos"
+                allValue="Todos"
+              />
 
               {/* Sort */}
-              <select
+              <SearchableSelect
+                options={[
+                  { value: 'recent', label: 'Más Recientes' },
+                  { value: 'popular', label: 'Más Descargados' },
+                  { value: 'name', label: 'Nombre A-Z' },
+                ]}
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-              >
-                <option value="recent">Más Recientes</option>
-                <option value="popular">Más Descargados</option>
-                <option value="name">Nombre A-Z</option>
-              </select>
+                onChange={setSortBy}
+                showAllOption={false}
+              />
             </div>
           </CardContent>
         </Card>

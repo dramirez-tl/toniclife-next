@@ -15,6 +15,8 @@ interface SearchableSelectProps {
   placeholder?: string;
   allLabel?: string;
   showAllOption?: boolean;
+  allValue?: string;
+  disabled?: boolean;
   className?: string;
 }
 
@@ -25,6 +27,8 @@ export function SearchableSelect({
   placeholder = 'Buscar...',
   allLabel = 'Todos',
   showAllOption = true,
+  allValue = '',
+  disabled = false,
   className = '',
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -34,6 +38,7 @@ export function SearchableSelect({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
+  const isAllSelected = value === allValue;
   const selectedOption = options.find((o) => o.value === value);
 
   const filtered = useMemo(() => {
@@ -46,11 +51,11 @@ export function SearchableSelect({
   const selectableItems = useMemo(() => {
     const items: { value: string; label: string }[] = [];
     if (showAllOption) {
-      items.push({ value: 'all', label: allLabel });
+      items.push({ value: allValue, label: allLabel });
     }
     items.push(...filtered);
     return items;
-  }, [filtered, showAllOption, allLabel]);
+  }, [filtered, showAllOption, allLabel, allValue]);
 
   // Reset highlight when filtered list changes
   useEffect(() => {
@@ -79,6 +84,7 @@ export function SearchableSelect({
   }, [highlightIndex]);
 
   const handleOpen = () => {
+    if (disabled) return;
     setIsOpen(true);
     setSearch('');
     setHighlightIndex(-1);
@@ -129,17 +135,18 @@ export function SearchableSelect({
       <button
         type="button"
         onClick={handleOpen}
-        className="flex items-center gap-2 w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-left focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
+        disabled={disabled}
+        className={`flex items-center gap-2 w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-left focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm ${disabled ? 'opacity-50 cursor-not-allowed bg-gray-50' : ''}`}
       >
-        <span className={`flex-1 truncate ${!selectedOption && value === 'all' ? 'text-gray-700' : 'text-gray-900'}`}>
-          {value === 'all' ? allLabel : selectedOption?.label || allLabel}
+        <span className={`flex-1 truncate ${isAllSelected && !selectedOption ? 'text-gray-500' : 'text-gray-900'}`}>
+          {isAllSelected ? allLabel : selectedOption?.label || allLabel}
         </span>
-        {showAllOption && value !== 'all' ? (
+        {showAllOption && !isAllSelected ? (
           <XMarkIcon
             className="h-4 w-4 text-gray-400 hover:text-gray-600 shrink-0"
             onClick={(e) => {
               e.stopPropagation();
-              onChange('all');
+              onChange(allValue);
             }}
           />
         ) : (
@@ -170,11 +177,11 @@ export function SearchableSelect({
               <li data-option-index={0}>
                 <button
                   type="button"
-                  onClick={() => handleSelect('all')}
+                  onClick={() => handleSelect(allValue)}
                   className={`w-full text-left px-4 py-2 text-sm transition-colors ${
                     highlightIndex === 0
                       ? 'bg-[#3E667D]/10 text-[#3E667D]'
-                      : value === 'all'
+                      : isAllSelected
                         ? 'bg-[#C8DDF2]/30 text-[#3E667D] font-medium'
                         : 'text-gray-700 hover:bg-gray-50'
                   }`}

@@ -26,6 +26,7 @@ import {
   StarIcon,
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleSolid, StarIcon as StarSolid } from '@heroicons/react/24/solid';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
 
 const mockEvents = [
@@ -602,33 +603,37 @@ export default function EventosPage() {
                     <label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 block">
                       Tipo de Evento
                     </label>
-                    <select
+                    <SearchableSelect
+                      options={[
+                        { value: 'webinar', label: 'Webinars' },
+                        { value: 'meeting', label: 'Reuniones' },
+                        { value: 'training', label: 'Capacitaciones' },
+                        { value: 'promotion', label: 'Promociones' },
+                        { value: 'convention', label: 'Convenciones' },
+                      ]}
                       value={filterType}
-                      onChange={(e) => setFilterType(e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-[#a7c1e2] text-sm font-medium"
-                    >
-                      <option value="all">Todos los tipos</option>
-                      <option value="webinar">Webinars</option>
-                      <option value="meeting">Reuniones</option>
-                      <option value="training">Capacitaciones</option>
-                      <option value="promotion">Promociones</option>
-                      <option value="convention">Convenciones</option>
-                    </select>
+                      onChange={setFilterType}
+                      allLabel="Todos los tipos"
+                      allValue="all"
+                      className="w-full"
+                    />
                   </div>
 
                   <div className="flex-1">
                     <label className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2 block">
                       Estado
                     </label>
-                    <select
+                    <SearchableSelect
+                      options={[
+                        { value: 'upcoming', label: 'Próximos' },
+                        { value: 'past', label: 'Pasados' },
+                      ]}
                       value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value)}
-                      className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-[#a7c1e2] text-sm font-medium"
-                    >
-                      <option value="all">Todos</option>
-                      <option value="upcoming">Próximos</option>
-                      <option value="past">Pasados</option>
-                    </select>
+                      onChange={setFilterStatus}
+                      allLabel="Todos"
+                      allValue="all"
+                      className="w-full"
+                    />
                   </div>
                 </div>
               </CardContent>

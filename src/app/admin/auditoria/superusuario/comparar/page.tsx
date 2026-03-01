@@ -13,6 +13,7 @@ import {
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { useCompareUsers, useTopUsers } from '@/hooks/useAudit';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { RISK_LEVEL_CONFIG, ACTION_CATEGORIES } from '@/types/audit';
 
 export default function CompareUsersPage() {
@@ -99,22 +100,20 @@ export default function CompareUsersPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Usuario 1
                 </label>
-                <select
+                <SearchableSelect
+                  options={topUsers?.map((user) => ({
+                    value: user.userId,
+                    label: `${user.userName || user.userEmail} (${user.count} acciones)`,
+                  })) || []}
                   value={userId1}
-                  onChange={(e) => {
-                    setUserId1(e.target.value);
+                  onChange={(val) => {
+                    setUserId1(val);
                     setIsComparing(false);
                   }}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                  allLabel="Seleccionar usuario..."
                   disabled={isComparing}
-                >
-                  <option value="">Seleccionar usuario...</option>
-                  {topUsers?.map((user) => (
-                    <option key={user.userId} value={user.userId}>
-                      {user.userName || user.userEmail} ({user.count} acciones)
-                    </option>
-                  ))}
-                </select>
+                  className="w-full"
+                />
               </div>
 
               <div className="flex items-center justify-center w-12">
@@ -125,24 +124,22 @@ export default function CompareUsersPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Usuario 2
                 </label>
-                <select
+                <SearchableSelect
+                  options={topUsers
+                    ?.filter((u) => u.userId !== userId1)
+                    .map((user) => ({
+                      value: user.userId,
+                      label: `${user.userName || user.userEmail} (${user.count} acciones)`,
+                    })) || []}
                   value={userId2}
-                  onChange={(e) => {
-                    setUserId2(e.target.value);
+                  onChange={(val) => {
+                    setUserId2(val);
                     setIsComparing(false);
                   }}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                  allLabel="Seleccionar usuario..."
                   disabled={isComparing}
-                >
-                  <option value="">Seleccionar usuario...</option>
-                  {topUsers
-                    ?.filter((u) => u.userId !== userId1)
-                    .map((user) => (
-                      <option key={user.userId} value={user.userId}>
-                        {user.userName || user.userEmail} ({user.count} acciones)
-                      </option>
-                    ))}
-                </select>
+                  className="w-full"
+                />
               </div>
 
               <div className="flex gap-2">

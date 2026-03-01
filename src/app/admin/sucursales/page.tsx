@@ -32,6 +32,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { PermissionGuard } from '@/components/auth';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 // ================================
 // BRANCH MODAL COMPONENT
@@ -780,34 +781,33 @@ export default function SucursalesPage() {
 
               {/* Type Filter */}
               <div className="lg:col-span-3">
-                <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3">
-                  <FunnelIcon className="h-4 w-4 text-gray-400" />
-                <select
+                <SearchableSelect
+                  options={[
+                    { value: 'warehouse', label: 'Almacenes' },
+                    { value: 'pickup', label: 'Puntos de Recogida' },
+                    { value: 'pos', label: 'Punto de Venta' },
+                  ]}
                   value={filterType}
-                  onChange={(e) => handleFilterType(e.target.value)}
-                  className="w-full bg-transparent py-2.5 text-sm focus:outline-none"
-                >
-                  <option value="all">Todos los Tipos</option>
-                  <option value="warehouse">Almacenes</option>
-                  <option value="pickup">Puntos de Recogida</option>
-                  <option value="pos">Punto de Venta</option>
-                </select>
-                </div>
+                  onChange={handleFilterType}
+                  allLabel="Todos los Tipos"
+                  allValue="all"
+                  className="w-full"
+                />
               </div>
 
               {/* Status Filter */}
               <div className="lg:col-span-3">
-                <div className="rounded-lg border border-gray-200 bg-white px-3">
-                <select
+                <SearchableSelect
+                  options={[
+                    { value: 'active', label: 'Activas' },
+                    { value: 'inactive', label: 'Inactivas' },
+                  ]}
                   value={filterStatus}
-                  onChange={(e) => handleFilterStatus(e.target.value)}
-                  className="w-full bg-transparent py-2.5 text-sm focus:outline-none"
-                >
-                  <option value="all">Todos los Estados</option>
-                  <option value="active">Activas</option>
-                  <option value="inactive">Inactivas</option>
-                </select>
-                </div>
+                  onChange={handleFilterStatus}
+                  allLabel="Todos los Estados"
+                  allValue="all"
+                  className="w-full"
+                />
               </div>
             </div>
             {hasActiveFilters && (

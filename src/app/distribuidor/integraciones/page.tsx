@@ -13,6 +13,7 @@ import {
   ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleSolidIcon } from '@heroicons/react/24/solid';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
 
 const mockIntegrations = [
@@ -260,30 +261,31 @@ export default function IntegracionesPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Categoría
                 </label>
-                <select
+                <SearchableSelect
+                  options={categories.filter(c => c !== 'Todas').map(cat => ({ value: cat, label: cat }))}
                   value={filterCategory}
-                  onChange={(e) => setFilterCategory(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                >
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
+                  onChange={setFilterCategory}
+                  allLabel="Todas"
+                  allValue="Todas"
+                  className="w-full"
+                />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Estado
                 </label>
-                <select
+                <SearchableSelect
+                  options={[
+                    { value: 'connected', label: 'Conectadas' },
+                    { value: 'available', label: 'Disponibles' },
+                  ]}
                   value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                >
-                  <option value="all">Todas</option>
-                  <option value="connected">Conectadas</option>
-                  <option value="available">Disponibles</option>
-                </select>
+                  onChange={setFilterStatus}
+                  allLabel="Todas"
+                  allValue="all"
+                  className="w-full"
+                />
               </div>
 
               <div className="flex items-end">

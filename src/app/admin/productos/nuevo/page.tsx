@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/Button';
 import { useCreateProduct, useCategories } from '@/hooks/useProducts';
 import type { CreateProductDto } from '@/types/product';
 import { ProductType, KitType } from '@/types/product';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 export default function NuevoProductoAdminPage() {
   const router = useRouter();
@@ -288,49 +289,53 @@ export default function NuevoProductoAdminPage() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className={labelClass}>Tipo de Producto</label>
-                    <select
-                      name="productType"
+                    <SearchableSelect
+                      options={[
+                        { value: 'finished_good', label: 'Producto Terminado' },
+                        { value: 'raw_material', label: 'Materia Prima' },
+                        { value: 'kit', label: 'Kit' },
+                        { value: 'promotional', label: 'Promocional' },
+                        { value: 'virtual', label: 'Virtual' },
+                        { value: 'service', label: 'Servicio' },
+                      ]}
                       value={formData.productType}
-                      onChange={handleChange}
-                      className={inputClass}
-                    >
-                      <option value="finished_good">Producto Terminado</option>
-                      <option value="raw_material">Materia Prima</option>
-                      <option value="kit">Kit</option>
-                      <option value="promotional">Promocional</option>
-                      <option value="virtual">Virtual</option>
-                      <option value="service">Servicio</option>
-                    </select>
+                      onChange={(val) => {
+                        setFormData(prev => ({
+                          ...prev,
+                          productType: val,
+                          kitDeductsInventory: val === 'kit' ? prev.kitDeductsInventory : false,
+                        }));
+                      }}
+                      showAllOption={false}
+                      className="w-full"
+                    />
                   </div>
                   <div>
                     <label className={labelClass}>Categoria</label>
-                    <select
-                      name="categoryId"
+                    <SearchableSelect
+                      options={categories?.map((cat) => ({ value: cat.id, label: cat.name })) || []}
                       value={formData.categoryId}
-                      onChange={handleChange}
-                      className={inputClass}
-                    >
-                      <option value="">Seleccionar categoria</option>
-                      {categoriesLoading && <option disabled>Cargando...</option>}
-                      {categories?.map((cat) => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                      ))}
-                    </select>
+                      onChange={(val) => setFormData(prev => ({ ...prev, categoryId: val }))}
+                      showAllOption={true}
+                      allLabel="Seleccionar categoria"
+                      className="w-full"
+                    />
                   </div>
                   {formData.productType === 'kit' && (
                     <div>
                       <label className={labelClass}>Tipo de Kit</label>
-                      <select
-                        name="kitType"
+                      <SearchableSelect
+                        options={[
+                          { value: 'basico', label: 'Basico' },
+                          { value: 'premium', label: 'Premium' },
+                          { value: 'preferente', label: 'Preferente' },
+                        ]}
                         value={formData.kitType}
-                        onChange={handleChange}
-                        className={inputClass}
-                      >
-                        <option value="">Seleccionar tipo de kit</option>
-                        <option value="basico">Basico</option>
-                        <option value="premium">Premium</option>
-                        <option value="preferente">Preferente</option>
-                      </select>
+                        onChange={(val) => setFormData(prev => ({ ...prev, kitType: val }))}
+                        showAllOption={true}
+                        allLabel="Seleccionar tipo de kit"
+                        className="w-full"
+                      />
                     </div>
                   )}
                 </div>

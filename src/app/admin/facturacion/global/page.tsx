@@ -16,6 +16,7 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useCreateGlobalInvoice, useStampGlobalInvoice } from '@/hooks/useBilling';
 import { PERIODICITIES, formatCurrency } from '@/types/billing';
 
@@ -179,21 +180,15 @@ export default function GlobalInvoicePage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Periodicidad *
                   </label>
-                  <select
+                  <SearchableSelect
+                    options={PERIODICITIES.map((p) => ({
+                      value: p.Value,
+                      label: p.Name,
+                    }))}
                     value={formData.periodicity}
-                    onChange={(e) =>
-                      setFormData({ ...formData, periodicity: e.target.value })
-                    }
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent ${
-                      errors.periodicity ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  >
-                    {PERIODICITIES.map((p) => (
-                      <option key={p.Value} value={p.Value}>
-                        {p.Name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, periodicity: val })}
+                    showAllOption={false}
+                  />
                   {errors.periodicity && (
                     <p className="mt-1 text-sm text-red-500">{errors.periodicity}</p>
                   )}
@@ -204,19 +199,15 @@ export default function GlobalInvoicePage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Mes *
                   </label>
-                  <select
+                  <SearchableSelect
+                    options={MONTHS.map((m) => ({
+                      value: m.value,
+                      label: m.name,
+                    }))}
                     value={formData.month}
-                    onChange={(e) => setFormData({ ...formData, month: e.target.value })}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent ${
-                      errors.month ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  >
-                    {MONTHS.map((m) => (
-                      <option key={m.value} value={m.value}>
-                        {m.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, month: val })}
+                    showAllOption={false}
+                  />
                   {errors.month && (
                     <p className="mt-1 text-sm text-red-500">{errors.month}</p>
                   )}

@@ -17,6 +17,7 @@ import {
   ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 import { useUserAuditHistory } from '@/hooks/useAudit';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { RISK_LEVEL_CONFIG, ACTION_CATEGORIES } from '@/types/audit';
 
 export default function UserAuditPage() {
@@ -369,16 +370,17 @@ export default function UserAuditPage() {
                 </CardTitle>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-600">Mostrar:</span>
-                  <select
-                    value={limit}
-                    onChange={(e) => setLimit(Number(e.target.value))}
-                    className="px-3 py-1 border border-gray-300 rounded-lg text-sm"
-                  >
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                    <option value={200}>200</option>
-                    <option value={500}>500</option>
-                  </select>
+                  <SearchableSelect
+                    options={[
+                      { value: '50', label: '50' },
+                      { value: '100', label: '100' },
+                      { value: '200', label: '200' },
+                      { value: '500', label: '500' },
+                    ]}
+                    value={String(limit)}
+                    onChange={(val) => setLimit(Number(val))}
+                    showAllOption={false}
+                  />
                 </div>
               </CardHeader>
               <CardContent className="p-0">

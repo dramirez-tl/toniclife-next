@@ -17,6 +17,7 @@ import {
   PencilIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
 
 const mockPaymentMethods = [
@@ -365,17 +366,19 @@ export default function PagosPage() {
               <CardContent className="p-6">
                 <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <h2 className="text-xl font-bold text-gray-900">Historial de Retiros</h2>
-                  <select
+                  <SearchableSelect
+                    options={[
+                      { value: 'completed', label: 'Completados' },
+                      { value: 'pending', label: 'Pendientes' },
+                      { value: 'processing', label: 'Procesando' },
+                      { value: 'failed', label: 'Fallidos' },
+                    ]}
                     value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent text-sm"
-                  >
-                    <option value="all">Todos los estados</option>
-                    <option value="completed">Completados</option>
-                    <option value="pending">Pendientes</option>
-                    <option value="processing">Procesando</option>
-                    <option value="failed">Fallidos</option>
-                  </select>
+                    onChange={setFilterStatus}
+                    allLabel="Todos los estados"
+                    allValue="all"
+                    className="w-full sm:w-auto"
+                  />
                 </div>
 
                 <div className="space-y-4">
@@ -541,13 +544,16 @@ export default function PagosPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Método de Pago
                     </label>
-                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent">
-                      {paymentMethods.map((method) => (
-                        <option key={method.id} value={method.id}>
-                          {method.type === 'bank' ? `${method.bank} ${method.accountNumber}` : `PayPal - ${method.email}`}
-                        </option>
-                      ))}
-                    </select>
+                    <SearchableSelect
+                      options={paymentMethods.map((method) => ({
+                        value: method.id,
+                        label: method.type === 'bank' ? `${method.bank} ${method.accountNumber}` : `PayPal - ${method.email}`,
+                      }))}
+                      value={paymentMethods[0]?.id || ''}
+                      onChange={() => {}}
+                      showAllOption={false}
+                      className="w-full"
+                    />
                   </div>
 
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -598,23 +604,35 @@ export default function PagosPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Tipo de Método
                     </label>
-                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent">
-                      <option value="bank">Cuenta Bancaria</option>
-                      <option value="paypal">PayPal</option>
-                    </select>
+                    <SearchableSelect
+                      options={[
+                        { value: 'bank', label: 'Cuenta Bancaria' },
+                        { value: 'paypal', label: 'PayPal' },
+                      ]}
+                      value="bank"
+                      onChange={() => {}}
+                      showAllOption={false}
+                      className="w-full"
+                    />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Banco
                     </label>
-                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent">
-                      <option>BBVA Bancomer</option>
-                      <option>Santander</option>
-                      <option>Banorte</option>
-                      <option>HSBC</option>
-                      <option>Citibanamex</option>
-                    </select>
+                    <SearchableSelect
+                      options={[
+                        { value: 'BBVA Bancomer', label: 'BBVA Bancomer' },
+                        { value: 'Santander', label: 'Santander' },
+                        { value: 'Banorte', label: 'Banorte' },
+                        { value: 'HSBC', label: 'HSBC' },
+                        { value: 'Citibanamex', label: 'Citibanamex' },
+                      ]}
+                      value="BBVA Bancomer"
+                      onChange={() => {}}
+                      showAllOption={false}
+                      className="w-full"
+                    />
                   </div>
 
                   <div>

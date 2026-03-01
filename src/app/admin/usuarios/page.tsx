@@ -43,6 +43,7 @@ import { PermissionGuard } from '@/components/auth';
 import { useAppSelector } from '@/store/hooks';
 import { selectUserRoles } from '@/store/slices/authSlice';
 import { useRoles } from '@/hooks/useRoles';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 type TabKey = 'users' | 'verification';
 
@@ -646,40 +647,39 @@ export default function UsuariosPage() {
 
                   {/* Role Filter */}
                   <div className="lg:col-span-3">
-                    <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3">
-                      <FunnelIcon className="h-4 w-4 text-gray-400" />
-                      <select
-                        value={filterRole}
-                        onChange={(e) => handleFilterRole(e.target.value)}
-                        className="w-full bg-transparent py-2.5 text-sm focus:outline-none"
-                      >
-                        <option value="all">Todos los Roles</option>
-                        <option value="administrador">Administrador</option>
-                        <option value="super_admin">Super Admin</option>
-                        <option value="customer">Cliente</option>
-                        <option value="distributor">Distribuidor</option>
-                        <option value="operaciones">Operaciones</option>
-                        <option value="sucursales">Sucursales</option>
-                        <option value="call_center">Call Center</option>
-                        <option value="contabilidad">Contabilidad</option>
-                        <option value="soporte">Sistemas</option>
-                      </select>
-                    </div>
+                    <SearchableSelect
+                      options={[
+                        { value: 'administrador', label: 'Administrador' },
+                        { value: 'super_admin', label: 'Super Admin' },
+                        { value: 'customer', label: 'Cliente' },
+                        { value: 'distributor', label: 'Distribuidor' },
+                        { value: 'operaciones', label: 'Operaciones' },
+                        { value: 'sucursales', label: 'Sucursales' },
+                        { value: 'call_center', label: 'Call Center' },
+                        { value: 'contabilidad', label: 'Contabilidad' },
+                        { value: 'soporte', label: 'Sistemas' },
+                      ]}
+                      value={filterRole}
+                      onChange={handleFilterRole}
+                      allLabel="Todos los Roles"
+                      allValue="all"
+                      className="w-full"
+                    />
                   </div>
 
                   {/* Status Filter */}
                   <div className="lg:col-span-3">
-                    <div className="rounded-lg border border-gray-200 bg-white px-3">
-                      <select
-                        value={filterStatus}
-                        onChange={(e) => handleFilterStatus(e.target.value)}
-                        className="w-full bg-transparent py-2.5 text-sm focus:outline-none"
-                      >
-                        <option value="all">Todos los Estados</option>
-                        <option value="active">Activos</option>
-                        <option value="inactive">Inactivos</option>
-                      </select>
-                    </div>
+                    <SearchableSelect
+                      options={[
+                        { value: 'active', label: 'Activos' },
+                        { value: 'inactive', label: 'Inactivos' },
+                      ]}
+                      value={filterStatus}
+                      onChange={handleFilterStatus}
+                      allLabel="Todos los Estados"
+                      allValue="all"
+                      className="w-full"
+                    />
                   </div>
                 </div>
                 {hasActiveFilters && (
@@ -1308,18 +1308,14 @@ function UserFormModal({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Rol
             </label>
-            <select
+            <SearchableSelect
+              options={roles.map((role) => ({ value: role.id, label: role.name }))}
               value={formData.roleId ?? ''}
-              onChange={(e) => handleChange('roleId', e.target.value)}
-              className={inputClassName}
-            >
-              <option value="">Seleccionar rol...</option>
-              {roles.map((role) => (
-                <option key={role.id} value={role.id}>
-                  {role.name}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => handleChange('roleId', val)}
+              showAllOption={true}
+              allLabel="Seleccionar rol..."
+              className="w-full"
+            />
           </div>
 
           {/* Active */}

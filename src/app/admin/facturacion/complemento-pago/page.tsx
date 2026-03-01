@@ -17,6 +17,7 @@ import {
   PlusIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useCreatePaymentComplement, useStampPaymentComplement } from '@/hooks/useBilling';
 import { PermissionGuard } from '@/components/auth';
 
@@ -204,18 +205,19 @@ export default function ComplementoPagoPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Forma de Pago
                     </label>
-                    <select
+                    <SearchableSelect
+                      options={[
+                        { value: '01', label: '01 - Efectivo' },
+                        { value: '02', label: '02 - Cheque nominativo' },
+                        { value: '03', label: '03 - Transferencia electrónica de fondos' },
+                        { value: '04', label: '04 - Tarjeta de crédito' },
+                        { value: '28', label: '28 - Tarjeta de débito' },
+                        { value: '99', label: '99 - Por definir' },
+                      ]}
                       value={paymentForm}
-                      onChange={(e) => setPaymentForm(e.target.value)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                    >
-                      <option value="01">01 - Efectivo</option>
-                      <option value="02">02 - Cheque nominativo</option>
-                      <option value="03">03 - Transferencia electrónica de fondos</option>
-                      <option value="04">04 - Tarjeta de crédito</option>
-                      <option value="28">28 - Tarjeta de débito</option>
-                      <option value="99">99 - Por definir</option>
-                    </select>
+                      onChange={setPaymentForm}
+                      showAllOption={false}
+                    />
                   </div>
 
                   {/* Info Box */}

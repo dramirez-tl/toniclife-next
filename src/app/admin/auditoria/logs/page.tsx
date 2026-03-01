@@ -21,6 +21,7 @@ import {
 import { toast } from 'sonner';
 import { useAuditLogs, useMarkAsReviewed } from '@/hooks/useAudit';
 import { AuditFilters, RISK_LEVEL_CONFIG, ACTION_CATEGORIES, RiskLevel } from '@/types/audit';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 function AuditLogsContent() {
   const searchParams = useSearchParams();
@@ -148,33 +149,30 @@ function AuditLogsContent() {
               {/* Risk Level Filter */}
               <div className="flex items-center gap-2">
                 <FunnelIcon className="h-5 w-5 text-gray-400" />
-                <select
+                <SearchableSelect
+                  options={[
+                    { value: 'critical', label: 'Crítico' },
+                    { value: 'high', label: 'Alto' },
+                    { value: 'medium', label: 'Medio' },
+                    { value: 'low', label: 'Bajo' },
+                  ]}
                   value={filters.riskLevel || ''}
-                  onChange={(e) => updateFilters({ riskLevel: e.target.value as RiskLevel || undefined })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  <option value="">Todos los Niveles</option>
-                  <option value="critical">Crítico</option>
-                  <option value="high">Alto</option>
-                  <option value="medium">Medio</option>
-                  <option value="low">Bajo</option>
-                </select>
+                  onChange={(val) => updateFilters({ riskLevel: val as RiskLevel || undefined })}
+                  allLabel="Todos los Niveles"
+                />
               </div>
 
               {/* Category Filter */}
               <div>
-                <select
+                <SearchableSelect
+                  options={ACTION_CATEGORIES.map((cat) => ({
+                    value: cat.value,
+                    label: cat.label,
+                  }))}
                   value={filters.actionCategory || ''}
-                  onChange={(e) => updateFilters({ actionCategory: e.target.value || undefined })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  <option value="">Todas las Categorías</option>
-                  {ACTION_CATEGORIES.map((cat) => (
-                    <option key={cat.value} value={cat.value}>
-                      {cat.label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => updateFilters({ actionCategory: val || undefined })}
+                  allLabel="Todas las Categorías"
+                />
               </div>
 
               {/* Quick Filters */}

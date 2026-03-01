@@ -13,6 +13,7 @@ import {
   updateCustomer,
 } from '@/store/slices/customersSlice';
 import { CustomerStatus } from '@/types/customer';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import {
   ArrowLeftIcon,
   UserIcon,
@@ -162,17 +163,18 @@ export default function DetalleDistribuidorPage() {
                 <PencilIcon className="h-4 w-4" />
                 Editar
               </Link>
-              <select
+              <SearchableSelect
+                options={[
+                  { value: 'active', label: 'Activar' },
+                  { value: 'inactive', label: 'Desactivar' },
+                  { value: 'pending', label: 'Pendiente' },
+                  { value: 'suspended', label: 'Suspender' },
+                ]}
                 value={customer.status}
-                onChange={(e) => handleStatusChange(e.target.value as CustomerStatus)}
+                onChange={(val) => handleStatusChange(val as CustomerStatus)}
+                showAllOption={false}
                 disabled={statusChangeLoading}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
-              >
-                <option value="active">Activar</option>
-                <option value="inactive">Desactivar</option>
-                <option value="pending">Pendiente</option>
-                <option value="suspended">Suspender</option>
-              </select>
+              />
             </div>
           </div>
         </div>

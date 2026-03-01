@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { useProducts, useCategories, useDeleteProduct } from '@/hooks/useProducts';
 import type { Product, ProductQueryParams } from '@/types/product';
 import { PermissionGuard } from '@/components/auth';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 export default function ProductosPage() {
   const router = useRouter();
@@ -532,36 +533,28 @@ export default function ProductosPage() {
 
                 {/* Category Filter */}
                 <div className="lg:col-span-4">
-                  <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3">
-                    <FunnelIcon className="h-4 w-4 text-gray-400" />
-                    <select
-                      value={filterCategoryId}
-                      onChange={(e) => handleFilterCategory(e.target.value)}
-                      className="w-full bg-transparent py-2.5 text-sm focus:outline-none"
-                    >
-                      <option value="">Todas las Categorías</option>
-                      {categories?.map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <SearchableSelect
+                    options={categories?.map((category) => ({ value: category.id, label: category.name })) || []}
+                    value={filterCategoryId}
+                    onChange={handleFilterCategory}
+                    allLabel="Todas las Categorías"
+                    className="w-full"
+                  />
                 </div>
 
                 {/* Status Filter */}
                 <div className="lg:col-span-3">
-                  <div className="rounded-lg border border-gray-200 bg-white px-3">
-                    <select
-                      value={filterStatus}
-                      onChange={(e) => handleFilterStatus(e.target.value)}
-                      className="w-full bg-transparent py-2.5 text-sm focus:outline-none"
-                    >
-                      <option value="all">Todos los Estados</option>
-                      <option value="active">Activos</option>
-                      <option value="inactive">Inactivos</option>
-                    </select>
-                  </div>
+                  <SearchableSelect
+                    options={[
+                      { value: 'active', label: 'Activos' },
+                      { value: 'inactive', label: 'Inactivos' },
+                    ]}
+                    value={filterStatus}
+                    onChange={handleFilterStatus}
+                    allLabel="Todos los Estados"
+                    allValue="all"
+                    className="w-full"
+                  />
                 </div>
               </div>
 

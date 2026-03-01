@@ -15,6 +15,7 @@ import {
   UserIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { FISCAL_REGIMES, CFDI_USES } from '@/types/billing';
 import { useCreateFiscalData, useValidateRfc } from '@/hooks/useBilling';
 import { customersService } from '@/services/customers.service';
@@ -377,22 +378,16 @@ export default function NewFiscalDataPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Régimen Fiscal *
                   </label>
-                  <select
+                  <SearchableSelect
+                    options={FISCAL_REGIMES.map((regime) => ({
+                      value: regime.Value,
+                      label: `${regime.Value} - ${regime.Name}`,
+                    }))}
                     value={formData.taxRegime}
-                    onChange={(e) =>
-                      setFormData({ ...formData, taxRegime: e.target.value })
-                    }
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent ${
-                      errors.taxRegime ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  >
-                    <option value="">Seleccionar régimen...</option>
-                    {FISCAL_REGIMES.map((regime) => (
-                      <option key={regime.Value} value={regime.Value}>
-                        {regime.Value} - {regime.Name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, taxRegime: val })}
+                    showAllOption={false}
+                    placeholder="Seleccionar régimen..."
+                  />
                   {errors.taxRegime && (
                     <p className="mt-1 text-sm text-red-500">{errors.taxRegime}</p>
                   )}
@@ -428,22 +423,16 @@ export default function NewFiscalDataPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Uso de CFDI *
                   </label>
-                  <select
+                  <SearchableSelect
+                    options={CFDI_USES.map((use) => ({
+                      value: use.Value,
+                      label: `${use.Value} - ${use.Name}`,
+                    }))}
                     value={formData.defaultCfdiUse}
-                    onChange={(e) =>
-                      setFormData({ ...formData, defaultCfdiUse: e.target.value })
-                    }
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent ${
-                      errors.defaultCfdiUse ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  >
-                    <option value="">Seleccionar uso de CFDI...</option>
-                    {CFDI_USES.map((use) => (
-                      <option key={use.Value} value={use.Value}>
-                        {use.Value} - {use.Name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setFormData({ ...formData, defaultCfdiUse: val })}
+                    showAllOption={false}
+                    placeholder="Seleccionar uso de CFDI..."
+                  />
                   {errors.defaultCfdiUse && (
                     <p className="mt-1 text-sm text-red-500">{errors.defaultCfdiUse}</p>
                   )}

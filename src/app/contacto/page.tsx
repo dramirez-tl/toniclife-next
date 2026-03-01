@@ -12,6 +12,7 @@ import {
   UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 export default function ContactoPage() {
   const [formData, setFormData] = useState({
@@ -166,20 +167,14 @@ export default function ContactoPage() {
                     <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-2">
                       Motivo de Contacto *
                     </label>
-                    <select
-                      id="reason"
-                      name="reason"
-                      required
+                    <SearchableSelect
+                      options={contactReasons.filter(r => r.value !== '').map(r => ({ value: r.value, label: r.label }))}
                       value={formData.reason}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
-                    >
-                      {contactReasons.map((reason) => (
-                        <option key={reason.value} value={reason.value}>
-                          {reason.label}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(val) => setFormData({ ...formData, reason: val })}
+                      showAllOption={false}
+                      placeholder="Selecciona un motivo"
+                      className="w-full"
+                    />
                   </div>
                 </div>
 

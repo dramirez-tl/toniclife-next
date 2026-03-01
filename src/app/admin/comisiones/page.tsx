@@ -31,6 +31,7 @@ import {
 import { useClosePeriod } from '@/hooks/useMlmPeriods';
 import type { CommissionStatus } from '@/types/commissions';
 import { PermissionGuard } from '@/components/auth';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 export default function ComisionesPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -431,39 +432,37 @@ export default function ComisionesPage() {
               {/* Status Filter */}
               <div className="flex items-center gap-2">
                 <FunnelIcon className="h-5 w-5 text-gray-400" />
-                <select
+                <SearchableSelect
+                  options={[
+                    { value: 'calculated', label: 'Calculadas' },
+                    { value: 'approved', label: 'Aprobadas' },
+                    { value: 'paid', label: 'Pagadas' },
+                    { value: 'cancelled', label: 'Canceladas' },
+                  ]}
                   value={filterStatus}
-                  onChange={(e) => {
-                    setFilterStatus(e.target.value as CommissionStatus | 'all');
+                  onChange={(val) => {
+                    setFilterStatus(val as CommissionStatus | 'all');
                     setPage(1);
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  <option value="all">Todos los Estados</option>
-                  <option value="calculated">Calculadas</option>
-                  <option value="approved">Aprobadas</option>
-                  <option value="paid">Pagadas</option>
-                  <option value="cancelled">Canceladas</option>
-                </select>
+                  allLabel="Todos los Estados"
+                  allValue="all"
+                />
               </div>
 
               {/* Period Filter */}
               <div>
-                <select
+                <SearchableSelect
+                  options={periods.map((period) => ({
+                    value: period.id,
+                    label: period.name,
+                  }))}
                   value={filterPeriod}
-                  onChange={(e) => {
-                    setFilterPeriod(e.target.value);
+                  onChange={(val) => {
+                    setFilterPeriod(val);
                     setPage(1);
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  <option value="">Todos los Períodos</option>
-                  {periods.map((period) => (
-                    <option key={period.id} value={period.id}>
-                      {period.name}
-                    </option>
-                  ))}
-                </select>
+                  allLabel="Todos los Períodos"
+                />
               </div>
 
               {/* Export Button */}

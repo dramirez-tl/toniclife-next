@@ -10,6 +10,7 @@ import {
   TrashIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useCreateTransfer, useBranchStock } from '@/hooks/useInventory';
 import { useActiveBranches } from '@/hooks/useBranches';
 import type { CreateTransferDto } from '@/types/inventory';
@@ -172,22 +173,16 @@ export default function NuevoTraspasoPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Sucursal Origen *
               </label>
-              <select
+              <SearchableSelect
+                options={(branches ?? []).map((branch) => ({
+                  value: branch.id,
+                  label: branch.name,
+                }))}
                 value={formData.fromBranchId}
-                onChange={(e) =>
-                  setFormData({ ...formData, fromBranchId: e.target.value })
-                }
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent ${
-                  errors.fromBranchId ? 'border-red-500' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Seleccionar sucursal...</option>
-                {branches?.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setFormData({ ...formData, fromBranchId: val })}
+                showAllOption={false}
+                placeholder="Seleccionar sucursal..."
+              />
               {errors.fromBranchId && (
                 <p className="mt-1 text-sm text-red-500">{errors.fromBranchId}</p>
               )}
@@ -197,24 +192,18 @@ export default function NuevoTraspasoPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Sucursal Destino *
               </label>
-              <select
-                value={formData.toBranchId}
-                onChange={(e) =>
-                  setFormData({ ...formData, toBranchId: e.target.value })
-                }
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent ${
-                  errors.toBranchId ? 'border-red-500' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Seleccionar sucursal...</option>
-                {branches?.filter((b) => b.id !== formData.fromBranchId).map(
-                  (branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  )
+              <SearchableSelect
+                options={(branches ?? []).filter((b) => b.id !== formData.fromBranchId).map(
+                  (branch) => ({
+                    value: branch.id,
+                    label: branch.name,
+                  })
                 )}
-              </select>
+                value={formData.toBranchId}
+                onChange={(val) => setFormData({ ...formData, toBranchId: val })}
+                showAllOption={false}
+                placeholder="Seleccionar sucursal..."
+              />
               {errors.toBranchId && (
                 <p className="mt-1 text-sm text-red-500">{errors.toBranchId}</p>
               )}

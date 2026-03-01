@@ -18,6 +18,7 @@ import {
   CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
 
 const mockCustomers = [
@@ -262,30 +263,30 @@ export default function ClientesPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Tipo de Cliente
                   </label>
-                  <select
+                  <SearchableSelect
+                    options={customerTypes.filter(t => t !== 'Todos').map(type => ({ value: type, label: type }))}
                     value={filterType}
-                    onChange={(e) => setFilterType(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                  >
-                    {customerTypes.map(type => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
+                    onChange={setFilterType}
+                    allLabel="Todos"
+                    allValue="Todos"
+                    className="w-full"
+                  />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Estado
                   </label>
-                  <select
+                  <SearchableSelect
+                    options={[
+                      { value: 'active', label: 'Activos' },
+                      { value: 'inactive', label: 'Inactivos' },
+                    ]}
                     value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                  >
-                    <option value="all">Todos</option>
-                    <option value="active">Activos</option>
-                    <option value="inactive">Inactivos</option>
-                  </select>
+                    onChange={setFilterStatus}
+                    allLabel="Todos"
+                    className="w-full"
+                  />
                 </div>
 
                 <div className="flex items-end">

@@ -6,6 +6,7 @@ import { ProductGrid } from '@/components/products/ProductGrid';
 import { ProductFilters } from '@/components/products/ProductFilters';
 import { Badge } from '@/components/ui';
 import { FunnelIcon, Squares2X2Icon, ListBulletIcon } from '@heroicons/react/24/outline';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useProducts, useCategories } from '@/hooks/useProducts';
 import { ECOMMERCE_BRANCH_ID } from '@/services/products.service';
 import type { Product as APIProduct, Category } from '@/types/product';
@@ -202,17 +203,18 @@ export default function ProductsPage() {
               {/* Right side controls */}
               <div className="flex items-center gap-4">
                 {/* Sort */}
-                <select
+                <SearchableSelect
+                  options={[
+                    { value: 'featured', label: 'Destacados' },
+                    { value: 'newest', label: 'Más Recientes' },
+                    { value: 'price-asc', label: 'Precio: Menor a Mayor' },
+                    { value: 'price-desc', label: 'Precio: Mayor a Menor' },
+                    { value: 'name', label: 'Nombre A-Z' },
+                  ]}
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as SortOption)}
-                  className="px-4 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#a7c1e2]"
-                >
-                  <option value="featured">Destacados</option>
-                  <option value="newest">Más Recientes</option>
-                  <option value="price-asc">Precio: Menor a Mayor</option>
-                  <option value="price-desc">Precio: Mayor a Menor</option>
-                  <option value="name">Nombre A-Z</option>
-                </select>
+                  onChange={(val) => setSortBy(val as SortOption)}
+                  showAllOption={false}
+                />
 
                 {/* View Toggle */}
                 <div className="hidden sm:flex items-center bg-gray-100 rounded-lg p-1">

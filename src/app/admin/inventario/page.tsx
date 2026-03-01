@@ -476,18 +476,16 @@ export default function InventarioPage() {
 
                 {/* Stock Filter */}
                 <div className="lg:col-span-4">
-                  <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3">
-                    <FunnelIcon className="h-4 w-4 text-gray-400" />
-                    <select
-                      value={filterStock}
-                      onChange={(e) => handleFilterChange(e.target.value)}
-                      className="w-full bg-transparent py-2.5 text-sm focus:outline-none"
-                    >
-                      <option value="all">Todas las Existencias</option>
-                      <option value="low">Existencias Bajas</option>
-                      <option value="out">Sin Existencias</option>
-                    </select>
-                  </div>
+                  <SearchableSelect
+                    options={[
+                      { value: 'low', label: 'Existencias Bajas' },
+                      { value: 'out', label: 'Sin Existencias' },
+                    ]}
+                    value={filterStock}
+                    onChange={handleFilterChange}
+                    allLabel="Todas las Existencias"
+                    allValue="all"
+                  />
                 </div>
               </div>
               {hasActiveFilters && (

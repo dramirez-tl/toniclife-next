@@ -35,6 +35,7 @@ import {
   FunnelIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 const statusColors: Record<string, string> = {
   active: 'bg-green-100 text-green-800',
@@ -542,73 +543,68 @@ export default function DistribuidoresAdminPage() {
 
                 {/* Type Filter */}
                 <div className="lg:col-span-2">
-                  <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3">
-                    <FunnelIcon className="h-4 w-4 text-gray-400" />
-                    <select
-                      value={filterType}
-                      onChange={(e) => handleFilterType(e.target.value)}
-                      className="w-full bg-transparent py-2.5 text-sm focus:outline-none"
-                    >
-                      <option value="all">Todos los Tipos</option>
-                      <option value="distributor">Distribuidores</option>
-                      <option value="retail">Clientes</option>
-                    </select>
-                  </div>
+                  <SearchableSelect
+                    options={[
+                      { value: 'distributor', label: 'Distribuidores' },
+                      { value: 'retail', label: 'Clientes' },
+                    ]}
+                    value={filterType}
+                    onChange={handleFilterType}
+                    allLabel="Todos los Tipos"
+                    allValue="all"
+                    className="w-full"
+                  />
                 </div>
 
                 {/* Status Filter */}
                 <div className="lg:col-span-2">
-                  <div className="rounded-lg border border-gray-200 bg-white px-3">
-                    <select
-                      value={filterStatus}
-                      onChange={(e) => handleFilterStatus(e.target.value)}
-                      className="w-full bg-transparent py-2.5 text-sm focus:outline-none"
-                    >
-                      <option value="all">Todos los Estados</option>
-                      <option value="active">Activo</option>
-                      <option value="inactive">Inactivo</option>
-                      <option value="pending">Pendiente</option>
-                      <option value="suspended">Suspendido</option>
-                    </select>
-                  </div>
+                  <SearchableSelect
+                    options={[
+                      { value: 'active', label: 'Activo' },
+                      { value: 'inactive', label: 'Inactivo' },
+                      { value: 'pending', label: 'Pendiente' },
+                      { value: 'suspended', label: 'Suspendido' },
+                    ]}
+                    value={filterStatus}
+                    onChange={handleFilterStatus}
+                    allLabel="Todos los Estados"
+                    allValue="all"
+                    className="w-full"
+                  />
                 </div>
 
                 {/* Country Filter */}
                 <div className="lg:col-span-2">
-                  <div className="rounded-lg border border-gray-200 bg-white px-3">
-                    <select
-                      value={filterCountry}
-                      onChange={(e) => handleFilterCountry(e.target.value)}
-                      className="w-full bg-transparent py-2.5 text-sm focus:outline-none"
-                    >
-                      <option value="all">Todos los Países</option>
-                      {COUNTRY_OPTIONS.map((c) => (
-                        <option key={c.value} value={c.value}>{c.label}</option>
-                      ))}
-                    </select>
-                  </div>
+                  <SearchableSelect
+                    options={COUNTRY_OPTIONS}
+                    value={filterCountry}
+                    onChange={handleFilterCountry}
+                    allLabel="Todos los Países"
+                    allValue="all"
+                    className="w-full"
+                  />
                 </div>
 
                 {/* Sort */}
                 <div className="lg:col-span-2">
-                  <div className="rounded-lg border border-gray-200 bg-white px-3">
-                    <select
-                      value={`${sortBy}-${sortOrder}`}
-                      onChange={(e) => {
-                        const [newSortBy, newSortOrder] = e.target.value.split('-');
-                        setSortBy(newSortBy);
-                        setSortOrder(newSortOrder as 'asc' | 'desc');
-                        dispatch(setFilters({ page: 1 }));
-                      }}
-                      className="w-full bg-transparent py-2.5 text-sm focus:outline-none"
-                    >
-                      <option value="createdAt-desc">Más recientes</option>
-                      <option value="createdAt-asc">Más antiguos</option>
-                      <option value="firstName-asc">Nombre A-Z</option>
-                      <option value="firstName-desc">Nombre Z-A</option>
-                      <option value="email-asc">Correo A-Z</option>
-                    </select>
-                  </div>
+                  <SearchableSelect
+                    options={[
+                      { value: 'createdAt-desc', label: 'Más recientes' },
+                      { value: 'createdAt-asc', label: 'Más antiguos' },
+                      { value: 'firstName-asc', label: 'Nombre A-Z' },
+                      { value: 'firstName-desc', label: 'Nombre Z-A' },
+                      { value: 'email-asc', label: 'Correo A-Z' },
+                    ]}
+                    value={`${sortBy}-${sortOrder}`}
+                    onChange={(val) => {
+                      const [newSortBy, newSortOrder] = val.split('-');
+                      setSortBy(newSortBy);
+                      setSortOrder(newSortOrder as 'asc' | 'desc');
+                      dispatch(setFilters({ page: 1 }));
+                    }}
+                    showAllOption={false}
+                    className="w-full"
+                  />
                 </div>
               </div>
 

@@ -23,6 +23,7 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useExpenses, useApproveExpense, useRejectExpense } from '@/hooks/useHR';
 import { ExpenseStatus } from '@/types/hr';
 
@@ -62,7 +63,7 @@ export default function ViaticosPage() {
 
   // Extract departments from data
   const departments = useMemo(() => {
-    const deptSet = new Set(expenses.map(e => e.employee?.department).filter(Boolean));
+    const deptSet = new Set(expenses.map(e => e.employee?.department).filter((d): d is string => !!d));
     return Array.from(deptSet);
   }, [expenses]);
 
@@ -304,30 +305,31 @@ export default function ViaticosPage() {
               </div>
 
               {/* Department Filter */}
-              <select
+              <SearchableSelect
+                options={departments.map(dept => ({
+                  value: dept,
+                  label: dept,
+                }))}
                 value={filterDepartment}
-                onChange={(e) => setFilterDepartment(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-              >
-                <option value="all">Todos los Departamentos</option>
-                {departments.map(dept => (
-                  <option key={dept} value={dept}>{dept}</option>
-                ))}
-              </select>
+                onChange={setFilterDepartment}
+                allLabel="Todos los Departamentos"
+                allValue="all"
+              />
 
               {/* Status Filter */}
-              <select
+              <SearchableSelect
+                options={[
+                  { value: 'PENDING', label: 'Pendientes' },
+                  { value: 'APPROVED', label: 'Aprobados' },
+                  { value: 'VERIFIED', label: 'Verificados' },
+                  { value: 'REFUNDED', label: 'Reembolsados' },
+                  { value: 'REJECTED', label: 'Rechazados' },
+                ]}
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as ExpenseStatus | 'all')}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-              >
-                <option value="all">Todos los Estados</option>
-                <option value="PENDING">Pendientes</option>
-                <option value="APPROVED">Aprobados</option>
-                <option value="VERIFIED">Verificados</option>
-                <option value="REFUNDED">Reembolsados</option>
-                <option value="REJECTED">Rechazados</option>
-              </select>
+                onChange={(val) => setFilterStatus(val as ExpenseStatus | 'all')}
+                allLabel="Todos los Estados"
+                allValue="all"
+              />
 
               {/* Export */}
               <Button

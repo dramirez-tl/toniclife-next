@@ -18,6 +18,7 @@ import {
   PlusIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
 
 const mockProspects = [
@@ -277,17 +278,18 @@ export default function ProspectosPage() {
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                 />
               </div>
-              <select
+              <SearchableSelect
+                options={[
+                  { value: 'hot', label: 'Calientes' },
+                  { value: 'warm', label: 'Tibios' },
+                  { value: 'cold', label: 'Fríos' },
+                  { value: 'converted', label: 'Convertidos' },
+                ]}
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-              >
-                <option value="all">Todos los estados</option>
-                <option value="hot">Calientes</option>
-                <option value="warm">Tibios</option>
-                <option value="cold">Fríos</option>
-                <option value="converted">Convertidos</option>
-              </select>
+                onChange={setFilterStatus}
+                allLabel="Todos los estados"
+                allValue="all"
+              />
             </div>
           </CardContent>
         </Card>

@@ -18,6 +18,7 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useAttendanceReport, useManualAttendance } from '@/hooks/useHR';
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
@@ -65,7 +66,7 @@ export default function AsistenciaPage() {
 
   // Extract branches from data
   const branches = useMemo(() => {
-    const branchSet = new Set(attendance.map(a => a.employee?.branch).filter(Boolean));
+    const branchSet = new Set(attendance.map(a => a.employee?.branch).filter((b): b is string => !!b));
     return Array.from(branchSet);
   }, [attendance]);
 
@@ -312,29 +313,30 @@ export default function AsistenciaPage() {
               </div>
 
               {/* Branch Filter */}
-              <select
+              <SearchableSelect
+                options={branches.map(branch => ({
+                  value: branch,
+                  label: branch,
+                }))}
                 value={filterBranch}
-                onChange={(e) => setFilterBranch(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-              >
-                <option value="all">Todas las Sucursales</option>
-                {branches.map(branch => (
-                  <option key={branch} value={branch}>{branch}</option>
-                ))}
-              </select>
+                onChange={setFilterBranch}
+                allLabel="Todas las Sucursales"
+                allValue="all"
+              />
 
               {/* Status Filter */}
-              <select
+              <SearchableSelect
+                options={[
+                  { value: 'PRESENT', label: 'Completo' },
+                  { value: 'WORKING', label: 'Trabajando' },
+                  { value: 'ABSENT', label: 'Ausente' },
+                  { value: 'VACATION', label: 'Vacaciones' },
+                ]}
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-              >
-                <option value="all">Todos los Estados</option>
-                <option value="PRESENT">Completo</option>
-                <option value="WORKING">Trabajando</option>
-                <option value="ABSENT">Ausente</option>
-                <option value="VACATION">Vacaciones</option>
-              </select>
+                onChange={setFilterStatus}
+                allLabel="Todos los Estados"
+                allValue="all"
+              />
 
               {/* Export */}
               <Button

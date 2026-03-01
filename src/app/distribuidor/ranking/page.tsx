@@ -15,6 +15,7 @@ import {
   CurrencyDollarIcon,
 } from '@heroicons/react/24/outline';
 import { TrophyIcon as TrophySolidIcon } from '@heroicons/react/24/solid';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 const mockLeaderboard = [
   {
@@ -311,29 +312,26 @@ export default function RankingPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Periodo
                   </label>
-                  <select
+                  <SearchableSelect
+                    options={periods.map(period => ({ value: period, label: period }))}
                     value={selectedPeriod}
-                    onChange={(e) => setSelectedPeriod(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                  >
-                    {periods.map(period => (
-                      <option key={period} value={period}>{period}</option>
-                    ))}
-                  </select>
+                    onChange={setSelectedPeriod}
+                    showAllOption={false}
+                    className="w-full"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Región
                   </label>
-                  <select
+                  <SearchableSelect
+                    options={regions.filter(r => r !== 'Todas las Regiones').map(region => ({ value: region, label: region }))}
                     value={selectedRegion}
-                    onChange={(e) => setSelectedRegion(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                  >
-                    {regions.map(region => (
-                      <option key={region} value={region}>{region}</option>
-                    ))}
-                  </select>
+                    onChange={setSelectedRegion}
+                    allLabel="Todas las Regiones"
+                    allValue="Todas las Regiones"
+                    className="w-full"
+                  />
                 </div>
               </div>
             </div>

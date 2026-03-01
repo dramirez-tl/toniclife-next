@@ -15,6 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 // Mock search results
 const mockSearchResults = [
@@ -244,17 +245,12 @@ export default function BuscarPage() {
 
           <div className="flex items-center gap-3">
             {/* Sort */}
-            <select
+            <SearchableSelect
+              options={sortOptions}
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-            >
-              {sortOptions.map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              onChange={setSortBy}
+              showAllOption={false}
+            />
 
             {/* Toggle Filters */}
             <Button

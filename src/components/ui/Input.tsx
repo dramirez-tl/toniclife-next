@@ -1,6 +1,7 @@
 'use client';
 
 import { InputHTMLAttributes, forwardRef } from 'react';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -129,57 +130,59 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
 Textarea.displayName = 'Textarea';
 
 // Select Component
-interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+interface SelectProps {
   label?: string;
   error?: string;
   helperText?: string;
   options: { value: string; label: string }[];
+  value?: string;
+  onChange?: (value: string) => void;
+  disabled?: boolean;
+  className?: string;
+  placeholder?: string;
+  showAllOption?: boolean;
+  allLabel?: string;
+  allValue?: string;
 }
 
-export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className = '', label, error, helperText, options, id, ...props }, ref) => {
-    const inputId = id || label?.toLowerCase().replace(/\s/g, '-');
-
-    return (
-      <div className="w-full">
-        {label && (
-          <label
-            htmlFor={inputId}
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            {label}
-          </label>
-        )}
-        <select
-          ref={ref}
-          id={inputId}
-          className={`
-            w-full rounded-xl border
-            px-4 py-3
-            text-gray-900
-            transition-all duration-200
-            focus:outline-none focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent
-            disabled:bg-gray-100 disabled:cursor-not-allowed
-            ${error ? 'border-red-500 focus:ring-red-500' : 'border-gray-300'}
-            ${className}
-          `}
-          {...props}
-        >
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        {error && (
-          <p className="mt-1 text-sm text-red-500">{error}</p>
-        )}
-        {helperText && !error && (
-          <p className="mt-1 text-sm text-gray-500">{helperText}</p>
-        )}
-      </div>
-    );
-  }
-);
-
-Select.displayName = 'Select';
+export function Select({
+  className = '',
+  label,
+  error,
+  helperText,
+  options,
+  value,
+  onChange,
+  disabled,
+  placeholder,
+  showAllOption = false,
+  allLabel,
+  allValue,
+}: SelectProps) {
+  return (
+    <div className="w-full">
+      {label && (
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          {label}
+        </label>
+      )}
+      <SearchableSelect
+        options={options}
+        value={value ?? ''}
+        onChange={onChange ?? (() => {})}
+        disabled={disabled}
+        placeholder={placeholder}
+        showAllOption={showAllOption}
+        allLabel={allLabel}
+        allValue={allValue}
+        className={className}
+      />
+      {error && (
+        <p className="mt-1 text-sm text-red-500">{error}</p>
+      )}
+      {helperText && !error && (
+        <p className="mt-1 text-sm text-gray-500">{helperText}</p>
+      )}
+    </div>
+  );
+}

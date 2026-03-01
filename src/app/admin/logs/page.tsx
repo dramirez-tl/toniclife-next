@@ -21,6 +21,7 @@ import {
 import { toast } from 'sonner';
 import { useAuditLogs, useAuditStats, useExportLogs } from '@/hooks/useAudit';
 import { AuditLog, RiskLevel, ACTION_CATEGORIES } from '@/types/audit';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 export default function LogsPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -330,31 +331,29 @@ export default function LogsPage() {
             {/* Risk Level Filter */}
             <div className="flex items-center gap-2">
               <FunnelIcon className="h-5 w-5 text-gray-400" />
-              <select
+              <SearchableSelect
+                options={[
+                  { value: 'critical', label: 'Crítico' },
+                  { value: 'high', label: 'Alto' },
+                  { value: 'medium', label: 'Medio' },
+                  { value: 'low', label: 'Bajo' },
+                ]}
                 value={filterRiskLevel}
-                onChange={(e) => setFilterRiskLevel(e.target.value as RiskLevel | 'all')}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-              >
-                <option value="all">Todos los Niveles</option>
-                <option value="critical">Crítico</option>
-                <option value="high">Alto</option>
-                <option value="medium">Medio</option>
-                <option value="low">Bajo</option>
-              </select>
+                onChange={(val) => setFilterRiskLevel(val as RiskLevel | 'all')}
+                allLabel="Todos los Niveles"
+                allValue="all"
+              />
             </div>
 
             {/* Category Filter */}
             <div>
-              <select
+              <SearchableSelect
+                options={ACTION_CATEGORIES.map((cat) => ({ value: cat.value, label: cat.label }))}
                 value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-              >
-                <option value="all">Todas las Categorías</option>
-                {ACTION_CATEGORIES.map((cat) => (
-                  <option key={cat.value} value={cat.value}>{cat.label}</option>
-                ))}
-              </select>
+                onChange={setFilterCategory}
+                allLabel="Todas las Categorías"
+                allValue="all"
+              />
             </div>
 
             {/* Auto Refresh */}

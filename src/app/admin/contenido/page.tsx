@@ -23,6 +23,7 @@ import {
   ClockIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 interface ContentItem {
   id: string;
@@ -410,31 +411,33 @@ export default function ContenidoPage() {
               {/* Type Filter */}
               <div className="flex items-center gap-2">
                 <FunnelIcon className="h-5 w-5 text-gray-400" />
-                <select
+                <SearchableSelect
+                  options={contentTypes
+                    .filter((type) => type.id !== 'all')
+                    .map((type) => ({
+                      value: type.id,
+                      label: type.name,
+                    }))}
                   value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  {contentTypes.map((type) => (
-                    <option key={type.id} value={type.id}>
-                      {type.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setFilterType}
+                  allLabel="Todos los Tipos"
+                  allValue="all"
+                />
               </div>
 
               {/* Status Filter */}
               <div>
-                <select
+                <SearchableSelect
+                  options={[
+                    { value: 'published', label: 'Publicados' },
+                    { value: 'draft', label: 'Borradores' },
+                    { value: 'scheduled', label: 'Programados' },
+                  ]}
                   value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  <option value="all">Todos los Estados</option>
-                  <option value="published">Publicados</option>
-                  <option value="draft">Borradores</option>
-                  <option value="scheduled">Programados</option>
-                </select>
+                  onChange={setFilterStatus}
+                  allLabel="Todos los Estados"
+                  allValue="all"
+                />
               </div>
             </div>
           </CardContent>

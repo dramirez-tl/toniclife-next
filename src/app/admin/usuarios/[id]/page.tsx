@@ -24,6 +24,7 @@ import {
   ClockIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 // Mock data - In real app, fetch based on [id]
 const userData = {
@@ -521,17 +522,13 @@ export default function UserDetailAdminPage() {
             {/* Status Card */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-4">Estado</h2>
-              <select
+              <SearchableSelect
+                options={statusOptions.map((option) => ({ value: option.value, label: option.label }))}
                 value={status}
-                onChange={(e) => handleStatusChange(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D] mb-3"
-              >
-                {statusOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                onChange={handleStatusChange}
+                showAllOption={false}
+                className="w-full mb-3"
+              />
               <div className="flex justify-center">
                 <span className={`px-4 py-2 rounded-full text-sm font-medium ${currentStatusOption?.color}`}>
                   {currentStatusOption?.label}
@@ -542,17 +539,13 @@ export default function UserDetailAdminPage() {
             {/* Role Card */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-4">Rol</h2>
-              <select
+              <SearchableSelect
+                options={roleOptions}
                 value={role}
-                onChange={(e) => handleRoleChange(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
-              >
-                {roleOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                onChange={handleRoleChange}
+                showAllOption={false}
+                className="w-full"
+              />
             </div>
 
             {/* Quick Actions */}

@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { CatalogTable, CatalogFormModal, type Column } from '@/components/admin/catalogs';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import {
   useCountries,
   useCreateCountry,
@@ -172,18 +173,13 @@ function FormSelect({
 }) {
   return (
     <FormField label={label} required={required}>
-      <select
+      <SearchableSelect
+        options={options}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm text-gray-900 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-      >
-        <option value="">Seleccionar...</option>
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+        onChange={onChange}
+        allLabel="Seleccionar..."
+        className="w-full"
+      />
     </FormField>
   );
 }

@@ -16,6 +16,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useVacations, useApproveVacation, useRejectVacation, useCreateVacation } from '@/hooks/useHR';
 import type { VacationStatus, CreateVacationDto } from '@/types/hr';
 
@@ -48,7 +49,7 @@ export default function VacacionesPage() {
 
   // Extract departments from data
   const departments = useMemo(() => {
-    const deptSet = new Set(vacations.map(v => v.employee?.department).filter(Boolean));
+    const deptSet = new Set(vacations.map(v => v.employee?.department).filter((d): d is string => !!d));
     return Array.from(deptSet);
   }, [vacations]);
 
@@ -336,28 +337,29 @@ export default function VacacionesPage() {
               </div>
 
               {/* Department Filter */}
-              <select
+              <SearchableSelect
+                options={departments.map(dept => ({
+                  value: dept,
+                  label: dept,
+                }))}
                 value={filterDepartment}
-                onChange={(e) => setFilterDepartment(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-              >
-                <option value="all">Todos los Departamentos</option>
-                {departments.map(dept => (
-                  <option key={dept} value={dept}>{dept}</option>
-                ))}
-              </select>
+                onChange={setFilterDepartment}
+                allLabel="Todos los Departamentos"
+                allValue="all"
+              />
 
               {/* Status Filter */}
-              <select
+              <SearchableSelect
+                options={[
+                  { value: 'PENDING', label: 'Pendientes' },
+                  { value: 'APPROVED', label: 'Aprobadas' },
+                  { value: 'REJECTED', label: 'Rechazadas' },
+                ]}
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as VacationStatus | 'all')}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-              >
-                <option value="all">Todos los Estados</option>
-                <option value="PENDING">Pendientes</option>
-                <option value="APPROVED">Aprobadas</option>
-                <option value="REJECTED">Rechazadas</option>
-              </select>
+                onChange={(val) => setFilterStatus(val as VacationStatus | 'all')}
+                allLabel="Todos los Estados"
+                allValue="all"
+              />
 
               {/* Export */}
               <Button

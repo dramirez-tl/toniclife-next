@@ -599,37 +599,39 @@ function PedidosContent() {
                 {/* Status Filter */}
                 <div className="flex items-center gap-2">
                   <FunnelIcon className="h-5 w-5 text-gray-400" />
-                  <select
+                  <SearchableSelect
+                    options={[
+                      { value: 'pending', label: 'Pendientes' },
+                      { value: 'confirmed', label: 'Confirmados' },
+                      { value: 'paid', label: 'Pagados' },
+                      { value: 'processing', label: 'Procesando' },
+                      { value: 'shipped', label: 'Enviados' },
+                      { value: 'in_transit', label: 'En Transito' },
+                      { value: 'delivered', label: 'Entregados' },
+                      { value: 'completed', label: 'Completados' },
+                      { value: 'cancelled', label: 'Cancelados' },
+                    ]}
                     value={filterStatus}
-                    onChange={(e) => setParams({ status: e.target.value })}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                  >
-                    <option value="all">Todos los Estados</option>
-                    <option value="pending">Pendientes</option>
-                    <option value="confirmed">Confirmados</option>
-                    <option value="paid">Pagados</option>
-                    <option value="processing">Procesando</option>
-                    <option value="shipped">Enviados</option>
-                    <option value="in_transit">En Transito</option>
-                    <option value="delivered">Entregados</option>
-                    <option value="completed">Completados</option>
-                    <option value="cancelled">Cancelados</option>
-                  </select>
+                    onChange={(val) => setParams({ status: val })}
+                    allLabel="Todos los Estados"
+                    allValue="all"
+                  />
                 </div>
 
                 {/* Payment Filter */}
                 <div>
-                  <select
+                  <SearchableSelect
+                    options={[
+                      { value: 'paid', label: 'Pagados' },
+                      { value: 'pending', label: 'Pago Pendiente' },
+                      { value: 'refunded', label: 'Reembolsados' },
+                      { value: 'failed', label: 'Fallidos' },
+                    ]}
                     value={filterPayment}
-                    onChange={(e) => setParams({ payment: e.target.value })}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                  >
-                    <option value="all">Todos los Pagos</option>
-                    <option value="paid">Pagados</option>
-                    <option value="pending">Pago Pendiente</option>
-                    <option value="refunded">Reembolsados</option>
-                    <option value="failed">Fallidos</option>
-                  </select>
+                    onChange={(val) => setParams({ payment: val })}
+                    allLabel="Todos los Pagos"
+                    allValue="all"
+                  />
                 </div>
               </div>
 

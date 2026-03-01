@@ -34,6 +34,7 @@ import {
   CurrencyDollarIcon,
   CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -211,27 +212,27 @@ function ProgramaArranqueContent() {
         <Card>
           <CardContent className="p-4">
             <div className="flex flex-wrap gap-3 items-center">
-              <select
+              <SearchableSelect
+                options={Object.entries(STATUS_LABELS).map(([k, v]) => ({
+                  value: k,
+                  label: v,
+                }))}
                 value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value as ProgramStatus | ''); setPage(1); }}
-                className={`${inputClassName} max-w-[180px]`}
-              >
-                <option value="">Todos los estados</option>
-                {Object.entries(STATUS_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
-              </select>
+                onChange={(val) => { setStatusFilter(val as ProgramStatus | ''); setPage(1); }}
+                allLabel="Todos los estados"
+                className="max-w-[180px]"
+              />
 
-              <select
+              <SearchableSelect
+                options={COUNTRY_OPTIONS.map((c) => ({
+                  value: c.value,
+                  label: c.label,
+                }))}
                 value={countryFilter}
-                onChange={(e) => { setCountryFilter(e.target.value); setPage(1); }}
-                className={`${inputClassName} max-w-[180px]`}
-              >
-                <option value="">Todos los paises</option>
-                {COUNTRY_OPTIONS.map((c) => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
-                ))}
-              </select>
+                onChange={(val) => { setCountryFilter(val); setPage(1); }}
+                allLabel="Todos los paises"
+                className="max-w-[180px]"
+              />
             </div>
           </CardContent>
         </Card>
@@ -617,16 +618,17 @@ function ProgramFormModal({
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Pais</label>
-                <select
+                <SearchableSelect
+                  options={COUNTRY_OPTIONS.map((c) => ({
+                    value: c.value,
+                    label: c.label,
+                  }))}
                   value={countryCode}
-                  onChange={(e) => handleCountryChange(e.target.value)}
+                  onChange={handleCountryChange}
+                  showAllOption={false}
                   disabled={isEditing}
-                  className={inputClassName}
-                >
-                  {COUNTRY_OPTIONS.map((c) => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
-                </select>
+                  className="w-full"
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">

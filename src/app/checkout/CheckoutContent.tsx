@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import {
   useCart,
   useCheckoutSummary,
@@ -478,17 +479,14 @@ export default function CheckoutContent() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Estado *
                         </label>
-                        <select
+                        <SearchableSelect
+                          options={MEXICAN_STATES.map(state => ({ value: state, label: state }))}
                           value={shippingAddress.state}
-                          onChange={(e) => setShippingAddress({ ...shippingAddress, state: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                          required
-                        >
-                          <option value="">Seleccionar...</option>
-                          {MEXICAN_STATES.map(state => (
-                            <option key={state} value={state}>{state}</option>
-                          ))}
-                        </select>
+                          onChange={(val) => setShippingAddress({ ...shippingAddress, state: val })}
+                          showAllOption={false}
+                          placeholder="Seleccionar..."
+                          className="w-full"
+                        />
                       </div>
                       <Input
                         label="Código Postal *"

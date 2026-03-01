@@ -17,6 +17,7 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useKardex } from '@/hooks/useInventory';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { inventoryService } from '@/services/inventory.service';
@@ -131,34 +132,31 @@ export default function KardexPage() {
               {/* Branch Filter */}
               <div className="flex items-center gap-2">
                 <FunnelIcon className="h-5 w-5 text-gray-400" />
-                <select
+                <SearchableSelect
+                  options={(branches ?? []).map((branch) => ({
+                    value: branch.id,
+                    label: branch.name,
+                  }))}
                   value={branchFilter}
-                  onChange={(e) => setBranchFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  <option value="">Todas las sucursales</option>
-                  {branches?.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setBranchFilter}
+                  allLabel="Todas las sucursales"
+                />
               </div>
 
               {/* Movement Type Filter */}
-              <select
+              <SearchableSelect
+                options={[
+                  { value: MovementType.ENTRY, label: 'Entrada' },
+                  { value: MovementType.EXIT, label: 'Salida' },
+                  { value: MovementType.TRANSFER, label: 'Traspaso' },
+                  { value: MovementType.ADJUSTMENT, label: 'Ajuste' },
+                  { value: MovementType.RETURN, label: 'Devolución' },
+                  { value: MovementType.LOSS, label: 'Pérdida' },
+                ]}
                 value={movementTypeFilter}
-                onChange={(e) => setMovementTypeFilter(e.target.value as MovementType | '')}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-              >
-                <option value="">Todos los Tipos</option>
-                <option value={MovementType.ENTRY}>Entrada</option>
-                <option value={MovementType.EXIT}>Salida</option>
-                <option value={MovementType.TRANSFER}>Traspaso</option>
-                <option value={MovementType.ADJUSTMENT}>Ajuste</option>
-                <option value={MovementType.RETURN}>Devolución</option>
-                <option value={MovementType.LOSS}>Pérdida</option>
-              </select>
+                onChange={(val) => setMovementTypeFilter(val as MovementType | '')}
+                allLabel="Todos los Tipos"
+              />
 
               {/* Date Range */}
               <div className="flex items-center gap-2">

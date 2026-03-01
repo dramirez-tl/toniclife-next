@@ -20,6 +20,7 @@ import {
   PlayIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import {
   useAdjustments,
   useApproveAdjustment,
@@ -263,49 +264,46 @@ export default function AjustesPage() {
               {/* Status Filter */}
               <div className="flex items-center gap-2">
                 <FunnelIcon className="h-5 w-5 text-gray-400" />
-                <select
+                <SearchableSelect
+                  options={[
+                    { value: AdjustmentStatus.DRAFT, label: 'Borrador' },
+                    { value: AdjustmentStatus.PENDING_APPROVAL, label: 'Pendiente Aprobación' },
+                    { value: AdjustmentStatus.APPROVED, label: 'Aprobado' },
+                    { value: AdjustmentStatus.APPLIED, label: 'Aplicado' },
+                    { value: AdjustmentStatus.REJECTED, label: 'Rechazado' },
+                    { value: AdjustmentStatus.CANCELLED, label: 'Cancelado' },
+                  ]}
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as AdjustmentStatus | '')}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  <option value="">Todos los Estados</option>
-                  <option value={AdjustmentStatus.DRAFT}>Borrador</option>
-                  <option value={AdjustmentStatus.PENDING_APPROVAL}>Pendiente Aprobación</option>
-                  <option value={AdjustmentStatus.APPROVED}>Aprobado</option>
-                  <option value={AdjustmentStatus.APPLIED}>Aplicado</option>
-                  <option value={AdjustmentStatus.REJECTED}>Rechazado</option>
-                  <option value={AdjustmentStatus.CANCELLED}>Cancelado</option>
-                </select>
+                  onChange={(val) => setStatusFilter(val as AdjustmentStatus | '')}
+                  allLabel="Todos los Estados"
+                />
               </div>
 
               {/* Type Filter */}
-              <select
+              <SearchableSelect
+                options={[
+                  { value: AdjustmentType.COUNT, label: 'Conteo Físico' },
+                  { value: AdjustmentType.CORRECTION, label: 'Corrección' },
+                  { value: AdjustmentType.DAMAGE, label: 'Daño/Merma' },
+                  { value: AdjustmentType.EXPIRATION, label: 'Caducidad' },
+                  { value: AdjustmentType.LOSS, label: 'Pérdida' },
+                  { value: AdjustmentType.FOUND, label: 'Encontrado' },
+                ]}
                 value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value as AdjustmentType | '')}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-              >
-                <option value="">Todos los Tipos</option>
-                <option value={AdjustmentType.COUNT}>Conteo Físico</option>
-                <option value={AdjustmentType.CORRECTION}>Corrección</option>
-                <option value={AdjustmentType.DAMAGE}>Daño/Merma</option>
-                <option value={AdjustmentType.EXPIRATION}>Caducidad</option>
-                <option value={AdjustmentType.LOSS}>Pérdida</option>
-                <option value={AdjustmentType.FOUND}>Encontrado</option>
-              </select>
+                onChange={(val) => setTypeFilter(val as AdjustmentType | '')}
+                allLabel="Todos los Tipos"
+              />
 
               {/* Branch Filter */}
-              <select
+              <SearchableSelect
+                options={(branches ?? []).map((branch) => ({
+                  value: branch.id,
+                  label: branch.name,
+                }))}
                 value={branchFilter}
-                onChange={(e) => setBranchFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-              >
-                <option value="">Todas las Sucursales</option>
-                {branches?.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setBranchFilter}
+                allLabel="Todas las Sucursales"
+              />
             </div>
           </CardContent>
         </Card>

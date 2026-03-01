@@ -18,6 +18,7 @@ import {
   CalendarIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useProductLots, useCreateLot, useProductStock } from '@/hooks/useInventory';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { inventoryService } from '@/services/inventory.service';
@@ -190,17 +191,15 @@ export default function LotesPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Sucursal *
                   </label>
-                  <select
+                  <SearchableSelect
+                    options={(branches ?? []).map((branch) => ({
+                      value: branch.id,
+                      label: branch.name,
+                    }))}
                     value={newLot.branchId}
-                    onChange={(e) => setNewLot({ ...newLot, branchId: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                  >
-                    {branches?.map((branch) => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={(val) => setNewLot({ ...newLot, branchId: val })}
+                    showAllOption={false}
+                  />
                 </div>
 
                 <div>
@@ -286,49 +285,44 @@ export default function LotesPage() {
               {/* Branch Filter */}
               <div className="flex items-center gap-2">
                 <FunnelIcon className="h-5 w-5 text-gray-400" />
-                <select
+                <SearchableSelect
+                  options={(branches ?? []).map((branch) => ({
+                    value: branch.id,
+                    label: branch.name,
+                  }))}
                   value={branchFilter}
-                  onChange={(e) => setBranchFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  <option value="">Todas las sucursales</option>
-                  {branches?.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setBranchFilter}
+                  allLabel="Todas las sucursales"
+                />
               </div>
 
               {/* Status Filter */}
-              <select
+              <SearchableSelect
+                options={[
+                  { value: LotStatus.AVAILABLE, label: 'Disponible' },
+                  { value: LotStatus.DEPLETED, label: 'Agotado' },
+                  { value: LotStatus.EXPIRED, label: 'Expirado' },
+                  { value: LotStatus.BLOCKED, label: 'Bloqueado' },
+                ]}
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as LotStatus | '')}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-              >
-                <option value="">Todos los Estados</option>
-                <option value={LotStatus.AVAILABLE}>Disponible</option>
-                <option value={LotStatus.DEPLETED}>Agotado</option>
-                <option value={LotStatus.EXPIRED}>Expirado</option>
-                <option value={LotStatus.BLOCKED}>Bloqueado</option>
-              </select>
+                onChange={(val) => setStatusFilter(val as LotStatus | '')}
+                allLabel="Todos los Estados"
+              />
 
               {/* Expiring Soon Filter */}
               <div className="flex items-center gap-2">
                 <CalendarIcon className="h-5 w-5 text-gray-400" />
-                <select
-                  value={expiringDays}
-                  onChange={(e) =>
-                    setExpiringDays(e.target.value ? parseInt(e.target.value) : '')
-                  }
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  <option value="">Todas las fechas</option>
-                  <option value="7">Vence en 7 días</option>
-                  <option value="30">Vence en 30 días</option>
-                  <option value="60">Vence en 60 días</option>
-                  <option value="90">Vence en 90 días</option>
-                </select>
+                <SearchableSelect
+                  options={[
+                    { value: '7', label: 'Vence en 7 días' },
+                    { value: '30', label: 'Vence en 30 días' },
+                    { value: '60', label: 'Vence en 60 días' },
+                    { value: '90', label: 'Vence en 90 días' },
+                  ]}
+                  value={String(expiringDays)}
+                  onChange={(val) => setExpiringDays(val ? parseInt(val) : '')}
+                  allLabel="Todas las fechas"
+                />
               </div>
             </div>
           </CardContent>

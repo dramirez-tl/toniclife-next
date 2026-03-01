@@ -12,6 +12,7 @@ import {
   ArrowUpIcon,
   ArrowDownIcon,
 } from '@heroicons/react/24/outline';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useCreateAdjustment, useBranchStock } from '@/hooks/useInventory';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { AdjustmentType } from '@/types/inventory';
@@ -196,22 +197,16 @@ export default function NuevoAjustePage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Sucursal *
               </label>
-              <select
+              <SearchableSelect
+                options={(branches ?? []).map((branch) => ({
+                  value: branch.id,
+                  label: branch.name,
+                }))}
                 value={formData.branchId}
-                onChange={(e) =>
-                  setFormData({ ...formData, branchId: e.target.value })
-                }
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent ${
-                  errors.branchId ? 'border-red-500' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Seleccionar sucursal...</option>
-                {branches?.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setFormData({ ...formData, branchId: val })}
+                showAllOption={false}
+                placeholder="Seleccionar sucursal..."
+              />
               {errors.branchId && (
                 <p className="mt-1 text-sm text-red-500">{errors.branchId}</p>
               )}
@@ -221,21 +216,15 @@ export default function NuevoAjustePage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Tipo de Ajuste *
               </label>
-              <select
+              <SearchableSelect
+                options={Object.values(AdjustmentType).map((type) => ({
+                  value: type,
+                  label: inventoryService.getAdjustmentTypeLabel(type),
+                }))}
                 value={formData.adjustmentType}
-                onChange={(e) =>
-                  setFormData({ ...formData, adjustmentType: e.target.value as AdjustmentType })
-                }
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent ${
-                  errors.type ? 'border-red-500' : 'border-gray-300'
-                }`}
-              >
-                {Object.values(AdjustmentType).map((type) => (
-                  <option key={type} value={type}>
-                    {inventoryService.getAdjustmentTypeLabel(type)}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setFormData({ ...formData, adjustmentType: val as AdjustmentType })}
+                showAllOption={false}
+              />
               {errors.type && (
                 <p className="mt-1 text-sm text-red-500">{errors.type}</p>
               )}

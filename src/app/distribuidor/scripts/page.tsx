@@ -19,6 +19,7 @@ import {
   ShareIcon,
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
 
 const mockScripts = [
@@ -400,36 +401,33 @@ export default function ScriptsPage() {
 
               {/* Filters Row */}
               <div className="grid md:grid-cols-4 gap-4">
-                <select
+                <SearchableSelect
+                  options={scriptTypes.filter(t => t !== 'Todos').map(type => ({ value: type, label: type }))}
                   value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                >
-                  {scriptTypes.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
+                  onChange={setFilterType}
+                  allLabel="Todos"
+                  allValue="Todos"
+                />
 
-                <select
+                <SearchableSelect
+                  options={categories.filter(c => c !== 'Todas').map(cat => ({ value: cat, label: cat }))}
                   value={filterCategory}
-                  onChange={(e) => setFilterCategory(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                >
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
+                  onChange={setFilterCategory}
+                  allLabel="Todas"
+                  allValue="Todas"
+                />
 
-                <select
+                <SearchableSelect
+                  options={[
+                    { value: 'popular', label: 'Más Populares' },
+                    { value: 'recent', label: 'Más Recientes' },
+                    { value: 'rating', label: 'Mejor Calificados' },
+                    { value: 'alphabetical', label: 'Alfabético' },
+                  ]}
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                >
-                  <option value="popular">Más Populares</option>
-                  <option value="recent">Más Recientes</option>
-                  <option value="rating">Mejor Calificados</option>
-                  <option value="alphabetical">Alfabético</option>
-                </select>
+                  onChange={setSortBy}
+                  showAllOption={false}
+                />
 
                 <Button
                   variant="outline"

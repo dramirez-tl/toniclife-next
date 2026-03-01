@@ -20,6 +20,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useEmployees, useCreateEmployee, useUpdateEmployee } from '@/hooks/useHR';
 import { useActiveBranches } from '@/hooks/useBranches';
 import type { Employee, EmployeeStatus, CreateEmployeeDto, UpdateEmployeeDto } from '@/types/hr';
@@ -62,12 +63,12 @@ export default function EmpleadosPage() {
 
   // Extract unique departments and branches from data
   const departments = useMemo(() => {
-    const depts = new Set(employees.map(e => e.department).filter(Boolean));
+    const depts = new Set(employees.map(e => e.department).filter((d): d is string => !!d));
     return Array.from(depts);
   }, [employees]);
 
   const branches = useMemo(() => {
-    const branchSet = new Set(employees.map(e => e.branch).filter(Boolean));
+    const branchSet = new Set(employees.map(e => e.branch).filter((b): b is string => !!b));
     return Array.from(branchSet);
   }, [employees]);
 
@@ -324,40 +325,41 @@ export default function EmpleadosPage() {
               </div>
 
               {/* Department Filter */}
-              <select
+              <SearchableSelect
+                options={departments.map(dept => ({
+                  value: dept,
+                  label: dept,
+                }))}
                 value={filterDepartment}
-                onChange={(e) => setFilterDepartment(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-              >
-                <option value="all">Todos los Departamentos</option>
-                {departments.map(dept => (
-                  <option key={dept} value={dept}>{dept}</option>
-                ))}
-              </select>
+                onChange={setFilterDepartment}
+                allLabel="Todos los Departamentos"
+                allValue="all"
+              />
 
               {/* Branch Filter */}
-              <select
+              <SearchableSelect
+                options={branches.map(branch => ({
+                  value: branch,
+                  label: branch,
+                }))}
                 value={filterBranch}
-                onChange={(e) => setFilterBranch(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-              >
-                <option value="all">Todas las Sucursales</option>
-                {branches.map(branch => (
-                  <option key={branch} value={branch}>{branch}</option>
-                ))}
-              </select>
+                onChange={setFilterBranch}
+                allLabel="Todas las Sucursales"
+                allValue="all"
+              />
 
               {/* Status Filter */}
-              <select
+              <SearchableSelect
+                options={[
+                  { value: 'ACTIVE', label: 'Activos' },
+                  { value: 'ON_LEAVE', label: 'En Vacaciones' },
+                  { value: 'INACTIVE', label: 'Inactivos' },
+                ]}
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as 'all' | 'ACTIVE' | 'INACTIVE' | 'ON_LEAVE' | 'TERMINATED')}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-              >
-                <option value="all">Todos los Estados</option>
-                <option value="ACTIVE">Activos</option>
-                <option value="ON_LEAVE">En Vacaciones</option>
-                <option value="INACTIVE">Inactivos</option>
-              </select>
+                onChange={(val) => setFilterStatus(val as 'all' | 'ACTIVE' | 'INACTIVE' | 'ON_LEAVE' | 'TERMINATED')}
+                allLabel="Todos los Estados"
+                allValue="all"
+              />
 
               {/* Export Button */}
               <Button
@@ -732,18 +734,16 @@ function EmployeeFormModal({
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Sucursal {!editingEmployee && <span className="text-red-500">*</span>}
             </label>
-            <select
+            <SearchableSelect
+              options={activeBranches.map((branch: any) => ({
+                value: branch.id,
+                label: branch.name,
+              }))}
               value={formData.branchId ?? ''}
-              onChange={(e) => handleChange('branchId', e.target.value)}
-              className={inputClassName}
-            >
-              <option value="">Seleccionar sucursal...</option>
-              {activeBranches.map((branch: any) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => handleChange('branchId', val)}
+              showAllOption={false}
+              placeholder="Seleccionar sucursal..."
+            />
           </div>
 
           {/* Hire Date */}
@@ -780,17 +780,12 @@ function EmployeeFormModal({
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Estado
               </label>
-              <select
+              <SearchableSelect
+                options={STATUS_OPTIONS}
                 value={formData.status ?? 'ACTIVE'}
-                onChange={(e) => handleChange('status', e.target.value)}
-                className={inputClassName}
-              >
-                {STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => handleChange('status', val)}
+                showAllOption={false}
+              />
             </div>
           )}
 

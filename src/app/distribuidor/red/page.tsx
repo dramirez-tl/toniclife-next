@@ -29,6 +29,7 @@ import {
   ShareIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
 
 type ViewMode = 'graph' | 'tree';
@@ -399,27 +400,25 @@ function TreeListView({ currentUserId }: { currentUserId: string }) {
               />
             </div>
             {/* Filtro de nivel */}
-            <select
-              value={levelFilter ?? ''}
-              onChange={(e) => { setLevelFilter(e.target.value ? parseInt(e.target.value) : undefined); setPage(1); }}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-            >
-              <option value="">Todos los niveles</option>
-              {[1, 2, 3, 4, 5].map(n => (
-                <option key={n} value={n}>Nivel {n}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              options={[1, 2, 3, 4, 5].map(n => ({ value: String(n), label: `Nivel ${n}` }))}
+              value={levelFilter != null ? String(levelFilter) : ''}
+              onChange={(val) => { setLevelFilter(val ? parseInt(val) : undefined); setPage(1); }}
+              allLabel="Todos los niveles"
+              allValue=""
+            />
             {/* Filtro de estado */}
-            <select
+            <SearchableSelect
+              options={[
+                { value: 'active', label: 'Activos' },
+                { value: 'inactive', label: 'Inactivos' },
+                { value: 'suspended', label: 'Suspendidos' },
+              ]}
               value={statusFilter ?? ''}
-              onChange={(e) => { setStatusFilter((e.target.value || undefined) as DownlineQuery['status']); setPage(1); }}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-            >
-              <option value="">Todos los estados</option>
-              <option value="active">Activos</option>
-              <option value="inactive">Inactivos</option>
-              <option value="suspended">Suspendidos</option>
-            </select>
+              onChange={(val) => { setStatusFilter((val || undefined) as DownlineQuery['status']); setPage(1); }}
+              allLabel="Todos los estados"
+              allValue=""
+            />
           </div>
         </CardContent>
       </Card>

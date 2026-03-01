@@ -16,6 +16,7 @@ import {
   UsersIcon,
   ChevronDownIcon,
 } from '@heroicons/react/24/outline';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 // Banner de alerta desplegable
 function AlertBanner({
@@ -244,17 +245,16 @@ export function NetworkVisualization({
               {/* Selector de profundidad */}
               <div className="flex items-center gap-2">
                 <AdjustmentsHorizontalIcon className="h-4 w-4 text-gray-400" />
-                <select
-                  value={depth}
-                  onChange={(e) => handleDepthChange(parseInt(e.target.value))}
-                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                >
-                  {Array.from({ length: Math.max(maxAvailableDepth - 1, 1) }, (_, i) => {
+                <SearchableSelect
+                  options={Array.from({ length: Math.max(maxAvailableDepth - 1, 1) }, (_, i) => {
                     const n = i + 2;
-                    const hint = n <= 2 ? ' (rápido)' : n >= 4 ? ' (lento)' : '';
-                    return <option key={n} value={n}>{n} niveles{hint}</option>;
+                    const hint = n <= 2 ? ' (rapido)' : n >= 4 ? ' (lento)' : '';
+                    return { value: String(n), label: `${n} niveles${hint}` };
                   })}
-                </select>
+                  value={String(depth)}
+                  onChange={(val) => handleDepthChange(parseInt(val))}
+                  showAllOption={false}
+                />
               </div>
 
               {/* Botón refrescar */}

@@ -37,6 +37,7 @@ import {
   ArrowTrendingUpIcon,
   UserGroupIcon,
 } from '@heroicons/react/24/outline';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
 
 type ViewMode = 'summary' | 'table' | 'chart' | 'structure';
@@ -218,18 +219,15 @@ export default function ComisionesPage() {
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-3 bg-gradient-to-r from-[#3E667D]/5 to-[#3E667D]/10 rounded-xl px-4 py-2.5 border border-[#3E667D]/10">
                   <CalendarDaysIcon className="h-5 w-5 text-[#3E667D]" />
-                  <select
+                  <SearchableSelect
+                    options={periodsArray.map((period: any) => ({
+                      value: period.id,
+                      label: `${period.name}${period.status === 'open' ? ' (Actual)' : ''}`,
+                    }))}
                     value={selectedPeriodId}
-                    onChange={(e) => setSelectedPeriodId(e.target.value)}
-                    className="bg-transparent border-0 focus:ring-0 text-[#3E667D] font-semibold text-sm cursor-pointer pr-8"
-                  >
-                    {periodsArray.map((period: any) => (
-                      <option key={period.id} value={period.id}>
-                        {period.name}
-                        {period.status === 'open' && ' (Actual)'}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setSelectedPeriodId}
+                    showAllOption={false}
+                  />
                 </div>
 
                 {/* Botón de filtros */}
@@ -307,17 +305,19 @@ export default function ComisionesPage() {
                     <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
                       Tipo de comisión
                     </label>
-                    <select
+                    <SearchableSelect
+                      options={[
+                        { value: 'mlm', label: 'Comisiones MLM' },
+                        { value: 'cedea_bonus', label: 'Bonos CEDEA' },
+                        { value: 'auto_bonus', label: 'Bonos Automaticos' },
+                        { value: 'adjustment', label: 'Ajustes' },
+                      ]}
                       value={filterType}
-                      onChange={(e) => setFilterType(e.target.value as CommissionType | 'all')}
-                      className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent text-sm min-w-[180px]"
-                    >
-                      <option value="all">Todos los tipos</option>
-                      <option value="mlm">Comisiones MLM</option>
-                      <option value="cedea_bonus">Bonos CEDEA</option>
-                      <option value="auto_bonus">Bonos Automaticos</option>
-                      <option value="adjustment">Ajustes</option>
-                    </select>
+                      onChange={(val) => setFilterType(val as CommissionType | 'all')}
+                      allLabel="Todos los tipos"
+                      allValue="all"
+                      className="min-w-[180px]"
+                    />
                   </div>
 
                   {/* Status filter */}
@@ -325,16 +325,18 @@ export default function ComisionesPage() {
                     <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
                       Estado
                     </label>
-                    <select
+                    <SearchableSelect
+                      options={[
+                        { value: 'paid', label: 'Pagadas' },
+                        { value: 'approved', label: 'Aprobadas' },
+                        { value: 'calculated', label: 'Calculadas' },
+                      ]}
                       value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value as CommissionStatus | 'all')}
-                      className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent text-sm min-w-[160px]"
-                    >
-                      <option value="all">Todos los estados</option>
-                      <option value="paid">Pagadas</option>
-                      <option value="approved">Aprobadas</option>
-                      <option value="calculated">Calculadas</option>
-                    </select>
+                      onChange={(val) => setFilterStatus(val as CommissionStatus | 'all')}
+                      allLabel="Todos los estados"
+                      allValue="all"
+                      className="min-w-[160px]"
+                    />
                   </div>
 
                   {/* Clear filters */}

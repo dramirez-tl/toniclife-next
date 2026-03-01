@@ -16,6 +16,7 @@ import {
   ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 interface Story {
   id: string;
@@ -255,16 +256,17 @@ export default function HistoriasPage() {
               {/* Type Filter */}
               <div className="flex items-center gap-2">
                 <FunnelIcon className="h-5 w-5 text-gray-400" />
-                <select
+                <SearchableSelect
+                  options={[
+                    { value: 'health', label: 'Solo Salud' },
+                    { value: 'business', label: 'Solo Negocio' },
+                    { value: 'combined', label: 'Salud + Negocio' },
+                  ]}
                   value={filterType}
-                  onChange={(e) => setFilterType(e.target.value as any)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  <option value="all">Todas las Historias</option>
-                  <option value="health">Solo Salud</option>
-                  <option value="business">Solo Negocio</option>
-                  <option value="combined">Salud + Negocio</option>
-                </select>
+                  onChange={(val) => setFilterType(val as any)}
+                  allLabel="Todas las Historias"
+                  allValue="all"
+                />
               </div>
             </div>
           </CardContent>

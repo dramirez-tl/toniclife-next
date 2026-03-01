@@ -23,6 +23,7 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useInvoices, useFacturamaStatus } from '@/hooks/useBilling';
 import { billingService } from '@/services/billing.service';
 import {
@@ -482,21 +483,18 @@ export default function FacturacionPage() {
 
               {/* Status Filter */}
               <div className="lg:col-span-4">
-                <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3">
-                  <FunnelIcon className="h-4 w-4 text-gray-400" />
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => handleStatusFilter(e.target.value)}
-                    className="w-full bg-transparent py-2.5 text-sm focus:outline-none"
-                  >
-                    <option value="">Todos los estados</option>
-                    <option value={InvoiceStatus.PENDING}>Pendientes</option>
-                    <option value={InvoiceStatus.STAMPED}>Timbradas</option>
-                    <option value={InvoiceStatus.SENT}>Enviadas</option>
-                    <option value={InvoiceStatus.CANCELLED}>Canceladas</option>
-                    <option value={InvoiceStatus.ERROR}>Con error</option>
-                  </select>
-                </div>
+                <SearchableSelect
+                  options={[
+                    { value: InvoiceStatus.PENDING, label: 'Pendientes' },
+                    { value: InvoiceStatus.STAMPED, label: 'Timbradas' },
+                    { value: InvoiceStatus.SENT, label: 'Enviadas' },
+                    { value: InvoiceStatus.CANCELLED, label: 'Canceladas' },
+                    { value: InvoiceStatus.ERROR, label: 'Con error' },
+                  ]}
+                  value={statusFilter}
+                  onChange={handleStatusFilter}
+                  allLabel="Todos los estados"
+                />
               </div>
             </div>
             {hasActiveFilters && (

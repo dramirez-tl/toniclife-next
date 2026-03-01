@@ -36,6 +36,7 @@ import {
   ArrowTrendingUpIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -453,26 +454,26 @@ function TabBonos({ programId, currency }: { programId: string; currency: string
         <CardContent className="p-4">
           <div className="flex flex-wrap gap-3 items-center justify-between">
             <div className="flex flex-wrap gap-3 items-center">
-              <select
+              <SearchableSelect
+                options={Object.entries(TRIGGER_LABELS).map(([k, v]) => ({
+                  value: k,
+                  label: v,
+                }))}
                 value={triggerFilter}
-                onChange={(e) => { setTriggerFilter(e.target.value as BonusTriggerType | ''); setPage(1); }}
-                className={`${inputClassName} max-w-[200px]`}
-              >
-                <option value="">Todos los tipos</option>
-                {Object.entries(TRIGGER_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
-              </select>
-              <select
+                onChange={(val) => { setTriggerFilter(val as BonusTriggerType | ''); setPage(1); }}
+                allLabel="Todos los tipos"
+                className="max-w-[200px]"
+              />
+              <SearchableSelect
+                options={Object.entries(BONUS_STATUS_LABELS).map(([k, v]) => ({
+                  value: k,
+                  label: v,
+                }))}
                 value={statusFilter}
-                onChange={(e) => { setStatusFilter(e.target.value as BonusStatus | ''); setPage(1); }}
-                className={`${inputClassName} max-w-[180px]`}
-              >
-                <option value="">Todos los estados</option>
-                {Object.entries(BONUS_STATUS_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
-              </select>
+                onChange={(val) => { setStatusFilter(val as BonusStatus | ''); setPage(1); }}
+                allLabel="Todos los estados"
+                className="max-w-[180px]"
+              />
             </div>
 
             {selectedIds.length > 0 && (

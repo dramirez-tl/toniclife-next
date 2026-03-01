@@ -27,6 +27,7 @@ import {
   TableCellsIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 // ================================
 // CONSTANTS
@@ -372,21 +373,20 @@ export default function NotificacionesAdminPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Grupo Destino
                         </label>
-                        <select
+                        <SearchableSelect
+                          options={TARGET_GROUP_OPTIONS.map((opt) => ({
+                            value: opt.value,
+                            label: opt.label,
+                          }))}
                           value={targetGroup}
-                          onChange={(e) =>
+                          onChange={(val) =>
                             setTargetGroup(
-                              e.target.value as 'all' | 'distributors' | 'admins' | 'customers'
+                              val as 'all' | 'distributors' | 'admins' | 'customers'
                             )
                           }
-                          className={inputClassName}
-                        >
-                          {TARGET_GROUP_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
+                          showAllOption={false}
+                          className="w-full"
+                        />
                       </div>
                     ) : (
                       <div>
@@ -413,19 +413,18 @@ export default function NotificacionesAdminPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Canal
                         </label>
-                        <select
+                        <SearchableSelect
+                          options={CHANNEL_OPTIONS.map((opt) => ({
+                            value: opt.value,
+                            label: opt.label,
+                          }))}
                           value={channel}
-                          onChange={(e) =>
-                            setChannel(e.target.value as NotificationChannel)
+                          onChange={(val) =>
+                            setChannel(val as NotificationChannel)
                           }
-                          className={inputClassName}
-                        >
-                          {CHANNEL_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
+                          showAllOption={false}
+                          className="w-full"
+                        />
                       </div>
 
                       {/* Category */}
@@ -433,19 +432,18 @@ export default function NotificacionesAdminPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Categoria
                         </label>
-                        <select
+                        <SearchableSelect
+                          options={CATEGORY_OPTIONS.map((opt) => ({
+                            value: opt.value,
+                            label: opt.label,
+                          }))}
                           value={category}
-                          onChange={(e) =>
-                            setCategory(e.target.value as NotificationCategory)
+                          onChange={(val) =>
+                            setCategory(val as NotificationCategory)
                           }
-                          className={inputClassName}
-                        >
-                          {CATEGORY_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
+                          showAllOption={false}
+                          className="w-full"
+                        />
                       </div>
 
                       {/* Priority */}
@@ -453,19 +451,18 @@ export default function NotificacionesAdminPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Prioridad
                         </label>
-                        <select
+                        <SearchableSelect
+                          options={PRIORITY_OPTIONS.map((opt) => ({
+                            value: opt.value,
+                            label: opt.label,
+                          }))}
                           value={priority}
-                          onChange={(e) =>
-                            setPriority(e.target.value as NotificationPriority)
+                          onChange={(val) =>
+                            setPriority(val as NotificationPriority)
                           }
-                          className={inputClassName}
-                        >
-                          {PRIORITY_OPTIONS.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
+                          showAllOption={false}
+                          className="w-full"
+                        />
                       </div>
                     </div>
 

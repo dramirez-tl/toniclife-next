@@ -15,6 +15,7 @@ import {
   ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useAnalytics } from '@/hooks/useReports';
 import { PermissionGuard } from '@/components/auth';
 
@@ -172,19 +173,20 @@ export default function ReportesPage() {
               <div className="flex items-center gap-3">
                 <CalendarIcon className="h-5 w-5 text-gray-400" />
                 <span className="text-sm font-medium text-gray-700">Período de Análisis:</span>
-                <select
+                <SearchableSelect
+                  options={[
+                    { value: 'last-7-days', label: 'Últimos 7 días' },
+                    { value: 'last-30-days', label: 'Últimos 30 días' },
+                    { value: 'last-3-months', label: 'Últimos 3 meses' },
+                    { value: 'last-6-months', label: 'Últimos 6 meses' },
+                    { value: 'last-7-months', label: 'Últimos 7 meses' },
+                    { value: 'this-year', label: 'Este año' },
+                    { value: 'custom', label: 'Personalizado' },
+                  ]}
                   value={dateRange}
-                  onChange={(e) => setDateRange(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  <option value="last-7-days">Últimos 7 días</option>
-                  <option value="last-30-days">Últimos 30 días</option>
-                  <option value="last-3-months">Últimos 3 meses</option>
-                  <option value="last-6-months">Últimos 6 meses</option>
-                  <option value="last-7-months">Últimos 7 meses</option>
-                  <option value="this-year">Este año</option>
-                  <option value="custom">Personalizado</option>
-                </select>
+                  onChange={setDateRange}
+                  showAllOption={false}
+                />
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => handleExportReport('ventas')}>

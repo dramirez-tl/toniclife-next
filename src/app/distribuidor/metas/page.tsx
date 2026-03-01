@@ -16,6 +16,7 @@ import {
   FlagIcon,
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleSolidIcon } from '@heroicons/react/24/solid';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
 
 const mockGoals = [
@@ -269,15 +270,16 @@ export default function MetasPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Estado
                 </label>
-                <select
+                <SearchableSelect
+                  options={[
+                    { value: 'active', label: 'Activas' },
+                    { value: 'completed', label: 'Completadas' },
+                  ]}
                   value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                >
-                  <option value="all">Todas</option>
-                  <option value="active">Activas</option>
-                  <option value="completed">Completadas</option>
-                </select>
+                  onChange={setFilterStatus}
+                  allLabel="Todas"
+                  allValue="all"
+                />
               </div>
             </div>
           </CardContent>
@@ -457,24 +459,36 @@ export default function MetasPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Categoría
                       </label>
-                      <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent">
-                        <option value="Ventas">Ventas</option>
-                        <option value="Equipo">Equipo</option>
-                        <option value="Rango">Rango</option>
-                        <option value="Capacitación">Capacitación</option>
-                        <option value="Prospección">Prospección</option>
-                      </select>
+                      <SearchableSelect
+                        options={[
+                          { value: 'Ventas', label: 'Ventas' },
+                          { value: 'Equipo', label: 'Equipo' },
+                          { value: 'Rango', label: 'Rango' },
+                          { value: 'Capacitación', label: 'Capacitación' },
+                          { value: 'Prospección', label: 'Prospección' },
+                        ]}
+                        value="Ventas"
+                        onChange={() => {}}
+                        showAllOption={false}
+                        className="w-full"
+                      />
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Prioridad
                       </label>
-                      <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent">
-                        <option value="high">Alta</option>
-                        <option value="medium">Media</option>
-                        <option value="low">Baja</option>
-                      </select>
+                      <SearchableSelect
+                        options={[
+                          { value: 'high', label: 'Alta' },
+                          { value: 'medium', label: 'Media' },
+                          { value: 'low', label: 'Baja' },
+                        ]}
+                        value="high"
+                        onChange={() => {}}
+                        showAllOption={false}
+                        className="w-full"
+                      />
                     </div>
                   </div>
 

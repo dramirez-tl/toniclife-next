@@ -20,6 +20,7 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useTransfers, useApproveTransfer, useShipTransfer, useCancelTransfer } from '@/hooks/useInventory';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { inventoryService } from '@/services/inventory.service';
@@ -238,46 +239,40 @@ export default function TraspasosPage() {
               {/* Status Filter */}
               <div className="flex items-center gap-2">
                 <FunnelIcon className="h-5 w-5 text-gray-400" />
-                <select
+                <SearchableSelect
+                  options={[
+                    { value: TransferStatus.PENDING, label: 'Pendiente' },
+                    { value: TransferStatus.IN_TRANSIT, label: 'En Tránsito' },
+                    { value: TransferStatus.RECEIVED, label: 'Recibido' },
+                    { value: TransferStatus.CANCELLED, label: 'Cancelado' },
+                  ]}
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as TransferStatus | '')}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                >
-                  <option value="">Todos los Estados</option>
-                  <option value={TransferStatus.PENDING}>Pendiente</option>
-                  <option value={TransferStatus.IN_TRANSIT}>En Tránsito</option>
-                  <option value={TransferStatus.RECEIVED}>Recibido</option>
-                  <option value={TransferStatus.CANCELLED}>Cancelado</option>
-                </select>
+                  onChange={(val) => setStatusFilter(val as TransferStatus | '')}
+                  allLabel="Todos los Estados"
+                />
               </div>
 
               {/* Source Branch */}
-              <select
+              <SearchableSelect
+                options={(branches ?? []).map((branch) => ({
+                  value: branch.id,
+                  label: branch.name,
+                }))}
                 value={sourceBranchFilter}
-                onChange={(e) => setSourceBranchFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-              >
-                <option value="">Origen: Todas</option>
-                {branches?.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setSourceBranchFilter}
+                allLabel="Origen: Todas"
+              />
 
               {/* Destination Branch */}
-              <select
+              <SearchableSelect
+                options={(branches ?? []).map((branch) => ({
+                  value: branch.id,
+                  label: branch.name,
+                }))}
                 value={destBranchFilter}
-                onChange={(e) => setDestBranchFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-              >
-                <option value="">Destino: Todas</option>
-                {branches?.map((branch) => (
-                  <option key={branch.id} value={branch.id}>
-                    {branch.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setDestBranchFilter}
+                allLabel="Destino: Todas"
+              />
             </div>
           </CardContent>
         </Card>

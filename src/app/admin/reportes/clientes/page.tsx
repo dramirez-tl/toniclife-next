@@ -15,6 +15,7 @@ import {
   ClockIcon,
   CurrencyDollarIcon,
 } from '@heroicons/react/24/outline';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useNewCustomersReport, useInactiveCustomersReport } from '@/hooks/useReports';
 
 type ViewMode = 'new' | 'inactive';
@@ -230,16 +231,17 @@ export default function ClientesReportesPage() {
 
                 <div className="flex items-center space-x-2">
                   <FunnelIcon className="h-5 w-5 text-gray-400" />
-                  <select
+                  <SearchableSelect
+                    options={[
+                      { value: 'Distribuidor', label: 'Distribuidor' },
+                      { value: 'Cliente Preferente', label: 'Cliente Preferente' },
+                      { value: 'Cliente Final', label: 'Cliente Final' },
+                    ]}
                     value={selectedType}
-                    onChange={(e) => setSelectedType(e.target.value)}
-                    className="rounded-md border-gray-300 text-sm focus:border-green-500 focus:ring-green-500"
-                  >
-                    <option value="all">Todos los tipos</option>
-                    <option value="Distribuidor">Distribuidor</option>
-                    <option value="Cliente Preferente">Cliente Preferente</option>
-                    <option value="Cliente Final">Cliente Final</option>
-                  </select>
+                    onChange={setSelectedType}
+                    allLabel="Todos los tipos"
+                    allValue="all"
+                  />
                 </div>
               </>
             )}
@@ -248,16 +250,17 @@ export default function ClientesReportesPage() {
               <div className="flex items-center space-x-2">
                 <ClockIcon className="h-5 w-5 text-gray-400" />
                 <span className="text-sm text-gray-700">Inactivos más de:</span>
-                <select
-                  value={inactiveDays}
-                  onChange={(e) => setInactiveDays(Number(e.target.value))}
-                  className="rounded-md border-gray-300 text-sm focus:border-green-500 focus:ring-green-500"
-                >
-                  <option value={30}>30 días</option>
-                  <option value={60}>60 días</option>
-                  <option value={90}>90 días</option>
-                  <option value={120}>120 días</option>
-                </select>
+                <SearchableSelect
+                  options={[
+                    { value: '30', label: '30 días' },
+                    { value: '60', label: '60 días' },
+                    { value: '90', label: '90 días' },
+                    { value: '120', label: '120 días' },
+                  ]}
+                  value={String(inactiveDays)}
+                  onChange={(val) => setInactiveDays(Number(val))}
+                  showAllOption={false}
+                />
               </div>
             )}
 

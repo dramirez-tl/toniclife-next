@@ -16,6 +16,7 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useAuditAlerts, useUpdateAlertStatus } from '@/hooks/useAudit';
 import {
   AuditAlert,
@@ -221,29 +222,29 @@ export default function AuditAlertsPage() {
                 <span className="text-sm text-gray-600">Filtros:</span>
               </div>
 
-              <select
+              <SearchableSelect
+                options={[
+                  { value: 'pending', label: 'Pendientes' },
+                  { value: 'acknowledged', label: 'Revisadas' },
+                  { value: 'resolved', label: 'Resueltas' },
+                  { value: 'dismissed', label: 'Descartadas' },
+                ]}
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
-              >
-                <option value="">Todos los estados</option>
-                <option value="pending">Pendientes</option>
-                <option value="acknowledged">Revisadas</option>
-                <option value="resolved">Resueltas</option>
-                <option value="dismissed">Descartadas</option>
-              </select>
+                onChange={setStatusFilter}
+                allLabel="Todos los estados"
+              />
 
-              <select
+              <SearchableSelect
+                options={[
+                  { value: 'critical', label: 'Crítica' },
+                  { value: 'high', label: 'Alta' },
+                  { value: 'medium', label: 'Media' },
+                  { value: 'low', label: 'Baja' },
+                ]}
                 value={severityFilter}
-                onChange={(e) => setSeverityFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
-              >
-                <option value="">Todas las severidades</option>
-                <option value="critical">Crítica</option>
-                <option value="high">Alta</option>
-                <option value="medium">Media</option>
-                <option value="low">Baja</option>
-              </select>
+                onChange={setSeverityFilter}
+                allLabel="Todas las severidades"
+              />
 
               <Button
                 variant="ghost"

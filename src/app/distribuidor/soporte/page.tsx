@@ -23,6 +23,7 @@ import {
   TruckIcon,
   UserGroupIcon,
 } from '@heroicons/react/24/outline';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
 
 const faqCategories = [
@@ -543,26 +544,38 @@ export default function SoportePage() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Categoría
                     </label>
-                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent">
-                      <option value="">Selecciona una categoría</option>
-                      <option value="productos">Productos</option>
-                      <option value="pedidos">Pedidos y Envíos</option>
-                      <option value="comisiones">Comisiones y Pagos</option>
-                      <option value="red">Red y Equipo</option>
-                      <option value="tecnico">Soporte Técnico</option>
-                      <option value="otro">Otro</option>
-                    </select>
+                    <SearchableSelect
+                      options={[
+                        { value: 'productos', label: 'Productos' },
+                        { value: 'pedidos', label: 'Pedidos y Envíos' },
+                        { value: 'comisiones', label: 'Comisiones y Pagos' },
+                        { value: 'red', label: 'Red y Equipo' },
+                        { value: 'tecnico', label: 'Soporte Técnico' },
+                        { value: 'otro', label: 'Otro' },
+                      ]}
+                      value=""
+                      onChange={() => {}}
+                      placeholder="Selecciona una categoría"
+                      showAllOption={false}
+                      className="w-full"
+                    />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Prioridad
                     </label>
-                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent">
-                      <option value="low">Baja</option>
-                      <option value="medium">Media</option>
-                      <option value="high">Alta</option>
-                    </select>
+                    <SearchableSelect
+                      options={[
+                        { value: 'low', label: 'Baja' },
+                        { value: 'medium', label: 'Media' },
+                        { value: 'high', label: 'Alta' },
+                      ]}
+                      value="low"
+                      onChange={() => {}}
+                      showAllOption={false}
+                      className="w-full"
+                    />
                   </div>
 
                   <div>

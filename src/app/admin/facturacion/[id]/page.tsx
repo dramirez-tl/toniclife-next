@@ -21,6 +21,7 @@ import {
   ShieldExclamationIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useInvoice, useStampInvoice, useCancelInvoice } from '@/hooks/useBilling';
 import { billingService } from '@/services/billing.service';
 import { useAppSelector } from '@/store/hooks';
@@ -719,17 +720,15 @@ export default function InvoiceDetailPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Motivo de Cancelación *
                   </label>
-                  <select
+                  <SearchableSelect
+                    options={CANCELLATION_REASONS.map((reason) => ({
+                      value: reason.Value,
+                      label: `${reason.Value} - ${reason.Name}`,
+                    }))}
                     value={cancelReason}
-                    onChange={(e) => setCancelReason(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                  >
-                    {CANCELLATION_REASONS.map((reason) => (
-                      <option key={reason.Value} value={reason.Value}>
-                        {reason.Value} - {reason.Name}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setCancelReason}
+                    showAllOption={false}
+                  />
                 </div>
 
                 {cancelReason === '01' && (

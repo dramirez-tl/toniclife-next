@@ -19,6 +19,7 @@ import {
   CalendarIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 const banners = [
   {
@@ -326,32 +327,33 @@ export default function BannersAdminPage() {
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <select
+              <SearchableSelect
+                options={locations.map((location) => ({
+                  value: location.value,
+                  label: location.label,
+                }))}
                 value={filterLocation}
-                onChange={(e) => setFilterLocation(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
-              >
-                <option value="all">Todas las Ubicaciones</option>
-                {locations.map((location) => (
-                  <option key={location.value} value={location.value}>
-                    {location.label}
-                  </option>
-                ))}
-              </select>
+                onChange={setFilterLocation}
+                allLabel="Todas las Ubicaciones"
+                allValue="all"
+                className="w-full"
+              />
             </div>
 
             <div>
-              <select
+              <SearchableSelect
+                options={[
+                  { value: 'active', label: 'Activos' },
+                  { value: 'scheduled', label: 'Programados' },
+                  { value: 'expired', label: 'Expirados' },
+                  { value: 'inactive', label: 'Inactivos' },
+                ]}
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
-              >
-                <option value="all">Todos los Estados</option>
-                <option value="active">Activos</option>
-                <option value="scheduled">Programados</option>
-                <option value="expired">Expirados</option>
-                <option value="inactive">Inactivos</option>
-              </select>
+                onChange={setFilterStatus}
+                allLabel="Todos los Estados"
+                allValue="all"
+                className="w-full"
+              />
             </div>
           </div>
         </div>

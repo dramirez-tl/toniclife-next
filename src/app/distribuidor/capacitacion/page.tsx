@@ -16,6 +16,7 @@ import {
   StarIcon,
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleSolid, StarIcon as StarSolid } from '@heroicons/react/24/solid';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
 
 const mockCourses = [
@@ -264,25 +265,21 @@ export default function CapacitacionPage() {
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3 mb-6">
-          <select
+          <SearchableSelect
+            options={categories.filter(c => c !== 'Todas').map(cat => ({ value: cat, label: cat }))}
             value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-          >
-            {categories.map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
+            onChange={setFilterCategory}
+            allLabel="Todas"
+            allValue="Todas"
+          />
 
-          <select
+          <SearchableSelect
+            options={levels.filter(l => l !== 'Todos').map(level => ({ value: level, label: level }))}
             value={filterLevel}
-            onChange={(e) => setFilterLevel(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-          >
-            {levels.map(level => (
-              <option key={level} value={level}>{level}</option>
-            ))}
-          </select>
+            onChange={setFilterLevel}
+            allLabel="Todos"
+            allValue="Todos"
+          />
         </div>
 
         {/* Courses Grid */}

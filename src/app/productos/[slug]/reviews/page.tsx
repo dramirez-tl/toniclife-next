@@ -13,6 +13,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import { toast } from 'sonner';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 // Mock reviews data
 const reviews = [
@@ -367,32 +368,34 @@ export default function ProductReviewsPage() {
               <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
                 <div className="flex items-center gap-2">
                   <FunnelIcon className="h-5 w-5 text-gray-600" />
-                  <select
+                  <SearchableSelect
+                    options={[
+                      { value: '5', label: '5 estrellas' },
+                      { value: '4', label: '4 estrellas' },
+                      { value: '3', label: '3 estrellas' },
+                      { value: '2', label: '2 estrellas' },
+                      { value: '1', label: '1 estrella' },
+                    ]}
                     value={filterRating}
-                    onChange={(e) => setFilterRating(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
-                  >
-                    <option value="all">Todas las calificaciones</option>
-                    <option value="5">5 estrellas</option>
-                    <option value="4">4 estrellas</option>
-                    <option value="3">3 estrellas</option>
-                    <option value="2">2 estrellas</option>
-                    <option value="1">1 estrella</option>
-                  </select>
+                    onChange={setFilterRating}
+                    allLabel="Todas las calificaciones"
+                    allValue="all"
+                  />
                 </div>
 
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-gray-600">Ordenar por:</span>
-                  <select
+                  <SearchableSelect
+                    options={[
+                      { value: 'helpful', label: 'Más útiles' },
+                      { value: 'recent', label: 'Más recientes' },
+                      { value: 'rating_high', label: 'Calificación alta' },
+                      { value: 'rating_low', label: 'Calificación baja' },
+                    ]}
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
-                  >
-                    <option value="helpful">Más útiles</option>
-                    <option value="recent">Más recientes</option>
-                    <option value="rating_high">Calificación alta</option>
-                    <option value="rating_low">Calificación baja</option>
-                  </select>
+                    onChange={setSortBy}
+                    showAllOption={false}
+                  />
                 </div>
               </div>
             </div>

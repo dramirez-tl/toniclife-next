@@ -12,6 +12,7 @@ import {
   UserGroupIcon,
   ChartBarIcon,
 } from '@heroicons/react/24/outline';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useCommissionsReport, usePointsReport, useRankUpsReport } from '@/hooks/useReports';
 import { useCommissionPeriods } from '@/hooks/useCommissions';
 
@@ -107,34 +108,33 @@ export default function ComisionesReportesPage() {
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center space-x-2">
               <span className="text-sm font-medium text-gray-700">Periodo:</span>
-              <select
+              <SearchableSelect
+                options={periods.map((period: any) => ({
+                  value: period.id,
+                  label: period.name,
+                }))}
                 value={selectedPeriod}
-                onChange={(e) => setSelectedPeriod(e.target.value)}
-                className="rounded-md border-gray-300 text-sm focus:border-green-500 focus:ring-green-500"
+                onChange={setSelectedPeriod}
+                showAllOption={false}
+                placeholder={periods.length === 0 ? 'Cargando...' : 'Seleccionar periodo'}
                 disabled={loadingPeriods}
-              >
-                {periods.length === 0 && <option value="">Cargando...</option>}
-                {periods.map((period: any) => (
-                  <option key={period.id} value={period.id}>
-                    {period.name}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
 
             {viewMode === 'commissions' && (
               <div className="flex items-center space-x-2">
                 <span className="text-sm font-medium text-gray-700">Estado:</span>
-                <select
+                <SearchableSelect
+                  options={[
+                    { value: 'pending', label: 'Pendiente' },
+                    { value: 'approved', label: 'Aprobado' },
+                    { value: 'paid', label: 'Pagado' },
+                  ]}
                   value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value as 'pending' | 'approved' | 'paid' | 'all')}
-                  className="rounded-md border-gray-300 text-sm focus:border-green-500 focus:ring-green-500"
-                >
-                  <option value="all">Todos</option>
-                  <option value="pending">Pendiente</option>
-                  <option value="approved">Aprobado</option>
-                  <option value="paid">Pagado</option>
-                </select>
+                  onChange={(val) => setSelectedStatus(val as 'pending' | 'approved' | 'paid' | 'all')}
+                  allLabel="Todos"
+                  allValue="all"
+                />
               </div>
             )}
 
