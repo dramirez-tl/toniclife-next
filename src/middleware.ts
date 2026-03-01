@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// ── Coming Soon / Countdown gate ───────────────────────────────────────────
-// Set LAUNCH_DATE in .env to enable the countdown gate.
+// ── Maintenance / Countdown gate ───────────────────────────────────────────
+// Set LAUNCH_DATE in .env to enable the maintenance gate.
 // Users can bypass it via /config_sistemas (sets a cookie).
 // After the launch date passes, the gate disables itself automatically.
 const LAUNCH_DATE = process.env.LAUNCH_DATE || '';
@@ -73,22 +73,22 @@ function isDistributorRole(role: string | null): boolean {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // ── Coming Soon gate ───────────────────────────────────────────────────
-  // Redirect all visitors to /coming-soon UNLESS:
-  //   1. They're on /coming-soon or /config_sistemas (always allowed)
+  // ── Maintenance gate ──────────────────────────────────────────────────
+  // Redirect all visitors to /mantenimiento UNLESS:
+  //   1. They're on /mantenimiento or /config_sistemas (always allowed)
   //   2. They have the bypass cookie (set via /config_sistemas toggle)
   //   3. The launch date has passed (or is not configured)
   const bypassCountdown = request.cookies.get('bypass_countdown')?.value === '1';
   if (
-    pathname !== '/coming-soon' &&
+    pathname !== '/mantenimiento' &&
     pathname !== '/config_sistemas' &&
     isBeforeLaunch() &&
     !bypassCountdown
   ) {
-    return NextResponse.redirect(new URL('/coming-soon', request.url));
+    return NextResponse.redirect(new URL('/mantenimiento', request.url));
   }
-  // If launch date has passed but user is still on /coming-soon, send them home
-  if (pathname === '/coming-soon' && !isBeforeLaunch()) {
+  // If launch date has passed but user is still on /mantenimiento, send them home
+  if (pathname === '/mantenimiento' && !isBeforeLaunch()) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 

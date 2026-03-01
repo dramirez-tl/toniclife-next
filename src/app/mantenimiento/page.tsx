@@ -185,11 +185,6 @@ export default function ComingSoonPage() {
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="absolute bottom-6 text-center text-white/25 text-xs px-6">
-        <p>&copy; {new Date().getFullYear()} Tonic Life. Todos los derechos reservados.</p>
-        <p className="mt-1">Gracias por tu paciencia mientras mejoramos nuestros sistemas.</p>
-      </div>
     </div>
   );
 }
