@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 
-const LAUNCH_DATE = process.env.NEXT_PUBLIC_LAUNCH_DATE || '2026-02-27T11:00:00-06:00';
+const LAUNCH_DATE = process.env.NEXT_PUBLIC_LAUNCH_DATE || '2026-03-01T08:00:00-06:00';
 
 interface TimeLeft {
   days: number;
@@ -32,21 +32,32 @@ function getTimeLeft(): TimeLeft {
 function CountdownUnit({ value, label }: { value: number; label: string }) {
   return (
     <div className="flex flex-col items-center">
-      <div className="bg-white/10 backdrop-blur-sm rounded-2xl w-20 h-20 sm:w-28 sm:h-28 flex items-center justify-center border border-white/20">
-        <span className="text-3xl sm:text-5xl font-bold text-white tabular-nums">
-          {String(value).padStart(2, '0')}
-        </span>
+      <div className="relative group">
+        <div className="absolute inset-0 rounded-2xl bg-white/20 blur-sm group-hover:bg-white/25 transition-all" />
+        <div className="relative bg-white/10 backdrop-blur-md rounded-2xl w-18 h-18 sm:w-24 sm:h-24 flex items-center justify-center border border-white/20 shadow-lg">
+          <span className="text-2xl sm:text-4xl font-bold text-white tabular-nums drop-shadow-lg">
+            {String(value).padStart(2, '0')}
+          </span>
+        </div>
       </div>
-      <span className="mt-2 text-sm sm:text-base text-white/70 uppercase tracking-wider">
+      <span className="mt-2 text-xs sm:text-sm text-white/60 uppercase tracking-widest font-medium">
         {label}
       </span>
     </div>
   );
 }
 
+const improvements = [
+  'Optimizando el rendimiento general',
+  'Mejorando la experiencia de usuario',
+  'Actualizando los sistemas de seguridad',
+  'Preparando nuevas funcionalidades',
+];
+
 export default function ComingSoonPage() {
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(getTimeLeft());
   const [mounted, setMounted] = useState(false);
+  const [activeDot, setActiveDot] = useState(0);
 
   useEffect(() => {
     setMounted(true);
@@ -54,7 +65,6 @@ export default function ComingSoonPage() {
       const tl = getTimeLeft();
       setTimeLeft(tl);
 
-      // Auto-reload when countdown reaches zero
       if (tl.days === 0 && tl.hours === 0 && tl.minutes === 0 && tl.seconds === 0) {
         clearInterval(timer);
         window.location.href = '/';
@@ -64,58 +74,121 @@ export default function ComingSoonPage() {
     return () => clearInterval(timer);
   }, []);
 
+  // Animated dots for the progress indicator
+  useEffect(() => {
+    const dotTimer = setInterval(() => {
+      setActiveDot((prev) => (prev + 1) % 4);
+    }, 2000);
+    return () => clearInterval(dotTimer);
+  }, []);
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden bg-gradient-to-br from-[#3E667D] via-[#2d4f5e] to-[#001a33]">
-      {/* Background decoration */}
+    <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden bg-gradient-to-br from-[#1a3a4a] via-[#2d4f5e] to-[#0f2b3d]">
+      {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-[#C8DDF2]/10 blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-[#C8DDF2]/5 blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-white/[0.02] blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-[500px] h-[500px] rounded-full bg-[#C8DDF2]/8 blur-3xl animate-pulse" />
+        <div className="absolute -bottom-40 -left-40 w-[500px] h-[500px] rounded-full bg-[#3E667D]/15 blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[800px] h-[400px] rounded-full bg-white/[0.02] blur-3xl" />
+
+        {/* Subtle grid pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
+            backgroundSize: '40px 40px',
+          }}
+        />
       </div>
 
       <div className="relative z-10 flex flex-col items-center px-6 text-center max-w-2xl mx-auto">
-        {/* Logo */}
-        <div className="mb-8 flex items-center justify-center">
-          <div className="relative rounded-full bg-white h-36 w-36 sm:h-44 sm:w-44 shadow-xl shadow-black/20 flex items-center justify-center overflow-hidden">
+        {/* Logo with glow */}
+        <div className="mb-10 relative">
+          <div className="absolute inset-0 rounded-full bg-[#C8DDF2]/20 blur-2xl scale-125" />
+          <div className="relative rounded-full bg-white h-32 w-32 sm:h-40 sm:w-40 shadow-2xl shadow-black/30 flex items-center justify-center overflow-hidden ring-2 ring-white/20">
             <Image
               src="/images/logo/logo-icon-blue-solid.png"
               alt="Tonic Life"
               width={320}
               height={320}
               priority
-              className="h-52 w-52 sm:h-64 sm:w-64 object-contain"
+              className="h-44 w-44 sm:h-56 sm:w-56 object-contain"
             />
           </div>
         </div>
 
+        {/* Maintenance badge */}
+        <div className="mb-6 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/15 border border-amber-400/30 backdrop-blur-sm">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400" />
+          </span>
+          <span className="text-sm font-medium text-amber-200/90 tracking-wide">
+            Mantenimiento programado
+          </span>
+        </div>
+
         {/* Heading */}
-        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4">
-          Algo increíble está por llegar
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4 leading-tight">
+          Estamos mejorando<br />
+          <span className="text-[#C8DDF2]">tu experiencia</span>
         </h1>
-        <p className="text-lg sm:text-xl text-white/70 mb-12 max-w-lg">
-          Estamos preparando una experiencia completamente nueva para ti.
-          ¡Muy pronto!
+
+        <p className="text-base sm:text-lg text-white/60 mb-10 max-w-md leading-relaxed">
+          Estamos realizando algunas actualizaciones y mejoras para ofrecerte
+          un mejor servicio. Volveremos muy pronto.
         </p>
 
         {/* Countdown */}
         {mounted && (
-          <div className="flex gap-3 sm:gap-6 mb-12">
-            <CountdownUnit value={timeLeft.days} label="Días" />
-            <CountdownUnit value={timeLeft.hours} label="Horas" />
-            <CountdownUnit value={timeLeft.minutes} label="Min" />
-            <CountdownUnit value={timeLeft.seconds} label="Seg" />
+          <div className="mb-10">
+            <p className="text-white/40 text-xs uppercase tracking-widest mb-4 font-medium">
+              Tiempo estimado de regreso
+            </p>
+            <div className="flex gap-3 sm:gap-5">
+              <CountdownUnit value={timeLeft.days} label="Dias" />
+              <div className="flex items-center pt-0 sm:pt-0 text-white/30 text-2xl font-light self-start mt-4 sm:mt-5">:</div>
+              <CountdownUnit value={timeLeft.hours} label="Horas" />
+              <div className="flex items-center pt-0 sm:pt-0 text-white/30 text-2xl font-light self-start mt-4 sm:mt-5">:</div>
+              <CountdownUnit value={timeLeft.minutes} label="Min" />
+              <div className="flex items-center pt-0 sm:pt-0 text-white/30 text-2xl font-light self-start mt-4 sm:mt-5">:</div>
+              <CountdownUnit value={timeLeft.seconds} label="Seg" />
+            </div>
           </div>
         )}
 
-        {/* Launch date info */}
-        <p className="text-white/50 text-sm">
-          Fecha de lanzamiento: 27 de febrero de 2026 a las 11:00 AM (hora de Ciudad de México)
-        </p>
+        {/* What we're doing - animated list */}
+        <div className="w-full max-w-sm">
+          <div className="bg-white/5 backdrop-blur-sm rounded-2xl border border-white/10 p-5">
+            <p className="text-white/50 text-xs uppercase tracking-widest mb-4 font-medium">
+              En que estamos trabajando
+            </p>
+            <div className="space-y-3">
+              {improvements.map((item, i) => (
+                <div
+                  key={item}
+                  className={`flex items-center gap-3 transition-all duration-700 ${
+                    i === activeDot ? 'opacity-100' : 'opacity-40'
+                  }`}
+                >
+                  <div className={`flex-shrink-0 w-2 h-2 rounded-full transition-all duration-700 ${
+                    i === activeDot ? 'bg-[#C8DDF2] shadow-[0_0_8px_rgba(200,221,242,0.5)]' : 'bg-white/30'
+                  }`} />
+                  <span className={`text-sm transition-all duration-700 ${
+                    i === activeDot ? 'text-white/90' : 'text-white/40'
+                  }`}>
+                    {item}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Footer */}
-      <div className="absolute bottom-6 text-center text-white/30 text-xs">
-        &copy; {new Date().getFullYear()} Tonic Life. Todos los derechos reservados.
+      <div className="absolute bottom-6 text-center text-white/25 text-xs px-6">
+        <p>&copy; {new Date().getFullYear()} Tonic Life. Todos los derechos reservados.</p>
+        <p className="mt-1">Gracias por tu paciencia mientras mejoramos nuestros sistemas.</p>
       </div>
     </div>
   );
