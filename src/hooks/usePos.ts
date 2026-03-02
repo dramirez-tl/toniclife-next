@@ -3,6 +3,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { posService } from '@/services/pos.service';
+import { customersService } from '@/services/customers.service';
 import type {
   // Cash Register
   CreateCashRegisterInput,
@@ -50,7 +51,9 @@ export const posKeys = {
   movementDetail: (id: string) => [...posKeys.movements(), 'detail', id] as const,
   movementBalance: (sessionId: string) => [...posKeys.movements(), 'balance', sessionId] as const,
   // Products
-  productSearch: (query: string) => [...posKeys.all, 'products', 'search', query] as const,
+  productSearch: (query: string, branchId?: string, priceTypeId?: string) => [...posKeys.all, 'products', 'search', query, branchId, priceTypeId] as const,
+  // Customer search
+  customerSearch: (query: string) => [...posKeys.all, 'customers', 'search', query] as const,
 };
 
 // ================================
@@ -372,12 +375,29 @@ export const useRejectWithdrawal = () => {
 /**
  * Search products for POS
  */
-export const usePosProductSearch = (query: string, enabled = true) => {
+export const usePosProductSearch = (query: string, enabled = true, branchId?: string, priceTypeId?: string) => {
   return useQuery({
-    queryKey: posKeys.productSearch(query),
-    queryFn: () => posService.searchProducts(query),
+    queryKey: posKeys.productSearch(query, branchId, priceTypeId),
+    queryFn: () => posService.searchProducts(query, 10, branchId, priceTypeId),
     enabled: enabled && query.length >= 2,
     staleTime: 30 * 1000, // 30 seconds
+  });
+};
+
+/**
+ * Search distributor customers for POS
+ */
+export const usePosCustomerSearch = (query: string, enabled = true) => {
+  return useQuery({
+    queryKey: posKeys.customerSearch(query),
+    queryFn: () => customersService.getAll({
+      search: query,
+      customerType: 'distributor',
+      status: 'active',
+      limit: 10,
+    }),
+    enabled: enabled && query.length >= 2,
+    staleTime: 60 * 1000,
   });
 };
 

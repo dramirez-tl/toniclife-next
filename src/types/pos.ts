@@ -234,6 +234,7 @@ export interface Sale {
   cancelledAt?: string;
   cancelledByName?: string;
   cancellationReason?: string;
+  itemsCount?: number;
   items: SaleItem[];
   payments: SalePayment[];
   createdAt: string;
@@ -350,29 +351,36 @@ export interface PaymentResult {
 export interface CashMovement {
   id: string;
   sessionId: string;
-  type: CashMovementType;
+  movementType: CashMovementType;
+  saleId?: string;
+  saleNumber?: string;
   amount: number;
-  description: string;
+  direction: 'in' | 'out';
+  balanceAfter?: number;
+  description?: string;
+  reference?: string;
   createdBy: string;
   createdByName: string;
+  requiresApproval: boolean;
   approvedBy?: string;
   approvedByName?: string;
   approvedAt?: string;
-  status: 'pending' | 'approved' | 'rejected';
   createdAt: string;
 }
 
 export interface CreateCashMovementInput {
   sessionId: string;
-  type: CashMovementType;
+  movementType: CashMovementType;
   amount: number;
   description: string;
+  reference?: string;
 }
 
 export interface CashMovementQueryParams {
   sessionId?: string;
-  type?: CashMovementType;
-  status?: string;
+  movementType?: CashMovementType;
+  direction?: 'in' | 'out';
+  pendingApproval?: boolean;
   fromDate?: string;
   toDate?: string;
   page?: number;
@@ -390,10 +398,12 @@ export interface CashMovementListResponse {
 export interface CashBalance {
   sessionId: string;
   openingAmount: number;
-  totalSales: number;
+  currentBalance: number;
   totalDeposits: number;
   totalWithdrawals: number;
-  expectedBalance: number;
+  totalSalesCash: number;
+  totalRefundsCash: number;
+  pendingWithdrawals: number;
 }
 
 // ================================
@@ -407,11 +417,16 @@ export interface PosCartItem {
   productImage?: string;
   quantity: number;
   unitPrice: number;
+  taxRate: number;
+  taxAmount: number;
+  isIncludedInPrice: boolean;
   discountPercent?: number;
   discountAmount?: number;
   subtotal: number;
   total: number;
   stock?: number;
+  points: number;
+  businessVolume: number;
   lotId?: string;
   notes?: string;
 }
@@ -421,12 +436,15 @@ export interface PosCart {
   customerId?: string;
   customerName?: string;
   customerRfc?: string;
+  priceTypeId?: string;
   subtotal: number;
   discountPercent?: number;
   discountAmount?: number;
   discountReason?: string;
   taxAmount: number;
   total: number;
+  totalPoints: number;
+  totalBusinessVolume: number;
   requiresInvoice: boolean;
   notes?: string;
 }
@@ -445,4 +463,8 @@ export interface QuickProduct {
   categoryName?: string;
   stock?: number;
   isActive: boolean;
+  taxRate?: number;
+  isIncludedInPrice?: boolean;
+  points?: number;
+  businessVolume?: number;
 }

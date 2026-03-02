@@ -10,39 +10,58 @@ interface PosCartStore {
   updateItemQuantity: (productId: string, quantity: number) => void;
   removeItem: (productId: string) => void;
   clearCart: () => void;
-  setCustomer: (customerId?: string, customerName?: string, customerRfc?: string) => void;
+  setCustomer: (customerId?: string, customerName?: string, customerRfc?: string, priceTypeId?: string) => void;
   setDiscount: (discountPercent?: number, discountAmount?: number, discountReason?: string) => void;
   setRequiresInvoice: (requiresInvoice: boolean) => void;
   setNotes: (notes?: string) => void;
   recalculateTotals: () => void;
+  refreshItemPrices: (prices: Array<{ productId: string; price: number; points: number; businessValue: number }>) => void;
 }
 
-const TAX_RATE = 0.16; // 16% IVA
+const DEFAULT_TAX_RATE = 0.16; // Fallback si el producto no tiene regla fiscal
 
 const initialCart: PosCart = {
   items: [],
   subtotal: 0,
   taxAmount: 0,
   total: 0,
+  totalPoints: 0,
+  totalBusinessVolume: 0,
   requiresInvoice: false,
 };
 
 const calculateItemTotal = (item: PosCartItem): PosCartItem => {
-  const lineSubtotal = item.unitPrice * item.quantity;
+  const lineAmount = item.unitPrice * item.quantity;
   let lineDiscount = 0;
 
   if (item.discountPercent) {
-    lineDiscount = lineSubtotal * (item.discountPercent / 100);
+    lineDiscount = lineAmount * (item.discountPercent / 100);
   } else if (item.discountAmount) {
     lineDiscount = item.discountAmount * item.quantity;
   }
 
-  const subtotal = lineSubtotal - lineDiscount;
-  const total = subtotal; // Tax is calculated on cart level
+  const afterDiscount = lineAmount - lineDiscount;
+  const taxRate = item.taxRate ?? DEFAULT_TAX_RATE;
+
+  let subtotal: number;
+  let taxAmount: number;
+
+  if (item.isIncludedInPrice) {
+    // Tax is already included in unitPrice — extract it
+    subtotal = afterDiscount / (1 + taxRate);
+    taxAmount = afterDiscount - subtotal;
+  } else {
+    // Tax is on top of unitPrice
+    subtotal = afterDiscount;
+    taxAmount = subtotal * taxRate;
+  }
+
+  const total = subtotal + taxAmount;
 
   return {
     ...item,
     subtotal,
+    taxAmount,
     total,
     discountAmount: lineDiscount,
   };
@@ -58,9 +77,22 @@ const calculateCartTotals = (cart: PosCart): PosCart => {
     globalDiscount = cart.discountAmount;
   }
 
-  const taxableAmount = subtotal - globalDiscount;
-  const taxAmount = taxableAmount * TAX_RATE;
-  const total = taxableAmount + taxAmount;
+  // Recalculate per-item tax proportionally when there's a global discount
+  let taxAmount: number;
+  if (globalDiscount > 0 && subtotal > 0) {
+    const discountFactor = 1 - (globalDiscount / subtotal);
+    taxAmount = cart.items.reduce((sum, item) => {
+      const rate = item.taxRate ?? DEFAULT_TAX_RATE;
+      return sum + (item.subtotal * discountFactor * rate);
+    }, 0);
+  } else {
+    taxAmount = cart.items.reduce((sum, item) => sum + item.taxAmount, 0);
+  }
+
+  const total = (subtotal - globalDiscount) + taxAmount;
+
+  const totalPoints = cart.items.reduce((sum, item) => sum + (item.points * item.quantity), 0);
+  const totalBusinessVolume = cart.items.reduce((sum, item) => sum + (item.businessVolume * item.quantity), 0);
 
   return {
     ...cart,
@@ -68,6 +100,8 @@ const calculateCartTotals = (cart: PosCart): PosCart => {
     discountAmount: globalDiscount || undefined,
     taxAmount,
     total: Math.max(0, total),
+    totalPoints,
+    totalBusinessVolume,
   };
 };
 
@@ -85,13 +119,15 @@ export const usePosCartStore = create<PosCartStore>()(
           let newItems: PosCartItem[];
 
           if (existingIndex >= 0) {
-            // Update existing item quantity
+            // Update existing item quantity (cap at stock if known)
             newItems = state.cart.items.map((item, index) => {
               if (index === existingIndex) {
-                const updated = {
-                  ...item,
-                  quantity: item.quantity + quantity,
-                };
+                let newQty = item.quantity + quantity;
+                if (item.stock != null && newQty > item.stock) {
+                  newQty = item.stock;
+                }
+                if (newQty === item.quantity) return item; // no change
+                const updated = { ...item, quantity: newQty };
                 return calculateItemTotal(updated);
               }
               return item;
@@ -105,9 +141,14 @@ export const usePosCartStore = create<PosCartStore>()(
               productImage: product.imageUrl,
               quantity,
               unitPrice: product.basePrice,
+              taxRate: product.taxRate ?? DEFAULT_TAX_RATE,
+              isIncludedInPrice: product.isIncludedInPrice ?? false,
+              taxAmount: 0,
               subtotal: 0,
               total: 0,
               stock: product.stock,
+              points: product.points ?? 0,
+              businessVolume: product.businessVolume ?? 0,
             });
             newItems = [...state.cart.items, newItem];
           }
@@ -130,7 +171,11 @@ export const usePosCartStore = create<PosCartStore>()(
 
           const newItems = state.cart.items.map((item) => {
             if (item.productId === productId) {
-              const updated = { ...item, quantity };
+              // Cap at stock if known
+              const cappedQty = (item.stock != null && quantity > item.stock)
+                ? item.stock
+                : quantity;
+              const updated = { ...item, quantity: cappedQty };
               return calculateItemTotal(updated);
             }
             return item;
@@ -155,13 +200,14 @@ export const usePosCartStore = create<PosCartStore>()(
         set({ cart: initialCart });
       },
 
-      setCustomer: (customerId, customerName, customerRfc) => {
+      setCustomer: (customerId, customerName, customerRfc, priceTypeId) => {
         set((state) => ({
           cart: {
             ...state.cart,
             customerId,
             customerName,
             customerRfc,
+            priceTypeId,
           },
         }));
       },
@@ -200,6 +246,25 @@ export const usePosCartStore = create<PosCartStore>()(
         set((state) => ({
           cart: calculateCartTotals(state.cart),
         }));
+      },
+
+      refreshItemPrices: (prices) => {
+        set((state) => {
+          const priceMap = new Map(prices.map((p) => [p.productId, p]));
+          const newItems = state.cart.items.map((item) => {
+            const newPrice = priceMap.get(item.productId);
+            if (!newPrice) return item;
+            const updated = {
+              ...item,
+              unitPrice: newPrice.price,
+              points: newPrice.points,
+              businessVolume: newPrice.businessValue,
+            };
+            return calculateItemTotal(updated);
+          });
+          const newCart = calculateCartTotals({ ...state.cart, items: newItems });
+          return { cart: newCart };
+        });
       },
     }),
     {

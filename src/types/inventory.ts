@@ -42,7 +42,7 @@ export enum MovementCategory {
 
 export enum MovementStatus {
   DRAFT = 'draft',
-  PENDING = 'pending',
+  PENDING = 'pending_approval',
   APPROVED = 'approved',
   APPLIED = 'applied',
   REJECTED = 'rejected',
@@ -56,13 +56,7 @@ export enum LotStatus {
   BLOCKED = 'blocked',
 }
 
-export enum TransferStatus {
-  PENDING = 'pending',
-  IN_TRANSIT = 'in_transit',
-  RECEIVED = 'received',
-  CANCELLED = 'cancelled',
-  PARTIAL = 'partial',
-}
+// TransferStatus removed — use MovementStatus instead (matches backend)
 
 export enum AdjustmentType {
   COUNT = 'count',
@@ -244,7 +238,7 @@ export interface KardexQueryDto {
 }
 
 // ================================
-// TRANSFER TYPES
+// TRANSFER TYPES (aligned to backend inventory_movements)
 // ================================
 
 export interface TransferItemDto {
@@ -252,40 +246,39 @@ export interface TransferItemDto {
   productId: string;
   productCode: string;
   productName: string;
-  requestedQuantity: number;
-  shippedQuantity?: number;
-  receivedQuantity?: number;
-  lotId?: string;
-  lotNumber?: string;
+  quantity: number;
+  unitId?: string;
   unitCost?: string;
+  totalCost?: string;
+  quantityBefore: number;
+  quantityAfter: number;
+  lotId?: string;
   notes?: string;
 }
 
 export interface TransferDto {
   id: string;
-  transferNumber: string;
-  sourceBranch: BranchInfo;
+  movementNumber: string;
+  branch: BranchInfo;           // source branch
   destinationBranch: BranchInfo;
-  status: TransferStatus;
+  status: MovementStatus;
   totalItems: number;
   totalQuantity: number;
-  totalValue?: string;
-  currency?: { id: string; code: string };
+  totalCost?: string;
   items: TransferItemDto[];
-  requestedBy?: { id: string; name: string };
-  approvedBy?: { id: string; name: string };
-  shippedBy?: { id: string; name: string };
-  receivedBy?: { id: string; name: string };
-  requestedAt: string;
-  approvedAt?: string;
-  shippedAt?: string;
-  receivedAt?: string;
-  cancelledAt?: string;
-  trackingNumber?: string;
-  carrier?: string;
-  estimatedArrival?: string;
+  reason: string;
   notes?: string;
-  cancellationReason?: string;
+  requestedBy?: { id: string; name: string };
+  requestedAt?: string;
+  approvedBy?: { id: string; name: string };
+  approvedAt?: string;
+  appliedBy?: { id: string; name: string };
+  appliedAt?: string;
+  rejectedBy?: { id: string; name: string };
+  rejectedAt?: string;
+  rejectionReason?: string;
+  relatedMovementId?: string;
+  supportingDocumentUrl?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -301,7 +294,7 @@ export interface TransferListResponseDto {
 export interface TransferQueryDto {
   sourceBranchId?: string;
   destinationBranchId?: string;
-  status?: TransferStatus;
+  status?: MovementStatus;
   fromDate?: string;
   toDate?: string;
   search?: string;
@@ -311,8 +304,9 @@ export interface TransferQueryDto {
 
 export interface CreateTransferItemDto {
   productId: string;
-  requestedQuantity: number;
+  quantity: number;
   lotId?: string;
+  unitId?: string;
   notes?: string;
 }
 
@@ -320,7 +314,7 @@ export interface CreateTransferDto {
   sourceBranchId: string;
   destinationBranchId: string;
   items: CreateTransferItemDto[];
-  currencyId?: string;
+  reason: string;
   notes?: string;
 }
 
@@ -328,29 +322,8 @@ export interface ApproveTransferDto {
   notes?: string;
 }
 
-export interface ShipTransferItemDto {
-  id: string;
-  shippedQuantity: number;
-  lotId?: string;
-  lotNumber?: string;
-}
-
-export interface ShipTransferDto {
-  trackingNumber?: string;
-  carrier?: string;
-  estimatedArrival?: string;
-  items?: ShipTransferItemDto[];
-}
-
-export interface ReceiveTransferItemDto {
-  id: string;
-  receivedQuantity: number;
-  notes?: string;
-}
-
-export interface ReceiveTransferDto {
-  items: ReceiveTransferItemDto[];
-  notes?: string;
+export interface RejectTransferDto {
+  reason: string;
 }
 
 export interface CancelTransferDto {

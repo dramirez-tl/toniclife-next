@@ -10,105 +10,128 @@ import {
   CheckCircleIcon,
   PrinterIcon,
 } from '@heroicons/react/24/outline';
-import { PosPaymentMethod, type CreatePaymentInput } from '@/types/pos';
-import { posService } from '@/services/pos.service';
+import { PosPaymentMethod, type CreatePaymentInput, type Sale } from '@/types/pos';
+import { generatePosTicketPdf, type PosTicketBranchConfig } from '@/lib/generate-pos-ticket';
 
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   total: number;
-  onPaymentComplete: (payments: CreatePaymentInput[], change: number) => void;
+  onPaymentComplete: (payments: CreatePaymentInput[], change: number) => Promise<Sale | undefined> | Sale | void;
+  currencySymbol?: string;
+  branchConfig?: PosTicketBranchConfig;
 }
 
-const paymentMethods = [
-  { id: PosPaymentMethod.CASH, name: 'Efectivo', icon: BanknotesIcon },
-  { id: PosPaymentMethod.CARD, name: 'Tarjeta', icon: CreditCardIcon },
-  { id: PosPaymentMethod.TRANSFER, name: 'Transferencia', icon: BuildingLibraryIcon },
+type MethodKey = 'cash' | 'card_credit' | 'card_debit' | 'transfer';
+
+const paymentMethods: { key: MethodKey; method: PosPaymentMethod; name: string; icon: typeof BanknotesIcon; cardType?: string }[] = [
+  { key: 'cash', method: PosPaymentMethod.CASH, name: 'Efectivo', icon: BanknotesIcon },
+  { key: 'card_credit', method: PosPaymentMethod.CARD, name: 'T. Crédito', icon: CreditCardIcon, cardType: 'credit' },
+  { key: 'card_debit', method: PosPaymentMethod.CARD, name: 'T. Débito', icon: CreditCardIcon, cardType: 'debit' },
+  { key: 'transfer', method: PosPaymentMethod.TRANSFER, name: 'Transferencia', icon: BuildingLibraryIcon },
 ];
 
 const quickAmounts = [50, 100, 200, 500, 1000];
 
-export function PaymentModal({ isOpen, onClose, total, onPaymentComplete }: PaymentModalProps) {
-  const [selectedMethod, setSelectedMethod] = useState<PosPaymentMethod>(PosPaymentMethod.CASH);
+export function PaymentModal({ isOpen, onClose, total, onPaymentComplete, currencySymbol = '$', branchConfig }: PaymentModalProps) {
+  const fmt = (amount: number) =>
+    `${currencySymbol}${amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  const [selectedKey, setSelectedKey] = useState<MethodKey>('cash');
   const [amountReceived, setAmountReceived] = useState<string>('');
   const [payments, setPayments] = useState<CreatePaymentInput[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [change, setChange] = useState(0);
+  const [completedSale, setCompletedSale] = useState<Sale | null>(null);
+  const [ticketUrl, setTicketUrl] = useState<string | null>(null);
 
-  // Card payment fields
-  const [cardLast4, setCardLast4] = useState('');
-  const [authCode, setAuthCode] = useState('');
-
-  // Transfer fields
-  const [referenceNumber, setReferenceNumber] = useState('');
+  const selected = paymentMethods.find(m => m.key === selectedKey)!;
 
   const remainingAmount = total - payments.reduce((sum, p) => sum + p.amount, 0);
   const receivedNum = parseFloat(amountReceived) || 0;
-  const currentChange = selectedMethod === PosPaymentMethod.CASH
+  const currentChange = selectedKey === 'cash'
     ? Math.max(0, receivedNum - remainingAmount)
     : 0;
 
   useEffect(() => {
     if (isOpen) {
-      setSelectedMethod(PosPaymentMethod.CASH);
+      setSelectedKey('cash');
       setAmountReceived('');
       setPayments([]);
       setIsProcessing(false);
       setIsComplete(false);
       setChange(0);
-      setCardLast4('');
-      setAuthCode('');
-      setReferenceNumber('');
+      setCompletedSale(null);
+      if (ticketUrl) {
+        URL.revokeObjectURL(ticketUrl);
+        setTicketUrl(null);
+      }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   const handleAddPayment = () => {
     if (receivedNum <= 0) return;
 
     const payment: CreatePaymentInput = {
-      paymentMethod: selectedMethod,
+      paymentMethod: selected.method,
       amount: Math.min(receivedNum, remainingAmount),
     };
 
-    if (selectedMethod === PosPaymentMethod.CASH) {
+    if (selectedKey === 'cash') {
       payment.amountReceived = receivedNum;
-    } else if (selectedMethod === PosPaymentMethod.CARD) {
-      payment.cardLast4 = cardLast4;
-      payment.authorizationCode = authCode;
-    } else if (selectedMethod === PosPaymentMethod.TRANSFER) {
-      payment.referenceNumber = referenceNumber;
+    }
+    if (selected.cardType) {
+      payment.cardType = selected.cardType;
     }
 
     setPayments([...payments, payment]);
     setAmountReceived('');
-    setCardLast4('');
-    setAuthCode('');
-    setReferenceNumber('');
   };
 
   const handleRemovePayment = (index: number) => {
     setPayments(payments.filter((_, i) => i !== index));
   };
 
-  const handleCompletePayment = () => {
-    if (remainingAmount > 0.01) return;
+  const handleCompletePayment = async () => {
+    // Auto-add current input as payment if none added yet (single payment flow)
+    let finalPayments = [...payments];
+    if (finalPayments.length === 0 && receivedNum > 0) {
+      const payment: CreatePaymentInput = {
+        paymentMethod: selected.method,
+        amount: Math.min(receivedNum, total),
+      };
+      if (selectedKey === 'cash') {
+        payment.amountReceived = receivedNum;
+      }
+      if (selected.cardType) {
+        payment.cardType = selected.cardType;
+      }
+      finalPayments = [payment];
+    }
+
+    const finalRemaining = total - finalPayments.reduce((sum, p) => sum + p.amount, 0);
+    if (finalRemaining > 0.01) return;
 
     setIsProcessing(true);
 
     // Calculate change for cash payments
-    const cashPayment = payments.find(p => p.paymentMethod === PosPaymentMethod.CASH);
+    const cashPayment = finalPayments.find(p => p.paymentMethod === PosPaymentMethod.CASH);
     const totalChange = cashPayment?.amountReceived
       ? Math.max(0, cashPayment.amountReceived - total)
       : 0;
 
-    // Simulate processing delay
-    setTimeout(() => {
+    try {
+      const result = await onPaymentComplete(finalPayments, totalChange);
+      if (result) setCompletedSale(result);
       setIsProcessing(false);
       setIsComplete(true);
       setChange(totalChange);
-      onPaymentComplete(payments, totalChange);
-    }, 1000);
+    } catch {
+      // Error is handled by the parent (toast.error) — just stop processing
+      setIsProcessing(false);
+    }
   };
 
   const handleQuickAmount = (amount: number) => {
@@ -138,69 +161,115 @@ export function PaymentModal({ isOpen, onClose, total, onPaymentComplete }: Paym
         </div>
 
         {isComplete ? (
-          // Success View
-          <div className="p-8 text-center">
-            <CheckCircleIcon className="h-24 w-24 text-green-500 mx-auto mb-6" />
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">¡Venta Completada!</h3>
-            <p className="text-gray-600 mb-6">
-              Total: <span className="font-bold">{posService.formatCurrency(total)}</span>
-            </p>
-            {change > 0 && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
-                <p className="text-lg font-bold text-yellow-800">
-                  Cambio: {posService.formatCurrency(change)}
-                </p>
+          // Success View — either ticket preview or summary
+          ticketUrl ? (
+            <div className="flex flex-col" style={{ height: 'calc(90vh - 80px)' }}>
+              <iframe
+                src={ticketUrl}
+                className="flex-grow w-full border-0"
+                title="Ticket de venta"
+              />
+              <div className="flex gap-4 justify-center p-4 border-t bg-gray-50">
+                <button
+                  onClick={() => {
+                    if (ticketUrl) {
+                      URL.revokeObjectURL(ticketUrl);
+                      setTicketUrl(null);
+                    }
+                  }}
+                  className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-medium"
+                >
+                  Volver
+                </button>
+                <button
+                  onClick={onClose}
+                  className="px-6 py-3 bg-[#3E667D] text-white rounded-xl hover:bg-[#2d4f63] font-medium"
+                >
+                  Nueva Venta
+                </button>
               </div>
-            )}
-            <div className="flex gap-4 justify-center">
-              <button
-                onClick={() => {/* TODO: Print ticket */}}
-                className="flex items-center gap-2 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-medium"
-              >
-                <PrinterIcon className="h-5 w-5" />
-                Imprimir Ticket
-              </button>
-              <button
-                onClick={onClose}
-                className="px-6 py-3 bg-[#3E667D] text-white rounded-xl hover:bg-[#6aa526] font-medium"
-              >
-                Nueva Venta
-              </button>
             </div>
-          </div>
+          ) : (
+            <div className="p-8 text-center">
+              <CheckCircleIcon className="h-24 w-24 text-green-500 mx-auto mb-6" />
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">¡Venta Completada!</h3>
+              <p className="text-gray-600 mb-6">
+                Total: <span className="font-bold">{fmt(total)}</span>
+              </p>
+              {change > 0 && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
+                  <p className="text-lg font-bold text-yellow-800">
+                    Cambio: {fmt(change)}
+                  </p>
+                </div>
+              )}
+              <div className="flex gap-4 justify-center">
+                <button
+                  onClick={async () => {
+                    if (!completedSale) return;
+                    try {
+                      const url = await generatePosTicketPdf(completedSale, {
+                        branch: branchConfig,
+                      });
+                      setTicketUrl(url);
+                    } catch {
+                      // Fallback: open in new window
+                      if (completedSale) {
+                        const url = await generatePosTicketPdf(completedSale, {
+                          branch: branchConfig,
+                        });
+                        window.open(url, '_blank');
+                      }
+                    }
+                  }}
+                  disabled={!completedSale}
+                  className="flex items-center gap-2 px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <PrinterIcon className="h-5 w-5" />
+                  Imprimir Ticket
+                </button>
+                <button
+                  onClick={onClose}
+                  className="px-6 py-3 bg-[#3E667D] text-white rounded-xl hover:bg-[#2d4f63] font-medium"
+                >
+                  Nueva Venta
+                </button>
+              </div>
+            </div>
+          )
         ) : (
           // Payment Form
           <div className="p-6 space-y-6">
             {/* Total Display */}
             <div className="text-center p-6 bg-[#3E667D] rounded-xl text-white">
               <p className="text-sm opacity-80">Total a pagar</p>
-              <p className="text-4xl font-bold">{posService.formatCurrency(total)}</p>
+              <p className="text-4xl font-bold">{fmt(total)}</p>
               {payments.length > 0 && remainingAmount > 0 && (
                 <p className="text-sm mt-2 opacity-80">
-                  Restante: {posService.formatCurrency(remainingAmount)}
+                  Restante: {fmt(remainingAmount)}
                 </p>
               )}
             </div>
 
             {/* Payment Methods */}
-            <div className="flex gap-3">
+            <div className="grid grid-cols-4 gap-2">
               {paymentMethods.map((method) => {
                 const Icon = method.icon;
                 return (
                   <button
-                    key={method.id}
-                    onClick={() => setSelectedMethod(method.id)}
-                    className={`flex-1 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
-                      selectedMethod === method.id
+                    key={method.key}
+                    onClick={() => setSelectedKey(method.key)}
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${
+                      selectedKey === method.key
                         ? 'border-[#a7c1e2] bg-[#C8DDF2]/10'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
-                    <Icon className={`h-8 w-8 ${
-                      selectedMethod === method.id ? 'text-[#3E667D]' : 'text-gray-400'
+                    <Icon className={`h-7 w-7 ${
+                      selectedKey === method.key ? 'text-[#3E667D]' : 'text-gray-400'
                     }`} />
-                    <span className={`font-medium ${
-                      selectedMethod === method.id ? 'text-[#3E667D]' : 'text-gray-600'
+                    <span className={`text-xs font-medium text-center leading-tight ${
+                      selectedKey === method.key ? 'text-[#3E667D]' : 'text-gray-600'
                     }`}>
                       {method.name}
                     </span>
@@ -212,10 +281,10 @@ export function PaymentModal({ isOpen, onClose, total, onPaymentComplete }: Paym
             {/* Amount Input */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {selectedMethod === PosPaymentMethod.CASH ? 'Monto recibido' : 'Monto'}
+                {selectedKey === 'cash' ? 'Monto recibido' : 'Monto'}
               </label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl">$</span>
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl">{currencySymbol}</span>
                 <input
                   type="number"
                   value={amountReceived}
@@ -228,7 +297,7 @@ export function PaymentModal({ isOpen, onClose, total, onPaymentComplete }: Paym
               </div>
 
               {/* Quick Amounts (Cash only) */}
-              {selectedMethod === PosPaymentMethod.CASH && (
+              {selectedKey === 'cash' && (
                 <div className="flex gap-2 mt-3">
                   <button
                     onClick={handleExactAmount}
@@ -242,64 +311,17 @@ export function PaymentModal({ isOpen, onClose, total, onPaymentComplete }: Paym
                       onClick={() => handleQuickAmount(amount)}
                       className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200"
                     >
-                      ${amount}
+                      {currencySymbol}{amount}
                     </button>
                   ))}
                 </div>
               )}
 
-              {/* Card Fields */}
-              {selectedMethod === PosPaymentMethod.CARD && (
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Últimos 4 dígitos
-                    </label>
-                    <input
-                      type="text"
-                      value={cardLast4}
-                      onChange={(e) => setCardLast4(e.target.value.slice(0, 4))}
-                      placeholder="1234"
-                      maxLength={4}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Código autorización
-                    </label>
-                    <input
-                      type="text"
-                      value={authCode}
-                      onChange={(e) => setAuthCode(e.target.value)}
-                      placeholder="ABC123"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2]"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Transfer Fields */}
-              {selectedMethod === PosPaymentMethod.TRANSFER && (
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Número de referencia
-                  </label>
-                  <input
-                    type="text"
-                    value={referenceNumber}
-                    onChange={(e) => setReferenceNumber(e.target.value)}
-                    placeholder="Referencia de transferencia"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2]"
-                  />
-                </div>
-              )}
-
               {/* Change Display (Cash) */}
-              {selectedMethod === PosPaymentMethod.CASH && currentChange > 0 && (
+              {selectedKey === 'cash' && currentChange > 0 && (
                 <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
                   <p className="text-lg font-bold text-yellow-800">
-                    Cambio: {posService.formatCurrency(currentChange)}
+                    Cambio: {fmt(currentChange)}
                   </p>
                 </div>
               )}
@@ -326,10 +348,11 @@ export function PaymentModal({ isOpen, onClose, total, onPaymentComplete }: Paym
                     className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                   >
                     <span className="font-medium">
-                      {paymentMethods.find(m => m.id === payment.paymentMethod)?.name}
+                      {paymentMethods.find(m => m.method === payment.paymentMethod && m.cardType === (payment.cardType || undefined))?.name
+                        || paymentMethods.find(m => m.method === payment.paymentMethod)?.name}
                     </span>
                     <div className="flex items-center gap-3">
-                      <span className="font-bold">{posService.formatCurrency(payment.amount)}</span>
+                      <span className="font-bold">{fmt(payment.amount)}</span>
                       <button
                         onClick={() => handleRemovePayment(index)}
                         className="text-red-500 hover:text-red-700"

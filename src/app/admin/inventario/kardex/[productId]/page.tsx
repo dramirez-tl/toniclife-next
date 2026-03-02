@@ -79,9 +79,12 @@ function KardexContent() {
     ? branches?.find((b) => b.id === branchFilter)?.name
     : null;
 
-  const getCategoryBadge = (category: string) => {
-    const isInbound = category === 'inbound';
-    if (isInbound) {
+  /** Determina si un movimiento es entrada considerando category + type */
+  const isEntryMovement = (category: string, type: string) =>
+    category === 'inbound' || category === 'return_from_customer' || type === 'entry' || type === 'transfer_in' || type === 'adjustment_positive' || type === 'initial_load';
+
+  const getCategoryBadge = (category: string, type: string) => {
+    if (isEntryMovement(category, type)) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
           <ArrowUpIcon className="h-3 w-3" />
@@ -97,20 +100,49 @@ function KardexContent() {
     );
   };
 
-  const getMovementTypeBadge = (type: MovementType) => {
-    const colors: Record<MovementType, string> = {
+  const getMovementTypeBadge = (type: string, category?: string) => {
+    const colors: Record<string, string> = {
       [MovementType.ENTRY]: 'bg-green-100 text-green-700',
       [MovementType.EXIT]: 'bg-red-100 text-red-700',
       [MovementType.TRANSFER]: 'bg-blue-100 text-blue-700',
+      transfer_in: 'bg-blue-100 text-blue-700',
+      transfer_out: 'bg-blue-100 text-blue-700',
       [MovementType.ADJUSTMENT]: 'bg-yellow-100 text-yellow-700',
+      adjustment_positive: 'bg-green-100 text-green-700',
+      adjustment_negative: 'bg-red-100 text-red-700',
       [MovementType.RETURN]: 'bg-purple-100 text-purple-700',
       [MovementType.PRODUCTION]: 'bg-indigo-100 text-indigo-700',
       [MovementType.LOSS]: 'bg-red-100 text-red-700',
+      initial_load: 'bg-gray-100 text-gray-700',
+      physical_count: 'bg-yellow-100 text-yellow-700',
     };
 
+    const categoryColors: Record<string, string> = {
+      sale: 'bg-orange-100 text-orange-700',
+      return_from_customer: 'bg-purple-100 text-purple-700',
+    };
+
+    const categoryLabels: Record<string, string> = {
+      sale: 'Venta POS',
+      return_from_customer: 'Devolución Venta',
+    };
+
+    const labels: Record<string, string> = {
+      transfer_in: 'Traspaso Entrada',
+      transfer_out: 'Traspaso Salida',
+      adjustment_positive: 'Ajuste (+)',
+      adjustment_negative: 'Ajuste (-)',
+      initial_load: 'Carga Inicial',
+      physical_count: 'Conteo Físico',
+    };
+
+    // Prefer category-specific label/color when available
+    const label = (category && categoryLabels[category]) || labels[type] || inventoryService.getMovementTypeLabel(type as MovementType);
+    const color = (category && categoryColors[category]) || colors[type] || 'bg-gray-100 text-gray-700';
+
     return (
-      <span className={`inline-flex items-center px-2 py-1 ${colors[type]} rounded-full text-xs font-medium`}>
-        {inventoryService.getMovementTypeLabel(type)}
+      <span className={`inline-flex items-center px-2 py-1 ${color} rounded-full text-xs font-medium`}>
+        {label}
       </span>
     );
   };
@@ -356,16 +388,16 @@ function KardexContent() {
                             {inventoryService.formatDateTime(movement.createdAt)}
                           </td>
                           <td className="py-3 px-4">
-                            {getMovementTypeBadge(movement.movementType)}
+                            {getMovementTypeBadge(movement.movementType, movement.movementCategory)}
                           </td>
-                          <td className="py-3 px-4">{getCategoryBadge(movement.movementCategory)}</td>
+                          <td className="py-3 px-4">{getCategoryBadge(movement.movementCategory, movement.movementType)}</td>
                           <td className="py-3 px-4 text-center">
                             <span
                               className={`font-bold font-mono ${
-                                movement.movementCategory === 'inbound' ? 'text-green-600' : 'text-red-600'
+                                isEntryMovement(movement.movementCategory, movement.movementType) ? 'text-green-600' : 'text-red-600'
                               }`}
                             >
-                              {movement.movementCategory === 'inbound' ? '+' : '-'}
+                              {isEntryMovement(movement.movementCategory, movement.movementType) ? '+' : '-'}
                               {movement.quantity.toLocaleString('es-MX')}
                             </span>
                           </td>

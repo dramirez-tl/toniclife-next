@@ -1,120 +1,142 @@
 // components/pos/PosCart.tsx - Shopping cart component for POS
 'use client';
 
-import { TrashIcon, PlusIcon, MinusIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, PlusIcon, MinusIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
 import { usePosCartStore } from '@/stores/pos-cart.store';
+import { PosCustomerSelector } from './PosCustomerSelector';
 import Image from 'next/image';
 
 interface PosCartProps {
   onCheckout?: () => void;
   disabled?: boolean;
+  currencySymbol?: string;
 }
 
-export function PosCart({ onCheckout, disabled }: PosCartProps) {
+export function PosCart({ onCheckout, disabled, currencySymbol = '$' }: PosCartProps) {
   const { cart, updateItemQuantity, removeItem, clearCart } = usePosCartStore();
 
   const hasItems = cart.items.length > 0;
 
+  const fmt = (amount: number) =>
+    `${currencySymbol}${amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  // Build dynamic tax label from item rates
+  const taxLabel = (() => {
+    if (!hasItems) return 'Impuestos';
+    const rates = new Set(cart.items.map((i) => i.taxRate));
+    if (rates.size === 1) {
+      const rate = rates.values().next().value!;
+      const pct = Math.round(rate * 100);
+      return `IVA (${pct}%)`;
+    }
+    return 'Impuestos';
+  })();
+
   return (
     <div className="flex flex-col h-full bg-white rounded-xl shadow-sm border">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b">
-        <h2 className="text-lg font-bold text-gray-900">
-          Carrito ({cart.items.length})
-        </h2>
+      <div className="flex items-center justify-between px-4 py-3 border-b">
+        <div className="flex items-center gap-2">
+          <ShoppingCartIcon className="h-5 w-5 text-[#3E667D]" />
+          <h2 className="text-lg font-bold text-gray-900">
+            Carrito
+          </h2>
+          {hasItems && (
+            <span className="bg-[#3E667D] text-white text-xs font-bold px-2 py-0.5 rounded-full">
+              {cart.items.length}
+            </span>
+          )}
+        </div>
         {hasItems && (
           <button
             onClick={clearCart}
-            className="text-sm text-red-600 hover:text-red-700 font-medium"
+            className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded font-medium transition-colors"
           >
             Vaciar
           </button>
         )}
       </div>
 
+      {/* Customer Selector */}
+      <div className="px-3 pt-3">
+        <PosCustomerSelector />
+      </div>
+
       {/* Items List */}
-      <div className="flex-grow overflow-y-auto p-4 space-y-3">
+      <div className="flex-grow overflow-y-auto p-3 space-y-2">
         {!hasItems ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400 py-8">
-            <svg
-              className="h-16 w-16 mb-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-              />
-            </svg>
-            <p className="text-sm">Busca productos para agregar</p>
+          <div className="flex flex-col items-center justify-center h-full text-gray-300 py-8">
+            <ShoppingCartIcon className="h-16 w-16 mb-3" />
+            <p className="text-sm text-gray-400">Busca productos para agregar</p>
           </div>
         ) : (
           cart.items.map((item) => (
             <div
               key={item.productId}
-              className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+              className="bg-gray-50 rounded-lg border border-gray-100 p-3"
             >
-              {/* Image */}
-              <div className="w-12 h-12 bg-white rounded-lg overflow-hidden flex-shrink-0 border">
-                {item.productImage ? (
-                  <Image
-                    src={item.productImage}
-                    alt={item.productName}
-                    width={48}
-                    height={48}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs font-bold">
-                    {item.productName.substring(0, 2).toUpperCase()}
-                  </div>
-                )}
-              </div>
+              {/* Row 1: Image + Name + Remove */}
+              <div className="flex items-start gap-2.5 mb-2">
+                {/* Image */}
+                <div className="w-10 h-10 bg-white rounded-md overflow-hidden flex-shrink-0 border border-gray-200">
+                  {item.productImage ? (
+                    <Image
+                      src={item.productImage}
+                      alt={item.productName}
+                      width={40}
+                      height={40}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-[#3E667D]/10 text-[#3E667D] text-xs font-bold">
+                      {item.productName.substring(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                </div>
 
-              {/* Info */}
-              <div className="flex-grow min-w-0">
-                <p className="font-medium text-gray-900 text-sm truncate">
-                  {item.productName}
-                </p>
-                <p className="text-xs text-gray-500">${item.unitPrice.toFixed(2)} c/u</p>
-              </div>
+                {/* Name */}
+                <div className="flex-grow min-w-0">
+                  <p className="font-semibold text-gray-900 text-sm leading-tight line-clamp-2">
+                    {item.productName}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {fmt(item.unitPrice)} c/u
+                  </p>
+                </div>
 
-              {/* Quantity Controls */}
-              <div className="flex items-center gap-1">
+                {/* Remove */}
                 <button
-                  onClick={() => updateItemQuantity(item.productId, item.quantity - 1)}
-                  className="p-1 rounded bg-gray-200 hover:bg-gray-300 transition-colors"
+                  onClick={() => removeItem(item.productId)}
+                  className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0"
                 >
-                  <MinusIcon className="h-4 w-4" />
-                </button>
-                <span className="w-8 text-center font-medium text-sm">
-                  {item.quantity}
-                </span>
-                <button
-                  onClick={() => updateItemQuantity(item.productId, item.quantity + 1)}
-                  className="p-1 rounded bg-gray-200 hover:bg-gray-300 transition-colors"
-                >
-                  <PlusIcon className="h-4 w-4" />
+                  <TrashIcon className="h-4 w-4" />
                 </button>
               </div>
 
-              {/* Total */}
-              <div className="text-right w-20 flex-shrink-0">
+              {/* Row 2: Quantity Controls + Total */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-0.5 bg-white border border-gray-200 rounded-lg">
+                  <button
+                    onClick={() => updateItemQuantity(item.productId, item.quantity - 1)}
+                    className="p-1.5 hover:bg-gray-100 rounded-l-lg transition-colors text-gray-500"
+                  >
+                    <MinusIcon className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="w-9 text-center font-bold text-sm text-gray-900 select-none">
+                    {item.quantity}
+                  </span>
+                  <button
+                    onClick={() => updateItemQuantity(item.productId, item.quantity + 1)}
+                    disabled={item.stock != null && item.quantity >= item.stock}
+                    className="p-1.5 hover:bg-gray-100 rounded-r-lg transition-colors text-gray-500 disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                  >
+                    <PlusIcon className="h-3.5 w-3.5" />
+                  </button>
+                </div>
                 <p className="font-bold text-[#3E667D] text-sm">
-                  ${item.total.toFixed(2)}
+                  {fmt(item.total)}
                 </p>
               </div>
-
-              {/* Remove */}
-              <button
-                onClick={() => removeItem(item.productId)}
-                className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-              >
-                <TrashIcon className="h-4 w-4" />
-              </button>
             </div>
           ))
         )}
@@ -122,10 +144,10 @@ export function PosCart({ onCheckout, disabled }: PosCartProps) {
 
       {/* Totals */}
       {hasItems && (
-        <div className="p-4 border-t bg-gray-50 space-y-2">
+        <div className="px-4 py-3 border-t bg-gray-50/80 space-y-1.5">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Subtotal</span>
-            <span className="font-medium">${cart.subtotal.toFixed(2)}</span>
+            <span className="text-gray-500">Subtotal</span>
+            <span className="font-medium text-gray-700">{fmt(cart.subtotal)}</span>
           </div>
 
           {cart.discountAmount && cart.discountAmount > 0 && (
@@ -134,30 +156,40 @@ export function PosCart({ onCheckout, disabled }: PosCartProps) {
                 Descuento
                 {cart.discountPercent && ` (${cart.discountPercent}%)`}
               </span>
-              <span>-${cart.discountAmount.toFixed(2)}</span>
+              <span>-{fmt(cart.discountAmount)}</span>
             </div>
           )}
 
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">IVA (16%)</span>
-            <span className="font-medium">${cart.taxAmount.toFixed(2)}</span>
+            <span className="text-gray-500">{taxLabel}</span>
+            <span className="font-medium text-gray-700">{fmt(cart.taxAmount)}</span>
           </div>
 
-          <div className="flex justify-between text-lg font-bold pt-2 border-t">
-            <span>Total</span>
-            <span className="text-[#3E667D]">${cart.total.toFixed(2)}</span>
+          <div className="flex justify-between items-center text-lg font-bold pt-2 border-t border-gray-200">
+            <span className="text-gray-900">Total</span>
+            <span className="text-[#3E667D]">{fmt(cart.total)}</span>
           </div>
 
-          {/* Customer Info */}
-          {cart.customerName && (
-            <div className="text-sm text-gray-600 pt-2 border-t">
-              <p>Cliente: {cart.customerName}</p>
-              {cart.customerRfc && <p>RFC: {cart.customerRfc}</p>}
+          {/* Points & Business Volume */}
+          {cart.customerId && (cart.totalPoints > 0 || cart.totalBusinessVolume > 0) && (
+            <div className="pt-2 border-t border-gray-200 space-y-1">
+              {cart.totalPoints > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-purple-600">Puntos</span>
+                  <span className="font-medium text-purple-700">{cart.totalPoints.toFixed(2)}</span>
+                </div>
+              )}
+              {cart.totalBusinessVolume > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-indigo-600">Valor Negocio</span>
+                  <span className="font-medium text-indigo-700">{cart.totalBusinessVolume.toFixed(2)}</span>
+                </div>
+              )}
             </div>
           )}
 
           {cart.requiresInvoice && (
-            <div className="text-sm text-blue-600 font-medium">
+            <div className="text-xs text-blue-600 font-medium">
               Requiere factura
             </div>
           )}
@@ -165,13 +197,13 @@ export function PosCart({ onCheckout, disabled }: PosCartProps) {
       )}
 
       {/* Checkout Button */}
-      <div className="p-4 border-t">
+      <div className="p-3 border-t">
         <button
           onClick={onCheckout}
-          disabled={!hasItems || disabled}
-          className="w-full py-4 px-6 bg-[#3E667D] text-white font-bold text-lg rounded-xl hover:bg-[#6aa526] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!hasItems || disabled || !cart.customerId}
+          className="w-full py-3.5 px-6 bg-[#3E667D] text-white font-bold text-base rounded-xl hover:bg-[#2d4f63] active:scale-[0.98] transition-all disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
         >
-          Cobrar ${cart.total.toFixed(2)}
+          {cart.customerId ? `Cobrar ${fmt(cart.total)}` : 'Seleccione distribuidor'}
         </button>
       </div>
     </div>

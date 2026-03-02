@@ -241,46 +241,66 @@ class PosService {
   /**
    * Search products for POS (quick search by SKU or name)
    */
-  async searchProducts(query: string, limit = 10): Promise<QuickProduct[]> {
+  async searchProducts(query: string, limit = 10, branchId?: string, priceTypeId?: string): Promise<QuickProduct[]> {
     // Use the existing products endpoint with search
     const response = await api.get('/products', {
       params: {
         search: query,
         isActive: true,
+        isVisibleEcommerce: true,
         limit,
+        ...(branchId && { branchId }),
+        ...(priceTypeId && { priceTypeId }),
       },
     });
-    // Map to QuickProduct format
+    // Map to QuickProduct format (API returns code, price, not sku/basePrice)
     return response.data.data?.map((p: any) => ({
       id: p.id,
-      sku: p.sku,
+      sku: p.code,
       name: p.name,
       slug: p.slug,
       imageUrl: p.imageUrl,
-      basePrice: parseFloat(p.basePrice),
+      basePrice: parseFloat(p.price || '0'),
       categoryName: p.categoryName,
       stock: p.stock,
       isActive: p.isActive,
+      taxRate: p.taxRate != null ? Number(p.taxRate) : undefined,
+      isIncludedInPrice: p.taxIncludedInPrice,
+      points: p.pricePoints != null ? Number(p.pricePoints) : 0,
+      businessVolume: p.priceBusinessValue != null ? Number(p.priceBusinessValue) : 0,
     })) || [];
   }
 
   /**
-   * Get product by SKU (for barcode scanning)
+   * Resolve prices for a batch of products by price type
+   */
+  async resolveProductPrices(productIds: string[], priceTypeId: string): Promise<Array<{ productId: string; price: number; points: number; businessValue: number }>> {
+    const response = await api.post<Array<{ productId: string; price: number; points: number; businessValue: number }>>('/products/resolve-prices', {
+      productIds,
+      priceTypeId,
+    });
+    return response.data;
+  }
+
+  /**
+   * Get product by code (for barcode scanning)
    */
   async getProductBySku(sku: string): Promise<QuickProduct | null> {
     try {
-      const response = await api.get(`/products/sku/${sku}`);
+      const response = await api.get(`/products/code/${sku}`);
       const p = response.data;
       return {
         id: p.id,
-        sku: p.sku,
+        sku: p.code,
         name: p.name,
         slug: p.slug,
         imageUrl: p.imageUrl,
-        basePrice: parseFloat(p.basePrice),
+        basePrice: parseFloat(p.price || '0'),
         categoryName: p.categoryName,
         stock: p.stock,
         isActive: p.isActive,
+        taxRate: p.taxRate != null ? Number(p.taxRate) : undefined,
+        isIncludedInPrice: p.taxIncludedInPrice,
       };
     } catch {
       return null;

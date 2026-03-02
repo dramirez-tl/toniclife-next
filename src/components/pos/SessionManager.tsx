@@ -7,20 +7,31 @@ import {
   StopIcon,
   ExclamationTriangleIcon,
   BanknotesIcon,
+  EyeIcon,
+  EyeSlashIcon,
 } from '@heroicons/react/24/outline';
 import { useActiveSession, useAvailableRegisters, useOpenSession, useCloseSession } from '@/hooks/usePos';
 import type { CashRegister } from '@/types/pos';
-import { posService } from '@/services/pos.service';
 import { toast } from 'sonner';
 
 interface SessionManagerProps {
   branchId?: string;
+  currencyId?: string;
+  currencySymbol?: string;
+  currencyCode?: string;
   onSessionChange?: () => void;
 }
 
-export function SessionManager({ branchId, onSessionChange }: SessionManagerProps) {
+export function SessionManager({
+  branchId,
+  currencyId,
+  currencySymbol = '$',
+  currencyCode = 'MXN',
+  onSessionChange,
+}: SessionManagerProps) {
   const [showOpenModal, setShowOpenModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
+  const [showAmounts, setShowAmounts] = useState(false);
   const [selectedRegister, setSelectedRegister] = useState<CashRegister | null>(null);
   const [openingAmount, setOpeningAmount] = useState('');
   const [closingAmount, setClosingAmount] = useState('');
@@ -31,6 +42,12 @@ export function SessionManager({ branchId, onSessionChange }: SessionManagerProp
   const openSession = useOpenSession();
   const closeSession = useCloseSession();
 
+  const hidden = '••••••';
+  const fmt = (amount: number) =>
+    showAmounts
+      ? `${currencySymbol}${amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : hidden;
+
   const handleOpenSession = async () => {
     if (!selectedRegister || !openingAmount) return;
 
@@ -38,6 +55,7 @@ export function SessionManager({ branchId, onSessionChange }: SessionManagerProp
       await openSession.mutateAsync({
         cashRegisterId: selectedRegister.id,
         openingAmount: parseFloat(openingAmount),
+        currencyId: currencyId || undefined,
       });
       toast.success('Sesión abierta exitosamente');
       setShowOpenModal(false);
@@ -98,11 +116,28 @@ export function SessionManager({ branchId, onSessionChange }: SessionManagerProp
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
                 <span className="font-bold text-green-800">Sesión Activa</span>
+                {session.currencyCode && (
+                  <span className="px-2 py-0.5 bg-green-200 text-green-800 text-xs font-semibold rounded-full">
+                    {session.currencyCode}
+                  </span>
+                )}
               </div>
               <p className="text-sm text-green-700 mt-1">
                 {activeSession.cashRegister.name} • {activeSession.cashRegister.branchName}
               </p>
             </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowAmounts(!showAmounts)}
+                className="p-2 text-green-700 hover:bg-green-100 rounded-lg transition-colors"
+                title={showAmounts ? 'Ocultar montos' : 'Mostrar montos'}
+              >
+                {showAmounts ? (
+                  <EyeSlashIcon className="h-5 w-5" />
+                ) : (
+                  <EyeIcon className="h-5 w-5" />
+                )}
+              </button>
             <button
               onClick={() => setShowCloseModal(true)}
               className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
@@ -110,27 +145,22 @@ export function SessionManager({ branchId, onSessionChange }: SessionManagerProp
               <StopIcon className="h-5 w-5" />
               Cerrar Caja
             </button>
+            </div>
           </div>
 
           {/* Session Summary */}
           <div className="grid grid-cols-4 gap-4 mt-4 pt-4 border-t border-green-200">
             <div>
               <p className="text-xs text-green-600">Apertura</p>
-              <p className="font-bold text-green-800">
-                {posService.formatCurrency(session.openingAmount)}
-              </p>
+              <p className="font-bold text-green-800">{fmt(session.openingAmount)}</p>
             </div>
             <div>
               <p className="text-xs text-green-600">Ventas</p>
-              <p className="font-bold text-green-800">
-                {posService.formatCurrency(session.summary.totalSales)}
-              </p>
+              <p className="font-bold text-green-800">{fmt(session.summary.totalSales)}</p>
             </div>
             <div>
               <p className="text-xs text-green-600">Esperado</p>
-              <p className="font-bold text-green-800">
-                {posService.formatCurrency(expectedBalance)}
-              </p>
+              <p className="font-bold text-green-800">{fmt(expectedBalance)}</p>
             </div>
             <div>
               <p className="text-xs text-green-600"># Ventas</p>
@@ -150,9 +180,7 @@ export function SessionManager({ branchId, onSessionChange }: SessionManagerProp
                   <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600 flex-shrink-0" />
                   <div>
                     <p className="font-medium text-yellow-800">Balance esperado</p>
-                    <p className="text-2xl font-bold text-yellow-900">
-                      {posService.formatCurrency(expectedBalance)}
-                    </p>
+                    <p className="text-2xl font-bold text-yellow-900">{fmt(expectedBalance)}</p>
                   </div>
                 </div>
               </div>
@@ -163,7 +191,9 @@ export function SessionManager({ branchId, onSessionChange }: SessionManagerProp
                     Monto contado en caja *
                   </label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                      {currencySymbol}
+                    </span>
                     <input
                       type="number"
                       value={closingAmount}
@@ -175,10 +205,14 @@ export function SessionManager({ branchId, onSessionChange }: SessionManagerProp
                     />
                   </div>
                   {closingAmount && parseFloat(closingAmount) !== expectedBalance && (
-                    <p className={`text-sm mt-1 ${
-                      parseFloat(closingAmount) > expectedBalance ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      Diferencia: {posService.formatCurrency(parseFloat(closingAmount) - expectedBalance)}
+                    <p
+                      className={`text-sm mt-1 ${
+                        parseFloat(closingAmount) > expectedBalance
+                          ? 'text-green-600'
+                          : 'text-red-600'
+                      }`}
+                    >
+                      Diferencia: {fmt(parseFloat(closingAmount) - expectedBalance)}
                     </p>
                   )}
                 </div>
@@ -263,9 +297,13 @@ export function SessionManager({ branchId, onSessionChange }: SessionManagerProp
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
-                        <BanknotesIcon className={`h-6 w-6 ${
-                          selectedRegister?.id === register.id ? 'text-[#3E667D]' : 'text-gray-400'
-                        }`} />
+                        <BanknotesIcon
+                          className={`h-6 w-6 ${
+                            selectedRegister?.id === register.id
+                              ? 'text-[#3E667D]'
+                              : 'text-gray-400'
+                          }`}
+                        />
                         <div className="text-left">
                           <p className="font-medium">{register.name}</p>
                           <p className="text-xs text-gray-500">{register.branchName}</p>
@@ -274,7 +312,7 @@ export function SessionManager({ branchId, onSessionChange }: SessionManagerProp
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-sm">No hay cajas disponibles</p>
+                  <p className="text-gray-500 text-sm">No hay cajas disponibles en esta sucursal</p>
                 )}
               </div>
 
@@ -283,7 +321,9 @@ export function SessionManager({ branchId, onSessionChange }: SessionManagerProp
                   Monto inicial en caja *
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    {currencySymbol}
+                  </span>
                   <input
                     type="number"
                     value={openingAmount}
@@ -294,6 +334,14 @@ export function SessionManager({ branchId, onSessionChange }: SessionManagerProp
                     className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2]"
                   />
                 </div>
+              </div>
+
+              {/* Currency info */}
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <span className="px-2 py-0.5 bg-gray-100 border rounded text-xs font-semibold">
+                  {currencyCode} {currencySymbol}
+                </span>
+                <span>Moneda de la sucursal</span>
               </div>
             </div>
 
@@ -311,7 +359,7 @@ export function SessionManager({ branchId, onSessionChange }: SessionManagerProp
               <button
                 onClick={handleOpenSession}
                 disabled={!selectedRegister || !openingAmount || openSession.isPending}
-                className="flex-1 px-4 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#6aa526] disabled:opacity-50"
+                className="flex-1 px-4 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#2d4f63] disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
               >
                 {openSession.isPending ? 'Abriendo...' : 'Abrir Caja'}
               </button>

@@ -1,9 +1,9 @@
-// app/admin/inventario/traspasos/page.tsx - Transfer Management
-// Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.2 Módulo Productos e Inventario
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useCallback, useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import Link from 'next/link';
+import { selectUser } from '@/store/slices/authSlice';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import {
@@ -13,18 +13,26 @@ import {
   PlusIcon,
   EyeIcon,
   CheckIcon,
-  TruckIcon,
-  ArchiveBoxIcon,
+  CheckBadgeIcon,
   XMarkIcon,
   ClockIcon,
-  ArrowPathIcon,
+  PlayIcon,
+  ExclamationTriangleIcon,
+  NoSymbolIcon,
+  TruckIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import { useTransfers, useApproveTransfer, useShipTransfer, useCancelTransfer } from '@/hooks/useInventory';
+import {
+  useTransfers,
+  useApproveTransfer,
+  useApplyTransfer,
+  useRejectTransfer,
+  useCancelTransfer,
+} from '@/hooks/useInventory';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { inventoryService } from '@/services/inventory.service';
-import { TransferStatus, type TransferQueryDto, type TransferDto } from '@/types/inventory';
+import { MovementStatus, type TransferQueryDto, type TransferDto } from '@/types/inventory';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 export default function TraspasosPage() {
@@ -32,16 +40,15 @@ export default function TraspasosPage() {
 }
 
 function TraspasosContent() {
-  const { get, getNumber, setParams } = useQueryFilters({
-    page: '1',
-  });
+  const currentUser = useSelector(selectUser);
+  const { get, getNumber, setParams } = useQueryFilters({ page: '1' });
 
   const searchQuery = get('search');
-  const statusFilter = get('status') as TransferStatus | '';
+  const statusFilter = get('status') as MovementStatus | '';
   const sourceBranchFilter = get('sourceBranch');
   const destBranchFilter = get('destBranch');
   const page = getNumber('page') || 1;
-  // Fetch branches for filters
+
   const { data: branches } = useActiveBranches();
 
   const query: TransferQueryDto = {
@@ -57,72 +64,111 @@ function TraspasosContent() {
 
   const { data: transfersData, isLoading } = useTransfers(query);
   const approveTransfer = useApproveTransfer();
-  const shipTransfer = useShipTransfer();
+  const applyTransfer = useApplyTransfer();
+  const rejectTransfer = useRejectTransfer();
   const cancelTransfer = useCancelTransfer();
+
+  // Modal state for reject/cancel with reason
+  const [actionModal, setActionModal] = useState<{
+    type: 'reject' | 'cancel';
+    transfer: TransferDto;
+  } | null>(null);
+  const [actionReason, setActionReason] = useState('');
+
+  const closeActionModal = useCallback(() => {
+    if (!rejectTransfer.isPending && !cancelTransfer.isPending) {
+      setActionModal(null);
+      setActionReason('');
+    }
+  }, [rejectTransfer.isPending, cancelTransfer.isPending]);
+
+  useEffect(() => {
+    if (!actionModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeActionModal();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [actionModal, closeActionModal]);
 
   const handleApprove = async (transfer: TransferDto) => {
     try {
       await approveTransfer.mutateAsync({ id: transfer.id });
       toast.success('Traspaso aprobado correctamente');
-    } catch (error) {
-      toast.error('Error al aprobar el traspaso');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Error al aprobar el traspaso';
+      toast.error(msg);
     }
   };
 
-  const handleShip = async (transfer: TransferDto) => {
+  const handleApply = async (transfer: TransferDto) => {
     try {
-      await shipTransfer.mutateAsync({ id: transfer.id });
-      toast.success('Traspaso marcado como enviado');
-    } catch (error) {
-      toast.error('Error al enviar el traspaso');
+      await applyTransfer.mutateAsync(transfer.id);
+      toast.success('Traspaso aplicado — inventario movido correctamente');
+    } catch {
+      toast.error('Error al aplicar el traspaso');
     }
   };
 
-  const handleCancel = async (transfer: TransferDto) => {
-    const reason = prompt('Ingresa el motivo de cancelación:');
-    if (!reason) return;
-
+  const handleActionConfirm = async () => {
+    if (!actionModal || !actionReason.trim()) return;
     try {
-      await cancelTransfer.mutateAsync({ id: transfer.id, data: { reason } });
-      toast.success('Traspaso cancelado');
-    } catch (error) {
-      toast.error('Error al cancelar el traspaso');
+      if (actionModal.type === 'reject') {
+        await rejectTransfer.mutateAsync({
+          id: actionModal.transfer.id,
+          data: { reason: actionReason.trim() },
+        });
+        toast.success('Traspaso rechazado');
+      } else {
+        await cancelTransfer.mutateAsync({
+          id: actionModal.transfer.id,
+          data: { reason: actionReason.trim() },
+        });
+        toast.success('Traspaso cancelado');
+      }
+      closeActionModal();
+    } catch {
+      toast.error(
+        actionModal.type === 'reject'
+          ? 'Error al rechazar el traspaso'
+          : 'Error al cancelar el traspaso',
+      );
     }
   };
 
-  const getStatusBadge = (status: TransferStatus) => {
-    const config: Record<TransferStatus, { bg: string; text: string; icon: React.ReactNode }> = {
-      [TransferStatus.PENDING]: {
+  const getStatusBadge = (status: string) => {
+    const config: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
+      pending_approval: {
         bg: 'bg-yellow-100',
         text: 'text-yellow-700',
         icon: <ClockIcon className="h-3 w-3" />,
       },
-      [TransferStatus.IN_TRANSIT]: {
+      approved: {
         bg: 'bg-blue-100',
         text: 'text-blue-700',
         icon: <TruckIcon className="h-3 w-3" />,
       },
-      [TransferStatus.RECEIVED]: {
+      applied: {
         bg: 'bg-green-100',
         text: 'text-green-700',
-        icon: <CheckIcon className="h-3 w-3" />,
+        icon: <CheckBadgeIcon className="h-3 w-3" />,
       },
-      [TransferStatus.CANCELLED]: {
+      rejected: {
         bg: 'bg-red-100',
         text: 'text-red-700',
         icon: <XMarkIcon className="h-3 w-3" />,
       },
-      [TransferStatus.PARTIAL]: {
-        bg: 'bg-orange-100',
-        text: 'text-orange-700',
-        icon: <ArrowPathIcon className="h-3 w-3" />,
+      cancelled: {
+        bg: 'bg-gray-100',
+        text: 'text-gray-600',
+        icon: <NoSymbolIcon className="h-3 w-3" />,
       },
     };
 
-    const { bg, text, icon } = config[status];
+    const c = config[status] || config.pending_approval;
     return (
-      <span className={`inline-flex items-center gap-1 px-2 py-1 ${bg} ${text} rounded-full text-xs font-medium`}>
-        {icon}
+      <span className={`inline-flex items-center gap-1 px-2 py-1 ${c.bg} ${c.text} rounded-full text-xs font-medium`}>
+        {c.icon}
         {inventoryService.getTransferStatusLabel(status)}
       </span>
     );
@@ -131,9 +177,9 @@ function TraspasosContent() {
   // Stats
   const stats = {
     total: transfersData?.total || 0,
-    pending: transfersData?.data.filter(t => t.status === TransferStatus.PENDING).length || 0,
-    inTransit: transfersData?.data.filter(t => t.status === TransferStatus.IN_TRANSIT).length || 0,
-    received: transfersData?.data.filter(t => t.status === TransferStatus.RECEIVED).length || 0,
+    pending: transfersData?.data.filter(t => t.status === 'pending_approval').length || 0,
+    approved: transfersData?.data.filter(t => t.status === 'approved').length || 0,
+    applied: transfersData?.data.filter(t => t.status === 'applied').length || 0,
   };
 
   return (
@@ -156,10 +202,7 @@ function TraspasosContent() {
                 <Button variant="secondary">Volver a Inventario</Button>
               </Link>
               <Link href="/admin/inventario/traspasos/nuevo">
-                <Button
-                  variant="primary"
-                  leftIcon={<PlusIcon className="h-5 w-5" />}
-                >
+                <Button variant="primary" leftIcon={<PlusIcon className="h-5 w-5" />}>
                   Nuevo Traspaso
                 </Button>
               </Link>
@@ -185,7 +228,6 @@ function TraspasosContent() {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -199,13 +241,12 @@ function TraspasosContent() {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">En Tránsito</p>
-                  <p className="text-3xl font-bold text-blue-600">{stats.inTransit}</p>
+                  <p className="text-3xl font-bold text-blue-600">{stats.approved}</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                   <TruckIcon className="h-6 w-6 text-blue-600" />
@@ -213,16 +254,15 @@ function TraspasosContent() {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Recibidos</p>
-                  <p className="text-3xl font-bold text-green-600">{stats.received}</p>
+                  <p className="text-sm text-gray-600 mb-1">Aplicados</p>
+                  <p className="text-3xl font-bold text-green-600">{stats.applied}</p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <CheckIcon className="h-6 w-6 text-green-600" />
+                  <CheckBadgeIcon className="h-6 w-6 text-green-600" />
                 </div>
               </div>
             </CardContent>
@@ -233,13 +273,12 @@ function TraspasosContent() {
         <Card className="mb-6">
           <CardContent className="p-6">
             <div className="flex flex-col lg:flex-row gap-4">
-              {/* Search */}
               <div className="flex-1">
                 <div className="relative">
                   <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Buscar por número de traspaso..."
+                    placeholder="Buscar por número de movimiento..."
                     value={searchInput}
                     onChange={(e) => {
                       setSearchInput(e.target.value);
@@ -249,24 +288,21 @@ function TraspasosContent() {
                   />
                 </div>
               </div>
-
-              {/* Status Filter */}
               <div className="flex items-center gap-2">
                 <FunnelIcon className="h-5 w-5 text-gray-400" />
                 <SearchableSelect
                   options={[
-                    { value: TransferStatus.PENDING, label: 'Pendiente' },
-                    { value: TransferStatus.IN_TRANSIT, label: 'En Tránsito' },
-                    { value: TransferStatus.RECEIVED, label: 'Recibido' },
-                    { value: TransferStatus.CANCELLED, label: 'Cancelado' },
+                    { value: 'pending_approval', label: 'Pendiente' },
+                    { value: 'approved', label: 'En Tránsito' },
+                    { value: 'applied', label: 'Aplicado' },
+                    { value: 'rejected', label: 'Rechazado' },
+                    { value: 'cancelled', label: 'Cancelado' },
                   ]}
                   value={statusFilter}
                   onChange={(val) => setParams({ status: val })}
                   allLabel="Todos los Estados"
                 />
               </div>
-
-              {/* Source Branch */}
               <SearchableSelect
                 options={(branches ?? []).map((branch) => ({
                   value: branch.id,
@@ -276,8 +312,6 @@ function TraspasosContent() {
                 onChange={(val) => setParams({ sourceBranch: val })}
                 allLabel="Origen: Todas"
               />
-
-              {/* Destination Branch */}
               <SearchableSelect
                 options={(branches ?? []).map((branch) => ({
                   value: branch.id,
@@ -305,44 +339,30 @@ function TraspasosContent() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-gray-200">
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                          # Traspaso
-                        </th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                          Origen → Destino
-                        </th>
-                        <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">
-                          Items
-                        </th>
-                        <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">
-                          Cantidad
-                        </th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                          Estado
-                        </th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                          Solicitado
-                        </th>
-                        <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">
-                          Acciones
-                        </th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900"># Movimiento</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Origen → Destino</th>
+                        <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">Items</th>
+                        <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">Cantidad</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Estado</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Solicitado</th>
+                        <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
                       {transfersData?.data.map((transfer) => (
-                        <tr
-                          key={transfer.id}
-                          className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                        >
+                        <tr key={transfer.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                           <td className="py-4 px-4">
-                            <span className="font-mono font-semibold text-[#3E667D]">
-                              {transfer.transferNumber}
-                            </span>
+                            <Link
+                              href={`/admin/inventario/traspasos/${transfer.id}`}
+                              className="font-mono font-semibold text-[#3E667D] hover:underline"
+                            >
+                              {transfer.movementNumber}
+                            </Link>
                           </td>
                           <td className="py-4 px-4">
                             <div className="flex items-center gap-2">
-                              <span className="font-medium">{transfer.sourceBranch.name}</span>
-                              <ArrowsRightLeftIcon className="h-4 w-4 text-gray-400" />
+                              <span className="font-medium">{transfer.branch.name}</span>
+                              <ArrowsRightLeftIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
                               <span className="font-medium">{transfer.destinationBranch.name}</span>
                             </div>
                           </td>
@@ -357,53 +377,63 @@ function TraspasosContent() {
                             <div>
                               <p>{inventoryService.formatDateTime(transfer.requestedAt)}</p>
                               {transfer.requestedBy && (
-                                <p className="text-xs text-gray-500">
-                                  por {transfer.requestedBy.name}
-                                </p>
+                                <p className="text-xs text-gray-500">por {transfer.requestedBy.name}</p>
                               )}
                             </div>
                           </td>
                           <td className="py-4 px-4">
-                            <div className="flex items-center justify-end gap-2">
+                            <div className="flex items-center justify-end gap-1">
                               <Link href={`/admin/inventario/traspasos/${transfer.id}`}>
-                                <button
-                                  className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
-                                  title="Ver Detalle"
-                                >
+                                <button className="p-2 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Detalle">
                                   <EyeIcon className="h-4 w-4 text-blue-600" />
                                 </button>
                               </Link>
 
-                              {transfer.status === TransferStatus.PENDING && (
+                              {transfer.status === 'pending_approval' && (
                                 <>
                                   <button
                                     onClick={() => handleApprove(transfer)}
-                                    className="p-2 hover:bg-green-50 rounded-lg transition-colors"
-                                    title="Aprobar"
-                                    disabled={approveTransfer.isPending}
+                                    className="p-2 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                    title={currentUser?.id === transfer.requestedBy?.id ? 'No puedes aprobar tu propio traspaso' : 'Aprobar'}
+                                    disabled={approveTransfer.isPending || currentUser?.id === transfer.requestedBy?.id}
                                   >
                                     <CheckIcon className="h-4 w-4 text-green-600" />
                                   </button>
                                   <button
-                                    onClick={() => handleCancel(transfer)}
+                                    onClick={() => setActionModal({ type: 'reject', transfer })}
+                                    className="p-2 hover:bg-orange-50 rounded-lg transition-colors"
+                                    title="Rechazar"
+                                  >
+                                    <XMarkIcon className="h-4 w-4 text-orange-600" />
+                                  </button>
+                                  <button
+                                    onClick={() => setActionModal({ type: 'cancel', transfer })}
                                     className="p-2 hover:bg-red-50 rounded-lg transition-colors"
                                     title="Cancelar"
-                                    disabled={cancelTransfer.isPending}
                                   >
-                                    <XMarkIcon className="h-4 w-4 text-red-600" />
+                                    <NoSymbolIcon className="h-4 w-4 text-red-600" />
                                   </button>
                                 </>
                               )}
 
-                              {transfer.status === TransferStatus.IN_TRANSIT && (
-                                <Link href={`/admin/inventario/traspasos/${transfer.id}/recibir`}>
+                              {transfer.status === 'approved' && (
+                                <>
                                   <button
-                                    className="p-2 hover:bg-purple-50 rounded-lg transition-colors"
-                                    title="Recibir"
+                                    onClick={() => handleApply(transfer)}
+                                    className="p-2 hover:bg-green-50 rounded-lg transition-colors"
+                                    title="Aplicar Traspaso"
+                                    disabled={applyTransfer.isPending}
                                   >
-                                    <ArchiveBoxIcon className="h-4 w-4 text-purple-600" />
+                                    <PlayIcon className="h-4 w-4 text-green-600" />
                                   </button>
-                                </Link>
+                                  <button
+                                    onClick={() => setActionModal({ type: 'cancel', transfer })}
+                                    className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Cancelar"
+                                  >
+                                    <NoSymbolIcon className="h-4 w-4 text-red-600" />
+                                  </button>
+                                </>
                               )}
                             </div>
                           </td>
@@ -416,14 +446,11 @@ function TraspasosContent() {
                 {(!transfersData?.data || transfersData.data.length === 0) && (
                   <div className="text-center py-12">
                     <ArrowsRightLeftIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">
-                      No se encontraron traspasos
-                    </h3>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">No se encontraron traspasos</h3>
                     <p className="text-gray-600">Crea un nuevo traspaso para comenzar</p>
                   </div>
                 )}
 
-                {/* Pagination */}
                 {transfersData && transfersData.totalPages > 1 && (
                   <div className="mt-6 flex items-center justify-between">
                     <p className="text-sm text-gray-600">
@@ -454,6 +481,80 @@ function TraspasosContent() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Reject/Cancel Modal */}
+      {actionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={closeActionModal} />
+          <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full mx-4">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`p-2 rounded-full ${actionModal.type === 'reject' ? 'bg-orange-100' : 'bg-red-100'}`}>
+                  <ExclamationTriangleIcon
+                    className={`h-6 w-6 ${actionModal.type === 'reject' ? 'text-orange-600' : 'text-red-600'}`}
+                  />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900">
+                  {actionModal.type === 'reject' ? 'Rechazar Traspaso' : 'Cancelar Traspaso'}
+                </h3>
+              </div>
+
+              <p className="text-sm text-gray-600 mb-4">
+                {actionModal.type === 'reject'
+                  ? 'El traspaso será rechazado y el stock reservado se liberará.'
+                  : 'El traspaso será cancelado permanentemente y el stock reservado se liberará.'}
+                {' '}Movimiento:{' '}
+                <span className="font-semibold font-mono">{actionModal.transfer.movementNumber}</span>
+              </p>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Motivo <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={actionReason}
+                  onChange={(e) => setActionReason(e.target.value)}
+                  placeholder={
+                    actionModal.type === 'reject'
+                      ? 'Describe el motivo del rechazo...'
+                      : 'Describe el motivo de la cancelación...'
+                  }
+                  rows={3}
+                  maxLength={500}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3E667D]/30 focus:border-[#3E667D] resize-none"
+                  autoFocus
+                />
+                <p className="text-xs text-gray-400 mt-1 text-right">{actionReason.length}/500</p>
+              </div>
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={closeActionModal}
+                  disabled={rejectTransfer.isPending || cancelTransfer.isPending}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  Volver
+                </button>
+                <button
+                  onClick={handleActionConfirm}
+                  disabled={!actionReason.trim() || rejectTransfer.isPending || cancelTransfer.isPending}
+                  className={`flex-1 px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+                    actionModal.type === 'reject'
+                      ? 'bg-orange-600 hover:bg-orange-700'
+                      : 'bg-red-600 hover:bg-red-700'
+                  }`}
+                >
+                  {rejectTransfer.isPending || cancelTransfer.isPending
+                    ? 'Procesando...'
+                    : actionModal.type === 'reject'
+                      ? 'Confirmar Rechazo'
+                      : 'Confirmar Cancelación'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -13,16 +13,18 @@ import Image from 'next/image';
 interface PosProductSearchProps {
   onProductSelected?: (product: QuickProduct) => void;
   autoFocus?: boolean;
+  branchId?: string;
+  priceTypeId?: string;
 }
 
-export function PosProductSearch({ onProductSelected, autoFocus = true }: PosProductSearchProps) {
+export function PosProductSearch({ onProductSelected, autoFocus = true, branchId, priceTypeId }: PosProductSearchProps) {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const { data: products, isLoading } = usePosProductSearch(query, query.length >= 2);
+  const { data: products, isLoading } = usePosProductSearch(query, query.length >= 2, branchId, priceTypeId);
   const addItem = usePosCartStore((state) => state.addItem);
 
   // Handle barcode scan (typically fast input ending with Enter)
@@ -71,7 +73,21 @@ export function PosProductSearch({ onProductSelected, autoFocus = true }: PosPro
     }
   };
 
+  const cartItems = usePosCartStore((state) => state.cart.items);
+
   const handleSelectProduct = (product: QuickProduct) => {
+    if (product.stock !== undefined && product.stock <= 0) {
+      toast.error(`${product.name} no tiene existencias en esta sucursal`);
+      return;
+    }
+    // Check if adding one more would exceed stock
+    if (product.stock !== undefined) {
+      const existing = cartItems.find((i) => i.productId === product.id);
+      if (existing && existing.quantity >= product.stock) {
+        toast.error(`Stock máximo alcanzado (${product.stock})`);
+        return;
+      }
+    }
     addItem(product);
     onProductSelected?.(product);
     toast.success(`${product.name} agregado`);
@@ -155,53 +171,61 @@ export function PosProductSearch({ onProductSelected, autoFocus = true }: PosPro
           ref={dropdownRef}
           className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-lg border max-h-96 overflow-y-auto z-50"
         >
-          {products.map((product, index) => (
-            <button
-              key={product.id}
-              onClick={() => handleSelectProduct(product)}
-              className={`w-full flex items-center gap-4 p-4 text-left hover:bg-gray-50 transition-colors ${
-                index === selectedIndex ? 'bg-[#C8DDF2]/10' : ''
-              } ${index !== products.length - 1 ? 'border-b' : ''}`}
-            >
-              {/* Product Image */}
-              <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                {product.imageUrl ? (
-                  <Image
-                    src={product.imageUrl}
-                    alt={product.name}
-                    width={56}
-                    height={56}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold">
-                    {product.name.substring(0, 2).toUpperCase()}
-                  </div>
-                )}
-              </div>
+          {products.map((product, index) => {
+            const outOfStock = product.stock !== undefined && product.stock <= 0;
+            return (
+              <button
+                key={product.id}
+                onClick={() => handleSelectProduct(product)}
+                className={`w-full flex items-center gap-4 p-4 text-left transition-colors ${
+                  outOfStock ? 'opacity-60 cursor-not-allowed' : 'hover:bg-gray-50'
+                } ${index === selectedIndex ? 'bg-[#C8DDF2]/10' : ''} ${index !== products.length - 1 ? 'border-b' : ''}`}
+              >
+                {/* Product Image */}
+                <div className="w-14 h-14 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 relative">
+                  {product.imageUrl ? (
+                    <Image
+                      src={product.imageUrl}
+                      alt={product.name}
+                      width={56}
+                      height={56}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400 font-bold">
+                      {product.name.substring(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                  {outOfStock && (
+                    <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center">
+                      <span className="text-red-700 text-[10px] font-bold bg-white/80 px-1 rounded">AGOTADO</span>
+                    </div>
+                  )}
+                </div>
 
-              {/* Product Info */}
-              <div className="flex-grow min-w-0">
-                <p className="font-medium text-gray-900 truncate">{product.name}</p>
-                <p className="text-sm text-gray-500">
-                  SKU: {product.sku}
-                  {product.categoryName && ` • ${product.categoryName}`}
-                </p>
-              </div>
-
-              {/* Price */}
-              <div className="text-right flex-shrink-0">
-                <p className="font-bold text-[#3E667D]">
-                  ${product.basePrice.toFixed(2)}
-                </p>
-                {product.stock !== undefined && (
-                  <p className={`text-xs ${product.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {product.stock > 0 ? `${product.stock} en stock` : 'Sin stock'}
+                {/* Product Info */}
+                <div className="flex-grow min-w-0">
+                  <p className="font-medium text-gray-900 truncate">{product.name}</p>
+                  <p className="text-sm text-gray-500">
+                    SKU: {product.sku}
+                    {product.categoryName && ` • ${product.categoryName}`}
                   </p>
-                )}
-              </div>
-            </button>
-          ))}
+                </div>
+
+                {/* Price & Stock */}
+                <div className="text-right flex-shrink-0">
+                  <p className="font-bold text-[#3E667D]">
+                    ${product.basePrice.toFixed(2)}
+                  </p>
+                  {product.stock !== undefined && (
+                    <p className={`text-xs font-medium ${product.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {product.stock > 0 ? `${product.stock} en stock` : 'Sin existencias'}
+                    </p>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
       )}
 

@@ -3,7 +3,7 @@
 
 import api from '@/lib/api';
 import {
-  TransferStatus,
+  MovementStatus,
   AdjustmentStatus,
   AdjustmentType,
   MovementType,
@@ -19,9 +19,8 @@ import type {
   TransferQueryDto,
   CreateTransferDto,
   ApproveTransferDto,
-  ShipTransferDto,
-  ReceiveTransferDto,
   CancelTransferDto,
+  RejectTransferDto,
   AdjustmentDto,
   AdjustmentListResponseDto,
   AdjustmentQueryDto,
@@ -134,24 +133,6 @@ class InventoryService {
   async approveTransfer(id: string, data: ApproveTransferDto = {}): Promise<TransferDto> {
     const response = await api.patch<TransferDto>(
       `/inventory/transfers/${id}/approve`,
-      data
-    );
-    return response.data;
-  }
-
-  // TODO: Endpoint no implementado en backend
-  async shipTransfer(id: string, data: ShipTransferDto = {}): Promise<TransferDto> {
-    const response = await api.patch<TransferDto>(
-      `/inventory/transfers/${id}/ship`,
-      data
-    );
-    return response.data;
-  }
-
-  // TODO: Endpoint no implementado en backend
-  async receiveTransfer(id: string, data: ReceiveTransferDto): Promise<TransferDto> {
-    const response = await api.patch<TransferDto>(
-      `/inventory/transfers/${id}/receive`,
       data
     );
     return response.data;
@@ -277,24 +258,26 @@ class InventoryService {
     }).format(value);
   }
 
-  getTransferStatusLabel(status: TransferStatus): string {
-    const labels: Record<TransferStatus, string> = {
-      [TransferStatus.PENDING]: 'Pendiente',
-      [TransferStatus.IN_TRANSIT]: 'En Tránsito',
-      [TransferStatus.RECEIVED]: 'Recibido',
-      [TransferStatus.CANCELLED]: 'Cancelado',
-      [TransferStatus.PARTIAL]: 'Parcial',
+  getTransferStatusLabel(status: MovementStatus | string): string {
+    const labels: Record<string, string> = {
+      [MovementStatus.DRAFT]: 'Borrador',
+      [MovementStatus.PENDING]: 'Pendiente',
+      [MovementStatus.APPROVED]: 'En Tránsito',
+      [MovementStatus.APPLIED]: 'Aplicado',
+      [MovementStatus.REJECTED]: 'Rechazado',
+      [MovementStatus.CANCELLED]: 'Cancelado',
     };
     return labels[status] || status;
   }
 
-  getTransferStatusColor(status: TransferStatus): string {
-    const colors: Record<TransferStatus, string> = {
-      [TransferStatus.PENDING]: 'warning',
-      [TransferStatus.IN_TRANSIT]: 'info',
-      [TransferStatus.RECEIVED]: 'success',
-      [TransferStatus.CANCELLED]: 'error',
-      [TransferStatus.PARTIAL]: 'warning',
+  getTransferStatusColor(status: MovementStatus | string): string {
+    const colors: Record<string, string> = {
+      [MovementStatus.DRAFT]: 'default',
+      [MovementStatus.PENDING]: 'warning',
+      [MovementStatus.APPROVED]: 'info',
+      [MovementStatus.APPLIED]: 'success',
+      [MovementStatus.REJECTED]: 'error',
+      [MovementStatus.CANCELLED]: 'error',
     };
     return colors[status] || 'default';
   }

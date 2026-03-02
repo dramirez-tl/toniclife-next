@@ -9,8 +9,6 @@ import type {
   TransferQueryDto,
   CreateTransferDto,
   ApproveTransferDto,
-  ShipTransferDto,
-  ReceiveTransferDto,
   CancelTransferDto,
   AdjustmentQueryDto,
   CreateAdjustmentDto,
@@ -162,38 +160,6 @@ export function useApproveTransfer() {
         queryKey: inventoryKeys.transferDetail(variables.id),
       });
       queryClient.invalidateQueries({ queryKey: inventoryKeys.transfers() });
-    },
-  });
-}
-
-export function useShipTransfer() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data?: ShipTransferDto }) =>
-      inventoryService.shipTransfer(id, data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: inventoryKeys.transferDetail(variables.id),
-      });
-      queryClient.invalidateQueries({ queryKey: inventoryKeys.transfers() });
-      queryClient.invalidateQueries({ queryKey: inventoryKeys.stock() });
-    },
-  });
-}
-
-export function useReceiveTransfer() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: ReceiveTransferDto }) =>
-      inventoryService.receiveTransfer(id, data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: inventoryKeys.transferDetail(variables.id),
-      });
-      queryClient.invalidateQueries({ queryKey: inventoryKeys.transfers() });
-      queryClient.invalidateQueries({ queryKey: inventoryKeys.stock() });
     },
   });
 }
