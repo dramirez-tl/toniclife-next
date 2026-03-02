@@ -166,22 +166,6 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="font-bold text-white mb-4">Empresa</h4>
-            <ul className="space-y-2">
-              {footerLinks.empresa.map((link) => (
-                <li key={link.name}>
-                  <Link
-                    href={link.href}
-                    className="text-white/70 hover:text-[#3E667D] transition-colors text-sm"
-                  >
-                    {link.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div>
             <h4 className="font-bold text-white mb-4">Soporte</h4>
             <ul className="space-y-2">
               {footerLinks.soporte.map((link) => (
