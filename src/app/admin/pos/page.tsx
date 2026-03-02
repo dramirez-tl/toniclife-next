@@ -410,6 +410,7 @@ export default function PosPage() {
                     <button
                       onClick={() => {
                         const store = usePosCartStore.getState();
+                        store.clearCart();
                         store.setCustomer(undefined, undefined, undefined, undefined);
                         store.setPublicPrice(false);
                       }}
