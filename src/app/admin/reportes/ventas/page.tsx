@@ -1,43 +1,46 @@
 'use client';
 
-import { useState, useMemo, Suspense } from 'react';
+import { useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeftIcon,
   CurrencyDollarIcon,
   CalendarDaysIcon,
-  ArrowDownTrayIcon,
   ChartBarIcon,
-  ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
   FunnelIcon,
   BuildingStorefrontIcon,
-  CubeIcon,
+  ShoppingCartIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import { useDailySales, useSalesByProduct, useSalesByBranch } from '@/hooks/useReports';
 import { useActiveBranches } from '@/hooks/useBranches';
+import { useSales } from '@/hooks/usePos';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
+import type { Sale, SaleQueryParams, PosSaleStatus, PosPaymentMethod } from '@/types/pos';
 
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('es-MX', {
+// ================================
+// Helpers
+// ================================
+
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat('es-MX', {
     style: 'currency',
     currency: 'MXN',
-    minimumFractionDigits: 0,
+    minimumFractionDigits: 2,
   }).format(amount);
-};
 
-const formatDate = (dateStr: string) => {
-  return new Date(dateStr).toLocaleDateString('es-MX', {
-    weekday: 'short',
-    day: 'numeric',
+const formatDateTime = (dateStr: string) => {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('es-MX', {
+    day: '2-digit',
     month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 };
 
-type ViewMode = 'daily' | 'product' | 'branch';
-
-// Default dates for when none are in URL
 function getDefaultDateFrom(): string {
   const date = new Date();
   date.setDate(date.getDate() - 7);
@@ -48,6 +51,40 @@ function getDefaultDateTo(): string {
   return new Date().toISOString().split('T')[0];
 }
 
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  cash: 'Efectivo',
+  card: 'Tarjeta',
+  transfer: 'Transferencia',
+  credit: 'Crédito',
+  mixed: 'Mixto',
+};
+
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  completed: { label: 'Completada', className: 'bg-green-100 text-green-700' },
+  cancelled: { label: 'Cancelada', className: 'bg-red-100 text-red-700' },
+  refunded: { label: 'Reembolsada', className: 'bg-yellow-100 text-yellow-700' },
+  partial_refund: { label: 'Reembolso parcial', className: 'bg-orange-100 text-orange-700' },
+  pending: { label: 'Pendiente', className: 'bg-gray-100 text-gray-700' },
+};
+
+const STATUS_OPTIONS = [
+  { value: 'completed', label: 'Completada' },
+  { value: 'cancelled', label: 'Cancelada' },
+  { value: 'refunded', label: 'Reembolsada' },
+  { value: 'pending', label: 'Pendiente' },
+];
+
+const PAYMENT_OPTIONS = [
+  { value: 'cash', label: 'Efectivo' },
+  { value: 'card', label: 'Tarjeta' },
+  { value: 'transfer', label: 'Transferencia' },
+  { value: 'mixed', label: 'Mixto' },
+];
+
+// ================================
+// Page
+// ================================
+
 export default function VentasReportesPage() {
   return (
     <Suspense>
@@ -57,52 +94,43 @@ export default function VentasReportesPage() {
 }
 
 function VentasReportesContent() {
-  const { get, setParams } = useQueryFilters({
-    viewMode: 'daily',
+  const { get, getNumber, setParams } = useQueryFilters({
     branch: 'all',
+    status: 'all',
+    paymentMethod: 'all',
   });
 
-  const viewMode = get('viewMode') as ViewMode;
   const selectedBranch = get('branch');
+  const selectedStatus = get('status');
+  const selectedPaymentMethod = get('paymentMethod');
   const dateFrom = get('dateFrom') || getDefaultDateFrom();
   const dateTo = get('dateTo') || getDefaultDateTo();
+  const page = getNumber('page') || 1;
+  const limit = 25;
 
-  const dateRange = { start: dateFrom, end: dateTo };
-
-  // Fetch branches for filter
   const { data: branches } = useActiveBranches();
 
-  // Fetch data based on date range and branch
-  const queryParams = useMemo(() => ({
-    startDate: dateRange.start,
-    endDate: dateRange.end,
+  const queryParams = useMemo<SaleQueryParams>(() => ({
     branchId: selectedBranch !== 'all' ? selectedBranch : undefined,
-  }), [dateRange, selectedBranch]);
+    status: selectedStatus !== 'all' ? (selectedStatus as PosSaleStatus) : undefined,
+    paymentMethod: selectedPaymentMethod !== 'all' ? (selectedPaymentMethod as PosPaymentMethod) : undefined,
+    fromDate: dateFrom,
+    toDate: dateTo,
+    page,
+    limit,
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+  }), [selectedBranch, selectedStatus, selectedPaymentMethod, dateFrom, dateTo, page, limit]);
 
-  const { data: dailySalesData, isLoading: loadingDaily } = useDailySales(queryParams);
-  const { data: productSalesData, isLoading: loadingProducts } = useSalesByProduct(queryParams);
-  const { data: branchSalesData, isLoading: loadingBranches } = useSalesByBranch({
-    startDate: dateRange.start,
-    endDate: dateRange.end,
-  });
+  const { data: salesData, isLoading } = useSales(queryParams);
 
-  // Extract data
-  const dailySales = dailySalesData?.dailyData || [];
-  const productSales = productSalesData?.products || [];
-  const branchSales = branchSalesData?.branches || [];
-  const summary = dailySalesData?.summary;
+  const sales = salesData?.data ?? [];
+  const totalCount = salesData?.total ?? 0;
+  const totalPages = salesData?.totalPages ?? 1;
 
-  const totalSales = summary?.totalSales || 0;
-  const totalOrders = summary?.orderCount || 0;
-  const avgTicket = summary?.averageTicket || 0;
-
-  // Calculate growth (comparing to previous period - simplified)
-  const previousPeriodSales = totalSales * 0.85; // Placeholder - in real app, fetch previous period
-  const salesGrowth = previousPeriodSales > 0
-    ? ((totalSales - previousPeriodSales) / previousPeriodSales) * 100
-    : 0;
-
-  const isLoading = loadingDaily || loadingProducts || loadingBranches;
+  // Summary from current page data
+  const pageTotalAmount = useMemo(() => sales.reduce((sum: number, s: Sale) => sum + s.total, 0), [sales]);
+  const avgTicket = sales.length > 0 ? pageTotalAmount / sales.length : 0;
 
   return (
     <div className="space-y-6">
@@ -116,45 +144,43 @@ function VentasReportesContent() {
             <ArrowLeftIcon className="h-5 w-5 text-gray-500" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Reportes de Ventas</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Ventas POS</h1>
             <p className="mt-1 text-sm text-gray-500">
-              Análisis detallado de ventas por día, producto y sucursal
+              Ventas de punto de venta de todas las sucursales
             </p>
           </div>
         </div>
-        <button className="inline-flex items-center rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500">
-          <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
-          Exportar Excel
-        </button>
       </div>
 
       {/* Filters */}
       <div className="overflow-hidden rounded-lg bg-white shadow">
         <div className="p-4">
           <div className="flex flex-wrap items-center gap-4">
+            {/* Date range */}
             <div className="flex items-center space-x-2">
               <CalendarDaysIcon className="h-5 w-5 text-gray-400" />
               <input
                 type="date"
-                value={dateRange.start}
+                value={dateFrom}
                 onChange={(e) => setParams({ dateFrom: e.target.value })}
-                className="rounded-md border-gray-300 text-sm focus:border-green-500 focus:ring-green-500"
+                className="rounded-md border-gray-300 text-sm focus:border-teal-500 focus:ring-teal-500"
               />
               <span className="text-gray-500">a</span>
               <input
                 type="date"
-                value={dateRange.end}
+                value={dateTo}
                 onChange={(e) => setParams({ dateTo: e.target.value })}
-                className="rounded-md border-gray-300 text-sm focus:border-green-500 focus:ring-green-500"
+                className="rounded-md border-gray-300 text-sm focus:border-teal-500 focus:ring-teal-500"
               />
             </div>
 
+            {/* Branch */}
             <div className="flex items-center space-x-2">
-              <FunnelIcon className="h-5 w-5 text-gray-400" />
+              <BuildingStorefrontIcon className="h-5 w-5 text-gray-400" />
               <SearchableSelect
-                options={(branches ?? []).map((branch) => ({
-                  value: branch.id,
-                  label: branch.name,
+                options={(branches ?? []).map((b) => ({
+                  value: b.id,
+                  label: b.name,
                 }))}
                 value={selectedBranch}
                 onChange={(val) => setParams({ branch: val })}
@@ -163,47 +189,51 @@ function VentasReportesContent() {
               />
             </div>
 
-            <div className="flex rounded-lg bg-gray-100 p-1">
-              <button
-                onClick={() => setParams({ viewMode: 'daily' })}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-                  viewMode === 'daily'
-                    ? 'bg-white text-gray-900 shadow'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <CalendarDaysIcon className="mr-1 inline h-4 w-4" />
-                Diario
-              </button>
-              <button
-                onClick={() => setParams({ viewMode: 'product' })}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-                  viewMode === 'product'
-                    ? 'bg-white text-gray-900 shadow'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <CubeIcon className="mr-1 inline h-4 w-4" />
-                Por Producto
-              </button>
-              <button
-                onClick={() => setParams({ viewMode: 'branch' })}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-                  viewMode === 'branch'
-                    ? 'bg-white text-gray-900 shadow'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <BuildingStorefrontIcon className="mr-1 inline h-4 w-4" />
-                Por Sucursal
-              </button>
+            {/* Status */}
+            <div className="flex items-center space-x-2">
+              <FunnelIcon className="h-5 w-5 text-gray-400" />
+              <SearchableSelect
+                options={STATUS_OPTIONS}
+                value={selectedStatus}
+                onChange={(val) => setParams({ status: val })}
+                allLabel="Todos los estados"
+                allValue="all"
+              />
+            </div>
+
+            {/* Payment method */}
+            <div className="flex items-center space-x-2">
+              <CurrencyDollarIcon className="h-5 w-5 text-gray-400" />
+              <SearchableSelect
+                options={PAYMENT_OPTIONS}
+                value={selectedPaymentMethod}
+                onChange={(val) => setParams({ paymentMethod: val })}
+                allLabel="Todos los métodos"
+                allValue="all"
+              />
             </div>
           </div>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+        <div className="overflow-hidden rounded-lg bg-white shadow">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0 rounded-lg bg-teal-100 p-3">
+                <ShoppingCartIcon className="h-6 w-6 text-teal-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-500">Total Ventas</p>
+                <p className="text-2xl font-semibold text-gray-900">
+                  {isLoading ? '...' : totalCount.toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="overflow-hidden rounded-lg bg-white shadow">
           <div className="p-5">
             <div className="flex items-center">
@@ -211,36 +241,9 @@ function VentasReportesContent() {
                 <CurrencyDollarIcon className="h-6 w-6 text-green-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Ventas Totales</p>
+                <p className="text-sm font-medium text-gray-500">Monto (esta página)</p>
                 <p className="text-2xl font-semibold text-gray-900">
-                  {isLoading ? '...' : formatCurrency(totalSales)}
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 flex items-center">
-              {salesGrowth > 0 ? (
-                <ArrowTrendingUpIcon className="h-4 w-4 text-green-500" />
-              ) : (
-                <ArrowTrendingDownIcon className="h-4 w-4 text-red-500" />
-              )}
-              <span className={`ml-1 text-sm font-medium ${salesGrowth > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {salesGrowth > 0 ? '+' : ''}{salesGrowth.toFixed(1)}%
-              </span>
-              <span className="ml-2 text-sm text-gray-500">vs periodo anterior</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="overflow-hidden rounded-lg bg-white shadow">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 rounded-lg bg-blue-100 p-3">
-                <ChartBarIcon className="h-6 w-6 text-blue-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Total Órdenes</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {isLoading ? '...' : totalOrders.toLocaleString()}
+                  {isLoading ? '...' : formatCurrency(pageTotalAmount)}
                 </p>
               </div>
             </div>
@@ -251,7 +254,7 @@ function VentasReportesContent() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0 rounded-lg bg-purple-100 p-3">
-                <CurrencyDollarIcon className="h-6 w-6 text-purple-600" />
+                <ChartBarIcon className="h-6 w-6 text-purple-600" />
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-500">Ticket Promedio</p>
@@ -262,261 +265,123 @@ function VentasReportesContent() {
             </div>
           </div>
         </div>
-
-        <div className="overflow-hidden rounded-lg bg-white shadow">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0 rounded-lg bg-orange-100 p-3">
-                <BuildingStorefrontIcon className="h-6 w-6 text-orange-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Sucursales Activas</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {isLoading ? '...' : branchSales.length}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* Data Table */}
+      {/* Sales Table */}
       <div className="overflow-hidden rounded-lg bg-white shadow">
-        {viewMode === 'daily' && (
-          <>
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Ventas Diarias</h3>
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">Ventas</h3>
+          <span className="text-sm text-gray-500">
+            {totalCount} resultado{totalCount !== 1 ? 's' : ''}
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600" />
             </div>
-            <div className="overflow-x-auto">
-              {loadingDaily ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-                </div>
-              ) : dailySales.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  No hay datos para el período seleccionado
-                </div>
-              ) : (
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Fecha
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Ventas
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Órdenes
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Ticket Promedio
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                        % del Total
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {dailySales.map((day) => (
-                      <tr key={day.date} className="hover:bg-gray-50">
-                        <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                          {formatDate(day.date)}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-900">
-                          {formatCurrency(day.total)}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
-                          {day.orderCount}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
-                          {formatCurrency(day.averageTicket)}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-right">
-                          <div className="flex items-center justify-end">
-                            <span className="mr-2 text-sm text-gray-500">
-                              {totalSales > 0 ? ((day.total / totalSales) * 100).toFixed(1) : 0}%
-                            </span>
-                            <div className="w-24 bg-gray-200 rounded-full h-2">
-                              <div
-                                className="bg-green-500 h-2 rounded-full"
-                                style={{ width: `${totalSales > 0 ? (day.total / totalSales) * 100 : 0}%` }}
-                              />
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="bg-gray-50">
-                    <tr>
-                      <td className="px-6 py-4 text-sm font-semibold text-gray-900">Total</td>
-                      <td className="px-6 py-4 text-right text-sm font-semibold text-gray-900">
-                        {formatCurrency(totalSales)}
-                      </td>
-                      <td className="px-6 py-4 text-right text-sm font-semibold text-gray-900">
-                        {totalOrders}
-                      </td>
-                      <td className="px-6 py-4 text-right text-sm font-semibold text-gray-900">
-                        {formatCurrency(avgTicket)}
-                      </td>
-                      <td className="px-6 py-4 text-right text-sm font-semibold text-gray-900">
-                        100%
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              )}
+          ) : sales.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              No hay ventas para los filtros seleccionados
             </div>
-          </>
-        )}
+          ) : (
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    No. Venta
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Sucursal
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Cliente
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Vendedor
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Método de Pago
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Total
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Fecha
+                  </th>
+                  <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Estado
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {sales.map((sale: Sale) => {
+                  const statusCfg = STATUS_CONFIG[sale.status] ?? { label: sale.status, className: 'bg-gray-100 text-gray-700' };
+                  return (
+                    <tr key={sale.id} className="hover:bg-gray-50">
+                      <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-teal-700">
+                        {sale.saleNumber}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
+                        {sale.branchName}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
+                        {sale.customerName
+                          ? sale.customerNumber
+                            ? `${sale.customerName} (#${sale.customerNumber})`
+                            : sale.customerName
+                          : <span className="text-gray-400">Público general</span>}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
+                        {sale.sellerName}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-700">
+                        {PAYMENT_METHOD_LABELS[sale.paymentMethod] ?? sale.paymentMethod}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-gray-900">
+                        {formatCurrency(sale.total)}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        {formatDateTime(sale.createdAt)}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-center">
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${statusCfg.className}`}>
+                          {statusCfg.label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
 
-        {viewMode === 'product' && (
-          <>
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Ventas por Producto</h3>
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-gray-200 bg-white px-6 py-3">
+            <p className="text-sm text-gray-500">
+              Página {page} de {totalPages} ({totalCount} ventas)
+            </p>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setParams({ page: String(page - 1) })}
+                disabled={page <= 1}
+                className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <ChevronLeftIcon className="mr-1 h-4 w-4" />
+                Anterior
+              </button>
+              <button
+                onClick={() => setParams({ page: String(page + 1) })}
+                disabled={page >= totalPages}
+                className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Siguiente
+                <ChevronRightIcon className="ml-1 h-4 w-4" />
+              </button>
             </div>
-            <div className="overflow-x-auto">
-              {loadingProducts ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-                </div>
-              ) : productSales.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  No hay datos para el período seleccionado
-                </div>
-              ) : (
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Producto
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        SKU
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Unidades
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Ventas
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Puntos
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {productSales.map((product, index) => (
-                      <tr key={product.productId} className="hover:bg-gray-50">
-                        <td className="whitespace-nowrap px-6 py-4">
-                          <div className="flex items-center">
-                            <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 text-green-700 text-xs font-medium flex items-center justify-center mr-3">
-                              {index + 1}
-                            </span>
-                            <span className="text-sm font-medium text-gray-900">{product.productName}</span>
-                          </div>
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                          {product.code}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-900">
-                          {product.quantitySold}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-gray-900">
-                          {formatCurrency(product.totalSales)}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-purple-600">
-                          {product.pointsGenerated.toLocaleString()} pts
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </>
-        )}
-
-        {viewMode === 'branch' && (
-          <>
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Ventas por Sucursal</h3>
-            </div>
-            <div className="overflow-x-auto">
-              {loadingBranches ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-                </div>
-              ) : branchSales.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  No hay datos para el período seleccionado
-                </div>
-              ) : (
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Sucursal
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Ventas
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Órdenes
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Ticket Promedio
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                        % del Total
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {branchSales.map((branch, index) => {
-                      const branchTotalSales = branchSales.reduce((sum, b) => sum + b.totalSales, 0);
-                      const percentage = branchTotalSales > 0 ? (branch.totalSales / branchTotalSales) * 100 : 0;
-                      return (
-                        <tr key={branch.branchId} className="hover:bg-gray-50">
-                          <td className="whitespace-nowrap px-6 py-4">
-                            <div className="flex items-center">
-                              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-medium flex items-center justify-center mr-3">
-                                {index + 1}
-                              </span>
-                              <span className="text-sm font-medium text-gray-900">{branch.branchName}</span>
-                            </div>
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-gray-900">
-                            {formatCurrency(branch.totalSales)}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
-                            {branch.orderCount}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
-                            {formatCurrency(branch.averageTicket)}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-right">
-                            <div className="flex items-center justify-end">
-                              <span className="mr-2 text-sm text-gray-500">
-                                {percentage.toFixed(1)}%
-                              </span>
-                              <div className="w-24 bg-gray-200 rounded-full h-2">
-                                <div
-                                  className="bg-blue-500 h-2 rounded-full"
-                                  style={{ width: `${percentage}%` }}
-                                />
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </>
+          </div>
         )}
       </div>
     </div>
