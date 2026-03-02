@@ -240,11 +240,11 @@ function VentasReportesContent() {
       headerClassName: 'text-right',
       cellClassName: 'text-right',
       render: (sale) => (
-        <div className="text-right">
+        <div className="flex items-center justify-end gap-1.5">
           <span className="font-semibold text-gray-900">{formatCurrency(sale.total, sale.currencyCode)}</span>
-          {sale.currencyCode && sale.currencyCode !== 'MXN' && (
-            <span className="ml-1 text-xs text-gray-500">{sale.currencyCode}</span>
-          )}
+          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
+            {sale.currencyCode || 'MXN'}
+          </span>
         </div>
       ),
     },
