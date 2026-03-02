@@ -21,6 +21,7 @@ import {
   GlobeAltIcon,
   BuildingOfficeIcon,
   ArrowPathIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -333,6 +334,15 @@ function FacturacionContent() {
                   leftIcon={<DocumentDuplicateIcon className="h-5 w-5" />}
                 >
                   Complemento de Pago
+                </Button>
+              </Link>
+              <Link href="/admin/facturacion/reporte-folios">
+                <Button
+                  variant="outline"
+                  className="border-white text-white hover:bg-white/10"
+                  leftIcon={<ChartBarIcon className="h-5 w-5" />}
+                >
+                  Reporte Folios
                 </Button>
               </Link>
               <Link href="/admin">

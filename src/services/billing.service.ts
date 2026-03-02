@@ -106,6 +106,7 @@ export async function listInvoices(query?: InvoiceQueryDto): Promise<PaginatedIn
   const params = new URLSearchParams();
   if (query?.customerId) params.append('customerId', query.customerId);
   if (query?.orderId) params.append('orderId', query.orderId);
+  if (query?.branchId) params.append('branchId', query.branchId);
   if (query?.status) params.append('status', query.status);
   if (query?.startDate) params.append('startDate', query.startDate);
   if (query?.endDate) params.append('endDate', query.endDate);

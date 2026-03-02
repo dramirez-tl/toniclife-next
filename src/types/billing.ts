@@ -177,6 +177,7 @@ export interface CancelInvoiceDto {
 export interface InvoiceQueryDto {
   customerId?: string;
   orderId?: string;
+  branchId?: string;
   status?: InvoiceStatus;
   startDate?: string;
   endDate?: string;
