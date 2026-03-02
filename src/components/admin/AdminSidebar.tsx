@@ -116,7 +116,7 @@ const navigation: NavItem[] = [
   { name: 'Cupones', href: '/admin/cupones', icon: TagIcon, permissions: ['customers.promos', 'config'] },
   { name: 'Banners', href: '/admin/banners', icon: PhotoIcon, permissions: ['config'] },
   { name: 'Contenido', href: '/admin/contenido', icon: ComputerDesktopIcon, permissions: ['config'] },
-  { name: 'Punto de Venta', href: '/admin/pos', icon: ComputerDesktopIcon, permissions: ['sales.pos', 'sales.pos.read', 'sales.pos.create'] },
+  { name: 'Punto de Venta', href: '/admin/pos', icon: ComputerDesktopIcon, permissions: ['pos:read', 'pos:write', 'pos:*', 'sales.pos', 'sales.pos.read', 'sales.pos.create'] },
   {
     name: 'Auditoría',
     href: '/admin/auditoria',
@@ -199,8 +199,8 @@ export function AdminSidebar({ mobile = false, onNavigate }: AdminSidebarProps) 
   const userPermissions = useAppSelector(selectUserPermissions);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
-  // Roles con acceso completo al sidebar (solo admin y super admin por ahora)
-  const FULL_ACCESS_ROLES = ['super_admin', 'administrador'];
+  // Roles con acceso al sidebar filtrado por permisos
+  const FULL_ACCESS_ROLES = ['super_admin', 'administrador', 'viewer', 'subadmin', 'sucursales', 'auxiliar_sucursal'];
 
   const isWorkerUser = useMemo(() => {
     if (!user?.roles?.length) return true;

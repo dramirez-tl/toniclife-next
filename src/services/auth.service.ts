@@ -51,6 +51,8 @@ export interface UserResponse {
   customerId?: string;
   countryCode?: string;
   currencyCode?: string;
+  defaultBranchId?: string;
+  defaultBranchName?: string;
 }
 
 export interface AuthResponse {

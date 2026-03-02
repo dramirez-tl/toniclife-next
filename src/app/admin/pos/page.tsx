@@ -26,15 +26,17 @@ import { posService } from '@/services/pos.service';
 import { generatePosTicketPdf } from '@/lib/generate-pos-ticket';
 import { PermissionGuard } from '@/components/auth';
 import { useSelector } from 'react-redux';
-import { selectUserRoles } from '@/store/slices/authSlice';
+import { selectUser, selectUserRoles } from '@/store/slices/authSlice';
 
 export default function PosPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
 
+  const user = useSelector(selectUser);
   const userRoles = useSelector(selectUserRoles);
   const isAdmin = userRoles.some((r) => r === 'super_admin' || r === 'admin');
+  const userDefaultBranchId = user?.defaultBranchId;
 
   const { cart, clearCart } = usePosCartStore();
   const cartPriceTypeId = usePosCartStore((s) => s.cart.priceTypeId);
@@ -67,12 +69,16 @@ export default function PosPage() {
     return map;
   }, [currencies]);
 
-  // Auto-select first branch if none selected
+  // Auto-select branch: user's default branch (non-admin) or first available
   useEffect(() => {
     if (!selectedBranchId && posBranches.length > 0) {
-      setSelectedBranchId(posBranches[0].id);
+      if (userDefaultBranchId && posBranches.some((b: Branch) => b.id === userDefaultBranchId)) {
+        setSelectedBranchId(userDefaultBranchId);
+      } else {
+        setSelectedBranchId(posBranches[0].id);
+      }
     }
-  }, [selectedBranchId, posBranches]);
+  }, [selectedBranchId, posBranches, userDefaultBranchId]);
 
   // When session is active, lock branch to session's branch
   const activeBranchId = activeSession?.session?.branchId;
@@ -180,19 +186,28 @@ export default function PosPage() {
               )}
             </div>
 
-            {/* Branch Selector (admin only, when no session) */}
-            {isAdmin && !hasActiveSession && posBranches.length > 1 && (
-              <div className="hidden sm:flex items-center gap-2 ml-4 w-80">
-                <MapPinIcon className="h-5 w-5 text-white/60 flex-shrink-0" />
-                <SearchableSelect
-                  options={branchOptions}
-                  value={selectedBranchId}
-                  onChange={setSelectedBranchId}
-                  placeholder="Buscar sucursal..."
-                  showAllOption={false}
-                  className="w-full"
-                />
-              </div>
+            {/* Branch Selector (admin: editable / non-admin with default branch: locked) */}
+            {!hasActiveSession && (
+              isAdmin && posBranches.length > 1 ? (
+                <div className="hidden sm:flex items-center gap-2 ml-4 w-80">
+                  <MapPinIcon className="h-5 w-5 text-white/60 flex-shrink-0" />
+                  <SearchableSelect
+                    options={branchOptions}
+                    value={selectedBranchId}
+                    onChange={setSelectedBranchId}
+                    placeholder="Buscar sucursal..."
+                    showAllOption={false}
+                    className="w-full"
+                  />
+                </div>
+              ) : selectedBranch ? (
+                <div className="hidden sm:flex items-center gap-2 ml-4">
+                  <MapPinIcon className="h-5 w-5 text-white/60 flex-shrink-0" />
+                  <span className="px-3 py-1.5 bg-white/15 border border-white/25 rounded-lg text-sm font-medium">
+                    {selectedBranch.name}
+                  </span>
+                </div>
+              ) : null
             )}
           </div>
 
@@ -334,6 +349,14 @@ export default function PosPage() {
                   showAllOption={false}
                   className="flex-1"
                 />
+              </div>
+            )}
+            {!isAdmin && !hasActiveSession && selectedBranch && (
+              <div className="sm:hidden mb-3 flex items-center gap-2">
+                <MapPinIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
+                <span className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium">
+                  {selectedBranch.name}
+                </span>
               </div>
             )}
 
