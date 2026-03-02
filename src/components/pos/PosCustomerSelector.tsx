@@ -11,7 +11,12 @@ import type { Customer } from '@/types/customer';
 // Public price type ID (fallback when no customer selected)
 const PUBLIC_PRICE_TYPE_ID = '13c1528d-c093-4c74-86ad-86e9e55231e6';
 
-export function PosCustomerSelector() {
+interface PosCustomerSelectorProps {
+  /** Larger, teal-styled input for center panel */
+  prominent?: boolean;
+}
+
+export function PosCustomerSelector({ prominent = false }: PosCustomerSelectorProps) {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -138,7 +143,7 @@ export function PosCustomerSelector() {
   return (
     <div className="relative">
       <div className="relative">
-        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <MagnifyingGlassIcon className={`absolute left-3 top-1/2 -translate-y-1/2 ${prominent ? 'h-5 w-5 text-[#3E667D]/50' : 'h-4 w-4 text-gray-400'}`} />
         <input
           ref={inputRef}
           type="text"
@@ -147,7 +152,11 @@ export function PosCustomerSelector() {
           onKeyDown={handleKeyDown}
           onFocus={() => debouncedQuery.length >= 2 && setIsOpen(true)}
           placeholder="Buscar distribuidor (nombre o ID)..."
-          className="w-full pl-9 pr-3 py-2 text-sm border border-orange-300 bg-orange-50 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent placeholder:text-orange-400 transition-all"
+          autoFocus={prominent}
+          className={prominent
+            ? 'w-full pl-10 pr-4 py-3 text-base border-2 border-[#3E667D]/30 bg-[#C8DDF2]/10 rounded-xl focus:ring-2 focus:ring-[#3E667D]/40 focus:border-[#3E667D]/50 placeholder:text-[#3E667D]/40 transition-all'
+            : 'w-full pl-9 pr-3 py-2 text-sm border border-orange-300 bg-orange-50 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent placeholder:text-orange-400 transition-all'
+          }
         />
       </div>
 

@@ -1,9 +1,8 @@
 // components/pos/PosCart.tsx - Shopping cart component for POS
 'use client';
 
-import { TrashIcon, PlusIcon, MinusIcon, ShoppingCartIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, PlusIcon, MinusIcon, ShoppingCartIcon, UserIcon } from '@heroicons/react/24/outline';
 import { usePosCartStore } from '@/stores/pos-cart.store';
-import { PosCustomerSelector } from './PosCustomerSelector';
 import Image from 'next/image';
 
 interface PosCartProps {
@@ -57,9 +56,23 @@ export function PosCart({ onCheckout, disabled, currencySymbol = '$' }: PosCartP
         )}
       </div>
 
-      {/* Customer Selector */}
+      {/* Customer Display */}
       <div className="px-3 pt-3">
-        <PosCustomerSelector />
+        {cart.customerId && cart.customerName ? (
+          <div className="flex items-center gap-2 px-3 py-2 bg-[#C8DDF2]/30 border border-[#3E667D]/20 rounded-lg">
+            <UserIcon className="h-4 w-4 text-[#3E667D] flex-shrink-0" />
+            <div className="flex-grow min-w-0">
+              <p className="text-sm font-medium text-[#3E667D] truncate">{cart.customerName}</p>
+              {cart.customerRfc && (
+                <p className="text-xs text-gray-500">RFC: {cart.customerRfc}</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-center text-orange-500 bg-orange-50 border border-orange-200 rounded-lg py-2 px-3">
+            Selecciona un distribuidor en el panel central
+          </p>
+        )}
       </div>
 
       {/* Items List */}

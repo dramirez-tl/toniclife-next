@@ -11,8 +11,12 @@ import {
   ArrowPathIcon,
   MapPinIcon,
   PrinterIcon,
+  UserGroupIcon,
+  UserIcon,
+  ArrowsRightLeftIcon,
 } from '@heroicons/react/24/outline';
 import { PosProductSearch, PosCart, PaymentModal, SessionManager } from '@/components/pos';
+import { PosCustomerSelector } from '@/components/pos/PosCustomerSelector';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { usePosCartStore } from '@/stores/pos-cart.store';
 import { useActiveSession, useCreateSale, useProcessPayment, useSales } from '@/hooks/usePos';
@@ -374,23 +378,63 @@ export default function PosPage() {
               />
             </div>
 
-            {/* Product Search */}
+            {/* Two-step flow: 1) Select distributor → 2) Search products */}
             {hasActiveSession ? (
-              <div className="flex-grow flex flex-col">
-                <div className="mb-4">
-                  <PosProductSearch autoFocus branchId={effectiveBranchId} priceTypeId={cartPriceTypeId} />
-                </div>
+              cart.customerId ? (
+                /* STEP 2: Distributor selected → Product search */
+                <div className="flex-grow flex flex-col">
+                  {/* Distributor badge */}
+                  <div className="mb-3 flex items-center gap-3 px-4 py-2.5 bg-[#C8DDF2]/30 border border-[#3E667D]/20 rounded-xl">
+                    <UserIcon className="h-5 w-5 text-[#3E667D] flex-shrink-0" />
+                    <div className="flex-grow min-w-0">
+                      <p className="text-sm font-semibold text-[#3E667D] truncate">{cart.customerName}</p>
+                      {cart.customerRfc && (
+                        <p className="text-xs text-gray-500">RFC: {cart.customerRfc}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => {
+                        const clearCustomer = usePosCartStore.getState().setCustomer;
+                        clearCustomer(undefined, undefined, undefined, undefined);
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#3E667D] bg-white border border-[#3E667D]/20 rounded-lg hover:bg-[#3E667D]/10 transition-colors"
+                    >
+                      <ArrowsRightLeftIcon className="h-3.5 w-3.5" />
+                      Cambiar
+                    </button>
+                  </div>
 
-                {/* Quick Actions / Numpad could go here */}
-                <div className="flex-grow grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 overflow-y-auto">
-                  <div className="col-span-full flex items-center justify-center h-full text-gray-400">
-                    <div className="text-center">
-                      <CurrencyDollarIcon className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                      <p>Busca productos por nombre o escanea el código de barras</p>
+                  <div className="mb-4">
+                    <PosProductSearch autoFocus branchId={effectiveBranchId} priceTypeId={cartPriceTypeId} />
+                  </div>
+
+                  {/* Quick Actions / Numpad could go here */}
+                  <div className="flex-grow grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 overflow-y-auto">
+                    <div className="col-span-full flex items-center justify-center h-full text-gray-400">
+                      <div className="text-center">
+                        <CurrencyDollarIcon className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                        <p>Busca productos por nombre o escanea el código de barras</p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                /* STEP 1: Select distributor first */
+                <div className="flex-grow flex items-center justify-center">
+                  <div className="w-full max-w-md text-center">
+                    <div className="w-20 h-20 mx-auto mb-6 bg-[#C8DDF2]/30 rounded-full flex items-center justify-center">
+                      <UserGroupIcon className="h-10 w-10 text-[#3E667D]/60" />
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">
+                      Selecciona un Distribuidor
+                    </h2>
+                    <p className="text-sm text-gray-500 mb-6">
+                      Busca por nombre o número para ver sus precios y comenzar la venta
+                    </p>
+                    <PosCustomerSelector prominent />
+                  </div>
+                </div>
+              )
             ) : (
               <div className="flex-grow flex items-center justify-center">
                 <div className="text-center text-gray-500">
