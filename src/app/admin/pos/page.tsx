@@ -107,8 +107,8 @@ export default function PosPage() {
       toast.error('El carrito está vacío');
       return;
     }
-    if (!cart.customerId) {
-      toast.error('Debes seleccionar un distribuidor primero');
+    if (!cart.customerId && !cart.isPublicPrice) {
+      toast.error('Debes seleccionar un distribuidor o activar precio público');
       return;
     }
     setShowPaymentModal(true);
@@ -379,24 +379,37 @@ export default function PosPage() {
               />
             </div>
 
-            {/* Two-step flow: 1) Select distributor → 2) Search products */}
+            {/* Two-step flow: 1) Select distributor or public price → 2) Search products */}
             {hasActiveSession ? (
-              cart.customerId ? (
-                /* STEP 2: Distributor selected → Product search */
+              (cart.customerId || cart.isPublicPrice) ? (
+                /* STEP 2: Ready to sell → Product search */
                 <div className="flex-grow flex flex-col">
-                  {/* Distributor badge */}
+                  {/* Customer/Public badge */}
                   <div className="mb-3 flex items-center gap-3 px-4 py-2.5 bg-[#C8DDF2]/30 border border-[#3E667D]/20 rounded-xl">
-                    <UserIcon className="h-5 w-5 text-[#3E667D] flex-shrink-0" />
-                    <div className="flex-grow min-w-0">
-                      <p className="text-sm font-semibold text-[#3E667D] truncate">{cart.customerName}</p>
-                      {cart.customerRfc && (
-                        <p className="text-xs text-gray-500">RFC: {cart.customerRfc}</p>
-                      )}
-                    </div>
+                    {cart.isPublicPrice ? (
+                      <>
+                        <CurrencyDollarIcon className="h-5 w-5 text-amber-600 flex-shrink-0" />
+                        <div className="flex-grow min-w-0">
+                          <p className="text-sm font-semibold text-amber-700">Precio Público</p>
+                          <p className="text-xs text-gray-500">Venta sin distribuidor</p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <UserIcon className="h-5 w-5 text-[#3E667D] flex-shrink-0" />
+                        <div className="flex-grow min-w-0">
+                          <p className="text-sm font-semibold text-[#3E667D] truncate">{cart.customerName}</p>
+                          {cart.customerRfc && (
+                            <p className="text-xs text-gray-500">RFC: {cart.customerRfc}</p>
+                          )}
+                        </div>
+                      </>
+                    )}
                     <button
                       onClick={() => {
-                        const clearCustomer = usePosCartStore.getState().setCustomer;
-                        clearCustomer(undefined, undefined, undefined, undefined);
+                        const store = usePosCartStore.getState();
+                        store.setCustomer(undefined, undefined, undefined, undefined);
+                        store.setPublicPrice(false);
                       }}
                       className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#3E667D] bg-white border border-[#3E667D]/20 rounded-lg hover:bg-[#3E667D]/10 transition-colors"
                     >
@@ -420,7 +433,7 @@ export default function PosPage() {
                   </div>
                 </div>
               ) : (
-                /* STEP 1: Select distributor first */
+                /* STEP 1: Select distributor or public price */
                 <div className="flex-grow flex items-center justify-center">
                   <div className="w-full max-w-md text-center">
                     <div className="w-20 h-20 mx-auto mb-6 bg-[#C8DDF2]/30 rounded-full flex items-center justify-center">
@@ -430,9 +443,23 @@ export default function PosPage() {
                       Selecciona un Distribuidor
                     </h2>
                     <p className="text-sm text-gray-500 mb-6">
-                      Busca por nombre o número para ver sus precios y comenzar la venta
+                      Busca por código, nombre o apellido para ver sus precios
                     </p>
                     <PosCustomerSelector prominent countryId={branchCountryId} />
+
+                    {/* Public price divider and switch */}
+                    <div className="mt-6 flex items-center gap-3">
+                      <div className="flex-grow border-t border-gray-200" />
+                      <span className="text-xs text-gray-400 uppercase tracking-wider">o</span>
+                      <div className="flex-grow border-t border-gray-200" />
+                    </div>
+                    <button
+                      onClick={() => usePosCartStore.getState().setPublicPrice(true)}
+                      className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-50 border-2 border-amber-200 rounded-xl text-amber-700 font-medium hover:bg-amber-100 hover:border-amber-300 transition-colors"
+                    >
+                      <CurrencyDollarIcon className="h-5 w-5" />
+                      Vender a Precio Público
+                    </button>
                   </div>
                 </div>
               )

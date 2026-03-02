@@ -438,6 +438,7 @@ export interface PosCart {
   customerName?: string;
   customerRfc?: string;
   priceTypeId?: string;
+  isPublicPrice?: boolean;
   subtotal: number;
   discountPercent?: number;
   discountAmount?: number;

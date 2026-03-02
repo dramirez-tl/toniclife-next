@@ -11,6 +11,7 @@ interface PosCartStore {
   removeItem: (productId: string) => void;
   clearCart: () => void;
   setCustomer: (customerId?: string, customerName?: string, customerRfc?: string, priceTypeId?: string) => void;
+  setPublicPrice: (isPublic: boolean) => void;
   setDiscount: (discountPercent?: number, discountAmount?: number, discountReason?: string) => void;
   setRequiresInvoice: (requiresInvoice: boolean) => void;
   setNotes: (notes?: string) => void;
@@ -208,6 +209,18 @@ export const usePosCartStore = create<PosCartStore>()(
             customerName,
             customerRfc,
             priceTypeId,
+            isPublicPrice: false,
+          },
+        }));
+      },
+
+      setPublicPrice: (isPublic) => {
+        set((state) => ({
+          cart: {
+            ...state.cart,
+            isPublicPrice: isPublic,
+            // Clear customer when switching to public price
+            ...(isPublic ? { customerId: undefined, customerName: undefined, customerRfc: undefined, priceTypeId: undefined } : {}),
           },
         }));
       },

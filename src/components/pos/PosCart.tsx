@@ -1,7 +1,7 @@
 // components/pos/PosCart.tsx - Shopping cart component for POS
 'use client';
 
-import { TrashIcon, PlusIcon, MinusIcon, ShoppingCartIcon, UserIcon } from '@heroicons/react/24/outline';
+import { TrashIcon, PlusIcon, MinusIcon, ShoppingCartIcon, UserIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
 import { usePosCartStore } from '@/stores/pos-cart.store';
 import Image from 'next/image';
 
@@ -67,6 +67,11 @@ export function PosCart({ onCheckout, disabled, currencySymbol = '$' }: PosCartP
                 <p className="text-xs text-gray-500">RFC: {cart.customerRfc}</p>
               )}
             </div>
+          </div>
+        ) : cart.isPublicPrice ? (
+          <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+            <CurrencyDollarIcon className="h-4 w-4 text-amber-600 flex-shrink-0" />
+            <p className="text-sm font-medium text-amber-700">Precio Público</p>
           </div>
         ) : (
           <p className="text-xs text-center text-orange-500 bg-orange-50 border border-orange-200 rounded-lg py-2 px-3">

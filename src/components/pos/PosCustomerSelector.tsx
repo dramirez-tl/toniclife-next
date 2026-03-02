@@ -79,7 +79,7 @@ export function PosCustomerSelector({ prominent = false, countryId }: PosCustome
   }, [refreshItemPrices, countryId]);
 
   const handleSelect = useCallback(async (customer: Customer) => {
-    const fullName = [customer.firstName, customer.lastName].filter(Boolean).join(' ');
+    const fullName = [customer.firstName, customer.lastName, customer.lastNameMother].filter(Boolean).join(' ');
     setCustomer(customer.id, fullName, customer.rfc ?? undefined, customer.priceTypeId ?? undefined);
     setQuery('');
     setIsOpen(false);
@@ -153,7 +153,7 @@ export function PosCustomerSelector({ prominent = false, countryId }: PosCustome
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           onFocus={() => debouncedQuery.length >= 2 && setIsOpen(true)}
-          placeholder="Buscar distribuidor (nombre o ID)..."
+          placeholder="Buscar por código, nombre o apellido..."
           autoFocus={prominent}
           className={prominent
             ? 'w-full pl-10 pr-4 py-3 text-base border-2 border-[#3E667D]/30 bg-[#C8DDF2]/10 rounded-xl focus:ring-2 focus:ring-[#3E667D]/40 focus:border-[#3E667D]/50 placeholder:text-[#3E667D]/40 transition-all'
@@ -186,7 +186,7 @@ export function PosCustomerSelector({ prominent = false, countryId }: PosCustome
               <UserIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
               <div className="flex-grow min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">
-                  {customer.firstName} {customer.lastName}
+                  {[customer.firstName, customer.lastName, customer.lastNameMother].filter(Boolean).join(' ')}
                 </p>
                 <p className="text-xs text-gray-500">
                   #{customer.customerNumber}
