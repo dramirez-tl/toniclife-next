@@ -47,10 +47,6 @@ export default function PosPage() {
   const { data: activeSession, refetch: refetchSession } = useActiveSession(selectedBranchId || userDefaultBranchId);
   const createSale = useCreateSale();
   const processPayment = useProcessPayment();
-  const { data: recentSales, refetch: refetchSales } = useSales({
-    sessionId: activeSession?.session?.id,
-    limit: 5,
-  });
 
   // Fetch branches (POS-enabled only) and currencies
   const { data: allBranches } = useActiveBranches();
@@ -87,6 +83,12 @@ export default function PosPage() {
   // When session is active, lock branch to session's branch
   const activeBranchId = activeSession?.session?.branchId;
   const effectiveBranchId = activeBranchId || selectedBranchId;
+
+  // Recent sales — filtered by branch
+  const { data: recentSales, refetch: refetchSales } = useSales({
+    branchId: effectiveBranchId || undefined,
+    limit: 5,
+  });
 
   // Resolve currency from branch
   const selectedBranch = posBranches.find((b: Branch) => b.id === effectiveBranchId);
