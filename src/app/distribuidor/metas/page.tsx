@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import {
@@ -101,7 +102,14 @@ const mockGoals = [
   },
 ];
 
-const goalCategories = ['Todas', 'Ventas', 'Equipo', 'Rango', 'Capacitación', 'Prospección'];
+const goalCategories = [
+  { value: 'all', label: 'Todas' },
+  { value: 'Ventas', label: 'Ventas' },
+  { value: 'Equipo', label: 'Equipo' },
+  { value: 'Rango', label: 'Rango' },
+  { value: 'Capacitación', label: 'Capacitación' },
+  { value: 'Prospección', label: 'Prospección' },
+];
 const priorityConfig = {
   high: { label: 'Alta', color: 'bg-red-100 text-red-800' },
   medium: { label: 'Media', color: 'bg-yellow-100 text-yellow-800' },
@@ -109,13 +117,18 @@ const priorityConfig = {
 };
 
 export default function MetasPage() {
+  return <Suspense><MetasContent /></Suspense>;
+}
+
+function MetasContent() {
   const [goals, setGoals] = useState(mockGoals);
-  const [filterCategory, setFilterCategory] = useState('Todas');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const { get, setParams } = useQueryFilters({ category: 'all', status: 'all' });
+  const filterCategory = get('category');
+  const filterStatus = get('status');
   const [showAddGoalModal, setShowAddGoalModal] = useState(false);
 
   const filteredGoals = goals.filter(goal => {
-    if (filterCategory !== 'Todas' && goal.category !== filterCategory) return false;
+    if (filterCategory !== 'all' && goal.category !== filterCategory) return false;
     if (filterStatus === 'active' && goal.status !== 'in_progress') return false;
     if (filterStatus === 'completed' && goal.status !== 'completed') return false;
     return true;
@@ -252,15 +265,15 @@ export default function MetasPage() {
                 <div className="flex flex-wrap gap-2">
                   {goalCategories.map(category => (
                     <button
-                      key={category}
-                      onClick={() => setFilterCategory(category)}
+                      key={category.value}
+                      onClick={() => setParams({ category: category.value })}
                       className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                        filterCategory === category
+                        filterCategory === category.value
                           ? 'bg-[#3E667D] text-white'
                           : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
                       }`}
                     >
-                      {category}
+                      {category.label}
                     </button>
                   ))}
                 </div>
@@ -276,7 +289,7 @@ export default function MetasPage() {
                     { value: 'completed', label: 'Completadas' },
                   ]}
                   value={filterStatus}
-                  onChange={setFilterStatus}
+                  onChange={(val) => setParams({ status: val })}
                   allLabel="Todas"
                   allValue="all"
                 />

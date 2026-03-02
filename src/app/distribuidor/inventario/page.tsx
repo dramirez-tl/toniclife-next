@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -15,6 +15,7 @@ import {
   ShoppingCartIcon,
 } from '@heroicons/react/24/outline';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { toast } from 'sonner';
 
 const mockInventory = [
@@ -119,17 +120,27 @@ const statusConfig = {
 const categories = ['Todas', 'Vitaminas', 'Suplementos', 'Minerales', 'Proteínas', 'Digestivos', 'Antiinflamatorios'];
 
 export default function InventarioPage() {
+  return <Suspense><InventarioContent /></Suspense>;
+}
+
+function InventarioContent() {
   const [inventory, setInventory] = useState(mockInventory);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterCategory, setFilterCategory] = useState('Todas');
-  const [filterStatus, setFilterStatus] = useState('all');
+
+  const { get, setParams } = useQueryFilters({
+    category: 'all',
+    status: 'all',
+  });
+
+  const filterCategory = get('category');
+  const filterStatus = get('status');
 
   const filteredInventory = inventory.filter(item => {
     if (searchQuery && !item.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
         !item.code.toLowerCase().includes(searchQuery.toLowerCase())) {
       return false;
     }
-    if (filterCategory !== 'Todas' && item.category !== filterCategory) return false;
+    if (filterCategory !== 'all' && item.category !== filterCategory) return false;
     if (filterStatus !== 'all' && item.status !== filterStatus) return false;
     return true;
   });
@@ -280,7 +291,7 @@ export default function InventarioPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setFilterStatus('low_stock')}
+                  onClick={() => setParams({ status: 'low_stock' })}
                 >
                   Ver Productos
                 </Button>
@@ -314,9 +325,9 @@ export default function InventarioPage() {
                   <SearchableSelect
                     options={categories.filter(c => c !== 'Todas').map(cat => ({ value: cat, label: cat }))}
                     value={filterCategory}
-                    onChange={setFilterCategory}
+                    onChange={(val) => setParams({ category: val })}
                     allLabel="Todas"
-                    allValue="Todas"
+                    allValue="all"
                     className="w-full"
                   />
                 </div>
@@ -332,7 +343,7 @@ export default function InventarioPage() {
                       { value: 'out_of_stock', label: 'Sin Existencias' },
                     ]}
                     value={filterStatus}
-                    onChange={setFilterStatus}
+                    onChange={(val) => setParams({ status: val })}
                     allLabel="Todos"
                     allValue="all"
                     className="w-full"
@@ -345,8 +356,7 @@ export default function InventarioPage() {
                     className="w-full"
                     onClick={() => {
                       setSearchQuery('');
-                      setFilterCategory('Todas');
-                      setFilterStatus('all');
+                      setParams({ category: null, status: null });
                     }}
                   >
                     Limpiar Filtros

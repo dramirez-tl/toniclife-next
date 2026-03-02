@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { Suspense, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -26,33 +26,25 @@ import {
   useExportLogs,
 } from '@/hooks/useAudit';
 import { RISK_LEVEL_CONFIG } from '@/types/audit';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 export default function SuperUserPage() {
-  // Date range - last 7 days by default
-  const [dateRange, setDateRange] = useState(() => {
-    const end = new Date();
-    const start = new Date();
-    start.setDate(start.getDate() - 7);
-    return {
-      startDate: start.toISOString().split('T')[0],
-      endDate: end.toISOString().split('T')[0],
-    };
+  return <Suspense><SuperUserContent /></Suspense>;
+}
+
+function SuperUserContent() {
+  const { get, setParams } = useQueryFilters({
+    quickRange: '7d',
   });
 
-  const [quickRange, setQuickRange] = useState<string>('7d');
+  const quickRange = get('quickRange');
 
-  const { timeline, topUsers, patterns, recentHighRiskActions, isLoading, refetch } =
-    useSuperUserDashboard(dateRange.startDate, dateRange.endDate);
-
-  const exportLogs = useExportLogs();
-
-  // Handle quick date range selection
-  const handleQuickRange = (range: string) => {
-    setQuickRange(range);
+  // Compute dateRange from quickRange
+  const dateRange = useMemo(() => {
     const end = new Date();
     const start = new Date();
 
-    switch (range) {
+    switch (quickRange) {
       case '24h':
         start.setDate(start.getDate() - 1);
         break;
@@ -65,12 +57,41 @@ export default function SuperUserPage() {
       case '90d':
         start.setDate(start.getDate() - 90);
         break;
+      default:
+        start.setDate(start.getDate() - 7);
+        break;
     }
 
-    setDateRange({
+    return {
       startDate: start.toISOString().split('T')[0],
       endDate: end.toISOString().split('T')[0],
-    });
+    };
+  }, [quickRange]);
+
+  // Local state for custom date range (overrides quickRange)
+  const [customDateRange, setCustomDateRange] = useState<{ startDate: string; endDate: string } | null>(null);
+
+  const effectiveDateRange = customDateRange || dateRange;
+
+  const { timeline, topUsers, patterns, recentHighRiskActions, isLoading, refetch } =
+    useSuperUserDashboard(effectiveDateRange.startDate, effectiveDateRange.endDate);
+
+  const exportLogs = useExportLogs();
+
+  // Handle quick date range selection
+  const handleQuickRange = (range: string) => {
+    setCustomDateRange(null);
+    setParams({ quickRange: range });
+  };
+
+  // Handle custom date change
+  const handleCustomDateChange = (field: 'startDate' | 'endDate', value: string) => {
+    setParams({ quickRange: null });
+    setCustomDateRange((prev) => ({
+      startDate: prev?.startDate || dateRange.startDate,
+      endDate: prev?.endDate || dateRange.endDate,
+      [field]: value,
+    }));
   };
 
   // Calculate timeline stats
@@ -107,8 +128,8 @@ export default function SuperUserPage() {
   const handleExport = async () => {
     try {
       const data = await exportLogs.mutateAsync({
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate,
+        startDate: effectiveDateRange.startDate,
+        endDate: effectiveDateRange.endDate,
       });
 
       // Create CSV content
@@ -140,7 +161,7 @@ export default function SuperUserPage() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `audit_logs_${dateRange.startDate}_${dateRange.endDate}.csv`;
+      link.download = `audit_logs_${effectiveDateRange.startDate}_${effectiveDateRange.endDate}.csv`;
       link.click();
       URL.revokeObjectURL(url);
 
@@ -208,7 +229,7 @@ export default function SuperUserPage() {
                 ].map(({ value, label }) => (
                   <Button
                     key={value}
-                    variant={quickRange === value ? 'primary' : 'outline'}
+                    variant={quickRange === value && !customDateRange ? 'primary' : 'outline'}
                     size="sm"
                     onClick={() => handleQuickRange(value)}
                   >
@@ -221,21 +242,15 @@ export default function SuperUserPage() {
               <div className="flex items-center gap-2 ml-4">
                 <input
                   type="date"
-                  value={dateRange.startDate}
-                  onChange={(e) => {
-                    setQuickRange('');
-                    setDateRange((prev) => ({ ...prev, startDate: e.target.value }));
-                  }}
+                  value={effectiveDateRange.startDate}
+                  onChange={(e) => handleCustomDateChange('startDate', e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
                 />
                 <span className="text-gray-500">-</span>
                 <input
                   type="date"
-                  value={dateRange.endDate}
-                  onChange={(e) => {
-                    setQuickRange('');
-                    setDateRange((prev) => ({ ...prev, endDate: e.target.value }));
-                  }}
+                  value={effectiveDateRange.endDate}
+                  onChange={(e) => handleCustomDateChange('endDate', e.target.value)}
                   className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
                 />
               </div>

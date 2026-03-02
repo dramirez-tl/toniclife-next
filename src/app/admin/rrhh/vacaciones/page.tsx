@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -18,6 +18,7 @@ import {
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useVacations, useApproveVacation, useRejectVacation, useCreateVacation } from '@/hooks/useHR';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import type { VacationStatus, CreateVacationDto } from '@/types/hr';
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
@@ -28,9 +29,23 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
 };
 
 export default function VacacionesPage() {
+  return (
+    <Suspense>
+      <VacacionesContent />
+    </Suspense>
+  );
+}
+
+function VacacionesContent() {
+  const { get, setParams } = useQueryFilters({
+    status: 'all',
+    department: 'all',
+  });
+
+  const filterStatus = get('status');
+  const filterDepartment = get('department');
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<VacationStatus | 'all'>('all');
-  const [filterDepartment, setFilterDepartment] = useState('all');
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -38,7 +53,7 @@ export default function VacacionesPage() {
 
   // Fetch vacations from API
   const { data: vacationsData, isLoading, error } = useVacations({
-    status: filterStatus !== 'all' ? filterStatus : undefined,
+    status: filterStatus !== 'all' ? (filterStatus as VacationStatus) : undefined,
   });
 
   const approveVacation = useApproveVacation();
@@ -343,7 +358,7 @@ export default function VacacionesPage() {
                   label: dept,
                 }))}
                 value={filterDepartment}
-                onChange={setFilterDepartment}
+                onChange={(val) => setParams({ department: val })}
                 allLabel="Todos los Departamentos"
                 allValue="all"
               />
@@ -356,7 +371,7 @@ export default function VacacionesPage() {
                   { value: 'REJECTED', label: 'Rechazadas' },
                 ]}
                 value={filterStatus}
-                onChange={(val) => setFilterStatus(val as VacationStatus | 'all')}
+                onChange={(val) => setParams({ status: val })}
                 allLabel="Todos los Estados"
                 allValue="all"
               />

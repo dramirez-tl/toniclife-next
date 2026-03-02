@@ -3,8 +3,7 @@
 import { useState, use } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ShoppingCartIcon, HeartIcon, StarIcon, CheckCircleIcon, TruckIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
-import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
+import { ShoppingCartIcon, StarIcon, CheckCircleIcon, TruckIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -60,9 +59,10 @@ function adaptAPIProductToMock(apiProduct: APIProduct): MockProduct {
     ingredients: apiProduct.ingredients?.split(',').map((i) => i.trim()),
     category: apiProduct.categoryName?.toLowerCase() as MockProduct['category'] || 'energia',
     tags: [],
-    price: parseFloat(apiProduct.pointsValue || '0'),
+    price: parseFloat(apiProduct.price || apiProduct.pointsValue || '0'),
     compareAtPrice: undefined,
     originalPrice: undefined,
+    currencyCode: apiProduct.priceCurrency || 'MXN',
     image: apiProduct.imageUrl || '/images/product-placeholder.jpg',
     images: apiProduct.galleryUrls,
     inStock: apiProduct.isActive,
@@ -84,7 +84,6 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [isFavorite, setIsFavorite] = useState(false);
   const [activeTab, setActiveTab] = useState<'description' | 'benefits' | 'usage' | 'ingredients'>('description');
 
   // Cart mutation
@@ -169,11 +168,6 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
         },
       }
     );
-  };
-
-  const handleToggleFavorite = () => {
-    setIsFavorite(!isFavorite);
-    toast.success(isFavorite ? 'Removido de favoritos' : 'Agregado a favoritos');
   };
 
   return (
@@ -317,6 +311,11 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 <span className="text-4xl font-bold text-[#3E667D]">
                   ${product.price.toFixed(2)}
                 </span>
+                {product.currencyCode && (
+                  <span className="text-xs font-semibold text-[#3E667D]/60 bg-[#C8DDF2]/40 px-2 py-1 rounded">
+                    {product.currencyCode}
+                  </span>
+                )}
                 {product.originalPrice && (
                   <>
                     <span className="text-2xl text-gray-400 line-through">
@@ -398,17 +397,6 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               >
                 <ShoppingCartIcon className="h-5 w-5 mr-2" />
                 {addToCart.isPending ? 'Agregando...' : 'Agregar al carrito'}
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={handleToggleFavorite}
-              >
-                {isFavorite ? (
-                  <HeartSolidIcon className="h-6 w-6 text-red-500" />
-                ) : (
-                  <HeartIcon className="h-6 w-6" />
-                )}
               </Button>
             </div>
 

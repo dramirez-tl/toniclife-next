@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   BuildingStorefrontIcon,
-  CheckIcon,
   InformationCircleIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
@@ -42,6 +41,18 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
   // Local editable state indexed by branchId
   const [editValues, setEditValues] = useState<Record<string, BranchOverrides>>({});
   const [savingBranchId, setSavingBranchId] = useState<string | null>(null);
+  const [togglingBranchId, setTogglingBranchId] = useState<string | null>(null);
+
+  // Track original server values to detect dirty state
+  const originalValues = useRef<Record<string, BranchOverrides>>({});
+
+  // Check if a branch has unsaved changes
+  const isDirty = useCallback((branchId: string) => {
+    const current = editValues[branchId];
+    const original = originalValues.current[branchId];
+    if (!current || !original) return false;
+    return OVERRIDE_FIELDS.some((f) => current[f.key] !== original[f.key]);
+  }, [editValues]);
 
   // Initialize edit values from stock data
   useEffect(() => {
@@ -56,6 +67,7 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
         reorderQuantity: stock.reorderQuantityOverride != null ? String(stock.reorderQuantityOverride) : '',
       };
     }
+    originalValues.current = { ...originalValues.current, ...newValues };
     setEditValues((prev) => ({ ...prev, ...newValues }));
   }, [stockData]);
 
@@ -98,6 +110,23 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
     }
   };
 
+  const handleToggleAvailability = async (branchId: string, currentlyActive: boolean) => {
+    setTogglingBranchId(branchId);
+    try {
+      await updateSettings.mutateAsync({
+        branchId,
+        productId,
+        dto: { isActive: !currentlyActive },
+      });
+      const branchName = branches.find((b) => b.id === branchId)?.name || 'Sucursal';
+      toast.success(`${branchName}: producto ${!currentlyActive ? 'habilitado' : 'deshabilitado'}`);
+    } catch {
+      toast.error('Error al cambiar disponibilidad');
+    } finally {
+      setTogglingBranchId(null);
+    }
+  };
+
   const isLoading = stockLoading || branchesLoading;
 
   if (isLoading) {
@@ -113,17 +142,21 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
     );
   }
 
-  // Merge stock data with branch info
-  // Show all branches that have stock records, plus a note about adding new ones
+  // Build map of stock data by branchId
   const branchStockMap = new Map<string, ProductStockDto>();
   for (const stock of stockData) {
     branchStockMap.set(stock.branchId, stock);
   }
 
-  // Show branches that have stock data
+  // Show ALL branches — those with stock and those without
   const activeBranchesWithStock = branches.filter((b) => branchStockMap.has(b.id));
-  // Branches without stock data
   const branchesWithoutStock = branches.filter((b) => !branchStockMap.has(b.id));
+
+  // Count enabled branches
+  const enabledCount = activeBranchesWithStock.filter((b) => {
+    const stock = branchStockMap.get(b.id);
+    return stock?.isActive !== false;
+  }).length;
 
   return (
     <Card padding="none">
@@ -132,35 +165,34 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
         <div className="flex items-center gap-2 mb-2">
           <BuildingStorefrontIcon className="h-5 w-5 text-[#3E667D]" />
           <h2 className="text-lg font-bold text-gray-900">Inventario por Sucursal</h2>
-          {activeBranchesWithStock.length > 0 && (
+          {branches.length > 0 && (
             <span className="text-xs bg-[#C8DDF2] text-[#3E667D] px-2 py-0.5 rounded-full font-medium">
-              {activeBranchesWithStock.length}{' '}
-              {activeBranchesWithStock.length === 1 ? 'sucursal' : 'sucursales'}
+              {enabledCount} de {branches.length} habilitadas
             </span>
           )}
         </div>
         <p className="text-xs text-gray-500 mb-5">
-          Los campos vacíos usan los valores por defecto del producto. Escribe un valor para personalizar por sucursal.
+          Usa el switch para habilitar/deshabilitar el producto en cada sucursal. Los campos vacíos usan los valores por defecto.
         </p>
 
-        {activeBranchesWithStock.length === 0 && branchesWithoutStock.length > 0 && (
+        {branches.length === 0 && (
           <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
             <BuildingStorefrontIcon className="h-10 w-10 text-gray-300 mx-auto mb-3" />
             <p className="text-sm text-gray-500 mb-1">
-              No hay registros de stock en ninguna sucursal
-            </p>
-            <p className="text-xs text-gray-400">
-              El stock se crea automáticamente al realizar movimientos de inventario
+              No hay sucursales activas
             </p>
           </div>
         )}
 
-        {activeBranchesWithStock.length > 0 && (
+        {branches.length > 0 && (
           <div className="border border-gray-200 rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                    <th className="text-center px-3 py-2.5 text-xs font-medium text-gray-500 uppercase w-[70px]">
+                      Activo
+                    </th>
                     <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase w-[180px]">
                       Sucursal
                     </th>
@@ -192,8 +224,10 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
                   </tr>
                 </thead>
                 <tbody>
+                  {/* Branches WITH stock data */}
                   {activeBranchesWithStock.map((branch) => {
                     const stock = branchStockMap.get(branch.id)!;
+                    const isActive = stock.isActive !== false;
                     const values = editValues[branch.id] || {
                       minStockAlert: '',
                       maxStockLevel: '',
@@ -201,12 +235,33 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
                       reorderQuantity: '',
                     };
                     const isSaving = savingBranchId === branch.id;
+                    const isToggling = togglingBranchId === branch.id;
 
                     return (
                       <tr
                         key={branch.id}
-                        className="border-b border-gray-50 hover:bg-gray-50/50"
+                        className={`border-b border-gray-50 hover:bg-gray-50/50 ${!isActive ? 'opacity-50' : ''}`}
                       >
+                        {/* Toggle */}
+                        <td className="px-3 py-3 text-center">
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={isActive}
+                            disabled={isToggling}
+                            onClick={() => handleToggleAvailability(branch.id, isActive)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#3E667D] focus:ring-offset-2 disabled:opacity-50 ${
+                              isActive ? 'bg-[#3E667D]' : 'bg-gray-200'
+                            }`}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                isActive ? 'translate-x-4' : 'translate-x-0'
+                              }`}
+                            />
+                          </button>
+                        </td>
+
                         {/* Branch info */}
                         <td className="px-4 py-3">
                           <div>
@@ -223,7 +278,9 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
                         <td className="px-3 py-3 text-center">
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              stock.isLowStock
+                              !isActive
+                                ? 'bg-gray-100 text-gray-400'
+                                : stock.isLowStock
                                 ? 'bg-red-50 text-red-700'
                                 : stock.quantityAvailable > 0
                                 ? 'bg-green-50 text-green-700'
@@ -249,8 +306,9 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
                                   onChange={(e) =>
                                     handleChange(branch.id, field.key, e.target.value)
                                   }
+                                  disabled={!isActive}
                                   placeholder={String(defaults[field.key])}
-                                  className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D] outline-none ${
+                                  className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D] outline-none disabled:bg-gray-50 disabled:text-gray-400 ${
                                     hasOverride
                                       ? 'border-blue-300 bg-blue-50/30'
                                       : 'border-gray-200'
@@ -266,21 +324,94 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
                           );
                         })}
 
-                        {/* Save button */}
+                        {/* Save button — enabled only when inputs differ from server values */}
                         <td className="px-3 py-2 text-center">
+                          {(() => {
+                            const dirty = isDirty(branch.id);
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => handleSave(branch.id)}
+                                disabled={isSaving || !isActive || !dirty}
+                                className={`p-1.5 rounded-md transition-colors disabled:opacity-30 ${
+                                  dirty
+                                    ? 'text-[#3E667D] hover:bg-[#C8DDF2]/40 cursor-pointer'
+                                    : 'text-gray-300 cursor-default'
+                                }`}
+                                title={dirty ? 'Guardar cambios' : 'Sin cambios'}
+                              >
+                                {isSaving ? (
+                                  <div className="h-4 w-4 border-2 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                                    <path d="M15.988 3.012A2.25 2.25 0 0 0 14.174 2H5.25A2.25 2.25 0 0 0 3 4.25v11.5A2.25 2.25 0 0 0 5.25 18h9.5A2.25 2.25 0 0 0 17 15.75V5.826a2.25 2.25 0 0 0-.512-1.414l-.5-.6ZM5.25 3.5h7.336a.75.75 0 0 1 .574.268l1.414 1.7a.75.75 0 0 1 .176.482v9.8a.75.75 0 0 1-.75.75h-9.5a.75.75 0 0 1-.75-.75V4.25a.75.75 0 0 1 .75-.75h.75v2.5a.75.75 0 0 0 1.5 0V3.5Zm4.75 6a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5Z" />
+                                  </svg>
+                                )}
+                              </button>
+                            );
+                          })()}
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {/* Branches WITHOUT stock data — shown as disabled by default */}
+                  {branchesWithoutStock.map((branch) => {
+                    const isToggling = togglingBranchId === branch.id;
+
+                    return (
+                      <tr
+                        key={branch.id}
+                        className="border-b border-gray-50 hover:bg-gray-50/50 opacity-50"
+                      >
+                        {/* Toggle — will create stock_levels row when enabled */}
+                        <td className="px-3 py-3 text-center">
                           <button
                             type="button"
-                            onClick={() => handleSave(branch.id)}
-                            disabled={isSaving}
-                            className="p-1.5 rounded-md text-green-600 hover:bg-green-50 disabled:opacity-30"
-                            title="Guardar"
+                            role="switch"
+                            aria-checked={false}
+                            disabled={isToggling}
+                            onClick={() => handleToggleAvailability(branch.id, false)}
+                            className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-gray-200 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#3E667D] focus:ring-offset-2 disabled:opacity-50"
                           >
-                            {isSaving ? (
-                              <div className="h-4 w-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <CheckIcon className="h-4 w-4" />
-                            )}
+                            <span className="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-0" />
                           </button>
+                        </td>
+
+                        {/* Branch info */}
+                        <td className="px-4 py-3">
+                          <div>
+                            <span className="font-medium text-gray-700 text-sm">
+                              {branch.name}
+                            </span>
+                            <span className="block text-[10px] text-gray-400 mt-0.5">
+                              {branch.code}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* No stock */}
+                        <td className="px-3 py-3 text-center">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-400">
+                            —
+                          </span>
+                        </td>
+
+                        {/* Empty override fields */}
+                        {OVERRIDE_FIELDS.map((field) => (
+                          <td key={field.key} className="px-3 py-2">
+                            <input
+                              type="number"
+                              disabled
+                              placeholder={String(defaults[field.key])}
+                              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-md bg-gray-50 text-gray-400"
+                            />
+                          </td>
+                        ))}
+
+                        {/* No save button */}
+                        <td className="px-3 py-2 text-center">
+                          <span className="text-gray-300">—</span>
                         </td>
                       </tr>
                     );
@@ -289,15 +420,6 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
               </table>
             </div>
           </div>
-        )}
-
-        {/* Note about branches without stock */}
-        {branchesWithoutStock.length > 0 && activeBranchesWithStock.length > 0 && (
-          <p className="text-xs text-gray-400 mt-3">
-            {branchesWithoutStock.length} sucursal(es) sin registro de stock:{' '}
-            {branchesWithoutStock.map((b) => b.name).join(', ')}.
-            Se crearán automáticamente al realizar movimientos.
-          </p>
         )}
       </CardContent>
     </Card>

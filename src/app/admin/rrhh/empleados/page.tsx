@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useEmployees, useCreateEmployee, useUpdateEmployee } from '@/hooks/useHR';
 import { useActiveBranches } from '@/hooks/useBranches';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import type { Employee, EmployeeStatus, CreateEmployeeDto, UpdateEmployeeDto } from '@/types/hr';
 
 const statusConfig: Record<string, { label: string; color: string }> = {
@@ -33,11 +34,28 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 };
 
 export default function EmpleadosPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterDepartment, setFilterDepartment] = useState('all');
-  const [filterBranch, setFilterBranch] = useState('all');
-  const [filterStatus, setFilterStatus] = useState<EmployeeStatus | 'all'>('all');
-  const [page, setPage] = useState(1);
+  return (
+    <Suspense>
+      <EmpleadosContent />
+    </Suspense>
+  );
+}
+
+function EmpleadosContent() {
+  const { get, getNumber, setParams } = useQueryFilters({
+    department: 'all',
+    branch: 'all',
+    status: 'all',
+    page: '1',
+  });
+
+  const filterDepartment = get('department');
+  const filterBranch = get('branch');
+  const filterStatus = get('status');
+  const page = getNumber('page') || 1;
+  const searchQuery = get('search');
+
+  const [searchInput, setSearchInput] = useState(searchQuery);
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -53,7 +71,7 @@ export default function EmpleadosPage() {
     search: searchQuery || undefined,
     department: filterDepartment !== 'all' ? filterDepartment : undefined,
     branchId: filterBranch !== 'all' ? filterBranch : undefined,
-    status: filterStatus !== 'all' ? filterStatus : undefined,
+    status: filterStatus !== 'all' ? (filterStatus as EmployeeStatus) : undefined,
     page,
     limit: 20,
   });
@@ -317,8 +335,11 @@ export default function EmpleadosPage() {
                   <input
                     type="text"
                     placeholder="Buscar por nombre, email o número de empleado..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    value={searchInput}
+                    onChange={(e) => {
+                      setSearchInput(e.target.value);
+                      setParams({ search: e.target.value });
+                    }}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
@@ -331,7 +352,7 @@ export default function EmpleadosPage() {
                   label: dept,
                 }))}
                 value={filterDepartment}
-                onChange={setFilterDepartment}
+                onChange={(val) => setParams({ department: val })}
                 allLabel="Todos los Departamentos"
                 allValue="all"
               />
@@ -343,7 +364,7 @@ export default function EmpleadosPage() {
                   label: branch,
                 }))}
                 value={filterBranch}
-                onChange={setFilterBranch}
+                onChange={(val) => setParams({ branch: val })}
                 allLabel="Todas las Sucursales"
                 allValue="all"
               />
@@ -356,7 +377,7 @@ export default function EmpleadosPage() {
                   { value: 'INACTIVE', label: 'Inactivos' },
                 ]}
                 value={filterStatus}
-                onChange={(val) => setFilterStatus(val as 'all' | 'ACTIVE' | 'INACTIVE' | 'ON_LEAVE' | 'TERMINATED')}
+                onChange={(val) => setParams({ status: val })}
                 allLabel="Todos los Estados"
                 allValue="all"
               />
@@ -510,7 +531,7 @@ export default function EmpleadosPage() {
                     variant="outline"
                     size="sm"
                     disabled={page <= 1}
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    onClick={() => setParams({ page: String(Math.max(1, page - 1)) })}
                   >
                     Anterior
                   </Button>
@@ -518,7 +539,7 @@ export default function EmpleadosPage() {
                     variant="outline"
                     size="sm"
                     disabled={page >= pagination.pages}
-                    onClick={() => setPage(p => p + 1)}
+                    onClick={() => setParams({ page: String(page + 1) })}
                   >
                     Siguiente
                   </Button>

@@ -6,17 +6,12 @@ import {
   TransferStatus,
   AdjustmentStatus,
   AdjustmentType,
-  LotStatus,
   MovementType,
 } from '@/types/inventory';
 import type {
   BranchStockResponseDto,
   BranchStockQueryDto,
   ProductStockDto,
-  CreateLotDto,
-  LotDto,
-  LotQueryDto,
-  LotsResponseDto,
   KardexResponseDto,
   KardexQueryDto,
   TransferDto,
@@ -80,36 +75,6 @@ class InventoryService {
     const response = await api.patch<ProductStockDto>(
       `/inventory/stock/${branchId}/${productId}/settings`,
       dto,
-    );
-    return response.data;
-  }
-
-  // ================================
-  // LOT METHODS
-  // ================================
-
-  async createLot(productId: string, data: Omit<CreateLotDto, 'productId'>): Promise<LotDto> {
-    const response = await api.post<LotDto>(`/inventory/products/${productId}/lots`, {
-      ...data,
-      productId,
-    });
-    return response.data;
-  }
-
-  async getProductLots(
-    productId: string,
-    query: LotQueryDto = {}
-  ): Promise<LotsResponseDto> {
-    const params = new URLSearchParams();
-
-    if (query.branchId) params.append('branchId', query.branchId);
-    if (query.status) params.append('status', query.status);
-    if (query.expiringInDays !== undefined) params.append('expiringInDays', String(query.expiringInDays));
-    if (query.page) params.append('page', String(query.page));
-    if (query.limit) params.append('limit', String(query.limit));
-
-    const response = await api.get<LotsResponseDto>(
-      `/inventory/products/${productId}/lots?${params.toString()}`
     );
     return response.data;
   }
@@ -368,26 +333,6 @@ class InventoryService {
       [AdjustmentType.FOUND]: 'Encontrado',
     };
     return labels[type] || type;
-  }
-
-  getLotStatusLabel(status: LotStatus): string {
-    const labels: Record<LotStatus, string> = {
-      [LotStatus.AVAILABLE]: 'Disponible',
-      [LotStatus.DEPLETED]: 'Agotado',
-      [LotStatus.EXPIRED]: 'Expirado',
-      [LotStatus.BLOCKED]: 'Bloqueado',
-    };
-    return labels[status] || status;
-  }
-
-  getLotStatusColor(status: LotStatus): string {
-    const colors: Record<LotStatus, string> = {
-      [LotStatus.AVAILABLE]: 'success',
-      [LotStatus.DEPLETED]: 'default',
-      [LotStatus.EXPIRED]: 'error',
-      [LotStatus.BLOCKED]: 'warning',
-    };
-    return colors[status] || 'default';
   }
 
   getMovementTypeLabel(type: MovementType): string {

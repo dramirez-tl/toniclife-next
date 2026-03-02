@@ -2,7 +2,7 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.5 Facturación
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { Suspense, useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -22,13 +22,25 @@ import { getFiscalRegimeName, getCfdiUseName } from '@/types/billing';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useFiscalDataList } from '@/hooks/useBilling';
 import type { FiscalDataQueryDto, FiscalDataItem } from '@/services/billing.service';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 export default function DatosFiscalesPage() {
+  return <Suspense><DatosFiscalesContent /></Suspense>;
+}
+
+function DatosFiscalesContent() {
   const [searchInput, setSearchInput] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterValidated, setFilterValidated] = useState<'all' | 'validated' | 'pending'>('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+
+  const { get, getNumber, setParams } = useQueryFilters({
+    validated: 'all',
+    page: '1',
+    limit: '20',
+  });
+
+  const filterValidated = get('validated');
+  const currentPage = getNumber('page');
+  const pageSize = getNumber('limit');
+  const searchQuery = get('search');
 
   // Build query params for server-side filtering
   const queryParams: FiscalDataQueryDto = useMemo(() => {
@@ -50,13 +62,7 @@ export default function DatosFiscalesPage() {
 
   // Handlers
   const handleSearch = () => {
-    setSearchQuery(searchInput.trim());
-    setCurrentPage(1);
-  };
-
-  const handleFilterChange = (value: string) => {
-    setFilterValidated(value as 'all' | 'validated' | 'pending');
-    setCurrentPage(1);
+    setParams({ search: searchInput.trim() });
   };
 
   const handleRefresh = async () => {
@@ -64,19 +70,17 @@ export default function DatosFiscalesPage() {
   };
 
   const resetFilters = () => {
-    setSearchQuery('');
     setSearchInput('');
-    setFilterValidated('all');
-    setCurrentPage(1);
+    setParams({ search: null, validated: null, page: null, limit: null });
   };
 
   const hasActiveFilters = Boolean(searchQuery || filterValidated !== 'all');
 
   useEffect(() => {
     if (backendTotalPages && currentPage > backendTotalPages) {
-      setCurrentPage(backendTotalPages);
+      setParams({ page: String(backendTotalPages) });
     }
-  }, [backendTotalPages, currentPage]);
+  }, [backendTotalPages, currentPage, setParams]);
 
   // Stats (from total count)
   const stats = useMemo(() => ({
@@ -345,7 +349,7 @@ export default function DatosFiscalesPage() {
                     { value: 'pending', label: 'Datos Incompletos' },
                   ]}
                   value={filterValidated}
-                  onChange={handleFilterChange}
+                  onChange={(val) => setParams({ validated: val })}
                   allLabel="Todos los Estados"
                   allValue="all"
                 />
@@ -420,10 +424,9 @@ export default function DatosFiscalesPage() {
                 pageSize={pageSize}
                 totalItems={totalItems}
                 isLoading={isLoading || isFetching}
-                onPageChange={setCurrentPage}
+                onPageChange={(p) => setParams({ page: String(p) })}
                 onPageSizeChange={(size) => {
-                  setPageSize(size);
-                  setCurrentPage(1);
+                  setParams({ limit: String(size), page: null });
                 }}
                 pageSizeOptions={[10, 20, 50, 100]}
               />

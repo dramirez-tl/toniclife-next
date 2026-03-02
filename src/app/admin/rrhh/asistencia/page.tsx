@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -20,6 +20,7 @@ import {
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useAttendanceReport, useManualAttendance } from '@/hooks/useHR';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   PRESENT: { label: 'Completo', color: 'bg-green-100 text-green-700', icon: CheckCircleIcon },
@@ -29,11 +30,27 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
   LATE: { label: 'Retardo', color: 'bg-orange-100 text-orange-700', icon: ClockIcon },
 };
 
+const todayStr = () => new Date().toISOString().split('T')[0];
+
 export default function AsistenciaPage() {
+  return (
+    <Suspense>
+      <AsistenciaContent />
+    </Suspense>
+  );
+}
+
+function AsistenciaContent() {
+  const { get, setParams } = useQueryFilters({
+    status: 'all',
+    branch: 'all',
+  });
+
+  const filterStatus = get('status');
+  const filterBranch = get('branch');
+  const selectedDate = get('date') || todayStr();
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterBranch, setFilterBranch] = useState('all');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Get date range for single day
   const startDate = selectedDate;
@@ -293,7 +310,7 @@ export default function AsistenciaPage() {
                 <input
                   type="date"
                   value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
+                  onChange={(e) => setParams({ date: e.target.value })}
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 />
               </div>
@@ -319,7 +336,7 @@ export default function AsistenciaPage() {
                   label: branch,
                 }))}
                 value={filterBranch}
-                onChange={setFilterBranch}
+                onChange={(val) => setParams({ branch: val })}
                 allLabel="Todas las Sucursales"
                 allValue="all"
               />
@@ -333,7 +350,7 @@ export default function AsistenciaPage() {
                   { value: 'VACATION', label: 'Vacaciones' },
                 ]}
                 value={filterStatus}
-                onChange={setFilterStatus}
+                onChange={(val) => setParams({ status: val })}
                 allLabel="Todos los Estados"
                 allValue="all"
               />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -20,6 +20,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { toast } from 'sonner';
 
 const mockScripts = [
@@ -247,12 +248,23 @@ const scriptTypes = ['Todos', 'Llamada', 'WhatsApp', 'Correo', 'Script'];
 const categories = ['Todas', 'Prospección', 'Seguimiento', 'Oportunidad de Negocio', 'Objeciones', 'Cierre', 'Referidos', 'Reactivación'];
 
 export default function ScriptsPage() {
+  return <Suspense><ScriptsContent /></Suspense>;
+}
+
+function ScriptsContent() {
   const [scripts, setScripts] = useState(mockScripts);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState('Todos');
-  const [filterCategory, setFilterCategory] = useState('Todas');
-  const [sortBy, setSortBy] = useState('popular');
   const [selectedScript, setSelectedScript] = useState<typeof mockScripts[0] | null>(null);
+
+  const { get, setParams } = useQueryFilters({
+    type: 'all',
+    category: 'all',
+    sortBy: 'popular',
+  });
+
+  const filterType = get('type');
+  const filterCategory = get('category');
+  const sortBy = get('sortBy');
 
   const filteredScripts = scripts.filter(script => {
     if (searchQuery && !script.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
@@ -260,8 +272,8 @@ export default function ScriptsPage() {
         !script.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))) {
       return false;
     }
-    if (filterType !== 'Todos' && script.type !== filterType) return false;
-    if (filterCategory !== 'Todas' && script.category !== filterCategory) return false;
+    if (filterType !== 'all' && script.type !== filterType) return false;
+    if (filterCategory !== 'all' && script.category !== filterCategory) return false;
     return true;
   });
 
@@ -404,17 +416,17 @@ export default function ScriptsPage() {
                 <SearchableSelect
                   options={scriptTypes.filter(t => t !== 'Todos').map(type => ({ value: type, label: type }))}
                   value={filterType}
-                  onChange={setFilterType}
+                  onChange={(val) => setParams({ type: val })}
                   allLabel="Todos"
-                  allValue="Todos"
+                  allValue="all"
                 />
 
                 <SearchableSelect
                   options={categories.filter(c => c !== 'Todas').map(cat => ({ value: cat, label: cat }))}
                   value={filterCategory}
-                  onChange={setFilterCategory}
+                  onChange={(val) => setParams({ category: val })}
                   allLabel="Todas"
-                  allValue="Todas"
+                  allValue="all"
                 />
 
                 <SearchableSelect
@@ -425,7 +437,7 @@ export default function ScriptsPage() {
                     { value: 'alphabetical', label: 'Alfabético' },
                   ]}
                   value={sortBy}
-                  onChange={setSortBy}
+                  onChange={(val) => setParams({ sortBy: val })}
                   showAllOption={false}
                 />
 
@@ -433,9 +445,7 @@ export default function ScriptsPage() {
                   variant="outline"
                   onClick={() => {
                     setSearchQuery('');
-                    setFilterType('Todos');
-                    setFilterCategory('Todas');
-                    setSortBy('popular');
+                    setParams({ type: null, category: null, sortBy: null });
                   }}
                 >
                   Limpiar Filtros

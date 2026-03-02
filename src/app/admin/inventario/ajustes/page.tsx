@@ -2,7 +2,7 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.2 Módulo Productos e Inventario
 'use client';
 
-import { useState } from 'react';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -36,12 +36,21 @@ import {
   type AdjustmentQueryDto,
   type AdjustmentDto,
 } from '@/types/inventory';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 export default function AjustesPage() {
-  const [statusFilter, setStatusFilter] = useState<AdjustmentStatus | ''>('');
-  const [typeFilter, setTypeFilter] = useState<AdjustmentType | ''>('');
-  const [branchFilter, setBranchFilter] = useState('');
-  const [page, setPage] = useState(1);
+  return <Suspense><AjustesContent /></Suspense>;
+}
+
+function AjustesContent() {
+  const { get, getNumber, setParams } = useQueryFilters({
+    page: '1',
+  });
+
+  const statusFilter = get('status') as AdjustmentStatus | '';
+  const typeFilter = get('type') as AdjustmentType | '';
+  const branchFilter = get('branch');
+  const page = getNumber('page') || 1;
 
   // Fetch branches for filter
   const { data: branches } = useActiveBranches();
@@ -274,7 +283,7 @@ export default function AjustesPage() {
                     { value: AdjustmentStatus.CANCELLED, label: 'Cancelado' },
                   ]}
                   value={statusFilter}
-                  onChange={(val) => setStatusFilter(val as AdjustmentStatus | '')}
+                  onChange={(val) => setParams({ status: val })}
                   allLabel="Todos los Estados"
                 />
               </div>
@@ -290,7 +299,7 @@ export default function AjustesPage() {
                   { value: AdjustmentType.FOUND, label: 'Encontrado' },
                 ]}
                 value={typeFilter}
-                onChange={(val) => setTypeFilter(val as AdjustmentType | '')}
+                onChange={(val) => setParams({ type: val })}
                 allLabel="Todos los Tipos"
               />
 
@@ -301,7 +310,7 @@ export default function AjustesPage() {
                   label: branch.name,
                 }))}
                 value={branchFilter}
-                onChange={setBranchFilter}
+                onChange={(val) => setParams({ branch: val })}
                 allLabel="Todas las Sucursales"
               />
             </div>
@@ -475,7 +484,7 @@ export default function AjustesPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setPage(page - 1)}
+                        onClick={() => setParams({ page: String(page - 1) })}
                         disabled={page === 1}
                       >
                         Anterior
@@ -483,7 +492,7 @@ export default function AjustesPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setPage(page + 1)}
+                        onClick={() => setParams({ page: String(page + 1) })}
                         disabled={page >= adjustmentsData.totalPages}
                       >
                         Siguiente

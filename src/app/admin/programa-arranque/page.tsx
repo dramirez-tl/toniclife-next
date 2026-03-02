@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { PermissionGuard } from '@/components/auth';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -35,6 +35,7 @@ import {
   CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
@@ -71,15 +72,20 @@ const inputClassName =
 export default function ProgramaArranquePage() {
   return (
     <PermissionGuard permissions={['startup-program:read', 'startup-program:*']}>
-      <ProgramaArranqueContent />
+      <Suspense><ProgramaArranqueContent /></Suspense>
     </PermissionGuard>
   );
 }
 
 function ProgramaArranqueContent() {
-  const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<ProgramStatus | ''>('');
-  const [countryFilter, setCountryFilter] = useState('');
+  const { get, getNumber, setParams } = useQueryFilters({
+    page: '1',
+  });
+
+  const page = getNumber('page');
+  const statusFilter = get('status') as ProgramStatus | '';
+  const countryFilter = get('country');
+
   const [showModal, setShowModal] = useState(false);
   const [editingProgram, setEditingProgram] = useState<ProgramConfig | null>(null);
 
@@ -218,7 +224,7 @@ function ProgramaArranqueContent() {
                   label: v,
                 }))}
                 value={statusFilter}
-                onChange={(val) => { setStatusFilter(val as ProgramStatus | ''); setPage(1); }}
+                onChange={(val) => setParams({ status: val || null })}
                 allLabel="Todos los estados"
                 className="max-w-[180px]"
               />
@@ -229,7 +235,7 @@ function ProgramaArranqueContent() {
                   label: c.label,
                 }))}
                 value={countryFilter}
-                onChange={(val) => { setCountryFilter(val); setPage(1); }}
+                onChange={(val) => setParams({ country: val || null })}
                 allLabel="Todos los paises"
                 className="max-w-[180px]"
               />
@@ -397,7 +403,7 @@ function ProgramaArranqueContent() {
                         variant="outline"
                         size="sm"
                         disabled={page <= 1}
-                        onClick={() => setPage((p) => p - 1)}
+                        onClick={() => setParams({ page: String(page - 1) })}
                       >
                         Anterior
                       </Button>
@@ -405,7 +411,7 @@ function ProgramaArranqueContent() {
                         variant="outline"
                         size="sm"
                         disabled={page >= totalPages}
-                        onClick={() => setPage((p) => p + 1)}
+                        onClick={() => setParams({ page: String(page + 1) })}
                       >
                         Siguiente
                       </Button>

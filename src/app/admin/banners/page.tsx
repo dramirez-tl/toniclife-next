@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense } from 'react';
 import { PermissionGuard } from '@/components/auth';
 import {
   PlusIcon,
@@ -20,6 +20,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 const banners = [
   {
@@ -172,8 +173,17 @@ const locations = [
 ];
 
 export default function BannersAdminPage() {
-  const [filterLocation, setFilterLocation] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
+  return <Suspense><BannersContent /></Suspense>;
+}
+
+function BannersContent() {
+  const { get, setParams } = useQueryFilters({
+    location: 'all',
+    status: 'all',
+  });
+
+  const filterLocation = get('location');
+  const filterStatus = get('status');
 
   const filteredBanners = banners.filter(banner => {
     const matchesLocation = filterLocation === 'all' || banner.location === filterLocation;
@@ -333,7 +343,7 @@ export default function BannersAdminPage() {
                   label: location.label,
                 }))}
                 value={filterLocation}
-                onChange={setFilterLocation}
+                onChange={(val) => setParams({ location: val })}
                 allLabel="Todas las Ubicaciones"
                 allValue="all"
                 className="w-full"
@@ -349,7 +359,7 @@ export default function BannersAdminPage() {
                   { value: 'inactive', label: 'Inactivos' },
                 ]}
                 value={filterStatus}
-                onChange={setFilterStatus}
+                onChange={(val) => setParams({ status: val })}
                 allLabel="Todos los Estados"
                 allValue="all"
                 className="w-full"

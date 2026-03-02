@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import {
@@ -219,8 +220,13 @@ const priorityConfig = {
 };
 
 export default function SoportePage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  return <Suspense><SoporteContent /></Suspense>;
+}
+
+function SoporteContent() {
+  const { get, setParams } = useQueryFilters({});
+  const searchQuery = get('search');
+  const selectedCategory = get('category') || null;
   const [showNewTicketModal, setShowNewTicketModal] = useState(false);
 
   const filteredFaqs = selectedCategory
@@ -280,7 +286,7 @@ export default function SoportePage() {
                 type="text"
                 placeholder="Busca tu pregunta aquí..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => setParams({ search: e.target.value })}
                 className="w-full pl-12 pr-4 py-4 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
               />
             </div>
@@ -330,7 +336,7 @@ export default function SoportePage() {
 
                 <div className="flex flex-wrap gap-2 mb-6">
                   <button
-                    onClick={() => setSelectedCategory(null)}
+                    onClick={() => setParams({ category: null })}
                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                       selectedCategory === null
                         ? 'bg-[#3E667D] text-white'
@@ -344,7 +350,7 @@ export default function SoportePage() {
                     return (
                       <button
                         key={category.id}
-                        onClick={() => setSelectedCategory(category.id)}
+                        onClick={() => setParams({ category: category.id })}
                         className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
                           selectedCategory === category.id
                             ? 'bg-[#3E667D] text-white'

@@ -2,7 +2,7 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.2 Módulo Productos e Inventario
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { Suspense, useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -17,7 +17,6 @@ import {
   ExclamationTriangleIcon,
   CheckCircleIcon,
   XCircleIcon,
-  EyeIcon,
   ChartBarIcon,
   BuildingStorefrontIcon,
   ArrowPathIcon,
@@ -28,14 +27,26 @@ import { useActiveBranches } from '@/hooks/useBranches';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import type { BranchStockQueryDto, ProductStockDto } from '@/types/inventory';
 import { PermissionGuard } from '@/components/auth';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 export default function InventarioPage() {
-  const [selectedBranch, setSelectedBranch] = useState<string>('');
-  const [searchInput, setSearchInput] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStock, setFilterStock] = useState<'all' | 'low' | 'out'>('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  return <Suspense><InventarioContent /></Suspense>;
+}
+
+function InventarioContent() {
+  const { get, getNumber, setParams } = useQueryFilters({
+    stock: 'all',
+    page: '1',
+    limit: '20',
+  });
+
+  const selectedBranch = get('branch');
+  const searchQuery = get('search');
+  const filterStock = get('stock') as 'all' | 'low' | 'out';
+  const currentPage = getNumber('page') || 1;
+  const pageSize = getNumber('limit') || 20;
+
+  const [searchInput, setSearchInput] = useState(searchQuery);
 
   // Fetch branches for the selector
   const { data: branches, isLoading: branchesLoading } = useActiveBranches();
@@ -43,9 +54,9 @@ export default function InventarioPage() {
   // Set initial branch when branches load
   useEffect(() => {
     if (branches && branches.length > 0 && !selectedBranch) {
-      setSelectedBranch(branches[0].id);
+      setParams({ branch: branches[0].id, page: '1' });
     }
-  }, [branches, selectedBranch]);
+  }, [branches, selectedBranch, setParams]);
 
   const query: BranchStockQueryDto = useMemo(() => ({
     search: searchQuery || undefined,
@@ -63,18 +74,15 @@ export default function InventarioPage() {
 
   // Handlers
   const handleSearch = () => {
-    setSearchQuery(searchInput.trim());
-    setCurrentPage(1);
+    setParams({ search: searchInput.trim() });
   };
 
   const handleFilterChange = (value: string) => {
-    setFilterStock(value as 'all' | 'low' | 'out');
-    setCurrentPage(1);
+    setParams({ stock: value });
   };
 
   const handleBranchChange = (branchId: string) => {
-    setSelectedBranch(branchId);
-    setCurrentPage(1);
+    setParams({ branch: branchId });
   };
 
   const handleRefresh = async () => {
@@ -82,19 +90,17 @@ export default function InventarioPage() {
   };
 
   const resetFilters = () => {
-    setSearchQuery('');
     setSearchInput('');
-    setFilterStock('all');
-    setCurrentPage(1);
+    setParams({ search: null, stock: 'all', page: null });
   };
 
   const hasActiveFilters = Boolean(searchQuery || filterStock !== 'all');
 
   useEffect(() => {
     if (backendTotalPages && currentPage > backendTotalPages) {
-      setCurrentPage(backendTotalPages);
+      setParams({ page: String(backendTotalPages) });
     }
-  }, [backendTotalPages, currentPage]);
+  }, [backendTotalPages, currentPage, setParams]);
 
   const handleExport = () => {
     toast.success('Exportando inventario...');
@@ -258,20 +264,12 @@ export default function InventarioPage() {
       cellClassName: 'text-right',
       render: (item) => (
         <div className="flex items-center justify-end gap-2">
-          <Link href={`/admin/inventario/kardex/${item.productId}`}>
+          <Link href={`/admin/inventario/kardex/${item.productId}${selectedBranch ? `?branch=${selectedBranch}` : ''}`}>
             <button
               className="rounded-lg p-2 transition-colors hover:bg-blue-50"
               title="Ver Kardex"
             >
               <ChartBarIcon className="h-4 w-4 text-blue-600" />
-            </button>
-          </Link>
-          <Link href={`/admin/inventario/lotes/${item.productId}`}>
-            <button
-              className="rounded-lg p-2 transition-colors hover:bg-purple-50"
-              title="Ver Lotes"
-            >
-              <EyeIcon className="h-4 w-4 text-purple-600" />
             </button>
           </Link>
         </div>
@@ -564,11 +562,8 @@ export default function InventarioPage() {
                       pageSize={pageSize}
                       totalItems={totalItems}
                       isLoading={isLoading || isFetching}
-                      onPageChange={setCurrentPage}
-                      onPageSizeChange={(size) => {
-                        setPageSize(size);
-                        setCurrentPage(1);
-                      }}
+                      onPageChange={(p) => setParams({ page: String(p) })}
+                      onPageSizeChange={(size) => setParams({ limit: String(size), page: null })}
                       pageSizeOptions={[10, 20, 50, 100]}
                     />
                   )}

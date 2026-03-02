@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeftIcon,
@@ -17,6 +17,7 @@ import {
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useDailySales, useSalesByProduct, useSalesByBranch } from '@/hooks/useReports';
 import { useActiveBranches } from '@/hooks/useBranches';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 const formatCurrency = (amount: number) => {
   return new Intl.NumberFormat('es-MX', {
@@ -36,19 +37,37 @@ const formatDate = (dateStr: string) => {
 
 type ViewMode = 'daily' | 'product' | 'branch';
 
+// Default dates for when none are in URL
+function getDefaultDateFrom(): string {
+  const date = new Date();
+  date.setDate(date.getDate() - 7);
+  return date.toISOString().split('T')[0];
+}
+
+function getDefaultDateTo(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
 export default function VentasReportesPage() {
-  const [viewMode, setViewMode] = useState<ViewMode>('daily');
+  return (
+    <Suspense>
+      <VentasReportesContent />
+    </Suspense>
+  );
+}
 
-  // Default to last 7 days
-  const today = new Date();
-  const weekAgo = new Date(today);
-  weekAgo.setDate(weekAgo.getDate() - 7);
-
-  const [dateRange, setDateRange] = useState({
-    start: weekAgo.toISOString().split('T')[0],
-    end: today.toISOString().split('T')[0]
+function VentasReportesContent() {
+  const { get, setParams } = useQueryFilters({
+    viewMode: 'daily',
+    branch: 'all',
   });
-  const [selectedBranch, setSelectedBranch] = useState('all');
+
+  const viewMode = get('viewMode') as ViewMode;
+  const selectedBranch = get('branch');
+  const dateFrom = get('dateFrom') || getDefaultDateFrom();
+  const dateTo = get('dateTo') || getDefaultDateTo();
+
+  const dateRange = { start: dateFrom, end: dateTo };
 
   // Fetch branches for filter
   const { data: branches } = useActiveBranches();
@@ -118,14 +137,14 @@ export default function VentasReportesPage() {
               <input
                 type="date"
                 value={dateRange.start}
-                onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                onChange={(e) => setParams({ dateFrom: e.target.value })}
                 className="rounded-md border-gray-300 text-sm focus:border-green-500 focus:ring-green-500"
               />
               <span className="text-gray-500">a</span>
               <input
                 type="date"
                 value={dateRange.end}
-                onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                onChange={(e) => setParams({ dateTo: e.target.value })}
                 className="rounded-md border-gray-300 text-sm focus:border-green-500 focus:ring-green-500"
               />
             </div>
@@ -138,7 +157,7 @@ export default function VentasReportesPage() {
                   label: branch.name,
                 }))}
                 value={selectedBranch}
-                onChange={setSelectedBranch}
+                onChange={(val) => setParams({ branch: val })}
                 allLabel="Todas las sucursales"
                 allValue="all"
               />
@@ -146,7 +165,7 @@ export default function VentasReportesPage() {
 
             <div className="flex rounded-lg bg-gray-100 p-1">
               <button
-                onClick={() => setViewMode('daily')}
+                onClick={() => setParams({ viewMode: 'daily' })}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium ${
                   viewMode === 'daily'
                     ? 'bg-white text-gray-900 shadow'
@@ -157,7 +176,7 @@ export default function VentasReportesPage() {
                 Diario
               </button>
               <button
-                onClick={() => setViewMode('product')}
+                onClick={() => setParams({ viewMode: 'product' })}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium ${
                   viewMode === 'product'
                     ? 'bg-white text-gray-900 shadow'
@@ -168,7 +187,7 @@ export default function VentasReportesPage() {
                 Por Producto
               </button>
               <button
-                onClick={() => setViewMode('branch')}
+                onClick={() => setParams({ viewMode: 'branch' })}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium ${
                   viewMode === 'branch'
                     ? 'bg-white text-gray-900 shadow'

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { Suspense, useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -9,12 +9,10 @@ import { PermissionGuard } from '@/components/auth';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   fetchCustomers,
-  setFilters,
   selectCustomers,
   selectCustomersLoading,
   selectCustomersError,
   selectCustomersPagination,
-  selectCustomersFilters,
   deleteCustomer,
 } from '@/store/slices/customersSlice';
 import { selectUserRoles } from '@/store/slices/authSlice';
@@ -36,6 +34,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 const statusColors: Record<string, string> = {
   active: 'bg-green-100 text-green-800',
@@ -65,32 +64,46 @@ const COUNTRY_OPTIONS = [
 ];
 
 export default function DistribuidoresAdminPage() {
+  return <Suspense><DistribuidoresContent /></Suspense>;
+}
+
+function DistribuidoresContent() {
   const dispatch = useAppDispatch();
   const customers = useAppSelector(selectCustomers);
   const isLoading = useAppSelector(selectCustomersLoading);
   const error = useAppSelector(selectCustomersError);
   const pagination = useAppSelector(selectCustomersPagination);
-  const filters = useAppSelector(selectCustomersFilters);
   const userRoles = useAppSelector(selectUserRoles);
   const isSuperAdmin = userRoles.includes('super_admin');
 
-  const [searchInput, setSearchInput] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<CustomerStatus | 'all'>('all');
-  const [filterCountry, setFilterCountry] = useState<string>('all');
-  const [sortBy, setSortBy] = useState('createdAt');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const { get, getNumber, setParams } = useQueryFilters({
+    type: 'all',
+    status: 'all',
+    country: 'all',
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+    limit: '10',
+  });
+
+  const searchQuery = get('search');
+  const filterType = get('type');
+  const filterStatus = get('status') as CustomerStatus | 'all';
+  const filterCountry = get('country');
+  const sortBy = get('sortBy');
+  const sortOrder = get('sortOrder') as 'asc' | 'desc';
+  const pageSize = getNumber('limit') || 10;
+  const currentPage = getNumber('page') || 1;
+
+  const [searchInput, setSearchInput] = useState(searchQuery);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
-  const [pageSize, setPageSize] = useState(10);
 
   // Fetch customers on component mount and filter changes
   const loadCustomers = useCallback(() => {
     const params = {
-      page: filters.page || 1,
+      page: currentPage,
       limit: pageSize,
       search: searchQuery || undefined,
       customerType: filterType !== 'all' ? filterType : undefined,
@@ -100,42 +113,30 @@ export default function DistribuidoresAdminPage() {
       sortOrder,
     };
     dispatch(fetchCustomers(params));
-  }, [dispatch, filters.page, pageSize, searchQuery, filterType, filterStatus, filterCountry, sortBy, sortOrder]);
+  }, [dispatch, currentPage, pageSize, searchQuery, filterType, filterStatus, filterCountry, sortBy, sortOrder]);
 
   useEffect(() => {
     loadCustomers();
   }, [loadCustomers]);
 
-  // Debounced search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      dispatch(setFilters({ page: 1 }));
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery, dispatch]);
-
   const handleSearch = () => {
-    setSearchQuery(searchInput.trim());
-    dispatch(setFilters({ page: 1 }));
+    setParams({ search: searchInput.trim() });
   };
 
   const handlePageChange = (newPage: number) => {
-    dispatch(setFilters({ page: newPage }));
+    setParams({ page: String(newPage) });
   };
 
   const handlePageSizeChange = (size: number) => {
-    setPageSize(size);
-    dispatch(setFilters({ page: 1 }));
+    setParams({ limit: String(size), page: null });
   };
 
   const handleFilterType = (value: string) => {
-    setFilterType(value);
-    dispatch(setFilters({ page: 1 }));
+    setParams({ type: value });
   };
 
   const handleFilterStatus = (value: string) => {
-    setFilterStatus(value as CustomerStatus | 'all');
-    dispatch(setFilters({ page: 1 }));
+    setParams({ status: value });
   };
 
   const handleRefresh = () => {
@@ -143,19 +144,12 @@ export default function DistribuidoresAdminPage() {
   };
 
   const handleFilterCountry = (value: string) => {
-    setFilterCountry(value);
-    dispatch(setFilters({ page: 1 }));
+    setParams({ country: value });
   };
 
   const resetFilters = () => {
-    setSearchQuery('');
     setSearchInput('');
-    setFilterType('all');
-    setFilterStatus('all');
-    setFilterCountry('all');
-    setSortBy('createdAt');
-    setSortOrder('desc');
-    dispatch(setFilters({ page: 1 }));
+    setParams({ search: null, type: 'all', status: 'all', country: 'all', sortBy: 'createdAt', sortOrder: 'desc', page: null });
   };
 
   const handleDeleteClick = (customer: Customer) => {
@@ -598,9 +592,7 @@ export default function DistribuidoresAdminPage() {
                     value={`${sortBy}-${sortOrder}`}
                     onChange={(val) => {
                       const [newSortBy, newSortOrder] = val.split('-');
-                      setSortBy(newSortBy);
-                      setSortOrder(newSortOrder as 'asc' | 'desc');
-                      dispatch(setFilters({ page: 1 }));
+                      setParams({ sortBy: newSortBy, sortOrder: newSortOrder });
                     }}
                     showAllOption={false}
                     className="w-full"
@@ -691,7 +683,7 @@ export default function DistribuidoresAdminPage() {
               {/* Pagination */}
               {customers.length > 0 && (
                 <DataTablePagination
-                  currentPage={pagination.page}
+                  currentPage={currentPage}
                   pageSize={pageSize}
                   totalItems={pagination.total}
                   isLoading={isLoading}

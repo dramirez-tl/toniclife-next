@@ -99,6 +99,7 @@ export interface Order {
   items: OrderItem[];
   customer?: {
     id: string;
+    customerNumber?: string;
     firstName: string;
     lastName: string;
     email: string;

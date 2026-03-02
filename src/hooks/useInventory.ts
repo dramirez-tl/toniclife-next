@@ -5,8 +5,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { inventoryService } from '@/services/inventory.service';
 import type {
   BranchStockQueryDto,
-  LotQueryDto,
-  CreateLotDto,
   KardexQueryDto,
   TransferQueryDto,
   CreateTransferDto,
@@ -36,10 +34,6 @@ export const inventoryKeys = {
     [...inventoryKeys.stock(), 'branch', branchId, query] as const,
   productStock: (productId: string) =>
     [...inventoryKeys.stock(), 'product', productId] as const,
-  // Lots
-  lots: () => [...inventoryKeys.all, 'lots'] as const,
-  productLots: (productId: string, query?: LotQueryDto) =>
-    [...inventoryKeys.lots(), productId, query] as const,
   // Kardex
   kardex: () => [...inventoryKeys.all, 'kardex'] as const,
   productKardex: (productId: string, query?: KardexQueryDto) =>
@@ -108,41 +102,6 @@ export function useUpdateStockSettings() {
     }) => inventoryService.updateStockSettings(branchId, productId, dto),
     onSuccess: (_, { productId }) => {
       queryClient.invalidateQueries({ queryKey: inventoryKeys.productStock(productId) });
-    },
-  });
-}
-
-// ================================
-// LOT QUERIES & MUTATIONS
-// ================================
-
-export function useProductLots(productId: string | null, query: LotQueryDto = {}) {
-  return useQuery({
-    queryKey: inventoryKeys.productLots(productId || '', query),
-    queryFn: () => inventoryService.getProductLots(productId!, query),
-    enabled: !!productId,
-    staleTime: 60 * 1000, // 1 minute
-  });
-}
-
-export function useCreateLot() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      productId,
-      data,
-    }: {
-      productId: string;
-      data: Omit<CreateLotDto, 'productId'>;
-    }) => inventoryService.createLot(productId, data),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: inventoryKeys.productLots(variables.productId),
-      });
-      queryClient.invalidateQueries({
-        queryKey: inventoryKeys.stock(),
-      });
     },
   });
 }

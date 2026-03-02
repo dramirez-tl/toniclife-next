@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useMemo, useCallback, Suspense } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { DataTable, DataTablePagination } from '@/components/ui/DataTable';
 import type { DataTableColumn } from '@/components/ui/DataTable';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import {
   ShoppingCartIcon,
   MagnifyingGlassIcon,
@@ -122,40 +122,25 @@ export default function PedidosPage() {
 }
 
 function PedidosContent() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
+  const { get, getNumber, setParams } = useQueryFilters({
+    status: 'all',
+    payment: 'all',
+    branch: 'all',
+    page: '1',
+    limit: '20',
+  });
 
-  // Read initial values from URL search params
-  const searchQuery = searchParams.get('search') || '';
-  const filterStatus = searchParams.get('status') || 'all';
-  const filterPayment = searchParams.get('payment') || 'all';
-  const filterBranch = searchParams.get('branch') || 'all';
-  const dateFrom = searchParams.get('dateFrom') || '';
-  const dateTo = searchParams.get('dateTo') || '';
-  const currentPage = Number(searchParams.get('page')) || 1;
-  const pageSize = Number(searchParams.get('limit')) || 20;
+  // Read values from URL via hook
+  const searchQuery = get('search');
+  const filterStatus = get('status');
+  const filterPayment = get('payment');
+  const filterBranch = get('branch');
+  const dateFrom = get('dateFrom');
+  const dateTo = get('dateTo');
+  const currentPage = getNumber('page') || 1;
+  const pageSize = getNumber('limit') || 20;
 
   const [searchInput, setSearchInput] = useState(searchQuery);
-
-  // Helper to update URL search params
-  const setParams = useCallback(
-    (updates: Record<string, string | null>) => {
-      const params = new URLSearchParams(searchParams.toString());
-      for (const [key, val] of Object.entries(updates)) {
-        if (val === null || val === '' || val === 'all') {
-          params.delete(key);
-        } else {
-          params.set(key, val);
-        }
-      }
-      // Reset to page 1 when changing filters (unless page is explicitly in updates)
-      if (!('page' in updates)) {
-        params.delete('page');
-      }
-      router.replace(`?${params.toString()}`, { scroll: false });
-    },
-    [searchParams, router],
-  );
 
   // Branches for dropdown
   const { data: branches = [] } = useActiveBranches();

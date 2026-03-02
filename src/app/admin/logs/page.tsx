@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { Suspense, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { PermissionGuard } from '@/components/auth';
@@ -22,13 +22,25 @@ import { toast } from 'sonner';
 import { useAuditLogs, useAuditStats, useExportLogs } from '@/hooks/useAudit';
 import { AuditLog, RiskLevel, ACTION_CATEGORIES } from '@/types/audit';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 export default function LogsPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterRiskLevel, setFilterRiskLevel] = useState<RiskLevel | 'all'>('all');
-  const [filterCategory, setFilterCategory] = useState('all');
+  return <Suspense><LogsContent /></Suspense>;
+}
+
+function LogsContent() {
   const [autoRefresh, setAutoRefresh] = useState(false);
-  const [page, setPage] = useState(1);
+
+  const { get, getNumber, setParams } = useQueryFilters({
+    riskLevel: 'all',
+    category: 'all',
+    page: '1',
+  });
+
+  const searchQuery = get('search');
+  const filterRiskLevel = get('riskLevel') as RiskLevel | 'all';
+  const filterCategory = get('category');
+  const page = getNumber('page');
 
   // Fetch audit logs from API
   const { data: logsData, isLoading, error, refetch } = useAuditLogs({
@@ -322,7 +334,7 @@ export default function LogsPage() {
                   type="text"
                   placeholder="Buscar en logs..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => setParams({ search: e.target.value })}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 />
               </div>
@@ -339,7 +351,7 @@ export default function LogsPage() {
                   { value: 'low', label: 'Bajo' },
                 ]}
                 value={filterRiskLevel}
-                onChange={(val) => setFilterRiskLevel(val as RiskLevel | 'all')}
+                onChange={(val) => setParams({ riskLevel: val })}
                 allLabel="Todos los Niveles"
                 allValue="all"
               />
@@ -350,7 +362,7 @@ export default function LogsPage() {
               <SearchableSelect
                 options={ACTION_CATEGORIES.map((cat) => ({ value: cat.value, label: cat.label }))}
                 value={filterCategory}
-                onChange={setFilterCategory}
+                onChange={(val) => setParams({ category: val })}
                 allLabel="Todas las Categorías"
                 allValue="all"
               />
@@ -463,7 +475,7 @@ export default function LogsPage() {
                   variant="outline"
                   size="sm"
                   disabled={page <= 1}
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  onClick={() => setParams({ page: String(Math.max(1, page - 1)) })}
                 >
                   Anterior
                 </Button>
@@ -471,7 +483,7 @@ export default function LogsPage() {
                   variant="outline"
                   size="sm"
                   disabled={page >= totalPages}
-                  onClick={() => setPage(p => p + 1)}
+                  onClick={() => setParams({ page: String(page + 1) })}
                 >
                   Siguiente
                 </Button>

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import {
@@ -122,13 +123,15 @@ const exportFormats = [
 ];
 
 export default function ReportesPage() {
+  return <Suspense><ReportesContent /></Suspense>;
+}
+
+function ReportesContent() {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
-  const [selectedFormat, setSelectedFormat] = useState('pdf');
-  const [dateRange, setDateRange] = useState({
-    start: '2025-01-01',
-    end: '2025-01-31',
-  });
-  const [filterCategory, setFilterCategory] = useState('all');
+  const { get, setParams } = useQueryFilters({ format: 'pdf', category: 'all', dateFrom: '2025-01-01', dateTo: '2025-01-31' });
+  const selectedFormat = get('format');
+  const dateRange = { start: get('dateFrom'), end: get('dateTo') };
+  const filterCategory = get('category');
 
   const filteredTemplates = reportTemplates.filter(template => {
     if (filterCategory === 'all') return true;
@@ -258,7 +261,7 @@ export default function ReportesPage() {
                     {categories.map(category => (
                       <button
                         key={category}
-                        onClick={() => setFilterCategory(category)}
+                        onClick={() => setParams({ category })}
                         className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                           filterCategory === category
                             ? 'bg-[#3E667D] text-white'
@@ -346,7 +349,7 @@ export default function ReportesPage() {
                       <input
                         type="date"
                         value={dateRange.start}
-                        onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                        onChange={(e) => setParams({ dateFrom: e.target.value })}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                       />
                     </div>
@@ -355,7 +358,7 @@ export default function ReportesPage() {
                       <input
                         type="date"
                         value={dateRange.end}
-                        onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                        onChange={(e) => setParams({ dateTo: e.target.value })}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                       />
                     </div>
@@ -371,7 +374,7 @@ export default function ReportesPage() {
                     {exportFormats.map((format) => (
                       <div
                         key={format.id}
-                        onClick={() => setSelectedFormat(format.id)}
+                        onClick={() => setParams({ format: format.id })}
                         className={`border rounded-lg p-3 cursor-pointer text-center transition-all ${
                           selectedFormat === format.id
                             ? 'border-[#a7c1e2] bg-green-50'

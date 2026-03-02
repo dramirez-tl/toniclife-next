@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { Suspense, useMemo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -32,12 +32,22 @@ import { useClosePeriod } from '@/hooks/useMlmPeriods';
 import type { CommissionStatus } from '@/types/commissions';
 import { PermissionGuard } from '@/components/auth';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 export default function ComisionesPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<CommissionStatus | 'all'>('all');
-  const [filterPeriod, setFilterPeriod] = useState<string>('');
-  const [page, setPage] = useState(1);
+  return <Suspense><ComisionesContent /></Suspense>;
+}
+
+function ComisionesContent() {
+  const { get, getNumber, setParams } = useQueryFilters({
+    status: 'all',
+    page: '1',
+  });
+
+  const filterStatus = get('status') as CommissionStatus | 'all';
+  const filterPeriod = get('period');
+  const searchQuery = get('search');
+  const page = getNumber('page');
 
   // Fetch commissions from API
   const { data: commissionsData, isLoading } = useAllCommissions({
@@ -423,7 +433,7 @@ export default function ComisionesPage() {
                     type="text"
                     placeholder="Buscar por nombre, email o ID..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => setParams({ search: e.target.value })}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
@@ -440,10 +450,7 @@ export default function ComisionesPage() {
                     { value: 'cancelled', label: 'Canceladas' },
                   ]}
                   value={filterStatus}
-                  onChange={(val) => {
-                    setFilterStatus(val as CommissionStatus | 'all');
-                    setPage(1);
-                  }}
+                  onChange={(val) => setParams({ status: val })}
                   allLabel="Todos los Estados"
                   allValue="all"
                 />
@@ -457,10 +464,7 @@ export default function ComisionesPage() {
                     label: period.name,
                   }))}
                   value={filterPeriod}
-                  onChange={(val) => {
-                    setFilterPeriod(val);
-                    setPage(1);
-                  }}
+                  onChange={(val) => setParams({ period: val || null })}
                   allLabel="Todos los Períodos"
                 />
               </div>
@@ -609,7 +613,7 @@ export default function ComisionesPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage(p => Math.max(1, p - 1))}
+                onClick={() => setParams({ page: String(Math.max(1, page - 1)) })}
                 disabled={page === 1}
               >
                 Anterior
@@ -617,7 +621,7 @@ export default function ComisionesPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setPage(p => p + 1)}
+                onClick={() => setParams({ page: String(page + 1) })}
                 disabled={page >= totalPages}
               >
                 Siguiente

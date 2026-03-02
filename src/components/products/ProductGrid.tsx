@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Card, Badge, Button } from '@/components/ui';
-import { ShoppingCartIcon, HeartIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { ShoppingCartIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
 import { useAddCartItem } from '@/hooks/useCart';
 import { useState } from 'react';
@@ -61,7 +61,9 @@ function ProductCard({ product }: { product: Product }) {
   const [added, setAdded] = useState(false);
   const [imgError, setImgError] = useState(false);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     addToCart.mutate(
       { productId: product.id, quantity: 1 },
       {
@@ -74,31 +76,26 @@ function ProductCard({ product }: { product: Product }) {
   };
 
   return (
-    <Card
-      hover
-      className="group relative overflow-hidden"
-      padding="none"
-    >
-      {/* Badges */}
-      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
-        {product.compareAtPrice && (
-          <Badge variant="error">
-            -{Math.round((1 - product.price / product.compareAtPrice) * 100)}%
-          </Badge>
-        )}
-        {product.featured && (
-          <Badge variant="success">Destacado</Badge>
-        )}
-      </div>
+    <Link href={`/productos/${product.slug}`} className="block h-full">
+      <Card
+        hover
+        className="group relative overflow-hidden cursor-pointer h-full flex flex-col"
+        padding="none"
+      >
+        {/* Badges */}
+        <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+          {product.compareAtPrice && (
+            <Badge variant="error">
+              -{Math.round((1 - product.price / product.compareAtPrice) * 100)}%
+            </Badge>
+          )}
+          {product.featured && (
+            <Badge variant="success">Destacado</Badge>
+          )}
+        </div>
 
-      {/* Wishlist Button */}
-      <button className="absolute top-4 right-4 z-10 p-2 bg-white/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white hover:text-red-500">
-        <HeartIcon className="h-5 w-5" />
-      </button>
-
-      {/* Product Image */}
-      <Link href={`/productos/${product.slug}`}>
-        <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center overflow-hidden cursor-pointer">
+        {/* Product Image */}
+        <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center overflow-hidden">
           <div className="relative w-full h-full flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
             {product.image && !imgError ? (
               <img
@@ -113,61 +110,60 @@ function ProductCard({ product }: { product: Product }) {
             )}
           </div>
         </div>
-      </Link>
 
-      {/* Product Info */}
-      <div className="p-5">
-        {/* Category */}
-        <span className="text-xs font-medium text-[#3E667D] uppercase tracking-wide">
-          {product.category}
-        </span>
+        {/* Product Info */}
+        <div className="p-5 flex flex-col flex-grow">
+          {/* Category */}
+          <span className="text-xs font-medium text-[#3E667D] uppercase tracking-wide">
+            {product.category}
+          </span>
 
-        {/* Name */}
-        <h3 className="font-bold text-lg text-[#3E667D] mt-1 group-hover:text-[#3E667D] transition-colors">
-          <Link href={`/productos/${product.slug}`}>
+          {/* Name */}
+          <h3 className="font-bold text-lg text-[#3E667D] mt-1 line-clamp-2">
             {product.name}
-          </Link>
-        </h3>
+          </h3>
 
-        {/* Short Description */}
-        <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-          {product.shortDescription}
-        </p>
-
-        {/* Rating */}
-        <div className="flex items-center gap-1 mt-2">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <StarIcon key={star} className="h-4 w-4 text-yellow-400" />
-          ))}
-          <span className="text-xs text-gray-500 ml-1">(24)</span>
-        </div>
-
-        {/* Price & Add to Cart */}
-        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xl font-bold text-[#3E667D]">
-                ${product.price.toFixed(2)}
-              </span>
-              {product.compareAtPrice && (
-                <span className="text-sm text-gray-400 line-through">
-                  ${product.compareAtPrice.toFixed(2)}
-                </span>
-              )}
-            </div>
+          {/* Rating */}
+          <div className="flex items-center gap-1 mt-2">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <StarIcon key={star} className="h-4 w-4 text-yellow-400" />
+            ))}
+            <span className="text-xs text-gray-500 ml-1">(24)</span>
           </div>
-          <Button
-            size="sm"
-            leftIcon={added ? <CheckIcon className="h-4 w-4" /> : <ShoppingCartIcon className="h-4 w-4" />}
-            onClick={handleAddToCart}
-            disabled={addToCart.isPending}
-            variant={added ? 'success' : 'primary'}
-          >
-            {addToCart.isPending ? 'Agregando...' : added ? 'Agregado' : 'Agregar'}
-          </Button>
+
+          {/* Price & Add to Cart — pushed to bottom */}
+          <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-100">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xl font-bold text-[#3E667D]">
+                  ${product.price.toFixed(2)}
+                </span>
+                {product.currencyCode && (
+                  <span className="text-[10px] font-semibold text-[#3E667D]/60 bg-[#C8DDF2]/40 px-1.5 py-0.5 rounded">
+                    {product.currencyCode}
+                  </span>
+                )}
+                {product.compareAtPrice && (
+                  <span className="text-sm text-gray-400 line-through">
+                    ${product.compareAtPrice.toFixed(2)}
+                  </span>
+                )}
+              </div>
+            </div>
+            <Button
+              size="sm"
+              leftIcon={added ? <CheckIcon className="h-4 w-4" /> : <ShoppingCartIcon className="h-4 w-4" />}
+              onClick={handleAddToCart}
+              disabled={addToCart.isPending}
+              variant={added ? 'success' : 'primary'}
+              className="cursor-pointer"
+            >
+              {addToCart.isPending ? 'Agregando...' : added ? 'Agregado' : 'Agregar'}
+            </Button>
+          </div>
         </div>
-      </div>
-    </Card>
+      </Card>
+    </Link>
   );
 }
 
@@ -177,7 +173,9 @@ function ProductListItem({ product }: { product: Product }) {
   const [added, setAdded] = useState(false);
   const [imgError, setImgError] = useState(false);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     addToCart.mutate(
       { productId: product.id, quantity: 1 },
       {
@@ -190,102 +188,107 @@ function ProductListItem({ product }: { product: Product }) {
   };
 
   return (
-    <Card hover className="overflow-hidden" padding="none">
-      <div className="flex flex-col sm:flex-row">
-        {/* Product Image */}
-        <Link
-          href={`/productos/${product.slug}`}
-          className="sm:w-48 aspect-square sm:aspect-auto bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center flex-shrink-0"
-        >
-          {product.image && !imgError ? (
-            <img
-              src={product.image}
-              alt={product.name}
-              className="w-full h-full object-contain p-4"
-              loading="lazy"
-              onError={() => setImgError(true)}
-            />
-          ) : (
-            <ProductImageFallback name={product.name} size="sm" />
-          )}
-        </Link>
+    <Link href={`/productos/${product.slug}`} className="block">
+      <Card hover className="overflow-hidden cursor-pointer" padding="none">
+        <div className="flex flex-col sm:flex-row">
+          {/* Product Image */}
+          <div className="sm:w-48 aspect-square sm:aspect-auto bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center flex-shrink-0">
+            {product.image && !imgError ? (
+              <img
+                src={product.image}
+                alt={product.name}
+                className="w-full h-full object-contain p-4"
+                loading="lazy"
+                onError={() => setImgError(true)}
+              />
+            ) : (
+              <ProductImageFallback name={product.name} size="sm" />
+            )}
+          </div>
 
-        {/* Product Info */}
-        <div className="flex-grow p-5">
-          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-            <div className="flex-grow">
-              {/* Badges */}
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs font-medium text-[#3E667D] uppercase tracking-wide">
-                  {product.category}
-                </span>
-                {product.featured && (
-                  <Badge variant="success" size="sm">Destacado</Badge>
-                )}
-                {product.compareAtPrice && (
-                  <Badge variant="error" size="sm">
-                    -{Math.round((1 - product.price / product.compareAtPrice) * 100)}%
-                  </Badge>
-                )}
-              </div>
+          {/* Product Info */}
+          <div className="flex-grow p-5">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div className="flex-grow">
+                {/* Badges */}
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-medium text-[#3E667D] uppercase tracking-wide">
+                    {product.category}
+                  </span>
+                  {product.featured && (
+                    <Badge variant="success" size="sm">Destacado</Badge>
+                  )}
+                  {product.compareAtPrice && (
+                    <Badge variant="error" size="sm">
+                      -{Math.round((1 - product.price / product.compareAtPrice) * 100)}%
+                    </Badge>
+                  )}
+                </div>
 
-              {/* Name */}
-              <h3 className="font-bold text-lg text-[#3E667D] hover:text-[#3E667D] transition-colors">
-                <Link href={`/productos/${product.slug}`}>
+                {/* Name */}
+                <h3 className="font-bold text-lg text-[#3E667D] transition-colors">
                   {product.name}
-                </Link>
-              </h3>
+                </h3>
 
-              {/* Description */}
-              <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-                {product.shortDescription}
-              </p>
+                {/* Description */}
+                <p className="text-sm text-gray-500 mt-1 line-clamp-2">
+                  {product.shortDescription}
+                </p>
 
-              {/* Benefits */}
-              <div className="flex flex-wrap gap-1 mt-3">
-                {product.benefits.slice(0, 3).map((benefit, index) => (
-                  <span
-                    key={index}
-                    className="text-xs bg-[#3E667D]/5 text-[#3E667D] px-2 py-1 rounded-full"
-                  >
-                    {benefit}
-                  </span>
-                ))}
+                {/* Benefits */}
+                <div className="flex flex-wrap gap-1 mt-3">
+                  {product.benefits.slice(0, 3).map((benefit, index) => (
+                    <span
+                      key={index}
+                      className="text-xs bg-[#3E667D]/5 text-[#3E667D] px-2 py-1 rounded-full"
+                    >
+                      {benefit}
+                    </span>
+                  ))}
+                </div>
+
+                {/* Rating */}
+                <div className="flex items-center gap-1 mt-3">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <StarIcon key={star} className="h-4 w-4 text-yellow-400" />
+                  ))}
+                  <span className="text-xs text-gray-500 ml-1">(24 reseñas)</span>
+                </div>
               </div>
 
-              {/* Rating */}
-              <div className="flex items-center gap-1 mt-3">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <StarIcon key={star} className="h-4 w-4 text-yellow-400" />
-                ))}
-                <span className="text-xs text-gray-500 ml-1">(24 reseñas)</span>
+              {/* Price & Actions */}
+              <div className="flex sm:flex-col items-center sm:items-end gap-4 sm:gap-2">
+                <div className="text-right">
+                  {product.compareAtPrice && (
+                    <span className="text-sm text-gray-400 line-through block">
+                      ${product.compareAtPrice.toFixed(2)}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-2 justify-end">
+                    <span className="text-2xl font-bold text-[#3E667D]">
+                      ${product.price.toFixed(2)}
+                    </span>
+                    {product.currencyCode && (
+                      <span className="text-[10px] font-semibold text-[#3E667D]/60 bg-[#C8DDF2]/40 px-1.5 py-0.5 rounded">
+                        {product.currencyCode}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  leftIcon={added ? <CheckIcon className="h-4 w-4" /> : <ShoppingCartIcon className="h-4 w-4" />}
+                  onClick={handleAddToCart}
+                  disabled={addToCart.isPending}
+                  variant={added ? 'success' : 'primary'}
+                  className="cursor-pointer"
+                >
+                  {addToCart.isPending ? 'Agregando...' : added ? 'Agregado' : 'Agregar al Carrito'}
+                </Button>
               </div>
-            </div>
-
-            {/* Price & Actions */}
-            <div className="flex sm:flex-col items-center sm:items-end gap-4 sm:gap-2">
-              <div className="text-right">
-                {product.compareAtPrice && (
-                  <span className="text-sm text-gray-400 line-through block">
-                    ${product.compareAtPrice.toFixed(2)}
-                  </span>
-                )}
-                <span className="text-2xl font-bold text-[#3E667D]">
-                  ${product.price.toFixed(2)}
-                </span>
-              </div>
-              <Button
-                leftIcon={added ? <CheckIcon className="h-4 w-4" /> : <ShoppingCartIcon className="h-4 w-4" />}
-                onClick={handleAddToCart}
-                disabled={addToCart.isPending}
-                variant={added ? 'success' : 'primary'}
-              >
-                {addToCart.isPending ? 'Agregando...' : added ? 'Agregado' : 'Agregar al Carrito'}
-              </Button>
             </div>
           </div>
         </div>
-      </div>
-    </Card>
+      </Card>
+    </Link>
   );
 }

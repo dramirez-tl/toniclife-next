@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -19,6 +19,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolidIcon } from '@heroicons/react/24/solid';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { toast } from 'sonner';
 
 const mockCustomers = [
@@ -129,11 +130,21 @@ const mockCustomers = [
 const customerTypes = ['Todos', 'Cliente VIP', 'Cliente Frecuente', 'Cliente Nuevo'];
 
 export default function ClientesPage() {
+  return <Suspense><ClientesContent /></Suspense>;
+}
+
+function ClientesContent() {
   const [customers, setCustomers] = useState(mockCustomers);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState('Todos');
-  const [filterStatus, setFilterStatus] = useState('all');
   const [selectedCustomer, setSelectedCustomer] = useState<typeof mockCustomers[0] | null>(null);
+
+  const { get, setParams } = useQueryFilters({
+    type: 'all',
+    status: 'all',
+  });
+
+  const filterType = get('type');
+  const filterStatus = get('status');
 
   const filteredCustomers = customers.filter(customer => {
     if (searchQuery && !customer.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
@@ -141,7 +152,7 @@ export default function ClientesPage() {
         !customer.phone.includes(searchQuery)) {
       return false;
     }
-    if (filterType !== 'Todos' && customer.type !== filterType) return false;
+    if (filterType !== 'all' && customer.type !== filterType) return false;
     if (filterStatus === 'active' && customer.status !== 'active') return false;
     if (filterStatus === 'inactive' && customer.status !== 'inactive') return false;
     return true;
@@ -266,9 +277,9 @@ export default function ClientesPage() {
                   <SearchableSelect
                     options={customerTypes.filter(t => t !== 'Todos').map(type => ({ value: type, label: type }))}
                     value={filterType}
-                    onChange={setFilterType}
+                    onChange={(val) => setParams({ type: val })}
                     allLabel="Todos"
-                    allValue="Todos"
+                    allValue="all"
                     className="w-full"
                   />
                 </div>
@@ -283,7 +294,7 @@ export default function ClientesPage() {
                       { value: 'inactive', label: 'Inactivos' },
                     ]}
                     value={filterStatus}
-                    onChange={setFilterStatus}
+                    onChange={(val) => setParams({ status: val })}
                     allLabel="Todos"
                     className="w-full"
                   />
@@ -295,8 +306,7 @@ export default function ClientesPage() {
                     className="w-full"
                     onClick={() => {
                       setSearchQuery('');
-                      setFilterType('Todos');
-                      setFilterStatus('all');
+                      setParams({ type: null, status: null });
                     }}
                   >
                     Limpiar Filtros

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -29,6 +29,8 @@ import {
 } from '@/hooks/useOrders';
 import { useCreateInvoice, useInvoices, useFiscalDataByCustomer } from '@/hooks/useBilling';
 import { billingService } from '@/services/billing.service';
+import { useBranch } from '@/hooks/useBranches';
+import { generateOrderTicketPdf } from '@/lib/generate-order-ticket';
 import { CFDI_USES, PAYMENT_FORMS } from '@/types/billing';
 import { OrderStatus } from '@/types/order';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -83,6 +85,9 @@ export default function OrderDetailAdminPage() {
   const cancelOrderMutation = useCancelOrder();
   const createInvoice = useCreateInvoice();
 
+  // Branch data (for ticket printing)
+  const { data: branch } = useBranch(order?.branchId || '');
+
   // Invoice data
   const { data: orderInvoices } = useInvoices(
     order?.isInvoiced ? { orderId: id } : undefined,
@@ -91,6 +96,8 @@ export default function OrderDetailAdminPage() {
   const { data: fiscalData } = useFiscalDataByCustomer(order?.customer?.id);
 
   const [showActions, setShowActions] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
   const [invoiceForm, setInvoiceForm] = useState({
     cfdiUse: 'G03',
@@ -155,11 +162,23 @@ export default function OrderDetailAdminPage() {
     }
   };
 
-  const handlePrint = () => {
-    if (order?.invoiceId) {
-      handleDownloadPdf(order.invoiceId);
-    } else {
-      toast.info('No hay factura generada para este pedido');
+  const handlePrintTicket = async () => {
+    if (!order) return;
+    try {
+      await generateOrderTicketPdf(order, {
+        branch: branch
+          ? {
+              ticketName: branch.ticketName,
+              ticketAddress: branch.ticketAddress,
+              ticketHeader: branch.ticketHeader,
+              ticketFooter: branch.ticketFooter,
+              addressPhone: branch.addressPhone,
+            }
+          : undefined,
+      });
+    } catch (err) {
+      console.error('Error generating ticket PDF:', err);
+      toast.error('Error al generar el ticket PDF');
     }
   };
 
@@ -168,17 +187,35 @@ export default function OrderDetailAdminPage() {
   };
 
   const handleCancel = async () => {
-    if (!confirm('¿Estás seguro de que deseas cancelar este pedido?')) return;
+    if (!cancelReason.trim()) return;
     try {
       await cancelOrderMutation.mutateAsync({
         id,
-        dto: { reason: 'Cancelado por administrador' },
+        dto: { reason: cancelReason.trim() },
       });
-      toast.success('Pedido cancelado');
+      setShowCancelModal(false);
+      setCancelReason('');
+      toast.success('Pedido cancelado correctamente');
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Error al cancelar pedido');
     }
   };
+
+  const closeCancelModal = useCallback(() => {
+    if (!cancelOrderMutation.isPending) {
+      setShowCancelModal(false);
+      setCancelReason('');
+    }
+  }, [cancelOrderMutation.isPending]);
+
+  useEffect(() => {
+    if (!showCancelModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeCancelModal();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showCancelModal, closeCancelModal]);
 
   // Loading
   if (isLoading) {
@@ -241,16 +278,17 @@ export default function OrderDetailAdminPage() {
             </div>
             <div className="flex items-center gap-3">
               <button
-                onClick={handlePrint}
+                onClick={handlePrintTicket}
                 className="p-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                title="Imprimir"
+                title="Imprimir Ticket"
               >
                 <PrinterIcon className="h-5 w-5" />
               </button>
               <button
-                onClick={handleSendEmail}
-                className="p-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                title="Enviar correo"
+                disabled
+                onClick={() => toast.info('Esta función se habilitará próximamente')}
+                className="p-2 border border-gray-200 text-gray-300 rounded-lg cursor-not-allowed"
+                title="Enviar correo (próximamente)"
               >
                 <EnvelopeIcon className="h-5 w-5" />
               </button>
@@ -266,7 +304,7 @@ export default function OrderDetailAdminPage() {
                     <button
                       onClick={() => {
                         setShowActions(false);
-                        handleCancel();
+                        setShowCancelModal(true);
                       }}
                       className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 text-red-600 flex items-center gap-2"
                     >
@@ -420,9 +458,16 @@ export default function OrderDetailAdminPage() {
                   </div>
                 )}
                 {order.cancellationReason && (
-                  <div className="col-span-2">
-                    <span className="text-gray-500">Motivo de cancelación:</span>{' '}
-                    <span className="font-medium text-red-600">{order.cancellationReason}</span>
+                  <div className="col-span-2 bg-red-50 border border-red-200 rounded-lg p-3 space-y-1">
+                    <div>
+                      <span className="text-gray-500 text-sm">Motivo de cancelación:</span>{' '}
+                      <span className="font-medium text-red-600">{order.cancellationReason}</span>
+                    </div>
+                    {order.cancelledAt && (
+                      <div className="text-xs text-gray-500">
+                        Cancelado el {formatDate(order.cancelledAt)}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -704,6 +749,62 @@ export default function OrderDetailAdminPage() {
           </div>
         </div>
       </div>
+
+      {/* Cancel Order Confirmation Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={closeCancelModal} />
+          <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-red-100 rounded-full">
+                  <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900">Cancelar Pedido</h3>
+              </div>
+
+              <p className="text-sm text-gray-600 mb-4">
+                Esta acción no se puede deshacer. El pedido <span className="font-semibold">#{order?.orderNumber}</span> será cancelado permanentemente.
+              </p>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Motivo de cancelación <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Describe el motivo de la cancelación..."
+                  rows={3}
+                  maxLength={500}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400 resize-none"
+                  autoFocus
+                />
+                <p className="text-xs text-gray-400 mt-1 text-right">
+                  {cancelReason.length}/500
+                </p>
+              </div>
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={closeCancelModal}
+                  disabled={cancelOrderMutation.isPending}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  Volver
+                </button>
+                <button
+                  onClick={handleCancel}
+                  disabled={!cancelReason.trim() || cancelOrderMutation.isPending}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm font-medium transition-colors"
+                >
+                  {cancelOrderMutation.isPending ? 'Cancelando...' : 'Confirmar Cancelación'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Invoice Creation Dialog */}
       {showInvoiceDialog && (

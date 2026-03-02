@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -25,6 +25,7 @@ import {
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useExpenses, useApproveExpense, useRejectExpense } from '@/hooks/useHR';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { ExpenseStatus } from '@/types/hr';
 
 const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
@@ -46,14 +47,28 @@ const categoryConfig: Record<string, { label: string; icon: any; color: string }
 };
 
 export default function ViaticosPage() {
+  return (
+    <Suspense>
+      <ViaticosContent />
+    </Suspense>
+  );
+}
+
+function ViaticosContent() {
+  const { get, setParams } = useQueryFilters({
+    status: 'all',
+    department: 'all',
+  });
+
+  const filterStatus = get('status');
+  const filterDepartment = get('department');
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<ExpenseStatus | 'all'>('all');
-  const [filterDepartment, setFilterDepartment] = useState('all');
   const [expandedExpense, setExpandedExpense] = useState<string | null>(null);
 
   // Fetch expenses from API
   const { data: expensesData, isLoading, error } = useExpenses({
-    status: filterStatus !== 'all' ? filterStatus : undefined,
+    status: filterStatus !== 'all' ? (filterStatus as ExpenseStatus) : undefined,
   });
 
   const approveExpense = useApproveExpense();
@@ -311,7 +326,7 @@ export default function ViaticosPage() {
                   label: dept,
                 }))}
                 value={filterDepartment}
-                onChange={setFilterDepartment}
+                onChange={(val) => setParams({ department: val })}
                 allLabel="Todos los Departamentos"
                 allValue="all"
               />
@@ -326,7 +341,7 @@ export default function ViaticosPage() {
                   { value: 'REJECTED', label: 'Rechazados' },
                 ]}
                 value={filterStatus}
-                onChange={(val) => setFilterStatus(val as ExpenseStatus | 'all')}
+                onChange={(val) => setParams({ status: val })}
                 allLabel="Todos los Estados"
                 allValue="all"
               />

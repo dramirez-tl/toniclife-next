@@ -15,7 +15,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useCartSummary } from '@/hooks/useCart';
 import { useAppSelector } from '@/store/hooks';
-import { selectIsAuthenticated, selectUserRoles } from '@/store/slices/authSlice';
+import { selectIsAuthenticated, selectUserRoles, selectUser } from '@/store/slices/authSlice';
 
 const navigation = [
   { name: 'Inicio', href: '/' },
@@ -48,9 +48,10 @@ export function Header() {
   const { data: cartSummary } = useCartSummary();
   const cartItemCount = cartSummary?.itemCount || 0;
 
-  // Get user authentication state and roles
+  // Get user authentication state, roles, and profile
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const userRoles = useAppSelector(selectUserRoles);
+  const user = useAppSelector(selectUser);
 
   // Determine the correct dashboard URL based on user roles
   const dashboardUrl = useMemo(() => {
@@ -216,9 +217,25 @@ export function Header() {
             {/* User */}
             <Link
               href={dashboardUrl}
-              className="hidden sm:block p-2 rounded-full hover:bg-gray-100 transition-colors"
+              className="hidden sm:flex items-center justify-center p-1.5 rounded-full hover:bg-gray-100 transition-colors"
             >
-              <UserIcon className="h-6 w-6 text-[#3E667D]" />
+              {isAuthenticated && user ? (
+                user.avatarUrl ? (
+                  <Image
+                    src={user.avatarUrl}
+                    alt={`${user.firstName} ${user.lastName}`}
+                    width={28}
+                    height={28}
+                    className="h-7 w-7 rounded-full object-cover ring-2 ring-[#3E667D]/20"
+                  />
+                ) : (
+                  <span className="h-7 w-7 rounded-full bg-[#3E667D] text-white text-xs font-bold flex items-center justify-center ring-2 ring-[#3E667D]/20">
+                    {user.firstName?.charAt(0)?.toUpperCase()}{user.lastName?.charAt(0)?.toUpperCase()}
+                  </span>
+                )
+              ) : (
+                <UserIcon className="h-6 w-6 text-[#3E667D]" />
+              )}
             </Link>
 
             {/* CTA Button - Desktop */}

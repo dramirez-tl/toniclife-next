@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeftIcon,
@@ -15,6 +15,7 @@ import {
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useCommissionsReport, usePointsReport, useRankUpsReport } from '@/hooks/useReports';
 import { useCommissionPeriods } from '@/hooks/useCommissions';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 type ViewMode = 'commissions' | 'points' | 'rank-ups';
 
@@ -44,9 +45,22 @@ const getRankColor = (rank: string) => {
 };
 
 export default function ComisionesReportesPage() {
-  const [viewMode, setViewMode] = useState<ViewMode>('commissions');
-  const [selectedPeriod, setSelectedPeriod] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState<'pending' | 'approved' | 'paid' | 'all'>('all');
+  return (
+    <Suspense>
+      <ComisionesReportesContent />
+    </Suspense>
+  );
+}
+
+function ComisionesReportesContent() {
+  const { get, setParams } = useQueryFilters({
+    viewMode: 'commissions',
+    status: 'all',
+  });
+
+  const viewMode = get('viewMode') as ViewMode;
+  const selectedStatus = get('status') as 'pending' | 'approved' | 'paid' | 'all';
+  const selectedPeriod = get('period');
 
   // Fetch periods - getPeriods() returns an array directly
   const { data: periodsData, isLoading: loadingPeriods } = useCommissionPeriods();
@@ -55,7 +69,7 @@ export default function ComisionesReportesPage() {
 
   // Set default period when data loads
   if (!selectedPeriod && currentPeriod?.id) {
-    setSelectedPeriod(currentPeriod.id);
+    setParams({ period: currentPeriod.id });
   }
 
   // Query params
@@ -114,7 +128,7 @@ export default function ComisionesReportesPage() {
                   label: period.name,
                 }))}
                 value={selectedPeriod}
-                onChange={setSelectedPeriod}
+                onChange={(val) => setParams({ period: val })}
                 showAllOption={false}
                 placeholder={periods.length === 0 ? 'Cargando...' : 'Seleccionar periodo'}
                 disabled={loadingPeriods}
@@ -131,7 +145,7 @@ export default function ComisionesReportesPage() {
                     { value: 'paid', label: 'Pagado' },
                   ]}
                   value={selectedStatus}
-                  onChange={(val) => setSelectedStatus(val as 'pending' | 'approved' | 'paid' | 'all')}
+                  onChange={(val) => setParams({ status: val })}
                   allLabel="Todos"
                   allValue="all"
                 />
@@ -140,7 +154,7 @@ export default function ComisionesReportesPage() {
 
             <div className="flex rounded-lg bg-gray-100 p-1">
               <button
-                onClick={() => setViewMode('commissions')}
+                onClick={() => setParams({ viewMode: 'commissions' })}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium ${
                   viewMode === 'commissions'
                     ? 'bg-white text-gray-900 shadow'
@@ -151,7 +165,7 @@ export default function ComisionesReportesPage() {
                 Comisiones
               </button>
               <button
-                onClick={() => setViewMode('points')}
+                onClick={() => setParams({ viewMode: 'points' })}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium ${
                   viewMode === 'points'
                     ? 'bg-white text-gray-900 shadow'
@@ -162,7 +176,7 @@ export default function ComisionesReportesPage() {
                 Puntos
               </button>
               <button
-                onClick={() => setViewMode('rank-ups')}
+                onClick={() => setParams({ viewMode: 'rank-ups' })}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium ${
                   viewMode === 'rank-ups'
                     ? 'bg-white text-gray-900 shadow'

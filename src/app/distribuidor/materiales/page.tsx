@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -16,6 +16,7 @@ import {
   EyeIcon,
 } from '@heroicons/react/24/outline';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { toast } from 'sonner';
 
 const mockMaterials = [
@@ -120,19 +121,30 @@ const typeIcons = {
 };
 
 export default function MaterialesPage() {
+  return <Suspense><MaterialesContent /></Suspense>;
+}
+
+function MaterialesContent() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterCategory, setFilterCategory] = useState('Todas');
-  const [filterType, setFilterType] = useState('Todos');
-  const [sortBy, setSortBy] = useState('recent');
+
+  const { get, setParams } = useQueryFilters({
+    category: 'all',
+    type: 'all',
+    sortBy: 'recent',
+  });
+
+  const filterCategory = get('category');
+  const filterType = get('type');
+  const sortBy = get('sortBy');
 
   const filteredMaterials = mockMaterials.filter(material => {
     if (searchQuery && !material.title.toLowerCase().includes(searchQuery.toLowerCase()) && !material.description.toLowerCase().includes(searchQuery.toLowerCase())) {
       return false;
     }
-    if (filterCategory !== 'Todas' && material.category !== filterCategory) {
+    if (filterCategory !== 'all' && material.category !== filterCategory) {
       return false;
     }
-    if (filterType !== 'Todos' && material.type !== filterType) {
+    if (filterType !== 'all' && material.type !== filterType) {
       return false;
     }
     return true;
@@ -241,18 +253,18 @@ export default function MaterialesPage() {
               <SearchableSelect
                 options={categories.filter(c => c !== 'Todas').map(cat => ({ value: cat, label: cat }))}
                 value={filterCategory}
-                onChange={setFilterCategory}
+                onChange={(val) => setParams({ category: val })}
                 allLabel="Todas"
-                allValue="Todas"
+                allValue="all"
               />
 
               {/* Type Filter */}
               <SearchableSelect
                 options={types.filter(t => t !== 'Todos').map(type => ({ value: type, label: type }))}
                 value={filterType}
-                onChange={setFilterType}
+                onChange={(val) => setParams({ type: val })}
                 allLabel="Todos"
-                allValue="Todos"
+                allValue="all"
               />
 
               {/* Sort */}
@@ -263,7 +275,7 @@ export default function MaterialesPage() {
                   { value: 'name', label: 'Nombre A-Z' },
                 ]}
                 value={sortBy}
-                onChange={setSortBy}
+                onChange={(val) => setParams({ sortBy: val })}
                 showAllOption={false}
               />
             </div>

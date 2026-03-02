@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { Suspense, useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -44,20 +44,34 @@ import { useAppSelector } from '@/store/hooks';
 import { selectUserRoles } from '@/store/slices/authSlice';
 import { useRoles } from '@/hooks/useRoles';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 type TabKey = 'users' | 'verification';
 
 export default function UsuariosPage() {
+  return <Suspense><UsuariosContent /></Suspense>;
+}
+
+function UsuariosContent() {
   const userRoles = useAppSelector(selectUserRoles);
   const isSuperAdmin = userRoles.includes('super_admin');
 
-  const [activeTab, setActiveTab] = useState<TabKey>('users');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchInput, setSearchInput] = useState('');
-  const [filterRole, setFilterRole] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const { get, getNumber, setParams } = useQueryFilters({
+    role: 'all',
+    status: 'all',
+    tab: 'users',
+    page: '1',
+    limit: '20',
+  });
+
+  const activeTab = get('tab') as TabKey;
+  const searchQuery = get('search');
+  const filterRole = get('role');
+  const filterStatus = get('status');
+  const currentPage = getNumber('page') || 1;
+  const pageSize = getNumber('limit') || 20;
+
+  const [searchInput, setSearchInput] = useState(searchQuery);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -187,31 +201,24 @@ export default function UsuariosPage() {
   };
 
   const handleSearch = () => {
-    setSearchQuery(searchInput.trim());
-    setCurrentPage(1);
+    setParams({ search: searchInput.trim() });
   };
 
   const handleFilterRole = (value: string) => {
-    setFilterRole(value);
-    setCurrentPage(1);
+    setParams({ role: value });
   };
 
   const handleFilterStatus = (value: string) => {
-    setFilterStatus(value);
-    setCurrentPage(1);
+    setParams({ status: value });
   };
 
   const handlePageSizeChange = (size: number) => {
-    setPageSize(size);
-    setCurrentPage(1);
+    setParams({ limit: String(size), page: null });
   };
 
   const resetFilters = () => {
-    setSearchQuery('');
     setSearchInput('');
-    setFilterRole('all');
-    setFilterStatus('all');
-    setCurrentPage(1);
+    setParams({ search: null, role: 'all', status: 'all', page: null });
   };
 
   const hasActiveFilters = Boolean(searchQuery || filterRole !== 'all' || filterStatus !== 'all');
@@ -219,9 +226,9 @@ export default function UsuariosPage() {
   const backendTotalPages = usersData?.totalPages;
   useEffect(() => {
     if (backendTotalPages && currentPage > backendTotalPages) {
-      setCurrentPage(backendTotalPages);
+      setParams({ page: String(backendTotalPages) });
     }
-  }, [backendTotalPages, currentPage]);
+  }, [backendTotalPages, currentPage, setParams]);
 
   // Modal handlers
   const openCreateModal = () => {
@@ -557,7 +564,7 @@ export default function UsuariosPage() {
         {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-white rounded-xl border border-gray-200 p-1 w-fit">
           <button
-            onClick={() => setActiveTab('users')}
+            onClick={() => setParams({ tab: 'users' })}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               activeTab === 'users'
                 ? 'bg-[#3E667D] text-white'
@@ -568,7 +575,7 @@ export default function UsuariosPage() {
             Usuarios
           </button>
           <button
-            onClick={() => setActiveTab('verification')}
+            onClick={() => setParams({ tab: 'verification' })}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               activeTab === 'verification'
                 ? 'bg-[#3E667D] text-white'
@@ -767,7 +774,7 @@ export default function UsuariosPage() {
                         pageSize={pageSize}
                         totalItems={totalUsers}
                         isLoading={isLoading || isFetching}
-                        onPageChange={setCurrentPage}
+                        onPageChange={(p) => setParams({ page: String(p) })}
                         onPageSizeChange={handlePageSizeChange}
                         pageSizeOptions={[10, 20, 50, 100]}
                       />

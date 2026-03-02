@@ -30,6 +30,7 @@ export const productKeys = {
   byCode: (code: string) => [...productKeys.all, 'code', code] as const,
   prices: (id: string) => [...productKeys.all, 'prices', id] as const,
   components: (id: string) => [...productKeys.all, 'components', id] as const,
+  taxes: (id: string) => [...productKeys.all, 'taxes', id] as const,
   featured: () => [...productKeys.all, 'featured'] as const,
   newArrivals: () => [...productKeys.all, 'new'] as const,
   bestSellers: () => [...productKeys.all, 'bestsellers'] as const,
@@ -372,6 +373,68 @@ export const useDeleteProductPrice = () => {
     onSuccess: (_, { productId }) => {
       queryClient.invalidateQueries({ queryKey: productKeys.prices(productId) });
       queryClient.invalidateQueries({ queryKey: productKeys.detail(productId) });
+    },
+  });
+};
+
+export const useDeactivateCountryPrices = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ productId, countryId, reason }: { productId: string; countryId: string; reason: string }) =>
+      productsService.deactivateCountryPrices(productId, countryId, reason),
+    onSuccess: (_, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.prices(productId) });
+      queryClient.invalidateQueries({ queryKey: productKeys.detail(productId) });
+    },
+  });
+};
+
+// ================================
+// PRODUCT TAX HOOKS (Reglas fiscales)
+// ================================
+
+export const useProductTaxes = (productId: string, enabled = true) => {
+  return useQuery({
+    queryKey: productKeys.taxes(productId),
+    queryFn: () => productsService.getProductTaxes(productId),
+    enabled: enabled && !!productId,
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useAssignProductTax = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ productId, taxRuleId, isIncludedInPrice }: { productId: string; taxRuleId: string; isIncludedInPrice?: boolean }) =>
+      productsService.assignProductTax(productId, taxRuleId, isIncludedInPrice),
+    onSuccess: (_, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.taxes(productId) });
+    },
+  });
+};
+
+export const useUpdateProductTax = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ productId, taxRuleId, isIncludedInPrice }: { productId: string; taxRuleId: string; isIncludedInPrice: boolean }) =>
+      productsService.updateProductTax(productId, taxRuleId, isIncludedInPrice),
+    onSuccess: (_, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.taxes(productId) });
+    },
+  });
+};
+
+export const useRemoveProductTax = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ productId, taxRuleId }: { productId: string; taxRuleId: string }) =>
+      productsService.removeProductTax(productId, taxRuleId),
+    onSuccess: (_, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.taxes(productId) });
     },
   });
 };

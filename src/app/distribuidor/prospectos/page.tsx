@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -19,6 +19,7 @@ import {
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { toast } from 'sonner';
 
 const mockProspects = [
@@ -124,11 +125,20 @@ const statusConfig = {
 };
 
 export default function ProspectosPage() {
+  return <Suspense><ProspectosContent /></Suspense>;
+}
+
+function ProspectosContent() {
   const [prospects, setProspects] = useState(mockProspects);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showScriptsModal, setShowScriptsModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
+
+  const { get, setParams } = useQueryFilters({
+    status: 'all',
+  });
+
+  const filterStatus = get('status');
 
   const filteredProspects = prospects.filter(p => {
     if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) {
@@ -286,7 +296,7 @@ export default function ProspectosPage() {
                   { value: 'converted', label: 'Convertidos' },
                 ]}
                 value={filterStatus}
-                onChange={setFilterStatus}
+                onChange={(val) => setParams({ status: val })}
                 allLabel="Todos los estados"
                 allValue="all"
               />

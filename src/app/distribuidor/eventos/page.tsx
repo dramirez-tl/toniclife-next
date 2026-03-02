@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
@@ -27,6 +27,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleSolid, StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { toast } from 'sonner';
 
 const mockEvents = [
@@ -172,10 +173,20 @@ const eventTypeConfig = {
 };
 
 export default function EventosPage() {
+  return <Suspense><EventosContent /></Suspense>;
+}
+
+function EventosContent() {
   const [currentMonth, setCurrentMonth] = useState(new Date(2025, 0));
-  const [filterType, setFilterType] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('upcoming');
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
+
+  const { get, setParams } = useQueryFilters({
+    type: 'all',
+    status: 'upcoming',
+  });
+
+  const filterType = get('type');
+  const filterStatus = get('status');
 
   const filteredEvents = mockEvents.filter(event => {
     if (filterType !== 'all' && event.type !== filterType) return false;
@@ -576,7 +587,7 @@ export default function EventosPage() {
                       </div>
                     </button>
                     <button
-                      onClick={() => setFilterStatus('past')}
+                      onClick={() => setParams({ status: 'past' })}
                       className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white hover:shadow-md transition-all text-left group"
                     >
                       <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -612,7 +623,7 @@ export default function EventosPage() {
                         { value: 'convention', label: 'Convenciones' },
                       ]}
                       value={filterType}
-                      onChange={setFilterType}
+                      onChange={(val) => setParams({ type: val })}
                       allLabel="Todos los tipos"
                       allValue="all"
                       className="w-full"
@@ -629,7 +640,7 @@ export default function EventosPage() {
                         { value: 'past', label: 'Pasados' },
                       ]}
                       value={filterStatus}
-                      onChange={setFilterStatus}
+                      onChange={(val) => setParams({ status: val })}
                       allLabel="Todos"
                       allValue="all"
                       className="w-full"

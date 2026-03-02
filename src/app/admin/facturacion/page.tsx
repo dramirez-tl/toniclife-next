@@ -2,7 +2,7 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.5 Facturación
 'use client';
 
-import { useState, useMemo } from 'react';
+import { Suspense, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -33,13 +33,24 @@ import {
   type InvoiceQueryDto,
 } from '@/types/billing';
 import { PermissionGuard } from '@/components/auth';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 export default function FacturacionPage() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchInput, setSearchInput] = useState('');
-  const [statusFilter, setStatusFilter] = useState<InvoiceStatus | ''>('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  return <Suspense><FacturacionContent /></Suspense>;
+}
+
+function FacturacionContent() {
+  const { get, getNumber, setParams } = useQueryFilters({
+    page: '1',
+    limit: '20',
+  });
+
+  const searchTerm = get('search');
+  const statusFilter = get('status') as InvoiceStatus | '';
+  const currentPage = getNumber('page') || 1;
+  const pageSize = getNumber('limit') || 20;
+
+  const [searchInput, setSearchInput] = useState(searchTerm);
 
   const filters: InvoiceQueryDto = useMemo(() => ({
     limit: pageSize,
@@ -129,25 +140,20 @@ export default function FacturacionPage() {
   };
 
   const handleSearch = () => {
-    setSearchTerm(searchInput.trim());
-    setCurrentPage(1);
+    setParams({ search: searchInput.trim() });
   };
 
   const handleStatusFilter = (value: string) => {
-    setStatusFilter(value as InvoiceStatus | '');
-    setCurrentPage(1);
+    setParams({ status: value });
   };
 
   const handlePageSizeChange = (size: number) => {
-    setPageSize(size);
-    setCurrentPage(1);
+    setParams({ limit: String(size), page: null });
   };
 
   const resetFilters = () => {
-    setSearchTerm('');
     setSearchInput('');
-    setStatusFilter('');
-    setCurrentPage(1);
+    setParams({ search: null, status: null, page: null });
   };
 
   const hasActiveFilters = Boolean(searchTerm || statusFilter);
@@ -564,7 +570,7 @@ export default function FacturacionPage() {
                 pageSize={pageSize}
                 totalItems={totalInvoices}
                 isLoading={isLoading || isFetching}
-                onPageChange={setCurrentPage}
+                onPageChange={(p) => setParams({ page: String(p) })}
                 onPageSizeChange={handlePageSizeChange}
                 pageSizeOptions={[10, 20, 50, 100]}
               />

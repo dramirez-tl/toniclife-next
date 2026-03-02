@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense } from 'react';
 import Link from 'next/link';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import {
@@ -179,13 +180,24 @@ const categories = [
   { id: 'recruits', name: 'Nuevos Reclutados', icon: StarIcon },
 ];
 
-const periods = ['Esta Semana', 'Este Mes', 'Este Trimestre', 'Este Año', 'Histórico'];
-const regions = ['Todas las Regiones', 'CDMX', 'Guadalajara', 'Monterrey', 'Puebla', 'Querétaro', 'León'];
+const periods = [
+  { value: 'week', label: 'Esta Semana' },
+  { value: 'month', label: 'Este Mes' },
+  { value: 'quarter', label: 'Este Trimestre' },
+  { value: 'year', label: 'Este Año' },
+  { value: 'all-time', label: 'Histórico' },
+];
+const regions = ['CDMX', 'Guadalajara', 'Monterrey', 'Puebla', 'Querétaro', 'León'];
 
 export default function RankingPage() {
-  const [selectedCategory, setSelectedCategory] = useState('sales');
-  const [selectedPeriod, setSelectedPeriod] = useState('Este Mes');
-  const [selectedRegion, setSelectedRegion] = useState('Todas las Regiones');
+  return <Suspense><RankingContent /></Suspense>;
+}
+
+function RankingContent() {
+  const { get, setParams } = useQueryFilters({ category: 'sales', period: 'month', region: 'all' });
+  const selectedCategory = get('category');
+  const selectedPeriod = get('period');
+  const selectedRegion = get('region');
 
   const getRankBadgeColor = (rank: number) => {
     if (rank === 1) return 'from-yellow-400 to-yellow-600';
@@ -291,7 +303,7 @@ export default function RankingPage() {
                     return (
                       <button
                         key={category.id}
-                        onClick={() => setSelectedCategory(category.id)}
+                        onClick={() => setParams({ category: category.id })}
                         className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${
                           selectedCategory === category.id
                             ? 'bg-[#3E667D] text-white shadow-md'
@@ -313,9 +325,9 @@ export default function RankingPage() {
                     Periodo
                   </label>
                   <SearchableSelect
-                    options={periods.map(period => ({ value: period, label: period }))}
+                    options={periods.map(p => ({ value: p.value, label: p.label }))}
                     value={selectedPeriod}
-                    onChange={setSelectedPeriod}
+                    onChange={(val) => setParams({ period: val })}
                     showAllOption={false}
                     className="w-full"
                   />
@@ -325,11 +337,11 @@ export default function RankingPage() {
                     Región
                   </label>
                   <SearchableSelect
-                    options={regions.filter(r => r !== 'Todas las Regiones').map(region => ({ value: region, label: region }))}
-                    value={selectedRegion}
-                    onChange={setSelectedRegion}
+                    options={regions.map(region => ({ value: region, label: region }))}
+                    value={selectedRegion === 'all' ? 'all' : selectedRegion}
+                    onChange={(val) => setParams({ region: val })}
                     allLabel="Todas las Regiones"
-                    allValue="Todas las Regiones"
+                    allValue="all"
                     className="w-full"
                   />
                 </div>

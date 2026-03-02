@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo, Suspense } from 'react';
 import Link from 'next/link';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import {
@@ -107,9 +108,14 @@ const getCategoryColor = (category: NotificationCategory) => {
 // ================================
 
 export default function NotificacionesPage() {
-  const [filterCategory, setFilterCategory] = useState<CategoryFilterId>('all');
-  const [filterRead, setFilterRead] = useState<'all' | 'unread' | 'read'>('all');
-  const [currentPage, setCurrentPage] = useState(1);
+  return <Suspense><NotificacionesContent /></Suspense>;
+}
+
+function NotificacionesContent() {
+  const { get, getNumber, setParams } = useQueryFilters({ category: 'all', read: 'all', page: '1' });
+  const filterCategory = get('category') as CategoryFilterId;
+  const filterRead = get('read') as 'all' | 'unread' | 'read';
+  const currentPage = getNumber('page') || 1;
   const pageSize = 20;
 
   // Build query params
@@ -196,13 +202,11 @@ export default function NotificacionesPage() {
   };
 
   const handleFilterCategory = (id: CategoryFilterId) => {
-    setFilterCategory(id);
-    setCurrentPage(1);
+    setParams({ category: id });
   };
 
   const handleFilterRead = (status: 'all' | 'unread' | 'read') => {
-    setFilterRead(status);
-    setCurrentPage(1);
+    setParams({ read: status });
   };
 
   const formatTime = (timestamp: string) => {
@@ -493,11 +497,7 @@ export default function NotificacionesPage() {
                       <Button
                         variant="outline"
                         className="mt-4"
-                        onClick={() => {
-                          setFilterCategory('all');
-                          setFilterRead('all');
-                          setCurrentPage(1);
-                        }}
+                        onClick={() => setParams({ category: null, read: null, page: null })}
                       >
                         Limpiar filtros
                       </Button>
@@ -606,7 +606,7 @@ export default function NotificacionesPage() {
                         size="sm"
                         disabled={currentPage <= 1}
                         onClick={() =>
-                          setCurrentPage((p) => Math.max(1, p - 1))
+                          setParams({ page: String(Math.max(1, currentPage - 1)) })
                         }
                       >
                         Anterior
@@ -616,7 +616,7 @@ export default function NotificacionesPage() {
                         size="sm"
                         disabled={currentPage >= totalPages}
                         onClick={() =>
-                          setCurrentPage((p) => Math.min(totalPages, p + 1))
+                          setParams({ page: String(Math.min(totalPages, currentPage + 1)) })
                         }
                       >
                         Siguiente

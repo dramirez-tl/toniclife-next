@@ -20,6 +20,7 @@ import {
   ExclamationCircleIcon,
   WifiIcon,
   ServerIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -422,25 +423,19 @@ export default function DistribuidorDashboard() {
                 <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur flex items-center justify-center">
                   <CurrencyDollarIcon className="h-6 w-6 text-white" />
                 </div>
-                {commissionsSummary?.changeFromLastPeriod !== undefined && (
-                  <div className="flex items-center gap-1 bg-[#C8DDF2] px-2.5 py-1 rounded-full">
-                    <ArrowTrendingUpIcon className="h-3.5 w-3.5 text-white" />
-                    <span className="text-xs font-bold text-white">
-                      {commissionsSummary.changeFromLastPeriod >= 0 ? '+' : ''}
-                      {commissionsSummary.changeFromLastPeriod.toFixed(1)}%
-                    </span>
-                  </div>
-                )}
+                <div className="flex items-center gap-1 bg-white/15 backdrop-blur-sm px-2.5 py-1 rounded-full">
+                  <ClockIcon className="h-3.5 w-3.5 text-white/70" />
+                  <span className="text-xs font-medium text-white/70">En curso</span>
+                </div>
               </div>
               <p className="text-sm font-medium text-white/70 mb-1">Comisiones del mes</p>
-              <p className="text-3xl font-bold text-white tracking-tight">
-                {formatMoney(stats?.monthlyCommission || commissionsSummary?.totalNet || 0)}
-                <span className="text-[10px] font-semibold bg-white/20 text-white/80 px-1.5 py-0.5 rounded ml-1">{currencyCode}</span>
+              <p className="text-lg font-semibold text-white/90 leading-snug mt-1">
+                Disponible al cierre del periodo
               </p>
               <div className="mt-3 pt-3 border-t border-white/10">
                 <p className="text-xs text-white/50 flex items-center gap-1">
-                  <CheckCircleIcon className="h-3.5 w-3.5 text-[#3E667D]" />
-                  Neto después de impuestos
+                  <ClockIcon className="h-3.5 w-3.5 text-white/40" />
+                  Se calcula automáticamente cada periodo
                 </p>
               </div>
             </CardContent>

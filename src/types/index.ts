@@ -24,6 +24,7 @@ export interface Product {
   price: number;
   compareAtPrice?: number;
   originalPrice?: number;
+  currencyCode?: string;
   image: string;
   images?: string[];
   inStock: boolean;

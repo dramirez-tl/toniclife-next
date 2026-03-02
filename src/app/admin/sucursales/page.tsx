@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { Suspense, useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -33,6 +33,9 @@ import {
 import { toast } from 'sonner';
 import { PermissionGuard } from '@/components/auth';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
+import { useActiveCountries } from '@/hooks/useConfig';
+import type { Country } from '@/types/config';
 
 // ================================
 // BRANCH MODAL COMPONENT
@@ -166,6 +169,7 @@ function CheckboxField({ label, description, checked, onChange }: CheckboxFieldP
 const initialFormState: CreateBranchDto = {
   name: '',
   code: '',
+  countryId: '',
   addressStreet: '',
   addressCity: '',
   addressState: '',
@@ -189,12 +193,26 @@ const initialFormState: CreateBranchDto = {
 // ================================
 
 export default function SucursalesPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchInput, setSearchInput] = useState('');
-  const [filterType, setFilterType] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  return <Suspense><SucursalesContent /></Suspense>;
+}
+
+function SucursalesContent() {
+  const { get, getNumber, setParams } = useQueryFilters({
+    type: 'all',
+    status: 'all',
+    country: 'all',
+    page: '1',
+    limit: '20',
+  });
+
+  const searchQuery = get('search');
+  const filterCountry = get('country');
+  const filterType = get('type');
+  const filterStatus = get('status');
+  const currentPage = getNumber('page') || 1;
+  const pageSize = getNumber('limit') || 20;
+
+  const [searchInput, setSearchInput] = useState(searchQuery);
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -209,6 +227,7 @@ export default function SucursalesPage() {
     };
 
     if (searchQuery) params.search = searchQuery;
+    if (filterCountry !== 'all') params.countryId = filterCountry;
     if (filterType === 'warehouse') params.isWarehouse = true;
     if (filterType === 'pickup') params.isPickupPoint = true;
     if (filterType === 'pos') params.isPosEnabled = true;
@@ -217,13 +236,14 @@ export default function SucursalesPage() {
     }
 
     return params;
-  }, [searchQuery, filterType, filterStatus, currentPage, pageSize]);
+  }, [searchQuery, filterCountry, filterType, filterStatus, currentPage, pageSize]);
 
   // API Hooks
   const { data: branchesData, isLoading, isFetching, error, refetch } = useBranches(queryParams);
   const createBranch = useCreateBranch();
   const updateBranch = useUpdateBranch();
   const deleteBranch = useDeleteBranch();
+  const { data: countries = [] } = useActiveCountries();
 
   // Computed stats
   const stats = useMemo(() => {
@@ -240,23 +260,23 @@ export default function SucursalesPage() {
 
   // Handlers
   const handleSearch = () => {
-    setSearchQuery(searchInput.trim());
-    setCurrentPage(1);
+    setParams({ search: searchInput.trim() });
+  };
+
+  const handleFilterCountry = (value: string) => {
+    setParams({ country: value, page: null });
   };
 
   const handleFilterType = (value: string) => {
-    setFilterType(value);
-    setCurrentPage(1);
+    setParams({ type: value, page: null });
   };
 
   const handleFilterStatus = (value: string) => {
-    setFilterStatus(value);
-    setCurrentPage(1);
+    setParams({ status: value, page: null });
   };
 
   const handlePageSizeChange = (value: string) => {
-    setPageSize(Number(value));
-    setCurrentPage(1);
+    setParams({ limit: value, page: null });
   };
 
   const handleRefresh = async () => {
@@ -264,11 +284,8 @@ export default function SucursalesPage() {
   };
 
   const resetFilters = () => {
-    setSearchQuery('');
     setSearchInput('');
-    setFilterType('all');
-    setFilterStatus('all');
-    setCurrentPage(1);
+    setParams({ search: null, country: 'all', type: 'all', status: 'all', page: null });
   };
 
   const handleOpenCreateModal = () => {
@@ -279,16 +296,18 @@ export default function SucursalesPage() {
 
   const handleOpenEditModal = (branch: Branch) => {
     setEditingBranch(branch);
+    const country = countries.find((c: Country) => c.id === branch.countryId);
     setFormData({
       name: branch.name,
       code: branch.code,
+      countryId: branch.countryId || '',
       addressStreet: branch.addressStreet || '',
       addressCity: branch.addressCity || '',
       addressState: branch.addressState || '',
       addressZip: branch.addressZip || '',
       addressPhone: branch.addressPhone || '',
       addressEmail: branch.addressEmail || '',
-      currencyCode: branch.currencyCode || '',
+      currencyCode: country?.currencyCode || branch.currencyCode || '',
       isWarehouse: branch.isWarehouse,
       isPickupPoint: branch.isPickupPoint,
       isPosEnabled: branch.isPosEnabled,
@@ -310,6 +329,15 @@ export default function SucursalesPage() {
 
   const handleFormChange = (field: keyof CreateBranchDto, value: string | boolean | number | undefined) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleCountryChange = (countryId: string) => {
+    const country = countries.find((c: Country) => c.id === countryId);
+    setFormData((prev) => ({
+      ...prev,
+      countryId: countryId || '',
+      currencyCode: country?.currencyCode || '',
+    }));
   };
 
   const handleSubmit = async () => {
@@ -453,7 +481,7 @@ export default function SucursalesPage() {
   const branches = branchesData?.data ?? [];
   const totalPages = branchesData?.totalPages ?? 1;
   const backendTotalPages = branchesData?.totalPages;
-  const hasActiveFilters = Boolean(searchQuery || filterType !== 'all' || filterStatus !== 'all');
+  const hasActiveFilters = Boolean(searchQuery || filterCountry !== 'all' || filterType !== 'all' || filterStatus !== 'all');
   const totalBranches = branchesData?.total ?? 0;
   const pageStart = totalBranches === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const pageEnd = totalBranches === 0 ? 0 : Math.min(currentPage * pageSize, totalBranches);
@@ -462,9 +490,9 @@ export default function SucursalesPage() {
     // Solo ajustar cuando el backend ya devolvió totalPages real;
     // evita volver a página 1 durante estados transitorios de carga.
     if (backendTotalPages && currentPage > backendTotalPages) {
-      setCurrentPage(backendTotalPages);
+      setParams({ page: String(backendTotalPages) });
     }
-  }, [backendTotalPages, currentPage]);
+  }, [backendTotalPages, currentPage, setParams]);
 
   // Loading state
   if (isLoading && !branchesData) {
@@ -554,6 +582,17 @@ export default function SucursalesPage() {
       render: (branch) => (
         <span className="inline-flex items-center rounded-md bg-gray-100 px-2.5 py-1 text-sm font-mono font-medium text-gray-800">
           {branch.code}
+        </span>
+      ),
+    },
+    {
+      key: 'country',
+      header: 'Pais',
+      sortable: true,
+      sortValue: (branch) => branch.countryName ?? '',
+      render: (branch) => (
+        <span className="text-sm text-gray-600">
+          {branch.countryName || <span className="text-gray-400 italic">Sin pais</span>}
         </span>
       ),
     },
@@ -750,7 +789,7 @@ export default function SucursalesPage() {
             </div>
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:gap-4">
               {/* Search */}
-              <div className="lg:col-span-6">
+              <div className="lg:col-span-5">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <div className="relative flex-1">
                   <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -779,8 +818,23 @@ export default function SucursalesPage() {
                 </div>
               </div>
 
-              {/* Type Filter */}
+              {/* Country Filter */}
               <div className="lg:col-span-3">
+                <SearchableSelect
+                  options={countries.map((c: Country) => ({
+                    value: c.id,
+                    label: `${c.name} (${c.code})`,
+                  }))}
+                  value={filterCountry}
+                  onChange={handleFilterCountry}
+                  allLabel="Todos los Paises"
+                  allValue="all"
+                  className="w-full"
+                />
+              </div>
+
+              {/* Type Filter */}
+              <div className="lg:col-span-2">
                 <SearchableSelect
                   options={[
                     { value: 'warehouse', label: 'Almacenes' },
@@ -796,7 +850,7 @@ export default function SucursalesPage() {
               </div>
 
               {/* Status Filter */}
-              <div className="lg:col-span-3">
+              <div className="lg:col-span-2">
                 <SearchableSelect
                   options={[
                     { value: 'active', label: 'Activas' },
@@ -818,6 +872,11 @@ export default function SucursalesPage() {
                 {searchQuery && (
                   <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
                     Busqueda: {searchQuery}
+                  </span>
+                )}
+                {filterCountry !== 'all' && (
+                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
+                    Pais: {countries.find((c: Country) => c.id === filterCountry)?.name ?? filterCountry}
                   </span>
                 )}
                 {filterType !== 'all' && (
@@ -887,7 +946,7 @@ export default function SucursalesPage() {
                 pageSize={pageSize}
                 totalItems={totalBranches}
                 isLoading={isLoading || isFetching}
-                onPageChange={setCurrentPage}
+                onPageChange={(p) => setParams({ page: String(p) })}
                 onPageSizeChange={(size) => handlePageSizeChange(String(size))}
                 pageSizeOptions={[10, 20, 50, 100]}
               />
@@ -1017,19 +1076,31 @@ export default function SucursalesPage() {
           />
         </FormSection>
 
-        {/* Currency & Shipping */}
-        <FormSection title="Moneda y Envios">
-          <FormField label="Codigo de Moneda">
+        {/* Country, Currency & Shipping */}
+        <FormSection title="Pais, Moneda y Envios">
+          <FormField label="Pais" required>
+            <select
+              value={formData.countryId || ''}
+              onChange={(e) => handleCountryChange(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
+            >
+              <option value="">Seleccionar pais...</option>
+              {countries.map((c: Country) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.code})
+                </option>
+              ))}
+            </select>
+          </FormField>
+          <FormField label="Moneda">
             <input
               type="text"
-              value={formData.currencyCode || ''}
-              onChange={(e) => handleFormChange('currencyCode', e.target.value.toUpperCase())}
-              placeholder="Ej: MXN, USD"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm font-mono"
-              maxLength={3}
+              value={formData.currencyCode || '—'}
+              readOnly
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm font-mono text-gray-600 cursor-not-allowed"
             />
+            <p className="text-xs text-gray-400 mt-1">Se asigna automaticamente segun el pais</p>
           </FormField>
-          <div /> {/* spacer */}
           <FormField label="Envio Gratis Desde">
             <input
               type="number"

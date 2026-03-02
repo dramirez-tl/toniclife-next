@@ -90,6 +90,8 @@ export interface Product {
   // Fields from backend JOINs
   imageUrl?: string;
   price?: string;
+  priceCurrency?: string;
+  activeCountries?: string[];
   // UI-only fields (not in backend DTO, used by frontend pages)
   galleryUrls?: string[];
   videoUrl?: string;
@@ -108,14 +110,35 @@ export interface ProductPrice {
   productId: string;
   priceTypeId: string;
   priceTypeName?: string;
+  countryId: string;
   currencyCode: string;
   price: string;
   cost?: string;
+  points?: string;
+  businessValue?: string;
   effectiveFrom: string;
   effectiveTo?: string;
   isActive: boolean;
+  updatedById?: string;
+  updatedByName?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+// ================================
+// PRODUCT TAX TYPES (matches ProductTaxDto)
+// ================================
+export interface ProductTax {
+  id: string;
+  productId: string;
+  taxRuleId: string;
+  taxRuleName: string;
+  taxRuleCode: string;
+  taxType: string;
+  rate: number;
+  countryCode: string;
+  isIncludedInPrice: boolean;
+  isActive: boolean;
 }
 
 // ================================
@@ -144,6 +167,7 @@ export interface ProductQueryParams {
   search?: string;
   categoryId?: string;
   branchId?: string;
+  inStock?: boolean;
   isActive?: boolean;
   isVisibleEcommerce?: boolean;
   isFeatured?: boolean;
@@ -236,9 +260,12 @@ export interface UpdateProductDto extends Partial<CreateProductDto> {}
 
 export interface CreateProductPriceDto {
   priceTypeId: string;
+  countryId: string;
   currencyCode: string;
   price: number;
   cost?: number;
+  points?: number;
+  businessValue?: number;
   effectiveFrom?: string;
   effectiveTo?: string;
   isActive?: boolean;

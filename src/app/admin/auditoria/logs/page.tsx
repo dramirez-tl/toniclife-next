@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import {
@@ -22,50 +21,35 @@ import { toast } from 'sonner';
 import { useAuditLogs, useMarkAsReviewed } from '@/hooks/useAudit';
 import { AuditFilters, RISK_LEVEL_CONFIG, ACTION_CATEGORIES, RiskLevel } from '@/types/audit';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 function AuditLogsContent() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
+  const { get, getNumber, setParams } = useQueryFilters({
+    page: '1',
+  });
 
-  // Filters from URL
-  const [filters, setFilters] = useState<AuditFilters>({
-    search: searchParams.get('search') || '',
-    riskLevel: (searchParams.get('riskLevel') as RiskLevel) || undefined,
-    actionCategory: searchParams.get('actionCategory') || undefined,
-    requiresReview: searchParams.get('requiresReview') === 'true' || undefined,
-    success: searchParams.get('success') ? searchParams.get('success') === 'true' : undefined,
-    page: parseInt(searchParams.get('page') || '1'),
+  const search = get('search');
+  const riskLevel = get('riskLevel') as RiskLevel | '';
+  const actionCategory = get('actionCategory');
+  const requiresReview = get('requiresReview') === 'true' ? true : undefined;
+  const success = get('success') ? get('success') === 'true' : undefined;
+  const currentPage = getNumber('page') || 1;
+
+  // Build filters object for API hook
+  const filters: AuditFilters = {
+    search: search || '',
+    riskLevel: riskLevel || undefined,
+    actionCategory: actionCategory || undefined,
+    requiresReview,
+    success,
+    page: currentPage,
     limit: 20,
     sortBy: 'createdAt',
     sortOrder: 'desc',
-  });
+  };
 
   const { data, isLoading, refetch } = useAuditLogs(filters);
   const markAsReviewed = useMarkAsReviewed();
-
-  // Update URL when filters change
-  useEffect(() => {
-    const params = new URLSearchParams();
-    if (filters.search) params.set('search', filters.search);
-    if (filters.riskLevel) params.set('riskLevel', filters.riskLevel);
-    if (filters.actionCategory) params.set('actionCategory', filters.actionCategory);
-    if (filters.requiresReview) params.set('requiresReview', 'true');
-    if (filters.success !== undefined) params.set('success', String(filters.success));
-    if (filters.page && filters.page > 1) params.set('page', String(filters.page));
-
-    const queryString = params.toString();
-    router.replace(`/admin/auditoria/logs${queryString ? `?${queryString}` : ''}`, { scroll: false });
-  }, [filters, router]);
-
-  // Handle filter changes
-  const updateFilters = (newFilters: Partial<AuditFilters>) => {
-    setFilters((prev) => ({ ...prev, ...newFilters, page: 1 }));
-  };
-
-  // Handle pagination
-  const changePage = (newPage: number) => {
-    setFilters((prev) => ({ ...prev, page: newPage }));
-  };
 
   // Handle mark as reviewed
   const handleMarkAsReviewed = async (id: string) => {
@@ -139,8 +123,8 @@ function AuditLogsContent() {
                   <input
                     type="text"
                     placeholder="Buscar por descripción, usuario, entidad..."
-                    value={filters.search || ''}
-                    onChange={(e) => updateFilters({ search: e.target.value })}
+                    value={search}
+                    onChange={(e) => setParams({ search: e.target.value })}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
@@ -156,8 +140,8 @@ function AuditLogsContent() {
                     { value: 'medium', label: 'Medio' },
                     { value: 'low', label: 'Bajo' },
                   ]}
-                  value={filters.riskLevel || ''}
-                  onChange={(val) => updateFilters({ riskLevel: val as RiskLevel || undefined })}
+                  value={riskLevel || ''}
+                  onChange={(val) => setParams({ riskLevel: val || null })}
                   allLabel="Todos los Niveles"
                 />
               </div>
@@ -169,8 +153,8 @@ function AuditLogsContent() {
                     value: cat.value,
                     label: cat.label,
                   }))}
-                  value={filters.actionCategory || ''}
-                  onChange={(val) => updateFilters({ actionCategory: val || undefined })}
+                  value={actionCategory || ''}
+                  onChange={(val) => setParams({ actionCategory: val || null })}
                   allLabel="Todas las Categorías"
                 />
               </div>
@@ -180,8 +164,8 @@ function AuditLogsContent() {
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
-                    checked={filters.requiresReview || false}
-                    onChange={(e) => updateFilters({ requiresReview: e.target.checked || undefined })}
+                    checked={requiresReview || false}
+                    onChange={(e) => setParams({ requiresReview: e.target.checked ? 'true' : null })}
                     className="w-4 h-4 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
                   />
                   <span className="text-sm text-gray-700">Pendientes de revisión</span>
@@ -193,11 +177,13 @@ function AuditLogsContent() {
                 variant="ghost"
                 size="sm"
                 onClick={() =>
-                  setFilters({
-                    page: 1,
-                    limit: 20,
-                    sortBy: 'createdAt',
-                    sortOrder: 'desc',
+                  setParams({
+                    search: null,
+                    riskLevel: null,
+                    actionCategory: null,
+                    requiresReview: null,
+                    success: null,
+                    page: null,
                   })
                 }
               >
@@ -346,27 +332,27 @@ function AuditLogsContent() {
                 {data && data.totalPages > 1 && (
                   <div className="flex items-center justify-between px-4 py-4 border-t">
                     <p className="text-sm text-gray-600">
-                      Mostrando {(filters.page! - 1) * filters.limit! + 1} -{' '}
-                      {Math.min(filters.page! * filters.limit!, data.total)} de {data.total} registros
+                      Mostrando {(currentPage - 1) * 20 + 1} -{' '}
+                      {Math.min(currentPage * 20, data.total)} de {data.total} registros
                     </p>
                     <div className="flex items-center gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled={filters.page === 1}
-                        onClick={() => changePage(filters.page! - 1)}
+                        disabled={currentPage === 1}
+                        onClick={() => setParams({ page: String(currentPage - 1) })}
                       >
                         <ChevronLeftIcon className="h-4 w-4" />
                         Anterior
                       </Button>
                       <span className="px-3 py-1 text-sm">
-                        {filters.page} / {data.totalPages}
+                        {currentPage} / {data.totalPages}
                       </span>
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled={filters.page === data.totalPages}
-                        onClick={() => changePage(filters.page! + 1)}
+                        disabled={currentPage === data.totalPages}
+                        onClick={() => setParams({ page: String(currentPage + 1) })}
                       >
                         Siguiente
                         <ChevronRightIcon className="h-4 w-4" />

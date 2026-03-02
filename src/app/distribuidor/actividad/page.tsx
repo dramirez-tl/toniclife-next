@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense } from 'react';
 import Link from 'next/link';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import {
@@ -155,29 +156,39 @@ const activityTypes = [
   { id: 'message', name: 'Mensajes', icon: ChatBubbleLeftIcon },
 ];
 
-const timeFilters = ['Hoy', 'Esta Semana', 'Este Mes', 'Todo'];
+const timeFilters = [
+  { value: 'today', label: 'Hoy' },
+  { value: 'week', label: 'Esta Semana' },
+  { value: 'month', label: 'Este Mes' },
+  { value: 'all', label: 'Todo' },
+];
 
 export default function ActividadPage() {
-  const [filterType, setFilterType] = useState('all');
-  const [filterTime, setFilterTime] = useState('Todo');
+  return <Suspense><ActividadContent /></Suspense>;
+}
+
+function ActividadContent() {
+  const { get, setParams } = useQueryFilters({ type: 'all', time: 'all' });
+  const filterType = get('type');
+  const filterTime = get('time');
 
   const filteredActivities = mockActivities.filter(activity => {
     if (filterType !== 'all' && activity.type !== filterType) return false;
 
-    if (filterTime !== 'Todo') {
+    if (filterTime !== 'all') {
       const activityDate = new Date(activity.timestamp);
       const now = new Date();
 
-      if (filterTime === 'Hoy') {
+      if (filterTime === 'today') {
         return activityDate.toDateString() === now.toDateString();
       }
 
-      if (filterTime === 'Esta Semana') {
+      if (filterTime === 'week') {
         const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         return activityDate >= weekAgo;
       }
 
-      if (filterTime === 'Este Mes') {
+      if (filterTime === 'month') {
         return activityDate.getMonth() === now.getMonth() &&
                activityDate.getFullYear() === now.getFullYear();
       }
@@ -324,7 +335,7 @@ export default function ActividadPage() {
                       return (
                         <button
                           key={type.id}
-                          onClick={() => setFilterType(type.id)}
+                          onClick={() => setParams({ type: type.id })}
                           className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
                             filterType === type.id
                               ? 'bg-[#3E667D] text-white'
@@ -347,15 +358,15 @@ export default function ActividadPage() {
                   <div className="space-y-2">
                     {timeFilters.map((filter) => (
                       <button
-                        key={filter}
-                        onClick={() => setFilterTime(filter)}
+                        key={filter.value}
+                        onClick={() => setParams({ time: filter.value })}
                         className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                          filterTime === filter
+                          filterTime === filter.value
                             ? 'bg-[#3E667D] text-white font-medium'
                             : 'hover:bg-gray-100 text-gray-700'
                         }`}
                       >
-                        {filter}
+                        {filter.label}
                       </button>
                     ))}
                   </div>
@@ -366,10 +377,7 @@ export default function ActividadPage() {
                   variant="outline"
                   size="sm"
                   className="w-full mt-6"
-                  onClick={() => {
-                    setFilterType('all');
-                    setFilterTime('Todo');
-                  }}
+                  onClick={() => setParams({ type: null, time: null })}
                 >
                   Limpiar Filtros
                 </Button>

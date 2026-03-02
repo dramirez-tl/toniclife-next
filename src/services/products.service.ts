@@ -8,6 +8,7 @@ import {
   type ProductListResponse,
   type ProductQueryParams,
   type ProductPrice,
+  type ProductTax,
   type ProductComponent,
   type Category,
   type CategoryTree,
@@ -75,7 +76,7 @@ class ProductsService {
    * Get featured products
    */
   async getFeaturedProducts(limit = 10): Promise<ProductListResponse> {
-    return this.getProducts({ isFeatured: true, isVisibleEcommerce: true, isActive: true, branchId: ECOMMERCE_BRANCH_ID, limit });
+    return this.getProducts({ isFeatured: true, isVisibleEcommerce: true, isActive: true, branchId: ECOMMERCE_BRANCH_ID, inStock: true, limit });
   }
 
   /**
@@ -207,6 +208,43 @@ class ProductsService {
    */
   async deleteProductPrice(productId: string, priceId: string): Promise<void> {
     await api.delete(`/products/${productId}/prices/${priceId}`);
+  }
+
+  /**
+   * Deactivate all prices for a product in a specific country (soft-delete with reason)
+   */
+  async deactivateCountryPrices(
+    productId: string,
+    countryId: string,
+    reason: string,
+  ): Promise<{ deactivatedCount: number }> {
+    const response = await api.post<{ deactivatedCount: number }>(
+      `/products/${productId}/prices/deactivate-country`,
+      { countryId, reason },
+    );
+    return response.data;
+  }
+
+  // ================================
+  // PRODUCT TAXES (Reglas fiscales)
+  // ================================
+
+  async getProductTaxes(productId: string): Promise<ProductTax[]> {
+    const response = await api.get<ProductTax[]>(`/products/${productId}/taxes`);
+    return response.data;
+  }
+
+  async assignProductTax(productId: string, taxRuleId: string, isIncludedInPrice = false): Promise<ProductTax> {
+    const response = await api.post<ProductTax>(`/products/${productId}/taxes`, { taxRuleId, isIncludedInPrice });
+    return response.data;
+  }
+
+  async updateProductTax(productId: string, taxRuleId: string, isIncludedInPrice: boolean): Promise<void> {
+    await api.patch(`/products/${productId}/taxes/${taxRuleId}`, { isIncludedInPrice });
+  }
+
+  async removeProductTax(productId: string, taxRuleId: string): Promise<void> {
+    await api.delete(`/products/${productId}/taxes/${taxRuleId}`);
   }
 
   // ================================

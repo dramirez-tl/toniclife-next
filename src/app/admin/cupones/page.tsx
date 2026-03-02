@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { PermissionGuard } from '@/components/auth';
 import {
   MagnifyingGlassIcon,
@@ -21,6 +21,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 const coupons = [
   {
@@ -178,9 +179,19 @@ const coupons = [
 ];
 
 export default function CuponesAdminPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterType, setFilterType] = useState('all');
+  return <Suspense><CuponesContent /></Suspense>;
+}
+
+function CuponesContent() {
+  const { get, setParams } = useQueryFilters({
+    status: 'all',
+    type: 'all',
+  });
+
+  const searchQuery = get('search');
+  const filterStatus = get('status');
+  const filterType = get('type');
+
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const filteredCoupons = coupons.filter(coupon => {
@@ -359,7 +370,7 @@ export default function CuponesAdminPage() {
                   type="text"
                   placeholder="Buscar cupones..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => setParams({ search: e.target.value })}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
                 />
               </div>
@@ -374,7 +385,7 @@ export default function CuponesAdminPage() {
                   { value: 'inactive', label: 'Inactivos' },
                 ]}
                 value={filterStatus}
-                onChange={setFilterStatus}
+                onChange={(val) => setParams({ status: val })}
                 allLabel="Todos los Estados"
                 allValue="all"
                 className="w-full"
@@ -389,7 +400,7 @@ export default function CuponesAdminPage() {
                   { value: 'free_shipping', label: 'Envío Gratis' },
                 ]}
                 value={filterType}
-                onChange={setFilterType}
+                onChange={(val) => setParams({ type: val })}
                 allLabel="Todos los Tipos"
                 allValue="all"
                 className="w-full"

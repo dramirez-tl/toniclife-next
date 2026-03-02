@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import {
@@ -138,9 +139,14 @@ const quickReplies = [
 ];
 
 export default function ComunicacionPage() {
+  return <Suspense><ComunicacionContent /></Suspense>;
+}
+
+function ComunicacionContent() {
   const [selectedConversation, setSelectedConversation] = useState(mockConversations[0]);
   const [messageInput, setMessageInput] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const { get, setParams } = useQueryFilters({});
+  const searchQuery = get('search');
 
   const filteredConversations = mockConversations.filter(conv =>
     conv.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -214,7 +220,7 @@ export default function ComunicacionPage() {
                       type="text"
                       placeholder="Buscar conversaciones..."
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={(e) => setParams({ search: e.target.value })}
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent text-sm"
                     />
                   </div>

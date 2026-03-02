@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import {
@@ -106,10 +107,15 @@ const statusConfig = {
 };
 
 export default function PagosPage() {
+  return <Suspense><PagosContent /></Suspense>;
+}
+
+function PagosContent() {
   const [paymentMethods, setPaymentMethods] = useState(mockPaymentMethods);
   const [showAddMethodModal, setShowAddMethodModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-  const [filterStatus, setFilterStatus] = useState('all');
+  const { get, setParams } = useQueryFilters({ status: 'all' });
+  const filterStatus = get('status');
 
   const availableBalance = 15000;
   const totalWithdrawn = mockWithdrawals.reduce((sum, w) => sum + w.amount, 0);
@@ -374,7 +380,7 @@ export default function PagosPage() {
                       { value: 'failed', label: 'Fallidos' },
                     ]}
                     value={filterStatus}
-                    onChange={setFilterStatus}
+                    onChange={(val) => setParams({ status: val })}
                     allLabel="Todos los estados"
                     allValue="all"
                     className="w-full sm:w-auto"

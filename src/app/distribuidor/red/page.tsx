@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSelector } from 'react-redux';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { NetworkVisualization, RootUserDetailData } from '@/components/network';
@@ -35,6 +36,10 @@ import { toast } from 'sonner';
 type ViewMode = 'graph' | 'tree';
 
 export default function RedPage() {
+  return <Suspense><RedContent /></Suspense>;
+}
+
+function RedContent() {
   const [viewMode, setViewMode] = useState<ViewMode>('tree');
   const [isInvitePanelOpen, setIsInvitePanelOpen] = useState(false);
   const user = useSelector(selectUser);
@@ -340,15 +345,18 @@ export default function RedPage() {
 function TreeListView({ currentUserId }: { currentUserId: string }) {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [levelFilter, setLevelFilter] = useState<number | undefined>(undefined);
-  const [statusFilter, setStatusFilter] = useState<DownlineQuery['status'] | undefined>(undefined);
-  const [page, setPage] = useState(1);
+  const { get, getNumber, setParams } = useQueryFilters({ page: '1' });
+  const levelFilterStr = get('level');
+  const levelFilter = levelFilterStr ? parseInt(levelFilterStr) : undefined;
+  const statusFilterStr = get('status');
+  const statusFilter = (statusFilterStr || undefined) as DownlineQuery['status'] | undefined;
+  const page = getNumber('page') || 1;
   const limit = 20;
 
   useEffect(() => {
     const id = setTimeout(() => {
       setDebouncedSearch(search);
-      setPage(1);
+      setParams({ page: '1' });
     }, 400);
     return () => clearTimeout(id);
   }, [search]);
@@ -402,8 +410,8 @@ function TreeListView({ currentUserId }: { currentUserId: string }) {
             {/* Filtro de nivel */}
             <SearchableSelect
               options={[1, 2, 3, 4, 5].map(n => ({ value: String(n), label: `Nivel ${n}` }))}
-              value={levelFilter != null ? String(levelFilter) : ''}
-              onChange={(val) => { setLevelFilter(val ? parseInt(val) : undefined); setPage(1); }}
+              value={levelFilterStr}
+              onChange={(val) => setParams({ level: val || null })}
               allLabel="Todos los niveles"
               allValue=""
             />
@@ -414,8 +422,8 @@ function TreeListView({ currentUserId }: { currentUserId: string }) {
                 { value: 'inactive', label: 'Inactivos' },
                 { value: 'suspended', label: 'Suspendidos' },
               ]}
-              value={statusFilter ?? ''}
-              onChange={(val) => { setStatusFilter((val || undefined) as DownlineQuery['status']); setPage(1); }}
+              value={statusFilterStr}
+              onChange={(val) => setParams({ status: val || null })}
               allLabel="Todos los estados"
               allValue=""
             />
@@ -517,7 +525,7 @@ function TreeListView({ currentUserId }: { currentUserId: string }) {
           {response.totalPages > 1 && (
             <div className="flex items-center justify-center gap-3 pt-2">
               <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
+                onClick={() => setParams({ page: String(Math.max(1, page - 1)) })}
                 disabled={page <= 1}
                 aria-label="Página anterior"
                 className="p-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
@@ -528,7 +536,7 @@ function TreeListView({ currentUserId }: { currentUserId: string }) {
                 Página <strong>{page}</strong> de <strong>{response.totalPages}</strong>
               </span>
               <button
-                onClick={() => setPage(p => Math.min(response.totalPages, p + 1))}
+                onClick={() => setParams({ page: String(Math.min(response.totalPages, page + 1)) })}
                 disabled={page >= response.totalPages}
                 aria-label="Página siguiente"
                 className="p-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"

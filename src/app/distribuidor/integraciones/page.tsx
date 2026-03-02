@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -14,6 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleSolidIcon } from '@heroicons/react/24/solid';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { toast } from 'sonner';
 
 const mockIntegrations = [
@@ -136,12 +137,22 @@ const mockIntegrations = [
 const categories = ['Todas', 'Comunicación', 'Productividad', 'Marketing', 'Pagos', 'Automatización', 'Redes Sociales', 'Almacenamiento'];
 
 export default function IntegracionesPage() {
+  return <Suspense><IntegracionesContent /></Suspense>;
+}
+
+function IntegracionesContent() {
   const [integrations, setIntegrations] = useState(mockIntegrations);
-  const [filterCategory, setFilterCategory] = useState('Todas');
-  const [filterStatus, setFilterStatus] = useState('all');
+
+  const { get, setParams } = useQueryFilters({
+    category: 'all',
+    status: 'all',
+  });
+
+  const filterCategory = get('category');
+  const filterStatus = get('status');
 
   const filteredIntegrations = integrations.filter(integration => {
-    if (filterCategory !== 'Todas' && integration.category !== filterCategory) return false;
+    if (filterCategory !== 'all' && integration.category !== filterCategory) return false;
     if (filterStatus === 'connected' && !integration.isConnected) return false;
     if (filterStatus === 'available' && integration.isConnected) return false;
     return true;
@@ -264,9 +275,9 @@ export default function IntegracionesPage() {
                 <SearchableSelect
                   options={categories.filter(c => c !== 'Todas').map(cat => ({ value: cat, label: cat }))}
                   value={filterCategory}
-                  onChange={setFilterCategory}
+                  onChange={(val) => setParams({ category: val })}
                   allLabel="Todas"
-                  allValue="Todas"
+                  allValue="all"
                   className="w-full"
                 />
               </div>
@@ -281,7 +292,7 @@ export default function IntegracionesPage() {
                     { value: 'available', label: 'Disponibles' },
                   ]}
                   value={filterStatus}
-                  onChange={setFilterStatus}
+                  onChange={(val) => setParams({ status: val })}
                   allLabel="Todas"
                   allValue="all"
                   className="w-full"
@@ -293,8 +304,7 @@ export default function IntegracionesPage() {
                   variant="outline"
                   className="w-full"
                   onClick={() => {
-                    setFilterCategory('Todas');
-                    setFilterStatus('all');
+                    setParams({ category: null, status: null });
                   }}
                 >
                   Limpiar Filtros

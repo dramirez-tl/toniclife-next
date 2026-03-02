@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -17,6 +17,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleSolid, StarIcon as StarSolid } from '@heroicons/react/24/solid';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { toast } from 'sonner';
 
 const mockCourses = [
@@ -124,15 +125,24 @@ const achievements = [
 ];
 
 export default function CapacitacionPage() {
-  const [filterCategory, setFilterCategory] = useState('Todas');
-  const [filterLevel, setFilterLevel] = useState('Todos');
+  return <Suspense><CapacitacionContent /></Suspense>;
+}
+
+function CapacitacionContent() {
+  const { get, setParams } = useQueryFilters({
+    category: 'all',
+    level: 'all',
+  });
+
+  const filterCategory = get('category');
+  const filterLevel = get('level');
 
   const categories = ['Todas', ...new Set(mockCourses.map(c => c.category))];
   const levels = ['Todos', 'Principiante', 'Intermedio', 'Avanzado'];
 
   const filteredCourses = mockCourses.filter(course => {
-    if (filterCategory !== 'Todas' && course.category !== filterCategory) return false;
-    if (filterLevel !== 'Todos' && course.level !== filterLevel) return false;
+    if (filterCategory !== 'all' && course.category !== filterCategory) return false;
+    if (filterLevel !== 'all' && course.level !== filterLevel) return false;
     return true;
   });
 
@@ -268,17 +278,17 @@ export default function CapacitacionPage() {
           <SearchableSelect
             options={categories.filter(c => c !== 'Todas').map(cat => ({ value: cat, label: cat }))}
             value={filterCategory}
-            onChange={setFilterCategory}
+            onChange={(val) => setParams({ category: val })}
             allLabel="Todas"
-            allValue="Todas"
+            allValue="all"
           />
 
           <SearchableSelect
             options={levels.filter(l => l !== 'Todos').map(level => ({ value: level, label: level }))}
             value={filterLevel}
-            onChange={setFilterLevel}
+            onChange={(val) => setParams({ level: val })}
             allLabel="Todos"
-            allValue="Todos"
+            allValue="all"
           />
         </div>
 

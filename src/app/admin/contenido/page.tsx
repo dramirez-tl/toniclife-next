@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
@@ -24,6 +24,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 interface ContentItem {
   id: string;
@@ -194,10 +195,20 @@ const contentTypes = [
 ];
 
 export default function ContenidoPage() {
+  return <Suspense><ContenidoContent /></Suspense>;
+}
+
+function ContenidoContent() {
   const [content, setContent] = useState(mockContent);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
+
+  const { get, setParams } = useQueryFilters({
+    type: 'all',
+    status: 'all',
+  });
+
+  const searchQuery = get('search');
+  const filterType = get('type');
+  const filterStatus = get('status');
 
   const filteredContent = content.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -402,7 +413,7 @@ export default function ContenidoPage() {
                     type="text"
                     placeholder="Buscar contenido..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => setParams({ search: e.target.value })}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
@@ -419,7 +430,7 @@ export default function ContenidoPage() {
                       label: type.name,
                     }))}
                   value={filterType}
-                  onChange={setFilterType}
+                  onChange={(val) => setParams({ type: val })}
                   allLabel="Todos los Tipos"
                   allValue="all"
                 />
@@ -434,7 +445,7 @@ export default function ContenidoPage() {
                     { value: 'scheduled', label: 'Programados' },
                   ]}
                   value={filterStatus}
-                  onChange={setFilterStatus}
+                  onChange={(val) => setParams({ status: val })}
                   allLabel="Todos los Estados"
                   allValue="all"
                 />

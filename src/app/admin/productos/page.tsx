@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { Suspense, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -28,15 +28,76 @@ import { useProducts, useCategories, useDeleteProduct } from '@/hooks/useProduct
 import type { Product, ProductQueryParams } from '@/types/product';
 import { PermissionGuard } from '@/components/auth';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 export default function ProductosPage() {
+  return (
+    <Suspense fallback={<ProductosSkeleton />}>
+      <ProductosContent />
+    </Suspense>
+  );
+}
+
+function ProductosSkeleton() {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3 mb-2">
+            <ShoppingBagIcon className="h-9 w-9" />
+            <h1 className="text-3xl font-bold sm:text-4xl">Gestión de Productos</h1>
+          </div>
+          <p className="text-base text-white/80 sm:text-lg">
+            Administra el catálogo de productos y el inventario
+          </p>
+        </div>
+      </div>
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <div className="animate-pulse">
+                  <div className="h-4 w-24 bg-gray-200 rounded mb-2" />
+                  <div className="h-8 w-16 bg-gray-200 rounded" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card className="mb-6">
+          <CardContent className="p-6">
+            <div className="animate-pulse">
+              <div className="h-10 bg-gray-200 rounded mb-3" />
+              <div className="grid grid-cols-3 gap-4">
+                <div className="h-10 bg-gray-200 rounded" />
+                <div className="h-10 bg-gray-200 rounded" />
+                <div className="h-10 bg-gray-200 rounded" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function ProductosContent() {
   const router = useRouter();
-  const [searchInput, setSearchInput] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterCategoryId, setFilterCategoryId] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+
+  const { get, getNumber, setParams } = useQueryFilters({
+    status: 'all',
+    page: '1',
+    limit: '20',
+  });
+
+  const searchQuery = get('search');
+  const filterCategoryId = get('categoryId');
+  const filterStatus = get('status') as 'all' | 'active' | 'inactive';
+  const currentPage = getNumber('page') || 1;
+  const pageSize = getNumber('limit') || 20;
+
+  const [searchInput, setSearchInput] = useState(searchQuery);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -76,31 +137,24 @@ export default function ProductosPage() {
   const hasActiveFilters = Boolean(searchQuery || filterCategoryId || filterStatus !== 'all');
 
   const handleSearch = () => {
-    setSearchQuery(searchInput.trim());
-    setCurrentPage(1);
+    setParams({ search: searchInput.trim() });
   };
 
   const handleFilterCategory = (value: string) => {
-    setFilterCategoryId(value);
-    setCurrentPage(1);
+    setParams({ categoryId: value });
   };
 
   const handleFilterStatus = (value: string) => {
-    setFilterStatus(value as 'all' | 'active' | 'inactive');
-    setCurrentPage(1);
+    setParams({ status: value });
   };
 
   const handlePageSizeChange = (size: number) => {
-    setPageSize(size);
-    setCurrentPage(1);
+    setParams({ limit: String(size), page: null });
   };
 
   const resetFilters = () => {
-    setSearchQuery('');
     setSearchInput('');
-    setFilterCategoryId('');
-    setFilterStatus('all');
-    setCurrentPage(1);
+    setParams({ search: null, categoryId: null, status: 'all', page: null });
   };
 
   const handleDeleteClick = (product: Product) => {
@@ -207,23 +261,36 @@ export default function ProductosPage() {
     },
     {
       key: 'price',
-      header: 'Precio Base',
+      header: 'Precio Público',
       sortable: true,
-      sortValue: (p) => parseFloat(p.pointsValue) || 0,
+      sortValue: (p) => parseFloat(p.price || '0') || 0,
       render: (product) => (
         <span className="text-sm font-semibold text-gray-900">
-          {formatCurrency(product.pointsValue)}
+          {product.price ? formatCurrency(product.price) : '—'}
         </span>
       ),
     },
     {
-      key: 'points',
-      header: 'Puntos',
-      sortable: true,
-      sortValue: (p) => parseFloat(p.pointsValue) || 0,
-      render: (product) => (
-        <span className="text-sm text-gray-600">{product.pointsValue} pts</span>
-      ),
+      key: 'countries',
+      header: 'Países',
+      render: (product) => {
+        const countries = product.activeCountries ?? [];
+        if (countries.length === 0) return <span className="text-sm text-gray-400">—</span>;
+        const flagMap: Record<string, string> = {
+          MX: '🇲🇽', US: '🇺🇸', CO: '🇨🇴', GT: '🇬🇹', FN: '🇲🇽',
+          SV: '🇸🇻', HN: '🇭🇳', NI: '🇳🇮', CR: '🇨🇷', PA: '🇵🇦',
+          PE: '🇵🇪', EC: '🇪🇨', CL: '🇨🇱', AR: '🇦🇷', BR: '🇧🇷', ES: '🇪🇸',
+        };
+        return (
+          <div className="flex flex-wrap gap-1">
+            {countries.map((code) => (
+              <span key={code} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-medium" title={code}>
+                {flagMap[code] || '🏳️'} {code}
+              </span>
+            ))}
+          </div>
+        );
+      },
     },
     {
       key: 'status',
@@ -593,42 +660,47 @@ export default function ProductosPage() {
                 </p>
               </div>
 
-              {isFetching && products.length > 0 && (
-                <div className="mb-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700">
-                  Actualizando resultados...
-                </div>
-              )}
-
-              <DataTable
-                columns={columns}
-                data={products}
-                isLoading={isLoading && !productsData}
-                getRowKey={(product) => product.id}
-                minWidthClassName="min-w-[1100px]"
-                emptyState={
-                  <div className="py-2 text-center">
-                    <ShoppingBagIcon className="mx-auto mb-4 h-16 w-16 text-gray-400" />
-                    <h3 className="mb-2 text-xl font-bold text-gray-900">
-                      No se encontraron productos
-                    </h3>
-                    <p className="text-gray-600">
-                      Intenta ajustar los filtros de búsqueda o crear un nuevo producto.
-                    </p>
-                    <div className="mt-4 flex justify-center gap-2">
-                      {hasActiveFilters && (
-                        <Button variant="outline" onClick={resetFilters}>
-                          Limpiar filtros
-                        </Button>
-                      )}
-                      <Link href="/admin/productos/nuevo">
-                        <Button variant="primary" leftIcon={<PlusIcon className="h-4 w-4" />}>
-                          Nuevo Producto
-                        </Button>
-                      </Link>
+              <div className="relative">
+                {isFetching && products.length > 0 && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[1px] rounded-lg">
+                    <div className="flex items-center gap-2 bg-white border border-gray-200 shadow-sm rounded-full px-4 py-2">
+                      <ArrowPathIcon className="h-4 w-4 text-[#3E667D] animate-spin" />
+                      <span className="text-sm font-medium text-gray-600">Actualizando...</span>
                     </div>
                   </div>
-                }
-              />
+                )}
+
+                <DataTable
+                  columns={columns}
+                  data={products}
+                  isLoading={isLoading && !productsData}
+                  getRowKey={(product) => product.id}
+                  minWidthClassName="min-w-[1100px]"
+                  emptyState={
+                    <div className="py-2 text-center">
+                      <ShoppingBagIcon className="mx-auto mb-4 h-16 w-16 text-gray-400" />
+                      <h3 className="mb-2 text-xl font-bold text-gray-900">
+                        No se encontraron productos
+                      </h3>
+                      <p className="text-gray-600">
+                        Intenta ajustar los filtros de búsqueda o crear un nuevo producto.
+                      </p>
+                      <div className="mt-4 flex justify-center gap-2">
+                        {hasActiveFilters && (
+                          <Button variant="outline" onClick={resetFilters}>
+                            Limpiar filtros
+                          </Button>
+                        )}
+                        <Link href="/admin/productos/nuevo">
+                          <Button variant="primary" leftIcon={<PlusIcon className="h-4 w-4" />}>
+                            Nuevo Producto
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
+                  }
+                />
+              </div>
 
               {/* Pagination */}
               {products.length > 0 && (
@@ -637,7 +709,7 @@ export default function ProductosPage() {
                   pageSize={pageSize}
                   totalItems={total}
                   isLoading={isLoading || isFetching}
-                  onPageChange={setCurrentPage}
+                  onPageChange={(p) => setParams({ page: String(p) })}
                   onPageSizeChange={handlePageSizeChange}
                   pageSizeOptions={[10, 20, 50, 100]}
                 />

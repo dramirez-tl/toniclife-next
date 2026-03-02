@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeftIcon,
@@ -15,12 +15,27 @@ import {
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useInventoryReport, useLowStockReport, useExpiringProductsReport } from '@/hooks/useReports';
 import { useActiveBranches } from '@/hooks/useBranches';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 type ViewMode = 'stock' | 'low-stock' | 'expiring';
 
 export default function InventarioReportesPage() {
-  const [viewMode, setViewMode] = useState<ViewMode>('stock');
-  const [selectedBranch, setSelectedBranch] = useState('all');
+  return (
+    <Suspense>
+      <InventarioReportesContent />
+    </Suspense>
+  );
+}
+
+function InventarioReportesContent() {
+  const { get, setParams } = useQueryFilters({
+    viewMode: 'stock',
+    branch: 'all',
+  });
+
+  const viewMode = get('viewMode') as ViewMode;
+  const selectedBranch = get('branch');
+
   const [searchTerm, setSearchTerm] = useState('');
 
   // Query parameters
@@ -190,7 +205,7 @@ export default function InventarioReportesPage() {
                   label: branch.name,
                 }))}
                 value={selectedBranch}
-                onChange={setSelectedBranch}
+                onChange={(val) => setParams({ branch: val })}
                 allLabel="Todas las sucursales"
                 allValue="all"
               />
@@ -198,7 +213,7 @@ export default function InventarioReportesPage() {
 
             <div className="flex rounded-lg bg-gray-100 p-1">
               <button
-                onClick={() => setViewMode('stock')}
+                onClick={() => setParams({ viewMode: 'stock' })}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium ${
                   viewMode === 'stock'
                     ? 'bg-white text-gray-900 shadow'
@@ -209,7 +224,7 @@ export default function InventarioReportesPage() {
                 Existencias Actuales
               </button>
               <button
-                onClick={() => setViewMode('low-stock')}
+                onClick={() => setParams({ viewMode: 'low-stock' })}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium ${
                   viewMode === 'low-stock'
                     ? 'bg-white text-gray-900 shadow'
@@ -220,7 +235,7 @@ export default function InventarioReportesPage() {
                 Existencias Bajas
               </button>
               <button
-                onClick={() => setViewMode('expiring')}
+                onClick={() => setParams({ viewMode: 'expiring' })}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium ${
                   viewMode === 'expiring'
                     ? 'bg-white text-gray-900 shadow'

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, Suspense } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { CatalogTable, CatalogFormModal, type Column } from '@/components/admin/catalogs';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import {
   useCountries,
   useCreateCountry,
@@ -444,8 +445,20 @@ const emptyTaxRuleForm = (): Record<string, string | number | boolean> => ({
 // ================================
 
 export default function CatalogosPage() {
-  // -- Tab state
-  const [activeTab, setActiveTab] = useState<TabKey>('countries');
+  return (
+    <Suspense>
+      <CatalogosContent />
+    </Suspense>
+  );
+}
+
+function CatalogosContent() {
+  // -- Tab state (from URL)
+  const { get, setParams } = useQueryFilters({
+    tab: 'countries',
+  });
+
+  const activeTab = get('tab') as TabKey;
   const [searchTerm, setSearchTerm] = useState('');
 
   // -- Modal state
@@ -1502,7 +1515,7 @@ export default function CatalogosPage() {
                 <button
                   key={tab.key}
                   onClick={() => {
-                    setActiveTab(tab.key);
+                    setParams({ tab: tab.key });
                     setSearchTerm('');
                   }}
                   className={`

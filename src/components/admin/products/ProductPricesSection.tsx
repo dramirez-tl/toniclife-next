@@ -3,27 +3,38 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   PlusIcon,
-  TrashIcon,
-  CheckIcon,
   XMarkIcon,
   CurrencyDollarIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
+  ArrowPathIcon,
+  ShieldExclamationIcon,
 } from '@heroicons/react/24/outline';
+import { Save } from 'lucide-react';
 import { toast } from 'sonner';
+import { useSelector } from 'react-redux';
+import { selectUser } from '@/store/slices/authSlice';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import {
   useProductPrices,
   useCreateProductPrice,
-  useDeleteProductPrice,
+  useDeactivateCountryPrices,
+  useProductTaxes,
+  useAssignProductTax,
+  useUpdateProductTax,
+  useRemoveProductTax,
 } from '@/hooks/useProducts';
-import { useActiveCountries, useActivePriceTypes } from '@/hooks/useConfig';
-import type { ProductPrice } from '@/types/product';
-import type { Country, PriceType } from '@/types/config';
+import { useActiveCountries, useActivePriceTypes, useActiveTaxRules } from '@/hooks/useConfig';
+import type { ProductPrice, ProductTax } from '@/types/product';
+import type { Country, PriceType, TaxRule } from '@/types/config';
 
 interface ProductPricesSectionProps {
   productId: string;
+  /** SAT fiscal fields (Mexico-specific, product-level) */
+  satProductCode?: string;
+  satUnitCode?: string;
+  onSatFieldChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 // Key for local price state: countryId::priceTypeId
@@ -49,46 +60,71 @@ const PRICE_TYPE_HELPERS: Record<string, { description: string; example: string 
     example: 'Precio público $500 → Empleado paga $300 (ahorra $200).',
   },
   promotional: {
-    description: 'Precio temporal para promociones o campañas especiales. Aplica a todos los tipos de cliente.',
-    example: 'Se puede poner un precio especial de $399 durante una promoción de temporada.',
+    description: 'Precio preferente para clientes especiales o compras recurrentes. Aplica a todos los tipos de cliente.',
+    example: 'Un cliente frecuente puede acceder a un precio preferente de $399 en lugar del precio público.',
   },
 };
 
-export function ProductPricesSection({ productId }: ProductPricesSectionProps) {
+export function ProductPricesSection({
+  productId,
+  satProductCode = '',
+  satUnitCode = '',
+  onSatFieldChange,
+}: ProductPricesSectionProps) {
   const { data: prices = [], isLoading: pricesLoading } = useProductPrices(productId);
   const { data: countries = [], isLoading: countriesLoading } = useActiveCountries();
   const { data: priceTypes = [], isLoading: priceTypesLoading } = useActivePriceTypes();
 
+  const { data: productTaxes = [] } = useProductTaxes(productId);
+  const { data: allTaxRules = [] } = useActiveTaxRules();
+
   const createPrice = useCreateProductPrice();
-  const deletePrice = useDeleteProductPrice();
+  const deactivateCountry = useDeactivateCountryPrices();
+  const assignTax = useAssignProductTax();
+  const updateTax = useUpdateProductTax();
+  const removeTax = useRemoveProductTax();
 
   // Countries currently shown in the UI (those with prices + manually added)
   const [activeCountryIds, setActiveCountryIds] = useState<string[]>([]);
   // Local editable price values
   const [editPrices, setEditPrices] = useState<
-    Record<string, { price: string; cost: string; existingId?: string }>
+    Record<string, { price: string; cost: string; points: string; businessValue: string; existingId?: string; updatedByName?: string; updatedAt?: string }>
+  >({});
+  // Snapshot of server values to detect changes
+  const [originalPrices, setOriginalPrices] = useState<
+    Record<string, { price: string; cost: string; points: string; businessValue: string }>
   >({});
   // Track which row is saving
   const [savingKey, setSavingKey] = useState<string | null>(null);
-  // Track which row is deleting
+  // Track which row is resetting
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
+  // Modal for reset-to-zero confirmation
+  const [resetConfirmKey, setResetConfirmKey] = useState<string | null>(null);
+  const [resetConfirmText, setResetConfirmText] = useState('');
   // Add country dropdown open
   const [showAddCountry, setShowAddCountry] = useState(false);
-  // Remove country confirmation
+  // Remove country confirmation modal
   const [removeCountryId, setRemoveCountryId] = useState<string | null>(null);
+  const [removeConfirmText, setRemoveConfirmText] = useState('');
+  const [removeReason, setRemoveReason] = useState('');
   const [isRemovingCountry, setIsRemovingCountry] = useState(false);
+  // Tax rule dropdown open per country
+  const [showAddTaxFor, setShowAddTaxFor] = useState<string | null>(null);
+  // Tax rule action confirmation modal
+  const [pendingTaxAction, setPendingTaxAction] = useState<{
+    type: 'remove' | 'toggle';
+    productId: string;
+    taxRuleId: string;
+    taxRuleName: string;
+    taxLabel: string;
+    currentIncluded?: boolean; // for toggle
+  } | null>(null);
+  const [taxActionReason, setTaxActionReason] = useState('');
 
-  // Map currency codes to country objects
-  const countryByCurrency = useCallback(
-    (currencyCode: string): Country | undefined => {
-      return countries.find(
-        (c) => c.currencyCode?.trim() === currencyCode.trim()
-      );
-    },
-    [countries]
-  );
+  // Current user for audit trail
+  const currentUser = useSelector(selectUser);
 
-  // Initialize from existing prices
+  // Initialize from existing prices — group by countryId (from DB)
   useEffect(() => {
     if (!prices.length || !countries.length || !priceTypes.length) return;
 
@@ -96,16 +132,27 @@ export function ProductPricesSection({ productId }: ProductPricesSectionProps) {
     const newEditPrices: typeof editPrices = {};
 
     for (const price of prices) {
-      const country = countryByCurrency(price.currencyCode);
-      if (!country) continue;
+      // Use countryId directly from the price record
+      const countryId = price.countryId;
+      if (!countryId || !countries.some((c) => c.id === countryId)) continue;
 
-      countriesWithPrices.add(country.id);
-      const key = priceKey(country.id, price.priceTypeId);
+      countriesWithPrices.add(countryId);
+      const key = priceKey(countryId, price.priceTypeId);
       newEditPrices[key] = {
         price: price.price || '',
         cost: price.cost || '',
+        points: price.points || '',
+        businessValue: price.businessValue || '',
         existingId: price.id,
+        updatedByName: price.updatedByName,
+        updatedAt: price.updatedAt,
       };
+    }
+
+    // Build original snapshot (without existingId)
+    const snapshot: Record<string, { price: string; cost: string; points: string; businessValue: string }> = {};
+    for (const [key, val] of Object.entries(newEditPrices)) {
+      snapshot[key] = { price: val.price, cost: val.cost, points: val.points, businessValue: val.businessValue };
     }
 
     setActiveCountryIds((prev) => {
@@ -113,7 +160,8 @@ export function ProductPricesSection({ productId }: ProductPricesSectionProps) {
       return Array.from(merged);
     });
     setEditPrices((prev) => ({ ...prev, ...newEditPrices }));
-  }, [prices, countries, priceTypes, countryByCurrency]);
+    setOriginalPrices((prev) => ({ ...prev, ...snapshot }));
+  }, [prices, countries, priceTypes]);
 
   const handleAddCountry = (countryId: string) => {
     setActiveCountryIds((prev) => [...prev, countryId]);
@@ -124,21 +172,14 @@ export function ProductPricesSection({ productId }: ProductPricesSectionProps) {
     const country = countries.find((c) => c.id === countryId);
     if (!country) return;
 
-    // Find all existing prices for this country
-    const countryPriceIds = priceTypes
-      .map((pt) => {
-        const key = priceKey(countryId, pt.id);
-        return editPrices[key]?.existingId;
-      })
-      .filter(Boolean) as string[];
-
     setIsRemovingCountry(true);
 
     try {
-      // Delete all existing prices for this country
-      for (const priceId of countryPriceIds) {
-        await deletePrice.mutateAsync({ productId, priceId });
-      }
+      const { deactivatedCount } = await deactivateCountry.mutateAsync({
+        productId,
+        countryId,
+        reason: removeReason,
+      });
 
       // Remove from UI
       setActiveCountryIds((prev) => prev.filter((id) => id !== countryId));
@@ -152,21 +193,23 @@ export function ProductPricesSection({ productId }: ProductPricesSectionProps) {
         return next;
       });
 
-      if (countryPriceIds.length > 0) {
-        toast.success(`Precios de ${country.name} eliminados`);
+      if (deactivatedCount > 0) {
+        toast.success(`${deactivatedCount} precios de ${country.name} desactivados`);
       }
     } catch {
-      toast.error(`Error al eliminar precios de ${country.name}`);
+      toast.error(`Error al desactivar precios de ${country.name}`);
     } finally {
       setIsRemovingCountry(false);
       setRemoveCountryId(null);
+      setRemoveConfirmText('');
+      setRemoveReason('');
     }
   };
 
   const handlePriceChange = (
     countryId: string,
     priceTypeId: string,
-    field: 'price' | 'cost',
+    field: 'price' | 'cost' | 'points' | 'businessValue',
     value: string
   ) => {
     const key = priceKey(countryId, priceTypeId);
@@ -176,6 +219,8 @@ export function ProductPricesSection({ productId }: ProductPricesSectionProps) {
         ...prev[key],
         price: prev[key]?.price || '',
         cost: prev[key]?.cost || '',
+        points: prev[key]?.points || '',
+        businessValue: prev[key]?.businessValue || '',
         [field]: value,
       },
     }));
@@ -206,6 +251,9 @@ export function ProductPricesSection({ productId }: ProductPricesSectionProps) {
       return;
     }
 
+    const pointsNum = editData.points ? parseFloat(editData.points) : undefined;
+    const bvNum = editData.businessValue ? parseFloat(editData.businessValue) : undefined;
+
     setSavingKey(key);
 
     try {
@@ -213,19 +261,30 @@ export function ProductPricesSection({ productId }: ProductPricesSectionProps) {
         productId,
         dto: {
           priceTypeId,
+          countryId,
           currencyCode: country.currencyCode.trim(),
           price: priceNum,
           cost: costNum,
+          points: pointsNum,
+          businessValue: bvNum,
         },
       });
 
-      // Update local state with the new ID
+      // Update local state with the new ID and audit info
       setEditPrices((prev) => ({
         ...prev,
         [key]: {
           ...prev[key],
           existingId: result.id,
+          updatedByName: result.updatedByName,
+          updatedAt: result.updatedAt,
         },
+      }));
+
+      // Update original snapshot so button disables again
+      setOriginalPrices((prev) => ({
+        ...prev,
+        [key]: { price: editData.price, cost: editData.cost, points: editData.points, businessValue: editData.businessValue },
       }));
 
       toast.success('Precio guardado');
@@ -236,27 +295,49 @@ export function ProductPricesSection({ productId }: ProductPricesSectionProps) {
     }
   };
 
-  const handleDeletePrice = async (
+  const handleResetPrice = async (
     countryId: string,
     priceTypeId: string
   ) => {
     const key = priceKey(countryId, priceTypeId);
-    const existingId = editPrices[key]?.existingId;
-    if (!existingId) return;
+    const country = countries.find((c) => c.id === countryId);
+    if (!country?.currencyCode) return;
 
     setDeletingKey(key);
+    setResetConfirmKey(null);
 
     try {
-      await deletePrice.mutateAsync({ productId, priceId: existingId });
+      const result = await createPrice.mutateAsync({
+        productId,
+        dto: {
+          priceTypeId,
+          countryId,
+          currencyCode: country.currencyCode.trim(),
+          price: 0,
+          cost: 0,
+          points: 0,
+          businessValue: 0,
+        },
+      });
 
+      const zeroState = { price: '0', cost: '0', points: '0', businessValue: '0' };
       setEditPrices((prev) => ({
         ...prev,
-        [key]: { price: '', cost: '', existingId: undefined },
+        [key]: {
+          ...zeroState,
+          existingId: result.id,
+          updatedByName: result.updatedByName,
+          updatedAt: result.updatedAt,
+        },
+      }));
+      setOriginalPrices((prev) => ({
+        ...prev,
+        [key]: zeroState,
       }));
 
-      toast.success('Precio eliminado');
+      toast.success('Precio reiniciado a 0');
     } catch {
-      toast.error('Error al eliminar precio');
+      toast.error('Error al reiniciar precio');
     } finally {
       setDeletingKey(null);
     }
@@ -363,7 +444,7 @@ export function ProductPricesSection({ productId }: ProductPricesSectionProps) {
             return (
               <div
                 key={countryId}
-                className="border border-gray-200 rounded-lg overflow-hidden"
+                className="border border-gray-200 rounded-lg"
               >
                 {/* Country header */}
                 <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-4 py-3 flex items-center justify-between">
@@ -377,7 +458,11 @@ export function ProductPricesSection({ productId }: ProductPricesSectionProps) {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setRemoveCountryId(countryId)}
+                    onClick={() => {
+                      setRemoveCountryId(countryId);
+                      setRemoveConfirmText('');
+                      setRemoveReason('');
+                    }}
                     className="text-xs text-red-500 hover:text-red-700 hover:underline"
                     disabled={isRemovingCountry}
                   >
@@ -390,16 +475,22 @@ export function ProductPricesSection({ productId }: ProductPricesSectionProps) {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-gray-100 bg-gray-50/50">
-                        <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase w-[200px]">
+                        <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase w-[170px]">
                           Tipo de Precio
                         </th>
-                        <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">
+                        <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">
                           Precio ({currencyCode})
                         </th>
-                        <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">
+                        <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">
                           Costo ({currencyCode})
                         </th>
-                        <th className="text-center px-4 py-2 text-xs font-medium text-gray-500 uppercase w-[100px]">
+                        <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">
+                          Puntos
+                        </th>
+                        <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">
+                          Valor Negocio
+                        </th>
+                        <th className="text-center px-3 py-2 text-xs font-medium text-gray-500 uppercase w-[80px]">
                           Acciones
                         </th>
                       </tr>
@@ -410,17 +501,29 @@ export function ProductPricesSection({ productId }: ProductPricesSectionProps) {
                         const editData = editPrices[key] || {
                           price: '',
                           cost: '',
+                          points: '',
+                          businessValue: '',
                         };
                         const isSaving = savingKey === key;
                         const isDeleting = deletingKey === key;
                         const hasExisting = !!editData.existingId;
+
+                        // Detect if any field changed vs. the server snapshot
+                        const orig = originalPrices[key];
+                        const normalize = (v: string | undefined) => v || '';
+                        const hasChanges = !orig
+                          ? !!(editData.price || editData.cost || editData.points || editData.businessValue)
+                          : normalize(editData.price) !== normalize(orig.price) ||
+                            normalize(editData.cost) !== normalize(orig.cost) ||
+                            normalize(editData.points) !== normalize(orig.points) ||
+                            normalize(editData.businessValue) !== normalize(orig.businessValue);
 
                         return (
                           <tr
                             key={pt.id}
                             className="border-b border-gray-50 hover:bg-gray-50/50"
                           >
-                            <td className="px-4 py-3">
+                            <td className="px-3 py-3">
                               <div className="flex items-start gap-1.5">
                                 <div>
                                   <div className="flex items-center gap-1.5">
@@ -476,75 +579,99 @@ export function ProductPricesSection({ productId }: ProductPricesSectionProps) {
                                 </div>
                               </div>
                             </td>
-                            <td className="px-4 py-2">
+                            <td className="px-3 py-2">
                               <input
                                 type="number"
                                 step="0.01"
                                 min="0"
                                 value={editData.price}
                                 onChange={(e) =>
-                                  handlePriceChange(
-                                    countryId,
-                                    pt.id,
-                                    'price',
-                                    e.target.value
-                                  )
+                                  handlePriceChange(countryId, pt.id, 'price', e.target.value)
                                 }
                                 placeholder="0.00"
-                                className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D] outline-none"
+                                className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D] outline-none"
                               />
                             </td>
-                            <td className="px-4 py-2">
+                            <td className="px-3 py-2">
                               <input
                                 type="number"
                                 step="0.01"
                                 min="0"
                                 value={editData.cost}
                                 onChange={(e) =>
-                                  handlePriceChange(
-                                    countryId,
-                                    pt.id,
-                                    'cost',
-                                    e.target.value
-                                  )
+                                  handlePriceChange(countryId, pt.id, 'cost', e.target.value)
                                 }
                                 placeholder="0.00"
-                                className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D] outline-none"
+                                className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D] outline-none"
                               />
                             </td>
-                            <td className="px-4 py-2">
-                              <div className="flex items-center justify-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleSavePrice(countryId, pt.id)
-                                  }
-                                  disabled={isSaving || !editData.price}
-                                  className="p-1.5 rounded-md text-green-600 hover:bg-green-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                                  title="Guardar"
-                                >
-                                  {isSaving ? (
-                                    <div className="h-4 w-4 border-2 border-green-600 border-t-transparent rounded-full animate-spin" />
-                                  ) : (
-                                    <CheckIcon className="h-4 w-4" />
-                                  )}
-                                </button>
-                                {hasExisting && (
+                            <td className="px-3 py-2">
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={editData.points}
+                                onChange={(e) =>
+                                  handlePriceChange(countryId, pt.id, 'points', e.target.value)
+                                }
+                                placeholder="0.00"
+                                className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D] outline-none"
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={editData.businessValue}
+                                onChange={(e) =>
+                                  handlePriceChange(countryId, pt.id, 'businessValue', e.target.value)
+                                }
+                                placeholder="0.00"
+                                className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D] outline-none"
+                              />
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="flex flex-col items-center gap-1">
+                                <div className="flex items-center gap-1">
                                   <button
                                     type="button"
                                     onClick={() =>
-                                      handleDeletePrice(countryId, pt.id)
+                                      handleSavePrice(countryId, pt.id)
                                     }
-                                    disabled={isDeleting}
-                                    className="p-1.5 rounded-md text-red-500 hover:bg-red-50 disabled:opacity-30"
-                                    title="Eliminar"
+                                    disabled={isSaving || !editData.price || !hasChanges}
+                                    className="p-1.5 rounded-md text-[#3E667D] hover:bg-[#C8DDF2]/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                    title="Guardar"
                                   >
-                                    {isDeleting ? (
-                                      <div className="h-4 w-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                                    {isSaving ? (
+                                      <div className="h-4 w-4 border-2 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
                                     ) : (
-                                      <TrashIcon className="h-4 w-4" />
+                                      <Save className="h-4 w-4" />
                                     )}
                                   </button>
+                                  {hasExisting && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setResetConfirmKey(key);
+                                        setResetConfirmText('');
+                                      }}
+                                      disabled={isDeleting}
+                                      className="p-1.5 rounded-md text-amber-500 hover:bg-amber-50 disabled:opacity-30 transition-colors"
+                                      title="Reiniciar a 0"
+                                    >
+                                      {isDeleting ? (
+                                        <div className="h-4 w-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                                      ) : (
+                                        <ArrowPathIcon className="h-4 w-4" />
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
+                                {editData.updatedByName && (
+                                  <span className="text-[10px] text-gray-400 text-center leading-tight" title={editData.updatedAt ? new Date(editData.updatedAt).toLocaleString('es-MX') : ''}>
+                                    {editData.updatedByName.split('@')[0]}
+                                  </span>
                                 )}
                               </div>
                             </td>
@@ -554,56 +681,496 @@ export function ProductPricesSection({ productId }: ProductPricesSectionProps) {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Reglas Fiscales section */}
+                {(() => {
+                  const countryCode = country.code?.trim() || '';
+                  // For tax rules, map countries to their fiscal zone
+                  // Frontera MX-USA (FN) uses Mexico's (MX) tax rules
+                  const fiscalCode = countryCode === 'FN' ? 'MX' : countryCode;
+                  const assignedTaxes = productTaxes.filter(
+                    (pt) => pt.countryCode === fiscalCode
+                  );
+                  const assignedIds = new Set(assignedTaxes.map((pt) => pt.taxRuleId));
+                  const availableRules = allTaxRules.filter(
+                    (tr) =>
+                      tr.countryCode?.trim() === fiscalCode &&
+                      tr.isActive &&
+                      !assignedIds.has(tr.id)
+                  );
+                  const isDropdownOpen = showAddTaxFor === countryId;
+
+                  // Public price for tax examples
+                  const publicPt = priceTypes.find((pt) => pt.code === 'public');
+                  const publicPriceStr = publicPt ? editPrices[priceKey(countryId, publicPt.id)]?.price : '';
+                  const publicPrice = publicPriceStr ? parseFloat(publicPriceStr) : 0;
+                  const fmtP = (n: number) => `$${n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+                  return (
+                    <div className="px-4 py-3 border-t border-gray-200 bg-gray-50/50 rounded-b-lg">
+                      <div className="flex items-center gap-3 mb-1">
+                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide shrink-0">
+                          Reglas Fiscales
+                        </span>
+
+                        <div className="flex-1" />
+
+                        {/* Add button */}
+                        <div className="relative shrink-0">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setShowAddTaxFor(isDropdownOpen ? null : countryId)
+                            }
+                            disabled={availableRules.length === 0}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-[#3E667D] bg-white border border-gray-200 rounded-full hover:bg-[#C8DDF2]/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <PlusIcon className="h-3.5 w-3.5" />
+                            Agregar
+                          </button>
+
+                          {isDropdownOpen && availableRules.length > 0 && (
+                            <>
+                              <div
+                                className="fixed inset-0 z-10"
+                                onClick={() => setShowAddTaxFor(null)}
+                              />
+                              <div className="absolute right-0 bottom-full mb-1 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-20 max-h-48 overflow-y-auto">
+                                {availableRules.map((rule) => (
+                                  <button
+                                    key={rule.id}
+                                    type="button"
+                                    onClick={() => {
+                                      assignTax.mutate(
+                                        { productId, taxRuleId: rule.id },
+                                        {
+                                          onSuccess: () => {
+                                            toast.success(
+                                              `${rule.name} asignada`
+                                            );
+                                            setShowAddTaxFor(null);
+                                          },
+                                          onError: () =>
+                                            toast.error(
+                                              'Error al asignar regla fiscal'
+                                            ),
+                                        }
+                                      );
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center justify-between"
+                                  >
+                                    <span>{rule.name}</span>
+                                    <span className="text-xs text-gray-400">
+                                      {Number(rule.rate) * 100}%
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {assignedTaxes.length === 0 ? (
+                        <p className="text-xs text-gray-400 italic">
+                          {availableRules.length === 0
+                            ? 'No hay reglas fiscales para este país'
+                            : 'Sin reglas asignadas'}
+                        </p>
+                      ) : (
+                        <div className="space-y-2">
+                          {assignedTaxes.map((tax) => {
+                            const rate = Number(tax.rate);
+                            const pct = Math.round(rate * 100);
+                            const taxLabel = `${tax.taxType.toUpperCase()} ${pct}%`;
+
+                            return (
+                              <div
+                                key={tax.id}
+                                className="bg-white border border-gray-200 rounded-lg text-xs"
+                              >
+                                {/* Tax info row */}
+                                <div className="flex items-center gap-2 px-3 py-2">
+                                  <span className="text-[#3E667D] font-bold shrink-0">
+                                    {tax.taxType.toUpperCase()}
+                                  </span>
+                                  <span className="font-medium text-gray-700">
+                                    {tax.taxRuleName}
+                                  </span>
+                                  <span className="text-gray-400">
+                                    {pct}%
+                                  </span>
+
+                                  <div className="flex-1" />
+
+                                  {/* Switch toggle */}
+                                  <span className={`text-[11px] ${tax.isIncludedInPrice ? 'text-emerald-600 font-medium' : 'text-gray-400'}`}>
+                                    {tax.isIncludedInPrice ? 'Incluido en precio' : 'Adicional al precio'}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={tax.isIncludedInPrice}
+                                    onClick={() => {
+                                      setPendingTaxAction({
+                                        type: 'toggle',
+                                        productId,
+                                        taxRuleId: tax.taxRuleId,
+                                        taxRuleName: tax.taxRuleName,
+                                        taxLabel,
+                                        currentIncluded: tax.isIncludedInPrice,
+                                      });
+                                      setTaxActionReason('');
+                                    }}
+                                    className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-[#3E667D] focus:ring-offset-1 ${
+                                      tax.isIncludedInPrice ? 'bg-emerald-500' : 'bg-gray-300'
+                                    }`}
+                                  >
+                                    <span
+                                      className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform duration-200 ${
+                                        tax.isIncludedInPrice ? 'translate-x-4' : 'translate-x-0'
+                                      }`}
+                                    />
+                                  </button>
+
+                                  {/* Remove button */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setPendingTaxAction({
+                                        type: 'remove',
+                                        productId,
+                                        taxRuleId: tax.taxRuleId,
+                                        taxRuleName: tax.taxRuleName,
+                                        taxLabel,
+                                      });
+                                      setTaxActionReason('');
+                                    }}
+                                    className="text-gray-400 hover:text-red-500 transition-colors shrink-0 ml-1"
+                                    title="Quitar regla"
+                                  >
+                                    <XMarkIcon className="h-4 w-4" />
+                                  </button>
+                                </div>
+
+                                {/* Price example */}
+                                {publicPrice > 0 && (
+                                  <div className="px-3 pb-2 -mt-0.5">
+                                    <span className="text-[11px] text-gray-400">
+                                      {tax.isIncludedInPrice
+                                        ? `Ej: Público ${fmtP(publicPrice)} ${currencyCode} (incluye ${fmtP(publicPrice * rate / (1 + rate))} de ${taxLabel})`
+                                        : `Ej: Público ${fmtP(publicPrice)} + ${taxLabel} = ${fmtP(publicPrice * (1 + rate))} ${currencyCode}`}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* SAT fields — only for Mexico */}
+                      {countryCode === 'MX' && onSatFieldChange && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            Datos SAT (Mexico)
+                          </span>
+                          <div className="grid grid-cols-2 gap-3 mt-2">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Clave Producto SAT</label>
+                              <input
+                                type="text"
+                                name="satProductCode"
+                                value={satProductCode}
+                                onChange={onSatFieldChange}
+                                className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D]"
+                                placeholder="c_ClaveProdServ"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-600 mb-1">Clave Unidad SAT</label>
+                              <input
+                                type="text"
+                                name="satUnitCode"
+                                value={satUnitCode}
+                                onChange={onSatFieldChange}
+                                className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D]"
+                                placeholder="c_ClaveUnidad"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })}
         </div>
 
-        {/* Remove country confirmation modal */}
-        {removeCountryId && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
-              <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4">
-                <div className="flex items-center gap-3">
-                  <ExclamationTriangleIcon className="h-6 w-6 text-white" />
-                  <h3 className="text-lg font-bold text-white">
-                    Quitar País
-                  </h3>
+        {/* Reset price confirmation modal */}
+        {resetConfirmKey && (() => {
+          const [rCountryId, rPriceTypeId] = resetConfirmKey.split('::');
+          const rCountry = countries.find((c) => c.id === rCountryId);
+          const rPriceType = priceTypes.find((pt) => pt.id === rPriceTypeId);
+          return (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+                <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <ArrowPathIcon className="h-6 w-6 text-white" />
+                    <h3 className="text-lg font-bold text-white">
+                      Reiniciar Precio
+                    </h3>
+                  </div>
                 </div>
-              </div>
-              <div className="p-6">
-                <p className="text-sm text-gray-600 mb-4">
-                  Se eliminarán{' '}
-                  <strong>todos los precios</strong> de{' '}
-                  <strong>
-                    {countries.find((c) => c.id === removeCountryId)?.name}
-                  </strong>{' '}
-                  para este producto. Esta acción no se puede deshacer.
-                </p>
-                <div className="flex justify-end gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setRemoveCountryId(null)}
-                    disabled={isRemovingCountry}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="danger"
-                    size="sm"
-                    onClick={() => handleRemoveCountry(removeCountryId)}
-                    disabled={isRemovingCountry}
-                  >
-                    {isRemovingCountry ? 'Eliminando...' : 'Sí, quitar'}
-                  </Button>
+                <div className="p-6">
+                  <p className="text-sm text-gray-600 mb-1">
+                    Se pondrán en <strong>0</strong> todos los valores de:
+                  </p>
+                  <p className="text-sm font-semibold text-gray-800 mb-4">
+                    {rPriceType?.name} — {rCountry?.name} ({rCountry?.currencyCode?.trim()})
+                  </p>
+                  <p className="text-sm text-gray-500 mb-3">
+                    Escribe <strong className="text-red-600">CONFIRMAR</strong> para continuar:
+                  </p>
+                  <input
+                    type="text"
+                    value={resetConfirmText}
+                    onChange={(e) => setResetConfirmText(e.target.value)}
+                    placeholder="CONFIRMAR"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none mb-4"
+                    autoFocus
+                  />
+                  <div className="flex justify-end gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setResetConfirmKey(null);
+                        setResetConfirmText('');
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="danger"
+                      size="sm"
+                      disabled={resetConfirmText !== 'CONFIRMAR'}
+                      onClick={() => handleResetPrice(rCountryId, rPriceTypeId)}
+                    >
+                      Reiniciar a 0
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
+
+        {/* Tax rule action confirmation modal */}
+        {pendingTaxAction && (() => {
+          const isRemove = pendingTaxAction.type === 'remove';
+          const actionTitle = isRemove ? 'Quitar Regla Fiscal' : 'Modificar Regla Fiscal';
+          const actionDescription = isRemove
+            ? <>Se eliminará la regla <strong>{pendingTaxAction.taxLabel}</strong> ({pendingTaxAction.taxRuleName}) de este producto.</>
+            : <>Se cambiará <strong>{pendingTaxAction.taxLabel}</strong> ({pendingTaxAction.taxRuleName}) de <strong>{pendingTaxAction.currentIncluded ? 'Incluido en precio' : 'Adicional al precio'}</strong> a <strong>{pendingTaxAction.currentIncluded ? 'Adicional al precio' : 'Incluido en precio'}</strong>.</>;
+          const gradientFrom = isRemove ? 'from-red-500' : 'from-amber-500';
+          const gradientTo = isRemove ? 'to-red-600' : 'to-orange-500';
+          const ringColor = isRemove ? 'focus:ring-red-400 focus:border-red-400' : 'focus:ring-amber-400 focus:border-amber-400';
+
+          return (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+                <div className={`bg-gradient-to-r ${gradientFrom} ${gradientTo} px-6 py-4`}>
+                  <div className="flex items-center gap-3">
+                    <ShieldExclamationIcon className="h-6 w-6 text-white" />
+                    <h3 className="text-lg font-bold text-white">
+                      {actionTitle}
+                    </h3>
+                  </div>
+                </div>
+                <div className="p-6">
+                  {/* Action description */}
+                  <p className="text-sm text-gray-600 mb-4">
+                    {actionDescription}
+                  </p>
+
+                  {/* Warning */}
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                    <p className="text-xs text-amber-700">
+                      <strong>Atención:</strong> Los cambios en reglas fiscales afectan el cálculo de impuestos del producto. Esta acción quedará registrada.
+                    </p>
+                  </div>
+
+                  {/* Reason */}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Motivo del cambio <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={taxActionReason}
+                    onChange={(e) => setTaxActionReason(e.target.value)}
+                    placeholder="Describe el motivo del cambio..."
+                    rows={3}
+                    className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-lg ${ringColor} outline-none mb-4 resize-none`}
+                    autoFocus
+                  />
+
+                  {/* Responsible person */}
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4">
+                    <p className="text-xs text-gray-500 mb-1 font-medium">Responsable del cambio:</p>
+                    <p className="text-sm font-semibold text-gray-800">
+                      {currentUser?.firstName} {currentUser?.lastName}
+                    </p>
+                    <p className="text-xs text-gray-500">{currentUser?.email}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {new Date().toLocaleString('es-MX', {
+                        dateStyle: 'long',
+                        timeStyle: 'short',
+                      })}
+                    </p>
+                  </div>
+
+                  <div className="flex justify-end gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setPendingTaxAction(null);
+                        setTaxActionReason('');
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={isRemove ? 'danger' : 'primary'}
+                      size="sm"
+                      disabled={taxActionReason.trim().length < 5}
+                      onClick={() => {
+                        if (isRemove) {
+                          removeTax.mutate(
+                            {
+                              productId: pendingTaxAction.productId,
+                              taxRuleId: pendingTaxAction.taxRuleId,
+                            },
+                            {
+                              onSuccess: () => {
+                                toast.success(`${pendingTaxAction.taxRuleName} removida`);
+                                setPendingTaxAction(null);
+                                setTaxActionReason('');
+                              },
+                              onError: () => toast.error('Error al remover regla fiscal'),
+                            }
+                          );
+                        } else {
+                          updateTax.mutate(
+                            {
+                              productId: pendingTaxAction.productId,
+                              taxRuleId: pendingTaxAction.taxRuleId,
+                              isIncludedInPrice: !pendingTaxAction.currentIncluded,
+                            },
+                            {
+                              onSuccess: () => {
+                                toast.success(
+                                  pendingTaxAction.currentIncluded
+                                    ? 'Se calculará adicional al precio'
+                                    : 'Marcado como incluido en precio'
+                                );
+                                setPendingTaxAction(null);
+                                setTaxActionReason('');
+                              },
+                              onError: () => toast.error('Error al actualizar'),
+                            }
+                          );
+                        }
+                      }}
+                    >
+                      {isRemove ? 'Quitar Regla' : 'Confirmar Cambio'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Remove country confirmation modal */}
+        {removeCountryId && (() => {
+          const rcCountry = countries.find((c) => c.id === removeCountryId);
+          return (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+                <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <ExclamationTriangleIcon className="h-6 w-6 text-white" />
+                    <h3 className="text-lg font-bold text-white">
+                      Quitar País
+                    </h3>
+                  </div>
+                </div>
+                <div className="p-6">
+                  <p className="text-sm text-gray-600 mb-4">
+                    Se desactivarán <strong>todos los precios</strong> de{' '}
+                    <strong>{rcCountry?.name} ({rcCountry?.currencyCode?.trim()})</strong>{' '}
+                    para este producto.
+                  </p>
+
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Motivo <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={removeReason}
+                    onChange={(e) => setRemoveReason(e.target.value)}
+                    placeholder="Describe por qué se quitan los precios de este país..."
+                    rows={3}
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-400 focus:border-red-400 outline-none mb-4 resize-none"
+                  />
+
+                  <p className="text-sm text-gray-500 mb-2">
+                    Escribe <strong className="text-red-600">CONFIRMAR</strong> para continuar:
+                  </p>
+                  <input
+                    type="text"
+                    value={removeConfirmText}
+                    onChange={(e) => setRemoveConfirmText(e.target.value)}
+                    placeholder="CONFIRMAR"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-400 focus:border-red-400 outline-none mb-4"
+                  />
+
+                  <div className="flex justify-end gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setRemoveCountryId(null);
+                        setRemoveConfirmText('');
+                        setRemoveReason('');
+                      }}
+                      disabled={isRemovingCountry}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="danger"
+                      size="sm"
+                      onClick={() => handleRemoveCountry(removeCountryId)}
+                      disabled={isRemovingCountry || removeConfirmText !== 'CONFIRMAR' || removeReason.trim().length < 5}
+                    >
+                      {isRemovingCountry ? 'Desactivando...' : 'Quitar País'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </CardContent>
     </Card>
   );

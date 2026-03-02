@@ -120,6 +120,7 @@ export interface UpdateStockSettingsDto {
   maxStockLevel?: number | null;
   reorderPoint?: number | null;
   reorderQuantity?: number | null;
+  isActive?: boolean;
 }
 
 export interface BranchInfo {

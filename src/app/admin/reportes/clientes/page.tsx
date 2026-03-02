@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeftIcon,
@@ -17,6 +17,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useNewCustomersReport, useInactiveCustomersReport } from '@/hooks/useReports';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 type ViewMode = 'new' | 'inactive';
 
@@ -59,11 +60,29 @@ function getDefaultEndDate(): string {
 }
 
 export default function ClientesReportesPage() {
-  const [viewMode, setViewMode] = useState<ViewMode>('new');
-  const [dateRange, setDateRange] = useState({ start: getDefaultStartDate(), end: getDefaultEndDate() });
-  const [selectedType, setSelectedType] = useState('all');
+  return (
+    <Suspense>
+      <ClientesReportesContent />
+    </Suspense>
+  );
+}
+
+function ClientesReportesContent() {
+  const { get, getNumber, setParams } = useQueryFilters({
+    viewMode: 'new',
+    type: 'all',
+    inactiveDays: '90',
+  });
+
+  const viewMode = get('viewMode') as ViewMode;
+  const selectedType = get('type');
+  const inactiveDays = getNumber('inactiveDays') || 90;
+  const dateFrom = get('dateFrom') || getDefaultStartDate();
+  const dateTo = get('dateTo') || getDefaultEndDate();
+
+  const dateRange = { start: dateFrom, end: dateTo };
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [inactiveDays, setInactiveDays] = useState(90);
 
   // API hooks
   const { data: newCustomersData, isLoading: loadingNew } = useNewCustomersReport({
@@ -217,14 +236,14 @@ export default function ClientesReportesPage() {
                   <input
                     type="date"
                     value={dateRange.start}
-                    onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                    onChange={(e) => setParams({ dateFrom: e.target.value })}
                     className="rounded-md border-gray-300 text-sm focus:border-green-500 focus:ring-green-500"
                   />
                   <span className="text-gray-500">a</span>
                   <input
                     type="date"
                     value={dateRange.end}
-                    onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                    onChange={(e) => setParams({ dateTo: e.target.value })}
                     className="rounded-md border-gray-300 text-sm focus:border-green-500 focus:ring-green-500"
                   />
                 </div>
@@ -238,7 +257,7 @@ export default function ClientesReportesPage() {
                       { value: 'Cliente Final', label: 'Cliente Final' },
                     ]}
                     value={selectedType}
-                    onChange={setSelectedType}
+                    onChange={(val) => setParams({ type: val })}
                     allLabel="Todos los tipos"
                     allValue="all"
                   />
@@ -258,7 +277,7 @@ export default function ClientesReportesPage() {
                     { value: '120', label: '120 días' },
                   ]}
                   value={String(inactiveDays)}
-                  onChange={(val) => setInactiveDays(Number(val))}
+                  onChange={(val) => setParams({ inactiveDays: val })}
                   showAllOption={false}
                 />
               </div>
@@ -266,7 +285,7 @@ export default function ClientesReportesPage() {
 
             <div className="flex rounded-lg bg-gray-100 p-1">
               <button
-                onClick={() => setViewMode('new')}
+                onClick={() => setParams({ viewMode: 'new' })}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium ${
                   viewMode === 'new'
                     ? 'bg-white text-gray-900 shadow'
@@ -277,7 +296,7 @@ export default function ClientesReportesPage() {
                 Nuevos
               </button>
               <button
-                onClick={() => setViewMode('inactive')}
+                onClick={() => setParams({ viewMode: 'inactive' })}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium ${
                   viewMode === 'inactive'
                     ? 'bg-white text-gray-900 shadow'

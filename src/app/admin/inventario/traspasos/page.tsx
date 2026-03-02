@@ -2,7 +2,7 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.2 Módulo Productos e Inventario
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -25,13 +25,22 @@ import { useTransfers, useApproveTransfer, useShipTransfer, useCancelTransfer } 
 import { useActiveBranches } from '@/hooks/useBranches';
 import { inventoryService } from '@/services/inventory.service';
 import { TransferStatus, type TransferQueryDto, type TransferDto } from '@/types/inventory';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 export default function TraspasosPage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<TransferStatus | ''>('');
-  const [sourceBranchFilter, setSourceBranchFilter] = useState('');
-  const [destBranchFilter, setDestBranchFilter] = useState('');
-  const [page, setPage] = useState(1);
+  return <Suspense><TraspasosContent /></Suspense>;
+}
+
+function TraspasosContent() {
+  const { get, getNumber, setParams } = useQueryFilters({
+    page: '1',
+  });
+
+  const searchQuery = get('search');
+  const statusFilter = get('status') as TransferStatus | '';
+  const sourceBranchFilter = get('sourceBranch');
+  const destBranchFilter = get('destBranch');
+  const page = getNumber('page') || 1;
   // Fetch branches for filters
   const { data: branches } = useActiveBranches();
 
@@ -43,6 +52,8 @@ export default function TraspasosPage() {
     page,
     limit: 20,
   };
+
+  const [searchInput, setSearchInput] = useState(searchQuery);
 
   const { data: transfersData, isLoading } = useTransfers(query);
   const approveTransfer = useApproveTransfer();
@@ -229,8 +240,11 @@ export default function TraspasosPage() {
                   <input
                     type="text"
                     placeholder="Buscar por número de traspaso..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    value={searchInput}
+                    onChange={(e) => {
+                      setSearchInput(e.target.value);
+                      setParams({ search: e.target.value });
+                    }}
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
@@ -247,7 +261,7 @@ export default function TraspasosPage() {
                     { value: TransferStatus.CANCELLED, label: 'Cancelado' },
                   ]}
                   value={statusFilter}
-                  onChange={(val) => setStatusFilter(val as TransferStatus | '')}
+                  onChange={(val) => setParams({ status: val })}
                   allLabel="Todos los Estados"
                 />
               </div>
@@ -259,7 +273,7 @@ export default function TraspasosPage() {
                   label: branch.name,
                 }))}
                 value={sourceBranchFilter}
-                onChange={setSourceBranchFilter}
+                onChange={(val) => setParams({ sourceBranch: val })}
                 allLabel="Origen: Todas"
               />
 
@@ -270,7 +284,7 @@ export default function TraspasosPage() {
                   label: branch.name,
                 }))}
                 value={destBranchFilter}
-                onChange={setDestBranchFilter}
+                onChange={(val) => setParams({ destBranch: val })}
                 allLabel="Destino: Todas"
               />
             </div>
@@ -419,7 +433,7 @@ export default function TraspasosPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setPage(page - 1)}
+                        onClick={() => setParams({ page: String(page - 1) })}
                         disabled={page === 1}
                       >
                         Anterior
@@ -427,7 +441,7 @@ export default function TraspasosPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setPage(page + 1)}
+                        onClick={() => setParams({ page: String(page + 1) })}
                         disabled={page >= transfersData.totalPages}
                       >
                         Siguiente

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -25,10 +25,19 @@ import {
   RISK_LEVEL_CONFIG,
   ALERT_STATUS_CONFIG,
 } from '@/types/audit';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 export default function AuditAlertsPage() {
-  const [severityFilter, setSeverityFilter] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('pending');
+  return <Suspense><AuditAlertsContent /></Suspense>;
+}
+
+function AuditAlertsContent() {
+  const { get, setParams } = useQueryFilters({
+    status: 'pending',
+  });
+
+  const severityFilter = get('severity');
+  const statusFilter = get('status');
 
   const { data: alerts, isLoading, refetch } = useAuditAlerts(severityFilter || undefined);
   const updateAlertStatus = useUpdateAlertStatus();
@@ -132,7 +141,7 @@ export default function AuditAlertsPage() {
             className={`cursor-pointer transition hover:shadow-md ${
               statusFilter === 'pending' ? 'ring-2 ring-[#3E667D]' : ''
             }`}
-            onClick={() => setStatusFilter('pending')}
+            onClick={() => setParams({ status: 'pending' })}
           >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -152,8 +161,10 @@ export default function AuditAlertsPage() {
               severityFilter === 'critical' ? 'ring-2 ring-red-500' : ''
             }`}
             onClick={() => {
-              setSeverityFilter(severityFilter === 'critical' ? '' : 'critical');
-              setStatusFilter('pending');
+              setParams({
+                severity: severityFilter === 'critical' ? null : 'critical',
+                status: 'pending',
+              });
             }}
           >
             <CardContent className="p-4">
@@ -174,8 +185,10 @@ export default function AuditAlertsPage() {
               severityFilter === 'high' ? 'ring-2 ring-orange-500' : ''
             }`}
             onClick={() => {
-              setSeverityFilter(severityFilter === 'high' ? '' : 'high');
-              setStatusFilter('pending');
+              setParams({
+                severity: severityFilter === 'high' ? null : 'high',
+                status: 'pending',
+              });
             }}
           >
             <CardContent className="p-4">
@@ -195,7 +208,7 @@ export default function AuditAlertsPage() {
             className={`cursor-pointer transition hover:shadow-md ${
               statusFilter === 'resolved' ? 'ring-2 ring-green-500' : ''
             }`}
-            onClick={() => setStatusFilter('resolved')}
+            onClick={() => setParams({ status: 'resolved' })}
           >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -230,7 +243,7 @@ export default function AuditAlertsPage() {
                   { value: 'dismissed', label: 'Descartadas' },
                 ]}
                 value={statusFilter}
-                onChange={setStatusFilter}
+                onChange={(val) => setParams({ status: val })}
                 allLabel="Todos los estados"
               />
 
@@ -242,7 +255,7 @@ export default function AuditAlertsPage() {
                   { value: 'low', label: 'Baja' },
                 ]}
                 value={severityFilter}
-                onChange={setSeverityFilter}
+                onChange={(val) => setParams({ severity: val || null })}
                 allLabel="Todas las severidades"
               />
 
@@ -250,8 +263,7 @@ export default function AuditAlertsPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  setStatusFilter('pending');
-                  setSeverityFilter('');
+                  setParams({ status: 'pending', severity: null });
                 }}
               >
                 Limpiar filtros

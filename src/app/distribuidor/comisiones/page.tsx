@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -38,20 +38,32 @@ import {
   UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { toast } from 'sonner';
 
 type ViewMode = 'summary' | 'table' | 'chart' | 'structure';
 
 export default function ComisionesPage() {
+  return <Suspense><ComisionesContent /></Suspense>;
+}
+
+function ComisionesContent() {
   const user = useAppSelector(selectUser);
 
   const currencyCode = user?.currencyCode || 'MXN';
-  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
-  const [filterType, setFilterType] = useState<CommissionType | 'all'>('all');
-  const [filterStatus, setFilterStatus] = useState<CommissionStatus | 'all'>('all');
-  const [viewMode, setViewMode] = useState<ViewMode>('summary');
   const [showTaxDetails, setShowTaxDetails] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+
+  const { get, setParams } = useQueryFilters({
+    type: 'all',
+    status: 'all',
+    viewMode: 'summary',
+  });
+
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
+  const filterType = get('type') as CommissionType | 'all';
+  const filterStatus = get('status') as CommissionStatus | 'all';
+  const viewMode = get('viewMode') as ViewMode;
 
   // Obtener periodo actual para default
   const { data: currentPeriodData } = useCurrentPeriod();
@@ -211,7 +223,7 @@ export default function ComisionesPage() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 -mt-4">
         {/* Filters Bar - Rediseñada */}
-        <Card className="mb-6 shadow-lg shadow-gray-200/50 border-0 overflow-hidden">
+        <Card className="mb-6 shadow-lg shadow-gray-200/50 border-0">
           <CardContent className="p-0">
             {/* Main filter row */}
             <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between p-4 bg-white">
@@ -252,7 +264,7 @@ export default function ComisionesPage() {
                 {/* View mode toggle - Mejorado */}
                 <div className="flex bg-gray-100 rounded-xl p-1">
                   <button
-                    onClick={() => setViewMode('summary')}
+                    onClick={() => setParams({ viewMode: 'summary' })}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       viewMode === 'summary'
                         ? 'bg-white text-[#3E667D] shadow-sm'
@@ -263,7 +275,7 @@ export default function ComisionesPage() {
                     <span className="hidden sm:inline">Resumen</span>
                   </button>
                   <button
-                    onClick={() => setViewMode('table')}
+                    onClick={() => setParams({ viewMode: 'table' })}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       viewMode === 'table'
                         ? 'bg-white text-[#3E667D] shadow-sm'
@@ -274,7 +286,7 @@ export default function ComisionesPage() {
                     <span className="hidden sm:inline">Detalle</span>
                   </button>
                   <button
-                    onClick={() => setViewMode('chart')}
+                    onClick={() => setParams({ viewMode: 'chart' })}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       viewMode === 'chart'
                         ? 'bg-white text-[#3E667D] shadow-sm'
@@ -313,7 +325,7 @@ export default function ComisionesPage() {
                         { value: 'adjustment', label: 'Ajustes' },
                       ]}
                       value={filterType}
-                      onChange={(val) => setFilterType(val as CommissionType | 'all')}
+                      onChange={(val) => setParams({ type: val })}
                       allLabel="Todos los tipos"
                       allValue="all"
                       className="min-w-[180px]"
@@ -332,7 +344,7 @@ export default function ComisionesPage() {
                         { value: 'calculated', label: 'Calculadas' },
                       ]}
                       value={filterStatus}
-                      onChange={(val) => setFilterStatus(val as CommissionStatus | 'all')}
+                      onChange={(val) => setParams({ status: val })}
                       allLabel="Todos los estados"
                       allValue="all"
                       className="min-w-[160px]"
@@ -344,8 +356,7 @@ export default function ComisionesPage() {
                     <div className="flex items-end">
                       <button
                         onClick={() => {
-                          setFilterType('all');
-                          setFilterStatus('all');
+                          setParams({ type: null, status: null });
                         }}
                         className="px-4 py-2.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors"
                       >
