@@ -38,7 +38,7 @@ export const posKeys = {
   // Sessions
   sessions: () => [...posKeys.all, 'sessions'] as const,
   sessionList: (params?: SessionQueryParams) => [...posKeys.sessions(), 'list', params] as const,
-  sessionActive: () => [...posKeys.sessions(), 'active'] as const,
+  sessionActive: (branchId?: string) => [...posKeys.sessions(), 'active', branchId] as const,
   sessionDetail: (id: string) => [...posKeys.sessions(), 'detail', id] as const,
   // Sales
   sales: () => [...posKeys.all, 'sales'] as const,
@@ -144,10 +144,11 @@ export const useSessions = (params?: SessionQueryParams) => {
  */
 export const useActiveSession = (branchId?: string) => {
   return useQuery({
-    queryKey: posKeys.sessionActive(),
+    queryKey: posKeys.sessionActive(branchId),
     queryFn: () => posService.getActiveSession(branchId),
     staleTime: 30 * 1000, // 30 seconds - needs to be fresh
     refetchInterval: 60 * 1000, // Refetch every minute
+    enabled: !!branchId, // Don't fetch until branchId is available
   });
 };
 

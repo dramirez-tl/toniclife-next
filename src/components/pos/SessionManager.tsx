@@ -292,32 +292,48 @@ export function SessionManager({
                   <div className="animate-pulse h-12 bg-gray-100 rounded-lg"></div>
                 ) : availableRegisters && availableRegisters.length > 0 ? (
                   <div className="space-y-2">
-                    {availableRegisters.map((register) => (
-                      <button
-                        key={register.id}
-                        onClick={() => setSelectedRegister(register)}
-                        className={`w-full flex items-center gap-3 p-3 border-2 rounded-lg transition-all ${
-                          selectedRegister?.id === register.id
-                            ? 'border-[#a7c1e2] bg-[#C8DDF2]/10'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <BanknotesIcon
-                          className={`h-6 w-6 ${
-                            selectedRegister?.id === register.id
-                              ? 'text-[#3E667D]'
-                              : 'text-gray-400'
+                    {availableRegisters.map((register) => {
+                      const isOpen = register.status === 'open';
+                      return (
+                        <button
+                          key={register.id}
+                          onClick={() => !isOpen && setSelectedRegister(register)}
+                          disabled={isOpen}
+                          className={`w-full flex items-center gap-3 p-3 border-2 rounded-lg transition-all ${
+                            isOpen
+                              ? 'border-yellow-300 bg-yellow-50 cursor-not-allowed'
+                              : selectedRegister?.id === register.id
+                                ? 'border-[#a7c1e2] bg-[#C8DDF2]/10'
+                                : 'border-gray-200 hover:border-gray-300'
                           }`}
-                        />
-                        <div className="text-left">
-                          <p className="font-medium">{register.name}</p>
-                          <p className="text-xs text-gray-500">{register.branchName}</p>
-                        </div>
-                      </button>
-                    ))}
+                        >
+                          <BanknotesIcon
+                            className={`h-6 w-6 ${
+                              isOpen
+                                ? 'text-yellow-500'
+                                : selectedRegister?.id === register.id
+                                  ? 'text-[#3E667D]'
+                                  : 'text-gray-400'
+                            }`}
+                          />
+                          <div className="text-left flex-1">
+                            <p className="font-medium">{register.name}</p>
+                            <p className="text-xs text-gray-500">{register.branchName}</p>
+                          </div>
+                          {isOpen && (
+                            <span className="text-xs font-medium text-yellow-700 bg-yellow-200 px-2 py-0.5 rounded-full">
+                              En uso
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-sm">No hay cajas disponibles en esta sucursal</p>
+                  <div className="text-sm">
+                    <p className="text-gray-500">No hay cajas disponibles en esta sucursal</p>
+                    <p className="text-yellow-600 mt-1">Si ya hay una caja abierta, cierra este modal y espera a que se detecte la sesión activa.</p>
+                  </div>
                 )}
               </div>
 
