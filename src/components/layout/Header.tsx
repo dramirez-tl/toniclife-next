@@ -33,8 +33,7 @@ const navigation = [
     ]
   },
   { name: 'Evaluación de Salud', href: '/quiz', highlight: true },
-  { name: 'Testimonios', href: '/testimonios' },
-  { name: 'Distribuidores', href: '/distribuidores' }
+  { name: 'Distribuidores', href: '/#reconocimientos' }
 ];
 
 export function Header() {
