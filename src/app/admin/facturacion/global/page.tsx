@@ -2,8 +2,9 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.5 Facturación
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import {
@@ -32,13 +33,27 @@ const PAYMENT_METHODS_FACTURAMA = [
 
 export default function GlobalInvoicePage() {
   const createGlobalInvoice = useCreateGlobalInvoice();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Read initial values from URL query params
+  const initialBranchId = searchParams.get('branchId') || '';
+  const initialDate = searchParams.get('date') || new Date().toISOString().split('T')[0];
+  const initialAutoSearch = !!searchParams.get('branchId') && !!searchParams.get('date');
 
   // Filter state
-  const [selectedBranchId, setSelectedBranchId] = useState('');
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split('T')[0],
-  );
-  const [searchTriggered, setSearchTriggered] = useState(false);
+  const [selectedBranchId, setSelectedBranchId] = useState(initialBranchId);
+  const [selectedDate, setSelectedDate] = useState(initialDate);
+  const [searchTriggered, setSearchTriggered] = useState(initialAutoSearch);
+
+  // Sync filters to URL
+  const updateUrl = useCallback((branchId: string, date: string) => {
+    const params = new URLSearchParams();
+    if (branchId) params.set('branchId', branchId);
+    if (date) params.set('date', date);
+    const qs = params.toString();
+    router.replace(`/admin/facturacion/global${qs ? `?${qs}` : ''}`, { scroll: false });
+  }, [router]);
 
   // Selection state
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
@@ -119,6 +134,7 @@ export default function GlobalInvoicePage() {
     setSelectedOrderIds(new Set());
     setCreatedInvoice(null);
     setSearchTriggered(true);
+    updateUrl(selectedBranchId, selectedDate);
   };
 
   // Submit handler
@@ -401,8 +417,16 @@ export default function GlobalInvoicePage() {
                                     className="rounded border-gray-300 text-[#3E667D] focus:ring-[#3E667D]"
                                   />
                                 </td>
-                                <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                                  {getOrderDisplay(order)}
+                                <td className="px-4 py-3 text-sm font-medium">
+                                  <a
+                                    href={`/admin/pedidos/${order.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="text-[#3E667D] hover:text-[#2d4f63] hover:underline"
+                                  >
+                                    {getOrderDisplay(order)}
+                                  </a>
                                 </td>
                                 <td className="px-4 py-3 text-sm text-gray-600">
                                   {getCustomerName(order)}
