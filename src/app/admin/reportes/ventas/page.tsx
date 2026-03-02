@@ -29,10 +29,10 @@ import {
 // Helpers
 // ================================
 
-const formatCurrency = (amount: number) =>
+const formatCurrency = (amount: number, currencyCode = 'MXN') =>
   new Intl.NumberFormat('es-MX', {
     style: 'currency',
-    currency: 'MXN',
+    currency: currencyCode,
   }).format(amount);
 
 const formatDate = (dateStr: string) =>
@@ -240,7 +240,12 @@ function VentasReportesContent() {
       headerClassName: 'text-right',
       cellClassName: 'text-right',
       render: (sale) => (
-        <span className="font-semibold text-gray-900">{formatCurrency(sale.total)}</span>
+        <div className="text-right">
+          <span className="font-semibold text-gray-900">{formatCurrency(sale.total, sale.currencyCode)}</span>
+          {sale.currencyCode && sale.currencyCode !== 'MXN' && (
+            <span className="ml-1 text-xs text-gray-500">{sale.currencyCode}</span>
+          )}
+        </div>
       ),
     },
     {
