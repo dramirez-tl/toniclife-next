@@ -353,7 +353,12 @@ function SucursalesContent() {
 
     try {
       if (editingBranch) {
-        const dto: UpdateBranchDto = { ...formData };
+        const { code, ...updateFields } = formData;
+        // Strip empty strings for optional email validation
+        const dto: UpdateBranchDto = {
+          ...updateFields,
+          addressEmail: updateFields.addressEmail?.trim() || undefined,
+        };
         await updateBranch.mutateAsync({ id: editingBranch.id, dto });
         toast.success('Sucursal actualizada correctamente');
       } else {
