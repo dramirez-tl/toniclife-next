@@ -19,7 +19,7 @@ interface PosCartStore {
   refreshItemPrices: (prices: Array<{ productId: string; price: number; points: number; businessValue: number }>) => void;
 }
 
-const DEFAULT_TAX_RATE = 0.16; // Fallback si el producto no tiene regla fiscal
+const DEFAULT_TAX_RATE = 0; // No tax by default — API sends correct rate per country
 
 const initialCart: PosCart = {
   items: [],
