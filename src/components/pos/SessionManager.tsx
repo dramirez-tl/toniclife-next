@@ -37,7 +37,7 @@ export function SessionManager({
   const [closingAmount, setClosingAmount] = useState('');
   const [closingNotes, setClosingNotes] = useState('');
 
-  const { data: activeSession, isLoading: loadingSession, refetch } = useActiveSession();
+  const { data: activeSession, isLoading: loadingSession, refetch } = useActiveSession(branchId);
   const { data: availableRegisters, isLoading: loadingRegisters } = useAvailableRegisters(branchId);
   const openSession = useOpenSession();
   const closeSession = useCloseSession();
@@ -125,6 +125,11 @@ export function SessionManager({
               <p className="text-sm text-green-700 mt-1">
                 {activeSession.cashRegister.name} • {activeSession.cashRegister.branchName}
               </p>
+              {session.openedByName && (
+                <p className="text-xs text-green-600 mt-0.5">
+                  Abierta por: {session.openedByName}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <button

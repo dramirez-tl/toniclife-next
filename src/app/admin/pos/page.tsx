@@ -40,7 +40,7 @@ export default function PosPage() {
 
   const { cart, clearCart } = usePosCartStore();
   const cartPriceTypeId = usePosCartStore((s) => s.cart.priceTypeId);
-  const { data: activeSession, refetch: refetchSession } = useActiveSession();
+  const { data: activeSession, refetch: refetchSession } = useActiveSession(selectedBranchId || userDefaultBranchId);
   const createSale = useCreateSale();
   const processPayment = useProcessPayment();
   const { data: recentSales, refetch: refetchSales } = useSales({

@@ -142,10 +142,10 @@ export const useSessions = (params?: SessionQueryParams) => {
 /**
  * Get current user's active session
  */
-export const useActiveSession = () => {
+export const useActiveSession = (branchId?: string) => {
   return useQuery({
     queryKey: posKeys.sessionActive(),
-    queryFn: () => posService.getActiveSession(),
+    queryFn: () => posService.getActiveSession(branchId),
     staleTime: 30 * 1000, // 30 seconds - needs to be fresh
     refetchInterval: 60 * 1000, // Refetch every minute
   });

@@ -114,8 +114,10 @@ class PosService {
   /**
    * Get current user's active session
    */
-  async getActiveSession(): Promise<ActiveSession | null> {
-    const response = await api.get<ActiveSession | null>('/pos/sessions/active');
+  async getActiveSession(branchId?: string): Promise<ActiveSession | null> {
+    const response = await api.get<ActiveSession | null>('/pos/sessions/active', {
+      params: branchId ? { branchId } : undefined,
+    });
     return response.data;
   }
 
