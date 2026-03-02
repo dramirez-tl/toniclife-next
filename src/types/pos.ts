@@ -214,6 +214,7 @@ export interface Sale {
   branchName: string;
   customerId?: string;
   customerName?: string;
+  customerNumber?: string;
   customerRfc?: string;
   sellerId: string;
   sellerName: string;

@@ -212,7 +212,10 @@ export async function generatePosTicketPdf(
   doc.setFontSize(6.5);
 
   if (sale.customerName) {
-    y = leftText(doc, `Cliente: ${sale.customerName}`, y);
+    const customerLabel = sale.customerNumber
+      ? `Cliente: ${sale.customerName} (#${sale.customerNumber})`
+      : `Cliente: ${sale.customerName}`;
+    y = leftText(doc, customerLabel, y);
   }
   y = leftText(doc, `Venta: ${sale.saleNumber}`, y);
   y = leftText(doc, `Caja: ${sale.cashRegisterName}`, y);
