@@ -86,9 +86,10 @@ export default function EditarProductoAdminPage() {
     // Physical
     weightKg: '',
     volumeCm3: '',
-    // E-commerce
+    // E-commerce / POS
     isVisibleEcommerce: true,
     isFeatured: false,
+    availableInPos: true,
     // SEO
     metaTitle: '',
     metaDescription: '',
@@ -146,6 +147,7 @@ export default function EditarProductoAdminPage() {
         volumeCm3: product.volumeCm3?.toString() || '',
         isVisibleEcommerce: product.isVisibleEcommerce ?? true,
         isFeatured: product.isFeatured ?? false,
+        availableInPos: product.availableInPos ?? true,
         metaTitle: product.metaTitle || '',
         metaDescription: product.metaDescription || '',
         isActive: product.isActive ?? true,
@@ -255,6 +257,7 @@ export default function EditarProductoAdminPage() {
       volumeCm3: formData.volumeCm3 ? parseFloat(formData.volumeCm3) : undefined,
       isVisibleEcommerce: formData.isVisibleEcommerce,
       isFeatured: formData.isFeatured,
+      availableInPos: formData.availableInPos,
       slug: formData.slug || undefined,
       metaTitle: formData.metaTitle || undefined,
       metaDescription: formData.metaDescription || undefined,
@@ -651,6 +654,10 @@ export default function EditarProductoAdminPage() {
                       <div className="flex items-center">
                         <input type="checkbox" name="qualifiesForCommission" id="qualifiesForCommission" checked={formData.qualifiesForCommission} onChange={handleChange} className="h-4 w-4 text-[#3E667D] focus:ring-[#3E667D] border-gray-300 rounded" />
                         <label htmlFor="qualifiesForCommission" className="ml-2 text-sm text-gray-700">Califica para Comisiones</label>
+                      </div>
+                      <div className="flex items-center">
+                        <input type="checkbox" name="availableInPos" id="availableInPos" checked={formData.availableInPos} onChange={handleChange} className="h-4 w-4 text-[#3E667D] focus:ring-[#3E667D] border-gray-300 rounded" />
+                        <label htmlFor="availableInPos" className="ml-2 text-sm text-gray-700">Disponible en POS</label>
                       </div>
                       <div>
                         <label className={labelClass}>Orden de Aparicion</label>

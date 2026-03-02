@@ -79,6 +79,7 @@ export interface Product {
   volumeCm3?: string;
   isVisibleEcommerce: boolean;
   isFeatured: boolean;
+  availableInPos: boolean;
   slug?: string;
   metaTitle?: string;
   metaDescription?: string;
@@ -171,6 +172,7 @@ export interface ProductQueryParams {
   isActive?: boolean;
   isVisibleEcommerce?: boolean;
   isFeatured?: boolean;
+  availableInPos?: boolean;
   productType?: ProductType;
   brand?: string;
   tracksInventory?: boolean;
@@ -249,6 +251,7 @@ export interface CreateProductDto {
   volumeCm3?: number;
   isVisibleEcommerce?: boolean;
   isFeatured?: boolean;
+  availableInPos?: boolean;
   slug?: string;
   metaTitle?: string;
   metaDescription?: string;

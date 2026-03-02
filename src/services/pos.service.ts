@@ -249,7 +249,7 @@ class PosService {
       params: {
         search: query,
         isActive: true,
-        isVisibleEcommerce: true,
+        availableInPos: true,
         limit,
         ...(branchId && { branchId }),
         ...(priceTypeId && { priceTypeId }),
