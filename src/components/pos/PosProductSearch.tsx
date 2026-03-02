@@ -15,21 +15,22 @@ interface PosProductSearchProps {
   autoFocus?: boolean;
   branchId?: string;
   priceTypeId?: string;
+  countryId?: string;
 }
 
-export function PosProductSearch({ onProductSelected, autoFocus = true, branchId, priceTypeId }: PosProductSearchProps) {
+export function PosProductSearch({ onProductSelected, autoFocus = true, branchId, priceTypeId, countryId }: PosProductSearchProps) {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const { data: products, isLoading } = usePosProductSearch(query, query.length >= 2, branchId, priceTypeId);
+  const { data: products, isLoading } = usePosProductSearch(query, query.length >= 2, branchId, priceTypeId, countryId);
   const addItem = usePosCartStore((state) => state.addItem);
 
   // Handle barcode scan (typically fast input ending with Enter)
   const handleBarcodeInput = useCallback(async (sku: string) => {
-    const product = await posService.getProductBySku(sku.trim());
+    const product = await posService.getProductBySku(sku.trim(), countryId);
     if (product) {
       addItem(product);
       onProductSelected?.(product);
@@ -38,7 +39,7 @@ export function PosProductSearch({ onProductSelected, autoFocus = true, branchId
     } else {
       toast.error(`Producto no encontrado: ${sku}`);
     }
-  }, [addItem, onProductSelected]);
+  }, [addItem, onProductSelected, countryId]);
 
   // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

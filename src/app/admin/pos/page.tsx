@@ -94,6 +94,7 @@ export default function PosPage() {
   const currency = currencyMap.get(currencyCode);
   const currencySymbol = currency?.symbol || '$';
   const currencyId = currency?.id;
+  const branchCountryId = selectedBranch?.countryId;
 
   const hasActiveSession = !!activeSession?.session;
 
@@ -405,7 +406,7 @@ export default function PosPage() {
                   </div>
 
                   <div className="mb-4">
-                    <PosProductSearch autoFocus branchId={effectiveBranchId} priceTypeId={cartPriceTypeId} />
+                    <PosProductSearch autoFocus branchId={effectiveBranchId} priceTypeId={cartPriceTypeId} countryId={branchCountryId} />
                   </div>
 
                   {/* Quick Actions / Numpad could go here */}
@@ -431,7 +432,7 @@ export default function PosPage() {
                     <p className="text-sm text-gray-500 mb-6">
                       Busca por nombre o número para ver sus precios y comenzar la venta
                     </p>
-                    <PosCustomerSelector prominent />
+                    <PosCustomerSelector prominent countryId={branchCountryId} />
                   </div>
                 </div>
               )

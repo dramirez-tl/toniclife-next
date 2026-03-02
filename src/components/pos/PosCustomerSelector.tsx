@@ -14,9 +14,11 @@ const PUBLIC_PRICE_TYPE_ID = '13c1528d-c093-4c74-86ad-86e9e55231e6';
 interface PosCustomerSelectorProps {
   /** Larger, teal-styled input for center panel */
   prominent?: boolean;
+  /** Branch country ID for correct price resolution */
+  countryId?: string;
 }
 
-export function PosCustomerSelector({ prominent = false }: PosCustomerSelectorProps) {
+export function PosCustomerSelector({ prominent = false, countryId }: PosCustomerSelectorProps) {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -69,12 +71,12 @@ export function PosCustomerSelector({ prominent = false }: PosCustomerSelectorPr
     const productIds = usePosCartStore.getState().cart.items.map((i) => i.productId);
     if (productIds.length === 0) return;
     try {
-      const prices = await posService.resolveProductPrices(productIds, priceTypeId);
+      const prices = await posService.resolveProductPrices(productIds, priceTypeId, countryId);
       refreshItemPrices(prices);
     } catch {
       // Silent fail - prices will stay as is
     }
-  }, [refreshItemPrices]);
+  }, [refreshItemPrices, countryId]);
 
   const handleSelect = useCallback(async (customer: Customer) => {
     const fullName = [customer.firstName, customer.lastName].filter(Boolean).join(' ');

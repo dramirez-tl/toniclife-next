@@ -51,7 +51,7 @@ export const posKeys = {
   movementDetail: (id: string) => [...posKeys.movements(), 'detail', id] as const,
   movementBalance: (sessionId: string) => [...posKeys.movements(), 'balance', sessionId] as const,
   // Products
-  productSearch: (query: string, branchId?: string, priceTypeId?: string) => [...posKeys.all, 'products', 'search', query, branchId, priceTypeId] as const,
+  productSearch: (query: string, branchId?: string, priceTypeId?: string, countryId?: string) => [...posKeys.all, 'products', 'search', query, branchId, priceTypeId, countryId] as const,
   // Customer search
   customerSearch: (query: string) => [...posKeys.all, 'customers', 'search', query] as const,
 };
@@ -377,10 +377,10 @@ export const useRejectWithdrawal = () => {
 /**
  * Search products for POS
  */
-export const usePosProductSearch = (query: string, enabled = true, branchId?: string, priceTypeId?: string) => {
+export const usePosProductSearch = (query: string, enabled = true, branchId?: string, priceTypeId?: string, countryId?: string) => {
   return useQuery({
-    queryKey: posKeys.productSearch(query, branchId, priceTypeId),
-    queryFn: () => posService.searchProducts(query, 10, branchId, priceTypeId),
+    queryKey: posKeys.productSearch(query, branchId, priceTypeId, countryId),
+    queryFn: () => posService.searchProducts(query, 10, branchId, priceTypeId, countryId),
     enabled: enabled && query.length >= 2,
     staleTime: 30 * 1000, // 30 seconds
   });

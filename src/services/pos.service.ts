@@ -243,7 +243,7 @@ class PosService {
   /**
    * Search products for POS (quick search by SKU or name)
    */
-  async searchProducts(query: string, limit = 10, branchId?: string, priceTypeId?: string): Promise<QuickProduct[]> {
+  async searchProducts(query: string, limit = 10, branchId?: string, priceTypeId?: string, countryId?: string): Promise<QuickProduct[]> {
     // Use the existing products endpoint with search
     const response = await api.get('/products', {
       params: {
@@ -253,6 +253,7 @@ class PosService {
         limit,
         ...(branchId && { branchId }),
         ...(priceTypeId && { priceTypeId }),
+        ...(countryId && { countryId }),
       },
     });
     // Map to QuickProduct format (API returns code, price, not sku/basePrice)
@@ -276,10 +277,11 @@ class PosService {
   /**
    * Resolve prices for a batch of products by price type
    */
-  async resolveProductPrices(productIds: string[], priceTypeId: string): Promise<Array<{ productId: string; price: number; points: number; businessValue: number }>> {
+  async resolveProductPrices(productIds: string[], priceTypeId: string, countryId?: string): Promise<Array<{ productId: string; price: number; points: number; businessValue: number }>> {
     const response = await api.post<Array<{ productId: string; price: number; points: number; businessValue: number }>>('/products/resolve-prices', {
       productIds,
       priceTypeId,
+      ...(countryId && { countryId }),
     });
     return response.data;
   }
@@ -287,9 +289,11 @@ class PosService {
   /**
    * Get product by code (for barcode scanning)
    */
-  async getProductBySku(sku: string): Promise<QuickProduct | null> {
+  async getProductBySku(sku: string, countryId?: string): Promise<QuickProduct | null> {
     try {
-      const response = await api.get(`/products/code/${sku}`);
+      const response = await api.get(`/products/code/${sku}`, {
+        params: countryId ? { countryId } : undefined,
+      });
       const p = response.data;
       return {
         id: p.id,
