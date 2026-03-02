@@ -125,6 +125,7 @@ export default function LoginPage() {
       const result = await dispatch(loginAsync({
         identifier: trimmedId,
         password: formData.password,
+        remember: formData.remember,
       })).unwrap();
 
       // Si requiere vincular email, el useEffect se encarga del redirect

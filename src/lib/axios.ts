@@ -1,6 +1,21 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 const ACCESS_TOKEN_KEY = 'accessToken';
+const REFRESH_TOKEN_KEY = 'refreshToken';
+const REMEMBER_KEY = 'rememberMe';
+
+/** Read from whichever storage holds the value (localStorage first). */
+const getToken = (key: string): string | null => {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(key) || sessionStorage.getItem(key);
+};
+
+/** Write to the active storage based on rememberMe flag. */
+const setToken = (key: string, value: string): void => {
+  if (typeof window === 'undefined') return;
+  const storage = localStorage.getItem(REMEMBER_KEY) === '1' ? localStorage : sessionStorage;
+  storage.setItem(key, value);
+};
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1',
@@ -13,11 +28,9 @@ const api = axios.create({
 // Request interceptor - Add auth token
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem(ACCESS_TOKEN_KEY);
-      if (token && config.headers) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+    const token = getToken(ACCESS_TOKEN_KEY);
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
@@ -112,9 +125,7 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const refreshToken = typeof window !== 'undefined'
-          ? localStorage.getItem('refreshToken')
-          : null;
+        const refreshToken = getToken(REFRESH_TOKEN_KEY);
 
         if (!refreshToken) {
           throw new Error('No refresh token available');
@@ -124,9 +135,9 @@ api.interceptors.response.use(
         const { accessToken, refreshToken: newRefreshToken } = response.data;
 
         if (typeof window !== 'undefined') {
-          localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+          setToken(ACCESS_TOKEN_KEY, accessToken);
           if (newRefreshToken) {
-            localStorage.setItem('refreshToken', newRefreshToken);
+            setToken(REFRESH_TOKEN_KEY, newRefreshToken);
           }
           // Renew auth cookies so middleware keeps routing correctly
           document.cookie = `accessToken=1; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
@@ -149,8 +160,12 @@ api.interceptors.response.use(
         // Clear tokens (including cookie used by middleware) and redirect to login
         if (typeof window !== 'undefined') {
           localStorage.removeItem(ACCESS_TOKEN_KEY);
-          localStorage.removeItem('refreshToken');
+          localStorage.removeItem(REFRESH_TOKEN_KEY);
           localStorage.removeItem('user');
+          localStorage.removeItem(REMEMBER_KEY);
+          sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+          sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+          sessionStorage.removeItem('user');
           document.cookie = `${ACCESS_TOKEN_KEY}=; path=/; max-age=0`;
           document.cookie = `authRole=; path=/; max-age=0`;
 

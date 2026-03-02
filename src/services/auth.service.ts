@@ -4,6 +4,7 @@ import api from '@/lib/axios';
 export interface LoginCredentials {
   identifier: string;
   password: string;
+  remember?: boolean;
 }
 
 export interface EmailLinkRequired {
@@ -93,26 +94,48 @@ export interface ResendVerificationData {
 const ACCESS_TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';
 const USER_KEY = 'user';
+const REMEMBER_KEY = 'rememberMe';
 // Small cookie the middleware reads for auth/role routing (the full JWT is too
 // large for a cookie when it embeds 100+ permissions).
 const AUTH_COOKIE = 'accessToken';
 const ROLE_COOKIE = 'authRole';
 
 class AuthService {
+  /**
+   * Returns the active storage: localStorage when "Recordarme" was checked,
+   * sessionStorage otherwise (cleared when browser closes).
+   */
+  private getStorage(): Storage {
+    if (typeof window === 'undefined') return localStorage;
+    // If rememberMe flag exists in localStorage, use localStorage
+    return localStorage.getItem(REMEMBER_KEY) === '1' ? localStorage : sessionStorage;
+  }
+
+  setRemember(remember: boolean): void {
+    if (typeof window === 'undefined') return;
+    if (remember) {
+      localStorage.setItem(REMEMBER_KEY, '1');
+    } else {
+      localStorage.removeItem(REMEMBER_KEY);
+    }
+  }
+
   // Token management
   getAccessToken(): string | null {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem(ACCESS_TOKEN_KEY);
+    // Check both storages — tokens may be in either
+    return localStorage.getItem(ACCESS_TOKEN_KEY) || sessionStorage.getItem(ACCESS_TOKEN_KEY);
   }
 
   getRefreshToken(): string | null {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem(REFRESH_TOKEN_KEY);
+    return localStorage.getItem(REFRESH_TOKEN_KEY) || sessionStorage.getItem(REFRESH_TOKEN_KEY);
   }
 
   setTokens(accessToken: string, refreshToken?: string): void {
     if (typeof window === 'undefined') return;
-    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    const storage = this.getStorage();
+    storage.setItem(ACCESS_TOKEN_KEY, accessToken);
 
     // Set a tiny "logged-in" flag cookie so the middleware knows the user is
     // authenticated.  We intentionally do NOT store the full JWT here because
@@ -130,15 +153,20 @@ class AuthService {
     }
 
     if (refreshToken) {
-      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+      storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
     }
   }
 
   clearTokens(): void {
     if (typeof window === 'undefined') return;
+    // Clear from both storages
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(REMEMBER_KEY);
+    sessionStorage.removeItem(ACCESS_TOKEN_KEY);
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
     // Clear cookies
     document.cookie = `${AUTH_COOKIE}=; path=/; max-age=0`;
     document.cookie = `${ROLE_COOKIE}=; path=/; max-age=0`;
@@ -146,18 +174,22 @@ class AuthService {
 
   getStoredUser(): UserResponse | null {
     if (typeof window === 'undefined') return null;
-    const user = localStorage.getItem(USER_KEY);
+    const user = localStorage.getItem(USER_KEY) || sessionStorage.getItem(USER_KEY);
     return user ? JSON.parse(user) : null;
   }
 
   setStoredUser(user: UserResponse): void {
     if (typeof window === 'undefined') return;
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    this.getStorage().setItem(USER_KEY, JSON.stringify(user));
   }
 
   // API calls
   async login(credentials: LoginCredentials): Promise<LoginResult> {
-    const response = await api.post<LoginResult>('/auth/login', credentials);
+    const { remember, ...loginData } = credentials;
+    // Set storage strategy BEFORE saving tokens
+    this.setRemember(remember ?? false);
+
+    const response = await api.post<LoginResult>('/auth/login', loginData);
 
     // Si requiere vinculación de email, no guardar tokens
     if (isEmailLinkRequired(response.data)) {
