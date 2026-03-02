@@ -68,6 +68,7 @@ export interface Order {
   discountPercentage?: number;
   taxRate?: number;
   paymentMethodId?: string;
+  paymentMethodName?: string;
   paymentMethodId2?: string;
   paymentAmount1?: number;
   paymentAmount2?: number;
@@ -112,6 +113,7 @@ export interface OrderQueryParams {
   branchId?: string;
   dateFrom?: string;
   dateTo?: string;
+  isInvoiced?: boolean;
   search?: string;
   page?: number;
   limit?: number;

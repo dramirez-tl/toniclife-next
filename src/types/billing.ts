@@ -233,6 +233,9 @@ export interface CreateGlobalInvoiceDto {
   year: string;
   branchId?: string;
   orderIds?: string[];
+  saleIds?: string[];
+  paymentForm?: string;   // SAT payment form code (default '01' Efectivo)
+  paymentMethod?: string; // PUE or PPD (default PUE)
 }
 
 // ================================

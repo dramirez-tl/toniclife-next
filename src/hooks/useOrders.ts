@@ -53,10 +53,11 @@ export function useMyOrderTracking(id: string | null) {
 // ADMIN HOOKS
 // ================================
 
-export function useOrders(params: OrderQueryParams = {}) {
+export function useOrders(params: OrderQueryParams = {}, enabled = true) {
   return useQuery({
     queryKey: ['orders', 'admin', params],
     queryFn: () => ordersService.findAll(params),
+    enabled,
   });
 }
 

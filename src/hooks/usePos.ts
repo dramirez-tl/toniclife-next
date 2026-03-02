@@ -201,11 +201,12 @@ export const useCloseSession = () => {
 /**
  * Get list of sales
  */
-export const useSales = (params?: SaleQueryParams) => {
+export const useSales = (params?: SaleQueryParams, enabled = true) => {
   return useQuery({
     queryKey: posKeys.saleList(params),
     queryFn: () => posService.getSales(params),
     staleTime: 1 * 60 * 1000, // 1 minute
+    enabled,
   });
 };
 

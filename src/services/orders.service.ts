@@ -70,6 +70,7 @@ class OrdersService {
     if (p.branchId) queryParams.append('branchId', p.branchId);
     if (p.dateFrom) queryParams.append('dateFrom', p.dateFrom);
     if (p.dateTo) queryParams.append('dateTo', p.dateTo);
+    if (p.isInvoiced !== undefined) queryParams.append('isInvoiced', String(p.isInvoiced));
     if (p.search) queryParams.append('search', p.search);
     if (p.page) queryParams.append('page', p.page.toString());
     if (p.limit) queryParams.append('limit', p.limit.toString());

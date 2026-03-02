@@ -1,131 +1,189 @@
-// app/admin/facturacion/global/page.tsx - Factura Global
+// app/admin/facturacion/global/page.tsx - Factura Global (Orders)
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.5 Facturación
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import {
   GlobeAltIcon,
   ArrowLeftIcon,
-  CalendarIcon,
+  MagnifyingGlassIcon,
   DocumentTextIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon,
+  MapPinIcon,
+  CalendarIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import { useCreateGlobalInvoice, useStampGlobalInvoice } from '@/hooks/useBilling';
-import { PERIODICITIES, formatCurrency } from '@/types/billing';
+import { useCreateGlobalInvoice } from '@/hooks/useBilling';
+import { useOrders } from '@/hooks/useOrders';
+import { useActiveBranches } from '@/hooks/useBranches';
+import { PAYMENT_FORMS, formatCurrency } from '@/types/billing';
+import { OrderStatus } from '@/types/order';
+import type { Branch } from '@/types/branch';
+import type { Order } from '@/types/order';
 
-const MONTHS = [
-  { value: '01', name: 'Enero' },
-  { value: '02', name: 'Febrero' },
-  { value: '03', name: 'Marzo' },
-  { value: '04', name: 'Abril' },
-  { value: '05', name: 'Mayo' },
-  { value: '06', name: 'Junio' },
-  { value: '07', name: 'Julio' },
-  { value: '08', name: 'Agosto' },
-  { value: '09', name: 'Septiembre' },
-  { value: '10', name: 'Octubre' },
-  { value: '11', name: 'Noviembre' },
-  { value: '12', name: 'Diciembre' },
+const PAYMENT_METHODS_FACTURAMA = [
+  { value: 'PUE', label: 'PUE - Pago en Una sola Exhibición' },
+  { value: 'PPD', label: 'PPD - Pago en Parcialidades o Diferido' },
 ];
 
 export default function GlobalInvoicePage() {
-  const router = useRouter();
   const createGlobalInvoice = useCreateGlobalInvoice();
-  const stampGlobalInvoice = useStampGlobalInvoice();
 
-  const currentDate = new Date();
-  const [formData, setFormData] = useState({
-    periodicity: '04', // Mensual por defecto
-    month: String(currentDate.getMonth() + 1).padStart(2, '0'),
-    year: String(currentDate.getFullYear()),
-  });
+  // Filter state
+  const [selectedBranchId, setSelectedBranchId] = useState('');
+  const [selectedDate, setSelectedDate] = useState(
+    new Date().toISOString().split('T')[0],
+  );
+  const [searchTriggered, setSearchTriggered] = useState(false);
 
+  // Selection state
+  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
+
+  // Payment config state
+  const [paymentForm, setPaymentForm] = useState('01'); // Efectivo
+  const [paymentMethodFact, setPaymentMethodFact] = useState('PUE');
+
+  // Success state
   const [createdInvoice, setCreatedInvoice] = useState<{
     id: string;
-    totalOrders: number;
-    subtotal: string;
-    taxAmount: string;
+    uuid?: string;
     total: string;
+    ordersCount: number;
     status: string;
   } | null>(null);
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  // Branches
+  const { data: allBranches } = useActiveBranches();
+  const branchOptions = useMemo(
+    () => (allBranches || []).map((b: Branch) => ({ value: b.id, label: b.name })),
+    [allBranches],
+  );
 
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
+  // Orders query — only run when search is triggered
+  const ordersQuery = useOrders(
+    {
+      branchId: selectedBranchId,
+      dateFrom: selectedDate,
+      dateTo: selectedDate,
+      status: OrderStatus.CONFIRMED,
+      isInvoiced: false,
+      limit: 100,
+      sortBy: 'orderDate',
+      sortOrder: 'desc',
+    },
+    searchTriggered && !!selectedBranchId,
+  );
+  // Filter out orders with total <= 0
+  const orders: Order[] = useMemo(
+    () => (ordersQuery.data?.data || []).filter((o) => parseFloat(o.total) > 0),
+    [ordersQuery.data],
+  );
 
-    if (!formData.periodicity) {
-      newErrors.periodicity = 'Selecciona la periodicidad';
-    }
-    if (!formData.month) {
-      newErrors.month = 'Selecciona el mes';
-    }
-    if (!formData.year) {
-      newErrors.year = 'Ingresa el año';
-    }
+  // Selection helpers
+  const allSelected = orders.length > 0 && selectedOrderIds.size === orders.length;
 
-    // Validate year range
-    const year = parseInt(formData.year);
-    if (year < 2020 || year > currentDate.getFullYear()) {
-      newErrors.year = `El año debe estar entre 2020 y ${currentDate.getFullYear()}`;
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedOrderIds(new Set());
+    } else {
+      setSelectedOrderIds(new Set(orders.map((o) => o.id)));
     }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
   };
 
-  const handleCreate = async () => {
-    if (!validateForm()) return;
+  const toggleOrder = (orderId: string) => {
+    setSelectedOrderIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(orderId)) {
+        next.delete(orderId);
+      } else {
+        next.add(orderId);
+      }
+      return next;
+    });
+  };
+
+  // Selection totals
+  const selectedOrders = orders.filter((o) => selectedOrderIds.has(o.id));
+  const selectedTotal = selectedOrders.reduce((sum, o) => sum + parseFloat(o.total), 0);
+
+  // Search handler
+  const handleSearch = () => {
+    if (!selectedBranchId) {
+      toast.error('Selecciona una sucursal');
+      return;
+    }
+    setSelectedOrderIds(new Set());
+    setCreatedInvoice(null);
+    setSearchTriggered(true);
+  };
+
+  // Submit handler
+  const handleSubmit = async () => {
+    if (selectedOrderIds.size === 0) {
+      toast.error('Selecciona al menos una venta');
+      return;
+    }
+
+    const date = new Date(selectedDate + 'T12:00:00');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = String(date.getFullYear());
 
     try {
       const result = await createGlobalInvoice.mutateAsync({
-        periodicity: formData.periodicity,
-        month: formData.month,
-        year: formData.year,
+        periodicity: '01', // Diario
+        month,
+        year,
+        branchId: selectedBranchId,
+        orderIds: Array.from(selectedOrderIds),
+        paymentForm,
+        paymentMethod: paymentMethodFact,
       });
+
       setCreatedInvoice({
         id: result.id,
-        totalOrders: result.totalOrders,
-        subtotal: result.subtotal,
-        taxAmount: result.taxAmount,
+        uuid: (result as any).uuid || (result as any).invoice?.uuid,
         total: result.total,
-        status: result.status,
+        ordersCount: selectedOrderIds.size,
+        status: result.status || 'stamped',
       });
-    } catch (error) {
-      // Error handled by mutation
+      setSelectedOrderIds(new Set());
+      // Refetch to remove invoiced orders
+      ordersQuery.refetch();
+    } catch {
+      // Error handled by the mutation hook
     }
   };
 
-  const handleStamp = async () => {
-    if (!createdInvoice) return;
-
-    try {
-      await stampGlobalInvoice.mutateAsync(createdInvoice.id);
-      toast.success('Factura global timbrada correctamente');
-      router.push('/admin/facturacion');
-    } catch (error) {
-      // Error handled by mutation
-    }
+  // Reset to search again
+  const handleNewSearch = () => {
+    setCreatedInvoice(null);
+    setSearchTriggered(false);
+    setSelectedOrderIds(new Set());
   };
 
-  const getPeriodicityLabel = () => {
-    const periodicity = PERIODICITIES.find((p) => p.Value === formData.periodicity);
-    const month = MONTHS.find((m) => m.value === formData.month);
-    return `${periodicity?.Name || ''} - ${month?.name || ''} ${formData.year}`;
+  // Get customer display name
+  const getCustomerName = (order: Order) => {
+    if (order.customer) {
+      return `${order.customer.firstName} ${order.customer.lastName}`.trim();
+    }
+    return 'Público General';
+  };
+
+  // Get order number display (strip prefix if present)
+  const getOrderDisplay = (order: Order) => {
+    const num = order.orderNumber.replace(/^M-/, '');
+    return num;
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center gap-4">
             <Link
               href="/admin/facturacion"
@@ -147,7 +205,7 @@ export default function GlobalInvoicePage() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Info Card */}
         <Card className="mb-6 border-blue-200 bg-blue-50">
           <CardContent className="p-4">
@@ -165,103 +223,8 @@ export default function GlobalInvoicePage() {
           </CardContent>
         </Card>
 
-        {!createdInvoice ? (
-          /* Form */
-          <Card>
-            <CardContent className="p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-6 flex items-center gap-2">
-                <CalendarIcon className="h-5 w-5 text-[#3E667D]" />
-                Seleccionar Período
-              </h2>
-
-              <div className="grid md:grid-cols-3 gap-6">
-                {/* Periodicity */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Periodicidad *
-                  </label>
-                  <SearchableSelect
-                    options={PERIODICITIES.map((p) => ({
-                      value: p.Value,
-                      label: p.Name,
-                    }))}
-                    value={formData.periodicity}
-                    onChange={(val) => setFormData({ ...formData, periodicity: val })}
-                    showAllOption={false}
-                  />
-                  {errors.periodicity && (
-                    <p className="mt-1 text-sm text-red-500">{errors.periodicity}</p>
-                  )}
-                </div>
-
-                {/* Month */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Mes *
-                  </label>
-                  <SearchableSelect
-                    options={MONTHS.map((m) => ({
-                      value: m.value,
-                      label: m.name,
-                    }))}
-                    value={formData.month}
-                    onChange={(val) => setFormData({ ...formData, month: val })}
-                    showAllOption={false}
-                  />
-                  {errors.month && (
-                    <p className="mt-1 text-sm text-red-500">{errors.month}</p>
-                  )}
-                </div>
-
-                {/* Year */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Año *
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.year}
-                    onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                    min="2020"
-                    max={currentDate.getFullYear()}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent ${
-                      errors.year ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                  />
-                  {errors.year && (
-                    <p className="mt-1 text-sm text-red-500">{errors.year}</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Summary */}
-              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600">
-                  Se generará una factura global para el período:
-                </p>
-                <p className="text-lg font-semibold text-gray-900 mt-1">
-                  {getPeriodicityLabel()}
-                </p>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-end gap-4 mt-6 pt-6 border-t">
-                <Link href="/admin/facturacion">
-                  <Button variant="outline">Cancelar</Button>
-                </Link>
-                <Button
-                  variant="primary"
-                  onClick={handleCreate}
-                  isLoading={createGlobalInvoice.isPending}
-                  leftIcon={<GlobeAltIcon className="h-5 w-5" />}
-                >
-                  Generar Factura Global
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          /* Result */
+        {createdInvoice ? (
+          /* Success State */
           <Card>
             <CardContent className="p-6">
               <div className="text-center mb-6">
@@ -269,69 +232,268 @@ export default function GlobalInvoicePage() {
                   <CheckCircleIcon className="h-8 w-8 text-green-600" />
                 </div>
                 <h2 className="text-xl font-bold text-gray-900">
-                  Factura Global Generada
+                  Factura Global {createdInvoice.status === 'stamped' ? 'Timbrada' : 'Creada'}
                 </h2>
-                <p className="text-gray-600 mt-1">{getPeriodicityLabel()}</p>
+                {createdInvoice.uuid && (
+                  <p className="text-sm text-gray-500 mt-1">UUID: {createdInvoice.uuid}</p>
+                )}
               </div>
 
-              {/* Stats */}
               <div className="grid md:grid-cols-3 gap-4 mb-6">
                 <div className="p-4 bg-gray-50 rounded-lg text-center">
-                  <p className="text-sm text-gray-600">Pedidos Incluidos</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {createdInvoice.totalOrders}
-                  </p>
+                  <p className="text-sm text-gray-600">Ventas Incluidas</p>
+                  <p className="text-2xl font-bold text-gray-900">{createdInvoice.ordersCount}</p>
                 </div>
                 <div className="p-4 bg-gray-50 rounded-lg text-center">
-                  <p className="text-sm text-gray-600">Subtotal</p>
-                  <p className="text-xl font-bold text-gray-900">
-                    {formatCurrency(createdInvoice.subtotal)}
-                  </p>
-                </div>
-                <div className="p-4 bg-[#3E667D]/5 rounded-lg text-center">
                   <p className="text-sm text-gray-600">Total</p>
                   <p className="text-2xl font-bold text-[#3E667D]">
                     {formatCurrency(createdInvoice.total)}
                   </p>
                 </div>
+                <div className="p-4 bg-gray-50 rounded-lg text-center">
+                  <p className="text-sm text-gray-600">Estado</p>
+                  <p className={`text-lg font-bold ${
+                    createdInvoice.status === 'stamped' ? 'text-green-600' : 'text-yellow-600'
+                  }`}>
+                    {createdInvoice.status === 'stamped' ? 'Timbrada' : 'Pendiente'}
+                  </p>
+                </div>
               </div>
 
-              {/* Warning */}
-              {createdInvoice.status === 'pending' && (
-                <Card className="border-yellow-200 bg-yellow-50 mb-6">
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600 flex-shrink-0" />
-                      <div className="text-sm text-yellow-800">
-                        <p className="font-semibold">Factura pendiente de timbrar</p>
-                        <p>
-                          Esta factura no ha sido timbrada aún. Presiona el botón
-                          &quot;Timbrar&quot; para enviarla al SAT.
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Actions */}
               <div className="flex items-center justify-center gap-4">
                 <Link href="/admin/facturacion">
                   <Button variant="outline">Ver Lista de Facturas</Button>
                 </Link>
-                {createdInvoice.status === 'pending' && (
-                  <Button
-                    variant="primary"
-                    onClick={handleStamp}
-                    isLoading={stampGlobalInvoice.isPending}
-                    leftIcon={<CheckCircleIcon className="h-5 w-5" />}
-                  >
-                    Timbrar Factura
-                  </Button>
-                )}
+                <Button variant="primary" onClick={handleNewSearch}>
+                  Nueva Búsqueda
+                </Button>
               </div>
             </CardContent>
           </Card>
+        ) : (
+          <>
+            {/* Filter Bar */}
+            <Card className="mb-6">
+              <CardContent className="p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <MagnifyingGlassIcon className="h-5 w-5 text-[#3E667D]" />
+                  Buscar Ventas
+                </h2>
+                <div className="grid md:grid-cols-3 gap-4 items-end">
+                  {/* Branch */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <span className="flex items-center gap-1">
+                        <MapPinIcon className="h-4 w-4" />
+                        Sucursal *
+                      </span>
+                    </label>
+                    <SearchableSelect
+                      options={branchOptions}
+                      value={selectedBranchId}
+                      onChange={(val) => {
+                        setSelectedBranchId(val);
+                        setSearchTriggered(false);
+                        setSelectedOrderIds(new Set());
+                      }}
+                      placeholder="Seleccionar sucursal..."
+                      showAllOption={false}
+                    />
+                  </div>
+
+                  {/* Date */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <span className="flex items-center gap-1">
+                        <CalendarIcon className="h-4 w-4" />
+                        Fecha *
+                      </span>
+                    </label>
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => {
+                        setSelectedDate(e.target.value);
+                        setSearchTriggered(false);
+                        setSelectedOrderIds(new Set());
+                      }}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                    />
+                  </div>
+
+                  {/* Search Button */}
+                  <div>
+                    <Button
+                      variant="primary"
+                      onClick={handleSearch}
+                      isLoading={ordersQuery.isLoading}
+                      className="w-full"
+                      leftIcon={<MagnifyingGlassIcon className="h-5 w-5" />}
+                    >
+                      Buscar
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Orders Table */}
+            {searchTriggered && (
+              <Card>
+                <CardContent className="p-0">
+                  {ordersQuery.isLoading ? (
+                    <div className="p-12 text-center text-gray-500">
+                      <div className="animate-spin h-8 w-8 border-4 border-[#3E667D] border-t-transparent rounded-full mx-auto mb-4" />
+                      Buscando ventas...
+                    </div>
+                  ) : orders.length === 0 ? (
+                    <div className="p-12 text-center text-gray-500">
+                      <DocumentTextIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg">No se encontraron ventas sin facturar</p>
+                      <p className="text-sm mt-1">
+                        No hay ventas confirmadas sin factura para esta sucursal y fecha
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Table */}
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="bg-gray-50 border-b">
+                              <th className="px-4 py-3 text-left w-12">
+                                <input
+                                  type="checkbox"
+                                  checked={allSelected}
+                                  onChange={toggleSelectAll}
+                                  className="rounded border-gray-300 text-[#3E667D] focus:ring-[#3E667D]"
+                                />
+                              </th>
+                              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                                ID Venta
+                              </th>
+                              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                                Cliente
+                              </th>
+                              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                                Método de Pago
+                              </th>
+                              <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
+                                Total
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {orders.map((order) => (
+                              <tr
+                                key={order.id}
+                                className={`hover:bg-gray-50 transition-colors cursor-pointer ${
+                                  selectedOrderIds.has(order.id) ? 'bg-[#3E667D]/5' : ''
+                                }`}
+                                onClick={() => toggleOrder(order.id)}
+                              >
+                                <td className="px-4 py-3">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedOrderIds.has(order.id)}
+                                    onChange={() => toggleOrder(order.id)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="rounded border-gray-300 text-[#3E667D] focus:ring-[#3E667D]"
+                                  />
+                                </td>
+                                <td className="px-4 py-3 text-sm font-medium text-gray-900">
+                                  {getOrderDisplay(order)}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-600">
+                                  {getCustomerName(order)}
+                                </td>
+                                <td className="px-4 py-3 text-sm text-gray-600">
+                                  {order.paymentMethodName || 'Sin definir'}
+                                </td>
+                                <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right">
+                                  {formatCurrency(order.total)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Footer: Selection summary + Payment config + Submit */}
+                      <div className="border-t bg-gray-50 p-4 space-y-4">
+                        {/* Selection summary */}
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-gray-600">
+                            {orders.length} venta{orders.length !== 1 ? 's' : ''} encontrada{orders.length !== 1 ? 's' : ''}
+                            {selectedOrderIds.size > 0 && (
+                              <span className="font-semibold text-[#3E667D] ml-2">
+                                — {selectedOrderIds.size} seleccionada{selectedOrderIds.size !== 1 ? 's' : ''}
+                              </span>
+                            )}
+                          </p>
+                          {selectedOrderIds.size > 0 && (
+                            <p className="text-lg font-bold text-[#3E667D]">
+                              Total: {formatCurrency(selectedTotal)}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Payment config + Submit */}
+                        {selectedOrderIds.size > 0 && (
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-4 pt-2 border-t border-gray-200">
+                            {/* Forma de Pago SAT */}
+                            <div className="flex-1">
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Forma de Pago (SAT)
+                              </label>
+                              <SearchableSelect
+                                options={PAYMENT_FORMS.map((p) => ({
+                                  value: p.Value,
+                                  label: `${p.Value} - ${p.Name}`,
+                                }))}
+                                value={paymentForm}
+                                onChange={setPaymentForm}
+                                showAllOption={false}
+                              />
+                            </div>
+
+                            {/* Método de Pago Facturama */}
+                            <div className="flex-1">
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Método de Pago (Facturama)
+                              </label>
+                              <SearchableSelect
+                                options={PAYMENT_METHODS_FACTURAMA.map((p) => ({
+                                  value: p.value,
+                                  label: p.label,
+                                }))}
+                                value={paymentMethodFact}
+                                onChange={setPaymentMethodFact}
+                                showAllOption={false}
+                              />
+                            </div>
+
+                            {/* Submit */}
+                            <div className="sm:flex-shrink-0">
+                              <Button
+                                variant="primary"
+                                onClick={handleSubmit}
+                                isLoading={createGlobalInvoice.isPending}
+                                leftIcon={<GlobeAltIcon className="h-5 w-5" />}
+                                className="w-full sm:w-auto"
+                              >
+                                Enviar a Facturama
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </>
         )}
       </div>
     </div>
