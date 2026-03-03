@@ -24,6 +24,7 @@ export function PosCustomerSelector({ prominent = false, countryId }: PosCustome
   const [lastName, setLastName] = useState('');
   const [mothersLastName, setMothersLastName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchCustomerNumber, setSearchCustomerNumber] = useState<string | undefined>(undefined);
   const [hasSearched, setHasSearched] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -31,7 +32,7 @@ export function PosCustomerSelector({ prominent = false, countryId }: PosCustome
   const setCustomer = usePosCartStore((s) => s.setCustomer);
   const refreshItemPrices = usePosCartStore((s) => s.refreshItemPrices);
 
-  const { data: results, isLoading } = usePosCustomerSearch(searchQuery, searchQuery.length >= 2);
+  const { data: results, isLoading } = usePosCustomerSearch(searchQuery, searchQuery.length >= 2 || (!!searchCustomerNumber && searchCustomerNumber.length >= 1), searchCustomerNumber);
   const customers = results?.data || [];
 
   const refreshPrices = useCallback(async (priceTypeId: string) => {
@@ -49,6 +50,7 @@ export function PosCustomerSelector({ prominent = false, countryId }: PosCustome
     const fullName = [customer.firstName, customer.lastName, customer.lastNameMother].filter(Boolean).join(' ');
     setCustomer(customer.id, fullName, customer.rfc ?? undefined, customer.priceTypeId ?? undefined);
     setSearchQuery('');
+    setSearchCustomerNumber(undefined);
     setHasSearched(false);
     setCustomerNumber('');
     setFirstName('');
@@ -68,11 +70,19 @@ export function PosCustomerSelector({ prominent = false, countryId }: PosCustome
   }, [setCustomer, refreshPrices]);
 
   const handleSearch = () => {
-    // Build search query from filled fields
-    const parts = [customerNumber, firstName, lastName, mothersLastName].map(s => s.trim()).filter(Boolean);
-    if (parts.length === 0) return;
-    const query = parts.join(' ');
-    setSearchQuery(query);
+    const trimmedNumber = customerNumber.trim();
+    const nameParts = [firstName, lastName, mothersLastName].map(s => s.trim()).filter(Boolean);
+
+    if (!trimmedNumber && nameParts.length === 0) return;
+
+    // If customer number is filled, use exact match via customerNumber param
+    if (trimmedNumber) {
+      setSearchCustomerNumber(trimmedNumber);
+      setSearchQuery(trimmedNumber); // needed for enabled check
+    } else {
+      setSearchCustomerNumber(undefined);
+      setSearchQuery(nameParts.join(' '));
+    }
     setHasSearched(true);
   };
 
@@ -201,7 +211,7 @@ export function PosCustomerSelector({ prominent = false, countryId }: PosCustome
       )}
 
       {/* No results */}
-      {hasSearched && !isLoading && customers.length === 0 && searchQuery.length >= 2 && (
+      {hasSearched && !isLoading && customers.length === 0 && (searchQuery.length >= 2 || !!searchCustomerNumber) && (
         <div className="mt-2 p-3 bg-white rounded-lg shadow-lg border text-center text-sm text-gray-500">
           No se encontraron distribuidores
         </div>

@@ -94,11 +94,7 @@ const navigation: NavItem[] = [
     icon: ChartBarIcon,
     permissions: ['reports', 'reports.sales'],
     children: [
-      { name: 'Panel Principal', href: '/admin/reportes' },
       { name: 'Ventas', href: '/admin/reportes/ventas' },
-      { name: 'Inventario', href: '/admin/reportes/inventario' },
-      { name: 'Comisiones', href: '/admin/reportes/comisiones' },
-      { name: 'Clientes', href: '/admin/reportes/clientes' },
     ],
   },
   {

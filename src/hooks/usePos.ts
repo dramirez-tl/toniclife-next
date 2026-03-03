@@ -53,7 +53,7 @@ export const posKeys = {
   // Products
   productSearch: (query: string, branchId?: string, priceTypeId?: string, countryId?: string) => [...posKeys.all, 'products', 'search', query, branchId, priceTypeId, countryId] as const,
   // Customer search
-  customerSearch: (query: string) => [...posKeys.all, 'customers', 'search', query] as const,
+  customerSearch: (query: string, customerNumber?: string) => [...posKeys.all, 'customers', 'search', query, customerNumber] as const,
 };
 
 // ================================
@@ -388,17 +388,19 @@ export const usePosProductSearch = (query: string, enabled = true, branchId?: st
 
 /**
  * Search distributor customers for POS
+ * @param customerNumber - If provided, does exact match by customer_number instead of ILIKE search
  */
-export const usePosCustomerSearch = (query: string, enabled = true) => {
+export const usePosCustomerSearch = (query: string, enabled = true, customerNumber?: string) => {
   return useQuery({
-    queryKey: posKeys.customerSearch(query),
+    queryKey: posKeys.customerSearch(query, customerNumber),
     queryFn: () => customersService.getAll({
-      search: query,
+      search: customerNumber ? undefined : query,
+      customerNumber: customerNumber || undefined,
       customerType: 'distributor',
       status: 'active',
       limit: 10,
     }),
-    enabled: enabled && query.length >= 2,
+    enabled: enabled && (query.length >= 2 || (!!customerNumber && customerNumber.length >= 1)),
     staleTime: 60 * 1000,
   });
 };

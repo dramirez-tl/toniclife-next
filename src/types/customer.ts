@@ -102,6 +102,7 @@ export interface CustomerQueryParams {
   page?: number;
   limit?: number;
   search?: string;
+  customerNumber?: string;
   customerType?: string;
   status?: CustomerStatus;
   countryId?: string;

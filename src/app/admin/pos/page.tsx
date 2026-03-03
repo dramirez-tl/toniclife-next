@@ -324,7 +324,13 @@ export default function PosPage() {
                 </p>
               )}
             </div>
-            <div className="flex-shrink-0 p-4 border-t bg-white">
+            <div className="flex-shrink-0 p-4 border-t bg-white space-y-2">
+              <div className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
+                <InformationCircleIcon className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                <p className="text-xs text-amber-700">
+                  Módulo de facturación pendiente de liberar.
+                </p>
+              </div>
               <button
                 onClick={() => refetchSales()}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
@@ -518,13 +524,6 @@ export default function PosPage() {
             addressPhone: selectedBranch.addressPhone,
           } : undefined}
         />
-      {/* Floating banner */}
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-5 py-3 bg-amber-50 border border-amber-300 rounded-full shadow-lg">
-        <InformationCircleIcon className="h-5 w-5 text-amber-600 flex-shrink-0" />
-        <p className="text-sm text-amber-800 font-medium">
-          Módulo de facturación pendiente de liberar, pronto lo verán disponible.
-        </p>
-      </div>
       </div>
     </PermissionGuard>
   );
