@@ -20,6 +20,7 @@ class UsersService {
     const queryParams = new URLSearchParams();
 
     if (params.search) queryParams.append('search', params.search);
+    if (params.customerNumber) queryParams.append('customerNumber', params.customerNumber);
     if (params.role) queryParams.append('role', params.role);
     if (params.isActive !== undefined) queryParams.append('isActive', String(params.isActive));
     if (params.page) queryParams.append('page', String(params.page));
