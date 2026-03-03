@@ -17,12 +17,15 @@ import {
   MinusIcon,
   XMarkIcon,
   InformationCircleIcon,
+  CheckCircleIcon,
+  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useCreateTransfer, useBranchStock } from '@/hooks/useInventory';
 import { useActiveBranches } from '@/hooks/useBranches';
-import type { CreateTransferDto } from '@/types/inventory';
+import type { CreateTransferDto, TransferDto } from '@/types/inventory';
+import { generateTransferTicketPdf } from '@/lib/generate-transfer-ticket';
 
 interface TransferItem {
   productId: string;
@@ -48,6 +51,8 @@ export default function NuevoTraspasoPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showProductSearch, setShowProductSearch] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [createdTransfer, setCreatedTransfer] = useState<TransferDto | null>(null);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   // Fetch branches from API
   const { data: branches } = useActiveBranches();
@@ -165,9 +170,9 @@ export default function NuevoTraspasoPage() {
     };
 
     try {
-      await createTransfer.mutateAsync(transferData);
+      const result = await createTransfer.mutateAsync(transferData);
       toast.success('Traspaso creado correctamente');
-      router.push('/admin/inventario/traspasos');
+      setCreatedTransfer(result);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || 'Error al crear el traspaso');
     }
@@ -729,6 +734,56 @@ export default function NuevoTraspasoPage() {
                   ? `${items.length} producto${items.length > 1 ? 's' : ''} agregado${items.length > 1 ? 's' : ''}`
                   : 'Selecciona productos para agregarlos al traspaso'}
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal with PDF Download */}
+      {createdTransfer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-8 text-center">
+            <CheckCircleIcon className="h-16 w-16 text-green-500 mx-auto mb-4" />
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Traspaso Creado</h3>
+            <p className="text-gray-600 mb-2">
+              El traspaso <span className="font-semibold">{createdTransfer.movementNumber}</span> ha sido creado correctamente.
+            </p>
+            <p className="text-sm text-gray-500 mb-6">
+              Estado: Pendiente de aprobación
+            </p>
+
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={async () => {
+                  setIsGeneratingPdf(true);
+                  try {
+                    const url = await generateTransferTicketPdf(createdTransfer);
+                    window.open(url, '_blank');
+                  } catch {
+                    toast.error('Error al generar el PDF');
+                  } finally {
+                    setIsGeneratingPdf(false);
+                  }
+                }}
+                disabled={isGeneratingPdf}
+                className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-[#3E667D] text-white rounded-xl hover:bg-[#2f5165] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ArrowDownTrayIcon className="h-5 w-5" />
+                {isGeneratingPdf ? 'Generando PDF...' : 'Descargar PDF'}
+              </button>
+              <button
+                onClick={() => router.push(`/admin/inventario/traspasos/${createdTransfer.id}`)}
+                className="w-full px-5 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors font-medium text-gray-700"
+              >
+                Ver Detalle
+              </button>
+              <button
+                onClick={() => router.push('/admin/inventario/traspasos')}
+                className="w-full px-5 py-3 text-gray-500 hover:text-gray-700 transition-colors font-medium text-sm"
+              >
+                Volver a Traspasos
+              </button>
             </div>
           </div>
         </div>

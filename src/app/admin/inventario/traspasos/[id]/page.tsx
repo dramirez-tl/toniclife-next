@@ -21,6 +21,7 @@ import {
   DocumentTextIcon,
   CubeIcon,
   TruckIcon,
+  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import {
@@ -32,6 +33,7 @@ import {
 } from '@/hooks/useInventory';
 import { inventoryService } from '@/services/inventory.service';
 import type { TransferDto } from '@/types/inventory';
+import { generateTransferTicketPdf } from '@/lib/generate-transfer-ticket';
 
 // ================================
 // Status Timeline
@@ -189,6 +191,20 @@ export default function TransferDetailPage() {
   const [actionReason, setActionReason] = useState('');
 
   const isMutating = approveTransfer.isPending || applyTransfer.isPending || rejectTransfer.isPending || cancelTransfer.isPending;
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+
+  const handleDownloadPdf = useCallback(async () => {
+    if (!transfer) return;
+    setIsGeneratingPdf(true);
+    try {
+      const url = await generateTransferTicketPdf(transfer);
+      window.open(url, '_blank');
+    } catch {
+      toast.error('Error al generar el PDF');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  }, [transfer]);
 
   const closeModal = useCallback(() => {
     if (!isMutating) {
@@ -310,6 +326,14 @@ export default function TransferDetailPage() {
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2">
+              <button
+                onClick={handleDownloadPdf}
+                disabled={isGeneratingPdf}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 text-sm font-medium flex items-center gap-2 transition-colors"
+              >
+                <ArrowDownTrayIcon className="h-4 w-4" />
+                {isGeneratingPdf ? 'Generando...' : 'Descargar PDF'}
+              </button>
               {transfer.status === 'pending_approval' && (
                 <>
                   <div className="relative group">
