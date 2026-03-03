@@ -134,13 +134,14 @@ export const usePosCartStore = create<PosCartStore>()(
               return item;
             });
           } else {
-            // Add new item
+            // Add new item (cap quantity at available stock)
+            const cappedQty = (product.stock != null && quantity > product.stock) ? product.stock : quantity;
             const newItem: PosCartItem = calculateItemTotal({
               productId: product.id,
               productSku: product.sku,
               productName: product.name,
               productImage: product.imageUrl,
-              quantity,
+              quantity: cappedQty,
               unitPrice: product.basePrice,
               taxRate: product.taxRate ?? DEFAULT_TAX_RATE,
               isIncludedInPrice: product.isIncludedInPrice ?? false,

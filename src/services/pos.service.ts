@@ -290,10 +290,13 @@ class PosService {
   /**
    * Get product by code (for barcode scanning)
    */
-  async getProductBySku(sku: string, countryId?: string): Promise<QuickProduct | null> {
+  async getProductBySku(sku: string, countryId?: string, branchId?: string): Promise<QuickProduct | null> {
     try {
+      const params: Record<string, string> = {};
+      if (countryId) params.countryId = countryId;
+      if (branchId) params.branchId = branchId;
       const response = await api.get(`/products/code/${sku}`, {
-        params: countryId ? { countryId } : undefined,
+        params: Object.keys(params).length > 0 ? params : undefined,
       });
       const p = response.data;
       return {
