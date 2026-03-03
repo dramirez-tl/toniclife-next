@@ -118,7 +118,7 @@ export function PosCart({ onCheckout, disabled, currencySymbol = '$' }: PosCartP
                     {item.productName}
                   </p>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {fmt(item.unitPrice)} c/u
+                    SKU: {item.productSku} &middot; {fmt(item.unitPrice)} c/u
                   </p>
                 </div>
 

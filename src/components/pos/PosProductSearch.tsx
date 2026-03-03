@@ -31,36 +31,67 @@ export function PosProductSearch({ onProductSelected, autoFocus = true, branchId
   const bulkTextareaRef = useRef<HTMLTextAreaElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const activeSkuSearch = skuQuery.length >= 1 ? skuQuery : undefined;
+  // Extract just the SKU part (before comma) for searching
+  const skuOnly = skuQuery.split(',')[0].trim();
+  const activeSkuSearch = skuOnly.length >= 1 ? skuOnly : undefined;
   const { data: products, isLoading } = usePosProductSearch(
-    activeSkuSearch ? skuQuery : query,
+    activeSkuSearch ? skuOnly : query,
     activeSkuSearch ? true : query.length >= 2,
     branchId, priceTypeId, countryId,
     activeSkuSearch,
   );
   const addItem = usePosCartStore((state) => state.addItem);
 
-  // Handle barcode scan (typically fast input ending with Enter)
-  const handleBarcodeInput = useCallback(async (sku: string) => {
-    const product = await posService.getProductBySku(sku.trim(), countryId, branchId);
+  // Handle barcode scan or SKU,qty input (typically fast input ending with Enter)
+  const handleBarcodeInput = useCallback(async (input: string) => {
+    // Support "SKU,qty" syntax
+    const parts = input.split(',');
+    const sku = parts[0].trim();
+    const qty = parts.length > 1 ? parseInt(parts[1].trim(), 10) : 1;
+    const quantity = isNaN(qty) || qty < 1 ? 1 : qty;
+
+    const product = await posService.getProductBySku(sku, countryId, branchId);
     if (product) {
-      addItem(product);
+      // Validate stock
+      if (product.stock !== undefined && product.stock <= 0) {
+        toast.error(`${product.name} no tiene existencias en esta sucursal`);
+        return;
+      }
+      let effectiveQty = quantity;
+      if (product.stock !== undefined) {
+        const existing = usePosCartStore.getState().cart.items.find((i) => i.productId === product.id);
+        const inCart = existing ? existing.quantity : 0;
+        const available = product.stock - inCart;
+        if (available <= 0) {
+          toast.error(`Stock máximo alcanzado para ${product.name}`);
+          return;
+        }
+        effectiveQty = Math.min(quantity, available);
+        if (effectiveQty < quantity) {
+          toast.warning(
+            `${product.sku}: se agregaron ${effectiveQty} de ${quantity} (stock: ${product.stock})`,
+            { duration: Infinity, action: { label: 'Entendido', onClick: () => {} } },
+          );
+        }
+      }
+      addItem(product, effectiveQty);
       onProductSelected?.(product);
-      toast.success(`${product.name} agregado`);
+      toast.success(`${product.name} x${effectiveQty} agregado`);
       setQuery('');
+      setSkuQuery('');
     } else {
       toast.error(`Producto no encontrado: ${sku}`);
     }
   }, [addItem, onProductSelected, countryId, branchId]);
 
-  // Parse bulk input lines: "SKU*qty" or just "SKU" (qty defaults to 1)
+  // Parse bulk input lines: "SKU,qty" or just "SKU" (qty defaults to 1)
   const parseBulkInput = useCallback((text: string): Array<{ sku: string; quantity: number }> => {
     return text
       .split('\n')
       .map((line) => line.trim())
       .filter((line) => line.length > 0)
       .map((line) => {
-        const parts = line.split('*');
+        const parts = line.split(',');
         const sku = parts[0].trim();
         const qty = parts.length > 1 ? parseInt(parts[1].trim(), 10) : 1;
         return { sku, quantity: isNaN(qty) || qty < 1 ? 1 : qty };
@@ -193,21 +224,35 @@ export function PosProductSearch({ onProductSelected, autoFocus = true, branchId
   const cartItems = usePosCartStore((state) => state.cart.items);
 
   const handleSelectProduct = (product: QuickProduct) => {
+    // Parse quantity from SKU input if comma present (e.g. "9019,4")
+    const skuParts = skuQuery.split(',');
+    const parsedQty = skuParts.length > 1 ? parseInt(skuParts[1].trim(), 10) : 1;
+    const requestedQty = isNaN(parsedQty) || parsedQty < 1 ? 1 : parsedQty;
+
     if (product.stock !== undefined && product.stock <= 0) {
       toast.error(`${product.name} no tiene existencias en esta sucursal`);
       return;
     }
-    // Check if adding one more would exceed stock
+    let effectiveQty = requestedQty;
     if (product.stock !== undefined) {
       const existing = cartItems.find((i) => i.productId === product.id);
-      if (existing && existing.quantity >= product.stock) {
+      const inCart = existing ? existing.quantity : 0;
+      const available = product.stock - inCart;
+      if (available <= 0) {
         toast.error(`Stock máximo alcanzado (${product.stock})`);
         return;
       }
+      effectiveQty = Math.min(requestedQty, available);
+      if (effectiveQty < requestedQty) {
+        toast.warning(
+          `${product.sku}: se agregaron ${effectiveQty} de ${requestedQty} (stock: ${product.stock})`,
+          { duration: Infinity, action: { label: 'Entendido', onClick: () => {} } },
+        );
+      }
     }
-    addItem(product);
+    addItem(product, effectiveQty);
     onProductSelected?.(product);
-    toast.success(`${product.name} agregado`);
+    toast.success(`${product.name} x${effectiveQty} agregado`);
     setQuery('');
     setSkuQuery('');
     setIsOpen(false);
@@ -292,7 +337,7 @@ export function PosProductSearch({ onProductSelected, autoFocus = true, branchId
             ref={bulkTextareaRef}
             value={bulkText}
             onChange={(e) => setBulkText(e.target.value)}
-            placeholder={'SKU*cantidad (uno por línea)\nEj:\n9019*3\n8001*1\n7050*2'}
+            placeholder={'SKU,cantidad (uno por línea)\nEj:\n9019,3\n8001,1\n7050,2'}
             rows={6}
             disabled={bulkProcessing}
             className="w-full px-4 py-3 text-sm font-mono border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D]/40 focus:border-[#3E667D]/50 transition-all resize-none disabled:opacity-50"
@@ -361,7 +406,7 @@ export function PosProductSearch({ onProductSelected, autoFocus = true, branchId
                 onChange={(e) => { setSkuQuery(e.target.value); setQuery(''); }}
                 onKeyDown={handleSkuKeyDown}
                 onFocus={() => skuQuery.length >= 1 && products && products.length > 0 && setIsOpen(true)}
-                placeholder="SKU exacto"
+                placeholder="SKU,cant"
                 className="w-full px-4 py-3 text-lg border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent transition-all"
               />
               {skuQuery && (
