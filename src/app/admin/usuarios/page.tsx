@@ -382,6 +382,9 @@ function UsuariosContent() {
             <p className="font-semibold text-gray-900">
               {user.firstName} {user.lastName}
             </p>
+            {user.customerNumber && (
+              <p className="text-xs font-medium text-[#3E667D]">#{user.customerNumber}</p>
+            )}
             <p className="text-sm text-gray-500">{user.email}</p>
           </div>
         </div>
@@ -629,7 +632,7 @@ function UsuariosContent() {
                         <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                         <input
                           type="text"
-                          placeholder="Buscar por nombre o email..."
+                          placeholder="Buscar por código, nombre o email..."
                           value={searchInput}
                           onChange={(e) => setSearchInput(e.target.value)}
                           onKeyDown={(e) => {
@@ -665,6 +668,7 @@ function UsuariosContent() {
                         { value: 'call_center', label: 'Call Center' },
                         { value: 'contabilidad', label: 'Contabilidad' },
                         { value: 'soporte', label: 'Sistemas' },
+                        { value: 'viewer', label: 'Solo Lectura' },
                       ]}
                       value={filterRole}
                       onChange={handleFilterRole}

@@ -9,6 +9,11 @@ import {
   BuildingLibraryIcon,
   CheckCircleIcon,
   PrinterIcon,
+  ArrowPathIcon,
+  LinkIcon,
+  ShoppingCartIcon,
+  CurrencyDollarIcon,
+  QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
 import { PosPaymentMethod, type CreatePaymentInput, type Sale } from '@/types/pos';
 import { generatePosTicketPdf, type PosTicketBranchConfig } from '@/lib/generate-pos-ticket';
@@ -22,13 +27,18 @@ interface PaymentModalProps {
   branchConfig?: PosTicketBranchConfig;
 }
 
-type MethodKey = 'cash' | 'card_credit' | 'card_debit' | 'transfer';
+type MethodKey = 'cash' | 'card_credit' | 'card_debit' | 'transfer' | 'cashback' | 'liga_bancomer' | 'mercado_pago' | 'usd_cash' | 'undefined';
 
 const paymentMethods: { key: MethodKey; method: PosPaymentMethod; name: string; icon: typeof BanknotesIcon; cardType?: string }[] = [
   { key: 'cash', method: PosPaymentMethod.CASH, name: 'Efectivo', icon: BanknotesIcon },
   { key: 'card_credit', method: PosPaymentMethod.CARD, name: 'T. Crédito', icon: CreditCardIcon, cardType: 'credit' },
   { key: 'card_debit', method: PosPaymentMethod.CARD, name: 'T. Débito', icon: CreditCardIcon, cardType: 'debit' },
   { key: 'transfer', method: PosPaymentMethod.TRANSFER, name: 'Transferencia', icon: BuildingLibraryIcon },
+  { key: 'cashback', method: PosPaymentMethod.CASHBACK, name: 'Cashback', icon: ArrowPathIcon },
+  { key: 'liga_bancomer', method: PosPaymentMethod.LIGA_BANCOMER, name: 'Liga Bancomer', icon: LinkIcon },
+  { key: 'mercado_pago', method: PosPaymentMethod.MERCADO_PAGO, name: 'Mercado Pago', icon: ShoppingCartIcon },
+  { key: 'usd_cash', method: PosPaymentMethod.USD_CASH, name: 'Pago en Dólares', icon: CurrencyDollarIcon },
+  { key: 'undefined', method: PosPaymentMethod.UNDEFINED, name: 'Sin Definir', icon: QuestionMarkCircleIcon },
 ];
 
 const quickAmounts = [50, 100, 200, 500, 1000];
@@ -252,23 +262,23 @@ export function PaymentModal({ isOpen, onClose, total, onPaymentComplete, curren
             </div>
 
             {/* Payment Methods */}
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
               {paymentMethods.map((method) => {
                 const Icon = method.icon;
                 return (
                   <button
                     key={method.key}
                     onClick={() => setSelectedKey(method.key)}
-                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${
+                    className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 transition-all ${
                       selectedKey === method.key
                         ? 'border-[#a7c1e2] bg-[#C8DDF2]/10'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
-                    <Icon className={`h-7 w-7 ${
+                    <Icon className={`h-6 w-6 ${
                       selectedKey === method.key ? 'text-[#3E667D]' : 'text-gray-400'
                     }`} />
-                    <span className={`text-xs font-medium text-center leading-tight ${
+                    <span className={`text-[11px] font-medium text-center leading-tight ${
                       selectedKey === method.key ? 'text-[#3E667D]' : 'text-gray-600'
                     }`}>
                       {method.name}

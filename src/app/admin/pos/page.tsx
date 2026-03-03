@@ -14,6 +14,7 @@ import {
   UserGroupIcon,
   UserIcon,
   ArrowsRightLeftIcon,
+  InformationCircleIcon,
 } from '@heroicons/react/24/outline';
 import { PosProductSearch, PosCart, PaymentModal, SessionManager } from '@/components/pos';
 import { PosCustomerSelector } from '@/components/pos/PosCustomerSelector';
@@ -446,7 +447,7 @@ export default function PosPage() {
                       Selecciona un Distribuidor
                     </h2>
                     <p className="text-sm text-gray-500 mb-6">
-                      Busca por código, nombre o apellido para ver sus precios
+                      Llena al menos un campo y presiona buscar
                     </p>
                     <PosCustomerSelector prominent countryId={branchCountryId} />
 
@@ -517,6 +518,13 @@ export default function PosPage() {
             addressPhone: selectedBranch.addressPhone,
           } : undefined}
         />
+      {/* Floating banner */}
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-5 py-3 bg-amber-50 border border-amber-300 rounded-full shadow-lg">
+        <InformationCircleIcon className="h-5 w-5 text-amber-600 flex-shrink-0" />
+        <p className="text-sm text-amber-800 font-medium">
+          Módulo de facturación pendiente de liberar, pronto lo verán disponible.
+        </p>
+      </div>
       </div>
     </PermissionGuard>
   );

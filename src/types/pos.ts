@@ -30,6 +30,11 @@ export enum PosPaymentMethod {
   TRANSFER = 'transfer',
   CREDIT = 'credit',
   MIXED = 'mixed',
+  CASHBACK = 'cashback',
+  LIGA_BANCOMER = 'liga_bancomer',
+  MERCADO_PAGO = 'mercado_pago',
+  USD_CASH = 'usd_cash',
+  UNDEFINED = 'undefined',
 }
 
 export enum CashMovementType {

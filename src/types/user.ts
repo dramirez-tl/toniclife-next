@@ -20,6 +20,7 @@ export interface User {
   firstName: string;
   lastName: string;
   phone: string | null;
+  customerNumber: string | null;
   isActive: boolean;
   emailVerifiedAt: string | null;
   role: RoleDto;
