@@ -51,6 +51,10 @@ export interface CommissionSummary {
   adjustmentsMxn: string;
   totalSubtotalMxn: string;
   totalRetentions: string;
+  totalIva?: string;
+  totalIvaWithholding?: string;
+  totalIsr?: string;
+  totalResico?: string;
   totalNetMxn: string;
   transactionCount: number;
   personalSales?: string;

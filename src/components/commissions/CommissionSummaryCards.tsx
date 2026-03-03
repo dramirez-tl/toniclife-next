@@ -134,12 +134,38 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                         {formatCurrency(summary.totalSubtotalMxn)}<Badge light />
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-sm mb-2">
-                      <span className="text-white/70">Retenciones</span>
-                      <span className="text-white font-medium">
-                        -{formatCurrency(summary.totalRetentions)}<Badge light />
-                      </span>
-                    </div>
+                    {parseFloat(summary.totalIva || '0') > 0 && (
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <span className="text-white/70">IVA 16%</span>
+                        <span className="text-white font-medium">
+                          +{formatCurrency(summary.totalIva || '0')}<Badge light />
+                        </span>
+                      </div>
+                    )}
+                    {parseFloat(summary.totalIvaWithholding || '0') > 0 && (
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <span className="text-white/70">Ret. IVA 10.6667%</span>
+                        <span className="text-white font-medium">
+                          -{formatCurrency(summary.totalIvaWithholding || '0')}<Badge light />
+                        </span>
+                      </div>
+                    )}
+                    {parseFloat(summary.totalIsr || '0') > 0 && (
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <span className="text-white/70">ISR</span>
+                        <span className="text-white font-medium">
+                          -{formatCurrency(summary.totalIsr || '0')}<Badge light />
+                        </span>
+                      </div>
+                    )}
+                    {parseFloat(summary.totalResico || '0') > 0 && (
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <span className="text-white/70">RESICO</span>
+                        <span className="text-white font-medium">
+                          -{formatCurrency(summary.totalResico || '0')}<Badge light />
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between text-xs text-white/60 mt-2">
                       <span>{summary.transactionCount} transacciones</span>
                     </div>
@@ -161,8 +187,21 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                     <div className="flex items-center gap-3">
                       <ClockIcon className="h-8 w-8 text-yellow-300" />
                       <div>
-                        <p className="text-yellow-200/80 text-xs uppercase tracking-wide">Retenciones</p>
-                        <p className="text-xl font-bold text-yellow-100">{formatCurrency(summary.totalRetentions)}<Badge light /></p>
+                        <p className="text-yellow-200/80 text-xs uppercase tracking-wide">Desglose</p>
+                        <div className="mt-1 space-y-0.5">
+                          {parseFloat(summary.totalIva || '0') > 0 && (
+                            <p className="text-sm font-semibold text-green-300">+IVA: {formatCurrency(summary.totalIva || '0')}</p>
+                          )}
+                          {parseFloat(summary.totalIvaWithholding || '0') > 0 && (
+                            <p className="text-sm font-semibold text-yellow-100">-Ret. IVA: {formatCurrency(summary.totalIvaWithholding || '0')}</p>
+                          )}
+                          {parseFloat(summary.totalIsr || '0') > 0 && (
+                            <p className="text-sm font-semibold text-yellow-100">-ISR: {formatCurrency(summary.totalIsr || '0')}</p>
+                          )}
+                          {parseFloat(summary.totalResico || '0') > 0 && (
+                            <p className="text-sm font-semibold text-yellow-100">-RESICO: {formatCurrency(summary.totalResico || '0')}</p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -318,34 +357,38 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
             </span>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="bg-green-50 rounded-xl p-4 border border-green-100">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full" />
-                <p className="text-gray-600 text-xs font-medium">Subtotal Bruto</p>
-              </div>
-              <p className="font-bold text-green-600 text-lg">{formatCurrency(summary.totalSubtotalMxn)} <span className="text-[10px] font-semibold text-green-400">{currencyCode}</span></p>
+          <div className="border border-gray-200 rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 bg-gray-50 border-b border-gray-200">
+              <span className="text-sm font-medium text-gray-700">BRUTO</span>
+              <span className="text-sm font-bold text-gray-900 tabular-nums">{formatCurrency(summary.totalSubtotalMxn)}</span>
             </div>
-            <div className="bg-red-50 rounded-xl p-4 border border-red-100">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-2 h-2 bg-red-400 rounded-full" />
-                <p className="text-gray-600 text-xs font-medium">Retenciones</p>
+            {parseFloat(summary.totalIva || '0') > 0 && (
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                <span className="text-sm text-gray-600">IVA 16%</span>
+                <span className="text-sm font-semibold text-blue-600 tabular-nums">+ {formatCurrency(summary.totalIva || '0')}</span>
               </div>
-              <p className="font-bold text-red-500 text-lg">-{formatCurrency(summary.totalRetentions)} <span className="text-[10px] font-semibold text-red-300">{currencyCode}</span></p>
-            </div>
-            <div className="bg-orange-50 rounded-xl p-4 border border-orange-100">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-2 h-2 bg-orange-500 rounded-full" />
-                <p className="text-gray-600 text-xs font-medium">Ajustes</p>
+            )}
+            {parseFloat(summary.totalIvaWithholding || '0') > 0 && (
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                <span className="text-sm text-gray-600">RET IVA 10.6667%</span>
+                <span className="text-sm font-semibold text-red-500 tabular-nums">- {formatCurrency(summary.totalIvaWithholding || '0')}</span>
               </div>
-              <p className="font-bold text-orange-600 text-lg">{formatCurrency(summary.adjustmentsMxn)} <span className="text-[10px] font-semibold text-orange-400">{currencyCode}</span></p>
-            </div>
-            <div className="bg-gradient-to-br from-[#3E667D]/5 to-[#3E667D]/10 rounded-xl p-4 border border-[#3E667D]/20">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircleSolidIcon className="w-4 h-4 text-[#3E667D]" />
-                <p className="text-gray-600 text-xs font-medium">Total Neto</p>
+            )}
+            {parseFloat(summary.totalIsr || '0') > 0 && (
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                <span className="text-sm text-gray-600">ISR</span>
+                <span className="text-sm font-semibold text-red-500 tabular-nums">- {formatCurrency(summary.totalIsr || '0')}</span>
               </div>
-              <p className="font-bold text-[#3E667D] text-lg">{formatCurrency(summary.totalNetMxn)} <span className="text-[10px] font-semibold text-[#3E667D]/50">{currencyCode}</span></p>
+            )}
+            {parseFloat(summary.totalResico || '0') > 0 && (
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                <span className="text-sm text-gray-600">RESICO</span>
+                <span className="text-sm font-semibold text-red-500 tabular-nums">- {formatCurrency(summary.totalResico || '0')}</span>
+              </div>
+            )}
+            <div className="flex items-center justify-between px-5 py-3 bg-[#3E667D]/5 border-t border-gray-200">
+              <span className="text-sm font-bold text-[#3E667D]">NETO</span>
+              <span className="text-sm font-bold text-[#3E667D] tabular-nums">{formatCurrency(summary.totalNetMxn)}</span>
             </div>
           </div>
         </CardContent>
