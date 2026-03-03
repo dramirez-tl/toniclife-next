@@ -66,12 +66,14 @@ function UsuariosContent() {
 
   const activeTab = get('tab') as TabKey;
   const searchQuery = get('search');
+  const customerNumberQuery = get('customerNumber');
   const filterRole = get('role');
   const filterStatus = get('status');
   const currentPage = getNumber('page') || 1;
   const pageSize = getNumber('limit') || 20;
 
   const [searchInput, setSearchInput] = useState(searchQuery);
+  const [customerNumberInput, setCustomerNumberInput] = useState(customerNumberQuery);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -91,13 +93,14 @@ function UsuariosContent() {
     };
 
     if (searchQuery) params.search = searchQuery;
+    if (customerNumberQuery) params.customerNumber = customerNumberQuery;
     if (filterRole !== 'all') params.role = filterRole;
     if (filterStatus !== 'all') {
       params.isActive = filterStatus === 'active';
     }
 
     return params;
-  }, [searchQuery, filterRole, filterStatus, currentPage, pageSize]);
+  }, [searchQuery, customerNumberQuery, filterRole, filterStatus, currentPage, pageSize]);
 
   // API Hooks
   const { data: usersData, isLoading, isFetching, error, refetch } = useUsers(queryParams);
@@ -201,7 +204,7 @@ function UsuariosContent() {
   };
 
   const handleSearch = () => {
-    setParams({ search: searchInput.trim() });
+    setParams({ search: searchInput.trim(), customerNumber: customerNumberInput.trim() });
   };
 
   const handleFilterRole = (value: string) => {
@@ -218,10 +221,11 @@ function UsuariosContent() {
 
   const resetFilters = () => {
     setSearchInput('');
-    setParams({ search: null, role: 'all', status: 'all', page: null });
+    setCustomerNumberInput('');
+    setParams({ search: null, customerNumber: null, role: 'all', status: 'all', page: null });
   };
 
-  const hasActiveFilters = Boolean(searchQuery || filterRole !== 'all' || filterStatus !== 'all');
+  const hasActiveFilters = Boolean(searchQuery || customerNumberQuery || filterRole !== 'all' || filterStatus !== 'all');
 
   const backendTotalPages = usersData?.totalPages;
   useEffect(() => {
@@ -626,37 +630,56 @@ function UsuariosContent() {
                 </div>
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:gap-4">
                   {/* Search */}
-                  <div className="lg:col-span-6">
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                      <div className="relative flex-1">
-                        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                        <input
-                          type="text"
-                          placeholder="Buscar por código, nombre o email..."
-                          value={searchInput}
-                          onChange={(e) => setSearchInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleSearch();
-                            }
-                          }}
-                          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                        />
-                      </div>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        className="h-10 px-4 sm:min-w-[96px]"
-                        onClick={handleSearch}
-                      >
-                        Buscar
-                      </Button>
+                  <div className="lg:col-span-4">
+                    <div className="relative">
+                      <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Buscar por nombre o email..."
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSearch();
+                          }
+                        }}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                      />
                     </div>
                   </div>
 
+                  {/* Customer Number Exact Search */}
+                  <div className="lg:col-span-2">
+                    <input
+                      type="text"
+                      placeholder="No. Distribuidor"
+                      value={customerNumberInput}
+                      onChange={(e) => setCustomerNumberInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSearch();
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                    />
+                  </div>
+
+                  {/* Search Button */}
+                  <div className="lg:col-span-1 flex items-center">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="h-10 w-full"
+                      onClick={handleSearch}
+                    >
+                      Buscar
+                    </Button>
+                  </div>
+
                   {/* Role Filter */}
-                  <div className="lg:col-span-3">
+                  <div className="lg:col-span-2">
                     <SearchableSelect
                       options={[
                         { value: 'administrador', label: 'Administrador' },
@@ -701,6 +724,11 @@ function UsuariosContent() {
                     {searchQuery && (
                       <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
                         Búsqueda: {searchQuery}
+                      </span>
+                    )}
+                    {customerNumberQuery && (
+                      <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
+                        No. Distribuidor: {customerNumberQuery}
                       </span>
                     )}
                     {filterRole !== 'all' && (

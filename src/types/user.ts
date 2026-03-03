@@ -35,6 +35,7 @@ export interface User {
 
 export interface UserQueryParams {
   search?: string;
+  customerNumber?: string;
   role?: string;
   isActive?: boolean;
   page?: number;
