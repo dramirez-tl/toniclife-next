@@ -31,7 +31,7 @@ export function SessionManager({
 }: SessionManagerProps) {
   const [showOpenModal, setShowOpenModal] = useState(false);
   const [showCloseModal, setShowCloseModal] = useState(false);
-  const [showAmounts, setShowAmounts] = useState(false);
+  const [showAmounts, setShowAmounts] = useState(true);
   const [selectedRegister, setSelectedRegister] = useState<CashRegister | null>(null);
   const [openingAmount, setOpeningAmount] = useState('');
   const [closingAmount, setClosingAmount] = useState('');
