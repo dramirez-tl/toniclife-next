@@ -3,7 +3,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { billingService, type FiscalDataQueryDto } from '@/services/billing.service';
+import { billingService, type FiscalDataQueryDto, type FacturamaCfdisQuery } from '@/services/billing.service';
 import type {
   CreateFiscalDataDto,
   UpdateFiscalDataDto,
@@ -37,6 +37,7 @@ export const billingKeys = {
   cfdiUses: () => [...billingKeys.catalogs(), 'cfdi-uses'] as const,
   fiscalRegimes: () => [...billingKeys.catalogs(), 'fiscal-regimes'] as const,
   status: () => [...billingKeys.all, 'status'] as const,
+  facturamaCfdis: (query?: FacturamaCfdisQuery) => [...billingKeys.all, 'facturama-cfdis', query] as const,
 };
 
 // ================================
@@ -303,6 +304,14 @@ export function useValidateRfc() {
 // ================================
 // STATUS HOOKS
 // ================================
+
+export function useFacturamaCfdis(query?: FacturamaCfdisQuery) {
+  return useQuery({
+    queryKey: billingKeys.facturamaCfdis(query),
+    queryFn: () => billingService.listFacturamaCfdis(query),
+    enabled: !!(query?.dateStart && query?.dateEnd),
+  });
+}
 
 export function useFacturamaStatus() {
   return useQuery({

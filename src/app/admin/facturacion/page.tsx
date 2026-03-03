@@ -371,12 +371,16 @@ function FacturacionContent() {
                     {facturamaStatus.configured ? 'Conectado' : 'No configurado'}
                   </span>
                 </div>
-                {facturamaStatus.configured && facturamaStatus.Balance >= 0 && (
+                {facturamaStatus.configured && (
                   <div className="text-sm">
                     <span className="text-gray-600">Timbres disponibles: </span>
-                    <span className="font-bold text-[#3E667D]">
-                      {facturamaStatus.Balance}
-                    </span>
+                    {facturamaStatus.Balance >= 0 ? (
+                      <span className={`font-bold ${facturamaStatus.Balance < 100 ? 'text-red-600' : 'text-[#3E667D]'}`}>
+                        {facturamaStatus.Balance.toLocaleString()}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">No disponible</span>
+                    )}
                   </div>
                 )}
               </div>

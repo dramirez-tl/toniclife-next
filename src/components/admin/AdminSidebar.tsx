@@ -82,6 +82,7 @@ const navigation: NavItem[] = [
     permissions: ['reports.invoices', 'config'],
     children: [
       { name: 'Facturas', href: '/admin/facturacion' },
+      { name: 'Reporte Folios', href: '/admin/facturacion/reporte-folios' },
       { name: 'Datos Fiscales', href: '/admin/facturacion/datos-fiscales' },
       { name: 'Factura Global', href: '/admin/facturacion/global' },
       { name: 'Complemento de Pago', href: '/admin/facturacion/complemento-pago' },

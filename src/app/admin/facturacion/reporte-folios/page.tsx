@@ -4,33 +4,29 @@ import { useMemo, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
-import { DataTable, DataTablePagination } from '@/components/ui/DataTable';
+import { DataTable } from '@/components/ui/DataTable';
 import type { DataTableColumn } from '@/components/ui/DataTable';
-import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import { useActiveBranches } from '@/hooks/useBranches';
-import { useInvoices } from '@/hooks/useBilling';
-import type { Invoice, InvoiceQueryDto } from '@/types/billing';
+import { useFacturamaCfdis } from '@/hooks/useBilling';
+import type { FacturamaCfdiItem } from '@/services/billing.service';
 import {
   DocumentTextIcon,
   CurrencyDollarIcon,
-  BuildingStorefrontIcon,
   CheckCircleIcon,
   XCircleIcon,
   ClockIcon,
-  ExclamationTriangleIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 
 // ================================
 // Helpers
 // ================================
 
-const formatCurrency = (amount: string | number) => {
-  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-  return new Intl.NumberFormat('es-MX', {
+const formatCurrency = (amount: number, currency = 'MXN') =>
+  new Intl.NumberFormat('es-MX', {
     style: 'currency',
-    currency: 'MXN',
-  }).format(num);
-};
+    currency,
+  }).format(amount);
 
 const formatDate = (dateStr: string) =>
   new Date(dateStr).toLocaleDateString('es-MX', {
@@ -41,7 +37,7 @@ const formatDate = (dateStr: string) =>
 
 function getDefaultDateFrom(): string {
   const d = new Date();
-  d.setDate(d.getDate() - 30);
+  d.setDate(d.getDate() - 7);
   return d.toISOString().split('T')[0];
 }
 
@@ -54,6 +50,7 @@ const CFDI_TYPE_LABELS: Record<string, string> = {
   E: 'Egreso',
   P: 'Pago',
   T: 'Traslado',
+  N: 'Nómina',
 };
 
 const CFDI_TYPE_STYLES: Record<string, string> = {
@@ -61,36 +58,22 @@ const CFDI_TYPE_STYLES: Record<string, string> = {
   E: 'bg-orange-100 text-orange-700',
   P: 'bg-purple-100 text-purple-700',
   T: 'bg-gray-100 text-gray-700',
+  N: 'bg-teal-100 text-teal-700',
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  pending: 'Pendiente',
-  stamped: 'Timbrada',
-  sent: 'Enviada',
-  cancelled: 'Cancelada',
-  cancellation_pending: 'Cancel. pendiente',
-  error: 'Error',
-};
-
-const STATUS_STYLES: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-700',
-  stamped: 'bg-green-100 text-green-700',
-  sent: 'bg-blue-100 text-blue-700',
-  cancelled: 'bg-red-100 text-red-700',
-  cancellation_pending: 'bg-orange-100 text-orange-700',
-  error: 'bg-red-100 text-red-700',
+const STATUS_CONFIG: Record<string, { label: string; style: string }> = {
+  active: { label: 'Activa', style: 'bg-green-100 text-green-700' },
+  canceled: { label: 'Cancelada', style: 'bg-red-100 text-red-700' },
+  pending: { label: 'Pendiente', style: 'bg-yellow-100 text-yellow-700' },
 };
 
 const StatusIcon = ({ status }: { status: string }) => {
   const cls = 'h-3 w-3';
   switch (status) {
-    case 'stamped':
-    case 'sent':
+    case 'active':
       return <CheckCircleIcon className={cls} />;
-    case 'cancelled':
+    case 'canceled':
       return <XCircleIcon className={cls} />;
-    case 'error':
-      return <ExclamationTriangleIcon className={cls} />;
     default:
       return <ClockIcon className={cls} />;
   }
@@ -109,44 +92,37 @@ export default function ReporteFoliosPage() {
 }
 
 function ReporteFoliosContent() {
-  const [selectedBranch, setSelectedBranch] = useState('all');
   const [dateFrom, setDateFrom] = useState(getDefaultDateFrom);
   const [dateTo, setDateTo] = useState(getDefaultDateTo);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [page, setPage] = useState(0);
 
-  const { data: branches = [] } = useActiveBranches();
+  const { data: cfdisData, isLoading, isFetching } = useFacturamaCfdis({
+    dateStart: dateFrom,
+    dateEnd: dateTo,
+    status: 'all',
+    page,
+  });
 
-  const queryParams = useMemo<InvoiceQueryDto>(() => ({
-    branchId: selectedBranch !== 'all' ? selectedBranch : undefined,
-    startDate: dateFrom,
-    endDate: `${dateTo}T23:59:59`,
-    limit: pageSize,
-    offset: (currentPage - 1) * pageSize,
-  }), [selectedBranch, dateFrom, dateTo, currentPage, pageSize]);
-
-  const { data: invoicesData, isLoading, isFetching } = useInvoices(queryParams);
-
-  const invoices = invoicesData?.data ?? [];
-  const totalCount = invoicesData?.total ?? 0;
+  const cfdis = cfdisData?.data ?? [];
+  const totalCount = cfdisData?.total ?? 0;
 
   // Summary
   const totalFacturado = useMemo(
-    () => invoices.reduce((sum: number, inv: Invoice) => sum + parseFloat(inv.total || '0'), 0),
-    [invoices],
+    () => cfdis.reduce((sum, c) => sum + (c.total || 0), 0),
+    [cfdis],
   );
 
   // ================================
   // Table columns
   // ================================
 
-  const columns: DataTableColumn<Invoice>[] = useMemo(() => [
+  const columns: DataTableColumn<FacturamaCfdiItem>[] = useMemo(() => [
     {
       key: 'cfdiType',
       header: 'Tipo',
-      render: (inv) => (
-        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${CFDI_TYPE_STYLES[inv.invoiceType] || 'bg-gray-100 text-gray-700'}`}>
-          {CFDI_TYPE_LABELS[inv.invoiceType] ?? inv.invoiceType}
+      render: (c) => (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${CFDI_TYPE_STYLES[c.cfdiType] || 'bg-gray-100 text-gray-700'}`}>
+          {CFDI_TYPE_LABELS[c.cfdiType] ?? c.cfdiType}
         </span>
       ),
     },
@@ -154,12 +130,12 @@ function ReporteFoliosContent() {
       key: 'folio',
       header: 'Folio',
       sortable: true,
-      sortValue: (inv) => inv.folio || '',
-      render: (inv) => (
+      sortValue: (c) => c.folio || '',
+      render: (c) => (
         <div>
-          <span className="font-semibold text-[#3E667D]">{inv.folio || inv.uuid?.substring(0, 8) || '—'}</span>
-          {inv.series && (
-            <span className="ml-1 text-xs text-gray-500">({inv.series})</span>
+          <span className="font-semibold text-[#3E667D]">{c.folio || '—'}</span>
+          {c.serie && (
+            <span className="ml-1 text-xs text-gray-500">({c.serie})</span>
           )}
         </div>
       ),
@@ -167,10 +143,10 @@ function ReporteFoliosContent() {
     {
       key: 'receiver',
       header: 'Receptor',
-      render: (inv) => (
+      render: (c) => (
         <div>
-          <p className="text-sm font-medium text-gray-900 truncate max-w-[200px]">{inv.receiverName}</p>
-          <p className="text-xs text-gray-500">{inv.receiverRfc}</p>
+          <p className="text-sm font-medium text-gray-900 truncate max-w-[200px]">{c.receiverName || '—'}</p>
+          <p className="text-xs text-gray-500">{c.receiverRfc || ''}</p>
         </div>
       ),
     },
@@ -178,14 +154,14 @@ function ReporteFoliosContent() {
       key: 'total',
       header: 'Monto',
       sortable: true,
-      sortValue: (inv) => parseFloat(inv.total || '0'),
+      sortValue: (c) => c.total || 0,
       headerClassName: 'text-right',
       cellClassName: 'text-right',
-      render: (inv) => (
+      render: (c) => (
         <div className="flex items-center justify-end gap-1.5">
-          <span className="font-semibold text-gray-900">{formatCurrency(inv.total)}</span>
+          <span className="font-semibold text-gray-900">{formatCurrency(c.total, c.currency || 'MXN')}</span>
           <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
-            {inv.currency || 'MXN'}
+            {c.currency || 'MXN'}
           </span>
         </div>
       ),
@@ -194,10 +170,19 @@ function ReporteFoliosContent() {
       key: 'date',
       header: 'Fecha',
       sortable: true,
-      sortValue: (inv) => inv.stampedAt || inv.createdAt,
-      render: (inv) => (
+      sortValue: (c) => c.date || '',
+      render: (c) => (
         <span className="text-sm text-gray-700">
-          {formatDate(inv.stampedAt || inv.createdAt)}
+          {c.date ? formatDate(c.date) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'uuid',
+      header: 'UUID',
+      render: (c) => (
+        <span className="text-xs text-gray-500 font-mono">
+          {c.uuid ? `${c.uuid.substring(0, 8)}...` : '—'}
         </span>
       ),
     },
@@ -206,12 +191,16 @@ function ReporteFoliosContent() {
       header: 'Estado',
       headerClassName: 'text-center',
       cellClassName: 'text-center',
-      render: (inv) => (
-        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${STATUS_STYLES[inv.status] || 'bg-gray-100 text-gray-700'}`}>
-          <StatusIcon status={inv.status} />
-          {STATUS_LABELS[inv.status] ?? inv.status}
-        </span>
-      ),
+      render: (c) => {
+        const statusKey = c.status?.toLowerCase() || '';
+        const config = STATUS_CONFIG[statusKey];
+        return (
+          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${config?.style || 'bg-gray-100 text-gray-700'}`}>
+            <StatusIcon status={statusKey} />
+            {config?.label ?? c.status ?? '—'}
+          </span>
+        );
+      },
     },
   ], []);
 
@@ -227,7 +216,7 @@ function ReporteFoliosContent() {
                 <h1 className="text-4xl font-bold">Reporte Facturama - Folios</h1>
               </div>
               <p className="text-white/80 text-lg">
-                Folios de facturas emitidas por sucursal
+                CFDIs emitidos directamente desde Facturama
               </p>
             </div>
             <Link href="/admin/facturacion">
@@ -245,7 +234,7 @@ function ReporteFoliosContent() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Facturas</p>
+                  <p className="text-sm text-gray-600 mb-1">CFDIs en página</p>
                   <p className="text-3xl font-bold text-gray-900">
                     {isLoading ? '...' : totalCount.toLocaleString()}
                   </p>
@@ -277,28 +266,13 @@ function ReporteFoliosContent() {
         {/* Filters */}
         <Card className="mb-6">
           <CardContent className="p-6">
-            <div className="flex flex-col lg:flex-row gap-4">
-              {/* Branch */}
-              <div className="flex items-center gap-2">
-                <BuildingStorefrontIcon className="h-5 w-5 text-gray-400" />
-                <SearchableSelect
-                  options={branches.map((b) => ({ value: b.id, label: b.name }))}
-                  value={selectedBranch}
-                  onChange={(val) => { setSelectedBranch(val); setCurrentPage(1); }}
-                  placeholder="Buscar sucursal..."
-                  allLabel="Todas las Sucursales"
-                  allValue="all"
-                  className="w-[220px]"
-                />
-              </div>
-
-              {/* Date range */}
+            <div className="flex flex-col lg:flex-row gap-4 items-center">
               <div className="flex items-center gap-2">
                 <label className="text-sm text-gray-500 whitespace-nowrap">Desde</label>
                 <input
                   type="date"
                   value={dateFrom}
-                  onChange={(e) => { setDateFrom(e.target.value); setCurrentPage(1); }}
+                  onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 />
               </div>
@@ -307,10 +281,13 @@ function ReporteFoliosContent() {
                 <input
                   type="date"
                   value={dateTo}
-                  onChange={(e) => { setDateTo(e.target.value); setCurrentPage(1); }}
+                  onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 />
               </div>
+              <p className="text-xs text-gray-400 ml-auto">
+                Facturama muestra máximo 100 CFDIs por página
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -320,19 +297,19 @@ function ReporteFoliosContent() {
           <CardContent className="p-0">
             <DataTable
               columns={columns}
-              data={invoices}
+              data={cfdis}
               isLoading={isLoading}
               loadingRows={10}
-              getRowKey={(inv) => inv.id}
-              minWidthClassName="min-w-[800px]"
+              getRowKey={(c) => c.id || c.uuid}
+              minWidthClassName="min-w-[900px]"
               emptyState={
                 <div className="text-center py-12">
                   <DocumentTextIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                   <h3 className="text-lg font-bold text-gray-900 mb-2">
-                    No se encontraron facturas
+                    No se encontraron CFDIs
                   </h3>
                   <p className="text-sm text-gray-500">
-                    Ajusta los filtros o el rango de fechas
+                    Ajusta el rango de fechas para buscar
                   </p>
                 </div>
               }
@@ -340,16 +317,32 @@ function ReporteFoliosContent() {
           </CardContent>
         </Card>
 
-        {/* Pagination */}
-        <DataTablePagination
-          currentPage={currentPage}
-          pageSize={pageSize}
-          totalItems={totalCount}
-          isLoading={isLoading || isFetching}
-          onPageChange={setCurrentPage}
-          onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
-          pageSizeOptions={[20, 50, 100]}
-        />
+        {/* Pagination (Facturama pages: 0-based, 100 per page) */}
+        <div className="flex items-center justify-between mt-4 px-2">
+          <p className="text-sm text-gray-500">
+            Página {page + 1} {totalCount === 100 && '(puede haber más páginas)'}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page === 0 || isLoading || isFetching}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
+              <ChevronLeftIcon className="h-4 w-4 mr-1" />
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={totalCount < 100 || isLoading || isFetching}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              Siguiente
+              <ChevronRightIcon className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

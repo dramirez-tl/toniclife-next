@@ -254,6 +254,50 @@ export async function validateRfc(rfc: string): Promise<RfcValidation> {
 }
 
 // ================================
+// FACTURAMA DIRECT QUERIES
+// ================================
+
+export interface FacturamaCfdiItem {
+  id: string;
+  cfdiType: string;
+  serie: string;
+  folio: string;
+  date: string;
+  currency: string;
+  subtotal: number;
+  total: number;
+  receiverName: string;
+  receiverRfc: string;
+  uuid: string;
+  status: string;
+  paymentMethod: string;
+}
+
+export interface FacturamaCfdisResponse {
+  data: FacturamaCfdiItem[];
+  total: number;
+  page: number;
+}
+
+export interface FacturamaCfdisQuery {
+  dateStart?: string;
+  dateEnd?: string;
+  status?: 'all' | 'active' | 'canceled' | 'pending';
+  page?: number;
+}
+
+export async function listFacturamaCfdis(query?: FacturamaCfdisQuery): Promise<FacturamaCfdisResponse> {
+  const params = new URLSearchParams();
+  if (query?.dateStart) params.append('dateStart', query.dateStart);
+  if (query?.dateEnd) params.append('dateEnd', query.dateEnd);
+  if (query?.status) params.append('status', query.status);
+  if (query?.page !== undefined) params.append('page', String(query.page));
+  const qs = params.toString();
+  const response = await apiClient.get<FacturamaCfdisResponse>(`${BASE_URL}/facturama-cfdis${qs ? `?${qs}` : ''}`);
+  return response.data;
+}
+
+// ================================
 // STATUS
 // ================================
 
@@ -302,6 +346,9 @@ export const billingService = {
 
   // Validation
   validateRfc,
+
+  // Facturama Direct
+  listFacturamaCfdis,
 
   // Status
   getFacturamaStatus,

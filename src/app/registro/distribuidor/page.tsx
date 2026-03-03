@@ -417,50 +417,15 @@ function RegistroDistribuidorContent() {
                     )}
                   </div>
 
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                      <GiftIcon className="h-5 w-5 text-[#3E667D]" />
-                      Selecciona tu Kit de Inicio
+                  {/* Kit selection temporarily disabled */}
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+                    <ExclamationTriangleIcon className="h-10 w-10 text-yellow-500 mx-auto mb-3" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      Registro temporalmente no disponible
                     </h3>
-
-                    {errors.kitType && (
-                      <p className="mb-3 text-sm text-red-500 flex items-center gap-1">
-                        <ExclamationTriangleIcon className="h-4 w-4" />
-                        {errors.kitType}
-                      </p>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {kitOptions.map((kit) => (
-                        <button
-                          key={kit.id}
-                          type="button"
-                          onClick={() => setFormData({ ...formData, kitType: kit.id })}
-                          className={`relative p-4 border-2 rounded-lg text-left transition-all hover:shadow-md ${
-                            formData.kitType === kit.id
-                              ? 'border-[#3E667D] bg-blue-50'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          {kit.popular && (
-                            <span className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-[#3E667D] text-white text-xs font-medium rounded">
-                              Más popular
-                            </span>
-                          )}
-                          <h4 className="font-semibold text-gray-900">{kit.name}</h4>
-                          <p className="text-xl font-bold text-[#3E667D] mt-1">{kit.price}</p>
-                          <p className="text-sm text-gray-500 mt-1">{kit.description}</p>
-                          <ul className="mt-3 space-y-1">
-                            {kit.features.map((feature, idx) => (
-                              <li key={idx} className="flex items-center gap-1 text-xs text-gray-600">
-                                <CheckCircleIcon className="h-4 w-4 text-[#3E667D] flex-shrink-0" />
-                                {feature}
-                              </li>
-                            ))}
-                          </ul>
-                        </button>
-                      ))}
-                    </div>
+                    <p className="text-sm text-gray-600">
+                      La selección de kits de inicio se encuentra en mantenimiento. Por favor, intenta más tarde.
+                    </p>
                   </div>
                 </div>
               )}
@@ -757,6 +722,7 @@ function RegistroDistribuidorContent() {
                     type="button"
                     variant="primary"
                     onClick={handleNextStep}
+                    disabled={currentStep === 1}
                   >
                     Continuar
                   </Button>
