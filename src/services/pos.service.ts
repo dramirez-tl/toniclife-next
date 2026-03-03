@@ -243,11 +243,12 @@ class PosService {
   /**
    * Search products for POS (quick search by SKU or name)
    */
-  async searchProducts(query: string, limit = 10, branchId?: string, priceTypeId?: string, countryId?: string): Promise<QuickProduct[]> {
+  async searchProducts(query: string, limit = 10, branchId?: string, priceTypeId?: string, countryId?: string, sku?: string): Promise<QuickProduct[]> {
     // Use the existing products endpoint with search
     const response = await api.get('/products', {
       params: {
-        search: query,
+        search: sku ? undefined : query,
+        sku: sku || undefined,
         isActive: true,
         availableInPos: true,
         limit,

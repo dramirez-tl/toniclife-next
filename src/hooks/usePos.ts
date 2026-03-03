@@ -376,12 +376,13 @@ export const useRejectWithdrawal = () => {
 
 /**
  * Search products for POS
+ * @param sku - If provided, does exact match by product code instead of ILIKE search
  */
-export const usePosProductSearch = (query: string, enabled = true, branchId?: string, priceTypeId?: string, countryId?: string) => {
+export const usePosProductSearch = (query: string, enabled = true, branchId?: string, priceTypeId?: string, countryId?: string, sku?: string) => {
   return useQuery({
-    queryKey: posKeys.productSearch(query, branchId, priceTypeId, countryId),
-    queryFn: () => posService.searchProducts(query, 10, branchId, priceTypeId, countryId),
-    enabled: enabled && query.length >= 2,
+    queryKey: posKeys.productSearch(sku || query, branchId, priceTypeId, countryId),
+    queryFn: () => posService.searchProducts(query, 10, branchId, priceTypeId, countryId, sku),
+    enabled: enabled && (query.length >= 2 || (!!sku && sku.length >= 1)),
     staleTime: 30 * 1000, // 30 seconds
   });
 };

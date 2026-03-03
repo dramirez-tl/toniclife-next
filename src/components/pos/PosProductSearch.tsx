@@ -20,12 +20,20 @@ interface PosProductSearchProps {
 
 export function PosProductSearch({ onProductSelected, autoFocus = true, branchId, priceTypeId, countryId }: PosProductSearchProps) {
   const [query, setQuery] = useState('');
+  const [skuQuery, setSkuQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const skuInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const { data: products, isLoading } = usePosProductSearch(query, query.length >= 2, branchId, priceTypeId, countryId);
+  const activeSkuSearch = skuQuery.length >= 1 ? skuQuery : undefined;
+  const { data: products, isLoading } = usePosProductSearch(
+    activeSkuSearch ? skuQuery : query,
+    activeSkuSearch ? true : query.length >= 2,
+    branchId, priceTypeId, countryId,
+    activeSkuSearch,
+  );
   const addItem = usePosCartStore((state) => state.addItem);
 
   // Handle barcode scan (typically fast input ending with Enter)
@@ -93,6 +101,7 @@ export function PosProductSearch({ onProductSelected, autoFocus = true, branchId
     onProductSelected?.(product);
     toast.success(`${product.name} agregado`);
     setQuery('');
+    setSkuQuery('');
     setIsOpen(false);
     setSelectedIndex(0);
     inputRef.current?.focus();
@@ -100,13 +109,13 @@ export function PosProductSearch({ onProductSelected, autoFocus = true, branchId
 
   // Show dropdown when there are results
   useEffect(() => {
-    if (products && products.length > 0 && query.length >= 2) {
+    if (products && products.length > 0 && (query.length >= 2 || skuQuery.length >= 1)) {
       setIsOpen(true);
       setSelectedIndex(0);
     } else {
       setIsOpen(false);
     }
-  }, [products, query]);
+  }, [products, query, skuQuery]);
 
   // Focus input on mount
   useEffect(() => {
@@ -121,7 +130,8 @@ export function PosProductSearch({ onProductSelected, autoFocus = true, branchId
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node) &&
-        !inputRef.current?.contains(event.target as Node)
+        !inputRef.current?.contains(event.target as Node) &&
+        !skuInputRef.current?.contains(event.target as Node)
       ) {
         setIsOpen(false);
       }
@@ -131,36 +141,91 @@ export function PosProductSearch({ onProductSelected, autoFocus = true, branchId
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const handleSkuKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!products || products.length === 0) {
+      if (e.key === 'Enter' && skuQuery.length > 0) {
+        e.preventDefault();
+        handleBarcodeInput(skuQuery);
+      }
+      return;
+    }
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        setSelectedIndex((prev) => Math.min(prev + 1, products.length - 1));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        setSelectedIndex((prev) => Math.max(prev - 1, 0));
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (products[selectedIndex]) {
+          handleSelectProduct(products[selectedIndex]);
+        }
+        break;
+      case 'Escape':
+        setIsOpen(false);
+        setSkuQuery('');
+        break;
+    }
+  };
+
   return (
     <div className="relative w-full">
-      {/* Search Input */}
-      <div className="relative">
-        <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-        <input
-          ref={inputRef}
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onFocus={() => query.length >= 2 && products && products.length > 0 && setIsOpen(true)}
-          placeholder="Buscar producto por nombre o escanear código..."
-          className="w-full pl-12 pr-10 py-3 text-lg border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent transition-all"
-        />
-        {query && (
-          <button
-            onClick={() => {
-              setQuery('');
-              inputRef.current?.focus();
-            }}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-          >
-            <XMarkIcon className="h-5 w-5" />
-          </button>
-        )}
+      {/* Search Inputs */}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setSkuQuery(''); }}
+            onKeyDown={handleKeyDown}
+            onFocus={() => query.length >= 2 && products && products.length > 0 && setIsOpen(true)}
+            placeholder="Buscar producto por nombre..."
+            className="w-full pl-12 pr-10 py-3 text-lg border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent transition-all"
+          />
+          {query && (
+            <button
+              onClick={() => {
+                setQuery('');
+                inputRef.current?.focus();
+              }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          )}
+        </div>
+        <div className="relative w-44">
+          <input
+            ref={skuInputRef}
+            type="text"
+            value={skuQuery}
+            onChange={(e) => { setSkuQuery(e.target.value); setQuery(''); }}
+            onKeyDown={handleSkuKeyDown}
+            onFocus={() => skuQuery.length >= 1 && products && products.length > 0 && setIsOpen(true)}
+            placeholder="SKU exacto"
+            className="w-full px-4 py-3 text-lg border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent transition-all"
+          />
+          {skuQuery && (
+            <button
+              onClick={() => {
+                setSkuQuery('');
+                skuInputRef.current?.focus();
+              }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <XMarkIcon className="h-5 w-5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Loading indicator */}
-      {isLoading && query.length >= 2 && (
+      {isLoading && (query.length >= 2 || skuQuery.length >= 1) && (
         <div className="absolute top-full left-0 right-0 mt-2 p-4 bg-white rounded-xl shadow-lg border text-center text-gray-500">
           Buscando...
         </div>
@@ -231,15 +296,17 @@ export function PosProductSearch({ onProductSelected, autoFocus = true, branchId
       )}
 
       {/* No results */}
-      {!isLoading && query.length >= 2 && products && products.length === 0 && (
+      {!isLoading && (query.length >= 2 || skuQuery.length >= 1) && products && products.length === 0 && (
         <div className="absolute top-full left-0 right-0 mt-2 p-4 bg-white rounded-xl shadow-lg border text-center text-gray-500">
           No se encontraron productos
-          <button
-            onClick={() => handleBarcodeInput(query)}
-            className="block w-full mt-2 text-[#3E667D] hover:underline text-sm"
-          >
-            Buscar por código exacto
-          </button>
+          {query.length >= 2 && !skuQuery && (
+            <button
+              onClick={() => handleBarcodeInput(query)}
+              className="block w-full mt-2 text-[#3E667D] hover:underline text-sm"
+            >
+              Buscar por código exacto
+            </button>
+          )}
         </div>
       )}
     </div>
