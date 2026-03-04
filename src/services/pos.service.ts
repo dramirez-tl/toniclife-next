@@ -299,6 +299,9 @@ class PosService {
         params: Object.keys(params).length > 0 ? params : undefined,
       });
       const p = response.data;
+      // Reject products not available in POS
+      if (!p.availableInPos) return null;
+
       return {
         id: p.id,
         sku: p.code,

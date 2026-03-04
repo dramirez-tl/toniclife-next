@@ -61,7 +61,10 @@ export default function LoginPage() {
     // Admin roles that should access the admin panel (canonical + legacy-migration codes)
     const adminRoles = [
       'super_admin', 'administrador', 'subadmin', 'almacen', 'ventas_mostrador',
-      'rh', 'contabilidad', 'auditor', 'viewer',
+      'rh', 'contabilidad', 'auditor', 'viewer', 'call_center',
+      'operaciones', 'sucursales', 'supervisor', 'auxiliar_sucursal', 'auxiliar',
+      'soporte', 'cedea', 'cedea_two', 'cedeas', 'cedeas2', 'comisiones',
+      'comercial', 'produccion', 'laboratorio', 'compras',
       'ventas', 'asistencia', 'clientes', 'solicitud-viaticos', 'productos',
       'ventas-totales-sucursal', 'documentos', 'aprobacion-viaticos',
       'corte-caja-sucursal', 'inventario', 'rrhh-trabajadores', 'puntos-periodo', 'factura-libre',

@@ -1,12 +1,13 @@
 'use client';
 
-import { Suspense, useState, useMemo } from 'react';
+import { Suspense, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
+import { productsService } from '@/services/products.service';
 import {
   ShoppingBagIcon,
   MagnifyingGlassIcon,
@@ -183,9 +184,85 @@ function ProductosContent() {
     }
   };
 
-  const handleExport = () => {
-    toast.success('Exportando catálogo de productos...');
-  };
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = useCallback(async () => {
+    setIsExporting(true);
+    const toastId = toast.loading('Preparando exportación del catálogo...');
+    try {
+      const baseQuery: ProductQueryParams = {
+        sortBy: 'createdAt',
+        sortDir: 'desc',
+      };
+      if (searchQuery) baseQuery.search = searchQuery;
+      if (filterCategoryId) baseQuery.categoryId = filterCategoryId;
+      if (filterStatus === 'active') baseQuery.isActive = true;
+      if (filterStatus === 'inactive') baseQuery.isActive = false;
+
+      // Backend max limit is 100, paginate through all
+      const PAGE_SIZE = 100;
+      const firstPage = await productsService.getProducts({ ...baseQuery, limit: PAGE_SIZE, page: 1 });
+      const allItems = [...firstPage.data];
+      const totalPages = firstPage.totalPages;
+
+      if (totalPages > 1) {
+        const promises = [];
+        for (let p = 2; p <= totalPages; p++) {
+          promises.push(productsService.getProducts({ ...baseQuery, limit: PAGE_SIZE, page: p }));
+        }
+        const results = await Promise.all(promises);
+        for (const result of results) {
+          allItems.push(...result.data);
+        }
+      }
+
+      if (allItems.length === 0) {
+        toast.error('No hay datos para exportar', { id: toastId });
+        setIsExporting(false);
+        return;
+      }
+
+      const headers = ['SKU', 'Nombre', 'Nombre Corto', 'Categoría', 'Tipo', 'Precio Público', 'Puntos', 'Vol. Negocio', 'Marca', 'Países', 'Estado', 'Destacado', 'Visible E-commerce', 'POS', 'Creado'];
+      const rows = allItems.map((p) => {
+        const status = p.isActive ? 'Activo' : 'Inactivo';
+        const countries = (p.activeCountries ?? []).join(', ');
+        const createdAt = new Date(p.createdAt).toLocaleDateString('es-MX');
+        return [
+          p.code,
+          `"${(p.name ?? '').replace(/"/g, '""')}"`,
+          `"${(p.shortName ?? '').replace(/"/g, '""')}"`,
+          `"${(p.categoryName ?? '').replace(/"/g, '""')}"`,
+          p.productType,
+          p.price ?? '',
+          p.pointsValue ?? '',
+          p.businessVolume ?? '',
+          `"${(p.brand ?? '').replace(/"/g, '""')}"`,
+          `"${countries}"`,
+          status,
+          p.isFeatured ? 'Sí' : 'No',
+          p.isVisibleEcommerce ? 'Sí' : 'No',
+          p.availableInPos ? 'Sí' : 'No',
+          createdAt,
+        ].join(',');
+      });
+
+      const bom = '\uFEFF';
+      const csv = bom + [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `catalogo_productos_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      toast.success(`${allItems.length} productos exportados`, { id: toastId });
+    } catch {
+      toast.error('Error al exportar catálogo', { id: toastId });
+    } finally {
+      setIsExporting(false);
+    }
+  }, [searchQuery, filterCategoryId, filterStatus]);
 
   const formatCurrency = (amount: string | number) => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -556,8 +633,9 @@ function ProductosContent() {
                     className="gap-2"
                     leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
                     onClick={handleExport}
+                    disabled={isExporting}
                   >
-                    Exportar Catálogo
+                    {isExporting ? 'Exportando...' : 'Exportar Catálogo'}
                   </Button>
                   {hasActiveFilters && (
                     <Button variant="outline" size="sm" onClick={resetFilters}>

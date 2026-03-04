@@ -2,11 +2,12 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.2 Módulo Productos e Inventario
 'use client';
 
-import { Suspense, useState, useMemo, useEffect } from 'react';
+import { Suspense, useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
+import { inventoryService } from '@/services/inventory.service';
 import {
   CubeIcon,
   MagnifyingGlassIcon,
@@ -102,9 +103,96 @@ function InventarioContent() {
     }
   }, [backendTotalPages, currentPage, setParams]);
 
-  const handleExport = () => {
-    toast.success('Exportando inventario...');
-  };
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = useCallback(async () => {
+    if (!selectedBranch) {
+      toast.error('Selecciona una sucursal primero');
+      return;
+    }
+
+    setIsExporting(true);
+    const toastId = toast.loading('Preparando exportación de inventario...');
+    try {
+      const baseQuery = {
+        search: searchQuery || undefined,
+        lowStock: filterStock === 'low' || undefined,
+        outOfStock: filterStock === 'out' || undefined,
+      };
+
+      // Backend max limit is 100, so paginate through all pages
+      const PAGE_SIZE = 100;
+      const firstPage = await inventoryService.getBranchStock(selectedBranch, {
+        ...baseQuery,
+        limit: PAGE_SIZE,
+        page: 1,
+      });
+
+      const allItems = [...firstPage.data];
+      const totalPages = firstPage.totalPages;
+
+      if (totalPages > 1) {
+        const promises = [];
+        for (let p = 2; p <= totalPages; p++) {
+          promises.push(
+            inventoryService.getBranchStock(selectedBranch, { ...baseQuery, limit: PAGE_SIZE, page: p })
+          );
+        }
+        const results = await Promise.all(promises);
+        for (const result of results) {
+          allItems.push(...result.data);
+        }
+      }
+
+      if (allItems.length === 0) {
+        toast.error('No hay datos para exportar', { id: toastId });
+        setIsExporting(false);
+        return;
+      }
+
+      const branchName = firstPage.branch?.name ?? 'sucursal';
+
+      // Build CSV
+      const headers = ['Código', 'Producto', 'Total', 'Reservado', 'En Tránsito', 'Disponible', 'Estado', 'Stock Mínimo', 'Última Actualización'];
+      const rows = allItems.map((item) => {
+        const status = item.quantityAvailable === 0
+          ? 'Sin Existencias'
+          : item.isLowStock
+            ? 'Existencias Bajas'
+            : 'Normal';
+        const lastUpdate = item.lastMovementAt
+          ? new Date(item.lastMovementAt).toLocaleString('es-MX')
+          : '';
+        return [
+          item.productCode,
+          `"${(item.productName ?? '').replace(/"/g, '""')}"`,
+          item.quantityOnHand,
+          item.quantityReserved,
+          item.quantityInTransit,
+          item.quantityAvailable,
+          status,
+          item.minStockAlertEffective ?? '',
+          lastUpdate,
+        ].join(',');
+      });
+
+      const bom = '\uFEFF';
+      const csv = bom + [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `inventario_${branchName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      toast.success(`${allItems.length} productos exportados`, { id: toastId });
+    } catch {
+      toast.error('Error al exportar inventario', { id: toastId });
+    } finally {
+      setIsExporting(false);
+    }
+  }, [selectedBranch, searchQuery, filterStock]);
 
   // Stats from current page data
   const stats = useMemo(() => ({
@@ -410,8 +498,9 @@ function InventarioContent() {
                     variant="outline"
                     leftIcon={<ArrowDownTrayIcon className="h-5 w-5" />}
                     onClick={handleExport}
+                    disabled={isExporting || !selectedBranch}
                   >
-                    Exportar
+                    {isExporting ? 'Exportando...' : 'Exportar'}
                   </Button>
                 </div>
               </div>

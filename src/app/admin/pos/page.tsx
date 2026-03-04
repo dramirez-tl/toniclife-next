@@ -15,6 +15,7 @@ import {
   UserIcon,
   ArrowsRightLeftIcon,
   InformationCircleIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { PosProductSearch, PosCart, PaymentModal, SessionManager } from '@/components/pos';
 import { PosCustomerSelector } from '@/components/pos/PosCustomerSelector';
@@ -37,15 +38,21 @@ export default function PosPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [selectedBranchId, setSelectedBranchId] = useState<string>('');
+  const today = new Date().toISOString().slice(0, 10);
+  const [salesDate, setSalesDate] = useState<string>(today);
+  const [appliedSalesDate, setAppliedSalesDate] = useState<string>(today);
+  const [ticketUrl, setTicketUrl] = useState<string | null>(null);
+  const [isLoadingTicket, setIsLoadingTicket] = useState(false);
 
   const user = useSelector(selectUser);
   const userRoles = useSelector(selectUserRoles);
-  const isAdmin = userRoles.some((r) => r === 'super_admin' || r === 'admin');
+  const isAdmin = userRoles.some((r) => r === 'super_admin' || r === 'admin' || r === 'call_center');
   const userDefaultBranchId = user?.defaultBranchId;
 
   const { cart, clearCart } = usePosCartStore();
   const cartPriceTypeId = usePosCartStore((s) => s.cart.priceTypeId);
-  const { data: activeSession, refetch: refetchSession } = useActiveSession(selectedBranchId || userDefaultBranchId);
+  const sessionBranchId = selectedBranchId || userDefaultBranchId;
+  const { data: activeSession, refetch: refetchSession } = useActiveSession(sessionBranchId);
   const createSale = useCreateSale();
   const processPayment = useProcessPayment();
 
@@ -82,13 +89,17 @@ export default function PosPage() {
   }, [selectedBranchId, posBranches, userDefaultBranchId]);
 
   // When session is active, lock branch to session's branch
-  const activeBranchId = activeSession?.session?.branchId;
+  // Call center and super_admin only observe — never locked to a remote session
+  const canSwitchFreely = userRoles.includes('call_center') || userRoles.includes('super_admin');
+  const activeBranchId = canSwitchFreely ? undefined : activeSession?.session?.branchId;
   const effectiveBranchId = activeBranchId || selectedBranchId;
 
-  // Recent sales — filtered by branch
-  const { data: recentSales, refetch: refetchSales } = useSales({
+  // Recent sales — filtered by branch and date
+  const { data: recentSales, refetch: refetchSales, isLoading: isLoadingSales, isFetching: isFetchingSales } = useSales({
     branchId: effectiveBranchId || undefined,
-    limit: 5,
+    fromDate: appliedSalesDate || undefined,
+    toDate: appliedSalesDate || undefined,
+    limit: 50,
   });
 
   // Resolve currency from branch
@@ -195,7 +206,8 @@ export default function PosPage() {
             </div>
 
             {/* Branch Selector (admin: editable / non-admin with default branch: locked) */}
-            {!hasActiveSession && (
+            {/* Call center can always switch — they only observe remote sessions */}
+            {(!hasActiveSession || canSwitchFreely) && (
               isAdmin && posBranches.length > 1 ? (
                 <div className="hidden sm:flex items-center gap-2 ml-4 w-80">
                   <MapPinIcon className="h-5 w-5 text-white/60 flex-shrink-0" />
@@ -249,14 +261,34 @@ export default function PosPage() {
               transition-transform duration-300 flex flex-col
             `}
           >
-            <div className="p-4 border-b">
+            <div className="p-4 border-b space-y-2">
               <h2 className="font-bold text-gray-900 flex items-center gap-2">
                 <DocumentTextIcon className="h-5 w-5 text-gray-500" />
                 Ventas Recientes
               </h2>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="date"
+                  value={salesDate}
+                  onChange={(e) => setSalesDate(e.target.value)}
+                  className="flex-1 min-w-0 px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D] outline-none"
+                />
+                <button
+                  onClick={() => setAppliedSalesDate(salesDate)}
+                  disabled={salesDate === appliedSalesDate}
+                  className="px-3 py-1.5 text-sm font-medium text-white bg-[#3E667D] rounded-lg hover:bg-[#2d4f63] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                >
+                  Buscar
+                </button>
+              </div>
             </div>
             <div className="flex-grow p-4 space-y-3 overflow-y-auto">
-              {recentSales?.data && recentSales.data.length > 0 ? (
+              {(isLoadingSales || isFetchingSales) ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3E667D] mb-2" />
+                  <p className="text-xs text-gray-400">Cargando ventas...</p>
+                </div>
+              ) : recentSales?.data && recentSales.data.length > 0 ? (
                 recentSales.data.map((sale) => (
                   <div
                     key={sale.id}
@@ -293,6 +325,7 @@ export default function PosPage() {
                         <button
                           onClick={async (e) => {
                             e.stopPropagation();
+                            setIsLoadingTicket(true);
                             try {
                               const fullSale = await posService.getSaleById(sale.id);
                               const url = await generatePosTicketPdf(fullSale, {
@@ -304,15 +337,22 @@ export default function PosPage() {
                                   addressPhone: selectedBranch.addressPhone,
                                 } : undefined,
                               });
-                              window.open(url, '_blank');
+                              setTicketUrl(url);
                             } catch {
                               toast.error('Error al generar ticket');
+                            } finally {
+                              setIsLoadingTicket(false);
                             }
                           }}
-                          title="Imprimir ticket"
-                          className="p-2 text-gray-400 hover:text-[#3E667D] hover:bg-white rounded-lg transition-colors"
+                          disabled={isLoadingTicket}
+                          title="Ver ticket"
+                          className="p-2 text-gray-400 hover:text-[#3E667D] hover:bg-white rounded-lg transition-colors disabled:opacity-50"
                         >
-                          <PrinterIcon className="h-5 w-5" />
+                          {isLoadingTicket ? (
+                            <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-[#3E667D]" />
+                          ) : (
+                            <PrinterIcon className="h-5 w-5" />
+                          )}
                         </button>
                       )}
                     </div>
@@ -352,7 +392,7 @@ export default function PosPage() {
           {/* Center - Product Search */}
           <main className="flex-grow flex flex-col p-4 overflow-hidden">
             {/* Mobile branch selector */}
-            {isAdmin && !hasActiveSession && posBranches.length > 1 && (
+            {isAdmin && (!hasActiveSession || canSwitchFreely) && posBranches.length > 1 && (
               <div className="sm:hidden mb-3 flex items-center gap-2">
                 <MapPinIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
                 <SearchableSelect
@@ -530,6 +570,53 @@ export default function PosPage() {
             addressPhone: selectedBranch.addressPhone,
           } : undefined}
         />
+
+        {/* Ticket Preview Modal */}
+        {ticketUrl && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="bg-white rounded-xl shadow-2xl flex flex-col w-[95vw] max-w-md h-[90vh] max-h-[700px]">
+              <div className="flex items-center justify-between px-4 py-3 border-b">
+                <h3 className="font-semibold text-gray-900">Vista previa del ticket</h3>
+                <button
+                  onClick={() => { URL.revokeObjectURL(ticketUrl); setTicketUrl(null); }}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="flex-grow overflow-hidden">
+                <iframe
+                  src={ticketUrl}
+                  className="w-full h-full border-0"
+                  title="Ticket de venta"
+                />
+              </div>
+              <div className="flex items-center gap-2 px-4 py-3 border-t">
+                <button
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = ticketUrl;
+                    link.download = 'ticket.pdf';
+                    link.click();
+                  }}
+                  className="flex-1 px-4 py-2 text-sm font-medium text-[#3E667D] border border-[#3E667D] rounded-lg hover:bg-[#3E667D]/5 transition-colors"
+                >
+                  Descargar
+                </button>
+                <button
+                  onClick={() => {
+                    const win = window.open(ticketUrl, '_blank');
+                    win?.print();
+                  }}
+                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-[#3E667D] rounded-lg hover:bg-[#2d4f63] transition-colors flex items-center justify-center gap-2"
+                >
+                  <PrinterIcon className="h-4 w-4" />
+                  Imprimir
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </PermissionGuard>
   );
