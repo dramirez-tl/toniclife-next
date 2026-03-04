@@ -3,7 +3,7 @@
 
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { branchesService } from '@/services/branches.service';
-import type { Branch, BranchQueryParams, CreateBranchDto, UpdateBranchDto } from '@/types/branch';
+import type { Branch, BranchQueryParams, CreateBranchDto, UpdateBranchDto, CedeaInfo, PosUser, CreatePosUserDto, UpdatePosUserDto } from '@/types/branch';
 
 // Query keys
 export const branchKeys = {
@@ -13,6 +13,8 @@ export const branchKeys = {
   active: () => [...branchKeys.all, 'active'] as const,
   detail: (id: string) => [...branchKeys.all, 'detail', id] as const,
   byCode: (code: string) => [...branchKeys.all, 'code', code] as const,
+  cedeaInfo: (id: string) => [...branchKeys.all, 'cedea', id] as const,
+  posUsers: (id: string) => [...branchKeys.all, 'pos-users', id] as const,
 };
 
 /**
@@ -118,6 +120,74 @@ export function useDeleteBranch(options?: MutationOptions<void>) {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: branchKeys.all });
       options?.onSuccess?.(data);
+    },
+    onError: (error: Error) => {
+      options?.onError?.(error);
+    },
+  });
+}
+
+// ================================
+// CEDEA / POS USERS HOOKS
+// ================================
+
+export function useCedeaInfo(branchId: string) {
+  return useQuery({
+    queryKey: branchKeys.cedeaInfo(branchId),
+    queryFn: () => branchesService.getCedeaInfo(branchId),
+    enabled: !!branchId,
+  });
+}
+
+export function usePosUsers(branchId: string) {
+  return useQuery({
+    queryKey: branchKeys.posUsers(branchId),
+    queryFn: () => branchesService.getPosUsers(branchId),
+    enabled: !!branchId,
+  });
+}
+
+export function useCreatePosUser(options?: MutationOptions<PosUser>) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ branchId, dto }: { branchId: string; dto: CreatePosUserDto }) =>
+      branchesService.createPosUser(branchId, dto),
+    onSuccess: (data, { branchId }) => {
+      queryClient.invalidateQueries({ queryKey: branchKeys.posUsers(branchId) });
+      options?.onSuccess?.(data);
+    },
+    onError: (error: Error) => {
+      options?.onError?.(error);
+    },
+  });
+}
+
+export function useUpdatePosUser(options?: MutationOptions<PosUser>) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ branchId, userId, dto }: { branchId: string; userId: string; dto: UpdatePosUserDto }) =>
+      branchesService.updatePosUser(branchId, userId, dto),
+    onSuccess: (data, { branchId }) => {
+      queryClient.invalidateQueries({ queryKey: branchKeys.posUsers(branchId) });
+      options?.onSuccess?.(data);
+    },
+    onError: (error: Error) => {
+      options?.onError?.(error);
+    },
+  });
+}
+
+export function useDeactivatePosUser(options?: MutationOptions<void>) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ branchId, userId }: { branchId: string; userId: string }) =>
+      branchesService.deactivatePosUser(branchId, userId),
+    onSuccess: (_, { branchId }) => {
+      queryClient.invalidateQueries({ queryKey: branchKeys.posUsers(branchId) });
+      options?.onSuccess?.();
     },
     onError: (error: Error) => {
       options?.onError?.(error);

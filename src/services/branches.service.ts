@@ -2,7 +2,7 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 4.2.4
 
 import api from '@/lib/axios';
-import type { Branch, BranchQueryParams, BranchListResponse, CreateBranchDto, UpdateBranchDto } from '@/types/branch';
+import type { Branch, BranchQueryParams, BranchListResponse, CreateBranchDto, UpdateBranchDto, CedeaInfo, PosUser, CreatePosUserDto, UpdatePosUserDto } from '@/types/branch';
 
 class BranchesService {
   /**
@@ -58,6 +58,34 @@ class BranchesService {
    */
   async deleteBranch(id: string): Promise<void> {
     await api.delete(`/branches/${id}`);
+  }
+
+  // ================================
+  // CEDEA
+  // ================================
+
+  async getCedeaInfo(id: string): Promise<CedeaInfo | null> {
+    const response = await api.get<CedeaInfo | null>(`/branches/${id}/cedea`);
+    return response.data;
+  }
+
+  async getPosUsers(id: string): Promise<PosUser[]> {
+    const response = await api.get<PosUser[]>(`/branches/${id}/pos-users`);
+    return response.data;
+  }
+
+  async createPosUser(id: string, dto: CreatePosUserDto): Promise<PosUser> {
+    const response = await api.post<PosUser>(`/branches/${id}/pos-users`, dto);
+    return response.data;
+  }
+
+  async updatePosUser(branchId: string, userId: string, dto: UpdatePosUserDto): Promise<PosUser> {
+    const response = await api.patch<PosUser>(`/branches/${branchId}/pos-users/${userId}`, dto);
+    return response.data;
+  }
+
+  async deactivatePosUser(branchId: string, userId: string): Promise<void> {
+    await api.delete(`/branches/${branchId}/pos-users/${userId}`);
   }
 }
 

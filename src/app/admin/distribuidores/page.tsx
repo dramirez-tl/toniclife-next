@@ -31,6 +31,7 @@ import {
   ExclamationTriangleIcon,
   ArrowPathIcon,
   FunnelIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -80,6 +81,7 @@ function DistribuidoresContent() {
     type: 'all',
     status: 'all',
     country: 'all',
+    cedea: 'all',
     sortBy: 'createdAt',
     sortOrder: 'desc',
     limit: '10',
@@ -89,6 +91,7 @@ function DistribuidoresContent() {
   const filterType = get('type');
   const filterStatus = get('status') as CustomerStatus | 'all';
   const filterCountry = get('country');
+  const filterCedea = get('cedea');
   const sortBy = get('sortBy');
   const sortOrder = get('sortOrder') as 'asc' | 'desc';
   const pageSize = getNumber('limit') || 10;
@@ -102,7 +105,7 @@ function DistribuidoresContent() {
 
   // Fetch customers on component mount and filter changes
   const loadCustomers = useCallback(() => {
-    const params = {
+    const params: Record<string, unknown> = {
       page: currentPage,
       limit: pageSize,
       search: searchQuery || undefined,
@@ -112,8 +115,10 @@ function DistribuidoresContent() {
       sortBy,
       sortOrder,
     };
-    dispatch(fetchCustomers(params));
-  }, [dispatch, currentPage, pageSize, searchQuery, filterType, filterStatus, filterCountry, sortBy, sortOrder]);
+    if (filterCedea === 'yes') params.hasCedea = true;
+    if (filterCedea === 'no') params.hasCedea = false;
+    dispatch(fetchCustomers(params as any));
+  }, [dispatch, currentPage, pageSize, searchQuery, filterType, filterStatus, filterCountry, filterCedea, sortBy, sortOrder]);
 
   useEffect(() => {
     loadCustomers();
@@ -149,7 +154,7 @@ function DistribuidoresContent() {
 
   const resetFilters = () => {
     setSearchInput('');
-    setParams({ search: null, type: 'all', status: 'all', country: 'all', sortBy: 'createdAt', sortOrder: 'desc', page: null });
+    setParams({ search: null, type: 'all', status: 'all', country: 'all', cedea: 'all', sortBy: 'createdAt', sortOrder: 'desc', page: null });
   };
 
   const handleDeleteClick = (customer: Customer) => {
@@ -185,7 +190,7 @@ function DistribuidoresContent() {
     distributors: customers.filter((c) => c.customerType === 'distributor').length,
   }), [customers, pagination.total]);
 
-  const hasActiveFilters = Boolean(searchQuery || filterType !== 'all' || filterStatus !== 'all' || filterCountry !== 'all');
+  const hasActiveFilters = Boolean(searchQuery || filterType !== 'all' || filterStatus !== 'all' || filterCountry !== 'all' || filterCedea !== 'all');
 
   // Column definitions
   const columns: DataTableColumn<Customer>[] = [
@@ -214,15 +219,23 @@ function DistribuidoresContent() {
       sortable: true,
       sortValue: (c) => c.customerType,
       render: (customer) => (
-        <span
-          className={`px-3 py-1 rounded-full text-xs font-medium ${
-            customer.customerType === 'distributor'
-              ? 'bg-blue-100 text-blue-800'
-              : 'bg-purple-100 text-purple-800'
-          }`}
-        >
-          {typeLabels[customer.customerType] || customer.customerType}
-        </span>
+        <div className="flex flex-wrap gap-1">
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-medium ${
+              customer.customerType === 'distributor'
+                ? 'bg-blue-100 text-blue-800'
+                : 'bg-purple-100 text-purple-800'
+            }`}
+          >
+            {typeLabels[customer.customerType] || customer.customerType}
+          </span>
+          {(customer.cedeaCount ?? 0) > 0 && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">
+              <ShieldCheckIcon className="h-3 w-3" />
+              CEDEA ({customer.cedeaCount})
+            </span>
+          )}
+        </div>
       ),
     },
     {
@@ -579,6 +592,21 @@ function DistribuidoresContent() {
                   />
                 </div>
 
+                {/* CEDEA Filter */}
+                <div className="lg:col-span-2">
+                  <SearchableSelect
+                    options={[
+                      { value: 'yes', label: 'Con CEDEA' },
+                      { value: 'no', label: 'Sin CEDEA' },
+                    ]}
+                    value={filterCedea}
+                    onChange={(val) => setParams({ cedea: val, page: null })}
+                    allLabel="CEDEA: Todos"
+                    allValue="all"
+                    className="w-full"
+                  />
+                </div>
+
                 {/* Sort */}
                 <div className="lg:col-span-2">
                   <SearchableSelect
@@ -623,6 +651,11 @@ function DistribuidoresContent() {
                   {filterCountry !== 'all' && (
                     <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
                       País: {COUNTRY_OPTIONS.find((c) => c.value === filterCountry)?.label || filterCountry}
+                    </span>
+                  )}
+                  {filterCedea !== 'all' && (
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">
+                      CEDEA: {filterCedea === 'yes' ? 'Con CEDEA' : 'Sin CEDEA'}
                     </span>
                   )}
                 </div>

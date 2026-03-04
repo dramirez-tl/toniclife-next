@@ -85,6 +85,9 @@ export interface Customer {
   createdAt: string;
   updatedAt: string | null;
 
+  // CEDEA
+  cedeaCount?: number;
+
   // Sub-resources (populated on demand)
   addresses?: CustomerAddress[];
   bankAccounts?: CustomerBankAccount[];
@@ -106,6 +109,7 @@ export interface CustomerQueryParams {
   customerType?: string;
   status?: CustomerStatus;
   countryId?: string;
+  hasCedea?: boolean;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
 }

@@ -4,16 +4,14 @@ import { Suspense, useMemo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
+import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import {
   CurrencyDollarIcon,
   MagnifyingGlassIcon,
-  FunnelIcon,
   ArrowDownTrayIcon,
   CheckCircleIcon,
   ClockIcon,
   XCircleIcon,
-  UserIcon,
-  CalendarIcon,
   BanknotesIcon,
   ChartBarIcon,
   CalculatorIcon,
@@ -29,7 +27,7 @@ import {
   useCommissionPercentages,
 } from '@/hooks/useCommissions';
 import { useClosePeriod } from '@/hooks/useMlmPeriods';
-import type { CommissionStatus } from '@/types/commissions';
+import type { Commission, CommissionStatus } from '@/types/commissions';
 import { PermissionGuard } from '@/components/auth';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
@@ -247,13 +245,115 @@ function ComisionesContent() {
     }).format(numAmount);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-MX', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
+  const commissionColumns: DataTableColumn<Commission>[] = [
+    {
+      key: 'customerName',
+      header: 'Distribuidor',
+      sortable: true,
+      sortValue: (c) => c.customerName,
+      render: (c) => (
+        <div>
+          <p className="font-semibold text-gray-900 text-sm">{c.customerName}</p>
+          <p className="text-xs text-gray-400">{c.periodCode}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'commissionType',
+      header: 'Tipo',
+      render: (c) => getTypeBadge(c.commissionType),
+    },
+    {
+      key: 'subtotalEarnings',
+      header: 'Bruto',
+      sortable: true,
+      sortValue: (c) => parseFloat(c.subtotalEarnings),
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (c) => (
+        <span className="text-sm font-medium text-gray-900 tabular-nums">{formatCurrency(c.subtotalEarnings)}</span>
+      ),
+    },
+    {
+      key: 'ivaAmount',
+      header: 'IVA',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (c) => {
+        const val = parseFloat(c.ivaAmount || '0');
+        return val > 0
+          ? <span className="text-sm font-medium text-blue-600 tabular-nums">+{formatCurrency(c.ivaAmount || '0')}</span>
+          : <span className="text-xs text-gray-300">—</span>;
+      },
+    },
+    {
+      key: 'ivaWithholding',
+      header: 'Ret. IVA',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (c) => {
+        const val = parseFloat(c.ivaWithholding || '0');
+        return val > 0
+          ? <span className="text-sm font-medium text-red-500 tabular-nums">-{formatCurrency(c.ivaWithholding || '0')}</span>
+          : <span className="text-xs text-gray-300">—</span>;
+      },
+    },
+    {
+      key: 'isrAmount',
+      header: 'ISR',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (c) => {
+        const val = parseFloat(c.isrAmount || '0');
+        return val > 0
+          ? <span className="text-sm font-medium text-red-500 tabular-nums">-{formatCurrency(c.isrAmount || '0')}</span>
+          : <span className="text-xs text-gray-300">—</span>;
+      },
+    },
+    {
+      key: 'totalAmount',
+      header: 'Neto',
+      sortable: true,
+      sortValue: (c) => parseFloat(c.totalAmount),
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (c) => (
+        <span className="text-sm font-bold text-[#3E667D] tabular-nums">{formatCurrency(c.totalAmount)}</span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      render: (c) => getStatusBadge(c.status),
+    },
+    {
+      key: 'actions',
+      header: '',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (c) => (
+        <div className="flex items-center justify-end gap-1">
+          {c.status === 'calculated' && (
+            <button
+              onClick={() => handleApproveCommission(c.id)}
+              disabled={approveMutation.isPending}
+              className="rounded-lg p-1.5 transition-colors hover:bg-green-50"
+              title="Aprobar pago"
+            >
+              <CheckCircleIcon className="h-4 w-4 text-green-600" />
+            </button>
+          )}
+          <button
+            onClick={() => toast.success('Descargando recibo...')}
+            className="rounded-lg p-1.5 transition-colors hover:bg-gray-100"
+            title="Descargar recibo"
+          >
+            <ArrowDownTrayIcon className="h-4 w-4 text-gray-500" />
+          </button>
+        </div>
+      ),
+    },
+  ];
 
   return (
     <PermissionGuard permissions={['commissions:read', 'commissions:*']}>
@@ -378,7 +478,7 @@ function ComisionesContent() {
                   <p className="text-3xl font-bold text-gray-900">
                     {formatCurrency(parseFloat(summary?.totalRetentions || '0'))}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">IVA + ISR + RESICO</p>
+                  <p className="text-xs text-gray-500 mt-1">Ret. IVA + ISR + RESICO</p>
                 </div>
                 <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
                   <ChartBarIcon className="h-6 w-6 text-purple-600" />
@@ -387,6 +487,49 @@ function ComisionesContent() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Desglose Fiscal */}
+        {summary && (
+          <Card className="mb-8">
+            <CardContent className="p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Desglose Fiscal</h3>
+              <div className="border border-gray-200 rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-3 bg-gray-50 border-b border-gray-200">
+                  <span className="text-sm font-medium text-gray-700">BRUTO</span>
+                  <span className="text-sm font-bold text-gray-900 tabular-nums">{formatCurrency(summary.totalSubtotalMxn)}</span>
+                </div>
+                {parseFloat(summary.totalIva || '0') > 0 && (
+                  <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                    <span className="text-sm text-gray-600">IVA 16%</span>
+                    <span className="text-sm font-semibold text-blue-600 tabular-nums">+ {formatCurrency(summary.totalIva || '0')}</span>
+                  </div>
+                )}
+                {parseFloat(summary.totalIvaWithholding || '0') > 0 && (
+                  <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                    <span className="text-sm text-gray-600">RET IVA 10.6667%</span>
+                    <span className="text-sm font-semibold text-red-500 tabular-nums">- {formatCurrency(summary.totalIvaWithholding || '0')}</span>
+                  </div>
+                )}
+                {parseFloat(summary.totalIsr || '0') > 0 && (
+                  <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                    <span className="text-sm text-gray-600">ISR</span>
+                    <span className="text-sm font-semibold text-red-500 tabular-nums">- {formatCurrency(summary.totalIsr || '0')}</span>
+                  </div>
+                )}
+                {parseFloat(summary.totalResico || '0') > 0 && (
+                  <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                    <span className="text-sm text-gray-600">RESICO</span>
+                    <span className="text-sm font-semibold text-red-500 tabular-nums">- {formatCurrency(summary.totalResico || '0')}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between px-5 py-3 bg-[#3E667D]/5 border-t border-gray-200">
+                  <span className="text-sm font-bold text-[#3E667D]">NETO</span>
+                  <span className="text-sm font-bold text-[#3E667D] tabular-nums">{formatCurrency(summary.totalNetMxn)}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Commission Rates Card */}
         <Card className="mb-6">
@@ -421,27 +564,23 @@ function ComisionesContent() {
           </CardContent>
         </Card>
 
-        {/* Filters and Search */}
-        <Card className="mb-6">
-          <CardContent className="p-6">
-            <div className="flex flex-col lg:flex-row gap-4">
-              {/* Search */}
-              <div className="flex-1">
+        {/* Filters */}
+        <Card className="mb-6 border-gray-100 shadow-sm">
+          <CardContent className="p-4">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:gap-4">
+              <div className="lg:col-span-5">
                 <div className="relative">
                   <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
                     type="text"
                     placeholder="Buscar por nombre, email o ID..."
                     value={searchQuery}
-                    onChange={(e) => setParams({ search: e.target.value })}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                    onChange={(e) => setParams({ search: e.target.value, page: '1' })}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
                   />
                 </div>
               </div>
-
-              {/* Status Filter */}
-              <div className="flex items-center gap-2">
-                <FunnelIcon className="h-5 w-5 text-gray-400" />
+              <div className="lg:col-span-3">
                 <SearchableSelect
                   options={[
                     { value: 'calculated', label: 'Calculadas' },
@@ -450,185 +589,69 @@ function ComisionesContent() {
                     { value: 'cancelled', label: 'Canceladas' },
                   ]}
                   value={filterStatus}
-                  onChange={(val) => setParams({ status: val })}
+                  onChange={(val) => setParams({ status: val, page: '1' })}
                   allLabel="Todos los Estados"
                   allValue="all"
                 />
               </div>
-
-              {/* Period Filter */}
-              <div>
+              <div className="lg:col-span-3">
                 <SearchableSelect
                   options={periods.map((period) => ({
                     value: period.id,
                     label: period.name,
                   }))}
                   value={filterPeriod}
-                  onChange={(val) => setParams({ period: val || null })}
+                  onChange={(val) => setParams({ period: val || null, page: '1' })}
                   allLabel="Todos los Períodos"
                 />
               </div>
-
-              {/* Export Button */}
-              <Button
-                variant="outline"
-                leftIcon={<ArrowDownTrayIcon className="h-5 w-5" />}
-                onClick={handleExport}
-              >
-                Exportar
-              </Button>
+              <div className="lg:col-span-1">
+                <Button
+                  variant="outline"
+                  leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
+                  onClick={handleExport}
+                  className="w-full"
+                  size="sm"
+                >
+                  Exportar
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Commissions List */}
-        {isLoading ? (
-          <Card>
-            <CardContent className="p-12">
-              <div className="text-center">
-                <div className="inline-block w-12 h-12 border-4 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
-                <p className="mt-4 text-gray-600">Cargando comisiones...</p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-4">
-            {commissions.map((commission) => (
-              <Card key={commission.id}>
-                <CardContent className="p-6">
-                  <div className="flex flex-col lg:flex-row lg:items-start gap-6">
-                    {/* Commission Info */}
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-lg font-bold text-gray-900">{commission.id.slice(0, 8)}</h3>
-                            {getStatusBadge(commission.status)}
-                            {getTypeBadge(commission.commissionType)}
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
-                            <UserIcon className="h-4 w-4" />
-                            <span className="font-medium">{commission.customerName}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-                            <CalendarIcon className="h-4 w-4" />
-                            <span className="font-medium">Periodo:</span>
-                            <span>{commission.periodCode}</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold text-[#3E667D]">
-                            {formatCurrency(commission.totalAmount)}
-                          </p>
-                          <p className="text-sm text-gray-600">Neto a Pagar</p>
-                        </div>
-                      </div>
-
-                      {/* Amount Breakdown */}
-                      <div className="grid grid-cols-3 gap-4 bg-gray-50 rounded-lg p-4 mb-4">
-                        <div>
-                          <p className="text-xs text-gray-600 mb-1">Subtotal Ganancias</p>
-                          <p className="text-lg font-bold text-gray-900">{formatCurrency(commission.subtotalEarnings)}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-600 mb-1">Retencion IVA</p>
-                          <p className="text-lg font-bold text-red-600">-{formatCurrency(commission.ivaWithholding || '0')}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-600 mb-1">ISR</p>
-                          <p className="text-lg font-bold text-red-600">-{formatCurrency(commission.isrAmount || '0')}</p>
-                        </div>
-                      </div>
-
-                      {/* Additional Info */}
-                      {commission.status === 'approved' && commission.approvedAt && (
-                        <p className="text-sm text-blue-600">
-                          Aprobada el {formatDate(commission.approvedAt)}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Actions */}
-                    <div className="lg:w-48 flex flex-col gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => toast.info('Función próximamente disponible')}
-                        className="w-full justify-center"
-                      >
-                        Ver Detalles
-                      </Button>
-                      {commission.status === 'calculated' && (
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          leftIcon={<CheckCircleIcon className="h-4 w-4" />}
-                          onClick={() => handleApproveCommission(commission.id)}
-                          disabled={approveMutation.isPending}
-                          className="w-full justify-center"
-                        >
-                          Aprobar Pago
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
-                        onClick={() => toast.success('Descargando recibo de comisión...')}
-                        className="w-full justify-center"
-                      >
-                        Descargar Recibo
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {!isLoading && commissions.length === 0 && (
-          <Card>
-            <CardContent className="p-12">
-              <div className="text-center">
-                <CurrencyDollarIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  No se encontraron comisiones
-                </h3>
-                <p className="text-gray-600">
-                  Intenta ajustar los filtros de búsqueda
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Pagination */}
-        {!isLoading && commissions.length > 0 && totalResults > 0 && (
-          <div className="mt-6 flex items-center justify-between">
-            <p className="text-sm text-gray-600">
-              Mostrando {commissions.length} de {totalResults} comisiones (Página {page} de {totalPages})
-            </p>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setParams({ page: String(Math.max(1, page - 1)) })}
-                disabled={page === 1}
-              >
-                Anterior
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setParams({ page: String(page + 1) })}
-                disabled={page >= totalPages}
-              >
-                Siguiente
-              </Button>
+        {/* Commissions Table */}
+        <Card className="border-gray-100 shadow-sm">
+          <CardContent className="p-6">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-base font-semibold text-gray-900">Listado de Comisiones</h2>
+              <p className="text-sm text-gray-500">{totalResults} resultados</p>
             </div>
-          </div>
-        )}
+            <DataTable
+              columns={commissionColumns}
+              data={commissions}
+              isLoading={isLoading}
+              getRowKey={(c) => c.id}
+              minWidthClassName="min-w-[900px]"
+              emptyState={
+                <div className="py-4 text-center">
+                  <CurrencyDollarIcon className="mx-auto mb-3 h-12 w-12 text-gray-300" />
+                  <p className="text-sm font-medium text-gray-700">No se encontraron comisiones</p>
+                  <p className="text-xs text-gray-500 mt-1">Intenta ajustar los filtros de busqueda</p>
+                </div>
+              }
+            />
+            {commissions.length > 0 && (
+              <DataTablePagination
+                currentPage={page}
+                pageSize={20}
+                totalItems={totalResults}
+                isLoading={isLoading}
+                onPageChange={(p) => setParams({ page: String(p) })}
+              />
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
     </PermissionGuard>

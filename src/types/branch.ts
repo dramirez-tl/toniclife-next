@@ -42,6 +42,51 @@ export interface Branch {
   isActive: boolean;
   createdAt: string;
   updatedAt?: string;
+  isCedea?: boolean;
+  cedeaDistributorName?: string | null;
+  cedeaDistributorNumber?: string | null;
+  cedeaContractNumber?: string | null;
+}
+
+// ================================
+// CEDEA TYPES
+// ================================
+
+export interface CedeaInfo {
+  contractId: string;
+  contractNumber?: string;
+  commissionRate?: number;
+  status?: string;
+  openingDate?: string;
+  distributorId?: string;
+  distributorName?: string;
+  distributorNumber?: string;
+  distributorEmail?: string;
+}
+
+export interface PosUser {
+  id: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  roleCode?: string;
+  isActive: boolean;
+  createdAt?: string;
+}
+
+export interface CreatePosUserDto {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+}
+
+export interface UpdatePosUserDto {
+  email?: string;
+  password?: string;
+  firstName?: string;
+  lastName?: string;
+  isActive?: boolean;
 }
 
 // ================================
@@ -55,6 +100,7 @@ export interface BranchQueryParams {
   isPickupPoint?: boolean;
   isPosEnabled?: boolean;
   isActive?: boolean;
+  isCedea?: boolean;
   page?: number;
   limit?: number;
 }

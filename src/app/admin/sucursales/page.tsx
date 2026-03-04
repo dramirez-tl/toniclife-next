@@ -10,8 +10,12 @@ import {
   useCreateBranch,
   useUpdateBranch,
   useDeleteBranch,
+  useCedeaInfo,
+  usePosUsers,
+  useCreatePosUser,
+  useDeactivatePosUser,
 } from '@/hooks/useBranches';
-import type { Branch, BranchQueryParams, CreateBranchDto, UpdateBranchDto } from '@/types/branch';
+import type { Branch, BranchQueryParams, CreateBranchDto, UpdateBranchDto, PosUser } from '@/types/branch';
 import { useStates } from '@/hooks/useStates';
 import { useBranchTaxRules, useAssignBranchTaxRule, useRemoveBranchTaxRule, useActiveTaxRules } from '@/hooks/useTaxRules';
 import type { BranchTaxRule } from '@/services/tax-rules.service';
@@ -33,6 +37,10 @@ import {
   XMarkIcon,
   GlobeAltIcon,
   ArrowPathIcon,
+  UserGroupIcon,
+  ShieldCheckIcon,
+  EyeIcon,
+  EyeSlashIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { PermissionGuard } from '@/components/auth';
@@ -236,6 +244,8 @@ function SucursalesContent() {
     if (filterType === 'warehouse') params.isWarehouse = true;
     if (filterType === 'pickup') params.isPickupPoint = true;
     if (filterType === 'pos') params.isPosEnabled = true;
+    if (filterType === 'cedea') params.isCedea = true;
+    if (filterType === 'no-cedea') params.isCedea = false;
     if (filterStatus !== 'all') {
       params.isActive = filterStatus === 'active';
     }
@@ -261,6 +271,16 @@ function SucursalesContent() {
   const { data: allActiveTaxRules = [] } = useActiveTaxRules();
   const assignTaxRule = useAssignBranchTaxRule();
   const removeTaxRule = useRemoveBranchTaxRule();
+
+  // CEDEA hooks (only when editing a CEDEA branch)
+  const { data: cedeaInfo } = useCedeaInfo(editingBranch?.isCedea ? editingBranch.id : '');
+  const { data: posUsers = [], refetch: refetchPosUsers } = usePosUsers(editingBranch?.isCedea ? editingBranch.id : '');
+  const createPosUser = useCreatePosUser({ onSuccess: () => refetchPosUsers() });
+  const deactivatePosUser = useDeactivatePosUser({ onSuccess: () => refetchPosUsers() });
+
+  // POS user form state
+  const [showPosUserForm, setShowPosUserForm] = useState(false);
+  const [posUserForm, setPosUserForm] = useState({ email: '', password: '', firstName: '', lastName: '' });
 
   // Computed stats
   const stats = useMemo(() => {
@@ -343,6 +363,8 @@ function SucursalesContent() {
     setIsModalOpen(false);
     setEditingBranch(null);
     setFormData(initialFormState);
+    setShowPosUserForm(false);
+    setPosUserForm({ email: '', password: '', firstName: '', lastName: '' });
   };
 
   const handleFormChange = (field: keyof CreateBranchDto, value: string | boolean | number | undefined) => {
@@ -604,9 +626,22 @@ function SucursalesContent() {
       sortable: true,
       sortValue: (branch) => branch.code,
       render: (branch) => (
-        <span className="inline-flex items-center rounded-md bg-gray-100 px-2.5 py-1 text-sm font-mono font-medium text-gray-800">
-          {branch.code}
-        </span>
+        <div>
+          <span className="inline-flex items-center rounded-md bg-gray-100 px-2.5 py-1 text-sm font-mono font-medium text-gray-800">
+            {branch.code}
+          </span>
+          {branch.isCedea && (
+            <div className="mt-1">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">
+                <ShieldCheckIcon className="h-3 w-3" />
+                CEDEA
+              </span>
+              {branch.cedeaDistributorName && (
+                <p className="text-xs text-gray-500 mt-0.5">{branch.cedeaDistributorName}</p>
+              )}
+            </div>
+          )}
+        </div>
       ),
     },
     {
@@ -864,6 +899,8 @@ function SucursalesContent() {
                     { value: 'warehouse', label: 'Almacenes' },
                     { value: 'pickup', label: 'Puntos de Recogida' },
                     { value: 'pos', label: 'Punto de Venta' },
+                    { value: 'cedea', label: 'Solo CEDEA' },
+                    { value: 'no-cedea', label: 'Sin CEDEA' },
                   ]}
                   value={filterType}
                   onChange={handleFilterType}
@@ -1274,6 +1311,196 @@ function SucursalesContent() {
                 Agregar
               </Button>
             </div>
+          </div>
+        )}
+
+        {/* CEDEA Section (only for CEDEA branches when editing) */}
+        {editingBranch?.isCedea && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3 border-b border-gray-100 pb-2 flex items-center gap-2">
+              <ShieldCheckIcon className="h-4 w-4" />
+              Informacion CEDEA
+            </h3>
+
+            {/* Distributor info */}
+            {cedeaInfo && (
+              <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
+                <div>
+                  <span className="text-gray-500">Distribuidor:</span>
+                  <p className="font-medium text-gray-900">{cedeaInfo.distributorName}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500">No. Distribuidor:</span>
+                  <p className="font-medium text-gray-900">{cedeaInfo.distributorNumber || '-'}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500">Email:</span>
+                  <p className="font-medium text-gray-900">{cedeaInfo.distributorEmail || '-'}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500">No. Contrato:</span>
+                  <p className="font-medium text-gray-900">{cedeaInfo.contractNumber || '-'}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500">Comision:</span>
+                  <p className="font-medium text-gray-900">
+                    {cedeaInfo.commissionRate != null ? `${(cedeaInfo.commissionRate * 100).toFixed(0)}%` : '-'}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-gray-500">Status:</span>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                    cedeaInfo.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                  }`}>
+                    {cedeaInfo.status || '-'}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* POS Users Table */}
+            <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+              <UserGroupIcon className="h-4 w-4" />
+              Usuarios POS ({posUsers.length})
+            </h4>
+
+            {posUsers.length > 0 ? (
+              <div className="border rounded-lg overflow-hidden mb-3">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left px-3 py-2 font-medium text-gray-700">Nombre</th>
+                      <th className="text-left px-3 py-2 font-medium text-gray-700">Email</th>
+                      <th className="text-left px-3 py-2 font-medium text-gray-700">Rol</th>
+                      <th className="text-center px-3 py-2 font-medium text-gray-700">Estado</th>
+                      <th className="text-right px-3 py-2 font-medium text-gray-700"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {posUsers.map((user: PosUser) => (
+                      <tr key={user.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 font-medium text-gray-900">
+                          {user.firstName} {user.lastName}
+                        </td>
+                        <td className="px-3 py-2 text-gray-600">{user.email}</td>
+                        <td className="px-3 py-2">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                            {user.roleCode}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          {user.isActive ? (
+                            <CheckCircleIcon className="h-4 w-4 text-green-500 mx-auto" />
+                          ) : (
+                            <XCircleIcon className="h-4 w-4 text-gray-400 mx-auto" />
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          {user.isActive && (
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`Desactivar usuario ${user.firstName} ${user.lastName}?`)) return;
+                                try {
+                                  await deactivatePosUser.mutateAsync({ branchId: editingBranch.id, userId: user.id });
+                                  toast.success('Usuario POS desactivado');
+                                } catch (err: any) {
+                                  toast.error(err.response?.data?.message || 'Error al desactivar usuario');
+                                }
+                              }}
+                              className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                              title="Desactivar usuario"
+                            >
+                              <XCircleIcon className="h-4 w-4" />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 mb-3 italic">No hay usuarios POS asignados a esta sucursal.</p>
+            )}
+
+            {/* Create POS User Form */}
+            {!showPosUserForm ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPosUserForm(true)}
+              >
+                <PlusIcon className="h-4 w-4 mr-1" />
+                Crear Usuario POS
+              </Button>
+            ) : (
+              <div className="border rounded-lg p-4 bg-gray-50 space-y-3">
+                <h5 className="text-sm font-medium text-gray-700">Nuevo Usuario POS</h5>
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    placeholder="Nombre"
+                    value={posUserForm.firstName}
+                    onChange={(e) => setPosUserForm((p) => ({ ...p, firstName: e.target.value }))}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#3E667D] focus:border-[#3E667D]"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Apellido"
+                    value={posUserForm.lastName}
+                    onChange={(e) => setPosUserForm((p) => ({ ...p, lastName: e.target.value }))}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#3E667D] focus:border-[#3E667D]"
+                  />
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={posUserForm.email}
+                    onChange={(e) => setPosUserForm((p) => ({ ...p, email: e.target.value }))}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#3E667D] focus:border-[#3E667D]"
+                  />
+                  <input
+                    type="password"
+                    placeholder="Contrasena"
+                    value={posUserForm.password}
+                    onChange={(e) => setPosUserForm((p) => ({ ...p, password: e.target.value }))}
+                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#3E667D] focus:border-[#3E667D]"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={async () => {
+                      if (!posUserForm.email || !posUserForm.password || !posUserForm.firstName || !posUserForm.lastName) {
+                        toast.error('Todos los campos son obligatorios');
+                        return;
+                      }
+                      try {
+                        await createPosUser.mutateAsync({ branchId: editingBranch.id, dto: posUserForm });
+                        toast.success('Usuario POS creado correctamente');
+                        setPosUserForm({ email: '', password: '', firstName: '', lastName: '' });
+                        setShowPosUserForm(false);
+                      } catch (err: any) {
+                        toast.error(err.response?.data?.message || 'Error al crear usuario POS');
+                      }
+                    }}
+                    isLoading={createPosUser.isPending}
+                  >
+                    Crear
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setShowPosUserForm(false);
+                      setPosUserForm({ email: '', password: '', firstName: '', lastName: '' });
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
