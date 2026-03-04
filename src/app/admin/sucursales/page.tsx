@@ -12,6 +12,10 @@ import {
   useDeleteBranch,
 } from '@/hooks/useBranches';
 import type { Branch, BranchQueryParams, CreateBranchDto, UpdateBranchDto } from '@/types/branch';
+import { useStates } from '@/hooks/useStates';
+import { useBranchTaxRules, useAssignBranchTaxRule, useRemoveBranchTaxRule, useActiveTaxRules } from '@/hooks/useTaxRules';
+import type { BranchTaxRule } from '@/services/tax-rules.service';
+import { ReceiptPercentIcon } from '@heroicons/react/24/outline';
 import {
   BuildingOffice2Icon,
   MagnifyingGlassIcon,
@@ -170,6 +174,7 @@ const initialFormState: CreateBranchDto = {
   name: '',
   code: '',
   countryId: '',
+  stateId: '',
   addressStreet: '',
   addressCity: '',
   addressState: '',
@@ -245,6 +250,18 @@ function SucursalesContent() {
   const deleteBranch = useDeleteBranch();
   const { data: countries = [] } = useActiveCountries();
 
+  // States for selected country
+  const selectedCountryId = formData.countryId || editingBranch?.countryId || '';
+  const { data: statesForCountry = [] } = useStates(
+    selectedCountryId ? { countryId: selectedCountryId } : undefined
+  );
+
+  // Branch tax rules (only when editing)
+  const { data: branchTaxRules = [] } = useBranchTaxRules(editingBranch?.id || '');
+  const { data: allActiveTaxRules = [] } = useActiveTaxRules();
+  const assignTaxRule = useAssignBranchTaxRule();
+  const removeTaxRule = useRemoveBranchTaxRule();
+
   // Computed stats
   const stats = useMemo(() => {
     if (!branchesData) {
@@ -301,6 +318,7 @@ function SucursalesContent() {
       name: branch.name,
       code: branch.code,
       countryId: branch.countryId || '',
+      stateId: branch.stateId || '',
       addressStreet: branch.addressStreet || '',
       addressCity: branch.addressCity || '',
       addressState: branch.addressState || '',
@@ -336,6 +354,7 @@ function SucursalesContent() {
     setFormData((prev) => ({
       ...prev,
       countryId: countryId || '',
+      stateId: '',
       currencyCode: country?.currencyCode || '',
     }));
   };
@@ -1097,6 +1116,20 @@ function SucursalesContent() {
               ))}
             </select>
           </FormField>
+          {statesForCountry.length > 0 && (
+            <FormField label="Estado / Region">
+              <select
+                value={formData.stateId || ''}
+                onChange={(e) => handleFormChange('stateId', e.target.value || undefined)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
+              >
+                <option value="">Seleccionar estado...</option>
+                {statesForCountry.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name} ({s.code})</option>
+                ))}
+              </select>
+            </FormField>
+          )}
           <FormField label="Moneda">
             <input
               type="text"
@@ -1139,6 +1172,110 @@ function SucursalesContent() {
             />
           </FormField>
         </FormSection>
+
+        {/* Branch Tax Rules (only when editing) */}
+        {editingBranch && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3 border-b border-gray-100 pb-2 flex items-center gap-2">
+              <ReceiptPercentIcon className="h-4 w-4" />
+              Reglas Fiscales de la Sucursal
+            </h3>
+            {branchTaxRules.length > 0 ? (
+              <div className="border rounded-lg overflow-hidden mb-3">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left px-3 py-2 font-medium text-gray-700">Regla</th>
+                      <th className="text-left px-3 py-2 font-medium text-gray-700">Tipo</th>
+                      <th className="text-right px-3 py-2 font-medium text-gray-700">Tasa</th>
+                      <th className="text-center px-3 py-2 font-medium text-gray-700">Incluido</th>
+                      <th className="text-right px-3 py-2 font-medium text-gray-700"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {branchTaxRules.map((btr: BranchTaxRule) => (
+                      <tr key={btr.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-2">
+                          <span className="font-medium text-gray-900">{btr.name}</span>
+                          <span className="ml-2 text-xs text-gray-500 font-mono">{btr.code}</span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                            {btr.taxType}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-right font-medium">{btr.rate}%</td>
+                        <td className="px-3 py-2 text-center">
+                          {btr.isIncludedInPrice ? (
+                            <CheckCircleIcon className="h-4 w-4 text-green-500 mx-auto" />
+                          ) : (
+                            <XCircleIcon className="h-4 w-4 text-gray-400 mx-auto" />
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <button
+                            onClick={async () => {
+                              try {
+                                await removeTaxRule.mutateAsync({ branchId: editingBranch.id, taxRuleId: btr.taxRuleId });
+                                toast.success('Regla fiscal removida');
+                              } catch (err: any) {
+                                toast.error(err.response?.data?.message || 'Error al remover regla');
+                              }
+                            }}
+                            className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                            title="Quitar regla"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 mb-3 italic">No hay reglas fiscales asignadas a esta sucursal.</p>
+            )}
+            {/* Add tax rule */}
+            <div className="flex items-center gap-2">
+              <select
+                id="add-tax-rule-select"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#3E667D] focus:border-[#3E667D]"
+                defaultValue=""
+              >
+                <option value="" disabled>Seleccionar regla fiscal...</option>
+                {allActiveTaxRules
+                  .filter((tr) => !branchTaxRules.some((btr: BranchTaxRule) => btr.taxRuleId === tr.id))
+                  .map((tr) => (
+                    <option key={tr.id} value={tr.id}>{tr.name} ({tr.code}) - {tr.rate}%</option>
+                  ))}
+              </select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  const select = document.getElementById('add-tax-rule-select') as HTMLSelectElement;
+                  const taxRuleId = select?.value;
+                  if (!taxRuleId) {
+                    toast.error('Selecciona una regla fiscal');
+                    return;
+                  }
+                  try {
+                    await assignTaxRule.mutateAsync({ branchId: editingBranch.id, taxRuleId });
+                    toast.success('Regla fiscal asignada');
+                    select.value = '';
+                  } catch (err: any) {
+                    toast.error(err.response?.data?.message || 'Error al asignar regla');
+                  }
+                }}
+                disabled={assignTaxRule.isPending}
+              >
+                <PlusIcon className="h-4 w-4 mr-1" />
+                Agregar
+              </Button>
+            </div>
+          </div>
+        )}
 
         {/* Ticket */}
         <FormSection title="Configuracion de Ticket">

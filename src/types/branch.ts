@@ -12,6 +12,9 @@ export interface Branch {
   parentBranchId?: string;
   countryId?: string;
   countryName?: string;
+  stateId?: string;
+  stateCode?: string;
+  stateName?: string;
   currencyCode?: string;
   roundingMode?: string;
   addressStreet?: string;
@@ -77,6 +80,7 @@ export interface CreateBranchDto {
   name: string;
   parentBranchId?: string;
   countryId?: string;
+  stateId?: string;
   currencyCode?: string;
   roundingMode?: string;
   addressStreet?: string;
@@ -109,6 +113,7 @@ export interface UpdateBranchDto {
   name?: string;
   parentBranchId?: string;
   countryId?: string;
+  stateId?: string;
   currencyCode?: string;
   roundingMode?: string;
   addressStreet?: string;

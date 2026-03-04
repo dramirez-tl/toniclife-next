@@ -9,9 +9,10 @@ interface PosCartProps {
   onCheckout?: () => void;
   disabled?: boolean;
   currencySymbol?: string;
+  currencyCode?: string;
 }
 
-export function PosCart({ onCheckout, disabled, currencySymbol = '$' }: PosCartProps) {
+export function PosCart({ onCheckout, disabled, currencySymbol = '$', currencyCode }: PosCartProps) {
   const { cart, updateItemQuantity, removeItem, clearCart } = usePosCartStore();
 
   const hasItems = cart.items.length > 0;
@@ -19,16 +20,18 @@ export function PosCart({ onCheckout, disabled, currencySymbol = '$' }: PosCartP
   const fmt = (amount: number) =>
     `${currencySymbol}${amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  // Build dynamic tax label from item rates
+  // Build dynamic tax label from item rates and currency
+  const isUS = currencyCode === 'USD';
   const taxLabel = (() => {
-    if (!hasItems) return 'Impuestos';
+    if (!hasItems) return isUS ? 'Sales Tax' : 'Impuestos';
     const rates = new Set(cart.items.map((i) => i.taxRate));
     if (rates.size === 1) {
       const rate = rates.values().next().value!;
       const pct = Math.round(rate * 100);
-      return `IVA (${pct}%)`;
+      const taxName = isUS ? 'Sales Tax' : 'IVA';
+      return `${taxName} (${pct}%)`;
     }
-    return 'Impuestos';
+    return isUS ? 'Sales Tax' : 'Impuestos';
   })();
 
   return (

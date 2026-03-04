@@ -761,7 +761,7 @@ export function ProductPricesSection({
                                   >
                                     <span>{rule.name}</span>
                                     <span className="text-xs text-gray-400">
-                                      {Number(rule.rate) * 100}%
+                                      {Number(rule.rate).toFixed(2)}%
                                     </span>
                                   </button>
                                 ))}
@@ -780,8 +780,9 @@ export function ProductPricesSection({
                       ) : (
                         <div className="space-y-2">
                           {assignedTaxes.map((tax) => {
-                            const rate = Number(tax.rate);
-                            const pct = Math.round(rate * 100);
+                            const ratePct = Number(tax.rate);
+                            const rate = ratePct / 100;
+                            const pct = ratePct.toFixed(2);
                             const taxLabel = `${tax.taxType.toUpperCase()} ${pct}%`;
 
                             return (

@@ -278,8 +278,8 @@ class ConfigService {
   /**
    * Get all tax rules (admin)
    */
-  async getTaxRules(): Promise<TaxRule[]> {
-    const response = await api.get<TaxRule[]>('/config/tax-rules');
+  async getTaxRules(params?: { countryCode?: string; taxType?: string; isActive?: boolean }): Promise<TaxRule[]> {
+    const response = await api.get<TaxRule[]>('/config/tax-rules', { params });
     return response.data;
   }
 
@@ -305,6 +305,10 @@ class ConfigService {
   async updateTaxRule(id: string, dto: UpdateTaxRuleDto): Promise<TaxRule> {
     const response = await api.patch<TaxRule>(`/config/tax-rules/${id}`, dto);
     return response.data;
+  }
+
+  async deleteTaxRule(id: string): Promise<void> {
+    await api.delete(`/config/tax-rules/${id}`);
   }
 
   // ================================

@@ -384,6 +384,11 @@ export default function PosPage() {
                 onSessionChange={() => {
                   refetchSession();
                   refetchSales();
+                  // Clear cart and remove selected distributor when session closes
+                  const store = usePosCartStore.getState();
+                  store.clearCart();
+                  store.setCustomer(undefined, undefined, undefined, undefined);
+                  store.setPublicPrice(false);
                 }}
               />
             </div>
@@ -489,6 +494,7 @@ export default function PosPage() {
               onCheckout={handleCheckout}
               disabled={!hasActiveSession}
               currencySymbol={currencySymbol}
+              currencyCode={currencyCode}
             />
           </aside>
         </div>

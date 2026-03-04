@@ -28,6 +28,7 @@ import {
   BellIcon,
   XMarkIcon,
   RocketLaunchIcon,
+  ReceiptPercentIcon,
 } from '@heroicons/react/24/outline';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutAsync, selectUser, selectUserPermissions } from '@/store/slices/authSlice';
@@ -138,6 +139,7 @@ const navigation: NavItem[] = [
       { name: 'Roles y Permisos', href: '/admin/seguridad/roles' },
     ],
   },
+  { name: 'Reglas Fiscales', href: '/admin/reglas-fiscales', icon: ReceiptPercentIcon, permissions: ['config', 'config.catalogs'] },
   {
     name: 'Configuración',
     href: '/admin/configuracion',
