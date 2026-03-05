@@ -43,11 +43,13 @@ function InventarioContent() {
 
   const selectedBranch = get('branch');
   const searchQuery = get('search');
+  const skuQuery = get('sku');
   const filterStock = get('stock') as 'all' | 'low' | 'out';
   const currentPage = getNumber('page') || 1;
   const pageSize = getNumber('limit') || 20;
 
   const [searchInput, setSearchInput] = useState(searchQuery);
+  const [skuInput, setSkuInput] = useState(skuQuery || '');
 
   // Fetch branches for the selector
   const { data: branches, isLoading: branchesLoading } = useActiveBranches();
@@ -61,11 +63,12 @@ function InventarioContent() {
 
   const query: BranchStockQueryDto = useMemo(() => ({
     search: searchQuery || undefined,
+    code: skuQuery || undefined,
     lowStock: filterStock === 'low' || undefined,
     outOfStock: filterStock === 'out' || undefined,
     page: currentPage,
     limit: pageSize,
-  }), [searchQuery, filterStock, currentPage, pageSize]);
+  }), [searchQuery, skuQuery, filterStock, currentPage, pageSize]);
 
   const { data: stockData, isLoading, isFetching, error, refetch } = useBranchStock(selectedBranch, query);
 
@@ -75,7 +78,15 @@ function InventarioContent() {
 
   // Handlers
   const handleSearch = () => {
-    setParams({ search: searchInput.trim() });
+    setSkuInput('');
+    setParams({ search: searchInput.trim(), sku: null, page: '1' });
+  };
+
+  const handleSkuSearch = () => {
+    const code = skuInput.trim();
+    if (!code) return;
+    setSearchInput('');
+    setParams({ sku: code, search: null, page: '1' });
   };
 
   const handleFilterChange = (value: string) => {
@@ -92,10 +103,11 @@ function InventarioContent() {
 
   const resetFilters = () => {
     setSearchInput('');
-    setParams({ search: null, stock: 'all', page: null });
+    setSkuInput('');
+    setParams({ search: null, sku: null, stock: 'all', page: null });
   };
 
-  const hasActiveFilters = Boolean(searchQuery || filterStock !== 'all');
+  const hasActiveFilters = Boolean(searchQuery || skuQuery || filterStock !== 'all');
 
   useEffect(() => {
     if (backendTotalPages && currentPage > backendTotalPages) {
@@ -116,6 +128,7 @@ function InventarioContent() {
     try {
       const baseQuery = {
         search: searchQuery || undefined,
+        code: skuQuery || undefined,
         lowStock: filterStock === 'low' || undefined,
         outOfStock: filterStock === 'out' || undefined,
       };
@@ -192,7 +205,7 @@ function InventarioContent() {
     } finally {
       setIsExporting(false);
     }
-  }, [selectedBranch, searchQuery, filterStock]);
+  }, [selectedBranch, searchQuery, skuQuery, filterStock]);
 
   // Stats from current page data
   const stats = useMemo(() => ({
@@ -531,14 +544,15 @@ function InventarioContent() {
                 </div>
               </div>
               <div className="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:gap-4">
-                {/* Search */}
-                <div className="lg:col-span-8">
+                {/* Search by name */}
+                <div className="lg:col-span-5">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Buscar por nombre</label>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <div className="relative flex-1">
                       <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                       <input
                         type="text"
-                        placeholder="Buscar por nombre o SKU..."
+                        placeholder="Nombre del producto..."
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
                         onKeyDown={(e) => {
@@ -553,7 +567,7 @@ function InventarioContent() {
                     <Button
                       variant="primary"
                       size="sm"
-                      className="h-10 px-4 sm:min-w-[96px]"
+                      className="h-10 px-4 sm:min-w-[80px]"
                       onClick={handleSearch}
                     >
                       Buscar
@@ -561,8 +575,40 @@ function InventarioContent() {
                   </div>
                 </div>
 
-                {/* Stock Filter */}
+                {/* SKU exact search */}
                 <div className="lg:col-span-4">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">SKU exacto</label>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">#</span>
+                      <input
+                        type="text"
+                        placeholder="Ej: 9019"
+                        value={skuInput}
+                        onChange={(e) => setSkuInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleSkuSearch();
+                          }
+                        }}
+                        className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent font-mono"
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-10 px-4 sm:min-w-[80px]"
+                      onClick={handleSkuSearch}
+                    >
+                      SKU
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Stock Filter */}
+                <div className="lg:col-span-3">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Existencias</label>
                   <SearchableSelect
                     options={[
                       { value: 'low', label: 'Existencias Bajas' },
@@ -583,6 +629,11 @@ function InventarioContent() {
                   {searchQuery && (
                     <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
                       Búsqueda: {searchQuery}
+                    </span>
+                  )}
+                  {skuQuery && (
+                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700 font-mono">
+                      SKU: {skuQuery}
                     </span>
                   )}
                   {filterStock !== 'all' && (

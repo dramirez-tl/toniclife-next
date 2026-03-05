@@ -58,6 +58,8 @@ const navigation: NavItem[] = [
     permissions: ['inventory', 'inventory.stock'],
     children: [
       { name: 'Existencias General', href: '/admin/inventario' },
+      { name: 'Entradas', href: '/admin/inventario/entradas' },
+      { name: 'Salidas', href: '/admin/inventario/salidas' },
       { name: 'Traspasos', href: '/admin/inventario/traspasos' },
       { name: 'Ajustes', href: '/admin/inventario/ajustes' },
     ],

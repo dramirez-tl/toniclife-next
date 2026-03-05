@@ -31,6 +31,10 @@ import type {
   RejectAdjustmentDto,
   ApplyAdjustmentDto,
   UpdateStockSettingsDto,
+  MovementDto,
+  MovementListResponseDto,
+  MovementQueryDto,
+  CreateMovementDto,
 } from '@/types/inventory';
 
 class InventoryService {
@@ -45,6 +49,7 @@ class InventoryService {
     const params = new URLSearchParams();
 
     if (query.search) params.append('search', query.search);
+    if (query.code) params.append('code', query.code);
     if (query.categoryId) params.append('categoryId', query.categoryId);
     if (query.lowStock !== undefined) params.append('lowStock', String(query.lowStock));
     if (query.outOfStock !== undefined) params.append('outOfStock', String(query.outOfStock));
@@ -244,6 +249,74 @@ class InventoryService {
       `/inventory/transfers/${id}/apply`
     );
     return response.data;
+  }
+
+  // ================================
+  // MOVEMENT METHODS (Entradas/Salidas)
+  // ================================
+
+  async createMovement(data: CreateMovementDto): Promise<MovementDto> {
+    const response = await api.post<MovementDto>('/inventory/movements', data);
+    return response.data;
+  }
+
+  async getMovements(query: MovementQueryDto = {}): Promise<MovementListResponseDto> {
+    const params = new URLSearchParams();
+
+    if (query.branchId) params.append('branchId', query.branchId);
+    if (query.movementType) params.append('movementType', query.movementType);
+    if (query.movementCategory) params.append('movementCategory', query.movementCategory);
+    if (query.status) params.append('status', query.status);
+    if (query.search) params.append('search', query.search);
+    if (query.fromDate) params.append('fromDate', query.fromDate);
+    if (query.toDate) params.append('toDate', query.toDate);
+    if (query.page) params.append('page', String(query.page));
+    if (query.limit) params.append('limit', String(query.limit));
+
+    const response = await api.get<MovementListResponseDto>(
+      `/inventory/movements?${params.toString()}`
+    );
+    return response.data;
+  }
+
+  async getMovement(id: string): Promise<MovementDto> {
+    const response = await api.get<MovementDto>(`/inventory/movements/${id}`);
+    return response.data;
+  }
+
+  async approveMovement(id: string, notes?: string): Promise<MovementDto> {
+    const response = await api.patch<MovementDto>(
+      `/inventory/movements/${id}/approve`,
+      notes ? { notes } : {}
+    );
+    return response.data;
+  }
+
+  async rejectMovement(id: string, reason: string): Promise<MovementDto> {
+    const response = await api.patch<MovementDto>(
+      `/inventory/movements/${id}/reject`,
+      { reason }
+    );
+    return response.data;
+  }
+
+  getMovementReasonLabel(reason: string): string {
+    const labels: Record<string, string> = {
+      purchase: 'Compra a proveedor',
+      return_from_customer: 'Devolución de cliente',
+      transfer_in: 'Recepción de traspaso',
+      initial_stock: 'Stock inicial',
+      production: 'Producción',
+      found: 'Producto encontrado',
+      sale: 'Venta',
+      return_to_supplier: 'Devolución a proveedor',
+      transfer_out: 'Envío de traspaso',
+      loss: 'Pérdida',
+      expiration: 'Caducidad',
+      damage: 'Daño/Merma',
+      adjustment: 'Ajuste',
+    };
+    return labels[reason] || reason;
   }
 
   // ================================

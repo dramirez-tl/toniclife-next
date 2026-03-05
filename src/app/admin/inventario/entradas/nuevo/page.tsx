@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeftIcon,
-  ArrowsRightLeftIcon,
-  ArrowLongRightIcon,
+  ArrowDownTrayIcon,
   PlusIcon,
   TrashIcon,
   MagnifyingGlassIcon,
@@ -18,39 +17,54 @@ import {
   XMarkIcon,
   InformationCircleIcon,
   CheckCircleIcon,
-  ArrowDownTrayIcon,
+  ArrowDownIcon,
   QueueListIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import { useCreateTransfer, useBranchStock } from '@/hooks/useInventory';
+import { useCreateMovement, useBranchStock } from '@/hooks/useInventory';
 import api from '@/lib/axios';
 import { useActiveBranches } from '@/hooks/useBranches';
-import type { CreateTransferDto, TransferDto } from '@/types/inventory';
-import { generateTransferTicketPdf } from '@/lib/generate-transfer-ticket';
+import {
+  MovementType,
+  MovementReason,
+  type CreateMovementDto,
+  type MovementDto,
+} from '@/types/inventory';
+import { generateMovementTicketPdf } from '@/lib/generate-movement-ticket';
 
-interface TransferItem {
+// ================================================================
+// ENTRY REASONS
+// ================================================================
+const ENTRY_REASONS = [
+  { value: MovementReason.PURCHASE, label: 'Compra a proveedor' },
+  { value: MovementReason.RETURN_FROM_CUSTOMER, label: 'Devolución de cliente' },
+  { value: MovementReason.INITIAL_STOCK, label: 'Stock inicial' },
+  { value: MovementReason.PRODUCTION, label: 'Producción' },
+  { value: MovementReason.FOUND, label: 'Producto encontrado' },
+];
+
+interface EntryItem {
   productId: string;
   productCode: string;
   productName: string;
   quantity: number;
-  lotId?: string;
   currentStock: number;
 }
 
-export default function NuevoTraspasoPage() {
+export default function NuevaEntradaPage() {
   const router = useRouter();
-  const createTransfer = useCreateTransfer();
+  const createMovement = useCreateMovement();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const skuInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
-    fromBranchId: '',
-    toBranchId: '',
-    reason: '',
+    branchId: '',
+    reason: '' as MovementReason | '',
     notes: '',
+    referenceNumber: '',
   });
-  const [items, setItems] = useState<TransferItem[]>([]);
+  const [items, setItems] = useState<EntryItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [skuCode, setSkuCode] = useState('');
   const [skuSearching, setSkuSearching] = useState(false);
@@ -59,22 +73,16 @@ export default function NuevoTraspasoPage() {
   const [bulkText, setBulkText] = useState('');
   const [bulkProcessing, setBulkProcessing] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [createdTransfer, setCreatedTransfer] = useState<TransferDto | null>(null);
+  const [createdMovement, setCreatedMovement] = useState<MovementDto | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
-  // Fetch branches from API
   const { data: branches } = useActiveBranches();
 
-  // Fetch products from source branch stock
   const { data: branchStockData, isLoading: isLoadingStock } = useBranchStock(
-    formData.fromBranchId,
-    {
-      search: searchTerm || undefined,
-      limit: 20,
-    }
+    formData.branchId,
+    { search: searchTerm || undefined, limit: 20 }
   );
 
-  // Transform stock data
   const filteredProducts = useMemo(() => {
     if (!branchStockData?.data) return [];
     return branchStockData.data.map((stock) => ({
@@ -85,7 +93,6 @@ export default function NuevoTraspasoPage() {
     }));
   }, [branchStockData]);
 
-  // Auto-focus search input when modal opens
   useEffect(() => {
     if (showProductSearch && searchInputRef.current) {
       searchInputRef.current.focus();
@@ -96,45 +103,40 @@ export default function NuevoTraspasoPage() {
     const parts = skuCode.split(',');
     const sku = parts[0].trim();
     const qty = parts.length > 1 ? parseInt(parts[1].trim(), 10) : undefined;
+    const quantity = qty && !isNaN(qty) && qty >= 1 ? qty : undefined;
 
     if (!sku) return;
     setSkuSearching(true);
     try {
       const response = await api.get(`/products/code/${sku}`, {
-        params: { branchId: formData.fromBranchId },
+        params: { branchId: formData.branchId },
       });
       const p = response.data;
       if (!p || !p.id) {
         toast.error(`Producto no encontrado: ${sku}`);
         return;
       }
-      const stock = p.stock ?? 0;
-      if (stock <= 0) {
-        toast.error(`${p.name} no tiene existencias en esta sucursal`);
-        return;
-      }
       if (items.some((item) => item.productId === p.id)) {
-        if (qty && !isNaN(qty) && qty >= 1) {
-          handleQuantityChange(p.id, Math.min(qty, stock));
-          toast.success(`Cantidad actualizada: ${p.name} → ${Math.min(qty, stock)}`);
+        if (quantity) {
+          handleQuantityChange(p.id, quantity);
+          toast.success(`Cantidad actualizada: ${p.name} → ${quantity}`);
         } else {
           toast.info(`${p.name} ya está en la lista`);
         }
         setSkuCode('');
         return;
       }
-      const quantity = qty && !isNaN(qty) && qty >= 1 ? Math.min(qty, stock) : 1;
       setItems([
         ...items,
         {
           productId: p.id,
           productCode: p.code || sku,
           productName: p.name,
-          quantity,
-          currentStock: stock,
+          quantity: quantity || 1,
+          currentStock: p.stock ?? 0,
         },
       ]);
-      toast.success(`${p.name}${quantity > 1 ? ` x${quantity}` : ''} agregado`);
+      toast.success(`${p.name}${quantity ? ` x${quantity}` : ''} agregado`);
       setSkuCode('');
     } catch {
       toast.error(`Producto no encontrado: ${sku}`);
@@ -166,7 +168,7 @@ export default function NuevoTraspasoPage() {
     const results = await Promise.allSettled(
       bulkLines.map(async ({ sku, quantity }) => {
         const response = await api.get(`/products/code/${sku}`, {
-          params: { branchId: formData.fromBranchId },
+          params: { branchId: formData.branchId },
         });
         const p = response.data;
         if (!p || !p.id) throw new Error(sku);
@@ -176,8 +178,6 @@ export default function NuevoTraspasoPage() {
 
     let added = 0;
     const notFound: string[] = [];
-    const outOfStock: string[] = [];
-    const adjusted: string[] = [];
     const newItems = [...items];
 
     for (const result of results) {
@@ -186,25 +186,16 @@ export default function NuevoTraspasoPage() {
         continue;
       }
       const { product: p, quantity } = result.value;
-      const stock = p.stock ?? 0;
-      if (stock <= 0) {
-        outOfStock.push(p.code || result.value.sku);
-        continue;
-      }
       const existing = newItems.find((item) => item.productId === p.id);
-      const effectiveQty = Math.min(quantity, stock);
-      if (effectiveQty < quantity) {
-        adjusted.push(`${p.code}: ${effectiveQty} de ${quantity} (stock: ${stock})`);
-      }
       if (existing) {
-        existing.quantity = effectiveQty;
+        existing.quantity = quantity;
       } else {
         newItems.push({
           productId: p.id,
           productCode: p.code || result.value.sku,
           productName: p.name,
-          quantity: effectiveQty,
-          currentStock: stock,
+          quantity,
+          currentStock: p.stock ?? 0,
         });
         added++;
       }
@@ -218,30 +209,17 @@ export default function NuevoTraspasoPage() {
     if (notFound.length > 0) {
       toast.error(`SKU no encontrados: ${notFound.join(', ')}`);
     }
-    if (outOfStock.length > 0) {
-      toast.error(`Sin existencias: ${outOfStock.join(', ')}`);
-    }
-    if (adjusted.length > 0) {
-      toast.warning(`Cantidad ajustada por stock: ${adjusted.join(', ')}`);
-    }
 
     setBulkProcessing(false);
     setBulkText('');
     setBulkMode(false);
-  }, [bulkLines, formData.fromBranchId, items]);
+  }, [bulkLines, formData.branchId, items]);
 
-  // Resolve branch names
-  const sourceBranch = branches?.find((b) => b.id === formData.fromBranchId);
-  const destBranch = branches?.find((b) => b.id === formData.toBranchId);
+  const selectedBranch = branches?.find((b) => b.id === formData.branchId);
+  const selectedReasonLabel = ENTRY_REASONS.find((r) => r.value === formData.reason)?.label || '';
 
-  const handleAddProduct = (product: {
-    id: string;
-    code: string;
-    name: string;
-    currentStock: number;
-  }) => {
+  const handleAddProduct = (product: { id: string; code: string; name: string; currentStock: number }) => {
     if (items.some((item) => item.productId === product.id)) return;
-
     setItems([
       ...items,
       {
@@ -264,7 +242,7 @@ export default function NuevoTraspasoPage() {
     setItems(
       items.map((item) =>
         item.productId === productId
-          ? { ...item, quantity: Math.max(1, Math.min(quantity, item.currentStock)) }
+          ? { ...item, quantity: Math.max(1, quantity) }
           : item
       )
     );
@@ -272,29 +250,9 @@ export default function NuevoTraspasoPage() {
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-
-    if (!formData.fromBranchId) {
-      newErrors.fromBranchId = 'Selecciona la sucursal origen';
-    }
-    if (!formData.toBranchId) {
-      newErrors.toBranchId = 'Selecciona la sucursal destino';
-    }
-    if (formData.fromBranchId === formData.toBranchId && formData.fromBranchId) {
-      newErrors.toBranchId = 'La sucursal destino debe ser diferente a la origen';
-    }
-    if (!formData.reason.trim()) {
-      newErrors.reason = 'Ingresa el motivo del traspaso';
-    }
-    if (items.length === 0) {
-      newErrors.items = 'Agrega al menos un producto';
-    }
-
-    items.forEach((item) => {
-      if (item.quantity > item.currentStock) {
-        newErrors[`quantity-${item.productId}`] = 'Excede stock';
-      }
-    });
-
+    if (!formData.branchId) newErrors.branchId = 'Selecciona la sucursal';
+    if (!formData.reason) newErrors.reason = 'Selecciona el motivo de la entrada';
+    if (items.length === 0) newErrors.items = 'Agrega al menos un producto';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -303,24 +261,24 @@ export default function NuevoTraspasoPage() {
     e.preventDefault();
     if (!validateForm()) return;
 
-    const transferData: CreateTransferDto = {
-      sourceBranchId: formData.fromBranchId,
-      destinationBranchId: formData.toBranchId,
-      reason: formData.reason.trim(),
+    const movementData: CreateMovementDto = {
+      branchId: formData.branchId,
+      movementType: MovementType.ENTRY,
+      reason: formData.reason as MovementReason,
       notes: formData.notes || undefined,
+      referenceNumber: formData.referenceNumber || undefined,
       items: items.map((item) => ({
         productId: item.productId,
         quantity: item.quantity,
-        lotId: item.lotId,
       })),
     };
 
     try {
-      const result = await createTransfer.mutateAsync(transferData);
-      toast.success('Traspaso creado correctamente');
-      setCreatedTransfer(result);
+      const result = await createMovement.mutateAsync(movementData);
+      toast.success('Entrada creada correctamente');
+      setCreatedMovement(result);
     } catch (error: any) {
-      toast.error(error?.response?.data?.message || 'Error al crear el traspaso');
+      toast.error(error?.response?.data?.message || 'Error al crear la entrada');
     }
   };
 
@@ -335,40 +293,40 @@ export default function NuevoTraspasoPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Link
-                href="/admin/inventario/traspasos"
+                href="/admin/inventario/entradas"
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
               </Link>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Nuevo Traspaso</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Nueva Entrada</h1>
                 <p className="text-gray-500 text-sm mt-0.5">
-                  Crear solicitud de traspaso entre sucursales
+                  Registrar entrada de producto al inventario
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <Link
-                href="/admin/inventario/traspasos"
+                href="/admin/inventario/entradas"
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
               >
                 Cancelar
               </Link>
               <button
                 type="submit"
-                form="transfer-form"
-                disabled={createTransfer.isPending || items.length === 0}
-                className="px-5 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#2f5165] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
+                form="entry-form"
+                disabled={createMovement.isPending || items.length === 0}
+                className="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2"
               >
-                {createTransfer.isPending ? (
+                {createMovement.isPending ? (
                   <>
                     <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     Creando...
                   </>
                 ) : (
                   <>
-                    <ArrowsRightLeftIcon className="h-4 w-4" />
-                    Crear Traspaso
+                    <ArrowDownIcon className="h-4 w-4" />
+                    Crear Entrada
                   </>
                 )}
               </button>
@@ -379,92 +337,44 @@ export default function NuevoTraspasoPage() {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <form id="transfer-form" onSubmit={handleSubmit}>
+        <form id="entry-form" onSubmit={handleSubmit}>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column — Main form */}
+            {/* Left Column */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Branch Selection — Visual Flow */}
+              {/* Branch Selection */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h2 className="text-base font-semibold text-gray-900 mb-5 flex items-center gap-2">
-                  <BuildingStorefrontIcon className="h-5 w-5 text-[#3E667D]" />
-                  Sucursales
+                  <BuildingStorefrontIcon className="h-5 w-5 text-green-600" />
+                  Sucursal
                 </h2>
-
-                <div className="flex flex-col md:flex-row items-stretch gap-4">
-                  {/* Origin */}
-                  <div className="flex-1">
-                    <div
-                      className={`rounded-lg border-2 p-4 transition-colors ${
-                        formData.fromBranchId
-                          ? 'border-[#3E667D]/30 bg-[#C8DDF2]/10'
-                          : errors.fromBranchId
-                            ? 'border-red-300 bg-red-50/30'
-                            : 'border-gray-200'
-                      }`}
-                    >
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                        Origen
-                      </p>
-                      <SearchableSelect
-                        options={(branches ?? []).map((branch) => ({
-                          value: branch.id,
-                          label: branch.name,
-                        }))}
-                        value={formData.fromBranchId}
-                        onChange={(val) => {
-                          setFormData({ ...formData, fromBranchId: val, toBranchId: formData.toBranchId === val ? '' : formData.toBranchId });
-                          setItems([]);
-                        }}
-                        showAllOption={false}
-                        placeholder="Seleccionar sucursal..."
-                      />
-                      {errors.fromBranchId && (
-                        <p className="mt-1.5 text-xs text-red-500">{errors.fromBranchId}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Arrow */}
-                  <div className="flex items-center justify-center md:pt-5">
-                    <div className="hidden md:flex w-12 h-12 rounded-full bg-[#3E667D]/10 items-center justify-center">
-                      <ArrowLongRightIcon className="h-5 w-5 text-[#3E667D]" />
-                    </div>
-                    <div className="md:hidden flex items-center justify-center py-1">
-                      <ArrowLongRightIcon className="h-5 w-5 text-[#3E667D] rotate-90" />
-                    </div>
-                  </div>
-
-                  {/* Destination */}
-                  <div className="flex-1">
-                    <div
-                      className={`rounded-lg border-2 p-4 transition-colors ${
-                        formData.toBranchId
-                          ? 'border-green-200 bg-green-50/30'
-                          : errors.toBranchId
-                            ? 'border-red-300 bg-red-50/30'
-                            : 'border-gray-200'
-                      }`}
-                    >
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                        Destino
-                      </p>
-                      <SearchableSelect
-                        options={(branches ?? [])
-                          .filter((b) => b.id !== formData.fromBranchId)
-                          .map((branch) => ({
-                            value: branch.id,
-                            label: branch.name,
-                          }))}
-                        value={formData.toBranchId}
-                        onChange={(val) => setFormData({ ...formData, toBranchId: val })}
-                        showAllOption={false}
-                        placeholder="Seleccionar sucursal..."
-                      />
-                      {errors.toBranchId && (
-                        <p className="mt-1.5 text-xs text-red-500">{errors.toBranchId}</p>
-                      )}
-                    </div>
-                  </div>
+                <div
+                  className={`rounded-lg border-2 p-4 transition-colors ${
+                    formData.branchId
+                      ? 'border-green-200 bg-green-50/30'
+                      : errors.branchId
+                        ? 'border-red-300 bg-red-50/30'
+                        : 'border-gray-200'
+                  }`}
+                >
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                    Sucursal destino de la entrada
+                  </p>
+                  <SearchableSelect
+                    options={(branches ?? []).map((branch) => ({
+                      value: branch.id,
+                      label: branch.name,
+                    }))}
+                    value={formData.branchId}
+                    onChange={(val) => {
+                      setFormData({ ...formData, branchId: val });
+                      setItems([]);
+                    }}
+                    showAllOption={false}
+                    placeholder="Seleccionar sucursal..."
+                  />
+                  {errors.branchId && (
+                    <p className="mt-1.5 text-xs text-red-500">{errors.branchId}</p>
+                  )}
                 </div>
               </div>
 
@@ -472,30 +382,30 @@ export default function NuevoTraspasoPage() {
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <div className="flex items-center justify-between mb-5">
                   <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
-                    <CubeIcon className="h-5 w-5 text-[#3E667D]" />
-                    Productos a Transferir
+                    <CubeIcon className="h-5 w-5 text-green-600" />
+                    Productos a Ingresar
                   </h2>
                   <button
                     type="button"
                     onClick={() => {
-                      if (!formData.fromBranchId) {
-                        setErrors({ ...errors, fromBranchId: 'Selecciona la sucursal origen primero' });
+                      if (!formData.branchId) {
+                        setErrors({ ...errors, branchId: 'Selecciona la sucursal primero' });
                         return;
                       }
                       setShowProductSearch(true);
                     }}
-                    disabled={!formData.fromBranchId}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#2f5165] transition-colors text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
+                    disabled={!formData.branchId}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <PlusIcon className="h-4 w-4" />
                     Agregar Producto
                   </button>
                 </div>
 
-                {!formData.fromBranchId && (
+                {!formData.branchId && (
                   <div className="flex items-center gap-2 mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
                     <InformationCircleIcon className="h-5 w-5 flex-shrink-0" />
-                    Selecciona la sucursal origen para poder agregar productos.
+                    Selecciona la sucursal para poder agregar productos.
                   </div>
                 )}
 
@@ -506,109 +416,69 @@ export default function NuevoTraspasoPage() {
                   </div>
                 )}
 
-                {/* Items */}
                 {items.length > 0 ? (
                   <div className="space-y-3">
-                    {items.map((item) => {
-                      const pct = Math.round((item.quantity / item.currentStock) * 100);
-                      const hasError = errors[`quantity-${item.productId}`];
-                      return (
-                        <div
-                          key={item.productId}
-                          className={`rounded-lg border p-4 transition-colors ${
-                            hasError ? 'border-red-300 bg-red-50/30' : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <div className="flex items-start gap-4">
-                            {/* Product info */}
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-gray-900 truncate">
-                                {item.productName}
-                              </p>
-                              <p className="text-sm text-gray-500 font-mono">
-                                {item.productCode}
-                              </p>
-                            </div>
-
-                            {/* Stock badge */}
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-xs text-gray-500">Disponible</p>
-                              <p className="text-sm font-semibold text-gray-700">
-                                {item.currentStock} uds
-                              </p>
-                            </div>
-
-                            {/* Quantity stepper */}
-                            <div className="flex-shrink-0">
-                              <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuantityChange(item.productId, item.quantity - 1)}
-                                  disabled={item.quantity <= 1}
-                                  className="px-2.5 py-1.5 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                >
-                                  <MinusIcon className="h-4 w-4" />
-                                </button>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={item.currentStock}
-                                  value={item.quantity}
-                                  onChange={(e) =>
-                                    handleQuantityChange(item.productId, parseInt(e.target.value) || 1)
-                                  }
-                                  className="w-14 text-center py-1.5 text-sm font-semibold border-x border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#3E667D] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuantityChange(item.productId, item.quantity + 1)}
-                                  disabled={item.quantity >= item.currentStock}
-                                  className="px-2.5 py-1.5 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                >
-                                  <PlusIcon className="h-4 w-4" />
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Remove */}
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveItem(item.productId)}
-                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
-                            >
-                              <TrashIcon className="h-4 w-4" />
-                            </button>
+                    {items.map((item) => (
+                      <div
+                        key={item.productId}
+                        className="rounded-lg border border-gray-200 hover:border-gray-300 p-4 transition-colors"
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 truncate">{item.productName}</p>
+                            <p className="text-sm text-gray-500 font-mono">{item.productCode}</p>
                           </div>
-
-                          {/* Stock usage bar */}
-                          <div className="mt-3 flex items-center gap-3">
-                            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all duration-300 ${
-                                  pct > 80 ? 'bg-amber-400' : pct > 50 ? 'bg-[#3E667D]' : 'bg-[#3E667D]/60'
-                                }`}
-                                style={{ width: `${Math.min(pct, 100)}%` }}
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-xs text-gray-500">Stock actual</p>
+                            <p className="text-sm font-semibold text-gray-700">{item.currentStock} uds</p>
+                          </div>
+                          {/* Quantity stepper */}
+                          <div className="flex-shrink-0">
+                            <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() => handleQuantityChange(item.productId, item.quantity - 1)}
+                                disabled={item.quantity <= 1}
+                                className="px-2.5 py-1.5 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                              >
+                                <MinusIcon className="h-4 w-4" />
+                              </button>
+                              <input
+                                type="number"
+                                min={1}
+                                value={item.quantity}
+                                onChange={(e) =>
+                                  handleQuantityChange(item.productId, parseInt(e.target.value) || 1)
+                                }
+                                className="w-14 text-center py-1.5 text-sm font-semibold border-x border-gray-300 focus:outline-none focus:ring-1 focus:ring-green-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               />
+                              <button
+                                type="button"
+                                onClick={() => handleQuantityChange(item.productId, item.quantity + 1)}
+                                className="px-2.5 py-1.5 text-gray-600 hover:bg-gray-100 transition-colors"
+                              >
+                                <PlusIcon className="h-4 w-4" />
+                              </button>
                             </div>
-                            <span className="text-xs text-gray-500 tabular-nums w-10 text-right">
-                              {pct}%
-                            </span>
                           </div>
-
-                          {hasError && (
-                            <p className="text-xs text-red-500 mt-2">{hasError}</p>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItem(item.productId)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
                         </div>
-                      );
-                    })}
+                      </div>
+                    ))}
                   </div>
-                ) : formData.fromBranchId ? (
+                ) : formData.branchId ? (
                   <div className="border-2 border-dashed border-gray-200 rounded-xl py-12 px-6 text-center">
                     <CubeIcon className="h-10 w-10 mx-auto mb-3 text-gray-300" />
                     <p className="text-gray-500 font-medium">Sin productos agregados</p>
                     <p className="text-sm text-gray-400 mt-1">
                       Haz clic en &quot;Agregar Producto&quot; para buscar en el inventario de{' '}
-                      <span className="font-medium text-gray-500">{sourceBranch?.name}</span>
+                      <span className="font-medium text-gray-500">{selectedBranch?.name}</span>
                     </p>
                   </div>
                 ) : null}
@@ -617,28 +487,43 @@ export default function NuevoTraspasoPage() {
               {/* Reason & Notes */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                 <h2 className="text-base font-semibold text-gray-900 mb-5 flex items-center gap-2">
-                  <DocumentTextIcon className="h-5 w-5 text-[#3E667D]" />
-                  Detalle del Traspaso
+                  <DocumentTextIcon className="h-5 w-5 text-green-600" />
+                  Detalle de la Entrada
                 </h2>
 
                 <div className="space-y-5">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                      Motivo del Traspaso <span className="text-red-500">*</span>
+                      Motivo de la Entrada <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
+                    <select
                       value={formData.reason}
-                      onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                      placeholder="Ej: Reabastecimiento por alta demanda, Redistribución de inventario..."
-                      maxLength={1000}
-                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-[#3E667D]/30 focus:border-[#3E667D] text-sm ${
+                      onChange={(e) => setFormData({ ...formData, reason: e.target.value as MovementReason })}
+                      className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-green-500/30 focus:border-green-500 text-sm ${
                         errors.reason ? 'border-red-400 bg-red-50/30' : 'border-gray-300'
                       }`}
-                    />
+                    >
+                      <option value="">Seleccionar motivo...</option>
+                      {ENTRY_REASONS.map((r) => (
+                        <option key={r.value} value={r.value}>{r.label}</option>
+                      ))}
+                    </select>
                     {errors.reason && (
                       <p className="mt-1 text-xs text-red-500">{errors.reason}</p>
                     )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      No. Referencia <span className="text-gray-400 font-normal">(opcional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.referenceNumber}
+                      onChange={(e) => setFormData({ ...formData, referenceNumber: e.target.value })}
+                      placeholder="Ej: Factura FAC-001, OC-2024-001..."
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500/30 focus:border-green-500 text-sm"
+                    />
                   </div>
 
                   <div>
@@ -650,7 +535,7 @@ export default function NuevoTraspasoPage() {
                       onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                       rows={3}
                       placeholder="Agregar notas o comentarios adicionales..."
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D]/30 focus:border-[#3E667D] text-sm resize-none"
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500/30 focus:border-green-500 text-sm resize-none"
                     />
                   </div>
                 </div>
@@ -659,54 +544,23 @@ export default function NuevoTraspasoPage() {
 
             {/* Right Column — Summary Sidebar */}
             <div className="space-y-6">
-              {/* Transfer Summary */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-6">
                 <h2 className="text-base font-semibold text-gray-900 mb-4">Resumen</h2>
 
-                {/* Branch flow */}
-                {(sourceBranch || destBranch) && (
-                  <div className="space-y-3 mb-5">
-                    {sourceBranch && (
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-[#C8DDF2]/40 flex items-center justify-center flex-shrink-0">
-                          <BuildingStorefrontIcon className="h-4 w-4 text-[#3E667D]" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[10px] text-gray-400 uppercase tracking-wider leading-none mb-0.5">
-                            Origen
-                          </p>
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {sourceBranch.name}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    {sourceBranch && destBranch && (
-                      <div className="pl-3.5">
-                        <div className="w-px h-4 bg-gray-200 ml-0.5" />
-                        <ArrowLongRightIcon className="h-4 w-4 text-gray-300 rotate-90 -ml-1.5 -my-1" />
-                        <div className="w-px h-4 bg-gray-200 ml-0.5" />
-                      </div>
-                    )}
-                    {destBranch && (
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
-                          <BuildingStorefrontIcon className="h-4 w-4 text-green-600" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[10px] text-gray-400 uppercase tracking-wider leading-none mb-0.5">
-                            Destino
-                          </p>
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {destBranch.name}
-                          </p>
-                        </div>
-                      </div>
-                    )}
+                {selectedBranch && (
+                  <div className="flex items-center gap-2.5 mb-5">
+                    <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+                      <BuildingStorefrontIcon className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-gray-400 uppercase tracking-wider leading-none mb-0.5">
+                        Sucursal
+                      </p>
+                      <p className="text-sm font-medium text-gray-900 truncate">{selectedBranch.name}</p>
+                    </div>
                   </div>
                 )}
 
-                {/* Stats */}
                 <div className="border-t border-gray-100 pt-4 space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-500">Productos</span>
@@ -714,7 +568,7 @@ export default function NuevoTraspasoPage() {
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-500">Total unidades</span>
-                    <span className="font-semibold text-[#3E667D]">{totalItems}</span>
+                    <span className="font-semibold text-green-600">{totalItems}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-500">Estado</span>
@@ -724,40 +578,45 @@ export default function NuevoTraspasoPage() {
                   </div>
                 </div>
 
-                {/* Motivo preview */}
-                {formData.reason.trim() && (
+                {selectedReasonLabel && (
                   <div className="border-t border-gray-100 pt-4 mt-4">
                     <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Motivo</p>
-                    <p className="text-sm text-gray-700 line-clamp-2">{formData.reason}</p>
+                    <p className="text-sm text-gray-700">{selectedReasonLabel}</p>
                   </div>
                 )}
 
-                {/* Completion checklist */}
+                {formData.referenceNumber && (
+                  <div className="border-t border-gray-100 pt-4 mt-4">
+                    <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Referencia</p>
+                    <p className="text-sm text-gray-700 font-mono">{formData.referenceNumber}</p>
+                  </div>
+                )}
+
+                {/* Checklist */}
                 <div className="border-t border-gray-100 pt-4 mt-4 space-y-2">
                   <p className="text-xs text-gray-400 uppercase tracking-wider mb-2">Checklist</p>
-                  <ChecklistItem done={!!formData.fromBranchId} label="Sucursal origen" />
-                  <ChecklistItem done={!!formData.toBranchId} label="Sucursal destino" />
+                  <ChecklistItem done={!!formData.branchId} label="Sucursal seleccionada" />
                   <ChecklistItem done={items.length > 0} label="Al menos un producto" />
-                  <ChecklistItem done={!!formData.reason.trim()} label="Motivo del traspaso" />
+                  <ChecklistItem done={!!formData.reason} label="Motivo de la entrada" />
                 </div>
 
                 {/* Submit button (mobile) */}
                 <div className="mt-6 lg:hidden">
                   <button
                     type="submit"
-                    form="transfer-form"
-                    disabled={createTransfer.isPending || items.length === 0}
-                    className="w-full px-5 py-2.5 bg-[#3E667D] text-white rounded-lg hover:bg-[#2f5165] transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center justify-center gap-2"
+                    form="entry-form"
+                    disabled={createMovement.isPending || items.length === 0}
+                    className="w-full px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center justify-center gap-2"
                   >
-                    {createTransfer.isPending ? (
+                    {createMovement.isPending ? (
                       <>
                         <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                         Creando...
                       </>
                     ) : (
                       <>
-                        <ArrowsRightLeftIcon className="h-4 w-4" />
-                        Crear Traspaso
+                        <ArrowDownIcon className="h-4 w-4" />
+                        Crear Entrada
                       </>
                     )}
                   </button>
@@ -773,26 +632,20 @@ export default function NuevoTraspasoPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
             className="absolute inset-0 bg-black/50"
-            onClick={() => {
-              setShowProductSearch(false);
-              setSearchTerm('');
-            }}
+            onClick={() => { setShowProductSearch(false); setSearchTerm(''); }}
           />
           <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden">
-            {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Agregar Producto</h3>
-                <p className="text-sm text-gray-500">
-                  Inventario de {sourceBranch?.name}
-                </p>
+                <p className="text-sm text-gray-500">Inventario de {selectedBranch?.name}</p>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => setBulkMode(!bulkMode)}
                   className={`p-1.5 rounded-lg transition-colors ${
-                    bulkMode ? 'bg-[#C8DDF2] text-[#3E667D]' : 'hover:bg-gray-100 text-gray-400'
+                    bulkMode ? 'bg-green-100 text-green-700' : 'hover:bg-gray-100 text-gray-400'
                   }`}
                   title="Alta masiva por SKU"
                 >
@@ -800,12 +653,7 @@ export default function NuevoTraspasoPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowProductSearch(false);
-                    setSearchTerm('');
-                    setBulkMode(false);
-                    setBulkText('');
-                  }}
+                  onClick={() => { setShowProductSearch(false); setSearchTerm(''); setBulkMode(false); setBulkText(''); }}
                   className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
                 >
                   <XMarkIcon className="h-5 w-5 text-gray-400" />
@@ -825,7 +673,7 @@ export default function NuevoTraspasoPage() {
                     onChange={(e) => setBulkText(e.target.value)}
                     rows={8}
                     placeholder={"9019,10\n9020,5\n9021,3"}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D]/30 focus:border-[#3E667D] text-sm font-mono resize-none"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500/30 focus:border-green-500 text-sm font-mono resize-none"
                     disabled={bulkProcessing}
                   />
                 </div>
@@ -839,7 +687,7 @@ export default function NuevoTraspasoPage() {
                     type="button"
                     onClick={handleBulkAdd}
                     disabled={bulkLines.length === 0 || bulkProcessing}
-                    className="px-4 py-2 bg-[#3E667D] text-white text-sm font-medium rounded-lg hover:bg-[#2f5165] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                    className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
                   >
                     {bulkProcessing ? (
                       <>
@@ -857,7 +705,6 @@ export default function NuevoTraspasoPage() {
               </div>
             ) : (
               <>
-                {/* Search */}
                 <div className="px-6 py-3 space-y-2">
                   <div className="relative">
                     <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -867,7 +714,7 @@ export default function NuevoTraspasoPage() {
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       placeholder="Buscar por nombre..."
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D]/30 focus:border-[#3E667D] text-sm"
+                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500/30 focus:border-green-500 text-sm"
                     />
                   </div>
                   <div className="relative">
@@ -885,24 +732,23 @@ export default function NuevoTraspasoPage() {
                       }}
                       placeholder="SKU exacto (ej: 9019 o 9019,5)"
                       disabled={skuSearching}
-                      className="w-full pl-10 pr-20 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D]/30 focus:border-[#3E667D] text-sm font-mono disabled:opacity-50"
+                      className="w-full pl-10 pr-20 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500/30 focus:border-green-500 text-sm font-mono disabled:opacity-50"
                     />
                     <button
                       type="button"
                       onClick={handleSkuSearch}
                       disabled={!skuCode.trim() || skuSearching}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 bg-[#3E667D] text-white text-xs font-medium rounded-md hover:bg-[#2f5165] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1 bg-green-600 text-white text-xs font-medium rounded-md hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                     >
                       {skuSearching ? '...' : 'Buscar'}
                     </button>
                   </div>
                 </div>
 
-                {/* Product List */}
                 <div className="px-6 pb-2 max-h-72 overflow-y-auto">
                   {isLoadingStock ? (
                     <div className="py-8 text-center">
-                      <div className="inline-block w-6 h-6 border-2 border-[#3E667D] border-t-transparent rounded-full animate-spin mb-2" />
+                      <div className="inline-block w-6 h-6 border-2 border-green-600 border-t-transparent rounded-full animate-spin mb-2" />
                       <p className="text-sm text-gray-500">Buscando productos...</p>
                     </div>
                   ) : filteredProducts.length > 0 ? (
@@ -918,26 +764,20 @@ export default function NuevoTraspasoPage() {
                             className={`w-full text-left p-3.5 rounded-lg border transition-colors ${
                               isAdded
                                 ? 'border-green-200 bg-green-50/50 cursor-default'
-                                : 'border-gray-200 hover:border-[#3E667D]/40 hover:bg-[#C8DDF2]/10 cursor-pointer'
+                                : 'border-gray-200 hover:border-green-400/40 hover:bg-green-50/10 cursor-pointer'
                             }`}
                           >
                             <div className="flex items-center justify-between">
                               <div className="min-w-0 flex-1">
-                                <p className="font-medium text-gray-900 text-sm truncate">
-                                  {product.name}
-                                </p>
-                                <p className="text-xs text-gray-500 mt-0.5 font-mono">
-                                  {product.code}
-                                </p>
+                                <p className="font-medium text-gray-900 text-sm truncate">{product.name}</p>
+                                <p className="text-xs text-gray-500 mt-0.5 font-mono">{product.code}</p>
                               </div>
                               <div className="flex items-center gap-2 flex-shrink-0 ml-3">
                                 <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
                                   {product.currentStock} uds
                                 </span>
                                 {isAdded && (
-                                  <span className="text-xs text-green-600 font-medium">
-                                    Agregado
-                                  </span>
+                                  <span className="text-xs text-green-600 font-medium">Agregado</span>
                                 )}
                               </div>
                             </div>
@@ -949,9 +789,7 @@ export default function NuevoTraspasoPage() {
                     <div className="py-8 text-center">
                       <MagnifyingGlassIcon className="h-8 w-8 mx-auto mb-2 text-gray-300" />
                       <p className="text-sm text-gray-500">
-                        {searchTerm
-                          ? 'No se encontraron productos'
-                          : 'Escribe para buscar productos'}
+                        {searchTerm ? 'No se encontraron productos' : 'Escribe para buscar productos'}
                       </p>
                     </div>
                   )}
@@ -959,27 +797,26 @@ export default function NuevoTraspasoPage() {
               </>
             )}
 
-            {/* Modal Footer */}
             <div className="px-6 py-3 border-t border-gray-100 bg-gray-50/50">
               <p className="text-xs text-gray-400 text-center">
                 {items.length > 0
                   ? `${items.length} producto${items.length > 1 ? 's' : ''} agregado${items.length > 1 ? 's' : ''}`
-                  : 'Selecciona productos para agregarlos al traspaso'}
+                  : 'Selecciona productos para agregarlos a la entrada'}
               </p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Success Modal with PDF Download */}
-      {createdTransfer && (
+      {/* Success Modal */}
+      {createdMovement && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" />
           <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-8 text-center">
             <CheckCircleIcon className="h-16 w-16 text-green-500 mx-auto mb-4" />
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Traspaso Creado</h3>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Entrada Creada</h3>
             <p className="text-gray-600 mb-2">
-              El traspaso <span className="font-semibold">{createdTransfer.movementNumber}</span> ha sido creado correctamente.
+              La entrada <span className="font-semibold">{createdMovement.movementNumber}</span> ha sido creada correctamente.
             </p>
             <p className="text-sm text-gray-500 mb-6">
               Estado: Pendiente de aprobación
@@ -990,7 +827,7 @@ export default function NuevoTraspasoPage() {
                 onClick={async () => {
                   setIsGeneratingPdf(true);
                   try {
-                    const url = await generateTransferTicketPdf(createdTransfer);
+                    const url = await generateMovementTicketPdf(createdMovement);
                     window.open(url, '_blank');
                   } catch {
                     toast.error('Error al generar el PDF');
@@ -999,22 +836,16 @@ export default function NuevoTraspasoPage() {
                   }
                 }}
                 disabled={isGeneratingPdf}
-                className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-[#3E667D] text-white rounded-xl hover:bg-[#2f5165] transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ArrowDownTrayIcon className="h-5 w-5" />
                 {isGeneratingPdf ? 'Generando PDF...' : 'Descargar PDF'}
               </button>
               <button
-                onClick={() => router.push(`/admin/inventario/traspasos/${createdTransfer.id}`)}
+                onClick={() => router.push('/admin/inventario/entradas')}
                 className="w-full px-5 py-3 border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors font-medium text-gray-700"
               >
-                Ver Detalle
-              </button>
-              <button
-                onClick={() => router.push('/admin/inventario/traspasos')}
-                className="w-full px-5 py-3 text-gray-500 hover:text-gray-700 transition-colors font-medium text-sm"
-              >
-                Volver a Traspasos
+                Volver a Entradas
               </button>
             </div>
           </div>
@@ -1024,16 +855,12 @@ export default function NuevoTraspasoPage() {
   );
 }
 
-// ================================
-// Checklist Item
-// ================================
-
 function ChecklistItem({ done, label }: { done: boolean; label: string }) {
   return (
     <div className="flex items-center gap-2">
       <div
         className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors ${
-          done ? 'bg-[#3E667D] border-[#3E667D]' : 'border-gray-300'
+          done ? 'bg-green-600 border-green-600' : 'border-gray-300'
         }`}
       >
         {done && (

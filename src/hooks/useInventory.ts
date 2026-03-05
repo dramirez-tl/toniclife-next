@@ -18,6 +18,8 @@ import type {
   RejectAdjustmentDto,
   ApplyAdjustmentDto,
   UpdateStockSettingsDto,
+  MovementQueryDto,
+  CreateMovementDto,
 } from '@/types/inventory';
 
 // ================================
@@ -44,6 +46,12 @@ export const inventoryKeys = {
     [...inventoryKeys.transfers(), 'detail', id] as const,
   // Summary
   summary: () => [...inventoryKeys.all, 'summary'] as const,
+  // Movements (Entradas/Salidas)
+  movements: () => [...inventoryKeys.all, 'movements'] as const,
+  movementsList: (query?: MovementQueryDto) =>
+    [...inventoryKeys.movements(), 'list', query] as const,
+  movementDetail: (id: string) =>
+    [...inventoryKeys.movements(), 'detail', id] as const,
   // Adjustments
   adjustments: () => [...inventoryKeys.all, 'adjustments'] as const,
   adjustmentsList: (query?: AdjustmentQueryDto) =>
@@ -206,6 +214,66 @@ export function useApplyTransfer() {
       });
       queryClient.invalidateQueries({ queryKey: inventoryKeys.transfers() });
       queryClient.invalidateQueries({ queryKey: inventoryKeys.stock() });
+    },
+  });
+}
+
+// ================================
+// MOVEMENT QUERIES & MUTATIONS (Entradas/Salidas)
+// ================================
+
+export function useMovements(query: MovementQueryDto = {}) {
+  return useQuery({
+    queryKey: inventoryKeys.movementsList(query),
+    queryFn: () => inventoryService.getMovements(query),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useMovement(id: string | null) {
+  return useQuery({
+    queryKey: inventoryKeys.movementDetail(id || ''),
+    queryFn: () => inventoryService.getMovement(id!),
+    enabled: !!id,
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useCreateMovement() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateMovementDto) => inventoryService.createMovement(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: inventoryKeys.movements() });
+      queryClient.invalidateQueries({ queryKey: inventoryKeys.stock() });
+    },
+  });
+}
+
+export function useApproveMovement() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, notes }: { id: string; notes?: string }) =>
+      inventoryService.approveMovement(id, notes),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: inventoryKeys.movementDetail(variables.id) });
+      queryClient.invalidateQueries({ queryKey: inventoryKeys.movements() });
+      queryClient.invalidateQueries({ queryKey: inventoryKeys.stock() });
+    },
+  });
+}
+
+export function useRejectMovement() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      inventoryService.rejectMovement(id, reason),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: inventoryKeys.movementDetail(variables.id) });
+      queryClient.invalidateQueries({ queryKey: inventoryKeys.movements() });
     },
   });
 }

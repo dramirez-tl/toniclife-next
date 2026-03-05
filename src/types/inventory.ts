@@ -134,6 +134,7 @@ export interface BranchStockResponseDto {
 
 export interface BranchStockQueryDto {
   search?: string;
+  code?: string;
   categoryId?: string;
   lowStock?: boolean;
   outOfStock?: boolean;
@@ -427,6 +428,80 @@ export interface RejectAdjustmentDto {
 
 export interface ApplyAdjustmentDto {
   notes?: string;
+}
+
+// ================================
+// MOVEMENT TYPES (Entradas/Salidas)
+// ================================
+
+export interface MovementItemDto {
+  id: string;
+  productId: string;
+  productCode: string;
+  productName: string;
+  quantity: number;
+  unitCost?: string;
+  totalCost?: string;
+  quantityBefore: number;
+  quantityAfter: number;
+  lotId?: string;
+  notes?: string;
+}
+
+export interface MovementDto {
+  id: string;
+  movementNumber: string;
+  movementType: MovementType;
+  movementCategory: MovementCategory;
+  reason: string;
+  referenceNumber?: string;
+  branchId: string;
+  branchName: string;
+  status: MovementStatus;
+  totalItems: number;
+  totalQuantity: number;
+  totalCost?: string;
+  notes?: string;
+  requestedBy?: { id: string; name: string };
+  createdAt: string;
+  items: MovementItemDto[];
+}
+
+export interface MovementListResponseDto {
+  data: MovementDto[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface MovementQueryDto {
+  branchId?: string;
+  movementType?: MovementType;
+  movementCategory?: MovementCategory;
+  status?: MovementStatus;
+  search?: string;
+  fromDate?: string;
+  toDate?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface CreateMovementItemDto {
+  productId: string;
+  quantity: number;
+  lotId?: string;
+  unitCost?: number;
+  notes?: string;
+}
+
+export interface CreateMovementDto {
+  branchId: string;
+  movementType: MovementType;
+  reason: MovementReason;
+  notes?: string;
+  referenceNumber?: string;
+  items: CreateMovementItemDto[];
 }
 
 // ================================
