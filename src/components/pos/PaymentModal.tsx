@@ -1,7 +1,7 @@
 // components/pos/PaymentModal.tsx - Payment processing modal for POS
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   XMarkIcon,
   BanknotesIcon,
@@ -10,24 +10,37 @@ import {
   CheckCircleIcon,
   PrinterIcon,
   ArrowPathIcon,
-  LinkIcon,
+  GiftIcon,
   ShoppingCartIcon,
   CurrencyDollarIcon,
   QuestionMarkCircleIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import { PosPaymentMethod, type CreatePaymentInput, type Sale } from '@/types/pos';
 import { generatePosTicketPdf, type PosTicketBranchConfig } from '@/lib/generate-pos-ticket';
+import type { FiscalData } from '@/types/billing';
+import { FISCAL_REGIMES, CFDI_USES } from '@/types/billing';
+import { billingService } from '@/services/billing.service';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { toast } from 'sonner';
+
+const fiscalRegimeOptions = FISCAL_REGIMES.map((r) => ({ value: r.Value, label: `${r.Value} - ${r.Name}` }));
+const cfdiUseOptions = CFDI_USES.map((u) => ({ value: u.Value, label: `${u.Value} - ${u.Name}` }));
 
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   total: number;
-  onPaymentComplete: (payments: CreatePaymentInput[], change: number) => Promise<Sale | undefined> | Sale | void;
+  customerId?: string;
+  onPaymentComplete: (payments: CreatePaymentInput[], change: number, requiresInvoice: boolean) => Promise<Sale | undefined> | Sale | void;
   currencySymbol?: string;
   branchConfig?: PosTicketBranchConfig;
+  branchName?: string;
+  branchCountryName?: string;
+  branchCountryId?: string;
 }
 
-type MethodKey = 'cash' | 'card_credit' | 'card_debit' | 'transfer' | 'cashback' | 'liga_bancomer' | 'mercado_pago' | 'usd_cash' | 'undefined';
+type MethodKey = 'cash' | 'card_credit' | 'card_debit' | 'transfer' | 'cashback' | 'promotion' | 'mercado_pago' | 'usd_cash' | 'undefined';
 
 const paymentMethods: { key: MethodKey; method: PosPaymentMethod; name: string; icon: typeof BanknotesIcon; cardType?: string }[] = [
   { key: 'cash', method: PosPaymentMethod.CASH, name: 'Efectivo', icon: BanknotesIcon },
@@ -35,7 +48,7 @@ const paymentMethods: { key: MethodKey; method: PosPaymentMethod; name: string; 
   { key: 'card_debit', method: PosPaymentMethod.CARD, name: 'T. Débito', icon: CreditCardIcon, cardType: 'debit' },
   { key: 'transfer', method: PosPaymentMethod.TRANSFER, name: 'Transferencia', icon: BuildingLibraryIcon },
   { key: 'cashback', method: PosPaymentMethod.CASHBACK, name: 'Cashback', icon: ArrowPathIcon },
-  { key: 'liga_bancomer', method: PosPaymentMethod.LIGA_BANCOMER, name: 'Liga Bancomer', icon: LinkIcon },
+  { key: 'promotion', method: PosPaymentMethod.PROMOTION, name: 'Promoción', icon: GiftIcon },
   { key: 'mercado_pago', method: PosPaymentMethod.MERCADO_PAGO, name: 'Mercado Pago', icon: ShoppingCartIcon },
   { key: 'usd_cash', method: PosPaymentMethod.USD_CASH, name: 'Pago en Dólares', icon: CurrencyDollarIcon },
   { key: 'undefined', method: PosPaymentMethod.UNDEFINED, name: 'Sin Definir', icon: QuestionMarkCircleIcon },
@@ -43,7 +56,15 @@ const paymentMethods: { key: MethodKey; method: PosPaymentMethod; name: string; 
 
 const quickAmounts = [50, 100, 200, 500, 1000];
 
-export function PaymentModal({ isOpen, onClose, total, onPaymentComplete, currencySymbol = '$', branchConfig }: PaymentModalProps) {
+// Country IDs where invoicing (CFDI) is available — Mexico + Frontera MX-USA
+const INVOICE_COUNTRY_IDS = new Set([
+  'b47b4f94-011d-4071-adf9-5c5285606af7', // Mexico (remote DB)
+  'ed380c6f-5a3e-4a0f-bfe5-bf8fdcb9b42f', // Frontera MX-USA (remote DB)
+]);
+
+export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComplete, currencySymbol = '$', branchConfig, branchName, branchCountryName, branchCountryId }: PaymentModalProps) {
+  const canInvoice = (branchCountryId && INVOICE_COUNTRY_IDS.has(branchCountryId)) || branchCountryName === 'México' || branchCountryName === 'Frontera MX-USA';
+
   const fmt = (amount: number) =>
     `${currencySymbol}${amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -55,6 +76,107 @@ export function PaymentModal({ isOpen, onClose, total, onPaymentComplete, curren
   const [change, setChange] = useState(0);
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
   const [ticketUrl, setTicketUrl] = useState<string | null>(null);
+
+  // Invoice / Fiscal data
+  const [wantsInvoice, setWantsInvoice] = useState(false);
+  const [fiscalData, setFiscalData] = useState<FiscalData | null>(null);
+  const [loadingFiscal, setLoadingFiscal] = useState(false);
+  const [noFiscalData, setNoFiscalData] = useState(false);
+
+  // Fiscal form for registering/editing
+  const [showFiscalForm, setShowFiscalForm] = useState(false);
+  const [savingFiscal, setSavingFiscal] = useState(false);
+  const [validatingFiscal, setValidatingFiscal] = useState(false);
+  const [fiscalForm, setFiscalForm] = useState({ rfc: '', legalName: '', fiscalRegime: '', postalCode: '', cfdiUse: 'G03', email: '' });
+  const [fiscalErrors, setFiscalErrors] = useState<Record<string, string>>({});
+
+  const handleFiscalFormChange = (field: string, value: string) => {
+    setFiscalForm((prev) => ({ ...prev, [field]: value }));
+    if (fiscalErrors[field]) {
+      setFiscalErrors((prev) => { const next = { ...prev }; delete next[field]; return next; });
+    }
+  };
+
+  const handleSaveFiscalData = async () => {
+    if (!customerId) return;
+    const { rfc, legalName, fiscalRegime, postalCode, cfdiUse, email } = fiscalForm;
+    if (!rfc || !legalName || !fiscalRegime || !postalCode) {
+      const errs: Record<string, string> = {};
+      if (!rfc) errs.rfc = 'RFC es obligatorio';
+      if (!legalName) errs.legalName = 'Razón Social es obligatoria';
+      if (!fiscalRegime) errs.fiscalRegime = 'Régimen Fiscal es obligatorio';
+      if (!postalCode) errs.postalCode = 'Código Postal es obligatorio';
+      setFiscalErrors(errs);
+      return;
+    }
+
+    // Validate with SAT via backend
+    setValidatingFiscal(true);
+    setFiscalErrors({});
+    try {
+      const validation = await billingService.validateFiscalData({ rfc, legalName, fiscalRegime, postalCode, cfdiUse, email });
+      if (!validation.valid) {
+        setFiscalErrors(validation.errors);
+        setValidatingFiscal(false);
+        return;
+      }
+    } catch {
+      // If validation endpoint fails, continue with save (don't block)
+    }
+    setValidatingFiscal(false);
+
+    // Save
+    setSavingFiscal(true);
+    try {
+      if (fiscalData?.id) {
+        const updated = await billingService.updateFiscalData(fiscalData.id, { rfc, legalName, fiscalRegime, postalCode, cfdiUse, email });
+        setFiscalData(updated);
+      } else {
+        const created = await billingService.createFiscalData({ customerId, rfc, legalName, fiscalRegime, postalCode, cfdiUse, email });
+        setFiscalData(created);
+      }
+      setNoFiscalData(false);
+      setShowFiscalForm(false);
+      setFiscalErrors({});
+      toast.success('Datos fiscales validados y guardados');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Error al guardar datos fiscales');
+    } finally {
+      setSavingFiscal(false);
+    }
+  };
+
+  // Fetch fiscal data when invoice is toggled on
+  const fetchFiscalData = useCallback(async (custId: string) => {
+    setLoadingFiscal(true);
+    setNoFiscalData(false);
+    try {
+      const data = await billingService.getFiscalDataByCustomer(custId);
+      const defaultRecord = data.find((d) => d.isDefault) || data[0];
+      if (defaultRecord) {
+        setFiscalData(defaultRecord);
+      } else {
+        setNoFiscalData(true);
+        setFiscalData(null);
+      }
+    } catch {
+      setNoFiscalData(true);
+      setFiscalData(null);
+    } finally {
+      setLoadingFiscal(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (wantsInvoice && customerId) {
+      fetchFiscalData(customerId);
+    } else if (!wantsInvoice) {
+      setFiscalData(null);
+      setNoFiscalData(false);
+    }
+  }, [wantsInvoice, customerId, fetchFiscalData]);
+
+  const fiscalComplete = !wantsInvoice || (fiscalData && fiscalData.rfc && fiscalData.legalName && fiscalData.taxRegime && fiscalData.postalCode && fiscalData.defaultCfdiUse);
 
   const selected = paymentMethods.find(m => m.key === selectedKey)!;
 
@@ -73,6 +195,12 @@ export function PaymentModal({ isOpen, onClose, total, onPaymentComplete, curren
       setIsComplete(false);
       setChange(0);
       setCompletedSale(null);
+      setWantsInvoice(false);
+      setFiscalData(null);
+      setNoFiscalData(false);
+      setShowFiscalForm(false);
+      setFiscalErrors({});
+      setValidatingFiscal(false);
       if (ticketUrl) {
         URL.revokeObjectURL(ticketUrl);
         setTicketUrl(null);
@@ -133,7 +261,7 @@ export function PaymentModal({ isOpen, onClose, total, onPaymentComplete, curren
       : 0;
 
     try {
-      const result = await onPaymentComplete(finalPayments, totalChange);
+      const result = await onPaymentComplete(finalPayments, totalChange, wantsInvoice);
       if (result) setCompletedSale(result);
       setIsProcessing(false);
       setIsComplete(true);
@@ -159,9 +287,14 @@ export function PaymentModal({ isOpen, onClose, total, onPaymentComplete, curren
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b bg-gray-50">
-          <h2 className="text-2xl font-bold text-gray-900">
-            {isComplete ? 'Pago Completado' : 'Procesar Pago'}
-          </h2>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">
+              {isComplete ? 'Pago Completado' : 'Procesar Pago'}
+            </h2>
+            {branchName && (
+              <p className="text-sm text-gray-500">{branchName}</p>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-200"
@@ -249,7 +382,7 @@ export function PaymentModal({ isOpen, onClose, total, onPaymentComplete, curren
           )
         ) : (
           // Payment Form
-          <div className="p-6 space-y-6">
+          <div className="p-6 space-y-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 100px)' }}>
             {/* Total Display */}
             <div className="text-center p-6 bg-[#3E667D] rounded-xl text-white">
               <p className="text-sm opacity-80">Total a pagar</p>
@@ -375,10 +508,234 @@ export function PaymentModal({ isOpen, onClose, total, onPaymentComplete, curren
               </div>
             )}
 
+            {/* Invoice Toggle — only for Mexico branches (CFDI) */}
+            {customerId && canInvoice && (
+              <div className="border border-gray-200 rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <DocumentTextIcon className="h-5 w-5 text-gray-500" />
+                    <span className="font-medium text-gray-700">¿Facturar esta venta?</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setWantsInvoice(!wantsInvoice)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      wantsInvoice ? 'bg-[#3E667D]' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      wantsInvoice ? 'translate-x-6' : 'translate-x-1'
+                    }`} />
+                  </button>
+                </div>
+
+                {wantsInvoice && (
+                  loadingFiscal ? (
+                    <div className="flex items-center justify-center py-3">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#3E667D]" />
+                      <span className="ml-2 text-sm text-gray-500">Cargando datos fiscales...</span>
+                    </div>
+                  ) : showFiscalForm ? (
+                    /* Inline fiscal data form */
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2.5">
+                      <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                        {fiscalData ? 'Editar datos fiscales' : 'Registrar datos fiscales'}
+                      </p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className={`text-xs ${fiscalErrors.rfc ? 'text-red-600 font-medium' : 'text-gray-500'}`}>RFC *</label>
+                          <input
+                            type="text"
+                            value={fiscalForm.rfc}
+                            onChange={(e) => handleFiscalFormChange('rfc', e.target.value.toUpperCase())}
+                            placeholder="XAXX010101000"
+                            maxLength={13}
+                            className={`w-full px-2.5 py-1.5 text-sm border rounded-lg focus:ring-1 outline-none ${fiscalErrors.rfc ? 'border-red-400 bg-red-50 focus:ring-red-300 focus:border-red-400' : 'border-gray-300 focus:ring-[#3E667D] focus:border-[#3E667D]'}`}
+                          />
+                          {fiscalErrors.rfc && <p className="text-[11px] text-red-600 mt-0.5">{fiscalErrors.rfc}</p>}
+                        </div>
+                        <div>
+                          <label className={`text-xs ${fiscalErrors.legalName ? 'text-red-600 font-medium' : 'text-gray-500'}`}>Razón Social *</label>
+                          <input
+                            type="text"
+                            value={fiscalForm.legalName}
+                            onChange={(e) => handleFiscalFormChange('legalName', e.target.value.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''))}
+                            placeholder="Nombre o Razón Social"
+                            className={`w-full px-2.5 py-1.5 text-sm border rounded-lg focus:ring-1 outline-none ${fiscalErrors.legalName ? 'border-red-400 bg-red-50 focus:ring-red-300 focus:border-red-400' : 'border-gray-300 focus:ring-[#3E667D] focus:border-[#3E667D]'}`}
+                          />
+                          {fiscalErrors.legalName && <p className="text-[11px] text-red-600 mt-0.5">{fiscalErrors.legalName}</p>}
+                        </div>
+                        <div>
+                          <label className={`text-xs ${fiscalErrors.fiscalRegime ? 'text-red-600 font-medium' : 'text-gray-500'}`}>Régimen Fiscal *</label>
+                          <SearchableSelect
+                            options={fiscalRegimeOptions}
+                            value={fiscalForm.fiscalRegime}
+                            onChange={(v) => handleFiscalFormChange('fiscalRegime', v)}
+                            placeholder="Buscar régimen..."
+                            showAllOption={false}
+                          />
+                          {fiscalErrors.fiscalRegime && <p className="text-[11px] text-red-600 mt-0.5">{fiscalErrors.fiscalRegime}</p>}
+                        </div>
+                        <div>
+                          <label className={`text-xs ${fiscalErrors.postalCode ? 'text-red-600 font-medium' : 'text-gray-500'}`}>C.P. *</label>
+                          <input
+                            type="text"
+                            value={fiscalForm.postalCode}
+                            onChange={(e) => handleFiscalFormChange('postalCode', e.target.value.replace(/\D/g, ''))}
+                            placeholder="37000"
+                            maxLength={5}
+                            className={`w-full px-2.5 py-1.5 text-sm border rounded-lg focus:ring-1 outline-none ${fiscalErrors.postalCode ? 'border-red-400 bg-red-50 focus:ring-red-300 focus:border-red-400' : 'border-gray-300 focus:ring-[#3E667D] focus:border-[#3E667D]'}`}
+                          />
+                          {fiscalErrors.postalCode && <p className="text-[11px] text-red-600 mt-0.5">{fiscalErrors.postalCode}</p>}
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500">Uso CFDI</label>
+                          <SearchableSelect
+                            options={cfdiUseOptions}
+                            value={fiscalForm.cfdiUse}
+                            onChange={(v) => handleFiscalFormChange('cfdiUse', v)}
+                            placeholder="Buscar uso CFDI..."
+                            showAllOption={false}
+                          />
+                        </div>
+                        <div>
+                          <label className={`text-xs ${fiscalErrors.email ? 'text-red-600 font-medium' : 'text-gray-500'}`}>Email</label>
+                          <input
+                            type="email"
+                            value={fiscalForm.email}
+                            onChange={(e) => handleFiscalFormChange('email', e.target.value)}
+                            placeholder="correo@ejemplo.com"
+                            className={`w-full px-2.5 py-1.5 text-sm border rounded-lg focus:ring-1 outline-none ${fiscalErrors.email ? 'border-red-400 bg-red-50 focus:ring-red-300 focus:border-red-400' : 'border-gray-300 focus:ring-[#3E667D] focus:border-[#3E667D]'}`}
+                          />
+                          {fiscalErrors.email && <p className="text-[11px] text-red-600 mt-0.5">{fiscalErrors.email}</p>}
+                        </div>
+                      </div>
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => { setShowFiscalForm(false); setFiscalErrors({}); }}
+                          className="flex-1 px-3 py-1.5 text-sm text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                        >
+                          Cancelar
+                        </button>
+                        {process.env.NODE_ENV === 'development' && (
+                          <button
+                            type="button"
+                            disabled={validatingFiscal || !fiscalForm.rfc}
+                            onClick={async () => {
+                              setValidatingFiscal(true);
+                              setFiscalErrors({});
+                              try {
+                                const result = await billingService.validateFiscalData({
+                                  rfc: fiscalForm.rfc,
+                                  legalName: fiscalForm.legalName,
+                                  fiscalRegime: fiscalForm.fiscalRegime,
+                                  postalCode: fiscalForm.postalCode,
+                                  cfdiUse: fiscalForm.cfdiUse,
+                                  email: fiscalForm.email,
+                                });
+                                if (result.valid) {
+                                  toast.success('RFC, C.P. y régimen válidos en SAT. La correspondencia RFC↔Razón Social se valida al timbrar.');
+                                } else {
+                                  setFiscalErrors(result.errors);
+                                  toast.error(`Validacion fallida: ${Object.values(result.errors).join(', ')}`);
+                                }
+                              } catch (err: any) {
+                                toast.error(`Error de validacion: ${err.message || 'Error desconocido'}`);
+                              } finally {
+                                setValidatingFiscal(false);
+                              }
+                            }}
+                            className="px-3 py-1.5 text-sm text-amber-700 bg-amber-50 border border-amber-300 rounded-lg hover:bg-amber-100 disabled:opacity-50"
+                          >
+                            {validatingFiscal ? 'Validando...' : 'Test'}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleSaveFiscalData}
+                          disabled={savingFiscal || validatingFiscal || !fiscalForm.rfc || !fiscalForm.legalName || !fiscalForm.fiscalRegime || !fiscalForm.postalCode}
+                          className="flex-1 px-3 py-1.5 text-sm text-white bg-[#3E667D] rounded-lg hover:bg-[#2d4f63] disabled:opacity-50"
+                        >
+                          {validatingFiscal ? 'Validando...' : savingFiscal ? 'Guardando...' : 'Guardar'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : noFiscalData ? (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+                      <p className="text-sm text-amber-800 font-medium">Este cliente no tiene datos fiscales registrados.</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFiscalForm({ rfc: '', legalName: '', fiscalRegime: '', postalCode: '', cfdiUse: 'G03', email: '' });
+                          setShowFiscalForm(true);
+                        }}
+                        className="w-full px-3 py-2 text-sm font-medium text-[#3E667D] bg-white border border-[#3E667D]/30 rounded-lg hover:bg-[#3E667D]/5 transition-colors"
+                      >
+                        + Registrar datos fiscales
+                      </button>
+                    </div>
+                  ) : fiscalData ? (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold text-blue-800 uppercase tracking-wide">Datos de facturación</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFiscalForm({
+                              rfc: fiscalData.rfc || '',
+                              legalName: fiscalData.legalName || '',
+                              fiscalRegime: fiscalData.taxRegime || '',
+                              postalCode: fiscalData.postalCode || '',
+                              cfdiUse: fiscalData.defaultCfdiUse || 'G03',
+                              email: fiscalData.email || '',
+                            });
+                            setShowFiscalForm(true);
+                          }}
+                          className="text-xs text-blue-700 hover:text-blue-900 font-medium underline"
+                        >
+                          Editar
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                        <div>
+                          <span className="text-blue-600 text-xs">RFC:</span>
+                          <p className="font-medium text-gray-900">{fiscalData.rfc}</p>
+                        </div>
+                        <div>
+                          <span className="text-blue-600 text-xs">Razón Social:</span>
+                          <p className="font-medium text-gray-900 truncate">{fiscalData.legalName}</p>
+                        </div>
+                        <div>
+                          <span className="text-blue-600 text-xs">Régimen Fiscal:</span>
+                          <p className="font-medium text-gray-900">{fiscalData.taxRegime}</p>
+                        </div>
+                        <div>
+                          <span className="text-blue-600 text-xs">C.P.:</span>
+                          <p className="font-medium text-gray-900">{fiscalData.postalCode}</p>
+                        </div>
+                        <div>
+                          <span className="text-blue-600 text-xs">Uso CFDI:</span>
+                          <p className="font-medium text-gray-900">{fiscalData.defaultCfdiUse}</p>
+                        </div>
+                        <div>
+                          <span className="text-blue-600 text-xs">Email:</span>
+                          <p className="font-medium text-gray-900 truncate">{fiscalData.email}</p>
+                        </div>
+                      </div>
+                      {!fiscalComplete && (
+                        <p className="text-xs text-red-600 mt-2 font-medium">Faltan datos fiscales requeridos. Presione &quot;Editar&quot; para completarlos.</p>
+                      )}
+                    </div>
+                  ) : null
+                )}
+              </div>
+            )}
+
             {/* Complete Payment Button */}
             <button
               onClick={handleCompletePayment}
-              disabled={remainingAmount > 0.01 && payments.length === 0 && receivedNum < remainingAmount}
+              disabled={(remainingAmount > 0.01 && payments.length === 0 && receivedNum < remainingAmount) || (wantsInvoice && !fiscalComplete)}
               className="w-full py-4 bg-[#3E667D] text-white text-xl font-bold rounded-xl hover:bg-[#6aa526] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isProcessing ? (

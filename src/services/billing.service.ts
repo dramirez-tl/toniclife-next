@@ -253,6 +253,26 @@ export async function validateRfc(rfc: string): Promise<RfcValidation> {
   return response.data;
 }
 
+export interface FiscalDataValidationResult {
+  valid: boolean;
+  errors: Record<string, string>;
+}
+
+export async function validateFiscalData(data: {
+  rfc: string;
+  legalName: string;
+  fiscalRegime: string;
+  postalCode: string;
+  cfdiUse?: string;
+  email?: string;
+}): Promise<FiscalDataValidationResult> {
+  const response = await apiClient.post<FiscalDataValidationResult>(
+    `${BASE_URL}/validate/fiscal-data`,
+    data
+  );
+  return response.data;
+}
+
 // ================================
 // FACTURAMA DIRECT QUERIES
 // ================================
@@ -346,6 +366,7 @@ export const billingService = {
 
   // Validation
   validateRfc,
+  validateFiscalData,
 
   // Facturama Direct
   listFacturamaCfdis,

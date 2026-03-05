@@ -14,25 +14,31 @@ import {
   UserGroupIcon,
   UserIcon,
   ArrowsRightLeftIcon,
-  InformationCircleIcon,
+
   XMarkIcon,
 } from '@heroicons/react/24/outline';
-import { PosProductSearch, PosCart, PaymentModal, SessionManager } from '@/components/pos';
+import { PosProductSearch, PosCart, PaymentModal } from '@/components/pos';
 import { PosCustomerSelector } from '@/components/pos/PosCustomerSelector';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { usePosCartStore } from '@/stores/pos-cart.store';
 import { useActiveSession, useCreateSale, useProcessPayment, useSales } from '@/hooks/usePos';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { useActiveCurrencies } from '@/hooks/useConfig';
-import type { CreatePaymentInput, PosPaymentMethod } from '@/types/pos';
+import type { CreatePaymentInput, PosPaymentMethod, Sale } from '@/types/pos';
 import type { Branch } from '@/types/branch';
 import type { Currency } from '@/types/config';
+import type { FiscalData } from '@/types/billing';
+import { FISCAL_REGIMES, CFDI_USES } from '@/types/billing';
 import { toast } from 'sonner';
 import { posService } from '@/services/pos.service';
+import { billingService } from '@/services/billing.service';
 import { generatePosTicketPdf } from '@/lib/generate-pos-ticket';
 import { PermissionGuard } from '@/components/auth';
 import { useSelector } from 'react-redux';
 import { selectUser, selectUserRoles } from '@/store/slices/authSlice';
+
+const fiscalRegimeOptions = FISCAL_REGIMES.map((r) => ({ value: r.Value, label: `${r.Value} - ${r.Name}` }));
+const cfdiUseOptions = CFDI_USES.map((u) => ({ value: u.Value, label: `${u.Value} - ${u.Name}` }));
 
 export default function PosPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -43,6 +49,15 @@ export default function PosPage() {
   const [appliedSalesDate, setAppliedSalesDate] = useState<string>(today);
   const [ticketUrl, setTicketUrl] = useState<string | null>(null);
   const [isLoadingTicket, setIsLoadingTicket] = useState(false);
+
+  // Fiscal edit modal for stamp retry
+  const [stampRetrySale, setStampRetrySale] = useState<Sale | null>(null);
+  const [stampRetryError, setStampRetryError] = useState('');
+  const [stampRetryFiscal, setStampRetryFiscal] = useState<FiscalData | null>(null);
+  const [stampRetryForm, setStampRetryForm] = useState({ rfc: '', legalName: '', fiscalRegime: '', postalCode: '', cfdiUse: 'G03', email: '' });
+  const [stampRetryErrors, setStampRetryErrors] = useState<Record<string, string>>({});
+  const [stampRetryLoading, setStampRetryLoading] = useState(false);
+  const [stampRetrySaving, setStampRetrySaving] = useState(false);
 
   const user = useSelector(selectUser);
   const userRoles = useSelector(selectUserRoles);
@@ -88,11 +103,7 @@ export default function PosPage() {
     }
   }, [selectedBranchId, posBranches, userDefaultBranchId]);
 
-  // When session is active, lock branch to session's branch
-  // Call center and super_admin only observe — never locked to a remote session
-  const canSwitchFreely = userRoles.includes('call_center') || userRoles.includes('super_admin');
-  const activeBranchId = canSwitchFreely ? undefined : activeSession?.session?.branchId;
-  const effectiveBranchId = activeBranchId || selectedBranchId;
+  const effectiveBranchId = selectedBranchId;
 
   // Recent sales — filtered by branch and date
   const { data: recentSales, refetch: refetchSales, isLoading: isLoadingSales, isFetching: isFetchingSales } = useSales({
@@ -110,18 +121,14 @@ export default function PosPage() {
   const currencyId = currency?.id;
   const branchCountryId = selectedBranch?.countryId;
 
-  const hasActiveSession = !!activeSession?.session;
-  // canSwitchFreely users are read-only when:
-  // - viewing a session opened by someone else, OR
-  // - viewing a branch with no session that isn't their default branch
-  const isOwnSession = hasActiveSession && activeSession?.session?.openedBy === user?.id;
-  const isObserving = canSwitchFreely && !isOwnSession && (hasActiveSession || effectiveBranchId !== userDefaultBranchId);
+  const handleBranchChange = (branchId: string) => {
+    if (branchId !== selectedBranchId) {
+      clearCart();
+      setSelectedBranchId(branchId);
+    }
+  };
 
   const handleCheckout = () => {
-    if (!hasActiveSession) {
-      toast.error('Debes abrir una sesión de caja primero');
-      return;
-    }
     if (cart.items.length === 0) {
       toast.error('El carrito está vacío');
       return;
@@ -133,14 +140,38 @@ export default function PosPage() {
     setShowPaymentModal(true);
   };
 
-  const handlePaymentComplete = useCallback(
-    async (payments: CreatePaymentInput[], change: number) => {
-      if (!activeSession?.session) return;
+  // Auto-open a session if none exists, then create the sale
+  const ensureSession = useCallback(async (): Promise<string> => {
+    // If there's already an active session for this branch, use it
+    if (activeSession?.session) return activeSession.session.id;
 
+    // Find first available register for this branch
+    const registers = await posService.getAvailableRegisters(effectiveBranchId);
+    const closedRegister = registers.find((r) => r.status === 'closed') || registers[0];
+    if (!closedRegister) {
+      throw new Error('No hay cajas registradoras disponibles en esta sucursal');
+    }
+
+    // Auto-open session with $0
+    const session = await posService.openSession({
+      cashRegisterId: closedRegister.id,
+      openingAmount: 0,
+      openingNotes: 'Apertura automática',
+      currencyId: currencyId || undefined,
+    });
+
+    await refetchSession();
+    return session.id;
+  }, [activeSession, effectiveBranchId, currencyId, refetchSession]);
+
+  const handlePaymentComplete = useCallback(
+    async (payments: CreatePaymentInput[], change: number, requiresInvoice = false) => {
       try {
+        const sessionId = await ensureSession();
+
         // Create sale
         const sale = await createSale.mutateAsync({
-          sessionId: activeSession.session.id,
+          sessionId,
           customerId: cart.customerId,
           customerName: cart.customerName,
           customerRfc: cart.customerRfc,
@@ -154,7 +185,7 @@ export default function PosPage() {
           discountPercent: cart.discountPercent,
           discountAmount: cart.discountAmount,
           discountReason: cart.discountReason,
-          requiresInvoice: cart.requiresInvoice,
+          requiresInvoice,
           notes: cart.notes,
         });
 
@@ -179,11 +210,88 @@ export default function PosPage() {
         return fullSale;
       } catch (error: any) {
         toast.error(error.response?.data?.message || 'Error al procesar la venta');
-        throw error; // Re-throw so PaymentModal knows the payment failed
+        throw error;
       }
     },
-    [activeSession, cart, createSale, processPayment, clearCart, refetchSales, refetchSession],
+    [ensureSession, cart, createSale, processPayment, clearCart, refetchSales, refetchSession],
   );
+
+  // Open fiscal edit modal when stamp fails
+  const openStampRetryModal = async (sale: Sale, errorMsg: string) => {
+    setStampRetrySale(sale);
+    setStampRetryError(errorMsg);
+    setStampRetryErrors({});
+    setStampRetryLoading(true);
+    try {
+      if (sale.customerId) {
+        const data = await billingService.getFiscalDataByCustomer(sale.customerId);
+        const defaultRecord = data.find((d) => d.isDefault) || data[0];
+        if (defaultRecord) {
+          setStampRetryFiscal(defaultRecord);
+          setStampRetryForm({
+            rfc: defaultRecord.rfc || '',
+            legalName: defaultRecord.legalName || '',
+            fiscalRegime: defaultRecord.taxRegime || '',
+            postalCode: defaultRecord.postalCode || '',
+            cfdiUse: defaultRecord.defaultCfdiUse || 'G03',
+            email: defaultRecord.email || '',
+          });
+        } else {
+          setStampRetryFiscal(null);
+          setStampRetryForm({ rfc: '', legalName: '', fiscalRegime: '', postalCode: '', cfdiUse: 'G03', email: '' });
+        }
+      }
+    } catch {
+      setStampRetryFiscal(null);
+      setStampRetryForm({ rfc: '', legalName: '', fiscalRegime: '', postalCode: '', cfdiUse: 'G03', email: '' });
+    } finally {
+      setStampRetryLoading(false);
+    }
+  };
+
+  const handleStampRetrySave = async () => {
+    if (!stampRetrySale?.customerId) return;
+    const { rfc, legalName, fiscalRegime, postalCode, cfdiUse, email } = stampRetryForm;
+
+    // Basic validation
+    const errs: Record<string, string> = {};
+    if (!rfc) errs.rfc = 'RFC es obligatorio';
+    if (!legalName) errs.legalName = 'Razón Social es obligatoria';
+    if (!fiscalRegime) errs.fiscalRegime = 'Régimen Fiscal es obligatorio';
+    if (!postalCode) errs.postalCode = 'Código Postal es obligatorio';
+    if (Object.keys(errs).length > 0) { setStampRetryErrors(errs); return; }
+
+    setStampRetrySaving(true);
+    setStampRetryErrors({});
+    try {
+      // Validate with SAT
+      const validation = await billingService.validateFiscalData({ rfc, legalName, fiscalRegime, postalCode, cfdiUse, email });
+      if (!validation.valid) { setStampRetryErrors(validation.errors); setStampRetrySaving(false); return; }
+    } catch {
+      // If validation endpoint fails, continue
+    }
+
+    try {
+      // Save fiscal data
+      if (stampRetryFiscal?.id) {
+        await billingService.updateFiscalData(stampRetryFiscal.id, { rfc, legalName, fiscalRegime, postalCode, cfdiUse, email });
+      } else {
+        await billingService.createFiscalData({ customerId: stampRetrySale.customerId, rfc, legalName, fiscalRegime, postalCode, cfdiUse, email });
+      }
+
+      // Retry stamp
+      await posService.stampSale(stampRetrySale.id);
+      toast.success('Datos actualizados y factura timbrada exitosamente');
+      setStampRetrySale(null);
+      refetchSales();
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Error al timbrar';
+      setStampRetryError(msg);
+      toast.error(msg);
+    } finally {
+      setStampRetrySaving(false);
+    }
+  };
 
   const formatCurrency = (amount: number) =>
     `${currencySymbol}${amount.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -203,36 +311,36 @@ export default function PosPage() {
 
             <div>
               <h1 className="text-xl font-bold">Punto de Venta</h1>
-              {activeSession?.cashRegister && (
-                <p className="text-sm text-white/80">
-                  {activeSession.cashRegister.name} • {activeSession.cashRegister.branchName}
-                </p>
-              )}
+              <p className="text-sm text-white/80">
+                {selectedBranch?.name || 'Sin sucursal'}
+                {' • '}
+                {recentSales?.data
+                  ? `${recentSales.data.length} venta${recentSales.data.length !== 1 ? 's' : ''} hoy • ${formatCurrency(recentSales.data.reduce((sum, s) => sum + s.total, 0))}`
+                  : '0 ventas hoy'}
+              </p>
             </div>
 
-            {/* Branch Selector (admin: editable / non-admin with default branch: locked) */}
-            {/* Call center can always switch — they only observe remote sessions */}
-            {(!hasActiveSession || canSwitchFreely) && (
-              isAdmin && posBranches.length > 1 ? (
-                <div className="hidden sm:flex items-center gap-2 ml-4 w-80">
-                  <MapPinIcon className="h-5 w-5 text-white/60 flex-shrink-0" />
-                  <SearchableSelect
-                    options={branchOptions}
-                    value={selectedBranchId}
-                    onChange={setSelectedBranchId}
-                    placeholder="Buscar sucursal..."
-                    showAllOption={false}
-                    className="w-full"
-                  />
-                </div>
-              ) : selectedBranch ? (
-                <div className="hidden sm:flex items-center gap-2 ml-4">
-                  <MapPinIcon className="h-5 w-5 text-white/60 flex-shrink-0" />
-                  <span className="px-3 py-1.5 bg-white/15 border border-white/25 rounded-lg text-sm font-medium">
-                    {selectedBranch.name}
-                  </span>
-                </div>
-              ) : null
+            {/* Branch Selector (admin: editable / non-admin: locked) */}
+            {isAdmin && posBranches.length > 1 && (
+              <div className="hidden sm:flex items-center gap-2 ml-4 w-80">
+                <MapPinIcon className="h-5 w-5 text-white/60 flex-shrink-0" />
+                <SearchableSelect
+                  options={branchOptions}
+                  value={selectedBranchId}
+                  onChange={handleBranchChange}
+                  placeholder="Buscar sucursal..."
+                  showAllOption={false}
+                  className="w-full"
+                />
+              </div>
+            )}
+            {!isAdmin && selectedBranch && (
+              <div className="hidden sm:flex items-center gap-2 ml-4">
+                <MapPinIcon className="h-5 w-5 text-white/60 flex-shrink-0" />
+                <span className="px-3 py-1.5 bg-white/15 border border-white/25 rounded-lg text-sm font-medium">
+                  {selectedBranch.name}
+                </span>
+              </div>
             )}
           </div>
 
@@ -300,22 +408,33 @@ export default function PosPage() {
                     className="p-3 bg-gray-50 rounded-lg border hover:bg-gray-100"
                   >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium text-sm">{sale.saleNumber}</span>
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full ${
-                          sale.status === 'completed'
-                            ? 'bg-green-100 text-green-700'
+                      <span className="font-medium text-sm truncate mr-1">{sale.saleNumber}</span>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {sale.requiresInvoice && (
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                            sale.invoiceUuid
+                              ? 'bg-purple-100 text-purple-700'
+                              : 'bg-orange-100 text-orange-700'
+                          }`}>
+                            {sale.invoiceUuid ? 'Timbrada' : 'Factura'}
+                          </span>
+                        )}
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full ${
+                            sale.status === 'completed'
+                              ? 'bg-green-100 text-green-700'
+                              : sale.status === 'cancelled'
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-yellow-100 text-yellow-700'
+                          }`}
+                        >
+                          {sale.status === 'completed'
+                            ? 'Completada'
                             : sale.status === 'cancelled'
-                              ? 'bg-red-100 text-red-700'
-                              : 'bg-yellow-100 text-yellow-700'
-                        }`}
-                      >
-                        {sale.status === 'completed'
-                          ? 'Completada'
-                          : sale.status === 'cancelled'
-                            ? 'Cancelada'
-                            : 'Pendiente'}
-                      </span>
+                              ? 'Cancelada'
+                              : 'Pendiente'}
+                        </span>
+                      </div>
                     </div>
                     <p className="text-xs text-gray-400">
                       {new Date(sale.createdAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })}{' '}
@@ -327,7 +446,32 @@ export default function PosPage() {
                         <p className="font-bold text-[#3E667D]">{formatCurrency(sale.total)}</p>
                       </div>
                       {sale.status === 'completed' && (
-                        <button
+                        <div className="flex items-center gap-1">
+                          {/* Stamp button — only for sales that need invoice and aren't stamped yet */}
+                          {sale.requiresInvoice && !sale.invoiceUuid && (
+                            <button
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  await posService.stampSale(sale.id);
+                                  toast.success(`Factura timbrada y enviada por correo`);
+                                  refetchSales();
+                                } catch (err: any) {
+                                  const msg = err.response?.data?.message || 'Error al timbrar';
+                                  toast.error(msg);
+                                  if (sale.customerId) {
+                                    openStampRetryModal(sale, msg);
+                                  }
+                                }
+                              }}
+                              title="Timbrar factura"
+                              className="p-2 text-orange-500 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-colors"
+                            >
+                              <DocumentTextIcon className="h-5 w-5" />
+                            </button>
+                          )}
+                          {/* Print ticket button */}
+                          <button
                           onClick={async (e) => {
                             e.stopPropagation();
                             setIsLoadingTicket(true);
@@ -359,6 +503,7 @@ export default function PosPage() {
                             <PrinterIcon className="h-5 w-5" />
                           )}
                         </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -370,12 +515,6 @@ export default function PosPage() {
               )}
             </div>
             <div className="flex-shrink-0 p-4 border-t bg-white space-y-2">
-              <div className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg">
-                <InformationCircleIcon className="h-4 w-4 text-amber-600 flex-shrink-0" />
-                <p className="text-xs text-amber-700">
-                  Módulo de facturación pendiente de liberar.
-                </p>
-              </div>
               <button
                 onClick={() => refetchSales()}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
@@ -397,20 +536,20 @@ export default function PosPage() {
           {/* Center - Product Search */}
           <main className="flex-grow flex flex-col p-4 overflow-hidden">
             {/* Mobile branch selector */}
-            {isAdmin && (!hasActiveSession || canSwitchFreely) && posBranches.length > 1 && (
+            {isAdmin && posBranches.length > 1 && (
               <div className="sm:hidden mb-3 flex items-center gap-2">
                 <MapPinIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
                 <SearchableSelect
                   options={branchOptions}
                   value={selectedBranchId}
-                  onChange={setSelectedBranchId}
+                  onChange={handleBranchChange}
                   placeholder="Buscar sucursal..."
                   showAllOption={false}
                   className="flex-1"
                 />
               </div>
             )}
-            {!isAdmin && !hasActiveSession && selectedBranch && (
+            {!isAdmin && selectedBranch && (
               <div className="sm:hidden mb-3 flex items-center gap-2">
                 <MapPinIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
                 <span className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium">
@@ -419,29 +558,8 @@ export default function PosPage() {
               </div>
             )}
 
-            {/* Session Manager */}
-            <div className="mb-4">
-              <SessionManager
-                branchId={effectiveBranchId}
-                currencyId={currencyId}
-                currencySymbol={currencySymbol}
-                currencyCode={currencyCode}
-                readOnly={isObserving}
-                onSessionChange={() => {
-                  refetchSession();
-                  refetchSales();
-                  // Clear cart and remove selected distributor when session closes
-                  const store = usePosCartStore.getState();
-                  store.clearCart();
-                  store.setCustomer(undefined, undefined, undefined, undefined);
-                  store.setPublicPrice(false);
-                }}
-              />
-            </div>
-
             {/* Two-step flow: 1) Select distributor or public price → 2) Search products */}
-            {hasActiveSession ? (
-              (cart.customerId || cart.isPublicPrice) ? (
+            {(cart.customerId || cart.isPublicPrice) ? (
                 /* STEP 2: Ready to sell → Product search */
                 <div className="flex-grow flex flex-col">
                   {/* Customer/Public badge */}
@@ -524,21 +642,14 @@ export default function PosPage() {
                   </div>
                 </div>
               )
-            ) : (
-              <div className="flex-grow flex items-center justify-center">
-                <div className="text-center text-gray-500">
-                  <CurrencyDollarIcon className="h-24 w-24 mx-auto mb-4 opacity-30" />
-                  <p className="text-lg">Abre una sesión de caja para comenzar a vender</p>
-                </div>
-              </div>
-            )}
+            }
           </main>
 
           {/* Right - Cart */}
           <aside className="w-96 flex-shrink-0 p-4 hidden md:flex md:flex-col">
             <PosCart
               onCheckout={handleCheckout}
-              disabled={!hasActiveSession}
+              disabled={false}
               currencySymbol={currencySymbol}
               currencyCode={currencyCode}
             />
@@ -549,7 +660,7 @@ export default function PosPage() {
         <div className="md:hidden fixed bottom-4 right-4 z-30">
           <button
             onClick={handleCheckout}
-            disabled={!hasActiveSession || cart.items.length === 0 || (!cart.customerId && !cart.isPublicPrice)}
+            disabled={cart.items.length === 0 || (!cart.customerId && !cart.isPublicPrice)}
             className="flex items-center gap-2 px-6 py-4 bg-[#3E667D] text-white rounded-full shadow-lg hover:bg-[#2d4f63] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span className="font-bold">{cart.customerId || cart.isPublicPrice ? `Cobrar ${formatCurrency(cart.total)}` : 'Seleccione distribuidor'}</span>
@@ -566,6 +677,7 @@ export default function PosPage() {
           isOpen={showPaymentModal}
           onClose={() => setShowPaymentModal(false)}
           total={cart.total}
+          customerId={cart.customerId}
           onPaymentComplete={handlePaymentComplete}
           currencySymbol={currencySymbol}
           branchConfig={selectedBranch ? {
@@ -575,6 +687,9 @@ export default function PosPage() {
             ticketFooter: selectedBranch.ticketFooter,
             addressPhone: selectedBranch.addressPhone,
           } : undefined}
+          branchName={selectedBranch?.name}
+          branchCountryName={selectedBranch?.countryName}
+          branchCountryId={selectedBranch?.countryId}
         />
 
         {/* Ticket Preview Modal */}
@@ -620,6 +735,151 @@ export default function PosPage() {
                   Imprimir
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Stamp Retry — Edit Fiscal Data Modal */}
+        {stampRetrySale && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="bg-white rounded-xl shadow-2xl w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b">
+                <div>
+                  <h3 className="font-semibold text-gray-900">Corregir datos fiscales</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Venta {stampRetrySale.saleNumber}</p>
+                </div>
+                <button
+                  onClick={() => setStampRetrySale(null)}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="px-5 py-4 space-y-4">
+                {/* Error message */}
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-700 font-medium">Error al timbrar:</p>
+                  <p className="text-sm text-red-600 mt-1">{stampRetryError}</p>
+                </div>
+
+                {stampRetryLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3E667D]" />
+                  </div>
+                ) : (
+                  <>
+                    {/* RFC */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">RFC *</label>
+                      <input
+                        value={stampRetryForm.rfc}
+                        onChange={(e) => { setStampRetryForm((p) => ({ ...p, rfc: e.target.value.toUpperCase() })); setStampRetryErrors((p) => { const n = { ...p }; delete n.rfc; return n; }); }}
+                        className={`w-full px-3 py-2 border rounded-lg text-sm ${stampRetryErrors.rfc ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
+                        placeholder="XAXX010101000"
+                        maxLength={13}
+                      />
+                      {stampRetryErrors.rfc && <p className="text-xs text-red-500 mt-1">{stampRetryErrors.rfc}</p>}
+                    </div>
+
+                    {/* Legal Name */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Razón Social *</label>
+                      <input
+                        value={stampRetryForm.legalName}
+                        onChange={(e) => { setStampRetryForm((p) => ({ ...p, legalName: e.target.value.toUpperCase() })); setStampRetryErrors((p) => { const n = { ...p }; delete n.legalName; return n; }); }}
+                        className={`w-full px-3 py-2 border rounded-lg text-sm ${stampRetryErrors.legalName ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
+                        placeholder="NOMBRE COMPLETO O RAZÓN SOCIAL"
+                      />
+                      {stampRetryErrors.legalName && <p className="text-xs text-red-500 mt-1">{stampRetryErrors.legalName}</p>}
+                    </div>
+
+                    {/* Fiscal Regime */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Régimen Fiscal *</label>
+                      <SearchableSelect
+                        options={fiscalRegimeOptions}
+                        value={stampRetryForm.fiscalRegime}
+                        onChange={(v) => { setStampRetryForm((p) => ({ ...p, fiscalRegime: v })); setStampRetryErrors((p) => { const n = { ...p }; delete n.fiscalRegime; return n; }); }}
+                        placeholder="Seleccionar régimen..."
+                        showAllOption={false}
+                      />
+                      {stampRetryErrors.fiscalRegime && <p className="text-xs text-red-500 mt-1">{stampRetryErrors.fiscalRegime}</p>}
+                    </div>
+
+                    {/* Postal Code */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Código Postal *</label>
+                      <input
+                        value={stampRetryForm.postalCode}
+                        onChange={(e) => { setStampRetryForm((p) => ({ ...p, postalCode: e.target.value.replace(/\D/g, '') })); setStampRetryErrors((p) => { const n = { ...p }; delete n.postalCode; return n; }); }}
+                        className={`w-full px-3 py-2 border rounded-lg text-sm ${stampRetryErrors.postalCode ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
+                        placeholder="00000"
+                        maxLength={5}
+                      />
+                      {stampRetryErrors.postalCode && <p className="text-xs text-red-500 mt-1">{stampRetryErrors.postalCode}</p>}
+                    </div>
+
+                    {/* CFDI Use */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Uso de CFDI</label>
+                      <SearchableSelect
+                        options={cfdiUseOptions}
+                        value={stampRetryForm.cfdiUse}
+                        onChange={(v) => setStampRetryForm((p) => ({ ...p, cfdiUse: v }))}
+                        placeholder="Seleccionar uso..."
+                        showAllOption={false}
+                      />
+                    </div>
+
+                    {/* Email */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Email para factura</label>
+                      <input
+                        value={stampRetryForm.email}
+                        onChange={(e) => setStampRetryForm((p) => ({ ...p, email: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        placeholder="correo@ejemplo.com"
+                        type="email"
+                      />
+                    </div>
+
+                    <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                      La correspondencia RFC ↔ Razón Social se valida por el SAT al timbrar. Asegúrate de que coincidan exactamente.
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* Footer */}
+              {!stampRetryLoading && (
+                <div className="flex items-center gap-3 px-5 py-4 border-t">
+                  <button
+                    onClick={() => setStampRetrySale(null)}
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleStampRetrySave}
+                    disabled={stampRetrySaving}
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-[#3E667D] rounded-lg hover:bg-[#2d4f63] disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                  >
+                    {stampRetrySaving ? (
+                      <>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                        Timbrando...
+                      </>
+                    ) : (
+                      <>
+                        <DocumentTextIcon className="h-4 w-4" />
+                        Guardar y Timbrar
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -347,17 +347,23 @@ export async function generatePosTicketPdf(
   y = leftText(doc, `Fecha de Pago: ${fmtDate(saleDate)}`, y);
   y = leftText(doc, `No. Operacion: ${sale.saleNumber}`, y);
 
-  // ----- 8. Puntos MLM (if customer) -----
-  if (sale.customerId) {
-    // Sum points and BV from items
-    const totalPoints = sale.items.reduce((sum, item) => {
-      // Points are stored as taxRate * quantity in the item but we don't have explicit points in SaleItem
-      // For now, we just show what we have. Points come from the cart at POS time.
-      return sum;
-    }, 0);
+  // ----- 8. Puntos y Volumen de Negocio -----
+  const totalPoints = sale.items.reduce((sum, item) => sum + (item.points || 0) * item.quantity, 0);
+  const totalBV = sale.items.reduce((sum, item) => sum + (item.businessValue || 0) * item.quantity, 0);
 
-    // If the sale has items with points data, show them
-    // Note: points are not stored in pos_sale_items yet — this section is future-proof
+  if (totalPoints > 0 || totalBV > 0) {
+    y = drawSeparator(doc, y);
+    doc.setFont(FONT_BODY, 'bold');
+    doc.setFontSize(7);
+    y = leftText(doc, 'Puntos y Volumen de Negocio', y);
+    doc.setFont(FONT_BODY, 'normal');
+    doc.setFontSize(6.5);
+    if (totalPoints > 0) {
+      y = leftText(doc, `Puntos: ${totalPoints.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, y);
+    }
+    if (totalBV > 0) {
+      y = leftText(doc, `Vol. Negocio: ${totalBV.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, y);
+    }
   }
 
   // ----- 9. Footer -----

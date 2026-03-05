@@ -183,6 +183,14 @@ class PosService {
     return response.data;
   }
 
+  /**
+   * Stamp (timbrar) a sale invoice
+   */
+  async stampSale(id: string): Promise<Sale> {
+    const response = await api.post<Sale>(`/pos/sales/${id}/stamp`);
+    return response.data;
+  }
+
   // ================================
   // CASH MOVEMENTS
   // ================================

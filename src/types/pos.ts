@@ -31,7 +31,7 @@ export enum PosPaymentMethod {
   CREDIT = 'credit',
   MIXED = 'mixed',
   CASHBACK = 'cashback',
-  LIGA_BANCOMER = 'liga_bancomer',
+  PROMOTION = 'promotion',
   MERCADO_PAGO = 'mercado_pago',
   USD_CASH = 'usd_cash',
   UNDEFINED = 'undefined',
@@ -193,6 +193,8 @@ export interface SaleItem {
   subtotal: number;
   total: number;
   notes?: string;
+  points: number;
+  businessValue: number;
 }
 
 export interface SalePayment {
