@@ -105,6 +105,9 @@ export interface CustomerQueryParams {
   page?: number;
   limit?: number;
   search?: string;
+  firstName?: string;
+  lastName?: string;
+  mothersLastName?: string;
   customerNumber?: string;
   customerType?: string;
   status?: CustomerStatus;

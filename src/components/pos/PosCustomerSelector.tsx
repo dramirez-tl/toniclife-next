@@ -25,6 +25,7 @@ export function PosCustomerSelector({ prominent = false, countryId }: PosCustome
   const [mothersLastName, setMothersLastName] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchCustomerNumber, setSearchCustomerNumber] = useState<string | undefined>(undefined);
+  const [searchNameFields, setSearchNameFields] = useState<{ firstName?: string; lastName?: string; mothersLastName?: string } | undefined>(undefined);
   const [hasSearched, setHasSearched] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -32,7 +33,7 @@ export function PosCustomerSelector({ prominent = false, countryId }: PosCustome
   const setCustomer = usePosCartStore((s) => s.setCustomer);
   const refreshItemPrices = usePosCartStore((s) => s.refreshItemPrices);
 
-  const { data: results, isLoading } = usePosCustomerSearch(searchQuery, searchQuery.length >= 2 || (!!searchCustomerNumber && searchCustomerNumber.length >= 1), searchCustomerNumber);
+  const { data: results, isLoading } = usePosCustomerSearch(searchQuery, searchQuery.length >= 2 || (!!searchCustomerNumber && searchCustomerNumber.length >= 1), searchCustomerNumber, searchNameFields);
   const customers = results?.data || [];
 
   const refreshPrices = useCallback(async (priceTypeId: string) => {
@@ -71,17 +72,28 @@ export function PosCustomerSelector({ prominent = false, countryId }: PosCustome
 
   const handleSearch = () => {
     const trimmedNumber = customerNumber.trim();
-    const nameParts = [firstName, lastName, mothersLastName].map(s => s.trim()).filter(Boolean);
+    const trimFirst = firstName.trim();
+    const trimLast = lastName.trim();
+    const trimMothers = mothersLastName.trim();
+    const hasNameInput = trimFirst || trimLast || trimMothers;
 
-    if (!trimmedNumber && nameParts.length === 0) return;
+    if (!trimmedNumber && !hasNameInput) return;
 
-    // If customer number is filled, use exact match via customerNumber param
     if (trimmedNumber) {
+      // Exact match by customer number
       setSearchCustomerNumber(trimmedNumber);
+      setSearchNameFields(undefined);
       setSearchQuery(trimmedNumber); // needed for enabled check
     } else {
+      // Individual name field search (AND logic in backend)
       setSearchCustomerNumber(undefined);
-      setSearchQuery(nameParts.join(' '));
+      setSearchNameFields({
+        firstName: trimFirst || undefined,
+        lastName: trimLast || undefined,
+        mothersLastName: trimMothers || undefined,
+      });
+      // searchQuery is needed for the enabled check (>= 2 chars)
+      setSearchQuery([trimFirst, trimLast, trimMothers].filter(Boolean).join(' '));
     }
     setHasSearched(true);
   };

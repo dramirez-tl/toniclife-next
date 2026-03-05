@@ -389,13 +389,24 @@ export const usePosProductSearch = (query: string, enabled = true, branchId?: st
 
 /**
  * Search distributor customers for POS
- * @param customerNumber - If provided, does exact match by customer_number instead of ILIKE search
+ * Supports individual name fields (firstName, lastName, mothersLastName) for precise filtering,
+ * or customerNumber for exact match.
  */
-export const usePosCustomerSearch = (query: string, enabled = true, customerNumber?: string) => {
+export const usePosCustomerSearch = (
+  query: string,
+  enabled = true,
+  customerNumber?: string,
+  nameFields?: { firstName?: string; lastName?: string; mothersLastName?: string },
+) => {
+  const hasNameFields = nameFields && (nameFields.firstName || nameFields.lastName || nameFields.mothersLastName);
   return useQuery({
     queryKey: posKeys.customerSearch(query, customerNumber),
     queryFn: () => customersService.getAll({
-      search: customerNumber ? undefined : query,
+      // Use individual name fields when available, otherwise fall back to generic search
+      search: (customerNumber || hasNameFields) ? undefined : query,
+      firstName: hasNameFields ? nameFields.firstName : undefined,
+      lastName: hasNameFields ? nameFields.lastName : undefined,
+      mothersLastName: hasNameFields ? nameFields.mothersLastName : undefined,
       customerNumber: customerNumber || undefined,
       customerType: 'distributor',
       status: 'active',
