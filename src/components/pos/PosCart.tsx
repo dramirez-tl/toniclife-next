@@ -221,10 +221,10 @@ export function PosCart({ onCheckout, disabled, currencySymbol = '$', currencyCo
       <div className="p-3 border-t">
         <button
           onClick={onCheckout}
-          disabled={!hasItems || disabled || !cart.customerId}
+          disabled={!hasItems || disabled || (!cart.customerId && !cart.isPublicPrice)}
           className="w-full py-3.5 px-6 bg-[#3E667D] text-white font-bold text-base rounded-xl hover:bg-[#2d4f63] active:scale-[0.98] transition-all disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
         >
-          {cart.customerId ? `Cobrar ${fmt(cart.total)}` : 'Seleccione distribuidor'}
+          {cart.customerId || cart.isPublicPrice ? `Cobrar ${fmt(cart.total)}` : 'Seleccione distribuidor'}
         </button>
       </div>
     </div>

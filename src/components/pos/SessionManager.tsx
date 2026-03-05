@@ -19,6 +19,7 @@ interface SessionManagerProps {
   currencyId?: string;
   currencySymbol?: string;
   currencyCode?: string;
+  readOnly?: boolean;
   onSessionChange?: () => void;
 }
 
@@ -27,6 +28,7 @@ export function SessionManager({
   currencyId,
   currencySymbol = '$',
   currencyCode = 'MXN',
+  readOnly = false,
   onSessionChange,
 }: SessionManagerProps) {
   const [showOpenModal, setShowOpenModal] = useState(false);
@@ -143,6 +145,7 @@ export function SessionManager({
                   <EyeIcon className="h-5 w-5" />
                 )}
               </button>
+            {!readOnly && (
             <button
               onClick={() => setShowCloseModal(true)}
               className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
@@ -150,6 +153,7 @@ export function SessionManager({
               <StopIcon className="h-5 w-5" />
               Cerrar Caja
             </button>
+            )}
             </div>
           </div>
 
@@ -267,6 +271,7 @@ export function SessionManager({
             <p className="font-medium text-gray-700">Sin sesión activa</p>
             <p className="text-sm text-gray-500">Abre una caja para comenzar a vender</p>
           </div>
+          {!readOnly && (
           <button
             onClick={() => setShowOpenModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#6aa526] transition-colors"
@@ -274,6 +279,7 @@ export function SessionManager({
             <PlayIcon className="h-5 w-5" />
             Abrir Caja
           </button>
+          )}
         </div>
       </div>
 

@@ -111,6 +111,11 @@ export default function PosPage() {
   const branchCountryId = selectedBranch?.countryId;
 
   const hasActiveSession = !!activeSession?.session;
+  // canSwitchFreely users are read-only when:
+  // - viewing a session opened by someone else, OR
+  // - viewing a branch with no session that isn't their default branch
+  const isOwnSession = hasActiveSession && activeSession?.session?.openedBy === user?.id;
+  const isObserving = canSwitchFreely && !isOwnSession && (hasActiveSession || effectiveBranchId !== userDefaultBranchId);
 
   const handleCheckout = () => {
     if (!hasActiveSession) {
@@ -421,6 +426,7 @@ export default function PosPage() {
                 currencyId={currencyId}
                 currencySymbol={currencySymbol}
                 currencyCode={currencyCode}
+                readOnly={isObserving}
                 onSessionChange={() => {
                   refetchSession();
                   refetchSales();
@@ -543,10 +549,10 @@ export default function PosPage() {
         <div className="md:hidden fixed bottom-4 right-4 z-30">
           <button
             onClick={handleCheckout}
-            disabled={!hasActiveSession || cart.items.length === 0 || !cart.customerId}
+            disabled={!hasActiveSession || cart.items.length === 0 || (!cart.customerId && !cart.isPublicPrice)}
             className="flex items-center gap-2 px-6 py-4 bg-[#3E667D] text-white rounded-full shadow-lg hover:bg-[#2d4f63] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span className="font-bold">{cart.customerId ? `Cobrar ${formatCurrency(cart.total)}` : 'Seleccione distribuidor'}</span>
+            <span className="font-bold">{cart.customerId || cart.isPublicPrice ? `Cobrar ${formatCurrency(cart.total)}` : 'Seleccione distribuidor'}</span>
             {cart.items.length > 0 && (
               <span className="bg-white text-[#3E667D] px-2 py-0.5 rounded-full text-sm font-bold">
                 {cart.items.length}
