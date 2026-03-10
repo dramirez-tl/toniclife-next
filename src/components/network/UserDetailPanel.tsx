@@ -13,7 +13,6 @@ import {
   UserGroupIcon,
   ChartBarIcon,
   CurrencyDollarIcon,
-  ArrowTopRightOnSquareIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { TrophyIcon } from '@heroicons/react/24/solid';
@@ -45,7 +44,6 @@ interface UserDetailPanelProps {
   rootUserId?: string;
   rootUserDetailData?: RootUserDetailData;
   onClose?: () => void;
-  onNavigateToSponsor?: (sponsorId: string) => void;
 }
 
 export function UserDetailPanel({
@@ -53,7 +51,6 @@ export function UserDetailPanel({
   rootUserId,
   rootUserDetailData,
   onClose,
-  onNavigateToSponsor
 }: UserDetailPanelProps) {
   // Verificar si es el usuario raíz
   const isRootUser = userId === rootUserId && rootUserDetailData;
@@ -222,14 +219,10 @@ export function UserDetailPanel({
             <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
               Patrocinador
             </h3>
-            <button
-              onClick={() => onNavigateToSponsor?.(memberDetail.sponsorId!)}
-              className="flex items-center gap-2 text-sm text-[#3E667D] hover:underline"
-            >
-              <UserIcon className="h-4 w-4" />
+            <div className="flex items-center gap-2 text-sm text-gray-700">
+              <UserIcon className="h-4 w-4 text-[#3E667D]" />
               {memberDetail.sponsorName}
-              <ArrowTopRightOnSquareIcon className="h-3 w-3" />
-            </button>
+            </div>
           </section>
         )}
 

@@ -390,7 +390,6 @@ export function NetworkVisualization({
             rootUserId={rootUserId}
             rootUserDetailData={rootUserDetailData}
             onClose={() => setIsPanelOpen(false)}
-            onNavigateToSponsor={handleNavigateToSponsor}
           />
         )}
       </div>
