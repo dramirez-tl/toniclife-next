@@ -7,6 +7,7 @@ import {
   AdjustmentStatus,
   AdjustmentType,
   MovementType,
+  LotStatus,
 } from '@/types/inventory';
 import type {
   BranchStockResponseDto,
@@ -36,7 +37,6 @@ import type {
   MovementQueryDto,
   CreateMovementDto,
   ProductLotDto,
-  LotStatus,
 } from '@/types/inventory';
 
 class InventoryService {
