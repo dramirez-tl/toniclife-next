@@ -53,6 +53,7 @@ export default function PosPage() {
   // Fiscal edit modal for stamp retry
   const [stampRetrySale, setStampRetrySale] = useState<Sale | null>(null);
   const [stampRetryError, setStampRetryError] = useState('');
+  const [stampRetryErrorDetail, setStampRetryErrorDetail] = useState('');
   const [stampRetryFiscal, setStampRetryFiscal] = useState<FiscalData | null>(null);
   const [stampRetryForm, setStampRetryForm] = useState({ rfc: '', legalName: '', fiscalRegime: '', postalCode: '', cfdiUse: 'G03', email: '' });
   const [stampRetryErrors, setStampRetryErrors] = useState<Record<string, string>>({});
@@ -216,11 +217,27 @@ export default function PosPage() {
     [ensureSession, cart, createSale, processPayment, clearCart, refetchSales, refetchSession],
   );
 
+  const extractStampError = (err: any): { short: string; detail: string } => {
+    const data = err?.response?.data;
+    if (!data) return { short: err?.message || 'Error desconocido', detail: '' };
+    const rawMsg = Array.isArray(data.message) ? data.message.join(', ') : (data.message || '');
+    const isGeneric = !rawMsg || rawMsg.toLowerCase() === 'internal server error';
+    const short = isGeneric
+      ? `Error del servidor (HTTP ${err?.response?.status ?? '?'})`
+      : rawMsg;
+    const candidates = [data.details, data.cause, data.facturama, data.description, data.reason]
+      .filter((v) => typeof v === 'string' && v.length > 0);
+    if (isGeneric && rawMsg) candidates.unshift(rawMsg);
+    return { short, detail: candidates.join(' · ') };
+  };
+
   // Open fiscal edit modal when stamp fails
-  const openStampRetryModal = async (sale: Sale, errorMsg: string) => {
+  const openStampRetryModal = async (sale: Sale, errorMsg: string, errorDetail = '') => {
     setStampRetrySale(sale);
     setStampRetryError(errorMsg);
+    setStampRetryErrorDetail(errorDetail);
     setStampRetryErrors({});
+    setStampRetryFiscal(null);
     setStampRetryLoading(true);
     try {
       if (sale.customerId) {
@@ -276,7 +293,8 @@ export default function PosPage() {
       if (stampRetryFiscal?.id) {
         await billingService.updateFiscalData(stampRetryFiscal.id, { rfc, legalName, fiscalRegime, postalCode, cfdiUse, email });
       } else {
-        await billingService.createFiscalData({ customerId: stampRetrySale.customerId, rfc, legalName, fiscalRegime, postalCode, cfdiUse, email });
+        const created = await billingService.createFiscalData({ customerId: stampRetrySale.customerId, rfc, legalName, fiscalRegime, postalCode, cfdiUse, email });
+        setStampRetryFiscal(created);
       }
 
       // Retry stamp
@@ -285,9 +303,10 @@ export default function PosPage() {
       setStampRetrySale(null);
       refetchSales();
     } catch (err: any) {
-      const msg = err.response?.data?.message || 'Error al timbrar';
-      setStampRetryError(msg);
-      toast.error(msg);
+      const { short, detail } = extractStampError(err);
+      setStampRetryError(short);
+      setStampRetryErrorDetail(detail);
+      toast.error(short);
     } finally {
       setStampRetrySaving(false);
     }
@@ -457,10 +476,10 @@ export default function PosPage() {
                                   toast.success(`Factura timbrada y enviada por correo`);
                                   refetchSales();
                                 } catch (err: any) {
-                                  const msg = err.response?.data?.message || 'Error al timbrar';
-                                  toast.error(msg);
+                                  const { short, detail } = extractStampError(err);
+                                  toast.error(short);
                                   if (sale.customerId) {
-                                    openStampRetryModal(sale, msg);
+                                    openStampRetryModal(sale, short, detail);
                                   }
                                 }
                               }}
@@ -750,9 +769,12 @@ export default function PosPage() {
 
               <div className="px-5 py-4 space-y-4">
                 {/* Error message */}
-                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg space-y-1">
                   <p className="text-sm text-red-700 font-medium">Error al timbrar:</p>
-                  <p className="text-sm text-red-600 mt-1">{stampRetryError}</p>
+                  <p className="text-sm text-red-600">{stampRetryError}</p>
+                  {stampRetryErrorDetail && (
+                    <p className="text-xs text-red-500 font-mono break-words">{stampRetryErrorDetail}</p>
+                  )}
                 </div>
 
                 {stampRetryLoading ? (
