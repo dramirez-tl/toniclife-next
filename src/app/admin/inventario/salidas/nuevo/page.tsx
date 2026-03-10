@@ -32,6 +32,8 @@ import {
   type MovementDto,
 } from '@/types/inventory';
 import { generateMovementTicketPdf } from '@/lib/generate-movement-ticket';
+import { LotEntriesList } from '@/components/inventory/LotEntriesList';
+import type { LotEntry } from '@/types/inventory';
 
 // ================================================================
 // EXIT REASONS
@@ -51,6 +53,7 @@ interface ExitItem {
   productName: string;
   quantity: number;
   currentStock: number;
+  lots: LotEntry[];
 }
 
 export default function NuevaSalidaPage() {
@@ -140,6 +143,7 @@ export default function NuevaSalidaPage() {
           productName: p.name,
           quantity,
           currentStock: stock,
+          lots: [],
         },
       ]);
       toast.success(`${p.name}${quantity > 1 ? ` x${quantity}` : ''} agregado`);
@@ -213,6 +217,7 @@ export default function NuevaSalidaPage() {
           productName: p.name,
           quantity: effectiveQty,
           currentStock: stock,
+          lots: [],
         });
         added++;
       }
@@ -251,6 +256,7 @@ export default function NuevaSalidaPage() {
         productName: product.name,
         quantity: 1,
         currentStock: product.currentStock,
+        lots: [],
       },
     ]);
     setShowProductSearch(false);
@@ -271,16 +277,37 @@ export default function NuevaSalidaPage() {
     );
   };
 
+  const handleLotsChange = (productId: string, lots: LotEntry[]) => {
+    setItems(items.map((item) => item.productId === productId ? { ...item, lots } : item));
+  };
+
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
     if (!formData.branchId) newErrors.branchId = 'Selecciona la sucursal';
     if (!formData.reason) newErrors.reason = 'Selecciona el motivo de la salida';
     if (items.length === 0) newErrors.items = 'Agrega al menos un producto';
-    items.forEach((item) => {
-      if (item.quantity > item.currentStock) {
+
+    for (const item of items) {
+      if (item.lots.length > 0) {
+        const lotsTotal = item.lots.reduce((s, l) => s + l.quantity, 0);
+        if (lotsTotal > item.currentStock) {
+          newErrors[`quantity-${item.productId}`] = 'La suma de lotes excede el stock disponible';
+        }
+        const lotNumbers = item.lots.map((l) => l.lotNumber.trim()).filter(Boolean);
+        if (new Set(lotNumbers).size !== lotNumbers.length) {
+          newErrors[`lots-${item.productId}`] = `${item.productName}: lotes duplicados`;
+        }
+        for (const lot of item.lots) {
+          if (!lot.lotNumber.trim() || !lot.expirationDate || lot.quantity < 1) {
+            newErrors[`lots-${item.productId}`] = `${item.productName}: lote incompleto`;
+            break;
+          }
+        }
+      } else if (item.quantity > item.currentStock) {
         newErrors[`quantity-${item.productId}`] = 'Excede stock disponible';
       }
-    });
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -295,10 +322,16 @@ export default function NuevaSalidaPage() {
       reason: formData.reason as MovementReason,
       notes: formData.notes || undefined,
       referenceNumber: formData.referenceNumber || undefined,
-      items: items.map((item) => ({
-        productId: item.productId,
-        quantity: item.quantity,
-      })),
+      items: items.map((item) => {
+        const lotsTotal = item.lots.reduce((sum, l) => sum + l.quantity, 0);
+        return {
+          productId: item.productId,
+          quantity: item.lots.length > 0 ? lotsTotal : item.quantity,
+          lots: item.lots.length > 0
+            ? item.lots.map((l) => ({ lotId: l.lotId, lotNumber: l.lotNumber, expirationDate: l.expirationDate, quantity: l.quantity }))
+            : undefined,
+        };
+      }),
     };
 
     try {
@@ -310,7 +343,10 @@ export default function NuevaSalidaPage() {
     }
   };
 
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+  const totalItems = items.reduce((sum, item) => {
+    const lotsTotal = item.lots.reduce((s, l) => s + l.quantity, 0);
+    return sum + (item.lots.length > 0 ? lotsTotal : item.quantity);
+  }, 0);
   const totalProducts = items.length;
 
   return (
@@ -447,13 +483,17 @@ export default function NuevaSalidaPage() {
                 {items.length > 0 ? (
                   <div className="space-y-3">
                     {items.map((item) => {
-                      const pct = Math.round((item.quantity / item.currentStock) * 100);
+                      const effectiveQty = item.lots.length > 0
+                        ? item.lots.reduce((s, l) => s + l.quantity, 0)
+                        : item.quantity;
+                      const pct = Math.round((effectiveQty / item.currentStock) * 100);
                       const hasError = errors[`quantity-${item.productId}`];
+                      const hasLotError = errors[`lots-${item.productId}`];
                       return (
                         <div
                           key={item.productId}
                           className={`rounded-lg border p-4 transition-colors ${
-                            hasError ? 'border-red-300 bg-red-50/30' : 'border-gray-200 hover:border-gray-300'
+                            hasError || hasLotError ? 'border-red-300 bg-red-50/30' : 'border-gray-200 hover:border-gray-300'
                           }`}
                         >
                           <div className="flex items-start gap-4">
@@ -465,36 +505,39 @@ export default function NuevaSalidaPage() {
                               <p className="text-xs text-gray-500">Disponible</p>
                               <p className="text-sm font-semibold text-gray-700">{item.currentStock} uds</p>
                             </div>
-                            <div className="flex-shrink-0">
-                              <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuantityChange(item.productId, item.quantity - 1)}
-                                  disabled={item.quantity <= 1}
-                                  className="px-2.5 py-1.5 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                >
-                                  <MinusIcon className="h-4 w-4" />
-                                </button>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={item.currentStock}
-                                  value={item.quantity}
-                                  onChange={(e) =>
-                                    handleQuantityChange(item.productId, parseInt(e.target.value) || 1)
-                                  }
-                                  className="w-14 text-center py-1.5 text-sm font-semibold border-x border-gray-300 focus:outline-none focus:ring-1 focus:ring-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => handleQuantityChange(item.productId, item.quantity + 1)}
-                                  disabled={item.quantity >= item.currentStock}
-                                  className="px-2.5 py-1.5 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                >
-                                  <PlusIcon className="h-4 w-4" />
-                                </button>
+                            {/* Stepper: visible solo si no hay lotes */}
+                            {item.lots.length === 0 && (
+                              <div className="flex-shrink-0">
+                                <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuantityChange(item.productId, item.quantity - 1)}
+                                    disabled={item.quantity <= 1}
+                                    className="px-2.5 py-1.5 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                  >
+                                    <MinusIcon className="h-4 w-4" />
+                                  </button>
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={item.currentStock}
+                                    value={item.quantity}
+                                    onChange={(e) =>
+                                      handleQuantityChange(item.productId, parseInt(e.target.value) || 1)
+                                    }
+                                    className="w-14 text-center py-1.5 text-sm font-semibold border-x border-gray-300 focus:outline-none focus:ring-1 focus:ring-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleQuantityChange(item.productId, item.quantity + 1)}
+                                    disabled={item.quantity >= item.currentStock}
+                                    className="px-2.5 py-1.5 text-gray-600 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                  >
+                                    <PlusIcon className="h-4 w-4" />
+                                  </button>
+                                </div>
                               </div>
-                            </div>
+                            )}
                             <button
                               type="button"
                               onClick={() => handleRemoveItem(item.productId)}
@@ -517,8 +560,20 @@ export default function NuevaSalidaPage() {
                             <span className="text-xs text-gray-500 tabular-nums w-10 text-right">{pct}%</span>
                           </div>
 
-                          {hasError && (
-                            <p className="text-xs text-red-500 mt-2">{hasError}</p>
+                          {(hasError || hasLotError) && (
+                            <p className="text-xs text-red-500 mt-2">{hasError || hasLotError}</p>
+                          )}
+
+                          {formData.branchId && (
+                            <LotEntriesList
+                              productId={item.productId}
+                              branchId={formData.branchId}
+                              lots={item.lots}
+                              initialQuantity={item.quantity}
+                              maxQuantity={item.currentStock}
+                              mode="exit"
+                              onChange={(lots) => handleLotsChange(item.productId, lots)}
+                            />
                           )}
                         </div>
                       );

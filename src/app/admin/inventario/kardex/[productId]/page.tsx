@@ -369,6 +369,9 @@ function KardexContent() {
                           Referencia
                         </th>
                         <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                          Lote / CAD
+                        </th>
+                        <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                           Procesado Por
                         </th>
                       </tr>
@@ -418,10 +421,21 @@ function KardexContent() {
                                 </span>
                               </div>
                             )}
-                            {movement.lotId && (
-                              <div className="text-xs text-gray-400">
-                                Lote: {movement.lotId.slice(0, 8)}
+                          </td>
+                          <td className="py-3 px-4 text-sm">
+                            {movement.lotNumber || movement.lotExpirationDate ? (
+                              <div>
+                                {movement.lotNumber && (
+                                  <span className="font-mono text-gray-700">{movement.lotNumber}</span>
+                                )}
+                                {movement.lotExpirationDate && (
+                                  <div className="text-xs text-gray-500">
+                                    {new Date(movement.lotExpirationDate).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                  </div>
+                                )}
                               </div>
+                            ) : (
+                              <span className="text-gray-400">—</span>
                             )}
                           </td>
                           <td className="py-3 px-4 text-sm text-gray-600">

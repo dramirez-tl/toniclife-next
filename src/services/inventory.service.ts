@@ -35,6 +35,8 @@ import type {
   MovementListResponseDto,
   MovementQueryDto,
   CreateMovementDto,
+  ProductLotDto,
+  LotStatus,
 } from '@/types/inventory';
 
 class InventoryService {
@@ -80,6 +82,24 @@ class InventoryService {
       `/inventory/stock/${branchId}/${productId}/settings`,
       dto,
     );
+    return response.data;
+  }
+
+  // ================================
+  // LOTS METHODS
+  // ================================
+
+  async getLots(
+    productId: string,
+    branchId: string,
+    status: LotStatus = LotStatus.AVAILABLE,
+  ): Promise<ProductLotDto[]> {
+    const params = new URLSearchParams({
+      productId,
+      branchId,
+      status,
+    });
+    const response = await api.get<ProductLotDto[]>(`/inventory/lots?${params.toString()}`);
     return response.data;
   }
 

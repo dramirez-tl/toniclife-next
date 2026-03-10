@@ -201,6 +201,8 @@ export interface KardexEntryDto {
   reason: string;
   quantity: number;
   lotId?: string;
+  lotNumber?: string;
+  lotExpirationDate?: string;
   unitId?: string;
   locationId?: string;
   referenceType?: string;
@@ -303,10 +305,17 @@ export interface TransferQueryDto {
   limit?: number;
 }
 
+export interface LotEntryDto {
+  lotId?: string;
+  lotNumber?: string;
+  expirationDate?: string;
+  quantity: number;
+}
+
 export interface CreateTransferItemDto {
   productId: string;
   quantity: number;
-  lotId?: string;
+  lots?: LotEntryDto[];
   unitId?: string;
   notes?: string;
 }
@@ -490,7 +499,7 @@ export interface MovementQueryDto {
 export interface CreateMovementItemDto {
   productId: string;
   quantity: number;
-  lotId?: string;
+  lots?: LotEntryDto[];
   unitCost?: number;
   notes?: string;
 }
@@ -502,6 +511,24 @@ export interface CreateMovementDto {
   notes?: string;
   referenceNumber?: string;
   items: CreateMovementItemDto[];
+}
+
+export interface ProductLotDto {
+  id: string;
+  lotNumber: string;
+  expirationDate: string;
+  manufactureDate?: string;
+  quantity: number;
+  status: LotStatus;
+}
+
+// LotEntry: estado local en formularios (no el payload de API)
+export interface LotEntry {
+  lotId?: string;          // UUID si se seleccionó lote existente
+  lotNumber: string;       // número de lote (requerido para mostrar/editar)
+  expirationDate: string;  // ISO date (requerido)
+  quantity: number;
+  availableQuantity?: number; // solo para exit/transfer: qty disponible en DB
 }
 
 // ================================
