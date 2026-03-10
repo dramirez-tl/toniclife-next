@@ -323,7 +323,7 @@ export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbo
                     {currencySymbol}{product.basePrice.toFixed(2)}
                     {currencyCode && <span className="text-[9px] text-gray-400 font-normal ml-0.5">{currencyCode}</span>}
                   </span>
-                  {product.stock !== undefined && product.stock > 0 && (
+                  {process.env.NODE_ENV === 'development' && product.stock !== undefined && product.stock > 0 && (
                     <span className="text-[10px] text-green-600 font-medium">{product.stock}</span>
                   )}
                 </div>
