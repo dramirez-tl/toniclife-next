@@ -4,3 +4,4 @@ export { PosCart } from './PosCart';
 export { PosCustomerSelector } from './PosCustomerSelector';
 export { PaymentModal } from './PaymentModal';
 export { SessionManager } from './SessionManager';
+export { PosProductGrid } from './PosProductGrid';

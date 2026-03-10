@@ -17,7 +17,7 @@ import {
 
   XMarkIcon,
 } from '@heroicons/react/24/outline';
-import { PosProductSearch, PosCart, PaymentModal } from '@/components/pos';
+import { PosCart, PaymentModal, PosProductGrid } from '@/components/pos';
 import { PosCustomerSelector } from '@/components/pos/PosCustomerSelector';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { usePosCartStore } from '@/stores/pos-cart.store';
@@ -561,7 +561,7 @@ export default function PosPage() {
             {/* Two-step flow: 1) Select distributor or public price → 2) Search products */}
             {(cart.customerId || cart.isPublicPrice) ? (
                 /* STEP 2: Ready to sell → Product search */
-                <div className="flex-grow flex flex-col">
+                <div className="flex-grow flex flex-col min-h-0 overflow-hidden">
                   {/* Customer/Public badge */}
                   <div className="mb-3 flex items-center gap-3 px-4 py-2.5 bg-[#C8DDF2]/30 border border-[#3E667D]/20 rounded-xl">
                     {cart.isPublicPrice ? (
@@ -597,18 +597,9 @@ export default function PosPage() {
                     </button>
                   </div>
 
-                  <div className="mb-4">
-                    <PosProductSearch autoFocus branchId={effectiveBranchId} priceTypeId={cartPriceTypeId} countryId={branchCountryId} />
-                  </div>
-
-                  {/* Quick Actions / Numpad could go here */}
-                  <div className="flex-grow grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 overflow-y-auto">
-                    <div className="col-span-full flex items-center justify-center h-full text-gray-400">
-                      <div className="text-center">
-                        <CurrencyDollarIcon className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                        <p>Busca productos por nombre o escanea el código de barras</p>
-                      </div>
-                    </div>
+                  {/* Product catalog grid */}
+                  <div className="flex-grow min-h-0">
+                    <PosProductGrid branchId={effectiveBranchId} priceTypeId={cartPriceTypeId} countryId={branchCountryId} currencySymbol={currencySymbol} currencyCode={currencyCode} />
                   </div>
                 </div>
               ) : (

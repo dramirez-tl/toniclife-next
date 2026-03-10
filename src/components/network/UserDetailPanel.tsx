@@ -290,29 +290,7 @@ export function UserDetailPanel({
           </div>
         </section>
 
-        {/* Comisiones */}
-        <section>
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
-            Comisiones
-          </h3>
-          <div className="space-y-3">
-            <div className="bg-green-50 rounded-lg p-4">
-              <div className="flex items-center gap-2 text-green-600 mb-1">
-                <CurrencyDollarIcon className="h-4 w-4" />
-                <span className="text-xs font-medium">Este Mes</span>
-              </div>
-              <p className="text-2xl font-bold text-green-700">
-                {formatCurrency(memberDetail.stats.currentCommission)}
-              </p>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-sm text-gray-600">Histórico Total</span>
-              <span className="font-semibold text-gray-900">
-                {formatCurrency(memberDetail.stats.historicCommission)}
-              </span>
-            </div>
-          </div>
-        </section>
+       
       </div>
 
       {/* Footer con acciones */}

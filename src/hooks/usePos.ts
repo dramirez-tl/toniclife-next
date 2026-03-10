@@ -52,6 +52,7 @@ export const posKeys = {
   movementBalance: (sessionId: string) => [...posKeys.movements(), 'balance', sessionId] as const,
   // Products
   productSearch: (query: string, branchId?: string, priceTypeId?: string, countryId?: string) => [...posKeys.all, 'products', 'search', query, branchId, priceTypeId, countryId] as const,
+  productCatalog: (branchId?: string, priceTypeId?: string, countryId?: string) => [...posKeys.all, 'products', 'catalog', branchId, priceTypeId, countryId] as const,
   // Customer search
   customerSearch: (query: string, customerNumber?: string) => [...posKeys.all, 'customers', 'search', query, customerNumber] as const,
 };
@@ -384,6 +385,18 @@ export const usePosProductSearch = (query: string, enabled = true, branchId?: st
     queryFn: () => posService.searchProducts(query, 10, branchId, priceTypeId, countryId, sku),
     enabled: enabled && (query.length >= 2 || (!!sku && sku.length >= 1)),
     staleTime: 30 * 1000, // 30 seconds
+  });
+};
+
+/**
+ * Fetch all POS products for the branch (catalog grid)
+ */
+export const usePosProductCatalog = (branchId?: string, priceTypeId?: string, countryId?: string) => {
+  return useQuery({
+    queryKey: posKeys.productCatalog(branchId, priceTypeId, countryId),
+    queryFn: () => posService.searchProducts('', 500, branchId, priceTypeId, countryId),
+    enabled: !!branchId,
+    staleTime: 60 * 1000,
   });
 };
 

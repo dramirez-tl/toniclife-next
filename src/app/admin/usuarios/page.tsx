@@ -272,7 +272,7 @@ function UsuariosContent() {
     try {
       if (editingUser) {
         const dto: UpdateUserDto = {
-          email: formData.email,
+          email: formData.email || undefined,
           firstName: formData.firstName,
           lastName: formData.lastName,
           phone: formData.phone || undefined,

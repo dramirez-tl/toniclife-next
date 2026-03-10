@@ -255,7 +255,7 @@ class PosService {
     // Use the existing products endpoint with search
     const response = await api.get('/products', {
       params: {
-        search: sku ? undefined : query,
+        search: sku ? undefined : (query || undefined),
         sku: sku || undefined,
         isActive: true,
         availableInPos: true,

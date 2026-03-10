@@ -192,14 +192,14 @@ function AjustesContent() {
               <Link href="/admin/inventario">
                 <Button variant="secondary">Volver a Inventario</Button>
               </Link>
-              <Button
-                variant="primary"
-                leftIcon={<PlusIcon className="h-5 w-5" />}
-                disabled
-                title="Función temporalmente deshabilitada"
-              >
-                Nuevo Ajuste
-              </Button>
+              <Link href="/admin/inventario/ajustes/nuevo">
+                <Button
+                  variant="primary"
+                  leftIcon={<PlusIcon className="h-5 w-5" />}
+                >
+                  Nuevo Ajuste
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
