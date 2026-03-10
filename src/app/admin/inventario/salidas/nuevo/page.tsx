@@ -54,6 +54,7 @@ interface ExitItem {
   quantity: number;
   currentStock: number;
   lots: LotEntry[];
+  productType?: string;
 }
 
 export default function NuevaSalidaPage() {
@@ -94,6 +95,7 @@ export default function NuevaSalidaPage() {
       code: stock.productCode,
       name: stock.productName,
       currentStock: stock.quantityAvailable,
+      productType: stock.productType,
     }));
   }, [branchStockData]);
 
@@ -144,6 +146,7 @@ export default function NuevaSalidaPage() {
           quantity,
           currentStock: stock,
           lots: [],
+          productType: p.productType,
         },
       ]);
       toast.success(`${p.name}${quantity > 1 ? ` x${quantity}` : ''} agregado`);
@@ -218,6 +221,7 @@ export default function NuevaSalidaPage() {
           quantity: effectiveQty,
           currentStock: stock,
           lots: [],
+          productType: p.productType,
         });
         added++;
       }
@@ -246,7 +250,7 @@ export default function NuevaSalidaPage() {
   const selectedBranch = branches?.find((b) => b.id === formData.branchId);
   const selectedReasonLabel = EXIT_REASONS.find((r) => r.value === formData.reason)?.label || '';
 
-  const handleAddProduct = (product: { id: string; code: string; name: string; currentStock: number }) => {
+  const handleAddProduct = (product: { id: string; code: string; name: string; currentStock: number; productType?: string }) => {
     if (items.some((item) => item.productId === product.id)) return;
     setItems([
       ...items,
@@ -257,6 +261,7 @@ export default function NuevaSalidaPage() {
         quantity: 1,
         currentStock: product.currentStock,
         lots: [],
+        productType: product.productType,
       },
     ]);
     setShowProductSearch(false);
@@ -508,6 +513,9 @@ export default function NuevaSalidaPage() {
                             {/* Stepper: visible solo si no hay lotes */}
                             {item.lots.length === 0 && (
                               <div className="flex-shrink-0">
+                                {item.productType === 'raw_material' && (
+                                  <p className="text-xs text-gray-400 mb-1">Cantidad</p>
+                                )}
                                 <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
                                   <button
                                     type="button"
@@ -559,6 +567,13 @@ export default function NuevaSalidaPage() {
                             </div>
                             <span className="text-xs text-gray-500 tabular-nums w-10 text-right">{pct}%</span>
                           </div>
+
+                          {item.productType === 'raw_material' && (
+                            <div className="mt-2 flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5">
+                              <InformationCircleIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                              Materia Prima: registra la cantidad en gramos (1 kg = 1,000 g · 1 L = 1,000 ml)
+                            </div>
+                          )}
 
                           {(hasError || hasLotError) && (
                             <p className="text-xs text-red-500 mt-2">{hasError || hasLotError}</p>

@@ -85,6 +85,7 @@ export interface ProductStockDto {
   productId: string;
   productCode: string;
   productName: string;
+  productType?: string;
   branchId: string;
   branchName: string;
   quantityOnHand: number;
@@ -200,6 +201,10 @@ export interface KardexEntryDto {
   movementCategory: MovementCategory;
   reason: string;
   quantity: number;
+  branchId?: string;
+  branchName?: string;
+  destinationBranchId?: string;
+  destinationBranchName?: string;
   lotId?: string;
   lotNumber?: string;
   lotExpirationDate?: string;
@@ -256,6 +261,8 @@ export interface TransferItemDto {
   quantityBefore: number;
   quantityAfter: number;
   lotId?: string;
+  lotNumber?: string;
+  expirationDate?: string;
   notes?: string;
 }
 
@@ -454,6 +461,8 @@ export interface MovementItemDto {
   quantityBefore: number;
   quantityAfter: number;
   lotId?: string;
+  lotNumber?: string;
+  expirationDate?: string;
   notes?: string;
 }
 

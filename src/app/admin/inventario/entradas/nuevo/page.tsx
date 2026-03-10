@@ -53,6 +53,8 @@ interface EntryItem {
   quantity: number;
   currentStock: number;
   lots: LotEntry[];
+  unitCost?: number;
+  productType?: string;
 }
 
 export default function NuevaEntradaPage() {
@@ -93,6 +95,7 @@ export default function NuevaEntradaPage() {
       code: stock.productCode,
       name: stock.productName,
       currentStock: stock.quantityAvailable,
+      productType: stock.productType,
     }));
   }, [branchStockData]);
 
@@ -138,6 +141,7 @@ export default function NuevaEntradaPage() {
           quantity: quantity || 1,
           currentStock: p.stock ?? 0,
           lots: [],
+          productType: p.productType,
         },
       ]);
       toast.success(`${p.name}${quantity ? ` x${quantity}` : ''} agregado`);
@@ -201,6 +205,7 @@ export default function NuevaEntradaPage() {
           quantity,
           currentStock: p.stock ?? 0,
           lots: [],
+          productType: p.productType,
         });
         added++;
       }
@@ -223,7 +228,7 @@ export default function NuevaEntradaPage() {
   const selectedBranch = branches?.find((b) => b.id === formData.branchId);
   const selectedReasonLabel = ENTRY_REASONS.find((r) => r.value === formData.reason)?.label || '';
 
-  const handleAddProduct = (product: { id: string; code: string; name: string; currentStock: number }) => {
+  const handleAddProduct = (product: { id: string; code: string; name: string; currentStock: number; productType?: string }) => {
     if (items.some((item) => item.productId === product.id)) return;
     setItems([
       ...items,
@@ -234,6 +239,7 @@ export default function NuevaEntradaPage() {
         quantity: 1,
         currentStock: product.currentStock,
         lots: [],
+        productType: product.productType,
       },
     ]);
     setShowProductSearch(false);
@@ -256,6 +262,11 @@ export default function NuevaEntradaPage() {
 
   const handleLotsChange = (productId: string, lots: LotEntry[]) => {
     setItems(items.map((item) => item.productId === productId ? { ...item, lots } : item));
+  };
+
+  const handleUnitCostChange = (productId: string, value: string) => {
+    const parsed = value === '' ? undefined : parseFloat(value);
+    setItems(items.map((item) => item.productId === productId ? { ...item, unitCost: parsed } : item));
   };
 
   const validateForm = (): boolean => {
@@ -302,6 +313,7 @@ export default function NuevaEntradaPage() {
           lots: item.lots.length > 0
             ? item.lots.map((l) => ({ lotId: l.lotId, lotNumber: l.lotNumber, expirationDate: l.expirationDate, quantity: l.quantity }))
             : undefined,
+          unitCost: item.unitCost || undefined,
         };
       }),
     };
@@ -471,6 +483,9 @@ export default function NuevaEntradaPage() {
                           {/* Stepper: visible solo si no hay lotes definidos */}
                           {item.lots.length === 0 && (
                             <div className="flex-shrink-0">
+                              {item.productType === 'raw_material' && (
+                                <p className="text-xs text-gray-400 mb-1">Cantidad</p>
+                              )}
                               <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
                                 <button
                                   type="button"
@@ -499,6 +514,24 @@ export default function NuevaEntradaPage() {
                               </div>
                             </div>
                           )}
+                          {/* Unit cost — only for raw materials */}
+                          {item.productType === 'raw_material' && (
+                            <div className="flex-shrink-0">
+                              <p className="text-xs text-gray-400 mb-1 text-right">Costo unit. <span className="text-gray-300">(opc)</span></p>
+                              <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden w-28">
+                                <span className="px-2 py-1.5 text-gray-400 text-sm bg-gray-50 border-r border-gray-300">$</span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step="0.01"
+                                  value={item.unitCost ?? ''}
+                                  onChange={(e) => handleUnitCostChange(item.productId, e.target.value)}
+                                  placeholder="0.00"
+                                  className="w-full px-2 py-1.5 text-sm text-right focus:outline-none focus:ring-1 focus:ring-green-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                />
+                              </div>
+                            </div>
+                          )}
                           <button
                             type="button"
                             onClick={() => handleRemoveItem(item.productId)}
@@ -507,6 +540,12 @@ export default function NuevaEntradaPage() {
                             <TrashIcon className="h-4 w-4" />
                           </button>
                         </div>
+                        {item.productType === 'raw_material' && (
+                          <div className="mt-2 flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2.5 py-1.5">
+                            <InformationCircleIcon className="h-3.5 w-3.5 flex-shrink-0" />
+                            Materia Prima: registra la cantidad en gramos (1 kg = 1,000 g · 1 L = 1,000 ml)
+                          </div>
+                        )}
                         {errors[`lots-${item.productId}`] && (
                           <p className="text-xs text-red-500 mt-2">{errors[`lots-${item.productId}`]}</p>
                         )}
