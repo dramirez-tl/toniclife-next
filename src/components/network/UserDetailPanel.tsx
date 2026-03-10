@@ -17,7 +17,7 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { TrophyIcon } from '@heroicons/react/24/solid';
-import Link from 'next/link';
+
 
 // Datos del usuario raíz para cuando se selecciona el nodo raíz
 export interface RootUserDetailData {
@@ -295,12 +295,12 @@ export function UserDetailPanel({
 
       {/* Footer con acciones */}
       <div className="p-4 border-t border-gray-200">
-        <Link
-          href={`/distribuidor/perfil/${memberDetail.id}`}
-          className="block w-full py-2 px-4 bg-[#3E667D] text-white text-center font-medium rounded-lg hover:bg-[#3E667D]/90 transition-colors"
+        <button
+          disabled
+          className="block w-full py-2 px-4 bg-[#3E667D]/50 text-white text-center font-medium rounded-lg cursor-not-allowed"
         >
           Ver Perfil Completo
-        </Link>
+        </button>
       </div>
     </div>
   );
