@@ -32,17 +32,21 @@ npm run lint
 
 ## Tech Stack
 
-- **Framework**: Next.js 16.0.4 (App Router with Turbopack)
+- **Framework**: Next.js 16.1.6 (App Router with Turbopack)
 - **React**: 19.2.0
 - **TypeScript**: 5.9.3
 - **Styling**: Tailwind CSS 4.1.17
-- **State Management**: Redux Toolkit + React-Redux
+- **State Management**: Redux Toolkit + React-Redux (global) / Zustand (local) / TanStack React Query (server state)
 - **Forms**: React Hook Form + Zod (validación)
-- **UI Components**: Radix UI primitives (base para shadcn/ui)
+- **UI Components**: Radix UI primitives (accordion, avatar, checkbox, dialog, dropdown, select, tabs, toast, tooltip, etc.)
 - **Icons**: Heroicons 2.2.0 + Lucide React
 - **Notifications**: Sonner 2.0.7
-- **HTTP Client**: Axios 1.13.2
-- **Utilities**: clsx + tailwind-merge (cn helper)
+- **HTTP Client**: Axios 1.13.2 (con interceptores para JWT refresh automático)
+- **Payments**: Stripe React (`@stripe/react-stripe-js`)
+- **Network Visualization**: `@xyflow/react` (árbol genealógico MLM)
+- **PDF**: jsPDF 4.2.0
+- **Analytics**: Vercel Analytics
+- **Utilities**: clsx + tailwind-merge (cn helper), date-fns, lodash
 
 ## Architecture & Code Organization
 
@@ -77,13 +81,45 @@ The system supports 7 user roles with distinct dashboards and permissions:
 
 ```
 /src/components/
-├── ui/                    # Reusable UI primitives (Button, Card, Badge, Input)
+├── ui/                    # Reusable UI primitives (Button, Card, Badge, Input, DataTable, SearchableSelect)
 ├── layout/                # Header, Footer (with nested navigation)
 ├── landing/               # Homepage sections (Hero, Featured, Testimonials, Quiz CTA)
 ├── quiz/                  # Health Quiz flow components
 ├── products/              # Product grids, filters, cards
-└── cart/                  # Shopping cart components
+├── cart/                  # Shopping cart components
+├── admin/                 # Admin-specific components
+├── distributor/           # Distributor portal components
+├── network/               # MLM genealogy tree visualization (@xyflow/react)
+├── commissions/           # Commission calculation UI
+├── pos/                   # Point-of-Sale components
+├── auth/                  # Login, register forms
+└── catalog/               # Product catalog management
 ```
+
+### Services Layer
+
+```
+/src/services/             # 25+ archivos de integración con la API
+├── auth.service.ts        # Login, register, logout, refresh token
+├── products.service.ts    # Product CRUD & catalog
+├── orders.service.ts      # Order management
+├── cart.service.ts        # Shopping cart logic
+├── quiz.service.ts        # Health Quiz logic
+├── inventory.service.ts   # Inventory tracking
+├── hr.service.ts          # Human resources
+├── billing.service.ts     # Billing & invoicing
+├── networkApi.ts          # Distributor network relationships
+├── commissionsApi.ts      # Commission calculations
+├── auditApi.ts            # Audit trail
+├── config.service.ts      # System configuration
+├── customers.service.ts   # Customer management
+├── distributorApi.ts      # Distributor portal
+├── pos.service.ts         # Point-of-sale
+├── reports.service.ts     # Reporting
+└── [otros servicios...]
+```
+
+**Base URL**: `NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1`
 
 **Pattern**: All interactive components use `'use client'` directive. Server components by default.
 
@@ -96,8 +132,20 @@ The system supports 7 user roles with distinct dashboards and permissions:
 ├── provider.tsx           # ReduxProvider for Next.js
 ├── index.ts               # Barrel exports
 └── slices/
-    ├── authSlice.ts       # Authentication state (user, tokens, login/logout)
-    └── uiSlice.ts         # UI state (sidebar, theme, notifications, modals)
+    ├── authSlice.ts       # Auth state: user, tokens, login/logout, thunks completos
+    ├── uiSlice.ts         # UI state (sidebar, theme, notifications, modals)
+    └── customersSlice.ts  # Customer data
+```
+
+**React Query** (para server state / caché de datos de API):
+```typescript
+import { QueryProvider } from '@/providers/QueryProvider';
+// Wrappear con QueryProvider en el root layout
+```
+
+**Zustand** (para estado local simple sin Redux):
+```typescript
+import { create } from 'zustand';
 ```
 
 **Usage**:
@@ -147,20 +195,28 @@ Key distributor features (all in `/distribuidor/`):
 
 ### Mock Data Strategy
 
-Currently **all data is mocked** - no backend integration yet:
-- Products: ~20 mock products in various files
-- Quiz: Mock questions in quiz components
-- Users/Distributors: Mock data in distributor pages
+Actualmente la mayoría de datos son **mock** — la capa de servicios (`/src/services/`) está implementada pero conectada a datos locales/mock:
+- Products: ~20 mock products en varios archivos
+- Quiz: Mock questions en componentes del quiz
+- Users/Distributors: Mock data en páginas de distribuidor
 - Orders: Mock order history
 
-**When integrating backend**: Replace mock data imports with API calls using axios. All endpoints should follow patterns in CONSIDERACIONES.md §17.
+**Auth service**: Completamente implementado (`auth.service.ts`) con JWT, refresh token y localStorage. Los thunks de Redux (`authSlice.ts`) están listos para conectarse al backend real.
+
+**Al integrar backend real**: Los servicios ya tienen la estructura correcta con axios. Apuntar `NEXT_PUBLIC_API_URL` al backend NestJS en producción.
 
 ## Styling & Design System
 
-### Brand Colors
-- Primary Blue: `#003B7A` (corporate, headers)
-- Accent Green: `#7AB82E` (CTAs, highlights)
-- Tailwind config: Uses these as custom colors
+### Brand Colors (definidos en `globals.css` como CSS variables)
+- Primary Teal: `#3E667D` (`--color-primary`) — headers, texto, botones
+- Primary Dark: `#2f5165` (`--color-primary-dark`) — gradientes, hover
+- Primary Light: `#4d7a8f` (`--color-primary-light`) — midpoints de gradiente
+- Accent Blue: `#a7c1e2` (`--color-accent-blue`) — focus rings, borders, links
+- Accent Blue Light: `#C8DDF2` (`--color-accent-blue-light`) — fondos claros, badges
+- Sage Green: `#abc9ba` (`--color-sage`) — botones secundarios, accents de éxito
+- Cream: `#f5f7e7` (`--color-cream`) — fondos de página, cards
+
+**Importante**: No usar `#003B7A` ni `#7AB82E` — esos son colores de Tonic Life v1, ya no aplican.
 
 ### Typography
 - Primary: Geist Sans (`--font-geist-sans`)
@@ -223,11 +279,11 @@ Next priorities:
 ## Known Constraints
 
 - **No tests**: Test infrastructure not set up
-- **No backend**: All API calls currently mocked
-- **No authentication**: Login/register are UI mockups only
-- **No payment processing**: Stripe integration is mocked
+- **Backend pendiente**: Los servicios están implementados pero apuntan a mocks/localhost; el backend NestJS corre en `localhost:3001`
+- **Auth**: Service layer completo, pero login real depende de que el backend esté corriendo
+- **No payment processing**: Stripe integration preparada pero no activa
 - **No i18n**: Spanish only (English planned for Phase 2+)
-- **SEO warnings**: metadataBase not configured (development only)
+- **SEO warnings**: metadataBase no configurado (solo en desarrollo)
 
 ## Compliance & Regulations
 
