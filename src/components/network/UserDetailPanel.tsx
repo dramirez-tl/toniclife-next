@@ -263,8 +263,8 @@ export function UserDetailPanel({
           </div>
         </section>
 
-        {/* Ventas */}
-        <section>
+        {/* Ventas - TODO: habilitar cuando se integre módulo de ventas/comisiones */}
+        {/* <section>
           <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
             Ventas (Periodo Actual)
           </h3>
@@ -288,7 +288,7 @@ export function UserDetailPanel({
               </span>
             </div>
           </div>
-        </section>
+        </section> */}
 
        
       </div>
