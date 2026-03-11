@@ -3,6 +3,7 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Bars3Icon,
@@ -15,8 +16,8 @@ import {
   UserGroupIcon,
   UserIcon,
   ArrowsRightLeftIcon,
-
   XMarkIcon,
+  NoSymbolIcon,
 } from '@heroicons/react/24/outline';
 import { PosCart, PaymentModal, PosProductGrid } from '@/components/pos';
 import { PosCustomerSelector } from '@/components/pos/PosCustomerSelector';
@@ -25,7 +26,7 @@ import { usePosCartStore } from '@/stores/pos-cart.store';
 import { useActiveSession, useCreateSale, useProcessPayment, useSales } from '@/hooks/usePos';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { useActiveCurrencies } from '@/hooks/useConfig';
-import type { CreatePaymentInput, PosPaymentMethod, Sale } from '@/types/pos';
+import type { CreatePaymentInput, PosPaymentMethod, Sale, CancelSaleInput } from '@/types/pos';
 import type { Branch } from '@/types/branch';
 import type { Currency } from '@/types/config';
 import type { FiscalData } from '@/types/billing';
@@ -65,16 +66,28 @@ export default function PosPage() {
   const [stampRetryErrors, setStampRetryErrors] = useState<Record<string, string>>({});
   const [stampRetryLoading, setStampRetryLoading] = useState(false);
   const [stampRetrySaving, setStampRetrySaving] = useState(false);
+  const [stampingId, setStampingId] = useState<string | null>(null);
+
+  // Cancel sale modal
+  const [cancelModalSale, setCancelModalSale] = useState<Sale | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  // Sale detail modal
+  const [detailSale, setDetailSale] = useState<Sale | null>(null);
+  const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
 
   const user = useSelector(selectUser);
   const userRoles = useSelector(selectUserRoles);
   const isAdmin = userRoles.some((r) => r === 'super_admin' || r === 'admin' || r === 'call_center');
+  const isSuperAdmin = userRoles.includes('super_admin');
   const userDefaultBranchId = user?.defaultBranchId;
 
   const { cart, clearCart } = usePosCartStore();
   const cartPriceTypeId = usePosCartStore((s) => s.cart.priceTypeId);
   const sessionBranchId = selectedBranchId || userDefaultBranchId;
   const { data: activeSession, refetch: refetchSession } = useActiveSession(sessionBranchId);
+  const queryClient = useQueryClient();
   const createSale = useCreateSale();
   const processPayment = useProcessPayment();
 
@@ -176,80 +189,14 @@ export default function PosPage() {
     return session.id;
   }, [activeSession, effectiveBranchId, currencyId, refetchSession]);
 
-  const handlePaymentComplete = useCallback(
-    async (payments: CreatePaymentInput[], change: number, requiresInvoice = false, invoicePaymentMethod = 'PUE') => {
-      try {
-        const sessionId = await ensureSession();
-
-        // Create sale
-        const sale = await createSale.mutateAsync({
-          sessionId,
-          customerId: cart.customerId,
-          customerName: cart.customerName,
-          customerRfc: cart.customerRfc,
-          items: cart.items.map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            discountPercent: item.discountPercent,
-            discountAmount: item.discountAmount,
-            notes: item.notes,
-          })),
-          discountPercent: cart.discountPercent,
-          discountAmount: cart.discountAmount,
-          discountReason: cart.discountReason,
-          requiresInvoice,
-          notes: cart.notes,
-        });
-
-        // Process payment
-        await processPayment.mutateAsync({
-          saleId: sale.id,
-          payments: payments.map((p) => ({
-            ...p,
-            paymentMethod: p.paymentMethod as PosPaymentMethod,
-          })),
-        });
-
-        // Fetch the full sale (with items and payments populated)
-        const fullSale = await posService.getSaleById(sale.id);
-
-        // Clear cart and refresh data
-        clearCart();
-        refetchSales();
-        refetchSession();
-
-        toast.success(`Venta ${sale.saleNumber} completada`);
-        return fullSale;
-      } catch (error: any) {
-        toast.error(error.response?.data?.message || 'Error al procesar la venta');
-        throw error;
-      }
-    },
-    [ensureSession, cart, createSale, processPayment, clearCart, refetchSales, refetchSession],
-  );
-
-  const extractStampError = (err: any): { short: string; detail: string } => {
-    const data = err?.response?.data;
-    if (!data) return { short: err?.message || 'Error desconocido', detail: '' };
-    const rawMsg = Array.isArray(data.message) ? data.message.join(', ') : (data.message || '');
-    const isGeneric = !rawMsg || rawMsg.toLowerCase() === 'internal server error';
-    const short = isGeneric
-      ? `Error del servidor (HTTP ${err?.response?.status ?? '?'})`
-      : rawMsg;
-    const candidates = [data.details, data.cause, data.facturama, data.description, data.reason]
-      .filter((v) => typeof v === 'string' && v.length > 0);
-    if (isGeneric && rawMsg) candidates.unshift(rawMsg);
-    return { short, detail: candidates.join(' · ') };
-  };
-
   // Open fiscal edit modal when stamp fails
-  const openStampRetryModal = async (sale: Sale, errorMsg: string, errorDetail = '') => {
+  const openStampRetryModal = useCallback(async (sale: Sale, errorMsg: string, errorDetail = '', paymentMethod: 'PUE' | 'PPD' = 'PUE') => {
     setStampRetrySale(sale);
     setStampRetryError(errorMsg);
     setStampRetryErrorDetail(errorDetail);
     setStampRetryErrors({});
     setStampRetryFiscal(null);
-    setStampRetryPaymentMethod('PUE');
+    setStampRetryPaymentMethod(paymentMethod);
     setStampRetryLoading(true);
     try {
       if (sale.customerId) {
@@ -277,6 +224,98 @@ export default function PosPage() {
     } finally {
       setStampRetryLoading(false);
     }
+  }, []);
+
+  const handlePaymentComplete = useCallback(
+    async (payments: CreatePaymentInput[], change: number, requiresInvoice = false, invoicePaymentMethod = 'PUE') => {
+      try {
+        const sessionId = await ensureSession();
+
+        // Create sale
+        const sale = await createSale.mutateAsync({
+          sessionId,
+          customerId: cart.customerId,
+          customerName: cart.customerName,
+          customerRfc: cart.customerRfc,
+          items: cart.items.map((item) => ({
+            productId: item.productId,
+            quantity: item.quantity,
+            discountPercent: item.discountPercent,
+            discountAmount: item.discountAmount,
+            notes: item.notes,
+          })),
+          discountPercent: cart.discountPercent,
+          discountAmount: cart.discountAmount,
+          discountReason: cart.discountReason,
+          requiresInvoice,
+          notes: cart.notes,
+        });
+
+        // Process payment
+        const paymentResult = await processPayment.mutateAsync({
+          saleId: sale.id,
+          payments: payments.map((p) => ({
+            ...p,
+            paymentMethod: p.paymentMethod as PosPaymentMethod,
+          })),
+        });
+
+        // Fetch the full sale (with items and payments populated)
+        const fullSale = await posService.getSaleById(sale.id);
+        if (paymentResult.accumulatedPoints != null) {
+          fullSale.accumulatedPoints = paymentResult.accumulatedPoints;
+        }
+
+        // Clear cart and refresh data
+        clearCart();
+        refetchSales();
+        refetchSession();
+        // Invalidar puntos del cliente para que PosPointsBar muestre datos actualizados
+        if (cart.customerId) {
+          queryClient.invalidateQueries({ queryKey: ['customer-period-stats', cart.customerId] });
+        }
+
+        // Auto-stamp if invoice was requested
+        if (requiresInvoice && fullSale.customerId) {
+          try {
+            await posService.stampSale(fullSale.id, invoicePaymentMethod);
+            toast.success(`Venta ${sale.saleNumber} completada y factura timbrada`);
+          } catch (stampErr: any) {
+            const data = stampErr?.response?.data;
+            const rawMsg = Array.isArray(data?.message) ? data.message.join(', ') : (data?.message || '');
+            const isGeneric = !rawMsg || rawMsg.toLowerCase() === 'internal server error';
+            const short = isGeneric ? `Error del servidor (HTTP ${stampErr?.response?.status ?? '?'})` : rawMsg;
+            const candidates = [data?.details, data?.cause, data?.facturama, data?.description, data?.reason]
+              .filter((v) => typeof v === 'string' && v.length > 0);
+            const detail = candidates.join(' · ');
+            toast.error(short);
+            openStampRetryModal(fullSale, short, detail, invoicePaymentMethod as 'PUE' | 'PPD');
+          }
+        } else {
+          toast.success(`Venta ${sale.saleNumber} completada`);
+        }
+
+        return fullSale;
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || 'Error al procesar la venta');
+        throw error;
+      }
+    },
+    [ensureSession, cart, createSale, processPayment, clearCart, refetchSales, refetchSession, queryClient, openStampRetryModal],
+  );
+
+  const extractStampError = (err: any): { short: string; detail: string } => {
+    const data = err?.response?.data;
+    if (!data) return { short: err?.message || 'Error desconocido', detail: '' };
+    const rawMsg = Array.isArray(data.message) ? data.message.join(', ') : (data.message || '');
+    const isGeneric = !rawMsg || rawMsg.toLowerCase() === 'internal server error';
+    const short = isGeneric
+      ? `Error del servidor (HTTP ${err?.response?.status ?? '?'})`
+      : rawMsg;
+    const candidates = [data.details, data.cause, data.facturama, data.description, data.reason]
+      .filter((v) => typeof v === 'string' && v.length > 0);
+    if (isGeneric && rawMsg) candidates.unshift(rawMsg);
+    return { short, detail: candidates.join(' · ') };
   };
 
   const handleStampRetrySave = async () => {
@@ -437,8 +476,24 @@ export default function PosPage() {
                 recentSales.data.map((sale) => (
                   <div
                     key={sale.id}
-                    className="p-3 bg-gray-50 rounded-lg border hover:bg-gray-100"
+                    onClick={async () => {
+                      setLoadingDetailId(sale.id);
+                      try {
+                        const full = await posService.getSaleById(sale.id);
+                        setDetailSale(full);
+                      } catch {
+                        toast.error('Error al cargar detalle de venta');
+                      } finally {
+                        setLoadingDetailId(null);
+                      }
+                    }}
+                    className="p-3 bg-gray-50 rounded-lg border hover:bg-gray-100 cursor-pointer relative"
                   >
+                    {loadingDetailId === sale.id && (
+                      <div className="absolute inset-0 bg-white/60 rounded-lg flex items-center justify-center z-10">
+                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-[#3E667D]" />
+                      </div>
+                    )}
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-medium text-sm truncate mr-1">{sale.saleNumber}</span>
                       <div className="flex items-center gap-1 flex-shrink-0">
@@ -484,9 +539,11 @@ export default function PosPage() {
                             <button
                               onClick={async (e) => {
                                 e.stopPropagation();
+                                if (stampingId) return;
+                                setStampingId(sale.id);
                                 try {
                                   await posService.stampSale(sale.id);
-                                  toast.success(`Factura timbrada y enviada por correo`);
+                                  toast.success(`Factura timbrada exitosamente`);
                                   refetchSales();
                                 } catch (err: any) {
                                   const { short, detail } = extractStampError(err);
@@ -494,12 +551,19 @@ export default function PosPage() {
                                   if (sale.customerId) {
                                     openStampRetryModal(sale, short, detail);
                                   }
+                                } finally {
+                                  setStampingId(null);
                                 }
                               }}
+                              disabled={stampingId === sale.id}
                               title="Timbrar factura"
-                              className="p-2 text-orange-500 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-colors"
+                              className="p-2 text-orange-500 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              <DocumentTextIcon className="h-5 w-5" />
+                              {stampingId === sale.id ? (
+                                <div className="h-5 w-5 animate-spin rounded-full border-2 border-orange-300 border-t-orange-500" />
+                              ) : (
+                                <DocumentTextIcon className="h-5 w-5" />
+                              )}
                             </button>
                           )}
                           {/* Print ticket button */}
@@ -535,6 +599,21 @@ export default function PosPage() {
                             <PrinterIcon className="h-5 w-5" />
                           )}
                         </button>
+                          {/* Cancel sale — Super Admin only */}
+                          {isSuperAdmin && sale.status !== 'cancelled' && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCancelReason('');
+                                setCancelModalSale(sale);
+                              }}
+                              disabled={cancellingId === sale.id}
+                              title="Cancelar venta"
+                              className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <NoSymbolIcon className="h-5 w-5" />
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -939,6 +1018,237 @@ export default function PosPage() {
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Sale Detail Modal */}
+        {detailSale && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setDetailSale(null)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0">
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900">{detailSale.saleNumber}</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {new Date(detailSale.createdAt).toLocaleString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    {' · '}{detailSale.branchName}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                    detailSale.status === 'completed' ? 'bg-green-100 text-green-700'
+                    : detailSale.status === 'cancelled' ? 'bg-red-100 text-red-700'
+                    : 'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    {detailSale.status === 'completed' ? 'Completada' : detailSale.status === 'cancelled' ? 'Cancelada' : 'Pendiente'}
+                  </span>
+                  <button onClick={() => setDetailSale(null)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg">
+                    <XMarkIcon className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+                {/* Customer & Seller */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Cliente</p>
+                    <p className="text-sm font-medium text-gray-800">{detailSale.customerName || 'Público general'}</p>
+                    {detailSale.customerNumber && <p className="text-xs text-gray-500">{detailSale.customerNumber}</p>}
+                    {detailSale.customerRfc && <p className="text-xs text-gray-500">{detailSale.customerRfc}</p>}
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wide mb-1">Vendedor</p>
+                    <p className="text-sm font-medium text-gray-800">{detailSale.sellerName}</p>
+                    {detailSale.cashRegisterName && <p className="text-xs text-gray-500">{detailSale.cashRegisterName}</p>}
+                  </div>
+                </div>
+
+                {/* Items */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Productos</p>
+                  <div className="space-y-1">
+                    {detailSale.items.map((item) => (
+                      <div key={item.id} className="flex items-start justify-between gap-2 py-2 border-b border-gray-100 last:border-0">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-800 truncate">{item.productName}</p>
+                          <p className="text-xs text-gray-400">{item.productSku} · {item.quantity} × {formatCurrency(item.unitPrice)}</p>
+                          {item.discountAmount > 0 && (
+                            <p className="text-xs text-green-600">Descuento: -{formatCurrency(item.discountAmount)}</p>
+                          )}
+                        </div>
+                        <p className="text-sm font-semibold text-gray-900 flex-shrink-0">{formatCurrency(item.total)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Totals */}
+                <div className="bg-gray-50 rounded-lg p-3 space-y-1.5">
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>Subtotal</span><span>{formatCurrency(detailSale.subtotal)}</span>
+                  </div>
+                  {detailSale.discountAmount > 0 && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span>Descuento{detailSale.discountReason ? ` (${detailSale.discountReason})` : ''}</span>
+                      <span>-{formatCurrency(detailSale.discountAmount)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>IVA</span><span>{formatCurrency(detailSale.taxAmount)}</span>
+                  </div>
+                  <div className="flex justify-between text-base font-bold text-gray-900 pt-1 border-t border-gray-200">
+                    <span>Total</span><span className="text-[#3E667D]">{formatCurrency(detailSale.total)}</span>
+                  </div>
+                  {detailSale.accumulatedPoints != null && detailSale.accumulatedPoints > 0 && (
+                    <div className="flex justify-between text-xs text-purple-600">
+                      <span>Puntos acumulados</span><span>+{detailSale.accumulatedPoints.toLocaleString()}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Payments */}
+                {detailSale.payments.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Pagos</p>
+                    <div className="space-y-1.5">
+                      {detailSale.payments.map((pmt) => (
+                        <div key={pmt.id} className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0">
+                          <div>
+                            <p className="text-sm text-gray-700 capitalize">{pmt.paymentMethod.replace(/_/g, ' ')}{pmt.cardType ? ` · ${pmt.cardType}` : ''}{pmt.cardLast4 ? ` ****${pmt.cardLast4}` : ''}</p>
+                            {pmt.changeGiven != null && pmt.changeGiven > 0 && (
+                              <p className="text-xs text-gray-400">Cambio: {formatCurrency(pmt.changeGiven)}</p>
+                            )}
+                          </div>
+                          <p className="text-sm font-medium text-gray-900">{formatCurrency(pmt.amount)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Invoice info */}
+                {detailSale.requiresInvoice && (
+                  <div className={`rounded-lg p-3 ${detailSale.invoiceUuid ? 'bg-purple-50 border border-purple-100' : 'bg-orange-50 border border-orange-100'}`}>
+                    <p className={`text-xs font-semibold uppercase tracking-wide mb-1 ${detailSale.invoiceUuid ? 'text-purple-600' : 'text-orange-600'}`}>Factura</p>
+                    {detailSale.invoiceUuid ? (
+                      <>
+                        <p className="text-xs text-purple-700 font-medium">Timbrada</p>
+                        <p className="text-[10px] text-purple-500 font-mono mt-0.5 break-all">{detailSale.invoiceUuid}</p>
+                      </>
+                    ) : (
+                      <p className="text-xs text-orange-700">Pendiente de timbrar</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Cancellation info */}
+                {detailSale.status === 'cancelled' && (
+                  <div className="bg-red-50 border border-red-100 rounded-lg p-3">
+                    <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-1">Cancelación</p>
+                    {detailSale.cancelledByName && <p className="text-xs text-red-700">Por: {detailSale.cancelledByName}</p>}
+                    {detailSale.cancelledAt && <p className="text-xs text-red-500">{new Date(detailSale.cancelledAt).toLocaleString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>}
+                    {detailSale.cancellationReason && <p className="text-xs text-red-700 mt-1">{detailSale.cancellationReason}</p>}
+                  </div>
+                )}
+
+                {/* Notes */}
+                {detailSale.notes && (
+                  <p className="text-xs text-gray-500 italic">Notas: {detailSale.notes}</p>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-3 border-t flex-shrink-0">
+                <button
+                  onClick={() => setDetailSale(null)}
+                  className="w-full px-4 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cancel Sale Modal — Super Admin only */}
+        {cancelModalSale && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4">
+              <div className="flex items-center justify-between p-5 border-b">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-red-100 rounded-lg">
+                    <NoSymbolIcon className="h-5 w-5 text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-gray-900">Cancelar venta</h3>
+                    <p className="text-xs text-gray-500">{cancelModalSale.saleNumber}</p>
+                  </div>
+                </div>
+                <button onClick={() => setCancelModalSale(null)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg">
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                <p className="text-sm text-gray-600">
+                  Esta acción es <span className="font-semibold text-red-600">irreversible</span>. Se cancelará la venta y se revertirá el inventario.
+                </p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Motivo de cancelación <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={cancelReason}
+                    onChange={(e) => setCancelReason(e.target.value)}
+                    rows={3}
+                    placeholder="Describe el motivo de la cancelación..."
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400 resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 p-5 border-t">
+                <button
+                  onClick={() => setCancelModalSale(null)}
+                  className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Volver
+                </button>
+                <button
+                  disabled={!cancelReason.trim() || cancellingId === cancelModalSale.id}
+                  onClick={async () => {
+                    if (!cancelReason.trim()) return;
+                    setCancellingId(cancelModalSale.id);
+                    try {
+                      await posService.cancelSale(cancelModalSale.id, { cancellationReason: cancelReason.trim() } as CancelSaleInput);
+                      toast.success(`Venta ${cancelModalSale.saleNumber} cancelada`);
+                      setCancelModalSale(null);
+                      refetchSales();
+                    } catch (err: any) {
+                      const msg = err?.response?.data?.message || 'Error al cancelar la venta';
+                      toast.error(Array.isArray(msg) ? msg.join(', ') : msg);
+                    } finally {
+                      setCancellingId(null);
+                    }
+                  }}
+                  className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                >
+                  {cancellingId === cancelModalSale.id ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      Cancelando...
+                    </>
+                  ) : (
+                    <>
+                      <NoSymbolIcon className="h-4 w-4" />
+                      Confirmar cancelación
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         )}
