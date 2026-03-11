@@ -13,6 +13,7 @@ import { useSales, useUpdateSalePaymentMethod } from '@/hooks/usePos';
 import { useAppSelector } from '@/store';
 import { selectUserRoles } from '@/store';
 import type { Sale, SaleQueryParams, PosSaleStatus, PosPaymentMethod } from '@/types/pos';
+import { posService } from '@/services/pos.service';
 import { toast } from 'sonner';
 import {
   ShoppingCartIcon,
@@ -32,6 +33,7 @@ import {
   UserIcon,
   ReceiptPercentIcon,
   DocumentTextIcon,
+  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
 
 // ================================
@@ -143,6 +145,89 @@ const PAYMENT_OPTIONS = [
   { value: 'usd_cash', label: 'Pago en Dólares' },
   { value: 'undefined', label: 'Sin Definir' },
 ];
+
+// ================================
+// CSV Export
+// ================================
+
+function escapeCsv(value: string | number | boolean | null | undefined): string {
+  if (value === null || value === undefined) return '';
+  const str = String(value);
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
+function buildCsvRow(sale: Sale): string {
+  const cols = [
+    sale.saleNumber,
+    sale.createdAt ? new Date(sale.createdAt).toLocaleString('es-MX') : '',
+    sale.branchName,
+    sale.cashRegisterName,
+    sale.sellerName,
+    sale.customerName ?? 'Público general',
+    sale.customerNumber ?? '',
+    sale.customerRfc ?? '',
+    STATUS_LABELS[sale.status] ?? sale.status,
+    PAYMENT_LABELS[sale.paymentMethod] ?? sale.paymentMethod,
+    sale.subtotal,
+    sale.discountAmount,
+    sale.discountPercent ?? '',
+    sale.discountReason ?? '',
+    sale.taxAmount,
+    sale.total,
+    sale.currencyCode ?? 'MXN',
+    sale.items?.length ?? sale.itemsCount ?? '',
+    sale.requiresInvoice ? 'Sí' : 'No',
+    sale.invoiceUuid ? 'Sí' : 'No',
+    sale.invoiceUuid ?? '',
+    sale.notes ?? '',
+    sale.cancellationReason ?? '',
+    sale.cancelledByName ?? '',
+    sale.cancelledAt ? new Date(sale.cancelledAt).toLocaleString('es-MX') : '',
+  ];
+  return cols.map(escapeCsv).join(',');
+}
+
+const CSV_HEADERS = [
+  'No. Venta',
+  'Fecha',
+  'Sucursal',
+  'Caja',
+  'Vendedor',
+  'Cliente',
+  'No. Cliente',
+  'RFC',
+  'Estado',
+  'Método de Pago',
+  'Subtotal',
+  'Descuento',
+  '% Descuento',
+  'Motivo Descuento',
+  'IVA',
+  'Total',
+  'Moneda',
+  'No. Productos',
+  'Requiere Factura',
+  'Timbrada',
+  'UUID Factura',
+  'Notas',
+  'Motivo Cancelación',
+  'Cancelada por',
+  'Fecha Cancelación',
+].join(',');
+
+function downloadCsv(rows: Sale[], filename: string) {
+  const lines = [CSV_HEADERS, ...rows.map(buildCsvRow)];
+  const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 // ================================
 // Sale Detail Modal
@@ -403,9 +488,46 @@ function VentasReportesContent() {
   const userRoles = useAppSelector(selectUserRoles);
   const canEditPayment = userRoles.some((r) => r === 'admin' || r === 'super_admin');
 
+  const selectedBranch = get('branch');
+  const selectedStatus = get('status');
+  const selectedPaymentMethod = get('paymentMethod');
+  const dateFrom = get('dateFrom') || getDefaultDateFrom();
+  const dateTo = get('dateTo') || getDefaultDateTo();
+  const currentPage = getNumber('page') || 1;
+  const pageSize = getNumber('limit') || 20;
+
   const [detailSale, setDetailSale] = useState<Sale | null>(null);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const { mutate: updatePaymentMethod, isPending: isUpdating } = useUpdateSalePaymentMethod();
+
+  const handleExportCsv = useCallback(async () => {
+    setIsExporting(true);
+    try {
+      const result = await posService.getSales({
+        branchId: selectedBranch !== 'all' ? selectedBranch : undefined,
+        status: selectedStatus !== 'all' ? (selectedStatus as PosSaleStatus) : undefined,
+        paymentMethod: selectedPaymentMethod !== 'all' ? (selectedPaymentMethod as PosPaymentMethod) : undefined,
+        fromDate: dateFrom,
+        toDate: dateTo,
+        sortBy: 'createdAt',
+        sortOrder: 'desc',
+        page: 1,
+        limit: 5000,
+      });
+      if (!result.data.length) {
+        toast.info('No hay ventas para exportar con los filtros actuales');
+        return;
+      }
+      const filename = `ventas_${dateFrom}_${dateTo}.csv`;
+      downloadCsv(result.data, filename);
+      toast.success(`${result.data.length} ventas exportadas`);
+    } catch {
+      toast.error('Error al exportar ventas');
+    } finally {
+      setIsExporting(false);
+    }
+  }, [selectedBranch, selectedStatus, selectedPaymentMethod, dateFrom, dateTo]);
 
   const handleEditPaymentConfirm = useCallback(
     (paymentMethod: string) => {
@@ -425,14 +547,6 @@ function VentasReportesContent() {
     },
     [editingSale, updatePaymentMethod],
   );
-
-  const selectedBranch = get('branch');
-  const selectedStatus = get('status');
-  const selectedPaymentMethod = get('paymentMethod');
-  const dateFrom = get('dateFrom') || getDefaultDateFrom();
-  const dateTo = get('dateTo') || getDefaultDateTo();
-  const currentPage = getNumber('page') || 1;
-  const pageSize = getNumber('limit') || 20;
 
   const { data: branches = [] } = useActiveBranches();
 
@@ -658,7 +772,7 @@ function VentasReportesContent() {
         {/* Filters */}
         <Card className="mb-6">
           <CardContent className="p-6">
-            <div className="flex flex-col lg:flex-row gap-4">
+            <div className="flex flex-col lg:flex-row gap-4 lg:items-center">
               {/* Branch */}
               <div className="flex items-center gap-2">
                 <FunnelIcon className="h-5 w-5 text-gray-400" />
@@ -690,6 +804,19 @@ function VentasReportesContent() {
                 allLabel="Todos los Métodos"
                 allValue="all"
               />
+
+              {/* Export CSV */}
+              <div className="lg:ml-auto">
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  disabled={isExporting}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#3E667D] text-[#3E667D] text-sm font-medium hover:bg-[#3E667D]/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ArrowDownTrayIcon className="h-4 w-4" />
+                  {isExporting ? 'Exportando...' : 'Exportar CSV'}
+                </button>
+              </div>
             </div>
 
             {/* Date range row */}
