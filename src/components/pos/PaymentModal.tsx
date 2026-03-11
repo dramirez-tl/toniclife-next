@@ -635,23 +635,37 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
                             showAllOption={false}
                           />
                         </div>
-                        <div>
+                        <div className="col-span-2">
                           <label className="text-xs text-gray-500">Método de Pago</label>
                           <div className="flex gap-2 mt-1">
-                            {(['PUE', 'PPD'] as const).map((method) => (
-                              <button
-                                key={method}
-                                type="button"
-                                onClick={() => setInvoicePaymentMethod(method)}
-                                className={`flex-1 px-3 py-1.5 text-sm rounded-lg border-2 font-medium transition-all ${
-                                  invoicePaymentMethod === method
-                                    ? 'border-[#3E667D] bg-[#3E667D] text-white'
-                                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                                }`}
-                              >
-                                {method === 'PUE' ? 'PUE · Una exhibición' : 'PPD · Diferido'}
-                              </button>
-                            ))}
+                            {([
+                              { value: 'PUE', label: 'PUE', sub: 'Una sola exhibición' },
+                              { value: 'PPD', label: 'PPD', sub: 'Parcialidades o diferido' },
+                            ] as const).map(({ value, label, sub }) => {
+                              const selected = invoicePaymentMethod === value;
+                              return (
+                                <button
+                                  key={value}
+                                  type="button"
+                                  onClick={() => setInvoicePaymentMethod(value)}
+                                  className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-lg border transition-all text-left ${
+                                    selected
+                                      ? 'border-[#3E667D] bg-[#3E667D]/5'
+                                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                                  }`}
+                                >
+                                  <span className={`flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                                    selected ? 'border-[#3E667D]' : 'border-gray-300'
+                                  }`}>
+                                    {selected && <span className="w-2 h-2 rounded-full bg-[#3E667D]" />}
+                                  </span>
+                                  <span>
+                                    <span className={`block text-sm font-semibold ${selected ? 'text-[#3E667D]' : 'text-gray-700'}`}>{label}</span>
+                                    <span className="block text-[10px] text-gray-400 leading-tight">{sub}</span>
+                                  </span>
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
                       </div>
