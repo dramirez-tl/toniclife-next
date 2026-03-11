@@ -16,9 +16,11 @@ interface PosCustomerSelectorProps {
   prominent?: boolean;
   /** Branch country ID for correct price resolution */
   countryId?: string;
+  /** Fallback price type ID for distributors who have no priceTypeId assigned in the DB */
+  distributorPriceTypeId?: string;
 }
 
-export function PosCustomerSelector({ prominent = false, countryId }: PosCustomerSelectorProps) {
+export function PosCustomerSelector({ prominent = false, countryId, distributorPriceTypeId }: PosCustomerSelectorProps) {
   const [customerNumber, setCustomerNumber] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -49,7 +51,9 @@ export function PosCustomerSelector({ prominent = false, countryId }: PosCustome
 
   const handleSelect = useCallback(async (customer: Customer) => {
     const fullName = [customer.firstName, customer.lastName, customer.lastNameMother].filter(Boolean).join(' ');
-    setCustomer(customer.id, fullName, customer.rfc ?? undefined, customer.priceTypeId ?? undefined);
+    // Use customer's own price type, or fall back to the distributor price type when not assigned
+    const effectivePriceTypeId = customer.priceTypeId ?? distributorPriceTypeId ?? undefined;
+    setCustomer(customer.id, fullName, customer.rfc ?? undefined, effectivePriceTypeId);
     setSearchQuery('');
     setSearchCustomerNumber(undefined);
     setHasSearched(false);
@@ -59,10 +63,10 @@ export function PosCustomerSelector({ prominent = false, countryId }: PosCustome
     setMothersLastName('');
 
     // Refresh cart item prices with customer's price type
-    if (customer.priceTypeId) {
-      await refreshPrices(customer.priceTypeId);
+    if (effectivePriceTypeId) {
+      await refreshPrices(effectivePriceTypeId);
     }
-  }, [setCustomer, refreshPrices]);
+  }, [setCustomer, refreshPrices, distributorPriceTypeId]);
 
   const handleRemove = useCallback(async () => {
     setCustomer(undefined, undefined, undefined, undefined);

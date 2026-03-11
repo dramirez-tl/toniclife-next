@@ -25,7 +25,7 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { usePosCartStore } from '@/stores/pos-cart.store';
 import { useActiveSession, useCreateSale, useProcessPayment, useSales } from '@/hooks/usePos';
 import { useActiveBranches } from '@/hooks/useBranches';
-import { useActiveCurrencies } from '@/hooks/useConfig';
+import { useActiveCurrencies, useActivePriceTypes } from '@/hooks/useConfig';
 import type { CreatePaymentInput, PosPaymentMethod, Sale, CancelSaleInput } from '@/types/pos';
 import { PosSaleStatus } from '@/types/pos';
 import type { Branch } from '@/types/branch';
@@ -92,9 +92,10 @@ export default function PosPage() {
   const createSale = useCreateSale();
   const processPayment = useProcessPayment();
 
-  // Fetch branches (POS-enabled only) and currencies
+  // Fetch branches (POS-enabled only), currencies, and price types
   const { data: allBranches } = useActiveBranches();
   const { data: currencies } = useActiveCurrencies();
+  const { data: activePriceTypes } = useActivePriceTypes();
 
   const posBranches = useMemo(
     () => (allBranches || []).filter((b: Branch) => b.isPosEnabled),
@@ -112,6 +113,12 @@ export default function PosPage() {
     (currencies || []).forEach((c: Currency) => map.set(c.code, c));
     return map;
   }, [currencies]);
+
+  // Find the distributor price type ID (fallback for customers with no priceTypeId assigned)
+  const distributorPriceTypeId = useMemo(
+    () => (activePriceTypes || []).find((pt) => pt.appliesTo?.includes('distributor'))?.id,
+    [activePriceTypes],
+  );
 
   // Auto-select branch: user's default branch (non-admin) or first available
   useEffect(() => {
@@ -729,7 +736,7 @@ export default function PosPage() {
                     <p className="text-sm text-gray-500 mb-6">
                       Llena al menos un campo y presiona buscar
                     </p>
-                    <PosCustomerSelector prominent countryId={branchCountryId} />
+                    <PosCustomerSelector prominent countryId={branchCountryId} distributorPriceTypeId={distributorPriceTypeId} />
 
                     {/* Public price divider and switch */}
                     <div className="mt-6 flex items-center gap-3">
