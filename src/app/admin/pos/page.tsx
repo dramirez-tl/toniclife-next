@@ -3,6 +3,7 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Bars3Icon,
   ClockIcon,
@@ -41,9 +42,12 @@ const fiscalRegimeOptions = FISCAL_REGIMES.map((r) => ({ value: r.Value, label: 
 const cfdiUseOptions = CFDI_USES.map((u) => ({ value: u.Value, label: `${u.Value} - ${u.Name}` }));
 
 export default function PosPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
-  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
+  const [selectedBranchId, setSelectedBranchId] = useState<string>(searchParams.get('branch') ?? '');
   const today = new Date().toISOString().slice(0, 10);
   const [salesDate, setSalesDate] = useState<string>(today);
   const [appliedSalesDate, setAppliedSalesDate] = useState<string>(today);
@@ -96,13 +100,15 @@ export default function PosPage() {
   // Auto-select branch: user's default branch (non-admin) or first available
   useEffect(() => {
     if (!selectedBranchId && posBranches.length > 0) {
-      if (userDefaultBranchId && posBranches.some((b: Branch) => b.id === userDefaultBranchId)) {
-        setSelectedBranchId(userDefaultBranchId);
-      } else {
-        setSelectedBranchId(posBranches[0].id);
-      }
+      const autoId = (userDefaultBranchId && posBranches.some((b: Branch) => b.id === userDefaultBranchId))
+        ? userDefaultBranchId
+        : posBranches[0].id;
+      setSelectedBranchId(autoId);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('branch', autoId);
+      router.replace(`/admin/pos?${params.toString()}`);
     }
-  }, [selectedBranchId, posBranches, userDefaultBranchId]);
+  }, [selectedBranchId, posBranches, userDefaultBranchId, router, searchParams]);
 
   const effectiveBranchId = selectedBranchId;
 
@@ -126,6 +132,9 @@ export default function PosPage() {
     if (branchId !== selectedBranchId) {
       clearCart();
       setSelectedBranchId(branchId);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('branch', branchId);
+      router.replace(`/admin/pos?${params.toString()}`);
     }
   };
 
