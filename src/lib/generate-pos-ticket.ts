@@ -364,6 +364,12 @@ export async function generatePosTicketPdf(
     if (totalBV > 0) {
       y = leftText(doc, `Vol. Negocio: ${totalBV.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, y);
     }
+    if (sale.accumulatedPoints != null && sale.accumulatedPoints > 0) {
+      const fmt = (n: number) => n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      doc.setFont(FONT_BODY, 'bold');
+      y = leftText(doc, `Puntos acumulados del periodo: ${fmt(sale.accumulatedPoints)}`, y);
+      doc.setFont(FONT_BODY, 'normal');
+    }
   }
 
   // ----- 9. Footer -----

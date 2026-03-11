@@ -14,7 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useCartSummary } from '@/hooks/useCart';
 import { useAppSelector } from '@/store/hooks';
-import { selectIsAuthenticated, selectUserRoles, selectUser } from '@/store/slices/authSlice';
+import { selectIsAuthenticated, selectUserRoles, selectUser, selectIsInitialized } from '@/store/slices/authSlice';
 
 const navigation = [
   { name: 'Inicio', href: '/' },
@@ -48,6 +48,7 @@ export function Header() {
 
   // Get user authentication state, roles, and profile
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const isInitialized = useAppSelector(selectIsInitialized);
   const userRoles = useAppSelector(selectUserRoles);
   const user = useAppSelector(selectUser);
 
@@ -214,27 +215,34 @@ export function Header() {
 
             {/* CTA / Auth Button - Desktop */}
             <div className="hidden sm:block ml-2">
+              {!isInitialized ? (
+                <div className="h-9 w-28 rounded-full bg-gray-100 animate-pulse" />
+              ) : (
               <Link href={isAuthenticated ? dashboardUrl : '/login'} className="cursor-pointer">
                 {isAuthenticated && user ? (
-                  user.avatarUrl ? (
-                    <Image
-                      src={user.avatarUrl}
-                      alt={`${user.firstName} ${user.lastName}`}
-                      width={36}
-                      height={36}
-                      className="h-9 w-9 rounded-full object-cover ring-2 ring-[#3E667D]/20 hover:ring-[#3E667D]/50 transition-all cursor-pointer"
-                    />
-                  ) : (
-                    <span className="h-9 w-9 rounded-full bg-[#3E667D] text-white text-sm font-bold flex items-center justify-center ring-2 ring-[#3E667D]/20 hover:bg-[#2f5165] transition-colors cursor-pointer">
-                      {user.firstName?.charAt(0)?.toUpperCase()}{user.lastName?.charAt(0)?.toUpperCase()}
-                    </span>
-                  )
+                  <span className="flex items-center gap-2 bg-[#3E667D] hover:bg-[#2f5165] text-white text-sm font-medium px-3 py-1.5 rounded-full transition-colors cursor-pointer">
+                    {user.avatarUrl ? (
+                      <Image
+                        src={user.avatarUrl}
+                        alt={`${user.firstName} ${user.lastName}`}
+                        width={24}
+                        height={24}
+                        className="h-6 w-6 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span className="h-6 w-6 rounded-full bg-white/20 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                        {user.firstName?.charAt(0)?.toUpperCase()}{user.lastName?.charAt(0)?.toUpperCase()}
+                      </span>
+                    )}
+                    Ir a Panel
+                  </span>
                 ) : (
                   <Button size="md" className="cursor-pointer">
                     Inicia sesión
                   </Button>
                 )}
               </Link>
+              )}
             </div>
 
             {/* Mobile menu button */}

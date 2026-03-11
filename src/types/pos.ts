@@ -246,6 +246,7 @@ export interface Sale {
   items: SaleItem[];
   payments: SalePayment[];
   createdAt: string;
+  accumulatedPoints?: number;
 }
 
 export interface CreateSaleItemInput {
@@ -350,6 +351,7 @@ export interface PaymentResult {
     status: string;
   }>;
   message?: string;
+  accumulatedPoints?: number;
 }
 
 // ================================

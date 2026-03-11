@@ -277,7 +277,7 @@ export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbo
       )}
 
       {/* Product grid */}
-      <div className="flex-1 overflow-y-auto min-h-0">
+      <div className="flex-1 overflow-y-auto min-h-0 pt-2">
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 p-0.5">
           {filtered.map((product) => {
             const outOfStock = product.stock !== undefined && product.stock <= 0;
@@ -330,7 +330,7 @@ export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbo
 
                 {/* Cart indicator */}
                 {inCart && (
-                  <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#3E667D] text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow">
+                  <div className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#3E667D] text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow z-20">
                     {inCart.quantity}
                   </div>
                 )}

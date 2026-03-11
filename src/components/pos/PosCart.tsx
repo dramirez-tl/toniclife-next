@@ -3,6 +3,7 @@
 
 import { TrashIcon, PlusIcon, MinusIcon, ShoppingCartIcon, UserIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
 import { usePosCartStore } from '@/stores/pos-cart.store';
+import { PosPointsBar } from '@/components/pos/PosPointsBar';
 import Image from 'next/image';
 
 interface PosCartProps {
@@ -214,6 +215,16 @@ export function PosCart({ onCheckout, disabled, currencySymbol = '$', currencyCo
               Requiere factura
             </div>
           )}
+        </div>
+      )}
+
+      {/* Points progress bar toward 3,300 goal */}
+      {cart.customerId && (
+        <div className="px-3 pb-2">
+          <PosPointsBar
+            customerId={cart.customerId}
+            cartPoints={cart.totalPoints}
+          />
         </div>
       )}
 

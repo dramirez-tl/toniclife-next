@@ -27,6 +27,16 @@ class CustomersService {
     return response.data;
   }
 
+  async getCustomerPeriodStats(customerId: string): Promise<{
+    personalPoints: number;
+    qualificationThreshold: number;
+    status: 'qualified' | 'in_progress' | 'inactive';
+    periodName: string | null;
+  }> {
+    const response = await api.get(`${this.basePath}/${customerId}/period-stats`);
+    return response.data;
+  }
+
   async getByReferralCode(code: string): Promise<Customer> {
     const response = await api.get<Customer>(`${this.basePath}/referral/${code}`);
     return response.data;
