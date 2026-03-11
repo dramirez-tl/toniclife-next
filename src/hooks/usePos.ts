@@ -269,6 +269,22 @@ export const useProcessPayment = () => {
 };
 
 /**
+ * Update sale payment method mutation (admin/super_admin only)
+ */
+export const useUpdateSalePaymentMethod = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, paymentMethod }: { id: string; paymentMethod: string }) =>
+      posService.updateSalePaymentMethod(id, paymentMethod),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: posKeys.sales() });
+      queryClient.invalidateQueries({ queryKey: posKeys.saleDetail(id) });
+    },
+  });
+};
+
+/**
  * Cancel sale mutation
  */
 export const useCancelSale = () => {

@@ -191,6 +191,14 @@ class PosService {
     return response.data;
   }
 
+  /**
+   * Update the payment method of a sale (admin/super_admin only)
+   */
+  async updateSalePaymentMethod(id: string, paymentMethod: string): Promise<Sale> {
+    const response = await api.patch<Sale>(`/pos/sales/${id}/payment-method`, { paymentMethod });
+    return response.data;
+  }
+
   // ================================
   // CASH MOVEMENTS
   // ================================
