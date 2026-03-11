@@ -417,6 +417,7 @@ export default function TransferDetailPage() {
                       <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Producto</th>
                       <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Codigo</th>
                       <th className="text-center py-3 px-4 text-sm font-semibold text-gray-600">Cantidad</th>
+                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Lote / CAD</th>
                       {transfer.status === 'applied' && (
                         <>
                           <th className="text-center py-3 px-4 text-sm font-semibold text-gray-600">Antes</th>
@@ -431,6 +432,11 @@ export default function TransferDetailPage() {
                         <td className="py-3 px-4 font-medium text-gray-900">{item.productName}</td>
                         <td className="py-3 px-4 text-sm text-gray-500 font-mono">{item.productCode}</td>
                         <td className="py-3 px-4 text-center font-semibold text-[#3E667D]">{item.quantity}</td>
+                        <td className="py-3 px-4 text-xs">
+                          {item.lotNumber
+                            ? <><p className="font-mono text-gray-700">{item.lotNumber}</p>{item.expirationDate && <p className="text-gray-400">CAD: {item.expirationDate}</p>}</>
+                            : <span className="text-gray-400">—</span>}
+                        </td>
                         {transfer.status === 'applied' && (
                           <>
                             <td className="py-3 px-4 text-center text-sm text-gray-500">{item.quantityBefore}</td>
@@ -448,6 +454,7 @@ export default function TransferDetailPage() {
                       <td className="py-3 px-4 text-center font-bold text-[#3E667D]">
                         {transfer.totalQuantity} unidades
                       </td>
+                      <td />
                       {transfer.status === 'applied' && <td colSpan={2} />}
                     </tr>
                   </tfoot>

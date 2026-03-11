@@ -236,8 +236,11 @@ export async function generateMovementTicketPdf(movement: MovementDto): Promise<
   // Table header
   const tableLeft = MARGIN;
   const col1 = tableLeft;             // #
-  const col2 = tableLeft + 8;         // Codigo
-  const col3 = tableLeft + 38;        // Producto
+  const col2 = tableLeft + 6;         // Codigo
+  const col3 = tableLeft + 30;        // Producto
+  const col4 = tableLeft + 98;        // Cantidad
+  const col5 = tableLeft + 120;       // Lote
+  const col6 = tableLeft + 155;       // CAD
   const tableRight = PAGE_W - MARGIN;
 
   y = checkPage(doc, y, 8);
@@ -245,18 +248,20 @@ export async function generateMovementTicketPdf(movement: MovementDto): Promise<
   doc.rect(tableLeft, y - 4, CONTENT_W, 7, 'F');
 
   doc.setFont(FONT_BODY, 'bold');
-  doc.setFontSize(7.5);
+  doc.setFontSize(7);
   doc.setTextColor(255, 255, 255);
   doc.text('#', col1 + 1, y);
   doc.text('CODIGO', col2, y);
   doc.text('PRODUCTO', col3, y);
-  doc.text('CANTIDAD', tableRight, y, { align: 'right' });
+  doc.text('CANT.', col4, y);
+  doc.text('LOTE', col5, y);
+  doc.text('CAD', col6, y);
   y += 5;
 
   // Table rows
   doc.setTextColor(0, 0, 0);
   doc.setFont(FONT_MONO, 'normal');
-  doc.setFontSize(8);
+  doc.setFontSize(7.5);
 
   let totalQty = 0;
   const items = movement.items || [];
@@ -271,19 +276,24 @@ export async function generateMovementTicketPdf(movement: MovementDto): Promise<
     }
 
     doc.setFont(FONT_MONO, 'normal');
-    doc.setFontSize(8);
+    doc.setFontSize(7.5);
     doc.text(String(idx + 1), col1 + 1, y);
     doc.text(item.productCode || '\u2014', col2, y);
 
     // Product name
     doc.setFont(FONT_BODY, 'normal');
-    const col4 = PAGE_W - MARGIN - 20;
-    const maxNameW = col4 - col3 - 5;
+    const maxNameW = col4 - col3 - 3;
     const nameLines = doc.splitTextToSize(item.productName, maxNameW) as string[];
     doc.text(nameLines[0], col3, y);
 
     doc.setFont(FONT_MONO, 'bold');
-    doc.text(String(item.quantity), tableRight, y, { align: 'right' });
+    doc.text(String(item.quantity), col4, y);
+
+    // Lote / CAD
+    doc.setFont(FONT_MONO, 'normal');
+    doc.setFontSize(7);
+    doc.text(item.lotNumber || '\u2014', col5, y);
+    doc.text(item.expirationDate || '\u2014', col6, y);
 
     totalQty += item.quantity;
 
@@ -291,7 +301,7 @@ export async function generateMovementTicketPdf(movement: MovementDto): Promise<
       y += 3.5;
       y = checkPage(doc, y, 4);
       doc.setFont(FONT_BODY, 'normal');
-      doc.setFontSize(7);
+      doc.setFontSize(6.5);
       doc.text(nameLines[1], col3, y);
     }
 

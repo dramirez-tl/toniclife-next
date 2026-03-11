@@ -166,6 +166,7 @@ export interface ProductComponent {
 // ================================
 export interface ProductQueryParams {
   search?: string;
+  sku?: string;
   categoryId?: string;
   branchId?: string;
   inStock?: boolean;

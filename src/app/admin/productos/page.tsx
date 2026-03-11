@@ -23,6 +23,7 @@ import {
   XCircleIcon,
   ArrowPathIcon,
   ExclamationTriangleIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { useProducts, useCategories, useDeleteProduct } from '@/hooks/useProducts';
@@ -93,12 +94,14 @@ function ProductosContent() {
   });
 
   const searchQuery = get('search');
+  const filterCode = get('sku');
   const filterCategoryId = get('categoryId');
   const filterStatus = get('status') as 'all' | 'active' | 'inactive';
   const currentPage = getNumber('page') || 1;
   const pageSize = getNumber('limit') || 20;
 
   const [searchInput, setSearchInput] = useState(searchQuery);
+  const [codeInput, setCodeInput] = useState(filterCode);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -113,11 +116,12 @@ function ProductosContent() {
       sortDir: 'desc',
     };
     if (searchQuery) params.search = searchQuery;
+    if (filterCode) params.sku = filterCode;
     if (filterCategoryId) params.categoryId = filterCategoryId;
     if (filterStatus === 'active') params.isActive = true;
     if (filterStatus === 'inactive') params.isActive = false;
     return params;
-  }, [searchQuery, filterCategoryId, filterStatus, currentPage, pageSize]);
+  }, [searchQuery, filterCode, filterCategoryId, filterStatus, currentPage, pageSize]);
 
   // Fetch products and categories
   const { data: productsData, isLoading, isFetching, isError, refetch } = useProducts(queryParams);
@@ -135,10 +139,14 @@ function ProductosContent() {
     categories: categories?.length ?? 0,
   }), [products, total, categories]);
 
-  const hasActiveFilters = Boolean(searchQuery || filterCategoryId || filterStatus !== 'all');
+  const hasActiveFilters = Boolean(searchQuery || filterCode || filterCategoryId || filterStatus !== 'all');
 
   const handleSearch = () => {
     setParams({ search: searchInput.trim() });
+  };
+
+  const handleCodeSearch = () => {
+    setParams({ sku: codeInput.trim() || null, page: null });
   };
 
   const handleFilterCategory = (value: string) => {
@@ -155,7 +163,8 @@ function ProductosContent() {
 
   const resetFilters = () => {
     setSearchInput('');
-    setParams({ search: null, categoryId: null, status: 'all', page: null });
+    setCodeInput('');
+    setParams({ search: null, sku: null, categoryId: null, status: 'all', page: null });
   };
 
   const handleDeleteClick = (product: Product) => {
@@ -431,6 +440,13 @@ function ProductosContent() {
       render: (product) => (
         <div className="flex items-center justify-end gap-2">
           <button
+            onClick={() => router.push(`/admin/inventario/kardex/${product.id}`)}
+            className="rounded-lg p-2 transition-colors hover:bg-teal-50"
+            title="Ver Kardex"
+          >
+            <ChartBarIcon className="h-4 w-4 text-[#3E667D]" />
+          </button>
+          <button
             onClick={() => router.push(`/admin/productos/${product.id}/editar`)}
             className="rounded-lg p-2 transition-colors hover:bg-blue-50"
             title="Ver detalles"
@@ -647,13 +663,14 @@ function ProductosContent() {
 
               <div className="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:gap-4">
                 {/* Search */}
-                <div className="lg:col-span-5">
+                <div className="lg:col-span-4">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Buscar por nombre</label>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <div className="relative flex-1">
                       <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                       <input
                         type="text"
-                        placeholder="Buscar por nombre o SKU..."
+                        placeholder="Nombre del producto..."
                         value={searchInput}
                         onChange={(e) => setSearchInput(e.target.value)}
                         onKeyDown={(e) => {
@@ -676,8 +693,40 @@ function ProductosContent() {
                   </div>
                 </div>
 
+                {/* Exact SKU Filter */}
+                <div className="lg:col-span-3">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">SKU exacto</label>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">#</span>
+                      <input
+                        type="text"
+                        placeholder="Ej: 9019"
+                        value={codeInput}
+                        onChange={(e) => setCodeInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleCodeSearch();
+                          }
+                        }}
+                        className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent font-mono"
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-10 px-4 sm:min-w-[80px]"
+                      onClick={handleCodeSearch}
+                    >
+                      SKU
+                    </Button>
+                  </div>
+                </div>
+
                 {/* Category Filter */}
-                <div className="lg:col-span-4">
+                <div className="lg:col-span-3">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Categoría</label>
                   <SearchableSelect
                     options={categories?.map((category) => ({ value: category.id, label: category.name })) || []}
                     value={filterCategoryId}
@@ -688,7 +737,8 @@ function ProductosContent() {
                 </div>
 
                 {/* Status Filter */}
-                <div className="lg:col-span-3">
+                <div className="lg:col-span-2">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Estado</label>
                   <SearchableSelect
                     options={[
                       { value: 'active', label: 'Activos' },
@@ -711,6 +761,11 @@ function ProductosContent() {
                   {searchQuery && (
                     <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
                       Búsqueda: {searchQuery}
+                    </span>
+                  )}
+                  {filterCode && (
+                    <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700 font-mono">
+                      SKU: {filterCode}
                     </span>
                   )}
                   {filterCategoryId && (

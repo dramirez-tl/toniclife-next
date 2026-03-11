@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -12,7 +13,6 @@ import {
   EyeIcon,
   ClockIcon,
   CheckBadgeIcon,
-  ArrowLeftIcon,
   CheckIcon,
   XMarkIcon,
   DocumentArrowDownIcon,
@@ -20,7 +20,6 @@ import {
 import { toast } from 'sonner';
 import {
   useMovements,
-  useMovement,
   useApproveMovement,
   useRejectMovement,
 } from '@/hooks/useInventory';
@@ -40,8 +39,8 @@ export default function EntradasPage() {
 }
 
 function EntradasContent() {
+  const router = useRouter();
   const { get, getNumber, setParams } = useQueryFilters({ page: '1' });
-  const [selectedMovement, setSelectedMovement] = useState<MovementDto | null>(null);
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
@@ -71,20 +70,10 @@ function EntradasContent() {
     setParams({ search: searchInput || '', page: '1' });
   };
 
-  const handleViewDetail = async (movement: MovementDto) => {
-    try {
-      const detail = await inventoryService.getMovement(movement.id);
-      setSelectedMovement(detail);
-    } catch {
-      toast.error('Error al cargar detalle del movimiento');
-    }
-  };
-
   const handleApprove = async (id: string) => {
     try {
       await approveMovement.mutateAsync({ id });
       toast.success('Entrada aprobada correctamente');
-      setSelectedMovement(null);
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Error al aprobar la entrada');
     }
@@ -97,7 +86,6 @@ function EntradasContent() {
       toast.success('Entrada rechazada');
       setShowRejectModal(null);
       setRejectReason('');
-      setSelectedMovement(null);
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Error al rechazar la entrada');
     }
@@ -135,20 +123,6 @@ function EntradasContent() {
     applied: movementsData?.data.filter(m => m.status === 'applied').length || 0,
     pending: movementsData?.data.filter(m => m.status === 'pending_approval').length || 0,
   };
-
-  // Detail view
-  if (selectedMovement) {
-    return (
-      <DetailView
-        movement={selectedMovement}
-        onBack={() => setSelectedMovement(null)}
-        onApprove={handleApprove}
-        onReject={(id) => { setShowRejectModal(id); }}
-        onDownloadPdf={handleDownloadPdf}
-        isApproving={approveMovement.isPending}
-      />
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -311,7 +285,7 @@ function EntradasContent() {
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-center gap-1">
                             <button
-                              onClick={() => handleViewDetail(movement)}
+                              onClick={() => router.push(`/admin/inventario/entradas/${movement.id}`)}
                               className="p-1.5 text-gray-500 hover:text-[#3E667D] hover:bg-gray-100 rounded-lg transition-colors"
                               title="Ver detalle"
                             >
@@ -408,151 +382,3 @@ function EntradasContent() {
   );
 }
 
-// ================================================================
-// DETAIL VIEW
-// ================================================================
-function DetailView({
-  movement,
-  onBack,
-  onApprove,
-  onReject,
-  onDownloadPdf,
-  isApproving,
-}: {
-  movement: MovementDto;
-  onBack: () => void;
-  onApprove: (id: string) => void;
-  onReject: (id: string) => void;
-  onDownloadPdf: (m: MovementDto) => void;
-  isApproving: boolean;
-}) {
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
-                <ArrowLeftIcon className="h-6 w-6" />
-              </button>
-              <div>
-                <h1 className="text-3xl font-bold">Entrada {movement.movementNumber}</h1>
-                <p className="text-white/80">{inventoryService.formatDateTime(movement.createdAt)}</p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => onDownloadPdf(movement)}
-                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                <DocumentArrowDownIcon className="h-4 w-4" />
-                PDF
-              </button>
-              {movement.status === 'pending_approval' && (
-                <>
-                  <button
-                    onClick={() => onApprove(movement.id)}
-                    disabled={isApproving}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                  >
-                    <CheckIcon className="h-4 w-4" />
-                    Aprobar
-                  </button>
-                  <button
-                    onClick={() => onReject(movement.id)}
-                    className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
-                  >
-                    <XMarkIcon className="h-4 w-4" />
-                    Rechazar
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <Card>
-          <CardContent className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Información General</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <div>
-                <p className="text-gray-500">No. Movimiento</p>
-                <p className="font-medium font-mono">{movement.movementNumber}</p>
-              </div>
-              <div>
-                <p className="text-gray-500">Sucursal</p>
-                <p className="font-medium">{movement.branchName}</p>
-              </div>
-              <div>
-                <p className="text-gray-500">Razón</p>
-                <p className="font-medium">{inventoryService.getMovementReasonLabel(movement.reason)}</p>
-              </div>
-              <div>
-                <p className="text-gray-500">Estado</p>
-                <p className="font-medium capitalize">{inventoryService.getTransferStatusLabel(movement.status)}</p>
-              </div>
-              {movement.referenceNumber && (
-                <div>
-                  <p className="text-gray-500">No. Referencia</p>
-                  <p className="font-medium">{movement.referenceNumber}</p>
-                </div>
-              )}
-              {movement.requestedBy && (
-                <div>
-                  <p className="text-gray-500">Registrado por</p>
-                  <p className="font-medium">{movement.requestedBy.name}</p>
-                </div>
-              )}
-              {movement.notes && (
-                <div className="col-span-2">
-                  <p className="text-gray-500">Notas</p>
-                  <p className="font-medium">{movement.notes}</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <h2 className="text-lg font-semibold mb-4">Productos ({movement.items.length})</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50 border-b">
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Producto</th>
-                    <th className="px-3 py-2 text-center font-medium text-gray-600">Cantidad</th>
-                    <th className="px-3 py-2 text-center font-medium text-gray-600">Stock Antes</th>
-                    <th className="px-3 py-2 text-center font-medium text-gray-600">Stock Después</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {movement.items.map((item) => (
-                    <tr key={item.id} className="border-b">
-                      <td className="px-3 py-2">
-                        <p className="font-medium">{item.productName}</p>
-                        <p className="text-xs text-gray-500">{item.productCode}</p>
-                      </td>
-                      <td className="px-3 py-2 text-center font-medium">{item.quantity}</td>
-                      <td className="px-3 py-2 text-center text-gray-500">{item.quantityBefore}</td>
-                      <td className="px-3 py-2 text-center font-medium text-green-600">{item.quantityAfter}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-gray-50 font-medium">
-                    <td className="px-3 py-2">Total</td>
-                    <td className="px-3 py-2 text-center">{movement.totalQuantity}</td>
-                    <td colSpan={2}></td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-}

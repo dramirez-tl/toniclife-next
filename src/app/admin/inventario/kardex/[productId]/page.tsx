@@ -2,11 +2,12 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.2 Módulo Productos e Inventario
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
+import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui/DataTable';
 import {
   ChartBarIcon,
   ArrowUpIcon,
@@ -24,7 +25,7 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useKardex, useProductStock } from '@/hooks/useInventory';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { inventoryService } from '@/services/inventory.service';
-import { MovementType, type KardexQueryDto } from '@/types/inventory';
+import { MovementType, type KardexQueryDto, type KardexEntryDto } from '@/types/inventory';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 export default function KardexPage() {
@@ -62,8 +63,153 @@ function KardexContent() {
 
   const { data: kardexData, isLoading, isError, refetch } = useKardex(productId, query);
 
-  const handleExport = () => {
-    toast.info('Esta función se habilitará próximamente');
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      // Fetch ALL movements with current filters but no pagination limit
+      const allData = await inventoryService.getKardex(productId, {
+        branchId: branchFilter || undefined,
+        movementType: movementTypeFilter || undefined,
+        fromDate: fromDate || undefined,
+        toDate: toDate || undefined,
+        limit: 10000,
+      });
+
+      if (!allData?.movements?.length) {
+        toast.warning('No hay movimientos para exportar');
+        return;
+      }
+
+      const name = productName || allData.product?.name || 'Producto';
+      const code = productCode || allData.product?.code || '';
+      const now = new Date();
+      const exportDate = now.toLocaleString('es-MX', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      });
+
+      // Build active filters description
+      const filterParts: string[] = [];
+      if (branchFilter) {
+        const bName = branches?.find((b) => b.id === branchFilter)?.name;
+        if (bName) filterParts.push(`Sucursal: ${bName}`);
+      }
+      if (movementTypeFilter) filterParts.push(`Tipo: ${inventoryService.getMovementTypeLabel(movementTypeFilter as MovementType)}`);
+      if (fromDate) filterParts.push(`Desde: ${fromDate}`);
+      if (toDate) filterParts.push(`Hasta: ${toDate}`);
+      const filterDesc = filterParts.length ? filterParts.join(' | ') : 'Todos los movimientos';
+
+      // Direction helper
+      const getDirection = (category: string, type: string) =>
+        isEntryMovement(category, type) ? 'Entrada' : 'Salida';
+
+      // Movement type label map
+      const typeLabels: Record<string, string> = {
+        transfer_in: 'Traspaso Entrada',
+        transfer_out: 'Traspaso Salida',
+        adjustment_positive: 'Ajuste (+)',
+        adjustment_negative: 'Ajuste (-)',
+        initial_load: 'Carga Inicial',
+        physical_count: 'Conteo Físico',
+        sale: 'Venta POS',
+        return_from_customer: 'Devolución Venta',
+      };
+      const getTypeLabel = (type: string, category?: string) =>
+        (category && typeLabels[category]) || typeLabels[type] || inventoryService.getMovementTypeLabel(type as MovementType);
+
+      // CSV helper: escape cell (wrap in quotes if it contains commas/quotes/newlines)
+      const esc = (val: string | number | undefined | null) => {
+        if (val === null || val === undefined) return '';
+        const str = String(val);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const rows: string[] = [];
+
+      // ── Header block ─────────────────────────────────────────────────────────
+      rows.push(`KARDEX DE PRODUCTO`);
+      rows.push(`Producto,${esc(name)}`);
+      rows.push(`SKU,${esc(code)}`);
+      rows.push(`Exportado el,${esc(exportDate)}`);
+      rows.push(`Filtros,${esc(filterDesc)}`);
+      rows.push(`Total movimientos,${allData.movements.length}`);
+      rows.push(''); // blank separator
+
+      // ── Column headers ────────────────────────────────────────────────────────
+      rows.push([
+        '# Movimiento',
+        'Fecha',
+        'Tipo de Movimiento',
+        'Dirección',
+        'Cantidad',
+        'Stock Anterior',
+        'Stock Nuevo',
+        'Sucursal Origen',
+        'Sucursal Destino',
+        'Tipo Referencia',
+        '# Referencia',
+        'Lote',
+        'Caducidad',
+        'Costo Unitario',
+        'Costo Total',
+        'Notas',
+        'Procesado Por',
+      ].join(','));
+
+      // ── Data rows ─────────────────────────────────────────────────────────────
+      for (const m of allData.movements) {
+        const expirationLabel = m.lotExpirationDate
+          ? new Date(m.lotExpirationDate).toLocaleDateString('es-MX', {
+              day: '2-digit', month: '2-digit', year: 'numeric',
+            })
+          : 'NA';
+
+        rows.push([
+          esc(m.movementNumber),
+          esc(inventoryService.formatDateTime(m.createdAt)),
+          esc(getTypeLabel(m.movementType, m.movementCategory)),
+          esc(getDirection(m.movementCategory, m.movementType)),
+          esc(isEntryMovement(m.movementCategory, m.movementType) ? `+${m.quantity}` : `-${m.quantity}`),
+          esc(m.quantityBefore),
+          esc(m.quantityAfter),
+          esc(m.branchName),
+          esc(m.destinationBranchName),
+          esc(m.referenceType),
+          esc(m.referenceNumber),
+          esc(m.lotNumber) || 'NA',
+          expirationLabel,
+          esc(m.unitCost),
+          esc(m.totalCost),
+          esc(m.notes),
+          esc(m.requestedBy?.name),
+        ].join(','));
+      }
+
+      // ── Download ──────────────────────────────────────────────────────────────
+      const csv = '\uFEFF' + rows.join('\n'); // BOM for Excel UTF-8
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const safeCode = code.replace(/[^a-zA-Z0-9]/g, '-');
+      const dateStr = now.toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `kardex-${safeCode}-${dateStr}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success(`Kardex exportado — ${allData.movements.length} movimientos`);
+    } catch {
+      toast.error('Error al exportar el kardex');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   // Product info: prefer stock data (always loads), fallback to kardex response
@@ -147,6 +293,194 @@ function KardexContent() {
     );
   };
 
+  // ── DataTable column definitions ────────────────────────────────────────────
+  const columns: DataTableColumn<KardexEntryDto>[] = [
+    {
+      key: 'movementNumber',
+      header: '# Movimiento',
+      sortable: true,
+      sortValue: (m) => m.movementNumber,
+      render: (m) => {
+        const detailUrl = (() => {
+          const t = m.movementType;
+          if (t === 'transfer' || t === 'transfer_in' || t === 'transfer_out') {
+            return `/admin/inventario/traspasos/${m.movementId}`;
+          }
+          if (t === 'entry') return `/admin/inventario/entradas/${m.movementId}`;
+          if (t === 'exit')  return `/admin/inventario/salidas/${m.movementId}`;
+          return null;
+        })();
+
+        if (detailUrl) {
+          return (
+            <a
+              href={detailUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-sm text-[#3E667D] font-medium whitespace-nowrap hover:underline hover:text-[#2f5165] transition-colors"
+            >
+              {m.movementNumber}
+            </a>
+          );
+        }
+        return (
+          <span className="font-mono text-sm text-[#3E667D] font-medium whitespace-nowrap">
+            {m.movementNumber}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'createdAt',
+      header: 'Fecha',
+      sortable: true,
+      sortValue: (m) => m.createdAt,
+      render: (m) => (
+        <span className="text-sm text-gray-600 whitespace-nowrap">
+          {inventoryService.formatDateTime(m.createdAt)}
+        </span>
+      ),
+    },
+    {
+      key: 'movementType',
+      header: 'Tipo',
+      render: (m) => getMovementTypeBadge(m.movementType, m.movementCategory),
+    },
+    {
+      key: 'movementCategory',
+      header: 'Dirección',
+      render: (m) => getCategoryBadge(m.movementCategory, m.movementType),
+    },
+    {
+      key: 'quantity',
+      header: 'Cantidad',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      sortable: true,
+      sortValue: (m) => m.quantity,
+      render: (m) => (
+        <span className={`font-bold font-mono ${isEntryMovement(m.movementCategory, m.movementType) ? 'text-green-600' : 'text-red-600'}`}>
+          {isEntryMovement(m.movementCategory, m.movementType) ? '+' : '-'}
+          {m.quantity.toLocaleString('es-MX')}
+        </span>
+      ),
+    },
+    {
+      key: 'quantityBefore',
+      header: 'Anterior',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (m) => (
+        <span className="text-sm text-gray-500 font-mono">
+          {m.quantityBefore.toLocaleString('es-MX')}
+        </span>
+      ),
+    },
+    {
+      key: 'quantityAfter',
+      header: 'Nuevo',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (m) => (
+        <span className="font-semibold text-gray-900 font-mono">
+          {m.quantityAfter.toLocaleString('es-MX')}
+        </span>
+      ),
+    },
+    {
+      key: 'reference',
+      header: 'Referencia',
+      render: (m) => {
+        const t = m.movementType;
+        const detailUrl = (() => {
+          if (t === 'transfer' || t === 'transfer_in' || t === 'transfer_out') {
+            return `/admin/inventario/traspasos/${m.movementId}`;
+          }
+          if (t === 'entry') return `/admin/inventario/entradas/${m.movementId}`;
+          if (t === 'exit')  return `/admin/inventario/salidas/${m.movementId}`;
+          return null;
+        })();
+
+        const content = m.referenceType ? (
+          <div className="text-sm whitespace-nowrap">
+            <span className="text-gray-500 capitalize">{m.referenceType}:</span>{' '}
+            <span className="font-mono">{m.referenceNumber || m.movementNumber}</span>
+          </div>
+        ) : (
+          <span className="font-mono text-sm">{m.movementNumber}</span>
+        );
+
+        if (detailUrl) {
+          return (
+            <a
+              href={detailUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#3E667D] hover:underline hover:text-[#2f5165] transition-colors"
+            >
+              {content}
+            </a>
+          );
+        }
+        return <span className="text-gray-500">{content}</span>;
+      },
+    },
+    {
+      key: 'branch',
+      header: 'Sucursal / Destino',
+      render: (m) =>
+        m.branchName ? (
+          <div className="flex flex-col gap-1">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full text-xs font-medium whitespace-nowrap">
+              <BuildingStorefrontIcon className="h-3 w-3" />
+              {m.branchName}
+            </span>
+            {m.destinationBranchName && (
+              <>
+                <span className="text-gray-400 text-xs pl-1">↓</span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs font-medium whitespace-nowrap">
+                  <BuildingStorefrontIcon className="h-3 w-3" />
+                  {m.destinationBranchName}
+                </span>
+              </>
+            )}
+          </div>
+        ) : (
+          <span className="text-gray-400">—</span>
+        ),
+    },
+    {
+      key: 'lot',
+      header: 'Lote / CAD',
+      render: (m) =>
+        m.lotNumber || m.lotExpirationDate ? (
+          <div>
+            {m.lotNumber && (
+              <span className="font-mono text-gray-700 text-sm">{m.lotNumber}</span>
+            )}
+            {m.lotExpirationDate && (
+              <div className="text-xs text-gray-500">
+                {new Date(m.lotExpirationDate).toLocaleDateString('es-MX', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+          <span className="text-gray-400">—</span>
+        ),
+    },
+    {
+      key: 'requestedBy',
+      header: 'Procesado Por',
+      render: (m) => (
+        <span className="text-sm text-gray-600">{m.requestedBy?.name || '—'}</span>
+      ),
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -179,11 +513,16 @@ function KardexContent() {
             <Button
               variant="outline"
               className="border-white/30 text-white hover:bg-white/10"
-              leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
+              leftIcon={
+                isExporting
+                  ? <span className="inline-block w-4 h-4 border-2 border-white/60 border-t-white rounded-full animate-spin" />
+                  : <ArrowDownTrayIcon className="h-4 w-4" />
+              }
               onClick={handleExport}
+              disabled={isExporting}
               size="sm"
             >
-              Exportar
+              {isExporting ? 'Exportando...' : 'Exportar CSV'}
             </Button>
           </div>
         </div>
@@ -316,181 +655,62 @@ function KardexContent() {
         </Card>
 
         {/* Kardex Table */}
-        <Card>
-          <CardContent className="p-0">
-            {isLoading ? (
-              <div className="text-center py-16">
-                <div className="inline-block w-10 h-10 border-4 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
-                <p className="mt-3 text-gray-500 text-sm">Cargando kardex...</p>
+        {isError ? (
+          <Card>
+            <CardContent className="p-6 text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-red-50 rounded-full mb-4">
+                <ChartBarIcon className="h-8 w-8 text-red-400" />
               </div>
-            ) : isError ? (
-              <div className="text-center py-16 px-6">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-red-50 rounded-full mb-4">
-                  <ChartBarIcon className="h-8 w-8 text-red-400" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                  Error al cargar el kardex
-                </h3>
-                <p className="text-gray-500 text-sm max-w-md mx-auto mb-4">
-                  No se pudo obtener el historial de movimientos. Intenta de nuevo.
-                </p>
-                <Button variant="outline" size="sm" onClick={() => refetch()}>
-                  Reintentar
-                </Button>
-              </div>
-            ) : kardexData?.movements && kardexData.movements.length > 0 ? (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                          # Movimiento
-                        </th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                          Fecha
-                        </th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                          Tipo
-                        </th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                          Dirección
-                        </th>
-                        <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                          Cantidad
-                        </th>
-                        <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                          Anterior
-                        </th>
-                        <th className="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                          Nuevo
-                        </th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                          Referencia
-                        </th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                          Lote / CAD
-                        </th>
-                        <th className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                          Procesado Por
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {kardexData.movements.map((movement) => (
-                        <tr
-                          key={movement.id}
-                          className="hover:bg-gray-50/50 transition-colors"
-                        >
-                          <td className="py-3 px-4">
-                            <span className="font-mono text-sm text-[#3E667D] font-medium">
-                              {movement.movementNumber}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-sm text-gray-600">
-                            {inventoryService.formatDateTime(movement.createdAt)}
-                          </td>
-                          <td className="py-3 px-4">
-                            {getMovementTypeBadge(movement.movementType, movement.movementCategory)}
-                          </td>
-                          <td className="py-3 px-4">{getCategoryBadge(movement.movementCategory, movement.movementType)}</td>
-                          <td className="py-3 px-4 text-center">
-                            <span
-                              className={`font-bold font-mono ${
-                                isEntryMovement(movement.movementCategory, movement.movementType) ? 'text-green-600' : 'text-red-600'
-                              }`}
-                            >
-                              {isEntryMovement(movement.movementCategory, movement.movementType) ? '+' : '-'}
-                              {movement.quantity.toLocaleString('es-MX')}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-center text-sm text-gray-500 font-mono">
-                            {movement.quantityBefore.toLocaleString('es-MX')}
-                          </td>
-                          <td className="py-3 px-4 text-center font-semibold text-gray-900 font-mono">
-                            {movement.quantityAfter.toLocaleString('es-MX')}
-                          </td>
-                          <td className="py-3 px-4 text-sm">
-                            {movement.referenceType && (
-                              <div>
-                                <span className="text-gray-500 capitalize">
-                                  {movement.referenceType}:
-                                </span>{' '}
-                                <span className="font-mono text-[#3E667D]">
-                                  {movement.referenceNumber}
-                                </span>
-                              </div>
-                            )}
-                          </td>
-                          <td className="py-3 px-4 text-sm">
-                            {movement.lotNumber || movement.lotExpirationDate ? (
-                              <div>
-                                {movement.lotNumber && (
-                                  <span className="font-mono text-gray-700">{movement.lotNumber}</span>
-                                )}
-                                {movement.lotExpirationDate && (
-                                  <div className="text-xs text-gray-500">
-                                    {new Date(movement.lotExpirationDate).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <span className="text-gray-400">—</span>
-                            )}
-                          </td>
-                          <td className="py-3 px-4 text-sm text-gray-600">
-                            {movement.requestedBy?.name || '-'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Pagination */}
-                {kardexData.totalPages > 1 && (
-                  <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
-                    <p className="text-sm text-gray-500">
-                      Página {kardexData.page} de {kardexData.totalPages} ({kardexData.total.toLocaleString('es-MX')} movimientos)
-                    </p>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setParams({ page: String(page - 1) })}
-                        disabled={page === 1}
-                      >
-                        Anterior
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setParams({ page: String(page + 1) })}
-                        disabled={page >= kardexData.totalPages}
-                      >
-                        Siguiente
-                      </Button>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                Error al cargar el kardex
+              </h3>
+              <p className="text-gray-500 text-sm max-w-md mx-auto mb-4">
+                No se pudo obtener el historial de movimientos. Intenta de nuevo.
+              </p>
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Reintentar
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="p-4">
+              <DataTable<KardexEntryDto>
+                columns={columns}
+                data={kardexData?.movements ?? []}
+                getRowKey={(m) => m.id}
+                isLoading={isLoading}
+                loadingRows={10}
+                minWidthClassName="min-w-[1100px]"
+                sortingMode="server"
+                emptyState={
+                  <div className="py-16 px-6 text-center">
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
+                      <ChartBarIcon className="h-8 w-8 text-gray-400" />
                     </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                      Sin movimientos registrados
+                    </h3>
+                    <p className="text-gray-500 text-sm max-w-md mx-auto">
+                      {branchFilter
+                        ? 'No se encontraron movimientos para este producto en la sucursal seleccionada.'
+                        : 'Los movimientos se registrarán automáticamente al procesar ventas, transferencias o ajustes de inventario.'}
+                    </p>
                   </div>
-                )}
-              </>
-            ) : (
-              <div className="text-center py-16 px-6">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
-                  <ChartBarIcon className="h-8 w-8 text-gray-400" />
-                </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                  Sin movimientos registrados
-                </h3>
-                <p className="text-gray-500 text-sm max-w-md mx-auto">
-                  {branchFilter
-                    ? 'No se encontraron movimientos para este producto en la sucursal seleccionada. Los movimientos se registrarán automáticamente al procesar ventas, transferencias o ajustes de inventario.'
-                    : 'Selecciona una sucursal para ver los movimientos de este producto. Los movimientos se registrarán automáticamente al procesar ventas, transferencias o ajustes de inventario.'}
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                }
+              />
+              {(kardexData?.total ?? 0) > 0 && (
+                <DataTablePagination
+                  currentPage={page}
+                  pageSize={50}
+                  totalItems={kardexData?.total ?? 0}
+                  onPageChange={(p) => setParams({ page: String(p) })}
+                  isLoading={isLoading}
+                />
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
