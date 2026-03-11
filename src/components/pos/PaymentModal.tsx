@@ -787,9 +787,25 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
                           <span className="text-blue-600 text-xs">Forma de Pago:</span>
                           <p className="font-medium text-gray-900">{fiscalData.paymentFormCode || '01'}</p>
                         </div>
-                        <div>
-                          <span className="text-blue-600 text-xs">Método de Pago:</span>
-                          <p className="font-medium text-gray-900">{invoicePaymentMethod}</p>
+                      </div>
+                      {/* PUE / PPD toggle — always visible in summary */}
+                      <div className="mt-3">
+                        <span className="text-blue-600 text-xs">Método de Pago</span>
+                        <div className="flex gap-2 mt-1">
+                          {(['PUE', 'PPD'] as const).map((method) => (
+                            <button
+                              key={method}
+                              type="button"
+                              onClick={() => setInvoicePaymentMethod(method)}
+                              className={`flex-1 px-3 py-1.5 text-sm rounded-lg border-2 font-medium transition-all ${
+                                invoicePaymentMethod === method
+                                  ? 'border-[#3E667D] bg-[#3E667D] text-white'
+                                  : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                              }`}
+                            >
+                              {method === 'PUE' ? 'PUE · Una exhibición' : 'PPD · Diferido'}
+                            </button>
+                          ))}
                         </div>
                       </div>
                       {!fiscalComplete && (
