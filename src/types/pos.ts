@@ -281,6 +281,7 @@ export interface SaleQueryParams {
   cashRegisterId?: string;
   branchId?: string;
   customerId?: string;
+  customerNumber?: string;
   sellerId?: string;
   status?: PosSaleStatus;
   paymentMethod?: PosPaymentMethod;

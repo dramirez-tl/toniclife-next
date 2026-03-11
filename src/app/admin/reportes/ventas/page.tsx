@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, Suspense, useState, useCallback } from 'react';
+import { useMemo, Suspense, useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -481,6 +481,7 @@ function VentasReportesContent() {
     branch: 'all',
     status: 'all',
     paymentMethod: 'all',
+    customerNumber: '',
     page: '1',
     limit: '20',
   });
@@ -491,6 +492,7 @@ function VentasReportesContent() {
   const selectedBranch = get('branch');
   const selectedStatus = get('status');
   const selectedPaymentMethod = get('paymentMethod');
+  const selectedCustomerNumber = get('customerNumber');
   const dateFrom = get('dateFrom') || getDefaultDateFrom();
   const dateTo = get('dateTo') || getDefaultDateTo();
   const currentPage = getNumber('page') || 1;
@@ -499,6 +501,10 @@ function VentasReportesContent() {
   const [detailSale, setDetailSale] = useState<Sale | null>(null);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [customerNumberInput, setCustomerNumberInput] = useState(selectedCustomerNumber);
+
+  // Sync input when URL param changes externally (e.g. navigating with ?customerNumber=...)
+  useEffect(() => { setCustomerNumberInput(selectedCustomerNumber); }, [selectedCustomerNumber]);
   const { mutate: updatePaymentMethod, isPending: isUpdating } = useUpdateSalePaymentMethod();
 
   const handleExportCsv = useCallback(async () => {
@@ -508,6 +514,7 @@ function VentasReportesContent() {
         branchId: selectedBranch !== 'all' ? selectedBranch : undefined,
         status: selectedStatus !== 'all' ? (selectedStatus as PosSaleStatus) : undefined,
         paymentMethod: selectedPaymentMethod !== 'all' ? (selectedPaymentMethod as PosPaymentMethod) : undefined,
+        customerNumber: selectedCustomerNumber || undefined,
         fromDate: dateFrom,
         toDate: dateTo,
         sortBy: 'createdAt',
@@ -527,7 +534,7 @@ function VentasReportesContent() {
     } finally {
       setIsExporting(false);
     }
-  }, [selectedBranch, selectedStatus, selectedPaymentMethod, dateFrom, dateTo]);
+  }, [selectedBranch, selectedStatus, selectedPaymentMethod, selectedCustomerNumber, dateFrom, dateTo]);
 
   const handleEditPaymentConfirm = useCallback(
     (paymentMethod: string) => {
@@ -554,13 +561,14 @@ function VentasReportesContent() {
     branchId: selectedBranch !== 'all' ? selectedBranch : undefined,
     status: selectedStatus !== 'all' ? (selectedStatus as PosSaleStatus) : undefined,
     paymentMethod: selectedPaymentMethod !== 'all' ? (selectedPaymentMethod as PosPaymentMethod) : undefined,
+    customerNumber: selectedCustomerNumber || undefined,
     fromDate: dateFrom,
     toDate: dateTo,
     page: currentPage,
     limit: pageSize,
     sortBy: 'createdAt',
     sortOrder: 'desc',
-  }), [selectedBranch, selectedStatus, selectedPaymentMethod, dateFrom, dateTo, currentPage, pageSize]);
+  }), [selectedBranch, selectedStatus, selectedPaymentMethod, selectedCustomerNumber, dateFrom, dateTo, currentPage, pageSize]);
 
   const { data: salesData, isLoading, isFetching } = useSales(queryParams);
 
@@ -849,6 +857,39 @@ function VentasReportesContent() {
                   Limpiar fechas
                 </Button>
               )}
+
+              {/* Customer number filter */}
+              <div className="flex items-center gap-2 lg:ml-auto">
+                <UserIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={customerNumberInput}
+                    onChange={(e) => setCustomerNumberInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') setParams({ customerNumber: customerNumberInput.trim(), page: '1' });
+                    }}
+                    placeholder="No. distribuidor / cliente"
+                    className="px-3 py-2 pr-8 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#3E667D] focus:border-transparent w-[200px]"
+                  />
+                  {customerNumberInput && (
+                    <button
+                      type="button"
+                      onClick={() => { setCustomerNumberInput(''); setParams({ customerNumber: '', page: '1' }); }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <XMarkIcon className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setParams({ customerNumber: customerNumberInput.trim(), page: '1' })}
+                  className="px-3 py-2 bg-[#3E667D] text-white text-sm font-medium rounded-lg hover:bg-[#2d4f63] transition-colors"
+                >
+                  Buscar
+                </button>
+              </div>
             </div>
           </CardContent>
         </Card>
