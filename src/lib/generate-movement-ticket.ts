@@ -166,8 +166,13 @@ export async function generateMovementTicketPdf(movement: MovementDto): Promise<
   doc.setFont(FONT_BODY, 'normal');
   doc.setFontSize(valueSize);
   doc.text(movement.branchName, colLeft, y);
-  doc.text(REASON_LABELS[movement.reason] || movement.reason, colRight, y);
-  y += 7;
+
+  // Wrap MOTIVO text to avoid overflowing the right edge of the page
+  const motivoMaxW = PAGE_W - MARGIN - colRight;
+  const motivoText = REASON_LABELS[movement.reason] || movement.reason;
+  const motivoLines = doc.splitTextToSize(motivoText, motivoMaxW) as string[];
+  doc.text(motivoLines, colRight, y);
+  y += Math.max(7, motivoLines.length * 4.5);
 
   // Row 2: Date + Requester
   doc.setFont(FONT_BODY, 'bold');
