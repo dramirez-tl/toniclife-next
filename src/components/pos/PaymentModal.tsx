@@ -122,6 +122,8 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
       if (!validation.valid) {
         setFiscalErrors(validation.errors);
         setValidatingFiscal(false);
+        const firstError = Object.values(validation.errors)[0];
+        toast.error(firstError || 'Los datos fiscales no son válidos según el SAT');
         return;
       }
     } catch {

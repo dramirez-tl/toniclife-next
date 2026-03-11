@@ -283,24 +283,9 @@ export default function PosPage() {
           queryClient.invalidateQueries({ queryKey: ['customer-period-stats', cart.customerId] });
         }
 
-        // Auto-stamp if invoice was requested
-        if (requiresInvoice && fullSale.customerId) {
-          try {
-            await posService.stampSale(fullSale.id, invoicePaymentMethod);
-            toast.success(`Venta ${sale.saleNumber} completada y factura timbrada`);
-          } catch (stampErr: any) {
-            const data = stampErr?.response?.data;
-            const rawMsg = Array.isArray(data?.message) ? data.message.join(', ') : (data?.message || '');
-            const isGeneric = !rawMsg || rawMsg.toLowerCase() === 'internal server error';
-            const short = isGeneric ? `Error del servidor (HTTP ${stampErr?.response?.status ?? '?'})` : rawMsg;
-            const candidates = [data?.details, data?.cause, data?.facturama, data?.description, data?.reason]
-              .filter((v) => typeof v === 'string' && v.length > 0);
-            const detail = candidates.join(' · ');
-            toast.error(short);
-            openStampRetryModal(fullSale, short, detail, invoicePaymentMethod as 'PUE' | 'PPD');
-          }
-        } else {
-          toast.success(`Venta ${sale.saleNumber} completada`);
+        toast.success(`Venta ${sale.saleNumber} completada`);
+        if (requiresInvoice) {
+          toast.info('Usa el ícono de timbrar en Ventas Recientes para generar la factura', { duration: 5000 });
         }
 
         return fullSale;
@@ -309,7 +294,7 @@ export default function PosPage() {
         throw error;
       }
     },
-    [ensureSession, cart, createSale, processPayment, clearCart, refetchSales, refetchSession, queryClient, openStampRetryModal],
+    [ensureSession, cart, createSale, processPayment, clearCart, refetchSales, refetchSession, queryClient],
   );
 
   const extractStampError = (err: any): { short: string; detail: string } => {
