@@ -1218,10 +1218,14 @@ export default function PosPage() {
                     if (!cancelReason.trim()) return;
                     setCancellingId(cancelModalSale.id);
                     try {
+                      const cancelledSaleCustomerId = cancelModalSale.customerId;
                       await posService.cancelSale(cancelModalSale.id, { cancellationReason: cancelReason.trim() } as CancelSaleInput);
                       toast.success(`Venta ${cancelModalSale.saleNumber} cancelada`);
                       setCancelModalSale(null);
                       refetchSales();
+                      if (cancelledSaleCustomerId) {
+                        queryClient.invalidateQueries({ queryKey: ['customer-period-stats', cancelledSaleCustomerId] });
+                      }
                     } catch (err: any) {
                       const msg = err?.response?.data?.message || 'Error al cancelar la venta';
                       toast.error(Array.isArray(msg) ? msg.join(', ') : msg);
