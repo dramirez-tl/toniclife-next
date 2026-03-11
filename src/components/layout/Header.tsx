@@ -9,7 +9,6 @@ import {
   Bars3Icon,
   XMarkIcon,
   ShoppingCartIcon,
-  UserIcon,
   GlobeAltIcon,
   ChevronDownIcon
 } from '@heroicons/react/24/outline';
@@ -213,36 +212,28 @@ export function Header() {
               )}
             </Link>
 
-            {/* User */}
-            <Link
-              href={dashboardUrl}
-              className="hidden sm:flex items-center justify-center p-1.5 rounded-full hover:bg-gray-100 transition-colors"
-            >
-              {isAuthenticated && user ? (
-                user.avatarUrl ? (
-                  <Image
-                    src={user.avatarUrl}
-                    alt={`${user.firstName} ${user.lastName}`}
-                    width={28}
-                    height={28}
-                    className="h-7 w-7 rounded-full object-cover ring-2 ring-[#3E667D]/20"
-                  />
+            {/* CTA / Auth Button - Desktop */}
+            <div className="hidden sm:block ml-2">
+              <Link href={isAuthenticated ? dashboardUrl : '/login'} className="cursor-pointer">
+                {isAuthenticated && user ? (
+                  user.avatarUrl ? (
+                    <Image
+                      src={user.avatarUrl}
+                      alt={`${user.firstName} ${user.lastName}`}
+                      width={36}
+                      height={36}
+                      className="h-9 w-9 rounded-full object-cover ring-2 ring-[#3E667D]/20 hover:ring-[#3E667D]/50 transition-all cursor-pointer"
+                    />
+                  ) : (
+                    <span className="h-9 w-9 rounded-full bg-[#3E667D] text-white text-sm font-bold flex items-center justify-center ring-2 ring-[#3E667D]/20 hover:bg-[#2f5165] transition-colors cursor-pointer">
+                      {user.firstName?.charAt(0)?.toUpperCase()}{user.lastName?.charAt(0)?.toUpperCase()}
+                    </span>
+                  )
                 ) : (
-                  <span className="h-7 w-7 rounded-full bg-[#3E667D] text-white text-xs font-bold flex items-center justify-center ring-2 ring-[#3E667D]/20">
-                    {user.firstName?.charAt(0)?.toUpperCase()}{user.lastName?.charAt(0)?.toUpperCase()}
-                  </span>
-                )
-              ) : (
-                <UserIcon className="h-6 w-6 text-[#3E667D]" />
-              )}
-            </Link>
-
-            {/* CTA Button - Desktop */}
-            <div className="hidden xl:block ml-2">
-              <Link href="/quiz">
-                <Button size="md">
-                  Mi Evaluación
-                </Button>
+                  <Button size="md" className="cursor-pointer">
+                    Inicia sesión
+                  </Button>
+                )}
               </Link>
             </div>
 
