@@ -533,90 +533,92 @@ export default function PosPage() {
                         <p className="text-sm text-gray-600">{sale.itemsCount || sale.items.length} productos</p>
                         <p className="font-bold text-[#3E667D]">{formatCurrency(sale.total)}</p>
                       </div>
-                      {sale.status === PosSaleStatus.COMPLETED && (
-                        <div className="flex items-center gap-1">
-                          {/* Stamp button — only for sales that need invoice and aren't stamped yet */}
-                          {sale.requiresInvoice && !sale.invoiceUuid && (
+                      <div className="flex items-center gap-1">
+                        {sale.status === PosSaleStatus.COMPLETED && (
+                          <>
+                            {/* Stamp button — only for sales that need invoice and aren't stamped yet */}
+                            {sale.requiresInvoice && !sale.invoiceUuid && (
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (stampingId) return;
+                                  setStampingId(sale.id);
+                                  try {
+                                    await posService.stampSale(sale.id);
+                                    toast.success(`Factura timbrada exitosamente`);
+                                    refetchSales();
+                                  } catch (err: any) {
+                                    const { short, detail } = extractStampError(err);
+                                    toast.error(short);
+                                    if (sale.customerId) {
+                                      openStampRetryModal(sale, short, detail);
+                                    }
+                                  } finally {
+                                    setStampingId(null);
+                                  }
+                                }}
+                                disabled={stampingId === sale.id}
+                                title="Timbrar factura"
+                                className="p-2 text-orange-500 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {stampingId === sale.id ? (
+                                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-orange-300 border-t-orange-500" />
+                                ) : (
+                                  <DocumentTextIcon className="h-5 w-5" />
+                                )}
+                              </button>
+                            )}
+                            {/* Print ticket button */}
                             <button
                               onClick={async (e) => {
                                 e.stopPropagation();
-                                if (stampingId) return;
-                                setStampingId(sale.id);
+                                setIsLoadingTicket(true);
                                 try {
-                                  await posService.stampSale(sale.id);
-                                  toast.success(`Factura timbrada exitosamente`);
-                                  refetchSales();
-                                } catch (err: any) {
-                                  const { short, detail } = extractStampError(err);
-                                  toast.error(short);
-                                  if (sale.customerId) {
-                                    openStampRetryModal(sale, short, detail);
-                                  }
+                                  const fullSale = await posService.getSaleById(sale.id);
+                                  const url = await generatePosTicketPdf(fullSale, {
+                                    branch: selectedBranch ? {
+                                      ticketName: selectedBranch.ticketName,
+                                      ticketAddress: selectedBranch.ticketAddress,
+                                      ticketHeader: selectedBranch.ticketHeader,
+                                      ticketFooter: selectedBranch.ticketFooter,
+                                      addressPhone: selectedBranch.addressPhone,
+                                    } : undefined,
+                                  });
+                                  setTicketUrl(url);
+                                } catch {
+                                  toast.error('Error al generar ticket');
                                 } finally {
-                                  setStampingId(null);
+                                  setIsLoadingTicket(false);
                                 }
                               }}
-                              disabled={stampingId === sale.id}
-                              title="Timbrar factura"
-                              className="p-2 text-orange-500 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              disabled={isLoadingTicket}
+                              title="Ver ticket"
+                              className="p-2 text-gray-400 hover:text-[#3E667D] hover:bg-white rounded-lg transition-colors disabled:opacity-50"
                             >
-                              {stampingId === sale.id ? (
-                                <div className="h-5 w-5 animate-spin rounded-full border-2 border-orange-300 border-t-orange-500" />
+                              {isLoadingTicket ? (
+                                <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-[#3E667D]" />
                               ) : (
-                                <DocumentTextIcon className="h-5 w-5" />
+                                <PrinterIcon className="h-5 w-5" />
                               )}
                             </button>
-                          )}
-                          {/* Print ticket button */}
+                          </>
+                        )}
+                        {/* Cancel sale — Super Admin only, for any non-cancelled sale */}
+                        {isSuperAdmin && sale.status !== PosSaleStatus.CANCELLED && (
                           <button
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            setIsLoadingTicket(true);
-                            try {
-                              const fullSale = await posService.getSaleById(sale.id);
-                              const url = await generatePosTicketPdf(fullSale, {
-                                branch: selectedBranch ? {
-                                  ticketName: selectedBranch.ticketName,
-                                  ticketAddress: selectedBranch.ticketAddress,
-                                  ticketHeader: selectedBranch.ticketHeader,
-                                  ticketFooter: selectedBranch.ticketFooter,
-                                  addressPhone: selectedBranch.addressPhone,
-                                } : undefined,
-                              });
-                              setTicketUrl(url);
-                            } catch {
-                              toast.error('Error al generar ticket');
-                            } finally {
-                              setIsLoadingTicket(false);
-                            }
-                          }}
-                          disabled={isLoadingTicket}
-                          title="Ver ticket"
-                          className="p-2 text-gray-400 hover:text-[#3E667D] hover:bg-white rounded-lg transition-colors disabled:opacity-50"
-                        >
-                          {isLoadingTicket ? (
-                            <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-[#3E667D]" />
-                          ) : (
-                            <PrinterIcon className="h-5 w-5" />
-                          )}
-                        </button>
-                          {/* Cancel sale — Super Admin only */}
-                          {isSuperAdmin && sale.status !== PosSaleStatus.CANCELLED && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setCancelReason('');
-                                setCancelModalSale(sale);
-                              }}
-                              disabled={cancellingId === sale.id}
-                              title="Cancelar venta"
-                              className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <NoSymbolIcon className="h-5 w-5" />
-                            </button>
-                          )}
-                        </div>
-                      )}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCancelReason('');
+                              setCancelModalSale(sale);
+                            }}
+                            disabled={cancellingId === sale.id}
+                            title="Cancelar venta"
+                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <NoSymbolIcon className="h-5 w-5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))
