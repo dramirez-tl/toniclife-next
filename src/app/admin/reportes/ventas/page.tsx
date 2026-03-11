@@ -27,6 +27,11 @@ import {
   CreditCardIcon,
   ArrowsRightLeftIcon,
   PencilSquareIcon,
+  EyeIcon,
+  XMarkIcon,
+  UserIcon,
+  ReceiptPercentIcon,
+  DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 
 // ================================
@@ -124,6 +129,182 @@ const PAYMENT_OPTIONS = [
 ];
 
 // ================================
+// Sale Detail Modal
+// ================================
+
+function SaleDetailModal({ sale, onClose }: { sale: Sale | null; onClose: () => void }) {
+  if (!sale) return null;
+
+  const currency = sale.currencyCode || 'MXN';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <div className="flex items-start justify-between p-6 border-b border-gray-100">
+          <div>
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-bold text-gray-900">{sale.saleNumber}</h2>
+              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${STATUS_BADGE_STYLES[sale.status] || 'bg-gray-100 text-gray-700'}`}>
+                <StatusIcon status={sale.status} />
+                {STATUS_LABELS[sale.status] ?? sale.status}
+              </span>
+              {sale.requiresInvoice && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                  <DocumentTextIcon className="h-3 w-3" />
+                  Factura
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-gray-500 mt-1">{formatDate(sale.createdAt)}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <XMarkIcon className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="overflow-y-auto flex-1 p-6 space-y-6">
+          {/* Info grid */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-xs text-gray-500 mb-1">Sucursal / Caja</p>
+              <p className="font-medium text-gray-900 text-sm">{sale.branchName}</p>
+              <p className="text-xs text-gray-500">{sale.cashRegisterName}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-xs text-gray-500 mb-1">Vendedor</p>
+              <div className="flex items-center gap-2">
+                <UserIcon className="h-4 w-4 text-gray-400" />
+                <p className="font-medium text-gray-900 text-sm">{sale.sellerName}</p>
+              </div>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-xs text-gray-500 mb-1">Cliente</p>
+              {sale.customerName ? (
+                <>
+                  <p className="font-medium text-gray-900 text-sm">{sale.customerName}</p>
+                  {sale.customerNumber && <p className="text-xs text-gray-500">#{sale.customerNumber}</p>}
+                  {sale.customerRfc && <p className="text-xs text-gray-500">RFC: {sale.customerRfc}</p>}
+                </>
+              ) : (
+                <p className="text-sm text-gray-400">Público general</p>
+              )}
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-xs text-gray-500 mb-1">Pago</p>
+              <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${PAYMENT_BADGE_STYLES[sale.paymentMethod] || 'bg-gray-100 text-gray-700'}`}>
+                <PaymentIcon method={sale.paymentMethod} />
+                {PAYMENT_LABELS[sale.paymentMethod] ?? sale.paymentMethod}
+              </span>
+            </div>
+          </div>
+
+          {/* Items */}
+          {sale.items && sale.items.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Productos</h3>
+              <div className="border border-gray-200 rounded-xl overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500">Producto</th>
+                      <th className="text-center px-3 py-2.5 text-xs font-medium text-gray-500">Cant.</th>
+                      <th className="text-right px-3 py-2.5 text-xs font-medium text-gray-500">P. Unit.</th>
+                      <th className="text-right px-4 py-2.5 text-xs font-medium text-gray-500">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {sale.items.map((item) => (
+                      <tr key={item.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-gray-900">{item.productName}</p>
+                          <p className="text-xs text-gray-400">{item.productSku}</p>
+                          {item.lotNumber && <p className="text-xs text-gray-400">Lote: {item.lotNumber}</p>}
+                        </td>
+                        <td className="px-3 py-3 text-center text-gray-700">{item.quantity}</td>
+                        <td className="px-3 py-3 text-right text-gray-700">{formatCurrency(item.unitPrice, currency)}</td>
+                        <td className="px-4 py-3 text-right font-medium text-gray-900">{formatCurrency(item.total, currency)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Totals */}
+          <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+            <div className="flex justify-between text-sm text-gray-600">
+              <span>Subtotal</span>
+              <span>{formatCurrency(sale.subtotal, currency)}</span>
+            </div>
+            {sale.discountAmount > 0 && (
+              <div className="flex justify-between text-sm text-green-600">
+                <span className="flex items-center gap-1">
+                  <ReceiptPercentIcon className="h-3.5 w-3.5" />
+                  Descuento{sale.discountPercent ? ` (${sale.discountPercent}%)` : ''}
+                </span>
+                <span>-{formatCurrency(sale.discountAmount, currency)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-sm text-gray-600">
+              <span>IVA</span>
+              <span>{formatCurrency(sale.taxAmount, currency)}</span>
+            </div>
+            <div className="flex justify-between font-bold text-base text-gray-900 border-t border-gray-200 pt-2 mt-2">
+              <span>Total</span>
+              <span className="text-[#3E667D]">{formatCurrency(sale.total, currency)}</span>
+            </div>
+          </div>
+
+          {/* Invoice info */}
+          {sale.invoiceUuid && (
+            <div className="bg-blue-50 rounded-xl p-4">
+              <p className="text-xs font-medium text-blue-700 mb-1">Factura timbrada</p>
+              <p className="text-xs text-blue-600 font-mono break-all">{sale.invoiceUuid}</p>
+            </div>
+          )}
+
+          {/* Cancellation info */}
+          {sale.status === 'cancelled' && (
+            <div className="bg-red-50 rounded-xl p-4">
+              <p className="text-xs font-medium text-red-700 mb-1">Motivo de cancelación</p>
+              <p className="text-sm text-red-600">{sale.cancellationReason || 'Sin motivo registrado'}</p>
+              {sale.cancelledByName && (
+                <p className="text-xs text-red-500 mt-1">Por: {sale.cancelledByName}</p>
+              )}
+              {sale.cancelledAt && (
+                <p className="text-xs text-red-500">{formatDate(sale.cancelledAt)}</p>
+              )}
+            </div>
+          )}
+
+          {/* Notes */}
+          {sale.notes && (
+            <div className="bg-yellow-50 rounded-xl p-4">
+              <p className="text-xs font-medium text-yellow-700 mb-1">Notas</p>
+              <p className="text-sm text-yellow-800">{sale.notes}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-100">
+          <Button variant="ghost" className="w-full" onClick={onClose}>
+            Cerrar
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ================================
 // Edit Payment Method Modal
 // ================================
 
@@ -206,6 +387,7 @@ function VentasReportesContent() {
   const userRoles = useAppSelector(selectUserRoles);
   const canEditPayment = userRoles.some((r) => r === 'admin' || r === 'super_admin');
 
+  const [detailSale, setDetailSale] = useState<Sale | null>(null);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const { mutate: updatePaymentMethod, isPending: isUpdating } = useUpdateSalePaymentMethod();
 
@@ -270,9 +452,19 @@ function VentasReportesContent() {
       sortable: true,
       sortValue: (sale) => sale.saleNumber,
       render: (sale) => (
-        <div>
-          <span className="font-semibold text-[#3E667D]">{sale.saleNumber}</span>
-          <p className="text-xs text-gray-500 mt-0.5">{formatDate(sale.createdAt)}</p>
+        <div className="flex items-start gap-2">
+          <div>
+            <span className="font-semibold text-[#3E667D]">{sale.saleNumber}</span>
+            <p className="text-xs text-gray-500 mt-0.5">{formatDate(sale.createdAt)}</p>
+          </div>
+          <button
+            type="button"
+            title="Ver detalle"
+            onClick={() => setDetailSale(sale)}
+            className="mt-0.5 p-1 rounded hover:bg-[#3E667D]/10 text-gray-400 hover:text-[#3E667D] transition-colors flex-shrink-0"
+          >
+            <EyeIcon className="h-4 w-4" />
+          </button>
         </div>
       ),
     },
@@ -360,10 +552,11 @@ function VentasReportesContent() {
         </span>
       ),
     },
-  ], [canEditPayment, setEditingSale]);
+  ], [canEditPayment, setDetailSale, setEditingSale]);
 
   return (
     <>
+    <SaleDetailModal sale={detailSale} onClose={() => setDetailSale(null)} />
     {editingSale && (
       <EditPaymentModal
         sale={editingSale}
