@@ -27,6 +27,7 @@ import { useActiveSession, useCreateSale, useProcessPayment, useSales } from '@/
 import { useActiveBranches } from '@/hooks/useBranches';
 import { useActiveCurrencies } from '@/hooks/useConfig';
 import type { CreatePaymentInput, PosPaymentMethod, Sale, CancelSaleInput } from '@/types/pos';
+import { PosSaleStatus } from '@/types/pos';
 import type { Branch } from '@/types/branch';
 import type { Currency } from '@/types/config';
 import type { FiscalData } from '@/types/billing';
@@ -508,16 +509,16 @@ export default function PosPage() {
                         )}
                         <span
                           className={`text-xs px-2 py-0.5 rounded-full ${
-                            sale.status === 'completed'
+                            sale.status === PosSaleStatus.COMPLETED
                               ? 'bg-green-100 text-green-700'
-                              : sale.status === 'cancelled'
+                              : sale.status === PosSaleStatus.CANCELLED
                                 ? 'bg-red-100 text-red-700'
                                 : 'bg-yellow-100 text-yellow-700'
                           }`}
                         >
-                          {sale.status === 'completed'
+                          {sale.status === PosSaleStatus.COMPLETED
                             ? 'Completada'
-                            : sale.status === 'cancelled'
+                            : sale.status === PosSaleStatus.CANCELLED
                               ? 'Cancelada'
                               : 'Pendiente'}
                         </span>
@@ -532,7 +533,7 @@ export default function PosPage() {
                         <p className="text-sm text-gray-600">{sale.itemsCount || sale.items.length} productos</p>
                         <p className="font-bold text-[#3E667D]">{formatCurrency(sale.total)}</p>
                       </div>
-                      {sale.status === 'completed' && (
+                      {sale.status === PosSaleStatus.COMPLETED && (
                         <div className="flex items-center gap-1">
                           {/* Stamp button — only for sales that need invoice and aren't stamped yet */}
                           {sale.requiresInvoice && !sale.invoiceUuid && (
@@ -600,7 +601,7 @@ export default function PosPage() {
                           )}
                         </button>
                           {/* Cancel sale — Super Admin only */}
-                          {isSuperAdmin && sale.status !== 'cancelled' && (
+                          {isSuperAdmin && sale.status !== PosSaleStatus.CANCELLED && (
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1037,11 +1038,11 @@ export default function PosPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                    detailSale.status === 'completed' ? 'bg-green-100 text-green-700'
-                    : detailSale.status === 'cancelled' ? 'bg-red-100 text-red-700'
+                    detailSale.status === PosSaleStatus.COMPLETED ? 'bg-green-100 text-green-700'
+                    : detailSale.status === PosSaleStatus.CANCELLED ? 'bg-red-100 text-red-700'
                     : 'bg-yellow-100 text-yellow-700'
                   }`}>
-                    {detailSale.status === 'completed' ? 'Completada' : detailSale.status === 'cancelled' ? 'Cancelada' : 'Pendiente'}
+                    {detailSale.status === PosSaleStatus.COMPLETED ? 'Completada' : detailSale.status === PosSaleStatus.CANCELLED ? 'Cancelada' : 'Pendiente'}
                   </span>
                   <button onClick={() => setDetailSale(null)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg">
                     <XMarkIcon className="h-5 w-5" />
@@ -1145,7 +1146,7 @@ export default function PosPage() {
                 )}
 
                 {/* Cancellation info */}
-                {detailSale.status === 'cancelled' && (
+                {detailSale.status === PosSaleStatus.CANCELLED && (
                   <div className="bg-red-50 border border-red-100 rounded-lg p-3">
                     <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-1">Cancelación</p>
                     {detailSale.cancelledByName && <p className="text-xs text-red-700">Por: {detailSale.cancelledByName}</p>}
