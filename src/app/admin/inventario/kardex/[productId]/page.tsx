@@ -303,7 +303,7 @@ function KardexContent() {
       render: (m) => {
         const detailUrl = (() => {
           const t = m.movementType;
-          if (t === 'transfer' || t === 'transfer_in' || t === 'transfer_out') {
+          if ((t as string) === 'transfer' || (t as string) === 'transfer_in' || (t as string) === 'transfer_out') {
             return `/admin/inventario/traspasos/${m.movementId}`;
           }
           if (t === 'entry') return `/admin/inventario/entradas/${m.movementId}`;
@@ -393,7 +393,7 @@ function KardexContent() {
       render: (m) => {
         const t = m.movementType;
         const detailUrl = (() => {
-          if (t === 'transfer' || t === 'transfer_in' || t === 'transfer_out') {
+          if ((t as string) === 'transfer' || (t as string) === 'transfer_in' || (t as string) === 'transfer_out') {
             return `/admin/inventario/traspasos/${m.movementId}`;
           }
           if (t === 'entry') return `/admin/inventario/entradas/${m.movementId}`;
