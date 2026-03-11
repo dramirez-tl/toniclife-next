@@ -69,6 +69,11 @@ const PAYMENT_LABELS: Record<string, string> = {
   transfer: 'Transferencia',
   credit: 'Crédito',
   mixed: 'Mixto',
+  cashback: 'Cashback',
+  promotion: 'Promoción',
+  mercado_pago: 'Mercado Pago',
+  usd_cash: 'Pago en Dólares',
+  undefined: 'Sin Definir',
 };
 
 const PAYMENT_BADGE_STYLES: Record<string, string> = {
@@ -77,6 +82,11 @@ const PAYMENT_BADGE_STYLES: Record<string, string> = {
   transfer: 'bg-purple-100 text-purple-700',
   credit: 'bg-orange-100 text-orange-700',
   mixed: 'bg-teal-100 text-teal-700',
+  cashback: 'bg-cyan-100 text-cyan-700',
+  promotion: 'bg-pink-100 text-pink-700',
+  mercado_pago: 'bg-sky-100 text-sky-700',
+  usd_cash: 'bg-emerald-100 text-emerald-700',
+  undefined: 'bg-gray-100 text-gray-500',
 };
 
 const PaymentIcon = ({ method }: { method: string }) => {
@@ -125,7 +135,13 @@ const PAYMENT_OPTIONS = [
   { value: 'cash', label: 'Efectivo' },
   { value: 'card', label: 'Tarjeta' },
   { value: 'transfer', label: 'Transferencia' },
+  { value: 'credit', label: 'Crédito' },
   { value: 'mixed', label: 'Mixto' },
+  { value: 'cashback', label: 'Cashback' },
+  { value: 'promotion', label: 'Promoción' },
+  { value: 'mercado_pago', label: 'Mercado Pago' },
+  { value: 'usd_cash', label: 'Pago en Dólares' },
+  { value: 'undefined', label: 'Sin Definir' },
 ];
 
 // ================================
@@ -322,19 +338,19 @@ function EditPaymentModal({ sale, onClose, onConfirm, isPending }: EditPaymentMo
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
         <h2 className="text-lg font-bold text-gray-900 mb-1">Editar método de pago</h2>
         <p className="text-sm text-gray-500 mb-5">
           Venta <span className="font-semibold text-[#3E667D]">{sale.saleNumber}</span>
         </p>
 
-        <div className="grid grid-cols-2 gap-3 mb-6">
+        <div className="grid grid-cols-3 gap-2 mb-6">
           {PAYMENT_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               type="button"
               onClick={() => setSelected(opt.value)}
-              className={`flex items-center gap-2 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl border-2 text-xs font-medium transition-all ${
                 selected === opt.value
                   ? 'border-[#3E667D] bg-[#3E667D]/5 text-[#3E667D]'
                   : 'border-gray-200 text-gray-600 hover:border-gray-300'
