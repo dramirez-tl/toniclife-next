@@ -19,20 +19,21 @@ import {
 import { PosPaymentMethod, type CreatePaymentInput, type Sale } from '@/types/pos';
 import { generatePosTicketPdf, type PosTicketBranchConfig } from '@/lib/generate-pos-ticket';
 import type { FiscalData } from '@/types/billing';
-import { FISCAL_REGIMES, CFDI_USES } from '@/types/billing';
+import { FISCAL_REGIMES, CFDI_USES, PAYMENT_FORMS } from '@/types/billing';
 import { billingService } from '@/services/billing.service';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
 
 const fiscalRegimeOptions = FISCAL_REGIMES.map((r) => ({ value: r.Value, label: `${r.Value} - ${r.Name}` }));
 const cfdiUseOptions = CFDI_USES.map((u) => ({ value: u.Value, label: `${u.Value} - ${u.Name}` }));
+const paymentFormOptions = PAYMENT_FORMS.map((f) => ({ value: f.Value, label: `${f.Value} - ${f.Name}` }));
 
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   total: number;
   customerId?: string;
-  onPaymentComplete: (payments: CreatePaymentInput[], change: number, requiresInvoice: boolean) => Promise<Sale | undefined> | Sale | void;
+  onPaymentComplete: (payments: CreatePaymentInput[], change: number, requiresInvoice: boolean, invoicePaymentMethod?: string) => Promise<Sale | undefined> | Sale | void;
   currencySymbol?: string;
   branchConfig?: PosTicketBranchConfig;
   branchName?: string;
@@ -87,8 +88,11 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
   const [showFiscalForm, setShowFiscalForm] = useState(false);
   const [savingFiscal, setSavingFiscal] = useState(false);
   const [validatingFiscal, setValidatingFiscal] = useState(false);
-  const [fiscalForm, setFiscalForm] = useState({ rfc: '', legalName: '', fiscalRegime: '', postalCode: '', cfdiUse: 'G03', email: '' });
+  const [fiscalForm, setFiscalForm] = useState({ rfc: '', legalName: '', fiscalRegime: '', postalCode: '', cfdiUse: 'G03', email: '', paymentFormCode: '01', invoicePaymentMethod: 'PUE' });
   const [fiscalErrors, setFiscalErrors] = useState<Record<string, string>>({});
+
+  // Per-sale invoice payment method (PUE / PPD) — separate from fiscal data stored on customer
+  const [invoicePaymentMethod, setInvoicePaymentMethod] = useState<'PUE' | 'PPD'>('PUE');
 
   const handleFiscalFormChange = (field: string, value: string) => {
     setFiscalForm((prev) => ({ ...prev, [field]: value }));
@@ -99,7 +103,7 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
 
   const handleSaveFiscalData = async () => {
     if (!customerId) return;
-    const { rfc, legalName, fiscalRegime, postalCode, cfdiUse, email } = fiscalForm;
+    const { rfc, legalName, fiscalRegime, postalCode, cfdiUse, email, paymentFormCode } = fiscalForm;
     if (!rfc || !legalName || !fiscalRegime || !postalCode) {
       const errs: Record<string, string> = {};
       if (!rfc) errs.rfc = 'RFC es obligatorio';
@@ -129,10 +133,10 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
     setSavingFiscal(true);
     try {
       if (fiscalData?.id) {
-        const updated = await billingService.updateFiscalData(fiscalData.id, { rfc, legalName, fiscalRegime, postalCode, cfdiUse, email });
+        const updated = await billingService.updateFiscalData(fiscalData.id, { rfc, legalName, fiscalRegime, postalCode, cfdiUse, paymentFormCode, email });
         setFiscalData(updated);
       } else {
-        const created = await billingService.createFiscalData({ customerId, rfc, legalName, fiscalRegime, postalCode, cfdiUse, email });
+        const created = await billingService.createFiscalData({ customerId, rfc, legalName, fiscalRegime, postalCode, cfdiUse, paymentFormCode, email });
         setFiscalData(created);
       }
       setNoFiscalData(false);
@@ -176,6 +180,15 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
     }
   }, [wantsInvoice, customerId, fetchFiscalData]);
 
+  useEffect(() => {
+    if (fiscalData) {
+      setFiscalForm(prev => ({
+        ...prev,
+        paymentFormCode: fiscalData.paymentFormCode || '01',
+      }));
+    }
+  }, [fiscalData]);
+
   const fiscalComplete = !wantsInvoice || (fiscalData && fiscalData.rfc && fiscalData.legalName && fiscalData.taxRegime && fiscalData.postalCode && fiscalData.defaultCfdiUse);
 
   const selected = paymentMethods.find(m => m.key === selectedKey)!;
@@ -201,6 +214,8 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
       setShowFiscalForm(false);
       setFiscalErrors({});
       setValidatingFiscal(false);
+      setFiscalForm({ rfc: '', legalName: '', fiscalRegime: '', postalCode: '', cfdiUse: 'G03', email: '', paymentFormCode: '01', invoicePaymentMethod: 'PUE' });
+      setInvoicePaymentMethod('PUE');
       if (ticketUrl) {
         URL.revokeObjectURL(ticketUrl);
         setTicketUrl(null);
@@ -261,7 +276,7 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
       : 0;
 
     try {
-      const result = await onPaymentComplete(finalPayments, totalChange, wantsInvoice);
+      const result = await onPaymentComplete(finalPayments, totalChange, wantsInvoice, invoicePaymentMethod);
       if (result) setCompletedSale(result);
       setIsProcessing(false);
       setIsComplete(true);
@@ -609,6 +624,36 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
                           />
                           {fiscalErrors.email && <p className="text-[11px] text-red-600 mt-0.5">{fiscalErrors.email}</p>}
                         </div>
+                        {/* Forma de Pago + Método de Pago */}
+                        <div>
+                          <label className="text-xs text-gray-500">Forma de Pago</label>
+                          <SearchableSelect
+                            options={paymentFormOptions}
+                            value={fiscalForm.paymentFormCode}
+                            onChange={(v) => handleFiscalFormChange('paymentFormCode', v)}
+                            placeholder="Seleccionar..."
+                            showAllOption={false}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500">Método de Pago</label>
+                          <div className="flex gap-2 mt-1">
+                            {(['PUE', 'PPD'] as const).map((method) => (
+                              <button
+                                key={method}
+                                type="button"
+                                onClick={() => setInvoicePaymentMethod(method)}
+                                className={`flex-1 px-3 py-1.5 text-sm rounded-lg border-2 font-medium transition-all ${
+                                  invoicePaymentMethod === method
+                                    ? 'border-[#3E667D] bg-[#3E667D] text-white'
+                                    : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                                }`}
+                              >
+                                {method === 'PUE' ? 'PUE · Una exhibición' : 'PPD · Diferido'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                       <div className="flex gap-2 pt-1">
                         <button
@@ -667,7 +712,7 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
                       <button
                         type="button"
                         onClick={() => {
-                          setFiscalForm({ rfc: '', legalName: '', fiscalRegime: '', postalCode: '', cfdiUse: 'G03', email: '' });
+                          setFiscalForm({ rfc: '', legalName: '', fiscalRegime: '', postalCode: '', cfdiUse: 'G03', email: '', paymentFormCode: '01', invoicePaymentMethod: 'PUE' });
                           setShowFiscalForm(true);
                         }}
                         className="w-full px-3 py-2 text-sm font-medium text-[#3E667D] bg-white border border-[#3E667D]/30 rounded-lg hover:bg-[#3E667D]/5 transition-colors"
@@ -689,6 +734,8 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
                               postalCode: fiscalData.postalCode || '',
                               cfdiUse: fiscalData.defaultCfdiUse || 'G03',
                               email: fiscalData.email || '',
+                              paymentFormCode: fiscalData.paymentFormCode || '01',
+                              invoicePaymentMethod: 'PUE',
                             });
                             setShowFiscalForm(true);
                           }}
@@ -721,6 +768,14 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
                         <div>
                           <span className="text-blue-600 text-xs">Email:</span>
                           <p className="font-medium text-gray-900 truncate">{fiscalData.email}</p>
+                        </div>
+                        <div>
+                          <span className="text-blue-600 text-xs">Forma de Pago:</span>
+                          <p className="font-medium text-gray-900">{fiscalData.paymentFormCode || '01'}</p>
+                        </div>
+                        <div>
+                          <span className="text-blue-600 text-xs">Método de Pago:</span>
+                          <p className="font-medium text-gray-900">{invoicePaymentMethod}</p>
                         </div>
                       </div>
                       {!fiscalComplete && (

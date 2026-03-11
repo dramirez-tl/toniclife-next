@@ -29,7 +29,7 @@ import type { CreatePaymentInput, PosPaymentMethod, Sale } from '@/types/pos';
 import type { Branch } from '@/types/branch';
 import type { Currency } from '@/types/config';
 import type { FiscalData } from '@/types/billing';
-import { FISCAL_REGIMES, CFDI_USES } from '@/types/billing';
+import { FISCAL_REGIMES, CFDI_USES, PAYMENT_FORMS } from '@/types/billing';
 import { toast } from 'sonner';
 import { posService } from '@/services/pos.service';
 import { billingService } from '@/services/billing.service';
@@ -40,6 +40,7 @@ import { selectUser, selectUserRoles } from '@/store/slices/authSlice';
 
 const fiscalRegimeOptions = FISCAL_REGIMES.map((r) => ({ value: r.Value, label: `${r.Value} - ${r.Name}` }));
 const cfdiUseOptions = CFDI_USES.map((u) => ({ value: u.Value, label: `${u.Value} - ${u.Name}` }));
+const paymentFormOptions = PAYMENT_FORMS.map((f) => ({ value: f.Value, label: `${f.Value} - ${f.Name}` }));
 
 export default function PosPage() {
   const router = useRouter();
@@ -59,7 +60,8 @@ export default function PosPage() {
   const [stampRetryError, setStampRetryError] = useState('');
   const [stampRetryErrorDetail, setStampRetryErrorDetail] = useState('');
   const [stampRetryFiscal, setStampRetryFiscal] = useState<FiscalData | null>(null);
-  const [stampRetryForm, setStampRetryForm] = useState({ rfc: '', legalName: '', fiscalRegime: '', postalCode: '', cfdiUse: 'G03', email: '' });
+  const [stampRetryForm, setStampRetryForm] = useState({ rfc: '', legalName: '', fiscalRegime: '', postalCode: '', cfdiUse: 'G03', email: '', paymentFormCode: '01' });
+  const [stampRetryPaymentMethod, setStampRetryPaymentMethod] = useState<'PUE' | 'PPD'>('PUE');
   const [stampRetryErrors, setStampRetryErrors] = useState<Record<string, string>>({});
   const [stampRetryLoading, setStampRetryLoading] = useState(false);
   const [stampRetrySaving, setStampRetrySaving] = useState(false);
@@ -175,7 +177,7 @@ export default function PosPage() {
   }, [activeSession, effectiveBranchId, currencyId, refetchSession]);
 
   const handlePaymentComplete = useCallback(
-    async (payments: CreatePaymentInput[], change: number, requiresInvoice = false) => {
+    async (payments: CreatePaymentInput[], change: number, requiresInvoice = false, invoicePaymentMethod = 'PUE') => {
       try {
         const sessionId = await ensureSession();
 
@@ -247,6 +249,7 @@ export default function PosPage() {
     setStampRetryErrorDetail(errorDetail);
     setStampRetryErrors({});
     setStampRetryFiscal(null);
+    setStampRetryPaymentMethod('PUE');
     setStampRetryLoading(true);
     try {
       if (sale.customerId) {
@@ -261,15 +264,16 @@ export default function PosPage() {
             postalCode: defaultRecord.postalCode || '',
             cfdiUse: defaultRecord.defaultCfdiUse || 'G03',
             email: defaultRecord.email || '',
+            paymentFormCode: defaultRecord.paymentFormCode || '01',
           });
         } else {
           setStampRetryFiscal(null);
-          setStampRetryForm({ rfc: '', legalName: '', fiscalRegime: '', postalCode: '', cfdiUse: 'G03', email: '' });
+          setStampRetryForm({ rfc: '', legalName: '', fiscalRegime: '', postalCode: '', cfdiUse: 'G03', email: '', paymentFormCode: '01' });
         }
       }
     } catch {
       setStampRetryFiscal(null);
-      setStampRetryForm({ rfc: '', legalName: '', fiscalRegime: '', postalCode: '', cfdiUse: 'G03', email: '' });
+      setStampRetryForm({ rfc: '', legalName: '', fiscalRegime: '', postalCode: '', cfdiUse: 'G03', email: '', paymentFormCode: '01' });
     } finally {
       setStampRetryLoading(false);
     }
@@ -277,7 +281,7 @@ export default function PosPage() {
 
   const handleStampRetrySave = async () => {
     if (!stampRetrySale?.customerId) return;
-    const { rfc, legalName, fiscalRegime, postalCode, cfdiUse, email } = stampRetryForm;
+    const { rfc, legalName, fiscalRegime, postalCode, cfdiUse, email, paymentFormCode } = stampRetryForm;
 
     // Basic validation
     const errs: Record<string, string> = {};
@@ -300,14 +304,14 @@ export default function PosPage() {
     try {
       // Save fiscal data
       if (stampRetryFiscal?.id) {
-        await billingService.updateFiscalData(stampRetryFiscal.id, { rfc, legalName, fiscalRegime, postalCode, cfdiUse, email });
+        await billingService.updateFiscalData(stampRetryFiscal.id, { rfc, legalName, fiscalRegime, postalCode, cfdiUse, paymentFormCode, email });
       } else {
-        const created = await billingService.createFiscalData({ customerId: stampRetrySale.customerId, rfc, legalName, fiscalRegime, postalCode, cfdiUse, email });
+        const created = await billingService.createFiscalData({ customerId: stampRetrySale.customerId, rfc, legalName, fiscalRegime, postalCode, cfdiUse, paymentFormCode, email });
         setStampRetryFiscal(created);
       }
 
       // Retry stamp
-      await posService.stampSale(stampRetrySale.id);
+      await posService.stampSale(stampRetrySale.id, stampRetryPaymentMethod);
       toast.success('Datos actualizados y factura timbrada exitosamente');
       setStampRetrySale(null);
       refetchSales();
@@ -865,6 +869,39 @@ export default function PosPage() {
                         placeholder="correo@ejemplo.com"
                         type="email"
                       />
+                    </div>
+
+                    {/* Forma de Pago */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Forma de Pago</label>
+                      <SearchableSelect
+                        options={paymentFormOptions}
+                        value={stampRetryForm.paymentFormCode}
+                        onChange={(v) => setStampRetryForm((p) => ({ ...p, paymentFormCode: v }))}
+                        placeholder="Seleccionar forma de pago..."
+                        showAllOption={false}
+                      />
+                    </div>
+
+                    {/* Método de Pago (PUE / PPD) */}
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Método de Pago</label>
+                      <div className="flex gap-2">
+                        {(['PUE', 'PPD'] as const).map((method) => (
+                          <button
+                            key={method}
+                            type="button"
+                            onClick={() => setStampRetryPaymentMethod(method)}
+                            className={`flex-1 px-3 py-2 text-sm rounded-lg border-2 font-medium transition-all ${
+                              stampRetryPaymentMethod === method
+                                ? 'border-[#3E667D] bg-[#3E667D] text-white'
+                                : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                            }`}
+                          >
+                            {method === 'PUE' ? 'PUE · Una exhibición' : 'PPD · Diferido'}
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
                     <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-2">

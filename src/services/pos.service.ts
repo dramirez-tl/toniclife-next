@@ -186,8 +186,8 @@ class PosService {
   /**
    * Stamp (timbrar) a sale invoice
    */
-  async stampSale(id: string): Promise<Sale> {
-    const response = await api.post<Sale>(`/pos/sales/${id}/stamp`);
+  async stampSale(id: string, paymentMethod?: string): Promise<Sale> {
+    const response = await api.post<Sale>(`/pos/sales/${id}/stamp`, paymentMethod ? { paymentMethod } : {});
     return response.data;
   }
 

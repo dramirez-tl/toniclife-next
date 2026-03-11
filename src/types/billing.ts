@@ -46,6 +46,7 @@ export interface FiscalData {
   country?: string;
   email: string;
   defaultCfdiUse: string;
+  paymentFormCode?: string;
   facturamaClientId?: string;
   isDefault: boolean;
   isValidated: boolean;
@@ -61,6 +62,7 @@ export interface CreateFiscalDataDto {
   fiscalRegime: string;
   postalCode: string;
   cfdiUse?: string;
+  paymentFormCode?: string;
   email?: string;
 }
 
@@ -70,6 +72,7 @@ export interface UpdateFiscalDataDto {
   fiscalRegime?: string;
   postalCode?: string;
   cfdiUse?: string;
+  paymentFormCode?: string;
   email?: string;
   street?: string;
   exteriorNumber?: string;
