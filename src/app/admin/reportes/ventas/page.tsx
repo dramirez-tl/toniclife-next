@@ -579,9 +579,43 @@ function VentasReportesContent() {
   const sales = salesData?.data ?? [];
   const totalCount = salesData?.total ?? 0;
 
-  // Summary
-  const pageTotalAmount = useMemo(() => sales.reduce((sum: number, s: Sale) => sum + s.total, 0), [sales]);
-  const avgTicket = sales.length > 0 ? pageTotalAmount / sales.length : 0;
+  // Summary stats — excluye canceladas/reembolsadas de los totales de monto
+  const pageStats = useMemo(() => {
+    const activeSales = sales.filter(s => s.status !== 'cancelled' && s.status !== 'refunded');
+    const cancelledSales = sales.filter(s => s.status === 'cancelled' || s.status === 'refunded');
+
+    // Totales activos por moneda
+    const totals: Record<string, number> = {};
+    for (const s of activeSales) {
+      const c = s.currencyCode || 'MXN';
+      totals[c] = (totals[c] || 0) + s.total;
+    }
+
+    // Totales cancelados por moneda
+    const cancelledTotals: Record<string, number> = {};
+    for (const s of cancelledSales) {
+      const c = s.currencyCode || 'MXN';
+      cancelledTotals[c] = (cancelledTotals[c] || 0) + s.total;
+    }
+
+    // Ticket promedio MXN activo
+    const mxnActive = activeSales.filter(s => (s.currencyCode || 'MXN') === 'MXN');
+    const avgTicketMXN = mxnActive.length > 0 ? (totals['MXN'] || 0) / mxnActive.length : 0;
+
+    // Monedas presentes (primero MXN, luego el resto)
+    const allCurrencies = Array.from(
+      new Set([...Object.keys(totals), ...Object.keys(cancelledTotals)])
+    ).sort((a, b) => (a === 'MXN' ? -1 : b === 'MXN' ? 1 : a.localeCompare(b)));
+
+    return {
+      totals,
+      cancelledTotals,
+      activeCount: activeSales.length,
+      cancelledCount: cancelledSales.length,
+      avgTicketMXN,
+      currencies: allCurrencies,
+    };
+  }, [sales]);
 
   // ================================
   // Table columns
@@ -730,56 +764,114 @@ function VentasReportesContent() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* Stats Cards — Fila 1: conteos */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Ventas</p>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Total Ventas</p>
                   <p className="text-3xl font-bold text-gray-900">
                     {isLoading ? '...' : totalCount.toLocaleString()}
                   </p>
+                  <p className="text-xs text-gray-400 mt-1">en el período</p>
                 </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <ShoppingCartIcon className="h-6 w-6 text-blue-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Monto Total (página)</p>
-                  <p className="text-3xl font-bold text-[#3E667D]">
-                    {isLoading ? '...' : formatCurrency(pageTotalAmount)}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <CurrencyDollarIcon className="h-6 w-6 text-green-600" />
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <ShoppingCartIcon className="h-5 w-5 text-blue-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardContent className="p-6">
+            <CardContent className="p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Ticket Promedio</p>
-                  <p className="text-3xl font-bold text-purple-600">
-                    {isLoading ? '...' : formatCurrency(avgTicket)}
+                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Completadas</p>
+                  <p className="text-3xl font-bold text-green-600">
+                    {isLoading ? '...' : pageStats.activeCount.toLocaleString()}
                   </p>
+                  <p className="text-xs text-gray-400 mt-1">en esta página</p>
                 </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                  <ChartBarIcon className="h-6 w-6 text-purple-600" />
+                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <CheckCircleIcon className="h-5 w-5 text-green-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Canceladas</p>
+                  <p className="text-3xl font-bold text-red-500">
+                    {isLoading ? '...' : pageStats.cancelledCount.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">en esta página</p>
+                </div>
+                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <XCircleIcon className="h-5 w-5 text-red-500" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Ticket Promedio</p>
+                  <p className="text-2xl font-bold text-purple-600">
+                    {isLoading ? '...' : formatCurrency(pageStats.avgTicketMXN, 'MXN')}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">MXN · completadas</p>
+                </div>
+                <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <ChartBarIcon className="h-5 w-5 text-purple-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* Stats Cards — Fila 2: montos por moneda */}
+        {!isLoading && pageStats.currencies.length > 0 && (
+          <div className={`grid gap-4 mb-8 ${pageStats.currencies.length === 1 ? 'grid-cols-1 max-w-sm' : pageStats.currencies.length === 2 ? 'grid-cols-2 max-w-xl' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
+            {pageStats.currencies.map((currency) => {
+              const active = pageStats.totals[currency] || 0;
+              const cancelled = pageStats.cancelledTotals[currency] || 0;
+              return (
+                <Card key={currency} className="border-l-4 border-l-[#3E667D]">
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">
+                          Ventas {currency}
+                        </p>
+                        <p className="text-2xl font-bold text-[#3E667D] truncate">
+                          {formatCurrency(active, currency)}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {pageStats.activeCount} completadas en página
+                        </p>
+                        {cancelled > 0 && (
+                          <p className="text-xs text-red-400 mt-0.5">
+                            {formatCurrency(cancelled, currency)} cancelado
+                          </p>
+                        )}
+                      </div>
+                      <div className="w-10 h-10 bg-[#3E667D]/10 rounded-full flex items-center justify-center flex-shrink-0 ml-3">
+                        <CurrencyDollarIcon className="h-5 w-5 text-[#3E667D]" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+        {isLoading && <div className="h-24 mb-8" />}
 
         {/* Filters */}
         <Card className="mb-6">
