@@ -301,9 +301,9 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b bg-gray-50">
+        <div className="flex items-center justify-between p-6 border-b bg-gray-50 flex-shrink-0">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">
               {isComplete ? 'Pago Completado' : 'Procesar Pago'}
@@ -323,13 +323,13 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
         {isComplete ? (
           // Success View — either ticket preview or summary
           ticketUrl ? (
-            <div className="flex flex-col" style={{ height: 'calc(90vh - 80px)' }}>
+            <div className="flex flex-col flex-1 min-h-0">
               <iframe
                 src={ticketUrl}
-                className="flex-grow w-full border-0"
+                className="flex-1 min-h-0 w-full border-0"
                 title="Ticket de venta"
               />
-              <div className="flex gap-4 justify-center p-4 border-t bg-gray-50">
+              <div className="flex gap-4 justify-center p-4 border-t bg-gray-50 flex-shrink-0">
                 <button
                   onClick={() => {
                     if (ticketUrl) {

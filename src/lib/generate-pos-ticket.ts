@@ -175,7 +175,6 @@ export async function generatePosTicketPdf(
   doc.setFontSize(8);
   y = centerText(doc, COMPANY.name, y);
   y += 0.5;
-  doc.setFont(FONT_BODY, 'normal');
   doc.setFontSize(6.5);
   y = centerText(doc, COMPANY.rfc, y);
   for (const line of COMPANY.address) {
@@ -185,16 +184,13 @@ export async function generatePosTicketPdf(
 
   // ----- 3. Sucursal -----
   y = drawSeparator(doc, y);
+  doc.setFont(FONT_BODY, 'bold');
   doc.setFontSize(6.5);
 
   if (branch?.ticketName) {
-    doc.setFont(FONT_BODY, 'bold');
     y = centerText(doc, branch.ticketName, y);
-    doc.setFont(FONT_BODY, 'normal');
   } else if (sale.branchName) {
-    doc.setFont(FONT_BODY, 'bold');
     y = centerText(doc, sale.branchName, y);
-    doc.setFont(FONT_BODY, 'normal');
   }
   if (branch?.ticketAddress) {
     const addrLines = branch.ticketAddress.split('\n');
@@ -208,7 +204,7 @@ export async function generatePosTicketPdf(
 
   // ----- 4. Info Venta -----
   y = drawSeparator(doc, y);
-  doc.setFont(FONT_BODY, 'normal');
+  doc.setFont(FONT_BODY, 'bold');
   doc.setFontSize(6.5);
 
   if (sale.customerName) {
@@ -242,7 +238,6 @@ export async function generatePosTicketPdf(
   doc.text('TOTAL', colTotal - hdrTotalW, y);
   y += doc.getLineHeight() / doc.internal.scaleFactor;
 
-  doc.setFont(FONT_MONO, 'normal');
   y = leftText(doc, '---------  ---------  ---------  ---------', y);
 
   doc.setFontSize(6.5);
@@ -250,7 +245,6 @@ export async function generatePosTicketPdf(
     const lh = doc.getLineHeight() / doc.internal.scaleFactor;
     y = checkPage(doc, y, lh * 2);
 
-    doc.setFont(FONT_MONO, 'bold');
     const code = item.productSku || item.productId.slice(0, 8);
     const qty = String(item.quantity);
     const price = fmtCurrency(item.unitPrice);
@@ -263,7 +257,6 @@ export async function generatePosTicketPdf(
     doc.text(total, colTotal - totalW, y);
     y += lh;
 
-    doc.setFont(FONT_MONO, 'normal');
     if (item.productName) {
       const nameLines = doc.splitTextToSize(item.productName, CONTENT_W) as string[];
       for (const nl of nameLines) {
@@ -276,7 +269,7 @@ export async function generatePosTicketPdf(
 
   // ----- 6. Totales -----
   y = drawSeparator(doc, y);
-  doc.setFont(FONT_MONO, 'normal');
+  doc.setFont(FONT_MONO, 'bold');
   doc.setFontSize(6.5);
 
   const totalsRows: [string, string][] = [
@@ -313,7 +306,7 @@ export async function generatePosTicketPdf(
   doc.text(totalVal, colTotal - tValW, y);
   y += doc.getLineHeight() / doc.internal.scaleFactor;
 
-  doc.setFont(FONT_MONO, 'normal');
+  doc.setFont(FONT_MONO, 'bold');
   doc.setFontSize(6.5);
   const currLabel = 'MONEDA';
   const cLabelW = doc.getTextWidth(currLabel + '  ');
@@ -327,7 +320,7 @@ export async function generatePosTicketPdf(
   doc.setFont(FONT_BODY, 'bold');
   doc.setFontSize(7);
   y = leftText(doc, 'Datos del Pago', y);
-  doc.setFont(FONT_BODY, 'normal');
+  doc.setFont(FONT_BODY, 'bold');
   doc.setFontSize(6.5);
 
   for (const payment of sale.payments) {
@@ -356,7 +349,7 @@ export async function generatePosTicketPdf(
     doc.setFont(FONT_BODY, 'bold');
     doc.setFontSize(7);
     y = leftText(doc, 'Puntos y Volumen de Negocio', y);
-    doc.setFont(FONT_BODY, 'normal');
+    doc.setFont(FONT_BODY, 'bold');
     doc.setFontSize(6.5);
     if (totalPoints > 0) {
       y = leftText(doc, `Puntos: ${totalPoints.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, y);
@@ -366,15 +359,13 @@ export async function generatePosTicketPdf(
     }
     if (sale.accumulatedPoints != null && sale.accumulatedPoints > 0) {
       const fmt = (n: number) => n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      doc.setFont(FONT_BODY, 'bold');
       y = leftText(doc, `Puntos acumulados del periodo: ${fmt(sale.accumulatedPoints)}`, y);
-      doc.setFont(FONT_BODY, 'normal');
     }
   }
 
   // ----- 9. Footer -----
   y += 2;
-  doc.setFont(FONT_BODY, 'normal');
+  doc.setFont(FONT_BODY, 'bold');
   doc.setFontSize(5.5);
   y = centerText(
     doc,
@@ -390,7 +381,7 @@ export async function generatePosTicketPdf(
   y = centerText(doc, 'PARA EFECTOS FISCALES', y);
 
   y = drawSeparator(doc, y);
-  doc.setFont(FONT_BODY, 'normal');
+  doc.setFont(FONT_BODY, 'bold');
   doc.setFontSize(6);
   y = centerText(doc, 'https://toniclife.com/', y);
   y = centerText(doc, 'Tel. Callcenter', y);
@@ -398,13 +389,13 @@ export async function generatePosTicketPdf(
   y = centerText(doc, '462 626 4304', y);
 
   y += 3;
-  doc.setFont(FONT_BODY, 'italic');
+  doc.setFont(FONT_BODY, 'bolditalic');
   doc.setFontSize(6.5);
   y = centerText(doc, '"EN TONIC LIFE... CONFIAMOS EN DIOS"', y);
 
   if (branch?.ticketFooter) {
     y += 2;
-    doc.setFont(FONT_BODY, 'normal');
+    doc.setFont(FONT_BODY, 'bold');
     doc.setFontSize(5.5);
     y = centerText(doc, branch.ticketFooter, y);
   }
