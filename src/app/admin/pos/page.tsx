@@ -19,12 +19,14 @@ import {
   XMarkIcon,
   NoSymbolIcon,
   EyeIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline';
 import { PosCart, PaymentModal, PosProductGrid } from '@/components/pos';
+import { CorteDiaModal } from '@/components/pos/CorteDiaModal';
 import { PosCustomerSelector } from '@/components/pos/PosCustomerSelector';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { usePosCartStore } from '@/stores/pos-cart.store';
-import { useActiveSession, useCreateSale, useProcessPayment, useSales } from '@/hooks/usePos';
+import { useActiveSession, useCreateSale, useProcessPayment, useSales, useDailySalesSummary } from '@/hooks/usePos';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { useActiveCurrencies, useActivePriceTypes } from '@/hooks/useConfig';
 import type { CreatePaymentInput, PosPaymentMethod, Sale, CancelSaleInput } from '@/types/pos';
@@ -81,6 +83,9 @@ export default function PosPage() {
   // Sale detail modal
   const [detailSale, setDetailSale] = useState<Sale | null>(null);
   const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
+
+  // Corte del día
+  const [showCorte, setShowCorte] = useState(false);
 
   const user = useSelector(selectUser);
   const userRoles = useSelector(selectUserRoles);
@@ -157,6 +162,12 @@ export default function PosPage() {
     toDate: appliedSalesDate || undefined,
     limit: 50,
   });
+
+  // Corte del día — only fetch when modal is open
+  const { data: corteSummary, isLoading: isLoadingCorte } = useDailySalesSummary(
+    effectiveBranchId || '',
+    appliedSalesDate,
+  );
 
   // Resolve currency from branch
   const selectedBranch = posBranches.find((b: Branch) => b.id === effectiveBranchId);
@@ -454,10 +465,20 @@ export default function PosPage() {
             `}
           >
             <div className="p-4 border-b space-y-2">
-              <h2 className="font-bold text-gray-900 flex items-center gap-2">
-                <DocumentTextIcon className="h-5 w-5 text-gray-500" />
-                Ventas Recientes
-              </h2>
+              <div className="flex items-center justify-between">
+                <h2 className="font-bold text-gray-900 flex items-center gap-2">
+                  <DocumentTextIcon className="h-5 w-5 text-gray-500" />
+                  Ventas Recientes
+                </h2>
+                <button
+                  onClick={() => setShowCorte(true)}
+                  title="Corte del día"
+                  className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#3E667D] border border-[#3E667D] rounded-lg hover:bg-[#3E667D]/5 transition-colors"
+                >
+                  <ChartBarIcon className="h-3.5 w-3.5" />
+                  Corte
+                </button>
+              </div>
               <div className="flex items-center gap-1.5">
                 <input
                   type="date"
@@ -1209,6 +1230,17 @@ export default function PosPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Corte del Día Modal */}
+        {showCorte && (
+          <CorteDiaModal
+            summary={corteSummary}
+            isLoading={isLoadingCorte}
+            date={appliedSalesDate}
+            branchName={selectedBranch?.name ?? ''}
+            onClose={() => setShowCorte(false)}
+          />
         )}
 
         {/* Cancel Sale Modal — Super Admin only */}

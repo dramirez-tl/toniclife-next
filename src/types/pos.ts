@@ -310,7 +310,13 @@ export interface DailySalesSummary {
   totalAmount: number;
   totalCash: number;
   totalCard: number;
+  totalCredit: number;
   totalTransfer: number;
+  totalCashback: number;
+  totalPromotion: number;
+  totalMercadoPago: number;
+  totalUsdCash: number;
+  totalMixed: number;
   totalRefunds: number;
   refundsCount: number;
   averageTicket: number;
