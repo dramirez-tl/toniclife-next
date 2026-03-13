@@ -1,4 +1,4 @@
-// CorteDiaModal.tsx — Corte del Día: resumen de ventas con CSV y ticket imprimible
+// CorteDiaModal.tsx — Corte del Día: drawer lateral derecho
 'use client';
 
 import { XMarkIcon, ArrowDownTrayIcon, PrinterIcon } from '@heroicons/react/24/outline';
@@ -70,129 +70,128 @@ export function CorteDiaModal({ summary, isLoading, date, branchName, onClose }:
 
   return (
     <>
-      {/* Print-only styles */}
+      {/* Print styles */}
       <style>{`
         @media print {
-          body > *:not(#corte-print-root) { display: none !important; }
-          #corte-print-root { display: block !important; position: static !important; }
-          .no-print { display: none !important; }
-          .print-ticket {
-            width: 80mm;
+          body > *:not(#corte-print-panel) { display: none !important; }
+          #corte-print-panel {
+            position: static !important;
+            width: 80mm !important;
             font-family: monospace;
             font-size: 11px;
             color: #000;
           }
-        }
-        @media screen {
-          #corte-print-root { display: contents; }
+          .no-print { display: none !important; }
         }
       `}</style>
 
-      {/* Overlay */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 no-print" onClick={onClose} />
-
-      {/* Modal */}
+      {/* Backdrop */}
       <div
-        id="corte-print-root"
-        className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+        className="fixed inset-0 z-40 bg-black/30 no-print"
+        onClick={onClose}
+      />
+
+      {/* Side drawer — right side */}
+      <div
+        id="corte-print-panel"
+        className="fixed top-0 right-0 z-50 h-full w-80 bg-white shadow-2xl flex flex-col"
       >
-        <div
-          className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 pointer-events-auto flex flex-col max-h-[90vh] print-ticket"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b no-print">
-            <h2 className="text-lg font-bold text-gray-900">Corte del Día</h2>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-              <XMarkIcon className="h-5 w-5" />
-            </button>
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-[#3E667D] text-white no-print">
+          <h2 className="font-bold text-sm">Corte del Día</h2>
+          <button onClick={onClose} className="hover:text-white/70 transition-colors">
+            <XMarkIcon className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Print-only header */}
+        <div className="hidden print:block p-3 text-center border-b">
+          <p className="font-bold">TONIC LIFE</p>
+          <p className="text-sm">CORTE DEL DÍA</p>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* Branch + date */}
+          <div className="text-center pb-2 border-b">
+            <p className="font-semibold text-gray-800 text-sm">{branchName}</p>
+            <p className="text-xs text-gray-500 capitalize mt-0.5">{displayDate}</p>
           </div>
 
-          {/* Print header */}
-          <div className="hidden print:block p-4 text-center border-b">
-            <p className="font-bold text-base">TONIC LIFE</p>
-            <p className="text-sm font-semibold">CORTE DEL DÍA</p>
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {/* Branch + date */}
-            <div className="text-center">
-              <p className="font-semibold text-gray-800 text-sm">{branchName}</p>
-              <p className="text-xs text-gray-500 capitalize">{displayDate}</p>
+          {isLoading ? (
+            <div className="flex justify-center py-10">
+              <div className="animate-spin h-6 w-6 border-2 border-[#3E667D] border-t-transparent rounded-full" />
             </div>
-
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <div className="animate-spin h-6 w-6 border-2 border-[#3E667D] border-t-transparent rounded-full" />
+          ) : !summary ? (
+            <p className="text-center text-sm text-gray-500 py-10">Sin datos para esta fecha.</p>
+          ) : (
+            <>
+              {/* Ventas completadas */}
+              <div>
+                <p className="text-xs font-bold text-[#3E667D] uppercase tracking-wider mb-2">
+                  Ventas Completadas
+                </p>
+                <div className="space-y-1.5 text-sm">
+                  <Row label="Total ventas" value={String(summary.totalSales)} />
+                  <Row label="Monto total" value={fmt(summary.totalAmount)} bold />
+                  <Row label="Ticket promedio" value={fmt(summary.averageTicket)} />
+                  <Row label="Productos vendidos" value={String(summary.itemsSold)} />
+                </div>
               </div>
-            ) : !summary ? (
-              <p className="text-center text-sm text-gray-500 py-8">Sin datos para esta fecha.</p>
-            ) : (
-              <>
-                {/* Ventas */}
-                <div>
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 border-b pb-1">
-                    Ventas Completadas
-                  </p>
-                  <div className="space-y-1 text-sm">
-                    <Row label="Total ventas" value={String(summary.totalSales)} />
-                    <Row label="Monto total" value={fmt(summary.totalAmount)} bold />
-                    <Row label="Ticket promedio" value={fmt(summary.averageTicket)} />
-                    <Row label="Productos vendidos" value={String(summary.itemsSold)} />
+
+              <div className="border-t" />
+
+              {/* Canceladas */}
+              <div>
+                <p className="text-xs font-bold text-red-500 uppercase tracking-wider mb-2">
+                  Canceladas / Devoluciones
+                </p>
+                <div className="space-y-1.5 text-sm">
+                  <Row label="Cantidad" value={String(summary.refundsCount)} />
+                  <Row label="Monto cancelado" value={fmt(summary.totalRefunds)} />
+                </div>
+              </div>
+
+              <div className="border-t" />
+
+              {/* Por método de pago */}
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                  Por Método de Pago
+                </p>
+                {paymentRows.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic">Sin registros de pago.</p>
+                ) : (
+                  <div className="space-y-1.5 text-sm">
+                    {paymentRows.map(({ key, label }) => (
+                      <Row key={key} label={label} value={fmt(summary[key] as number)} />
+                    ))}
                   </div>
-                </div>
-
-                {/* Canceladas */}
-                <div>
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 border-b pb-1">
-                    Canceladas / Devoluciones
-                  </p>
-                  <div className="space-y-1 text-sm">
-                    <Row label="Cantidad" value={String(summary.refundsCount)} />
-                    <Row label="Monto cancelado" value={fmt(summary.totalRefunds)} />
-                  </div>
-                </div>
-
-                {/* Por método de pago */}
-                <div>
-                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 border-b pb-1">
-                    Por Método de Pago
-                  </p>
-                  {paymentRows.length === 0 ? (
-                    <p className="text-xs text-gray-400 italic">Sin registros de pago.</p>
-                  ) : (
-                    <div className="space-y-1 text-sm">
-                      {paymentRows.map(({ key, label }) => (
-                        <Row key={key} label={label} value={fmt(summary[key] as number)} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Footer actions */}
-          {!isLoading && summary && (
-            <div className="p-4 border-t flex gap-2 no-print">
-              <button
-                onClick={handleDownloadCsv}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-[#3E667D] border border-[#3E667D] rounded-lg hover:bg-[#3E667D]/5 transition-colors"
-              >
-                <ArrowDownTrayIcon className="h-4 w-4" />
-                Descargar CSV
-              </button>
-              <button
-                onClick={handlePrint}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-[#3E667D] rounded-lg hover:bg-[#2f5165] transition-colors"
-              >
-                <PrinterIcon className="h-4 w-4" />
-                Imprimir
-              </button>
-            </div>
+                )}
+              </div>
+            </>
           )}
         </div>
+
+        {/* Footer actions */}
+        {!isLoading && summary && (
+          <div className="p-3 border-t flex gap-2 no-print">
+            <button
+              onClick={handleDownloadCsv}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-[#3E667D] border border-[#3E667D] rounded-lg hover:bg-[#3E667D]/5 transition-colors"
+            >
+              <ArrowDownTrayIcon className="h-3.5 w-3.5" />
+              CSV
+            </button>
+            <button
+              onClick={handlePrint}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-white bg-[#3E667D] rounded-lg hover:bg-[#2f5165] transition-colors"
+            >
+              <PrinterIcon className="h-3.5 w-3.5" />
+              Imprimir
+            </button>
+          </div>
+        )}
       </div>
     </>
   );
@@ -200,9 +199,9 @@ export function CorteDiaModal({ summary, isLoading, date, branchName, onClose }:
 
 function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
-    <div className="flex justify-between">
-      <span className="text-gray-600">{label}</span>
-      <span className={bold ? 'font-bold text-gray-900' : 'text-gray-800'}>{value}</span>
+    <div className="flex justify-between gap-2">
+      <span className="text-gray-500 text-xs">{label}</span>
+      <span className={`text-xs ${bold ? 'font-bold text-gray-900' : 'text-gray-800'}`}>{value}</span>
     </div>
   );
 }
