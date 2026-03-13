@@ -48,6 +48,54 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { useActiveCountries } from '@/hooks/useConfig';
 import type { Country } from '@/types/config';
+import { getTimezoneLabel, getTimezoneShortLabel } from '@/lib/timezone-utils';
+
+// ================================
+// TIMEZONE OPTIONS
+// ================================
+
+const TIMEZONE_OPTIONS = [
+  {
+    group: 'México',
+    options: [
+      { value: 'America/Mexico_City', label: 'Ciudad de México (CST/CDT)' },
+      { value: 'America/Tijuana', label: 'Tijuana / Baja California (PST/PDT)' },
+      { value: 'America/Cancun', label: 'Cancún (EST fijo)' },
+      { value: 'America/Hermosillo', label: 'Hermosillo / Sonora (MST fijo)' },
+      { value: 'America/Chihuahua', label: 'Chihuahua (MST/MDT)' },
+    ],
+  },
+  {
+    group: 'EE.UU.',
+    options: [
+      { value: 'America/Los_Angeles', label: 'Pacífico — Los Angeles (PST/PDT)' },
+      { value: 'America/Denver', label: 'Montaña — Denver (MST/MDT)' },
+      { value: 'America/Chicago', label: 'Central — Chicago / Tulsa (CST/CDT)' },
+      { value: 'America/New_York', label: 'Este — New York (EST/EDT)' },
+    ],
+  },
+  {
+    group: 'Centroamérica',
+    options: [
+      { value: 'America/Guatemala', label: 'Guatemala (CST fijo)' },
+      { value: 'America/Tegucigalpa', label: 'Honduras (CST fijo)' },
+      { value: 'America/El_Salvador', label: 'El Salvador (CST fijo)' },
+      { value: 'America/Managua', label: 'Nicaragua (CST fijo)' },
+      { value: 'America/Costa_Rica', label: 'Costa Rica (CST fijo)' },
+      { value: 'America/Panama', label: 'Panamá (EST fijo)' },
+    ],
+  },
+  {
+    group: 'Sudamérica',
+    options: [
+      { value: 'America/Bogota', label: 'Colombia (COT fijo)' },
+      { value: 'America/Lima', label: 'Perú (PET fijo)' },
+      { value: 'America/Caracas', label: 'Venezuela (VET fijo)' },
+      { value: 'America/Santiago', label: 'Chile (CLT/CLST)' },
+      { value: 'America/Argentina/Buenos_Aires', label: 'Argentina (ART fijo)' },
+    ],
+  },
+];
 
 // ================================
 // BRANCH MODAL COMPONENT
@@ -175,6 +223,64 @@ function CheckboxField({ label, description, checked, onChange }: CheckboxFieldP
 }
 
 // ================================
+// TIMEZONE SECTION COMPONENT
+// ================================
+
+function TimezoneSection({ timezone, onChange }: { timezone: string; onChange: (tz: string) => void }) {
+  const [localTime, setLocalTime] = useState('');
+
+  useEffect(() => {
+    const update = () => {
+      setLocalTime(
+        new Date().toLocaleTimeString('es-MX', {
+          timeZone: timezone,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        })
+      );
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [timezone]);
+
+  return (
+    <div className="mb-6">
+      <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3 border-b border-gray-100 pb-2">
+        Zona Horaria
+      </h3>
+      <div className="grid grid-cols-1 gap-4">
+        <FormField label="Zona horaria de la sucursal" fullWidth>
+          <select
+            value={timezone}
+            onChange={(e) => onChange(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
+          >
+            {TIMEZONE_OPTIONS.map((group) => (
+              <optgroup key={group.group} label={group.group}>
+                {group.options.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+          <p className="text-xs text-gray-400 mt-1">
+            Afecta fechas en tickets, facturas y reportes diarios del POS
+          </p>
+          {localTime && (
+            <p className="text-xs text-gray-500 mt-1">
+              🕐 Hora actual en esta zona: <span className="font-mono font-medium">{localTime}</span>
+            </p>
+          )}
+        </FormField>
+      </div>
+    </div>
+  );
+}
+
+// ================================
 // INITIAL FORM STATE
 // ================================
 
@@ -199,6 +305,7 @@ const initialFormState: CreateBranchDto = {
   ticketName: '',
   ticketHeader: '',
   ticketFooter: '',
+  timezone: 'America/Mexico_City',
 };
 
 // ================================
@@ -355,6 +462,7 @@ function SucursalesContent() {
       ticketName: branch.ticketName || '',
       ticketHeader: branch.ticketHeader || '',
       ticketFooter: branch.ticketFooter || '',
+      timezone: branch.timezone || 'America/Mexico_City',
     });
     setIsModalOpen(true);
   };
@@ -662,6 +770,18 @@ function SucursalesContent() {
       sortValue: (branch) => getLocationString(branch),
       render: (branch) => (
         <span className="text-sm text-gray-600">{getLocationString(branch)}</span>
+      ),
+    },
+    {
+      key: 'timezone',
+      header: 'Zona Horaria',
+      render: (branch) => (
+        <span
+          className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium"
+          title={getTimezoneLabel(branch.timezone)}
+        >
+          {getTimezoneShortLabel(branch.timezone || 'America/Mexico_City')}
+        </span>
       ),
     },
     {
@@ -1108,6 +1228,12 @@ function SucursalesContent() {
             />
           </FormField>
         </FormSection>
+
+        {/* Timezone */}
+        <TimezoneSection
+          timezone={formData.timezone || 'America/Mexico_City'}
+          onChange={(tz) => handleFormChange('timezone', tz)}
+        />
 
         {/* Features */}
         <FormSection title="Caracteristicas">

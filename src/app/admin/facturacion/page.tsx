@@ -35,6 +35,7 @@ import {
 } from '@/types/billing';
 import { PermissionGuard } from '@/components/auth';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
+import { DEFAULT_TIMEZONE } from '@/lib/timezone-utils';
 
 export default function FacturacionPage() {
   return <Suspense><FacturacionContent /></Suspense>;
@@ -131,12 +132,13 @@ function FacturacionContent() {
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('es-MX', {
+    return new Date(dateStr).toLocaleString('es-MX', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: DEFAULT_TIMEZONE,
     });
   };
 

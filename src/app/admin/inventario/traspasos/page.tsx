@@ -34,6 +34,7 @@ import { useActiveBranches } from '@/hooks/useBranches';
 import { inventoryService } from '@/services/inventory.service';
 import { MovementStatus, type TransferQueryDto, type TransferDto } from '@/types/inventory';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
+import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
 
 export default function TraspasosPage() {
   return <Suspense><TraspasosContent /></Suspense>;
@@ -374,12 +375,14 @@ function TraspasosContent() {
                           </td>
                           <td className="py-4 px-4">{getStatusBadge(transfer.status)}</td>
                           <td className="py-4 px-4 text-sm text-gray-600">
+                            {(() => { const tz = branches?.find(b => b.code === transfer.branch.code)?.timezone || DEFAULT_TIMEZONE; return (
                             <div>
-                              <p>{inventoryService.formatDateTime(transfer.requestedAt)}</p>
+                              <p>{inventoryService.formatDateTime(transfer.requestedAt, tz)}<span className="text-gray-400"> · {getTimezoneShortLabel(tz)}</span></p>
                               {transfer.requestedBy && (
                                 <p className="text-xs text-gray-500">por {transfer.requestedBy.name}</p>
                               )}
                             </div>
+                            ); })()}
                           </td>
                           <td className="py-4 px-4">
                             <div className="flex items-center justify-end gap-1">

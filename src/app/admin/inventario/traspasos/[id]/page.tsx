@@ -31,7 +31,9 @@ import {
   useRejectTransfer,
   useCancelTransfer,
 } from '@/hooks/useInventory';
+import { useActiveBranches } from '@/hooks/useBranches';
 import { inventoryService } from '@/services/inventory.service';
+import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
 import type { TransferDto } from '@/types/inventory';
 import { generateTransferTicketPdf } from '@/lib/generate-transfer-ticket';
 
@@ -39,7 +41,7 @@ import { generateTransferTicketPdf } from '@/lib/generate-transfer-ticket';
 // Status Timeline
 // ================================
 
-function StatusTimeline({ transfer }: { transfer: TransferDto }) {
+function StatusTimeline({ transfer, originTz, destTz }: { transfer: TransferDto; originTz: string; destTz: string }) {
   const isRejected = transfer.status === 'rejected';
   const isCancelled = transfer.status === 'cancelled';
   const isTerminal = isRejected || isCancelled;
@@ -48,6 +50,7 @@ function StatusTimeline({ transfer }: { transfer: TransferDto }) {
     {
       label: 'Solicitado',
       date: transfer.requestedAt,
+      tz: originTz,
       user: transfer.requestedBy?.name,
       done: true,
       icon: <ClockIcon className="h-4 w-4" />,
@@ -55,6 +58,7 @@ function StatusTimeline({ transfer }: { transfer: TransferDto }) {
     {
       label: transfer.status === 'approved' ? 'En Tránsito' : 'Aprobado',
       date: transfer.approvedAt,
+      tz: originTz,
       user: transfer.approvedBy?.name,
       done: ['approved', 'applied'].includes(transfer.status),
       icon: transfer.status === 'approved' ? <TruckIcon className="h-4 w-4" /> : <CheckIcon className="h-4 w-4" />,
@@ -62,6 +66,7 @@ function StatusTimeline({ transfer }: { transfer: TransferDto }) {
     {
       label: 'Aplicado',
       date: transfer.appliedAt,
+      tz: destTz,
       user: transfer.appliedBy?.name,
       done: transfer.status === 'applied',
       icon: <CheckBadgeIcon className="h-4 w-4" />,
@@ -107,7 +112,8 @@ function StatusTimeline({ transfer }: { transfer: TransferDto }) {
             </p>
             {step.date && (
               <p className="text-xs text-gray-500 mt-0.5">
-                {inventoryService.formatDateTime(step.date)}
+                {inventoryService.formatDateTime(step.date, step.tz)}
+                <span className="text-gray-400"> · {getTimezoneShortLabel(step.tz)}</span>
               </p>
             )}
             {step.user && (
@@ -129,7 +135,7 @@ function StatusTimeline({ transfer }: { transfer: TransferDto }) {
             <span className={`text-sm font-medium ${isRejected ? 'text-red-700' : 'text-gray-700'}`}>
               {isRejected ? 'Rechazado' : 'Cancelado'}
               {transfer.rejectedBy && ` por ${transfer.rejectedBy.name}`}
-              {transfer.rejectedAt && ` el ${inventoryService.formatDateTime(transfer.rejectedAt)}`}
+              {transfer.rejectedAt && ` el ${inventoryService.formatDateTime(transfer.rejectedAt, originTz)} · ${getTimezoneShortLabel(originTz)}`}
             </span>
           </div>
           {transfer.rejectionReason && (
@@ -175,6 +181,9 @@ export default function TransferDetailPage() {
 
   const currentUser = useSelector(selectUser);
   const { data: transfer, isLoading, error } = useTransfer(id);
+  const { data: branches } = useActiveBranches();
+  const originTz = useMemo(() => branches?.find(b => b.code === transfer?.branch?.code)?.timezone || DEFAULT_TIMEZONE, [branches, transfer?.branch?.code]);
+  const destTz = useMemo(() => branches?.find(b => b.code === transfer?.destinationBranch?.code)?.timezone || DEFAULT_TIMEZONE, [branches, transfer?.destinationBranch?.code]);
   const approveTransfer = useApproveTransfer();
   const applyTransfer = useApplyTransfer();
   const rejectTransfer = useRejectTransfer();
@@ -319,7 +328,7 @@ export default function TransferDetailPage() {
                   <StatusBadge status={transfer.status} />
                 </div>
                 <p className="text-gray-500 text-sm mt-0.5">
-                  Creado el {inventoryService.formatDateTime(transfer.createdAt)}
+                  Creado el {inventoryService.formatDateTime(transfer.createdAt, originTz)} · {getTimezoneShortLabel(originTz)}
                 </p>
               </div>
             </div>
@@ -399,7 +408,7 @@ export default function TransferDetailPage() {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Status Timeline */}
-        <StatusTimeline transfer={transfer} />
+        <StatusTimeline transfer={transfer} originTz={originTz} destTz={destTz} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
           {/* Left: Items Table + Details */}
@@ -522,7 +531,7 @@ export default function TransferDetailPage() {
                       <p className="text-gray-500">Solicitado por</p>
                       <p className="font-medium text-gray-900">{transfer.requestedBy.name}</p>
                       {transfer.requestedAt && (
-                        <p className="text-xs text-gray-400">{inventoryService.formatDateTime(transfer.requestedAt)}</p>
+                        <p className="text-xs text-gray-400">{inventoryService.formatDateTime(transfer.requestedAt, originTz)} · {getTimezoneShortLabel(originTz)}</p>
                       )}
                     </div>
                   </div>
@@ -534,7 +543,7 @@ export default function TransferDetailPage() {
                       <p className="text-gray-500">Aprobado por</p>
                       <p className="font-medium text-gray-900">{transfer.approvedBy.name}</p>
                       {transfer.approvedAt && (
-                        <p className="text-xs text-gray-400">{inventoryService.formatDateTime(transfer.approvedAt)}</p>
+                        <p className="text-xs text-gray-400">{inventoryService.formatDateTime(transfer.approvedAt, originTz)} · {getTimezoneShortLabel(originTz)}</p>
                       )}
                     </div>
                   </div>
@@ -546,7 +555,7 @@ export default function TransferDetailPage() {
                       <p className="text-gray-500">Aplicado por</p>
                       <p className="font-medium text-gray-900">{transfer.appliedBy.name}</p>
                       {transfer.appliedAt && (
-                        <p className="text-xs text-gray-400">{inventoryService.formatDateTime(transfer.appliedAt)}</p>
+                        <p className="text-xs text-gray-400">{inventoryService.formatDateTime(transfer.appliedAt, destTz)} · {getTimezoneShortLabel(destTz)}</p>
                       )}
                     </div>
                   </div>
@@ -560,7 +569,7 @@ export default function TransferDetailPage() {
                       </p>
                       <p className="font-medium text-gray-900">{transfer.rejectedBy.name}</p>
                       {transfer.rejectedAt && (
-                        <p className="text-xs text-gray-400">{inventoryService.formatDateTime(transfer.rejectedAt)}</p>
+                        <p className="text-xs text-gray-400">{inventoryService.formatDateTime(transfer.rejectedAt, originTz)} · {getTimezoneShortLabel(originTz)}</p>
                       )}
                     </div>
                   </div>

@@ -16,8 +16,10 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { useMovement, useApproveMovement, useRejectMovement } from '@/hooks/useInventory';
+import { useActiveBranches } from '@/hooks/useBranches';
 import { inventoryService } from '@/services/inventory.service';
 import { generateMovementTicketPdf } from '@/lib/generate-movement-ticket';
+import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
 import type { MovementDto } from '@/types/inventory';
 
 export default function EntradaDetailPage() {
@@ -33,6 +35,7 @@ function EntradaDetailContent() {
   const [rejectReason, setRejectReason] = useState('');
 
   const { data: movement, isLoading, isError, refetch } = useMovement(id);
+  const { data: branches } = useActiveBranches();
   const approveMovement = useApproveMovement();
   const rejectMovement = useRejectMovement();
 
@@ -135,7 +138,7 @@ function EntradaDetailContent() {
               <div>
                 <p className="text-white/60 text-sm font-medium uppercase tracking-wider">Entrada de Producto</p>
                 <h1 className="text-2xl font-bold">{movement.movementNumber}</h1>
-                <p className="text-white/70 text-sm">{inventoryService.formatDateTime(movement.createdAt)}</p>
+                {(() => { const tz = branches?.find(b => b.name === movement.branchName)?.timezone || DEFAULT_TIMEZONE; return <p className="text-white/70 text-sm">{inventoryService.formatDateTime(movement.createdAt, tz)} · {getTimezoneShortLabel(tz)}</p>; })()}
               </div>
             </div>
             <div className="flex items-center gap-2">

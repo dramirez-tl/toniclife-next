@@ -2,6 +2,7 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.2 Módulo Productos e Inventario
 
 import api from '@/lib/api';
+import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
 import {
   MovementStatus,
   AdjustmentStatus,
@@ -433,7 +434,7 @@ class InventoryService {
     });
   }
 
-  formatDateTime(date: string | undefined): string {
+  formatDateTime(date: string | undefined, timezone: string = DEFAULT_TIMEZONE): string {
     if (!date) return '-';
     return new Date(date).toLocaleString('es-MX', {
       year: 'numeric',
@@ -441,7 +442,13 @@ class InventoryService {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: timezone,
     });
+  }
+
+  /** Returns "HH:mm · MX Noroeste" label for a given timezone. */
+  tzLabel(timezone: string = DEFAULT_TIMEZONE): string {
+    return getTimezoneShortLabel(timezone);
   }
 }
 

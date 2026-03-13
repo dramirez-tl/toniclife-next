@@ -46,6 +46,7 @@ export interface Branch {
   cedeaDistributorName?: string | null;
   cedeaDistributorNumber?: string | null;
   cedeaContractNumber?: string | null;
+  timezone?: string;
 }
 
 // ================================
@@ -152,6 +153,7 @@ export interface CreateBranchDto {
   botName?: string;
   botEnabled?: boolean;
   isActive?: boolean;
+  timezone?: string;
 }
 
 export interface UpdateBranchDto {
@@ -185,4 +187,5 @@ export interface UpdateBranchDto {
   botName?: string;
   botEnabled?: boolean;
   isActive?: boolean;
+  timezone?: string;
 }

@@ -27,6 +27,7 @@ import { useActiveBranches } from '@/hooks/useBranches';
 import { inventoryService } from '@/services/inventory.service';
 import { MovementType, type KardexQueryDto, type KardexEntryDto } from '@/types/inventory';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
+import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
 
 export default function KardexPage() {
   return <Suspense><KardexContent /></Suspense>;
@@ -85,9 +86,11 @@ function KardexContent() {
       const name = productName || allData.product?.name || 'Producto';
       const code = productCode || allData.product?.code || '';
       const now = new Date();
+      const branchTimezone = branches?.find((b) => b.id === branchFilter)?.timezone || DEFAULT_TIMEZONE;
       const exportDate = now.toLocaleString('es-MX', {
         day: '2-digit', month: '2-digit', year: 'numeric',
         hour: '2-digit', minute: '2-digit',
+        timeZone: branchTimezone,
       });
 
       // Build active filters description
@@ -165,13 +168,13 @@ function KardexContent() {
       for (const m of allData.movements) {
         const expirationLabel = m.lotExpirationDate
           ? new Date(m.lotExpirationDate).toLocaleDateString('es-MX', {
-              day: '2-digit', month: '2-digit', year: 'numeric',
+              timeZone: 'UTC', day: '2-digit', month: '2-digit', year: 'numeric',
             })
           : 'NA';
 
         rows.push([
           esc(m.movementNumber),
-          esc(inventoryService.formatDateTime(m.createdAt)),
+          esc(inventoryService.formatDateTime(m.createdAt, branches?.find(b => b.name === m.branchName)?.timezone || DEFAULT_TIMEZONE)),
           esc(getTypeLabel(m.movementType, m.movementCategory)),
           esc(getDirection(m.movementCategory, m.movementType)),
           esc(isEntryMovement(m.movementCategory, m.movementType) ? `+${m.quantity}` : `-${m.quantity}`),
@@ -335,11 +338,15 @@ function KardexContent() {
       header: 'Fecha',
       sortable: true,
       sortValue: (m) => m.createdAt,
-      render: (m) => (
-        <span className="text-sm text-gray-600 whitespace-nowrap">
-          {inventoryService.formatDateTime(m.createdAt)}
-        </span>
-      ),
+      render: (m) => {
+        const tz = branches?.find(b => b.name === m.branchName)?.timezone || DEFAULT_TIMEZONE;
+        return (
+          <span className="text-sm text-gray-600 whitespace-nowrap">
+            {inventoryService.formatDateTime(m.createdAt, tz)}
+            <span className="text-gray-400"> · {getTimezoneShortLabel(tz)}</span>
+          </span>
+        );
+      },
     },
     {
       key: 'movementType',
@@ -461,6 +468,7 @@ function KardexContent() {
             {m.lotExpirationDate && (
               <div className="text-xs text-gray-500">
                 {new Date(m.lotExpirationDate).toLocaleDateString('es-MX', {
+                  timeZone: 'UTC',
                   day: '2-digit',
                   month: '2-digit',
                   year: 'numeric',

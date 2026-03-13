@@ -37,6 +37,7 @@ import {
   type AdjustmentDto,
 } from '@/types/inventory';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
+import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
 
 export default function AjustesPage() {
   return <Suspense><AjustesContent /></Suspense>;
@@ -393,14 +394,16 @@ function AjustesContent() {
                           </td>
                           <td className="py-4 px-4">{getStatusBadge(adjustment.status)}</td>
                           <td className="py-4 px-4 text-sm text-gray-600">
+                            {(() => { const tz = branches?.find(b => b.name === adjustment.branch.name)?.timezone || DEFAULT_TIMEZONE; return (
                             <div>
-                              <p>{inventoryService.formatDateTime(adjustment.createdAt)}</p>
+                              <p>{inventoryService.formatDateTime(adjustment.createdAt, tz)}<span className="text-gray-400"> · {getTimezoneShortLabel(tz)}</span></p>
                               {adjustment.createdBy && (
                                 <p className="text-xs text-gray-500">
                                   por {adjustment.createdBy.name}
                                 </p>
                               )}
                             </div>
+                            ); })()}
                           </td>
                           <td className="py-4 px-4">
                             <div className="flex items-center justify-end gap-2">

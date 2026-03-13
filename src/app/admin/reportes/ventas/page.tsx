@@ -14,6 +14,7 @@ import { useAppSelector } from '@/store';
 import { selectUserRoles } from '@/store';
 import type { Sale, SaleQueryParams, PosSaleStatus, PosPaymentMethod } from '@/types/pos';
 import { posService } from '@/services/pos.service';
+import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
 import { toast } from 'sonner';
 import {
   ShoppingCartIcon,
@@ -46,13 +47,14 @@ const formatCurrency = (amount: number, currencyCode = 'MXN') =>
     currency: currencyCode,
   }).format(amount);
 
-const formatDate = (dateStr: string) =>
-  new Date(dateStr).toLocaleDateString('es-MX', {
+const formatDate = (dateStr: string, timezone: string = DEFAULT_TIMEZONE) =>
+  new Date(dateStr).toLocaleString('es-MX', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: timezone,
   });
 
 function getDefaultDateFrom(): string {
@@ -159,10 +161,11 @@ function escapeCsv(value: string | number | boolean | null | undefined): string 
   return str;
 }
 
-function buildCsvRow(sale: Sale): string {
+function buildCsvRow(sale: Sale, timezone: string = DEFAULT_TIMEZONE): string {
   const cols = [
     sale.saleNumber,
-    sale.createdAt ? new Date(sale.createdAt).toLocaleString('es-MX') : '',
+    sale.createdAt ? new Date(sale.createdAt).toLocaleString('es-MX', { timeZone: timezone }) : '',
+    getTimezoneShortLabel(timezone),
     sale.branchName,
     sale.cashRegisterName,
     sale.sellerName,
@@ -185,7 +188,7 @@ function buildCsvRow(sale: Sale): string {
     sale.notes ?? '',
     sale.cancellationReason ?? '',
     sale.cancelledByName ?? '',
-    sale.cancelledAt ? new Date(sale.cancelledAt).toLocaleString('es-MX') : '',
+    sale.cancelledAt ? new Date(sale.cancelledAt).toLocaleString('es-MX', { timeZone: timezone }) : '',
   ];
   return cols.map(escapeCsv).join(',');
 }
@@ -193,6 +196,7 @@ function buildCsvRow(sale: Sale): string {
 const CSV_HEADERS = [
   'No. Venta',
   'Fecha',
+  'Zona Horaria',
   'Sucursal',
   'Caja',
   'Vendedor',
@@ -218,8 +222,8 @@ const CSV_HEADERS = [
   'Fecha Cancelación',
 ].join(',');
 
-function downloadCsv(rows: Sale[], filename: string) {
-  const lines = [CSV_HEADERS, ...rows.map(buildCsvRow)];
+function downloadCsv(rows: Sale[], filename: string, getBranchTz: (branchName: string) => string) {
+  const lines = [CSV_HEADERS, ...rows.map(s => buildCsvRow(s, getBranchTz(s.branchName)))];
   const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
@@ -233,7 +237,7 @@ function downloadCsv(rows: Sale[], filename: string) {
 // Sale Detail Modal
 // ================================
 
-function SaleDetailModal({ sale, onClose }: { sale: Sale | null; onClose: () => void }) {
+function SaleDetailModal({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale: Sale | null; onClose: () => void; branchTz?: string }) {
   if (!sale) return null;
 
   const currency = sale.currencyCode || 'MXN';
@@ -257,7 +261,7 @@ function SaleDetailModal({ sale, onClose }: { sale: Sale | null; onClose: () => 
                 </span>
               )}
             </div>
-            <p className="text-sm text-gray-500 mt-1">{formatDate(sale.createdAt)}</p>
+            <p className="text-sm text-gray-500 mt-1">{formatDate(sale.createdAt, branchTz)}<span className="text-gray-400"> · {getTimezoneShortLabel(branchTz)}</span></p>
           </div>
           <button
             type="button"
@@ -380,7 +384,7 @@ function SaleDetailModal({ sale, onClose }: { sale: Sale | null; onClose: () => 
                 <p className="text-xs text-red-500 mt-1">Por: {sale.cancelledByName}</p>
               )}
               {sale.cancelledAt && (
-                <p className="text-xs text-red-500">{formatDate(sale.cancelledAt)}</p>
+                <p className="text-xs text-red-500">{formatDate(sale.cancelledAt, branchTz)}</p>
               )}
             </div>
           )}
@@ -527,7 +531,7 @@ function VentasReportesContent() {
         return;
       }
       const filename = `ventas_${dateFrom}_${dateTo}.csv`;
-      downloadCsv(result.data, filename);
+      downloadCsv(result.data, filename, (name) => branches.find(b => b.name === name)?.timezone || DEFAULT_TIMEZONE);
       toast.success(`${result.data.length} ventas exportadas`);
     } catch {
       toast.error('Error al exportar ventas');
@@ -593,7 +597,7 @@ function VentasReportesContent() {
         <div className="flex items-start gap-2">
           <div>
             <span className="font-semibold text-[#3E667D]">{sale.saleNumber}</span>
-            <p className="text-xs text-gray-500 mt-0.5">{formatDate(sale.createdAt)}</p>
+            {(() => { const tz = branches.find(b => b.name === sale.branchName)?.timezone || DEFAULT_TIMEZONE; return <p className="text-xs text-gray-500 mt-0.5">{formatDate(sale.createdAt, tz)}<span className="text-gray-400"> · {getTimezoneShortLabel(tz)}</span></p>; })()}
           </div>
           <button
             type="button"
@@ -690,11 +694,11 @@ function VentasReportesContent() {
         </span>
       ),
     },
-  ], [canEditPayment, setDetailSale, setEditingSale]);
+  ], [canEditPayment, setDetailSale, setEditingSale, branches]);
 
   return (
     <>
-    <SaleDetailModal sale={detailSale} onClose={() => setDetailSale(null)} />
+    <SaleDetailModal sale={detailSale} onClose={() => setDetailSale(null)} branchTz={branches.find(b => b.name === detailSale?.branchName)?.timezone || DEFAULT_TIMEZONE} />
     {editingSale && (
       <EditPaymentModal
         sale={editingSale}

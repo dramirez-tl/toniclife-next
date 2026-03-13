@@ -1,19 +1,47 @@
 // CorteDiaModal.tsx — Corte del Día: drawer lateral derecho
 'use client';
 
+import { useState } from 'react';
 import { XMarkIcon, ArrowDownTrayIcon, PrinterIcon } from '@heroicons/react/24/outline';
-import type { DailySalesSummary } from '@/types/pos';
+import type { DailySalesSummary, Sale } from '@/types/pos';
+import { PosSaleStatus } from '@/types/pos';
+import { generateCorteDiaPdf } from '@/lib/generate-corte-dia-pdf';
+import { formatDateLocal, formatTimeLocal, formatDateTimeLocal } from '@/lib/timezone-utils';
 
 interface CorteDiaModalProps {
   summary: DailySalesSummary | undefined;
+  sales: Sale[];
   isLoading: boolean;
   date: string;
   branchName: string;
+  timezone: string;
   onClose: () => void;
 }
 
 const fmt = (n: number) =>
   n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2 });
+
+// fmtDateTime is defined inside the component to capture timezone — see below
+
+const STATUS_LABEL: Record<string, string> = {
+  [PosSaleStatus.COMPLETED]: 'Completada',
+  [PosSaleStatus.CANCELLED]: 'Cancelada',
+  [PosSaleStatus.REFUNDED]: 'Devuelta',
+  [PosSaleStatus.PENDING]: 'Pendiente',
+  [PosSaleStatus.PARTIAL_REFUND]: 'Dev. Parcial',
+};
+
+const PAYMENT_METHOD_LABEL: Record<string, string> = {
+  cash: 'Efectivo',
+  card: 'T. Débito',
+  credit: 'T. Crédito',
+  transfer: 'Transferencia',
+  mercado_pago: 'MercadoPago',
+  cashback: 'Cashback',
+  promotion: 'Promoción',
+  usd_cash: 'USD',
+  mixed: 'Mixto',
+};
 
 const PAYMENT_LABELS: { key: keyof DailySalesSummary; label: string }[] = [
   { key: 'totalCash', label: 'Efectivo' },
@@ -27,9 +55,15 @@ const PAYMENT_LABELS: { key: keyof DailySalesSummary; label: string }[] = [
   { key: 'totalMixed', label: 'Pago Mixto' },
 ];
 
-export function CorteDiaModal({ summary, isLoading, date, branchName, onClose }: CorteDiaModalProps) {
+export function CorteDiaModal({ summary, sales, isLoading, date, branchName, timezone, onClose }: CorteDiaModalProps) {
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const fmtDateTime = (iso: string) => formatDateTimeLocal(iso, timezone);
+
   const displayDate = new Date(date + 'T12:00:00').toLocaleDateString('es-MX', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    timeZone: timezone,
   });
 
   function handleDownloadCsv() {
@@ -38,18 +72,27 @@ export function CorteDiaModal({ summary, isLoading, date, branchName, onClose }:
     const rows: string[][] = [
       ['Corte del Día', branchName, date],
       [],
-      ['VENTAS'],
+      ['RESUMEN'],
       ['Ventas completadas', String(summary.totalSales)],
       ['Monto total', summary.totalAmount.toFixed(2)],
       ['Ticket promedio', summary.averageTicket.toFixed(2)],
       ['Productos vendidos', String(summary.itemsSold)],
-      [],
-      ['CANCELADAS / DEVOLUCIONES'],
-      ['Cantidad', String(summary.refundsCount)],
-      ['Monto', summary.totalRefunds.toFixed(2)],
+      ['Canceladas / devoluciones', String(summary.refundsCount)],
+      ['Monto cancelado', summary.totalRefunds.toFixed(2)],
       [],
       ['MÉTODO DE PAGO', 'MONTO'],
       ...paymentRows.map(({ key, label }) => [label, (summary[key] as number).toFixed(2)]),
+      [],
+      ['DETALLE DE VENTAS'],
+      ['Folio', 'Fecha', 'Hora', 'Estatus', 'Método Pago', 'Monto'],
+      ...sales.map((s) => [
+        s.saleNumber,
+        formatDateLocal(s.createdAt, timezone),
+        formatTimeLocal(s.createdAt, timezone),
+        STATUS_LABEL[s.status] ?? s.status,
+        PAYMENT_METHOD_LABEL[s.paymentMethod] ?? s.paymentMethod,
+        s.total.toFixed(2),
+      ]),
     ];
     const csv = rows.map((r) => r.map((c) => `"${c}"`).join(',')).join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -61,80 +104,20 @@ export function CorteDiaModal({ summary, isLoading, date, branchName, onClose }:
     URL.revokeObjectURL(url);
   }
 
-  function handlePrint() {
+  async function handleGeneratePdf() {
     if (!summary) return;
-    const paymentRows = PAYMENT_LABELS.filter(({ key }) => (summary[key] as number) > 0);
+    setIsGenerating(true);
+    try {
+      const url = await generateCorteDiaPdf(summary, sales, branchName, date, timezone);
+      setPdfUrl(url);
+    } finally {
+      setIsGenerating(false);
+    }
+  }
 
-    const rows = paymentRows
-      .map(({ key, label }) => `
-        <tr>
-          <td>${label}</td>
-          <td style="text-align:right">${fmt(summary[key] as number)}</td>
-        </tr>`)
-      .join('');
-
-    const html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8"/>
-  <title>Corte del Día</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Courier New', monospace; font-size: 11px; width: 80mm; padding: 8px; color: #000; }
-    h1 { font-size: 13px; text-align: center; margin-bottom: 2px; }
-    .center { text-align: center; }
-    .divider { border-top: 1px dashed #000; margin: 6px 0; }
-    .section-title { font-weight: bold; font-size: 10px; text-transform: uppercase; margin: 6px 0 3px; }
-    table { width: 100%; border-collapse: collapse; }
-    td { padding: 1px 0; vertical-align: top; }
-    td:last-child { text-align: right; white-space: nowrap; }
-    .bold { font-weight: bold; }
-    .footer { text-align: center; margin-top: 8px; font-size: 10px; }
-  </style>
-</head>
-<body>
-  <h1>TONIC LIFE</h1>
-  <p class="center" style="font-size:10px">CORTE DEL DÍA</p>
-  <div class="divider"></div>
-  <p class="center">${branchName}</p>
-  <p class="center" style="text-transform:capitalize">${displayDate}</p>
-  <div class="divider"></div>
-
-  <p class="section-title">Ventas Completadas</p>
-  <table>
-    <tr><td>Total ventas</td><td>${summary.totalSales}</td></tr>
-    <tr><td class="bold">Monto total</td><td class="bold">${fmt(summary.totalAmount)}</td></tr>
-    <tr><td>Ticket promedio</td><td>${fmt(summary.averageTicket)}</td></tr>
-    <tr><td>Productos vendidos</td><td>${summary.itemsSold}</td></tr>
-  </table>
-
-  <div class="divider"></div>
-
-  <p class="section-title">Canceladas / Devoluciones</p>
-  <table>
-    <tr><td>Cantidad</td><td>${summary.refundsCount}</td></tr>
-    <tr><td>Monto cancelado</td><td>${fmt(summary.totalRefunds)}</td></tr>
-  </table>
-
-  <div class="divider"></div>
-
-  <p class="section-title">Por Método de Pago</p>
-  <table>
-    ${rows || '<tr><td colspan="2">Sin registros</td></tr>'}
-  </table>
-
-  <div class="divider"></div>
-  <p class="footer">*** Fin del corte ***</p>
-</body>
-</html>`;
-
-    const win = window.open('', '_blank', 'width=400,height=600');
-    if (!win) return;
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    win.print();
-    win.close();
+  function closePdfPreview() {
+    if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+    setPdfUrl(null);
   }
 
   const paymentRows = PAYMENT_LABELS.filter(({ key }) => summary && (summary[key] as number) > 0);
@@ -144,10 +127,10 @@ export function CorteDiaModal({ summary, isLoading, date, branchName, onClose }:
       {/* Backdrop */}
       <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} />
 
-      {/* Side drawer — right side */}
+      {/* Side drawer */}
       <div className="fixed top-0 right-0 z-50 h-full w-80 bg-white shadow-2xl flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b bg-[#3E667D] text-white">
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-[#3E667D] text-white flex-shrink-0">
           <h2 className="font-bold text-sm">Corte del Día</h2>
           <button onClick={onClose} className="hover:text-white/70 transition-colors">
             <XMarkIcon className="h-5 w-5" />
@@ -172,9 +155,7 @@ export function CorteDiaModal({ summary, isLoading, date, branchName, onClose }:
             <>
               {/* Ventas completadas */}
               <div>
-                <p className="text-xs font-bold text-[#3E667D] uppercase tracking-wider mb-2">
-                  Ventas Completadas
-                </p>
+                <p className="text-xs font-bold text-[#3E667D] uppercase tracking-wider mb-2">Ventas Completadas</p>
                 <div className="space-y-1.5">
                   <Row label="Total ventas" value={String(summary.totalSales)} />
                   <Row label="Monto total" value={fmt(summary.totalAmount)} bold />
@@ -187,9 +168,7 @@ export function CorteDiaModal({ summary, isLoading, date, branchName, onClose }:
 
               {/* Canceladas */}
               <div>
-                <p className="text-xs font-bold text-red-500 uppercase tracking-wider mb-2">
-                  Canceladas / Devoluciones
-                </p>
+                <p className="text-xs font-bold text-red-500 uppercase tracking-wider mb-2">Canceladas / Devoluciones</p>
                 <div className="space-y-1.5">
                   <Row label="Cantidad" value={String(summary.refundsCount)} />
                   <Row label="Monto cancelado" value={fmt(summary.totalRefunds)} />
@@ -200,9 +179,7 @@ export function CorteDiaModal({ summary, isLoading, date, branchName, onClose }:
 
               {/* Por método de pago */}
               <div>
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                  Por Método de Pago
-                </p>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Por Método de Pago</p>
                 {paymentRows.length === 0 ? (
                   <p className="text-xs text-gray-400 italic">Sin registros de pago.</p>
                 ) : (
@@ -213,13 +190,57 @@ export function CorteDiaModal({ summary, isLoading, date, branchName, onClose }:
                   </div>
                 )}
               </div>
+
+              <div className="border-t" />
+
+              {/* Detalle de ventas */}
+              <div>
+                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                  Detalle de Ventas ({sales.length})
+                </p>
+                {sales.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic">Sin ventas registradas.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {sales.map((s) => {
+                      const isCancelled = s.status === PosSaleStatus.CANCELLED || s.status === PosSaleStatus.REFUNDED;
+                      return (
+                        <div
+                          key={s.id}
+                          className={`text-xs border rounded p-2 space-y-0.5 ${isCancelled ? 'opacity-50 bg-gray-50' : 'bg-white'}`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="font-mono font-semibold text-gray-800">{s.saleNumber}</span>
+                            <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                              isCancelled
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-green-100 text-green-700'
+                            }`}>
+                              {STATUS_LABEL[s.status] ?? s.status}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-gray-500">
+                            <span>{fmtDateTime(s.createdAt)}</span>
+                            <span className={`font-semibold ${isCancelled ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                              {fmt(s.total)}
+                            </span>
+                          </div>
+                          <div className="text-gray-400">
+                            {PAYMENT_METHOD_LABEL[s.paymentMethod] ?? s.paymentMethod}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
 
-        {/* Footer actions */}
+        {/* Footer */}
         {!isLoading && summary && (
-          <div className="p-3 border-t flex gap-2">
+          <div className="p-3 border-t flex gap-2 flex-shrink-0">
             <button
               onClick={handleDownloadCsv}
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-[#3E667D] border border-[#3E667D] rounded-lg hover:bg-[#3E667D]/5 transition-colors"
@@ -228,15 +249,63 @@ export function CorteDiaModal({ summary, isLoading, date, branchName, onClose }:
               CSV
             </button>
             <button
-              onClick={handlePrint}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-white bg-[#3E667D] rounded-lg hover:bg-[#2f5165] transition-colors"
+              onClick={handleGeneratePdf}
+              disabled={isGenerating}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-white bg-[#3E667D] rounded-lg hover:bg-[#2f5165] disabled:opacity-50 transition-colors"
             >
-              <PrinterIcon className="h-3.5 w-3.5" />
-              Imprimir
+              {isGenerating ? (
+                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              ) : (
+                <PrinterIcon className="h-3.5 w-3.5" />
+              )}
+              {isGenerating ? 'Generando...' : 'Imprimir'}
             </button>
           </div>
         )}
       </div>
+
+      {/* PDF Preview Modal — same pattern as ticket preview */}
+      {pdfUrl && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-xl shadow-2xl flex flex-col w-[95vw] max-w-md h-[90vh] max-h-[700px]">
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <h3 className="font-semibold text-gray-900 text-sm">Vista previa — Corte del Día</h3>
+              <button
+                onClick={closePdfPreview}
+                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <XMarkIcon className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex-grow overflow-hidden">
+              <iframe src={pdfUrl} className="w-full h-full border-0" title="Corte del Día" />
+            </div>
+            <div className="flex items-center gap-2 px-4 py-3 border-t">
+              <button
+                onClick={() => {
+                  const a = document.createElement('a');
+                  a.href = pdfUrl;
+                  a.download = `corte-${branchName.replace(/\s+/g, '_')}-${date}.pdf`;
+                  a.click();
+                }}
+                className="flex-1 px-4 py-2 text-sm font-medium text-[#3E667D] border border-[#3E667D] rounded-lg hover:bg-[#3E667D]/5 transition-colors"
+              >
+                Descargar
+              </button>
+              <button
+                onClick={() => {
+                  const win = window.open(pdfUrl, '_blank');
+                  win?.print();
+                }}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-[#3E667D] rounded-lg hover:bg-[#2f5165] transition-colors flex items-center justify-center gap-2"
+              >
+                <PrinterIcon className="h-4 w-4" />
+                Imprimir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

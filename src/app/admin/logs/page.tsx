@@ -23,6 +23,7 @@ import { useAuditLogs, useAuditStats, useExportLogs } from '@/hooks/useAudit';
 import { AuditLog, RiskLevel, ACTION_CATEGORIES } from '@/types/audit';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
+import { DEFAULT_TIMEZONE } from '@/lib/timezone-utils';
 
 export default function LogsPage() {
   return <Suspense><LogsContent /></Suspense>;
@@ -162,6 +163,7 @@ function LogsContent() {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
+      timeZone: DEFAULT_TIMEZONE,
     });
   };
 

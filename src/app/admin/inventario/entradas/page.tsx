@@ -33,6 +33,7 @@ import {
 } from '@/types/inventory';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { generateMovementTicketPdf } from '@/lib/generate-movement-ticket';
+import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
 
 export default function EntradasPage() {
   return <Suspense><EntradasContent /></Suspense>;
@@ -281,7 +282,7 @@ function EntradasContent() {
                         <td className="px-4 py-3 text-center">{movement.totalItems}</td>
                         <td className="px-4 py-3 text-center font-medium">{movement.totalQuantity}</td>
                         <td className="px-4 py-3 text-center">{getStatusBadge(movement.status)}</td>
-                        <td className="px-4 py-3 text-xs text-gray-500">{inventoryService.formatDateTime(movement.createdAt)}</td>
+                        <td className="px-4 py-3 text-xs text-gray-500">{(() => { const tz = branches?.find(b => b.name === movement.branchName)?.timezone || DEFAULT_TIMEZONE; return <>{inventoryService.formatDateTime(movement.createdAt, tz)}<span className="text-gray-400"> · {getTimezoneShortLabel(tz)}</span></>; })()}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-center gap-1">
                             <button

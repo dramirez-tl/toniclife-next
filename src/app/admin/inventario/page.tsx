@@ -29,6 +29,7 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import type { BranchStockQueryDto, ProductStockDto } from '@/types/inventory';
 import { PermissionGuard } from '@/components/auth';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
+import { DEFAULT_TIMEZONE } from '@/lib/timezone-utils';
 
 export default function InventarioPage() {
   return <Suspense><InventarioContent /></Suspense>;
@@ -53,6 +54,7 @@ function InventarioContent() {
 
   // Fetch branches for the selector
   const { data: branches, isLoading: branchesLoading } = useActiveBranches();
+  const branchTimezone = branches?.find((b) => b.id === selectedBranch)?.timezone || DEFAULT_TIMEZONE;
 
   // Set initial branch when branches load
   useEffect(() => {
@@ -173,8 +175,9 @@ function InventarioContent() {
           : item.isLowStock
             ? 'Existencias Bajas'
             : 'Normal';
+        const itemTz = branches?.find(b => b.name === item.branchName)?.timezone || DEFAULT_TIMEZONE;
         const lastUpdate = item.lastMovementAt
-          ? new Date(item.lastMovementAt).toLocaleString('es-MX')
+          ? new Date(item.lastMovementAt).toLocaleString('es-MX', { timeZone: itemTz })
           : '';
         return [
           item.productCode,
@@ -223,6 +226,7 @@ function InventarioContent() {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: branchTimezone,
     });
   };
 
@@ -354,9 +358,16 @@ function InventarioContent() {
       header: 'Última Actualización',
       sortable: true,
       sortValue: (item) => item.lastMovementAt || '',
-      render: (item) => (
-        <span className="text-sm text-gray-600">{formatDateTime(item.lastMovementAt)}</span>
-      ),
+      render: (item) => {
+        const tz = branches?.find(b => b.name === item.branchName)?.timezone || DEFAULT_TIMEZONE;
+        return (
+          <span className="text-sm text-gray-600">
+            {item.lastMovementAt
+              ? new Date(item.lastMovementAt).toLocaleString('es-MX', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: tz })
+              : '-'}
+          </span>
+        );
+      },
     },
     {
       key: 'actions',

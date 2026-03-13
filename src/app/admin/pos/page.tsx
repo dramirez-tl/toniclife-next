@@ -39,6 +39,7 @@ import { toast } from 'sonner';
 import { posService } from '@/services/pos.service';
 import { billingService } from '@/services/billing.service';
 import { generatePosTicketPdf } from '@/lib/generate-pos-ticket';
+import { getTimezoneShortLabel, formatDateTimeLocal } from '@/lib/timezone-utils';
 import { PermissionGuard } from '@/components/auth';
 import { useSelector } from 'react-redux';
 import { selectUser, selectUserRoles } from '@/store/slices/authSlice';
@@ -176,6 +177,24 @@ export default function PosPage() {
   const currencySymbol = currency?.symbol || '$';
   const currencyId = currency?.id;
   const branchCountryId = selectedBranch?.countryId;
+  const branchTimezone = selectedBranch?.timezone || 'America/Mexico_City';
+
+  // Live branch clock
+  const [branchClock, setBranchClock] = useState('');
+  useEffect(() => {
+    const update = () =>
+      setBranchClock(
+        new Date().toLocaleTimeString('es-MX', {
+          timeZone: branchTimezone,
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        })
+      );
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [branchTimezone]);
 
   const handleBranchChange = (branchId: string) => {
     if (branchId !== selectedBranchId) {
@@ -440,9 +459,14 @@ export default function PosPage() {
               {currencyCode} {currencySymbol}
             </span>
 
-            <div className="hidden sm:flex items-center gap-2 text-sm text-white/80">
-              <ClockIcon className="h-5 w-5" />
-              {new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+            <div className="hidden sm:flex flex-col items-end text-white/80">
+              <div className="flex items-center gap-1.5 text-sm font-medium">
+                <ClockIcon className="h-4 w-4 flex-shrink-0" />
+                {branchClock}
+              </div>
+              <span className="text-xs text-white/50 leading-none">
+                {getTimezoneShortLabel(branchTimezone)}
+              </span>
             </div>
             <a
               href="/admin"
@@ -553,8 +577,8 @@ export default function PosPage() {
                       </div>
                     </div>
                     <p className="text-xs text-gray-400">
-                      {new Date(sale.createdAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })}{' '}
-                      {new Date(sale.createdAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                      {formatDateTimeLocal(sale.createdAt, branchTimezone)}
+                      <span className="text-gray-300"> · {getTimezoneShortLabel(branchTimezone)}</span>
                     </p>
                     <div className="flex items-center justify-between mt-1">
                       <div>
@@ -1090,7 +1114,8 @@ export default function PosPage() {
                 <div>
                   <h3 className="text-base font-semibold text-gray-900">{detailSale.saleNumber}</h3>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    {new Date(detailSale.createdAt).toLocaleString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    {formatDateTimeLocal(detailSale.createdAt, branchTimezone)}
+                    {' · '}<span className="text-gray-400">{getTimezoneShortLabel(branchTimezone)}</span>
                     {' · '}{detailSale.branchName}
                   </p>
                 </div>
@@ -1208,7 +1233,7 @@ export default function PosPage() {
                   <div className="bg-red-50 border border-red-100 rounded-lg p-3">
                     <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-1">Cancelación</p>
                     {detailSale.cancelledByName && <p className="text-xs text-red-700">Por: {detailSale.cancelledByName}</p>}
-                    {detailSale.cancelledAt && <p className="text-xs text-red-500">{new Date(detailSale.cancelledAt).toLocaleString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>}
+                    {detailSale.cancelledAt && <p className="text-xs text-red-500">{formatDateTimeLocal(detailSale.cancelledAt, branchTimezone)}<span className="text-red-300"> · {getTimezoneShortLabel(branchTimezone)}</span></p>}
                     {detailSale.cancellationReason && <p className="text-xs text-red-700 mt-1">{detailSale.cancellationReason}</p>}
                   </div>
                 )}
@@ -1236,9 +1261,11 @@ export default function PosPage() {
         {showCorte && (
           <CorteDiaModal
             summary={corteSummary}
+            sales={recentSales?.data ?? []}
             isLoading={isLoadingCorte}
             date={appliedSalesDate}
             branchName={selectedBranch?.name ?? ''}
+            timezone={branchTimezone}
             onClose={() => setShowCorte(false)}
           />
         )}

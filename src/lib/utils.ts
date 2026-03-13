@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { DEFAULT_TIMEZONE } from '@/lib/timezone-utils';
 
 /**
  * Combina clases de Tailwind de manera inteligente
@@ -22,25 +23,27 @@ export function formatCurrency(amount: number): string {
 /**
  * Formatea una fecha en formato legible
  */
-export function formatDate(date: Date | string): string {
-  return new Intl.DateTimeFormat('es-MX', {
+export function formatDate(date: Date | string, timezone: string = DEFAULT_TIMEZONE): string {
+  return new Date(date).toLocaleDateString('es-MX', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-  }).format(new Date(date));
+    timeZone: timezone,
+  });
 }
 
 /**
  * Formatea fecha y hora
  */
-export function formatDateTime(date: Date | string): string {
-  return new Intl.DateTimeFormat('es-MX', {
+export function formatDateTime(date: Date | string, timezone: string = DEFAULT_TIMEZONE): string {
+  return new Date(date).toLocaleString('es-MX', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(date));
+    timeZone: timezone,
+  });
 }
 
 /**
