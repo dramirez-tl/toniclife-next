@@ -274,6 +274,7 @@ export interface CreateSaleInput {
 
 export interface CancelSaleInput {
   cancellationReason: string;
+  cfdiMotive?: '01' | '02' | '03' | '04';
 }
 
 export interface SaleQueryParams {

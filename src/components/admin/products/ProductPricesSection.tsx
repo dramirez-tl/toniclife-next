@@ -870,8 +870,8 @@ export function ProductPricesSection({
                         </div>
                       )}
 
-                      {/* SAT fields — only for Mexico */}
-                      {countryCode === 'MX' && onSatFieldChange && (
+                      {/* SAT fields — for Mexico and Frontera MX-USA */}
+                      {(countryCode === 'MX' || countryCode === 'FN') && onSatFieldChange && (
                         <div className="mt-3 pt-3 border-t border-gray-200">
                           <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                             Datos SAT (Mexico)

@@ -1,7 +1,7 @@
 // components/pos/PosProductGrid.tsx - Product catalog grid for POS
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { usePosProductCatalog } from '@/hooks/usePos';
 import { usePosCartStore } from '@/stores/pos-cart.store';
 import type { QuickProduct } from '@/types/pos';
@@ -31,6 +31,12 @@ export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbo
   const { data: products, isLoading } = usePosProductCatalog(branchId, priceTypeId, countryId);
   const addItem = usePosCartStore((s) => s.addItem);
   const cartItems = usePosCartStore((s) => s.cart.items);
+
+  // Auto-focus SKU input when grid mounts (after customer/public selection)
+  useEffect(() => {
+    const t = setTimeout(() => skuInputRef.current?.focus(), 100);
+    return () => clearTimeout(t);
+  }, []);
 
   const filtered = (products || []).filter((p) => {
     if (!filter) return true;
@@ -62,7 +68,7 @@ export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbo
     const qty = parts.length > 1 ? parseInt(parts[1].trim(), 10) : 1;
     const quantity = isNaN(qty) || qty < 1 ? 1 : qty;
 
-    const product = await posService.getProductBySku(sku, countryId, branchId);
+    const product = await posService.getProductBySku(sku, countryId, branchId, priceTypeId);
     if (product) {
       if (product.stock !== undefined && product.stock <= 0) {
         toast.error(`${product.name} no tiene existencias en esta sucursal`);
@@ -91,7 +97,7 @@ export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbo
     } else {
       toast.error(`Producto no encontrado: ${sku}`);
     }
-  }, [addItem, countryId, branchId]);
+  }, [addItem, countryId, branchId, priceTypeId]);
 
   const handleSkuKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && skuQuery.trim().length > 0) {
@@ -126,7 +132,7 @@ export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbo
 
     const results = await Promise.allSettled(
       bulkLines.map(async ({ sku, quantity }) => {
-        const product = await posService.getProductBySku(sku, countryId, branchId);
+        const product = await posService.getProductBySku(sku, countryId, branchId, priceTypeId);
         if (!product) throw new Error(sku);
         return { product, quantity, sku };
       })
@@ -170,7 +176,7 @@ export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbo
     setBulkProcessing(false);
     setBulkText('');
     setBulkMode(false);
-  }, [bulkLines, countryId, branchId, addItem]);
+  }, [bulkLines, countryId, branchId, priceTypeId, addItem]);
 
   if (isLoading) {
     return (

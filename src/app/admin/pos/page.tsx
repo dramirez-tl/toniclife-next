@@ -18,6 +18,7 @@ import {
   ArrowsRightLeftIcon,
   XMarkIcon,
   NoSymbolIcon,
+  EyeIcon,
 } from '@heroicons/react/24/outline';
 import { PosCart, PaymentModal, PosProductGrid } from '@/components/pos';
 import { PosCustomerSelector } from '@/components/pos/PosCustomerSelector';
@@ -69,9 +70,12 @@ export default function PosPage() {
   const [stampRetrySaving, setStampRetrySaving] = useState(false);
   const [stampingId, setStampingId] = useState<string | null>(null);
 
+  const [loadingPdfId, setLoadingPdfId] = useState<string | null>(null);
+
   // Cancel sale modal
   const [cancelModalSale, setCancelModalSale] = useState<Sale | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+  const [cancelCfdiMotive, setCancelCfdiMotive] = useState<'01' | '02' | '03' | '04'>('03');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   // Sale detail modal
@@ -115,10 +119,21 @@ export default function PosPage() {
   }, [currencies]);
 
   // Find the distributor price type ID (fallback for customers with no priceTypeId assigned)
+  // Use code === 'distributor' as the primary check (most reliable), appliesTo as fallback
   const distributorPriceTypeId = useMemo(
-    () => (activePriceTypes || []).find((pt) => pt.appliesTo?.includes('distributor'))?.id,
+    () => (activePriceTypes || []).find((pt) => pt.code === 'distributor' || pt.appliesTo?.includes('distributor'))?.id,
     [activePriceTypes],
   );
+
+  // Race-condition fix: if price types loaded AFTER the customer was already selected,
+  // assign the distributor price type retroactively so the product grid shows correct prices.
+  useEffect(() => {
+    if (!distributorPriceTypeId) return;
+    const s = usePosCartStore.getState();
+    if (s.cart.customerId && !s.cart.priceTypeId) {
+      s.setCustomer(s.cart.customerId, s.cart.customerName, s.cart.customerRfc, distributorPriceTypeId);
+    }
+  }, [distributorPriceTypeId]);
 
   // Auto-select branch: user's default branch (non-admin) or first available
   useEffect(() => {
@@ -560,6 +575,33 @@ export default function PosPage() {
                                 )}
                               </button>
                             )}
+                            {/* View invoice PDF — only for stamped sales */}
+                            {sale.invoiceUuid && (
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if (loadingPdfId) return;
+                                  setLoadingPdfId(sale.id);
+                                  try {
+                                    const url = await posService.getInvoicePdfUrl(sale.id);
+                                    window.open(url, '_blank');
+                                  } catch {
+                                    toast.error('Error al obtener PDF de la factura');
+                                  } finally {
+                                    setLoadingPdfId(null);
+                                  }
+                                }}
+                                disabled={loadingPdfId === sale.id}
+                                title="Ver factura PDF"
+                                className="p-2 text-purple-500 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {loadingPdfId === sale.id ? (
+                                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-purple-300 border-t-purple-500" />
+                                ) : (
+                                  <EyeIcon className="h-5 w-5" />
+                                )}
+                              </button>
+                            )}
                             {/* Print ticket button */}
                             <button
                               onClick={async (e) => {
@@ -601,6 +643,7 @@ export default function PosPage() {
                             onClick={(e) => {
                               e.stopPropagation();
                               setCancelReason('');
+                              setCancelCfdiMotive('03');
                               setCancelModalSale(sale);
                             }}
                             disabled={cancellingId === sale.id}
@@ -705,7 +748,7 @@ export default function PosPage() {
 
                   {/* Product catalog grid */}
                   <div className="flex-grow min-h-0">
-                    <PosProductGrid branchId={effectiveBranchId} priceTypeId={cartPriceTypeId} countryId={branchCountryId} currencySymbol={currencySymbol} currencyCode={currencyCode} />
+                    <PosProductGrid key={cart.customerId || 'public'} branchId={effectiveBranchId} priceTypeId={cartPriceTypeId} countryId={branchCountryId} currencySymbol={currencySymbol} currencyCode={currencyCode} />
                   </div>
                 </div>
               ) : (
@@ -1191,6 +1234,28 @@ export default function PosPage() {
                 <p className="text-sm text-gray-600">
                   Esta acción es <span className="font-semibold text-red-600">irreversible</span>. Se cancelará la venta y se revertirá el inventario.
                 </p>
+
+                {/* CFDI warning — only shown when the sale is stamped */}
+                {cancelModalSale?.invoiceUuid && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-2">
+                    <p className="text-xs font-semibold text-amber-700">Esta venta tiene factura timbrada</p>
+                    <p className="text-xs text-amber-600">Se solicitará la cancelación del CFDI ante el SAT. El receptor deberá aceptarla si aplica.</p>
+                    <div>
+                      <label className="block text-xs font-medium text-amber-700 mb-1">Motivo SAT de cancelación</label>
+                      <select
+                        value={cancelCfdiMotive}
+                        onChange={(e) => setCancelCfdiMotive(e.target.value as '01' | '02' | '03' | '04')}
+                        className="w-full px-2 py-1.5 text-xs border border-amber-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                      >
+                        <option value="03">03 - No se llevó a cabo la operación</option>
+                        <option value="02">02 - Comprobante con errores sin relación</option>
+                        <option value="01">01 - Comprobante con errores con relación</option>
+                        <option value="04">04 - Operación nominativa en factura global</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Motivo de cancelación <span className="text-red-500">*</span>
@@ -1219,8 +1284,12 @@ export default function PosPage() {
                     setCancellingId(cancelModalSale.id);
                     try {
                       const cancelledSaleCustomerId = cancelModalSale.customerId;
-                      await posService.cancelSale(cancelModalSale.id, { cancellationReason: cancelReason.trim() } as CancelSaleInput);
-                      toast.success(`Venta ${cancelModalSale.saleNumber} cancelada`);
+                      const hasInvoice = !!cancelModalSale.invoiceUuid;
+                      await posService.cancelSale(cancelModalSale.id, {
+                        cancellationReason: cancelReason.trim(),
+                        ...(hasInvoice && { cfdiMotive: cancelCfdiMotive }),
+                      });
+                      toast.success(`Venta ${cancelModalSale.saleNumber} cancelada${hasInvoice ? ' — cancelación CFDI enviada al SAT' : ''}`);
                       setCancelModalSale(null);
                       refetchSales();
                       if (cancelledSaleCustomerId) {

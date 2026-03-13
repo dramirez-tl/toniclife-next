@@ -1,7 +1,7 @@
 // components/pos/PosCustomerSelector.tsx - Distributor customer selector for POS
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { UserIcon, XMarkIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { usePosCustomerSearch } from '@/hooks/usePos';
 import { usePosCartStore } from '@/stores/pos-cart.store';
@@ -29,7 +29,10 @@ export function PosCustomerSelector({ prominent = false, countryId, distributorP
   const [searchCustomerNumber, setSearchCustomerNumber] = useState<string | undefined>(undefined);
   const [searchNameFields, setSearchNameFields] = useState<{ firstName?: string; lastName?: string; mothersLastName?: string } | undefined>(undefined);
   const [hasSearched, setHasSearched] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const customerNumberRef = useRef<HTMLInputElement>(null);
+  const resultButtonRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const cart = usePosCartStore((s) => s.cart);
   const setCustomer = usePosCartStore((s) => s.setCustomer);
@@ -37,6 +40,12 @@ export function PosCustomerSelector({ prominent = false, countryId, distributorP
 
   const { data: results, isLoading } = usePosCustomerSearch(searchQuery, searchQuery.length >= 2 || (!!searchCustomerNumber && searchCustomerNumber.length >= 1), searchCustomerNumber, searchNameFields);
   const customers = results?.data || [];
+
+  // Reset focused index when results change
+  useEffect(() => {
+    setFocusedIndex(-1);
+    resultButtonRefs.current = [];
+  }, [customers.length, searchQuery, searchCustomerNumber]);
 
   const refreshPrices = useCallback(async (priceTypeId: string) => {
     const productIds = usePosCartStore.getState().cart.items.map((i) => i.productId);
@@ -106,6 +115,37 @@ export function PosCustomerSelector({ prominent = false, countryId, distributorP
     if (e.key === 'Enter') {
       e.preventDefault();
       handleSearch();
+    } else if (e.key === 'ArrowDown' && customers.length > 0) {
+      e.preventDefault();
+      setFocusedIndex(0);
+      resultButtonRefs.current[0]?.focus();
+    }
+  };
+
+  const handleResultKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number, customer: Customer) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSelect(customer);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = index + 1;
+      if (next < customers.length) {
+        setFocusedIndex(next);
+        resultButtonRefs.current[next]?.focus();
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (index === 0) {
+        setFocusedIndex(-1);
+        customerNumberRef.current?.focus();
+      } else {
+        const prev = index - 1;
+        setFocusedIndex(prev);
+        resultButtonRefs.current[prev]?.focus();
+      }
+    } else if (e.key === 'Escape') {
+      setFocusedIndex(-1);
+      customerNumberRef.current?.focus();
     }
   };
 
@@ -141,6 +181,7 @@ export function PosCustomerSelector({ prominent = false, countryId, distributorP
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">No. Distribuidor</label>
           <input
+            ref={customerNumberRef}
             type="text"
             value={customerNumber}
             onChange={(e) => setCustomerNumber(e.target.value)}
@@ -203,12 +244,14 @@ export function PosCustomerSelector({ prominent = false, countryId, distributorP
           {customers.map((customer, index) => (
             <button
               key={customer.id}
+              ref={(el) => { resultButtonRefs.current[index] = el; }}
               onClick={() => handleSelect(customer)}
-              className={`w-full flex items-center gap-3 p-3 text-left transition-colors hover:bg-gray-50 ${
+              onKeyDown={(e) => handleResultKeyDown(e, index, customer)}
+              className={`w-full flex items-center gap-3 p-3 text-left transition-colors ${
                 index !== customers.length - 1 ? 'border-b' : ''
-              }`}
+              } ${focusedIndex === index ? 'bg-[#C8DDF2]/40 outline-none' : 'hover:bg-gray-50'}`}
             >
-              <UserIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
+              <UserIcon className={`h-5 w-5 flex-shrink-0 ${focusedIndex === index ? 'text-[#3E667D]' : 'text-gray-400'}`} />
               <div className="flex-grow min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">
                   {[customer.firstName, customer.lastName, customer.lastNameMother].filter(Boolean).join(' ')}

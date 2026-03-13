@@ -192,6 +192,15 @@ class PosService {
   }
 
   /**
+   * Get the invoice PDF URL for a stamped sale (opens as blob URL)
+   */
+  async getInvoicePdfUrl(id: string): Promise<string> {
+    const response = await api.get(`/pos/sales/${id}/invoice-pdf`, { responseType: 'blob' });
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    return URL.createObjectURL(blob);
+  }
+
+  /**
    * Update the payment method of a sale (admin/super_admin only)
    */
   async updateSalePaymentMethod(id: string, paymentMethod: string): Promise<Sale> {
@@ -306,11 +315,12 @@ class PosService {
   /**
    * Get product by code (for barcode scanning)
    */
-  async getProductBySku(sku: string, countryId?: string, branchId?: string): Promise<QuickProduct | null> {
+  async getProductBySku(sku: string, countryId?: string, branchId?: string, priceTypeId?: string): Promise<QuickProduct | null> {
     try {
       const params: Record<string, string> = {};
       if (countryId) params.countryId = countryId;
       if (branchId) params.branchId = branchId;
+      if (priceTypeId) params.priceTypeId = priceTypeId;
       const response = await api.get(`/products/code/${sku}`, {
         params: Object.keys(params).length > 0 ? params : undefined,
       });
