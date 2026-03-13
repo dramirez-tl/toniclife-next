@@ -574,15 +574,31 @@ function VentasReportesContent() {
     sortOrder: 'desc',
   }), [selectedBranch, selectedStatus, selectedPaymentMethod, selectedCustomerNumber, dateFrom, dateTo, currentPage, pageSize]);
 
+  // Query separado para stats — mismos filtros, sin paginación
+  const statsQueryParams = useMemo<SaleQueryParams>(() => ({
+    branchId: selectedBranch !== 'all' ? selectedBranch : undefined,
+    status: selectedStatus !== 'all' ? (selectedStatus as PosSaleStatus) : undefined,
+    paymentMethod: selectedPaymentMethod !== 'all' ? (selectedPaymentMethod as PosPaymentMethod) : undefined,
+    customerNumber: selectedCustomerNumber || undefined,
+    fromDate: dateFrom,
+    toDate: dateTo,
+    page: 1,
+    limit: 5000,
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+  }), [selectedBranch, selectedStatus, selectedPaymentMethod, selectedCustomerNumber, dateFrom, dateTo]);
+
   const { data: salesData, isLoading, isFetching } = useSales(queryParams);
+  const { data: statsData, isLoading: isStatsLoading } = useSales(statsQueryParams);
 
   const sales = salesData?.data ?? [];
+  const allFilteredSales = statsData?.data ?? [];
   const totalCount = salesData?.total ?? 0;
 
-  // Summary stats — excluye canceladas/reembolsadas de los totales de monto
+  // Summary stats — calculados sobre TODOS los resultados del filtro (no solo la página actual)
   const pageStats = useMemo(() => {
-    const activeSales = sales.filter(s => s.status !== 'cancelled' && s.status !== 'refunded');
-    const cancelledSales = sales.filter(s => s.status === 'cancelled' || s.status === 'refunded');
+    const activeSales = allFilteredSales.filter(s => s.status !== 'cancelled' && s.status !== 'refunded');
+    const cancelledSales = allFilteredSales.filter(s => s.status === 'cancelled' || s.status === 'refunded');
 
     // Totales activos por moneda
     const totals: Record<string, number> = {};
@@ -615,7 +631,7 @@ function VentasReportesContent() {
       avgTicketMXN,
       currencies: allCurrencies,
     };
-  }, [sales]);
+  }, [allFilteredSales]);
 
   // ================================
   // Table columns
@@ -789,9 +805,9 @@ function VentasReportesContent() {
                 <div>
                   <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Completadas</p>
                   <p className="text-3xl font-bold text-green-600">
-                    {isLoading ? '...' : pageStats.activeCount.toLocaleString()}
+                    {isStatsLoading ? '...' : pageStats.activeCount.toLocaleString()}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">en esta página</p>
+                  <p className="text-xs text-gray-400 mt-1">en filtros actuales</p>
                 </div>
                 <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
                   <CheckCircleIcon className="h-5 w-5 text-green-600" />
@@ -806,9 +822,9 @@ function VentasReportesContent() {
                 <div>
                   <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Canceladas</p>
                   <p className="text-3xl font-bold text-red-500">
-                    {isLoading ? '...' : pageStats.cancelledCount.toLocaleString()}
+                    {isStatsLoading ? '...' : pageStats.cancelledCount.toLocaleString()}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">en esta página</p>
+                  <p className="text-xs text-gray-400 mt-1">en filtros actuales</p>
                 </div>
                 <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
                   <XCircleIcon className="h-5 w-5 text-red-500" />
@@ -823,7 +839,7 @@ function VentasReportesContent() {
                 <div>
                   <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Ticket Promedio</p>
                   <p className="text-2xl font-bold text-purple-600">
-                    {isLoading ? '...' : formatCurrency(pageStats.avgTicketMXN, 'MXN')}
+                    {isStatsLoading ? '...' : formatCurrency(pageStats.avgTicketMXN, 'MXN')}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">MXN · completadas</p>
                 </div>
@@ -836,7 +852,7 @@ function VentasReportesContent() {
         </div>
 
         {/* Stats Cards — Fila 2: montos por moneda */}
-        {!isLoading && pageStats.currencies.length > 0 && (
+        {!isStatsLoading && pageStats.currencies.length > 0 && (
           <div className={`grid gap-4 mb-8 ${pageStats.currencies.length === 1 ? 'grid-cols-1 max-w-sm' : pageStats.currencies.length === 2 ? 'grid-cols-2 max-w-xl' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
             {pageStats.currencies.map((currency) => {
               const active = pageStats.totals[currency] || 0;
@@ -853,7 +869,7 @@ function VentasReportesContent() {
                           {formatCurrency(active, currency)}
                         </p>
                         <p className="text-xs text-gray-400 mt-1">
-                          {pageStats.activeCount} completadas en página
+                          {pageStats.activeCount} completadas en filtros
                         </p>
                         {cancelled > 0 && (
                           <p className="text-xs text-red-400 mt-0.5">
@@ -871,7 +887,7 @@ function VentasReportesContent() {
             })}
           </div>
         )}
-        {isLoading && <div className="h-24 mb-8" />}
+        {isStatsLoading && <div className="h-24 mb-8" />}
 
         {/* Filters */}
         <Card className="mb-6">
