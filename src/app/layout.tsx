@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import { ReduxProvider } from "@/store/provider";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { ReferralCodeCapture } from "@/components/ReferralCodeCapture";
+import { VersionChecker } from "@/components/VersionChecker";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -61,6 +62,7 @@ export default function RootLayout({
         <QueryProvider>
           <ReduxProvider>
             <ReferralCodeCapture />
+            <VersionChecker />
             {children}
           </ReduxProvider>
         </QueryProvider>

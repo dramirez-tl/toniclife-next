@@ -4,6 +4,13 @@ const nextConfig: NextConfig = {
   // Enable standalone output for Docker deployment
   output: 'standalone',
 
+  // Build ID expuesto al cliente para detección de nueva versión
+  env: {
+    NEXT_PUBLIC_BUILD_ID:
+      process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ||
+      new Date().getTime().toString(),
+  },
+
   // Image optimization settings
   images: {
     remotePatterns: [
