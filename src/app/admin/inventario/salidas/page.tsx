@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
@@ -35,6 +35,8 @@ import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { generateMovementTicketPdf } from '@/lib/generate-movement-ticket';
 import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
 
+const formatNumber = (n: number) => new Intl.NumberFormat('es-MX').format(n);
+
 export default function SalidasPage() {
   return <Suspense><SalidasContent /></Suspense>;
 }
@@ -64,8 +66,38 @@ function SalidasContent() {
     limit: 20,
   };
 
+  // Lightweight stats queries (limit:1 → server returns accurate .total)
+  const baseStatsQuery: MovementQueryDto = useMemo(() => ({
+    search: searchQuery || undefined,
+    branchId: branchFilter || undefined,
+    movementType: MovementType.EXIT,
+    limit: 1,
+    page: 1,
+  }), [searchQuery, branchFilter]);
+
+  const appliedStatsQuery: MovementQueryDto = useMemo(() => ({
+    search: searchQuery || undefined,
+    branchId: branchFilter || undefined,
+    movementType: MovementType.EXIT,
+    status: MovementStatus.APPLIED,
+    limit: 1,
+    page: 1,
+  }), [searchQuery, branchFilter]);
+
+  const pendingStatsQuery: MovementQueryDto = useMemo(() => ({
+    search: searchQuery || undefined,
+    branchId: branchFilter || undefined,
+    movementType: MovementType.EXIT,
+    status: MovementStatus.PENDING,
+    limit: 1,
+    page: 1,
+  }), [searchQuery, branchFilter]);
+
   const [searchInput, setSearchInput] = useState(searchQuery);
   const { data: movementsData, isLoading } = useMovements(query);
+  const { data: baseStatsData } = useMovements(baseStatsQuery);
+  const { data: appliedStatsData } = useMovements(appliedStatsQuery);
+  const { data: pendingStatsData } = useMovements(pendingStatsQuery);
 
   const handleSearch = () => {
     setParams({ search: searchInput || '', page: '1' });
@@ -120,9 +152,9 @@ function SalidasContent() {
   };
 
   const stats = {
-    total: movementsData?.total || 0,
-    applied: movementsData?.data.filter(m => m.status === 'applied').length || 0,
-    pending: movementsData?.data.filter(m => m.status === 'pending_approval').length || 0,
+    total: baseStatsData?.total ?? 0,
+    applied: appliedStatsData?.total ?? 0,
+    pending: pendingStatsData?.total ?? 0,
   };
 
   return (
@@ -165,7 +197,7 @@ function SalidasContent() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Total Salidas</p>
-                  <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+                  <p className="text-3xl font-bold text-gray-900">{formatNumber(stats.total)}</p>
                 </div>
                 <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
                   <ArrowUpTrayIcon className="h-6 w-6 text-red-600" />
@@ -178,7 +210,7 @@ function SalidasContent() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Aplicadas</p>
-                  <p className="text-3xl font-bold text-green-600">{stats.applied}</p>
+                  <p className="text-3xl font-bold text-green-600">{formatNumber(stats.applied)}</p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                   <CheckBadgeIcon className="h-6 w-6 text-green-600" />
@@ -191,7 +223,7 @@ function SalidasContent() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Pendientes</p>
-                  <p className="text-3xl font-bold text-yellow-600">{stats.pending}</p>
+                  <p className="text-3xl font-bold text-yellow-600">{formatNumber(stats.pending)}</p>
                 </div>
                 <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
                   <ClockIcon className="h-6 w-6 text-yellow-600" />

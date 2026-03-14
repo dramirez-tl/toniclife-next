@@ -284,6 +284,8 @@ function TimezoneSection({ timezone, onChange }: { timezone: string; onChange: (
 // INITIAL FORM STATE
 // ================================
 
+const formatNumber = (n: number) => new Intl.NumberFormat('es-MX').format(n);
+
 const initialFormState: CreateBranchDto = {
   name: '',
   code: '',
@@ -360,6 +362,23 @@ function SucursalesContent() {
     return params;
   }, [searchQuery, filterCountry, filterType, filterStatus, currentPage, pageSize]);
 
+  // Lightweight stats queries (server-side totals, independent of pagination/filter)
+  const baseStatsParams: BranchQueryParams = useMemo(() => ({
+    search: searchQuery || undefined,
+    countryId: filterCountry !== 'all' ? filterCountry : undefined,
+    limit: 1,
+    page: 1,
+  }), [searchQuery, filterCountry]);
+
+  const activeStatsParams: BranchQueryParams = useMemo(() => ({ ...baseStatsParams, isActive: true }), [baseStatsParams]);
+  const warehouseStatsParams: BranchQueryParams = useMemo(() => ({ ...baseStatsParams, isWarehouse: true }), [baseStatsParams]);
+  const posStatsParams: BranchQueryParams = useMemo(() => ({ ...baseStatsParams, isPosEnabled: true }), [baseStatsParams]);
+
+  const { data: baseStatsData } = useBranches(baseStatsParams);
+  const { data: activeStatsData } = useBranches(activeStatsParams);
+  const { data: warehouseStatsData } = useBranches(warehouseStatsParams);
+  const { data: posStatsData } = useBranches(posStatsParams);
+
   // API Hooks
   const { data: branchesData, isLoading, isFetching, error, refetch } = useBranches(queryParams);
   const createBranch = useCreateBranch();
@@ -389,18 +408,13 @@ function SucursalesContent() {
   const [showPosUserForm, setShowPosUserForm] = useState(false);
   const [posUserForm, setPosUserForm] = useState({ email: '', password: '', firstName: '', lastName: '' });
 
-  // Computed stats
-  const stats = useMemo(() => {
-    if (!branchesData) {
-      return { total: 0, active: 0, warehouses: 0, pos: 0 };
-    }
-    return {
-      total: branchesData.total,
-      active: branchesData.data.filter((b) => b.isActive).length,
-      warehouses: branchesData.data.filter((b) => b.isWarehouse).length,
-      pos: branchesData.data.filter((b) => b.isPosEnabled).length,
-    };
-  }, [branchesData]);
+  // Computed stats (server-side totals)
+  const stats = useMemo(() => ({
+    total: baseStatsData?.total ?? 0,
+    active: activeStatsData?.total ?? 0,
+    warehouses: warehouseStatsData?.total ?? 0,
+    pos: posStatsData?.total ?? 0,
+  }), [baseStatsData, activeStatsData, warehouseStatsData, posStatsData]);
 
   // Handlers
   const handleSearch = () => {
@@ -891,7 +905,7 @@ function SucursalesContent() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Total Sucursales</p>
-                  <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+                  <p className="text-3xl font-bold text-gray-900">{formatNumber(stats.total)}</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                   <BuildingOffice2Icon className="h-6 w-6 text-blue-600" />
@@ -905,7 +919,7 @@ function SucursalesContent() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Activas</p>
-                  <p className="text-3xl font-bold text-green-600">{stats.active}</p>
+                  <p className="text-3xl font-bold text-green-600">{formatNumber(stats.active)}</p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                   <CheckCircleIcon className="h-6 w-6 text-green-600" />
@@ -919,7 +933,7 @@ function SucursalesContent() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Almacenes</p>
-                  <p className="text-3xl font-bold text-amber-600">{stats.warehouses}</p>
+                  <p className="text-3xl font-bold text-amber-600">{formatNumber(stats.warehouses)}</p>
                 </div>
                 <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
                   <CubeIcon className="h-6 w-6 text-amber-600" />
@@ -933,7 +947,7 @@ function SucursalesContent() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Punto de Venta</p>
-                  <p className="text-3xl font-bold text-purple-600">{stats.pos}</p>
+                  <p className="text-3xl font-bold text-purple-600">{formatNumber(stats.pos)}</p>
                 </div>
                 <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
                   <ComputerDesktopIcon className="h-6 w-6 text-purple-600" />

@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState, useCallback, useEffect } from 'react';
+import { Suspense, useState, useMemo, useCallback, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import Link from 'next/link';
 import { selectUser } from '@/store/slices/authSlice';
@@ -36,6 +36,8 @@ import { MovementStatus, type TransferQueryDto, type TransferDto } from '@/types
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
 
+const formatNumber = (n: number) => new Intl.NumberFormat('es-MX').format(n);
+
 export default function TraspasosPage() {
   return <Suspense><TraspasosContent /></Suspense>;
 }
@@ -61,9 +63,49 @@ function TraspasosContent() {
     limit: 20,
   };
 
+  // Lightweight stats queries (limit:1 → server returns accurate .total)
+  const baseStatsQuery: TransferQueryDto = useMemo(() => ({
+    search: searchQuery || undefined,
+    sourceBranchId: sourceBranchFilter || undefined,
+    destinationBranchId: destBranchFilter || undefined,
+    limit: 1,
+    page: 1,
+  }), [searchQuery, sourceBranchFilter, destBranchFilter]);
+
+  const pendingStatsQuery: TransferQueryDto = useMemo(() => ({
+    search: searchQuery || undefined,
+    sourceBranchId: sourceBranchFilter || undefined,
+    destinationBranchId: destBranchFilter || undefined,
+    status: MovementStatus.PENDING,
+    limit: 1,
+    page: 1,
+  }), [searchQuery, sourceBranchFilter, destBranchFilter]);
+
+  const approvedStatsQuery: TransferQueryDto = useMemo(() => ({
+    search: searchQuery || undefined,
+    sourceBranchId: sourceBranchFilter || undefined,
+    destinationBranchId: destBranchFilter || undefined,
+    status: MovementStatus.APPROVED,
+    limit: 1,
+    page: 1,
+  }), [searchQuery, sourceBranchFilter, destBranchFilter]);
+
+  const appliedStatsQuery: TransferQueryDto = useMemo(() => ({
+    search: searchQuery || undefined,
+    sourceBranchId: sourceBranchFilter || undefined,
+    destinationBranchId: destBranchFilter || undefined,
+    status: MovementStatus.APPLIED,
+    limit: 1,
+    page: 1,
+  }), [searchQuery, sourceBranchFilter, destBranchFilter]);
+
   const [searchInput, setSearchInput] = useState(searchQuery);
 
   const { data: transfersData, isLoading } = useTransfers(query);
+  const { data: baseStatsData } = useTransfers(baseStatsQuery);
+  const { data: pendingStatsData } = useTransfers(pendingStatsQuery);
+  const { data: approvedStatsData } = useTransfers(approvedStatsQuery);
+  const { data: appliedStatsData } = useTransfers(appliedStatsQuery);
   const approveTransfer = useApproveTransfer();
   const applyTransfer = useApplyTransfer();
   const rejectTransfer = useRejectTransfer();
@@ -175,12 +217,12 @@ function TraspasosContent() {
     );
   };
 
-  // Stats
+  // Stats using server-side totals from lightweight queries
   const stats = {
-    total: transfersData?.total || 0,
-    pending: transfersData?.data.filter(t => t.status === 'pending_approval').length || 0,
-    approved: transfersData?.data.filter(t => t.status === 'approved').length || 0,
-    applied: transfersData?.data.filter(t => t.status === 'applied').length || 0,
+    total: baseStatsData?.total ?? 0,
+    pending: pendingStatsData?.total ?? 0,
+    approved: approvedStatsData?.total ?? 0,
+    applied: appliedStatsData?.total ?? 0,
   };
 
   return (
@@ -221,7 +263,7 @@ function TraspasosContent() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Total Traspasos</p>
-                  <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+                  <p className="text-3xl font-bold text-gray-900">{formatNumber(stats.total)}</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                   <ArrowsRightLeftIcon className="h-6 w-6 text-blue-600" />
@@ -234,7 +276,7 @@ function TraspasosContent() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Pendientes</p>
-                  <p className="text-3xl font-bold text-yellow-600">{stats.pending}</p>
+                  <p className="text-3xl font-bold text-yellow-600">{formatNumber(stats.pending)}</p>
                 </div>
                 <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
                   <ClockIcon className="h-6 w-6 text-yellow-600" />
@@ -247,7 +289,7 @@ function TraspasosContent() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">En Tránsito</p>
-                  <p className="text-3xl font-bold text-blue-600">{stats.approved}</p>
+                  <p className="text-3xl font-bold text-blue-600">{formatNumber(stats.approved)}</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                   <TruckIcon className="h-6 w-6 text-blue-600" />
@@ -260,7 +302,7 @@ function TraspasosContent() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Aplicados</p>
-                  <p className="text-3xl font-bold text-green-600">{stats.applied}</p>
+                  <p className="text-3xl font-bold text-green-600">{formatNumber(stats.applied)}</p>
                 </div>
                 <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                   <CheckBadgeIcon className="h-6 w-6 text-green-600" />

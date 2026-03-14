@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
@@ -17,6 +18,7 @@ import {
 } from '@/store/slices/customersSlice';
 import { selectUserRoles } from '@/store/slices/authSlice';
 import type { Customer, CustomerStatus } from '@/types/customer';
+import { customersService } from '@/services/customers.service';
 import {
   MagnifyingGlassIcon,
   PlusIcon,
@@ -64,6 +66,8 @@ const COUNTRY_OPTIONS = [
   { value: '6cfc176a-e5e8-4843-8a11-a1a967f2c6b5', label: 'Guatemala' },
 ];
 
+const formatNumber = (n: number) => new Intl.NumberFormat('es-MX').format(n);
+
 export default function DistribuidoresAdminPage() {
   return <Suspense><DistribuidoresContent /></Suspense>;
 }
@@ -102,6 +106,39 @@ function DistribuidoresContent() {
   const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Lightweight stats queries (server-side totals, independent of pagination)
+  const baseStatsParams = useMemo(() => ({
+    search: searchQuery || undefined,
+    countryId: filterCountry !== 'all' ? filterCountry : undefined,
+    limit: 1,
+    page: 1,
+  }), [searchQuery, filterCountry]);
+
+  const activeStatsParams = useMemo(() => ({
+    ...baseStatsParams,
+    status: 'active' as CustomerStatus,
+  }), [baseStatsParams]);
+
+  const distributorStatsParams = useMemo(() => ({
+    ...baseStatsParams,
+    customerType: 'distributor',
+  }), [baseStatsParams]);
+
+  const { data: baseStatsData } = useQuery({
+    queryKey: ['customers', 'stats', 'base', baseStatsParams],
+    queryFn: () => customersService.getAll(baseStatsParams),
+  });
+
+  const { data: activeStatsData } = useQuery({
+    queryKey: ['customers', 'stats', 'active', activeStatsParams],
+    queryFn: () => customersService.getAll(activeStatsParams),
+  });
+
+  const { data: distributorStatsData } = useQuery({
+    queryKey: ['customers', 'stats', 'distributor', distributorStatsParams],
+    queryFn: () => customersService.getAll(distributorStatsParams),
+  });
 
   // Fetch customers on component mount and filter changes
   const loadCustomers = useCallback(() => {
@@ -183,12 +220,12 @@ function DistribuidoresContent() {
     }
   };
 
-  // Calculate stats
+  // Calculate stats (server-side totals)
   const stats = useMemo(() => ({
-    total: pagination.total,
-    active: customers.filter((c) => c.status === 'active').length,
-    distributors: customers.filter((c) => c.customerType === 'distributor').length,
-  }), [customers, pagination.total]);
+    total: baseStatsData?.total ?? pagination.total,
+    active: activeStatsData?.total ?? 0,
+    distributors: distributorStatsData?.total ?? 0,
+  }), [baseStatsData, activeStatsData, distributorStatsData, pagination.total]);
 
   const hasActiveFilters = Boolean(searchQuery || filterType !== 'all' || filterStatus !== 'all' || filterCountry !== 'all' || filterCedea !== 'all');
 
@@ -453,7 +490,7 @@ function DistribuidoresContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Total Registros</p>
-                    <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+                    <p className="text-3xl font-bold text-gray-900">{formatNumber(stats.total)}</p>
                   </div>
                   <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                     <UserGroupIcon className="h-6 w-6 text-blue-600" />
@@ -467,8 +504,7 @@ function DistribuidoresContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Activos</p>
-                    <p className="text-3xl font-bold text-green-600">{stats.active}</p>
-                    <p className="text-xs text-gray-400 mt-1">en esta página</p>
+                    <p className="text-3xl font-bold text-green-600">{formatNumber(stats.active)}</p>
                   </div>
                   <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                     <CheckCircleIcon className="h-6 w-6 text-green-600" />
@@ -482,8 +518,7 @@ function DistribuidoresContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Distribuidores</p>
-                    <p className="text-3xl font-bold text-[#3E667D]">{stats.distributors}</p>
-                    <p className="text-xs text-gray-400 mt-1">en esta página</p>
+                    <p className="text-3xl font-bold text-[#3E667D]">{formatNumber(stats.distributors)}</p>
                   </div>
                   <div className="w-12 h-12 bg-[#3E667D]/10 rounded-full flex items-center justify-center">
                     <UserGroupIcon className="h-6 w-6 text-[#3E667D]" />

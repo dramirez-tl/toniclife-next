@@ -99,6 +99,9 @@ const formatCurrency = (amount: number | string) => {
   }).format(num);
 };
 
+const formatNumber = (n: number) =>
+  new Intl.NumberFormat('es-MX').format(n);
+
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('es-MX', {
     year: 'numeric',
@@ -162,6 +165,24 @@ function PedidosContent() {
     return params;
   }, [currentPage, pageSize, searchQuery, filterStatus, filterBranch, dateFrom, dateTo]);
 
+  // Lightweight stats queries (server-side totals, independent of pagination)
+  const baseStatsParams: OrderQueryParams = useMemo(() => ({
+    limit: 1, page: 1, sortBy: 'createdAt', sortOrder: 'desc' as const,
+    ...(searchQuery && { search: searchQuery }),
+    ...(filterBranch !== 'all' && { branchId: filterBranch }),
+    ...(dateFrom && { dateFrom }),
+    ...(dateTo && { dateTo }),
+  }), [searchQuery, filterBranch, dateFrom, dateTo]);
+
+  const pendingStatsParams: OrderQueryParams = useMemo(() => ({ ...baseStatsParams, status: OrderStatus.PENDING }), [baseStatsParams]);
+  const processingStatsParams: OrderQueryParams = useMemo(() => ({ ...baseStatsParams, status: OrderStatus.PROCESSING }), [baseStatsParams]);
+  const completedStatsParams: OrderQueryParams = useMemo(() => ({ ...baseStatsParams, status: OrderStatus.COMPLETED }), [baseStatsParams]);
+
+  const { data: baseStatsData } = useOrders(baseStatsParams);
+  const { data: pendingStatsData } = useOrders(pendingStatsParams);
+  const { data: processingStatsData } = useOrders(processingStatsParams);
+  const { data: completedStatsData } = useOrders(completedStatsParams);
+
   // API hooks
   const { data: ordersData, isLoading, isFetching, error, refetch } = useOrders(queryParams);
   const updateStatus = useUpdateOrderStatus();
@@ -170,15 +191,13 @@ function PedidosContent() {
   const orders = ordersData?.data || [];
   const totalOrders = ordersData?.total || 0;
 
-  // Stats from current page (note: for accurate global stats, an endpoint would be needed)
-  const stats = useMemo(() => {
-    return {
-      total: totalOrders,
-      pending: orders.filter((o) => o.status === 'pending').length,
-      processing: orders.filter((o) => o.status === 'processing').length,
-      completed: orders.filter((o) => o.status === 'completed').length,
-    };
-  }, [orders, totalOrders]);
+  // Stats (server-side totals)
+  const stats = useMemo(() => ({
+    total: baseStatsData?.total ?? totalOrders,
+    pending: pendingStatsData?.total ?? 0,
+    processing: processingStatsData?.total ?? 0,
+    completed: completedStatsData?.total ?? 0,
+  }), [baseStatsData, pendingStatsData, processingStatsData, completedStatsData, totalOrders]);
 
   const totalRevenue = useMemo(() => {
     return orders
@@ -485,7 +504,7 @@ function PedidosContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Total Pedidos</p>
-                    <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+                    <p className="text-3xl font-bold text-gray-900">{formatNumber(stats.total)}</p>
                   </div>
                   <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                     <ShoppingCartIcon className="h-6 w-6 text-blue-600" />
@@ -499,7 +518,7 @@ function PedidosContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Pendientes</p>
-                    <p className="text-3xl font-bold text-yellow-600">{stats.pending}</p>
+                    <p className="text-3xl font-bold text-yellow-600">{formatNumber(stats.pending)}</p>
                   </div>
                   <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
                     <ClockIcon className="h-6 w-6 text-yellow-600" />
@@ -513,7 +532,7 @@ function PedidosContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Procesando</p>
-                    <p className="text-3xl font-bold text-blue-600">{stats.processing}</p>
+                    <p className="text-3xl font-bold text-blue-600">{formatNumber(stats.processing)}</p>
                   </div>
                   <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                     <TruckIcon className="h-6 w-6 text-blue-600" />
@@ -527,7 +546,7 @@ function PedidosContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Completados</p>
-                    <p className="text-3xl font-bold text-green-600">{stats.completed}</p>
+                    <p className="text-3xl font-bold text-green-600">{formatNumber(stats.completed)}</p>
                   </div>
                   <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                     <CheckCircleIcon className="h-6 w-6 text-green-600" />

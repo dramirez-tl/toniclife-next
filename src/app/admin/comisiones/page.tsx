@@ -424,17 +424,17 @@ function ComisionesContent() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
           <Card>
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm text-gray-600 mb-1">Pendientes de Pago</p>
-                  <p className="text-3xl font-bold text-yellow-600">{pendingCount}</p>
+                  <p className="text-3xl font-bold text-yellow-600 leading-tight">{pendingCount}</p>
                   <p className="text-xs text-gray-500 mt-1">comisiones calculadas</p>
                 </div>
-                <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <ClockIcon className="h-6 w-6 text-yellow-600" />
+                <div className="w-10 h-10 flex-shrink-0 bg-yellow-100 rounded-full flex items-center justify-center">
+                  <ClockIcon className="h-5 w-5 text-yellow-600" />
                 </div>
               </div>
             </CardContent>
@@ -442,14 +442,14 @@ function ComisionesContent() {
 
           <Card>
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm text-gray-600 mb-1">Total Neto</p>
-                  <p className="text-3xl font-bold text-green-600">{formatCurrency(parseFloat(summary?.totalNetMxn || '0'))}</p>
-                  <p className="text-xs text-gray-500 mt-1">{summary?.transactionCount || 0} transacciones</p>
+                  <p className="text-xl font-bold text-green-600 leading-tight">{formatCurrency(parseFloat(summary?.totalNetMxn || '0'))}</p>
+                  <p className="text-xs text-gray-500 mt-1">{new Intl.NumberFormat('es-MX').format(summary?.transactionCount || 0)} transacciones</p>
                 </div>
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <CheckCircleIcon className="h-6 w-6 text-green-600" />
+                <div className="w-10 h-10 flex-shrink-0 bg-green-100 rounded-full flex items-center justify-center">
+                  <CheckCircleIcon className="h-5 w-5 text-green-600" />
                 </div>
               </div>
             </CardContent>
@@ -457,14 +457,14 @@ function ComisionesContent() {
 
           <Card>
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm text-gray-600 mb-1">Total Subtotal</p>
-                  <p className="text-3xl font-bold text-[#3E667D]">{formatCurrency(parseFloat(summary?.totalSubtotalMxn || '0'))}</p>
+                  <p className="text-xl font-bold text-[#3E667D] leading-tight">{formatCurrency(parseFloat(summary?.totalSubtotalMxn || '0'))}</p>
                   <p className="text-xs text-gray-500 mt-1">Período seleccionado</p>
                 </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <BanknotesIcon className="h-6 w-6 text-blue-600" />
+                <div className="w-10 h-10 flex-shrink-0 bg-blue-100 rounded-full flex items-center justify-center">
+                  <BanknotesIcon className="h-5 w-5 text-blue-600" />
                 </div>
               </div>
             </CardContent>
@@ -472,16 +472,16 @@ function ComisionesContent() {
 
           <Card>
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm text-gray-600 mb-1">Total Retenciones</p>
-                  <p className="text-3xl font-bold text-gray-900">
+                  <p className="text-xl font-bold text-gray-900 leading-tight">
                     {formatCurrency(parseFloat(summary?.totalRetentions || '0'))}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">Ret. IVA + ISR + RESICO</p>
                 </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                  <ChartBarIcon className="h-6 w-6 text-purple-600" />
+                <div className="w-10 h-10 flex-shrink-0 bg-purple-100 rounded-full flex items-center justify-center">
+                  <ChartBarIcon className="h-5 w-5 text-purple-600" />
                 </div>
               </div>
             </CardContent>

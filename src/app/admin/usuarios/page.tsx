@@ -38,7 +38,9 @@ import {
   EyeIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
 import { usersService } from '@/services/users.service';
+import { customersService } from '@/services/customers.service';
 import { PermissionGuard } from '@/components/auth';
 import { useAppSelector } from '@/store/hooks';
 import { selectUserRoles } from '@/store/slices/authSlice';
@@ -47,6 +49,8 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 type TabKey = 'users' | 'verification';
+
+const formatNumber = (n: number) => new Intl.NumberFormat('es-MX').format(n);
 
 export default function UsuariosPage() {
   return <Suspense><UsuariosContent /></Suspense>;
@@ -102,8 +106,43 @@ function UsuariosContent() {
     return params;
   }, [searchQuery, customerNumberQuery, filterRole, filterStatus, currentPage, pageSize]);
 
+  // Lightweight stats queries (limit:1 → server returns accurate .total)
+  const baseStatsQuery: UserQueryParams = useMemo(() => {
+    const p: UserQueryParams = { limit: 1, page: 1, sortBy: 'createdAt', sortOrder: 'desc' };
+    if (searchQuery) p.search = searchQuery;
+    if (customerNumberQuery) p.customerNumber = customerNumberQuery;
+    return p;
+  }, [searchQuery, customerNumberQuery]);
+
+  const activeStatsQuery: UserQueryParams = useMemo(() => {
+    const p: UserQueryParams = { limit: 1, page: 1, sortBy: 'createdAt', sortOrder: 'desc', isActive: true };
+    if (searchQuery) p.search = searchQuery;
+    if (customerNumberQuery) p.customerNumber = customerNumberQuery;
+    return p;
+  }, [searchQuery, customerNumberQuery]);
+
+  const distributorStatsParams = useMemo(() => ({
+    customerType: 'distributor',
+    limit: 1,
+    page: 1,
+  }), []);
+
+  const customerStatsQuery: UserQueryParams = useMemo(() => {
+    const p: UserQueryParams = { limit: 1, page: 1, sortBy: 'createdAt', sortOrder: 'desc', role: 'customer' };
+    if (searchQuery) p.search = searchQuery;
+    if (customerNumberQuery) p.customerNumber = customerNumberQuery;
+    return p;
+  }, [searchQuery, customerNumberQuery]);
+
   // API Hooks
   const { data: usersData, isLoading, isFetching, error, refetch } = useUsers(queryParams);
+  const { data: baseStatsData } = useUsers(baseStatsQuery);
+  const { data: activeStatsData } = useUsers(activeStatsQuery);
+  const { data: distributorStatsData } = useQuery({
+    queryKey: ['customers', 'stats', 'distributor', distributorStatsParams],
+    queryFn: () => customersService.getAll(distributorStatsParams),
+  });
+  const { data: customerStatsData } = useUsers(customerStatsQuery);
   const { data: rolesData } = useRoles();
   const createUser = useCreateUser();
   const updateUser = useUpdateUser();
@@ -112,22 +151,13 @@ function UsuariosContent() {
   const hardDeleteUser = useHardDeleteUser();
   const resetEmailVerification = useResetEmailVerification();
 
-  // Computed stats
-  const stats = useMemo(() => {
-    if (!usersData) {
-      return { total: 0, active: 0, distributors: 0, customers: 0 };
-    }
-    return {
-      total: usersData.total,
-      active: usersData.data.filter((u) => u.isActive).length,
-      distributors: usersData.data.filter((u) =>
-        u.role?.code === 'distributor'
-      ).length,
-      customers: usersData.data.filter((u) =>
-        u.role?.code === 'customer'
-      ).length,
-    };
-  }, [usersData]);
+  // Computed stats using server-side totals from lightweight queries
+  const stats = useMemo(() => ({
+    total: baseStatsData?.total ?? 0,
+    active: activeStatsData?.total ?? 0,
+    distributors: distributorStatsData?.total ?? 0,
+    customers: customerStatsData?.total ?? 0,
+  }), [baseStatsData, activeStatsData, distributorStatsData, customerStatsData]);
 
   // Handlers
   const handleActivateUser = async (userId: string) => {
@@ -556,7 +586,7 @@ function UsuariosContent() {
                     {initialLoad ? (
                       <div className="h-9 w-16 animate-pulse rounded bg-gray-200" />
                     ) : (
-                      <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
+                      <p className={`text-3xl font-bold ${stat.color}`}>{formatNumber(stat.value)}</p>
                     )}
                   </div>
                   <div className={`w-12 h-12 ${stat.bgColor} rounded-full flex items-center justify-center`}>

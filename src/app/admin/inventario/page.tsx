@@ -31,6 +31,8 @@ import { PermissionGuard } from '@/components/auth';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { DEFAULT_TIMEZONE } from '@/lib/timezone-utils';
 
+const formatNumber = (n: number) => new Intl.NumberFormat('es-MX').format(n);
+
 export default function InventarioPage() {
   return <Suspense><InventarioContent /></Suspense>;
 }
@@ -72,7 +74,34 @@ function InventarioContent() {
     limit: pageSize,
   }), [searchQuery, skuQuery, filterStock, currentPage, pageSize]);
 
+  // Lightweight stats queries (limit:1 → server returns accurate .total)
+  const baseStatsQuery: BranchStockQueryDto = useMemo(() => ({
+    search: searchQuery || undefined,
+    code: skuQuery || undefined,
+    limit: 1,
+    page: 1,
+  }), [searchQuery, skuQuery]);
+
+  const lowStatsQuery: BranchStockQueryDto = useMemo(() => ({
+    search: searchQuery || undefined,
+    code: skuQuery || undefined,
+    lowStock: true,
+    limit: 1,
+    page: 1,
+  }), [searchQuery, skuQuery]);
+
+  const outStatsQuery: BranchStockQueryDto = useMemo(() => ({
+    search: searchQuery || undefined,
+    code: skuQuery || undefined,
+    outOfStock: true,
+    limit: 1,
+    page: 1,
+  }), [searchQuery, skuQuery]);
+
   const { data: stockData, isLoading, isFetching, error, refetch } = useBranchStock(selectedBranch, query);
+  const { data: baseStatsData } = useBranchStock(selectedBranch, baseStatsQuery);
+  const { data: lowStatsData } = useBranchStock(selectedBranch, lowStatsQuery);
+  const { data: outStatsData } = useBranchStock(selectedBranch, outStatsQuery);
 
   const stockItems = stockData?.data ?? [];
   const totalItems = stockData?.total ?? 0;
@@ -210,13 +239,18 @@ function InventarioContent() {
     }
   }, [selectedBranch, searchQuery, skuQuery, filterStock]);
 
-  // Stats from current page data
-  const stats = useMemo(() => ({
-    totalProducts: totalItems,
-    normalStock: stockItems.filter(p => !p.isLowStock && p.quantityAvailable > 0).length,
-    lowStock: stockItems.filter(p => p.isLowStock && p.quantityAvailable > 0).length,
-    outOfStock: stockItems.filter(p => p.quantityAvailable === 0).length,
-  }), [totalItems, stockItems]);
+  // Stats using server-side totals from lightweight queries (independent of stock filter/pagination)
+  const stats = useMemo(() => {
+    const total = baseStatsData?.total ?? 0;
+    const low = lowStatsData?.total ?? 0;
+    const out = outStatsData?.total ?? 0;
+    return {
+      totalProducts: total,
+      lowStock: low,
+      outOfStock: out,
+      normalStock: Math.max(0, total - low - out),
+    };
+  }, [baseStatsData, lowStatsData, outStatsData]);
 
   const formatDateTime = (date: string | undefined) => {
     if (!date) return '-';
@@ -440,7 +474,7 @@ function InventarioContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Total Productos</p>
-                    <p className="text-3xl font-bold text-gray-900">{stats.totalProducts.toLocaleString()}</p>
+                    <p className="text-3xl font-bold text-gray-900">{formatNumber(stats.totalProducts)}</p>
                   </div>
                   <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                     <CubeIcon className="h-6 w-6 text-blue-600" />
@@ -454,7 +488,7 @@ function InventarioContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Existencias Normales</p>
-                    <p className="text-3xl font-bold text-green-600">{stats.normalStock}</p>
+                    <p className="text-3xl font-bold text-green-600">{formatNumber(stats.normalStock)}</p>
                   </div>
                   <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                     <CheckCircleIcon className="h-6 w-6 text-green-600" />
@@ -468,7 +502,7 @@ function InventarioContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Existencias Bajas</p>
-                    <p className="text-3xl font-bold text-yellow-600">{stats.lowStock}</p>
+                    <p className="text-3xl font-bold text-yellow-600">{formatNumber(stats.lowStock)}</p>
                   </div>
                   <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
                     <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600" />
@@ -482,7 +516,7 @@ function InventarioContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Sin Existencias</p>
-                    <p className="text-3xl font-bold text-red-600">{stats.outOfStock}</p>
+                    <p className="text-3xl font-bold text-red-600">{formatNumber(stats.outOfStock)}</p>
                   </div>
                   <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
                     <XCircleIcon className="h-6 w-6 text-red-600" />

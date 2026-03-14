@@ -32,6 +32,8 @@ import { PermissionGuard } from '@/components/auth';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 
+const formatNumber = (n: number) => new Intl.NumberFormat('es-MX').format(n);
+
 export default function ProductosPage() {
   return (
     <Suspense fallback={<ProductosSkeleton />}>
@@ -123,21 +125,42 @@ function ProductosContent() {
     return params;
   }, [searchQuery, filterCode, filterCategoryId, filterStatus, currentPage, pageSize]);
 
+  // Lightweight stats queries (limit:1 → server returns accurate .total for filters)
+  const activeStatsParams: ProductQueryParams = useMemo(() => {
+    const p: ProductQueryParams = { sortBy: 'createdAt', sortDir: 'desc', limit: 1, page: 1, isActive: true };
+    if (searchQuery) p.search = searchQuery;
+    if (filterCode) p.sku = filterCode;
+    if (filterCategoryId) p.categoryId = filterCategoryId;
+    return p;
+  }, [searchQuery, filterCode, filterCategoryId]);
+
+  const featuredStatsParams: ProductQueryParams = useMemo(() => {
+    const p: ProductQueryParams = { sortBy: 'createdAt', sortDir: 'desc', limit: 1, page: 1, isFeatured: true };
+    if (searchQuery) p.search = searchQuery;
+    if (filterCode) p.sku = filterCode;
+    if (filterCategoryId) p.categoryId = filterCategoryId;
+    if (filterStatus === 'active') p.isActive = true;
+    if (filterStatus === 'inactive') p.isActive = false;
+    return p;
+  }, [searchQuery, filterCode, filterCategoryId, filterStatus]);
+
   // Fetch products and categories
   const { data: productsData, isLoading, isFetching, isError, refetch } = useProducts(queryParams);
+  const { data: activeStatsData } = useProducts(activeStatsParams);
+  const { data: featuredStatsData } = useProducts(featuredStatsParams);
   const { data: categories } = useCategories({ isActive: true });
   const deleteProduct = useDeleteProduct();
 
   const products = productsData?.data ?? [];
   const total = productsData?.total ?? 0;
 
-  // Calculate stats
+  // Calculate stats using server-side totals from lightweight queries
   const stats = useMemo(() => ({
     total,
-    active: products.filter(p => p.isActive).length,
-    featured: products.filter(p => p.isFeatured).length,
+    active: filterStatus === 'active' ? total : filterStatus === 'inactive' ? 0 : (activeStatsData?.total ?? 0),
+    featured: featuredStatsData?.total ?? 0,
     categories: categories?.length ?? 0,
-  }), [products, total, categories]);
+  }), [total, activeStatsData, featuredStatsData, categories, filterStatus]);
 
   const hasActiveFilters = Boolean(searchQuery || filterCode || filterCategoryId || filterStatus !== 'all');
 
@@ -575,7 +598,7 @@ function ProductosContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Total Productos</p>
-                    <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+                    <p className="text-3xl font-bold text-gray-900">{formatNumber(stats.total)}</p>
                   </div>
                   <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                     <CubeIcon className="h-6 w-6 text-blue-600" />
@@ -589,7 +612,7 @@ function ProductosContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Productos Activos</p>
-                    <p className="text-3xl font-bold text-green-600">{stats.active}</p>
+                    <p className="text-3xl font-bold text-green-600">{formatNumber(stats.active)}</p>
                   </div>
                   <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                     <CheckCircleIcon className="h-6 w-6 text-green-600" />
@@ -603,7 +626,7 @@ function ProductosContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Destacados</p>
-                    <p className="text-3xl font-bold text-yellow-600">{stats.featured}</p>
+                    <p className="text-3xl font-bold text-yellow-600">{formatNumber(stats.featured)}</p>
                   </div>
                   <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
                     <TagIcon className="h-6 w-6 text-yellow-600" />
@@ -617,7 +640,7 @@ function ProductosContent() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600 mb-1">Categorías</p>
-                    <p className="text-3xl font-bold text-purple-600">{stats.categories}</p>
+                    <p className="text-3xl font-bold text-purple-600">{formatNumber(stats.categories)}</p>
                   </div>
                   <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
                     <FunnelIcon className="h-6 w-6 text-purple-600" />
