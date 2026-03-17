@@ -10,6 +10,8 @@ import type {
   CustomerReportQuery,
   AttendanceReportQuery,
   AnalyticsQuery,
+  ProductByPeriodQuery,
+  SalesByUserQuery,
 } from '@/types/reports';
 
 // ================================
@@ -146,5 +148,31 @@ export function useAnalytics(query: AnalyticsQuery) {
     queryFn: () => reportsService.getAnalytics(query),
     enabled: !!query.startDate && !!query.endDate,
     staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+}
+
+// ================================
+// PRODUCT BY PERIOD REPORT
+// ================================
+
+export function useSalesByProductPeriod(query: ProductByPeriodQuery) {
+  return useQuery({
+    queryKey: ['reports', 'sales', 'by-product-period', query.periodIds],
+    queryFn: () => reportsService.getSalesByProductPeriod(query),
+    enabled: query.periodIds.length > 0,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+// ================================
+// SALES BY USER (CALL CENTER) REPORT
+// ================================
+
+export function useSalesByUser(query: SalesByUserQuery) {
+  return useQuery({
+    queryKey: ['reports', 'sales', 'by-user', query],
+    queryFn: () => reportsService.getSalesByUser(query),
+    enabled: !!query.startDate && !!query.endDate,
+    staleTime: 1000 * 60 * 5,
   });
 }

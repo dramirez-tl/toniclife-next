@@ -23,6 +23,10 @@ import type {
   DashboardKPIs,
   AnalyticsQuery,
   AnalyticsResponse,
+  ProductByPeriodQuery,
+  ProductByPeriodResponse,
+  SalesByUserQuery,
+  SalesByUserResponse,
 } from '@/types/reports';
 
 class ReportsService {
@@ -222,6 +226,38 @@ class ReportsService {
 
     const response = await api.get<AnalyticsResponse>(
       `/reports/analytics?${params.toString()}`
+    );
+    return response.data;
+  }
+  // ================================
+  // PRODUCT BY PERIOD REPORT
+  // ================================
+
+  async getSalesByProductPeriod(query: ProductByPeriodQuery): Promise<ProductByPeriodResponse> {
+    const params = new URLSearchParams();
+    for (const id of query.periodIds) {
+      params.append('periodIds', id);
+    }
+    const response = await api.get<ProductByPeriodResponse>(
+      `/reports/sales/by-product-period?${params.toString()}`
+    );
+    return response.data;
+  }
+  // ================================
+  // SALES BY USER (CALL CENTER) REPORT
+  // ================================
+
+  async getSalesByUser(query: SalesByUserQuery): Promise<SalesByUserResponse> {
+    const params = new URLSearchParams();
+    params.append('startDate', query.startDate);
+    params.append('endDate', query.endDate);
+    if (query.sellerIds) {
+      for (const id of query.sellerIds) {
+        params.append('sellerIds', id);
+      }
+    }
+    const response = await api.get<SalesByUserResponse>(
+      `/reports/sales/by-user?${params.toString()}`
     );
     return response.data;
   }

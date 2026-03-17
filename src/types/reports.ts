@@ -74,6 +74,10 @@ export interface BranchSales {
   branchId: string;
   branchName: string;
   totalSales: number;
+  totalMxn: number;
+  totalUsd: number;
+  totalCop: number;
+  totalGtq: number;
   orderCount: number;
   averageTicket: number;
 }
@@ -364,4 +368,66 @@ export interface AnalyticsResponse {
   topDistributors: TopDistributor[];
   categoryPerformance: CategoryPerformance[];
   kpis: AnalyticsKPIs;
+}
+
+// ================================
+// PRODUCT BY PERIOD REPORT
+// ================================
+
+export interface ProductByPeriodQuery {
+  periodIds: string[];
+}
+
+export interface ProductPeriodQuantity {
+  periodId: string;
+  periodName: string;
+  quantity: number;
+}
+
+export interface ProductBranchPeriodRow {
+  sku: string;
+  productName: string;
+  branchName: string;
+  currencyCode: string;
+  periods: ProductPeriodQuantity[];
+}
+
+export interface ProductByPeriodResponse {
+  periodColumns: { id: string; name: string }[];
+  rows: ProductBranchPeriodRow[];
+}
+
+// ================================
+// SALES BY USER (CALL CENTER) REPORT
+// ================================
+
+export interface SalesByUserQuery {
+  startDate: string;
+  endDate: string;
+  sellerIds?: string[];
+}
+
+export interface SaleByUserRow {
+  date: string;
+  saleNumber: string;
+  branchName: string;
+  currencyCode: string;
+  customerId: string;
+  customerName: string;
+  sellerUsername: string;
+  sellerName: string;
+  total: number;
+  totalUsd: number;
+}
+
+export interface SalesByUserSummary {
+  totalSales: number;
+  totalDocuments: number;
+  averageTicket: number;
+  totalUsd: number;
+}
+
+export interface SalesByUserResponse {
+  summary: SalesByUserSummary;
+  rows: SaleByUserRow[];
 }
