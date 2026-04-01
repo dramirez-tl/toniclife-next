@@ -78,6 +78,15 @@ function UsuariosContent() {
 
   const [searchInput, setSearchInput] = useState(searchQuery);
   const [customerNumberInput, setCustomerNumberInput] = useState(customerNumberQuery);
+
+  // Sync input fields when URL params change (e.g. navigating from verification tab)
+  useEffect(() => {
+    setSearchInput(searchQuery);
+  }, [searchQuery]);
+  useEffect(() => {
+    setCustomerNumberInput(customerNumberQuery);
+  }, [customerNumberQuery]);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
@@ -1025,6 +1034,20 @@ function EmailVerificationTab() {
             })}
           </span>
         </div>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Acciones',
+      render: (u) => (
+        <Link
+          href={`/admin/usuarios?search=${encodeURIComponent(u.email)}`}
+          className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-[#3E667D]/30 hover:text-[#3E667D] transition-all"
+          title="Ver en listado de usuarios"
+        >
+          <EyeIcon className="h-3.5 w-3.5" />
+          Ver usuario
+        </Link>
       ),
     },
   ], []);

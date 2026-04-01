@@ -29,6 +29,7 @@ import {
   XMarkIcon,
   RocketLaunchIcon,
   ReceiptPercentIcon,
+  AcademicCapIcon,
 } from '@heroicons/react/24/outline';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutAsync, selectUser, selectUserPermissions } from '@/store/slices/authSlice';
@@ -64,7 +65,16 @@ const navigation: NavItem[] = [
       { name: 'Ajustes', href: '/admin/inventario/ajustes' },
     ],
   },
-  { name: 'Comisiones', href: '/admin/comisiones', icon: CurrencyDollarIcon, permissions: ['commissions', 'commissions.history'] },
+  {
+    name: 'Tesorería',
+    href: '/admin/tesoreria',
+    icon: CurrencyDollarIcon,
+    permissions: ['commissions', 'commissions.history', 'customers:read'],
+    children: [
+      { name: 'Comisiones', href: '/admin/comisiones' },
+      { name: 'Validación de Datos', href: '/admin/tesoreria/validacion-datos' },
+    ],
+  },
   {
     name: 'MLM',
     href: '/admin/mlm',
@@ -114,6 +124,15 @@ const navigation: NavItem[] = [
       { name: 'Asistencia', href: '/admin/rrhh/asistencia' },
       { name: 'Vacaciones', href: '/admin/rrhh/vacaciones' },
       { name: 'Viáticos', href: '/admin/rrhh/viaticos' },
+    ],
+  },
+  {
+    name: 'Comercial',
+    href: '/admin/comercial',
+    icon: AcademicCapIcon,
+    permissions: ['config', 'customers:read'],
+    children: [
+      { name: 'Capacitación', href: '/admin/comercial/capacitacion' },
     ],
   },
   { name: 'Cupones', href: '/admin/cupones', icon: TagIcon, permissions: ['customers.promos', 'config'] },

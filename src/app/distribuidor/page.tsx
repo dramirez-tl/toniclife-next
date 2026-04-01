@@ -25,6 +25,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { usePaymentData } from '@/hooks/usePaymentData';
 import {
   useDistributorDashboard,
   useCopyReferralLink,
@@ -101,6 +102,7 @@ export default function DistribuidorDashboard() {
 
   const copyLinkMutation = useCopyReferralLink();
   const shareLinkMutation = useShareReferralLink();
+  const { data: paymentData } = usePaymentData();
 
   // Extraer el código de referido del perfil
   const referralCode = useMemo(() => {
@@ -409,6 +411,29 @@ export default function DistribuidorDashboard() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Payment Data Incomplete Banner */}
+      {paymentData && paymentData.overallStatus === 'incomplete' && (
+        <Link
+          href="/distribuidor/pagos"
+          className="block rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4 hover:shadow-md transition-shadow group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+              <ExclamationTriangleIcon className="h-5 w-5 text-amber-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-amber-800">
+                Completa tus datos para recibir comisiones
+              </p>
+              <p className="text-xs text-amber-600 mt-0.5">
+                Necesitamos tu información fiscal y bancaria para poder depositarte. Haz clic aquí para completar tu información.
+              </p>
+            </div>
+            <ChevronRightIcon className="h-5 w-5 text-amber-400 group-hover:text-amber-600 transition-colors flex-shrink-0" />
+          </div>
+        </Link>
       )}
 
       {/* Stats Cards */}

@@ -184,6 +184,31 @@ class CustomersService {
     const response = await api.get(`${this.basePath}/${id}/referral-info`);
     return response.data;
   }
+
+  // ===== Payment Readiness (Admin) =====
+
+  async getPaymentReadinessList(params?: {
+    status?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<any> {
+    const response = await api.get(`${this.basePath}/payment-readiness/list`, { params });
+    return response.data;
+  }
+
+  async getPaymentReadiness(customerId: string): Promise<import('@/types/payment-data').PaymentReadinessResponse> {
+    const response = await api.get(`${this.basePath}/${customerId}/payment-readiness`);
+    return response.data;
+  }
+
+  async validateDocuments(
+    customerId: string,
+    validations: import('@/types/payment-data').DocumentValidation[],
+  ): Promise<{ success: boolean; documentsValidated: boolean }> {
+    const response = await api.post(`${this.basePath}/${customerId}/validate-documents`, { validations });
+    return response.data;
+  }
 }
 
 export const customersService = new CustomersService();

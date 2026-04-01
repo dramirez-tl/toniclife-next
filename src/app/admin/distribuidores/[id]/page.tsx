@@ -14,6 +14,10 @@ import {
 } from '@/store/slices/customersSlice';
 import { CustomerStatus } from '@/types/customer';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { customersService } from '@/services/customers.service';
+import { toast } from 'sonner';
+import type { PaymentReadinessItem, DocumentValidation } from '@/types/payment-data';
 import {
   ArrowLeftIcon,
   UserIcon,
@@ -29,6 +33,9 @@ import {
   ClockIcon,
   ExclamationTriangleIcon,
   UserGroupIcon,
+  ShieldCheckIcon,
+  DocumentArrowUpIcon,
+  EyeIcon,
 } from '@heroicons/react/24/outline';
 
 const statusColors: Record<string, string> = {
@@ -376,6 +383,11 @@ export default function DetalleDistribuidorPage() {
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Payment Readiness */}
+            {customer.customerType === 'distributor' && (
+              <PaymentReadinessSection customerId={customer.id} />
+            )}
+
             {/* Info MLM */}
             {customer.customerType === 'distributor' && (
               <div className="bg-white rounded-lg shadow p-6">
@@ -482,6 +494,209 @@ export default function DetalleDistribuidorPage() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ===== PAYMENT READINESS SECTION =====
+
+function PaymentReadinessSection({ customerId }: { customerId: string }) {
+  const queryClient = useQueryClient();
+  const [rejectField, setRejectField] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+
+  const { data: readiness, isLoading } = useQuery({
+    queryKey: ['customer', customerId, 'payment-readiness'],
+    queryFn: () => customersService.getPaymentReadiness(customerId),
+  });
+
+  const validateMutation = useMutation({
+    mutationFn: (validations: DocumentValidation[]) =>
+      customersService.validateDocuments(customerId, validations),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['customer', customerId, 'payment-readiness'] });
+      toast.success(result.documentsValidated ? 'Todos los documentos validados' : 'Validación actualizada');
+      setRejectField(null);
+      setRejectReason('');
+    },
+    onError: () => toast.error('Error al validar documentos'),
+  });
+
+  const handleApprove = (field: string) => {
+    validateMutation.mutate([{ field, approved: true }]);
+  };
+
+  const handleReject = (field: string) => {
+    if (!rejectReason.trim()) {
+      toast.error('Ingresa un motivo de rechazo');
+      return;
+    }
+    validateMutation.mutate([{ field, approved: false, rejectionReason: rejectReason }]);
+  };
+
+  const handleApproveAll = () => {
+    const docItems = readiness?.items.filter(
+      (i) => i.url && (i.status === 'uploaded' || i.status === 'rejected'),
+    );
+    if (!docItems?.length) return;
+    const validations = docItems.map((i) => {
+      const fieldMap: Record<string, string> = { ineDocument: 'ine', taxIdDocument: 'taxId', bankStatement: 'bankStatement' };
+      return { field: fieldMap[i.field] || i.field, approved: true };
+    });
+    validateMutation.mutate(validations);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="animate-pulse space-y-3">
+          <div className="h-5 w-48 bg-gray-200 rounded" />
+          <div className="space-y-2">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-8 bg-gray-200 rounded" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!readiness) return null;
+
+  const statusIcon = (status: string) => {
+    switch (status) {
+      case 'complete':
+      case 'validated':
+        return <CheckCircleIcon className="h-4 w-4 text-emerald-500" />;
+      case 'uploaded':
+        return <ClockIcon className="h-4 w-4 text-amber-500" />;
+      case 'rejected':
+        return <XCircleIcon className="h-4 w-4 text-red-500" />;
+      default:
+        return <ExclamationTriangleIcon className="h-4 w-4 text-gray-300" />;
+    }
+  };
+
+  const docFields = ['ineDocument', 'taxIdDocument', 'bankStatement'];
+  const pendingDocs = readiness.items.filter(
+    (i) => docFields.includes(i.field) && i.status === 'uploaded',
+  );
+
+  return (
+    <div className="bg-white rounded-lg shadow p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <DocumentArrowUpIcon className="h-5 w-5" />
+          Documentos para Pago
+        </h2>
+        {readiness.overallReady ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-medium text-emerald-700">
+            <ShieldCheckIcon className="h-3.5 w-3.5" />
+            Listo
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-1 text-xs font-medium text-amber-700">
+            <ExclamationTriangleIcon className="h-3.5 w-3.5" />
+            Incompleto
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        {readiness.items.map((item) => (
+          <div key={item.field} className="flex items-start gap-2 py-1.5">
+            {statusIcon(item.status)}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-gray-700">{item.label}</p>
+              {item.value && (
+                <p className="text-xs text-gray-400 font-mono truncate">{item.value}</p>
+              )}
+              {item.status === 'rejected' && item.rejectionReason && (
+                <p className="text-xs text-red-500 mt-0.5">Rechazado: {item.rejectionReason}</p>
+              )}
+              {/* Document action buttons */}
+              {item.url && docFields.includes(item.field) && (
+                <div className="flex items-center gap-2 mt-1">
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-[#3E667D] hover:underline flex items-center gap-0.5"
+                  >
+                    <EyeIcon className="h-3 w-3" />
+                    Ver
+                  </a>
+                  {(item.status === 'uploaded' || item.status === 'rejected') && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const fieldMap: Record<string, string> = { ineDocument: 'ine', taxIdDocument: 'taxId', bankStatement: 'bankStatement' };
+                          handleApprove(fieldMap[item.field] || item.field);
+                        }}
+                        disabled={validateMutation.isPending}
+                        className="text-xs text-emerald-600 hover:text-emerald-800 font-medium"
+                      >
+                        Validar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRejectField(item.field)}
+                        disabled={validateMutation.isPending}
+                        className="text-xs text-red-600 hover:text-red-800 font-medium"
+                      >
+                        Rechazar
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+              {/* Rejection reason input */}
+              {rejectField === item.field && (
+                <div className="mt-2 flex gap-2">
+                  <input
+                    type="text"
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="Motivo del rechazo..."
+                    className="flex-1 rounded border border-gray-300 px-2 py-1 text-xs focus:border-red-400 focus:ring-1 focus:ring-red-400 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const fieldMap: Record<string, string> = { ineDocument: 'ine', taxIdDocument: 'taxId', bankStatement: 'bankStatement' };
+                      handleReject(fieldMap[item.field] || item.field);
+                    }}
+                    disabled={validateMutation.isPending}
+                    className="rounded bg-red-600 px-2 py-1 text-xs text-white hover:bg-red-700"
+                  >
+                    Confirmar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setRejectField(null); setRejectReason(''); }}
+                    className="text-xs text-gray-500 hover:text-gray-700"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Bulk approve button */}
+      {pendingDocs.length > 0 && (
+        <button
+          type="button"
+          onClick={handleApproveAll}
+          disabled={validateMutation.isPending}
+          className="mt-4 w-full rounded-lg bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+        >
+          {validateMutation.isPending ? 'Validando...' : `Validar todos (${pendingDocs.length} documentos)`}
+        </button>
+      )}
     </div>
   );
 }

@@ -1,694 +1,736 @@
 'use client';
 
-import { useState, Suspense } from 'react';
-import Link from 'next/link';
-import { useQueryFilters } from '@/hooks/useQueryFilters';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { useState, useCallback } from 'react';
+import { toast } from 'sonner';
 import {
+  DocumentTextIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+  ClockIcon,
+  ArrowDownTrayIcon,
   BanknotesIcon,
   CreditCardIcon,
-  CalendarIcon,
-  CheckCircleIcon,
-  ClockIcon,
-  XCircleIcon,
-  PlusIcon,
-  ArrowDownTrayIcon,
-  DocumentTextIcon,
-  PencilIcon,
-  TrashIcon,
+  ShieldCheckIcon,
+  InformationCircleIcon,
+  LockClosedIcon,
+  BuildingLibraryIcon,
+  IdentificationIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
-import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import { toast } from 'sonner';
+import { Card, CardContent } from '@/components/ui/Card';
+import { FileUpload } from '@/components/ui/FileUpload';
+import { usePaymentData, useUpdatePaymentData, useCommissionPayments } from '@/hooks/usePaymentData';
+import type { CommissionPayment } from '@/types/payment-data';
 
-const mockPaymentMethods = [
-  {
-    id: '1',
-    type: 'bank',
-    bank: 'BBVA Bancomer',
-    accountNumber: '****7890',
-    accountHolder: 'María García López',
-    clabe: '012180015123456789',
-    isDefault: true,
-    verified: true,
-  },
-  {
-    id: '2',
-    type: 'paypal',
-    email: 'maria.garcia@email.com',
-    verified: true,
-    isDefault: false,
-  },
-];
+// ===== HELPERS =====
 
-const mockWithdrawals = [
-  {
-    id: '1',
-    date: '2025-01-20',
-    amount: 8500,
-    method: 'BBVA Bancomer ****7890',
-    status: 'completed',
-    reference: 'WD-2025-001',
-    processedDate: '2025-01-21',
-  },
-  {
-    id: '2',
-    date: '2025-01-05',
-    amount: 6200,
-    method: 'BBVA Bancomer ****7890',
-    status: 'completed',
-    reference: 'WD-2025-002',
-    processedDate: '2025-01-06',
-  },
-  {
-    id: '3',
-    date: '2024-12-20',
-    amount: 7800,
-    method: 'BBVA Bancomer ****7890',
-    status: 'completed',
-    reference: 'WD-2024-125',
-    processedDate: '2024-12-21',
-  },
-  {
-    id: '4',
-    date: '2024-12-05',
-    amount: 5500,
-    method: 'PayPal',
-    status: 'completed',
-    reference: 'WD-2024-098',
-    processedDate: '2024-12-06',
-  },
-];
+const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3001';
 
-const mockPendingPayments = [
-  {
-    id: '1',
-    period: 'Enero 2025',
-    amount: 12500,
-    paymentDate: '2025-02-05',
-    type: 'commission',
-    description: 'Comisiones personales + equipo',
-  },
-  {
-    id: '2',
-    period: 'Enero 2025',
-    amount: 2500,
-    paymentDate: '2025-02-05',
-    type: 'bonus',
-    description: 'Bono de rango Diamante',
-  },
-];
-
-const statusConfig = {
-  completed: { label: 'Completado', color: 'bg-green-100 text-green-800', icon: CheckCircleIcon },
-  pending: { label: 'Pendiente', color: 'bg-yellow-100 text-yellow-800', icon: ClockIcon },
-  processing: { label: 'Procesando', color: 'bg-blue-100 text-blue-800', icon: ClockIcon },
-  failed: { label: 'Fallido', color: 'bg-red-100 text-red-800', icon: XCircleIcon },
-};
-
-export default function PagosPage() {
-  return <Suspense><PagosContent /></Suspense>;
+function resolveDocUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  return `${API_BASE}${url}`;
 }
 
-function PagosContent() {
-  const [paymentMethods, setPaymentMethods] = useState(mockPaymentMethods);
-  const [showAddMethodModal, setShowAddMethodModal] = useState(false);
-  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-  const { get, setParams } = useQueryFilters({ status: 'all' });
-  const filterStatus = get('status');
+function isPdf(url: string): boolean {
+  const path = url.split('?')[0];
+  return /\.pdf/i.test(path) || path.includes('constancia');
+}
 
-  const availableBalance = 15000;
-  const totalWithdrawn = mockWithdrawals.reduce((sum, w) => sum + w.amount, 0);
-  const pendingAmount = mockPendingPayments.reduce((sum, p) => sum + p.amount, 0);
+// ===== TOOLTIP COMPONENT =====
 
-  const handleSetDefault = (methodId: string) => {
-    setPaymentMethods(methods =>
-      methods.map(m => ({
-        ...m,
-        isDefault: m.id === methodId,
-      }))
+function Tooltip({ text, children }: { text: string; children: React.ReactNode }) {
+  return (
+    <span className="relative group/tip inline-flex">
+      {children}
+      <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 rounded-lg bg-gray-900 px-3 py-2 text-[11px] leading-relaxed text-white shadow-lg opacity-0 group-hover/tip:opacity-100 transition-opacity z-50 text-center">
+        {text}
+        <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+      </span>
+    </span>
+  );
+}
+
+// ===== FIELD LABEL WITH TOOLTIP =====
+
+function FieldLabel({ label, tooltip, required = false }: { label: string; tooltip: string; required?: boolean }) {
+  return (
+    <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700 mb-1">
+      {label}
+      {required && <span className="text-red-400 text-xs">*</span>}
+      <Tooltip text={tooltip}>
+        <InformationCircleIcon className="h-3.5 w-3.5 text-gray-400 hover:text-[#3E667D] cursor-help transition-colors" />
+      </Tooltip>
+    </label>
+  );
+}
+
+// ===== FIELD STATUS BADGE =====
+
+function FieldBadge({ value }: { value: string | null | undefined }) {
+  if (value) {
+    return (
+      <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 border border-emerald-100">
+        <CheckCircleIcon className="h-3 w-3" />
+        Completado
+      </span>
     );
-    toast.success('Método de pago predeterminado actualizado');
-  };
+  }
+  return (
+    <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 border border-amber-100">
+        <ExclamationTriangleIcon className="h-3 w-3" />
+        Pendiente
+    </span>
+  );
+}
 
-  const handleDeleteMethod = (methodId: string) => {
-    const shouldDelete = window.confirm('¿Seguro que deseas eliminar este método de pago?');
-    if (!shouldDelete) return;
-    setPaymentMethods(methods => methods.filter(m => m.id !== methodId));
-    toast.success('Método de pago eliminado');
-  };
+// ===== PROGRESS INDICATOR =====
 
-  const handleRequestWithdrawal = () => {
-    toast.success('Solicitud de retiro enviada');
-    setShowWithdrawModal(false);
-  };
-
-  const filteredWithdrawals = mockWithdrawals.filter(w => {
-    if (filterStatus === 'all') return true;
-    return w.status === filterStatus;
-  });
+function CompletionProgress({ paymentData }: { paymentData: any }) {
+  if (!paymentData) return null;
+  const totalFields = 9;
+  const completed = totalFields - paymentData.missingFields.length;
+  const percent = Math.round((completed / totalFields) * 100);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex items-center gap-3">
+      <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${
+            percent === 100 ? 'bg-emerald-500' : percent >= 60 ? 'bg-amber-500' : 'bg-red-400'
+          }`}
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+      <span className={`text-xs font-bold ${
+        percent === 100 ? 'text-emerald-600' : 'text-gray-500'
+      }`}>
+        {completed}/{totalFields}
+      </span>
+    </div>
+  );
+}
+
+// ===== STATUS BADGE COMPONENT =====
+
+function StatusBadge({ status }: { status: string }) {
+  const config: Record<string, { label: string; className: string }> = {
+    completed: { label: 'Pagado', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    pending: { label: 'Pendiente', className: 'bg-amber-50 text-amber-700 border-amber-200' },
+    failed: { label: 'Fallido', className: 'bg-red-50 text-red-700 border-red-200' },
+    reversed: { label: 'Revertido', className: 'bg-gray-50 text-gray-700 border-gray-200' },
+  };
+  const c = config[status] || config.pending;
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${c.className}`}>
+      {c.label}
+    </span>
+  );
+}
+
+// ===== OVERALL STATUS BANNER =====
+
+function OverallStatusBanner({ status, missingFields }: { status: string; missingFields: string[] }) {
+  if (status === 'complete') {
+    return (
+      <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+        <ShieldCheckIcon className="h-6 w-6 text-emerald-600 flex-shrink-0" />
+        <div>
+          <p className="text-sm font-semibold text-emerald-800">Datos completos y validados</p>
+          <p className="text-xs text-emerald-600">Estás listo para recibir pagos de comisiones.</p>
+        </div>
+      </div>
+    );
+  }
+  if (status === 'pending_validation') {
+    return (
+      <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+        <ClockIcon className="h-6 w-6 text-amber-600 flex-shrink-0" />
+        <div>
+          <p className="text-sm font-semibold text-amber-800">Documentos pendientes de validación</p>
+          <p className="text-xs text-amber-600">Tu información está en revisión por el equipo de Tesorería.</p>
+        </div>
+      </div>
+    );
+  }
+  const fieldLabels: Record<string, string> = {
+    email: 'Correo electrónico',
+    phone: 'Teléfono',
+    curp: 'CURP',
+    rfc: 'RFC',
+    ineNumber: 'Número de INE',
+    ineDocument: 'INE (escaneado)',
+    taxIdDocument: 'Constancia Fiscal',
+    bankStatement: 'Carátula de cuenta',
+    clabe: 'CLABE interbancaria',
+  };
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+      <ExclamationTriangleIcon className="h-6 w-6 text-red-500 flex-shrink-0 mt-0.5" />
+      <div>
+        <p className="text-sm font-semibold text-red-800">Datos incompletos para recibir comisiones</p>
+        <p className="text-xs text-red-600 mt-1">
+          Falta: {missingFields.map((f) => fieldLabels[f] || f).join(', ')}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ===== MAIN PAGE =====
+
+export default function PagosPage() {
+  const { data: paymentData, isLoading } = usePaymentData();
+  const updateMutation = useUpdatePaymentData();
+  const [paymentFilter, setPaymentFilter] = useState<string | undefined>(undefined);
+  const { data: paymentsData } = useCommissionPayments({ status: paymentFilter });
+
+  // Form state
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [curp, setCurp] = useState('');
+  const [rfc, setRfc] = useState('');
+  const [ineNumber, setIneNumber] = useState('');
+  const [taxRegime, setTaxRegime] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [clabe, setClabe] = useState('');
+  const [accountHolder, setAccountHolder] = useState('');
+  const [formInitialized, setFormInitialized] = useState(false);
+
+  // File state
+  const [ineFile, setIneFile] = useState<File | null>(null);
+  const [taxIdFile, setTaxIdFile] = useState<File | null>(null);
+  const [bankStatFile, setBankStatFile] = useState<File | null>(null);
+
+  // Initialize form when data loads
+  if (paymentData && !formInitialized) {
+    setEmail(paymentData.personal.email || '');
+    setPhone(paymentData.personal.phone || '');
+    setCurp(paymentData.fiscal.curp || '');
+    setRfc(paymentData.fiscal.rfc || '');
+    setIneNumber(paymentData.fiscal.ineNumber || '');
+    setTaxRegime(paymentData.fiscal.taxRegime || '');
+    setBankName(paymentData.banking.bankName || '');
+    setClabe(paymentData.banking.clabe || '');
+    setAccountHolder(paymentData.banking.accountHolder || '');
+    setFormInitialized(true);
+  }
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validate CLABE
+    if (clabe && !/^[0-9]{18}$/.test(clabe)) {
+      toast.error('La CLABE debe tener exactamente 18 dígitos');
+      return;
+    }
+
+    const formData = new FormData();
+    if (email) formData.append('email', email);
+    if (phone) formData.append('phone', phone);
+    if (curp) formData.append('curp', curp.toUpperCase());
+    if (rfc) formData.append('rfc', rfc.toUpperCase());
+    if (ineNumber) formData.append('ineNumber', ineNumber);
+    if (taxRegime) formData.append('taxRegime', taxRegime);
+    if (bankName) formData.append('bankName', bankName);
+    if (clabe) formData.append('clabe', clabe);
+    if (accountHolder) formData.append('accountHolder', accountHolder.toUpperCase());
+
+    if (ineFile) formData.append('ineDocument', ineFile);
+    if (taxIdFile) formData.append('taxIdDocument', taxIdFile);
+    if (bankStatFile) formData.append('bankStatement', bankStatFile);
+
+    try {
+      await updateMutation.mutateAsync(formData);
+      toast.success('Datos actualizados correctamente');
+      setIneFile(null);
+      setTaxIdFile(null);
+      setBankStatFile(null);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Error al guardar los datos');
+    }
+  }, [email, phone, curp, rfc, ineNumber, taxRegime, bankName, clabe, accountHolder, ineFile, taxIdFile, bankStatFile, updateMutation]);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 px-4 sm:px-6 lg:px-8 pb-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-20 bg-gray-200 rounded-xl" />
+          <div className="h-64 bg-gray-200 rounded-xl" />
+          <div className="h-48 bg-gray-200 rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
+  const payments = paymentsData?.data || [];
+
+  return (
+    <div className="space-y-6 px-4 sm:px-6 lg:px-8 pb-8">
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <BanknotesIcon className="h-7 w-7 sm:h-8 sm:w-8 lg:h-10 lg:w-10" />
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold">Gestión de Pagos</h1>
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#3E667D] to-[#2f5165] px-6 py-6 shadow-lg">
+        <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/5" />
+        <div className="absolute -right-4 bottom-0 h-24 w-24 rounded-full bg-white/5" />
+        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur flex items-center justify-center">
+                <BanknotesIcon className="h-6 w-6 text-white" />
               </div>
-              <p className="text-white/80 text-sm sm:text-base lg:text-lg">
-                Administra tus métodos de pago y retiros
+              <h1 className="text-2xl font-bold text-white">Datos para Comisiones</h1>
+            </div>
+            <p className="text-sm text-white/70 mt-2 max-w-lg">
+              Para poder depositarte tus comisiones, necesitamos verificar tu identidad e información bancaria. Estos datos son confidenciales y solo los usa el equipo de Tesorería.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/10">
+            <LockClosedIcon className="h-4 w-4 text-white/60" />
+            <span className="text-xs text-white/70">Información protegida</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Status banner + progress */}
+      {paymentData && (
+        <div className="space-y-3">
+          <OverallStatusBanner
+            status={paymentData.overallStatus}
+            missingFields={paymentData.missingFields}
+          />
+          <CompletionProgress paymentData={paymentData} />
+        </div>
+      )}
+
+      {/* Info cards - what this is for */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4">
+          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+            <IdentificationIcon className="h-4 w-4 text-blue-600" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-800">Verificar tu identidad</p>
+            <p className="text-[10px] text-gray-500 mt-0.5">INE y CURP para confirmar que eres titular de la cuenta.</p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4">
+          <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+            <ShieldCheckIcon className="h-4 w-4 text-emerald-600" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-800">Cumplimiento fiscal</p>
+            <p className="text-[10px] text-gray-500 mt-0.5">RFC y régimen fiscal para calcular retenciones correctamente.</p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4">
+          <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+            <BuildingLibraryIcon className="h-4 w-4 text-amber-600" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-800">Cuenta para depósitos</p>
+            <p className="text-[10px] text-gray-500 mt-0.5">CLABE y carátula para transferir tus comisiones de forma segura.</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Form */}
+      <form onSubmit={handleSubmit}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left column: Personal + Fiscal */}
+          <div className="space-y-6">
+            {/* Personal Data */}
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
+                    <DocumentTextIcon className="h-4 w-4 text-[#3E667D]" />
+                    Información Personal
+                  </h2>
+                  <Tooltip text="Datos de contacto para que Tesorería pueda comunicarse contigo si hay algún problema con tu pago.">
+                    <QuestionMarkCircleIcon className="h-4 w-4 text-gray-400 hover:text-[#3E667D] cursor-help" />
+                  </Tooltip>
+                </div>
+                <div className="space-y-3">
+                  {/* Read-only name */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <FieldLabel label="Nombre completo" tooltip="Se toma de tu perfil. Si necesitas cambiarlo, contacta a soporte." />
+                      <FieldBadge value={paymentData?.personal.fullName} />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <p className="flex-1 text-sm text-gray-900 bg-gray-50 rounded-lg px-3 py-2 border border-gray-200">
+                        {paymentData?.personal.fullName || '—'}
+                      </p>
+                      <LockClosedIcon className="h-4 w-4 text-gray-300 flex-shrink-0" title="Campo de solo lectura" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <FieldLabel label="Correo electrónico" tooltip="Email donde te notificaremos cuando se procese un depósito de comisiones." required />
+                        <FieldBadge value={email} />
+                      </div>
+                      <div className="relative">
+                        <EnvelopeIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          className="w-full rounded-lg border border-gray-300 pl-9 pr-3 py-2 text-sm focus:border-[#3E667D] focus:ring-1 focus:ring-[#3E667D] outline-none"
+                          placeholder="tu@email.com"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <FieldLabel label="Teléfono" tooltip="Número de contacto para que Tesorería te ubique en caso de aclaraciones." required />
+                        <FieldBadge value={phone} />
+                      </div>
+                      <div className="relative">
+                        <PhoneIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                        <input
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          className="w-full rounded-lg border border-gray-300 pl-9 pr-3 py-2 text-sm focus:border-[#3E667D] focus:ring-1 focus:ring-[#3E667D] outline-none"
+                          placeholder="4621234567"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Fiscal Data */}
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-1">
+                  <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
+                    <ShieldCheckIcon className="h-4 w-4 text-[#3E667D]" />
+                    Información Fiscal
+                  </h2>
+                  <Tooltip text="Datos requeridos por el SAT para calcular retenciones de ISR e IVA sobre tus comisiones.">
+                    <QuestionMarkCircleIcon className="h-4 w-4 text-gray-400 hover:text-[#3E667D] cursor-help" />
+                  </Tooltip>
+                </div>
+                <p className="text-[10px] text-gray-400 mb-4">
+                  Tu constancia fiscal debe indicar Régimen de Sueldos y Salarios e Ingresos Asimilados a Salarios.
+                </p>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <FieldLabel label="CURP" tooltip="Clave Única de Registro de Población (18 caracteres). Lo encuentras en tu acta de nacimiento o en consulta.curp.gob.mx" required />
+                        <FieldBadge value={curp} />
+                      </div>
+                      <input
+                        type="text"
+                        value={curp}
+                        onChange={(e) => setCurp(e.target.value.toUpperCase())}
+                        maxLength={18}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono uppercase focus:border-[#3E667D] focus:ring-1 focus:ring-[#3E667D] outline-none"
+                        placeholder="GARM850101HGTRZR09"
+                      />
+                      {curp && curp.length > 0 && curp.length < 18 && (
+                        <p className="text-[10px] text-amber-500 mt-0.5">{curp.length}/18 caracteres</p>
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <FieldLabel label="RFC" tooltip="Registro Federal de Contribuyentes (12-13 caracteres). Lo encuentras en tu Constancia de Situación Fiscal." required />
+                        <FieldBadge value={rfc} />
+                      </div>
+                      <input
+                        type="text"
+                        value={rfc}
+                        onChange={(e) => setRfc(e.target.value.toUpperCase())}
+                        maxLength={13}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono uppercase focus:border-[#3E667D] focus:ring-1 focus:ring-[#3E667D] outline-none"
+                        placeholder="GARM850101AB1"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <FieldLabel label="Número de INE" tooltip="Número de credencial que aparece al reverso de tu INE (credencial de elector)." required />
+                        <FieldBadge value={ineNumber} />
+                      </div>
+                      <input
+                        type="text"
+                        value={ineNumber}
+                        onChange={(e) => setIneNumber(e.target.value)}
+                        maxLength={20}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#3E667D] focus:ring-1 focus:ring-[#3E667D] outline-none"
+                        placeholder="1234567890123"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <FieldLabel label="Régimen Fiscal" tooltip="El régimen que aparece en tu Constancia de Situación Fiscal del SAT. Determina cómo se calculan tus retenciones." required />
+                        <FieldBadge value={taxRegime} />
+                      </div>
+                      <select
+                        value={taxRegime}
+                        onChange={(e) => setTaxRegime(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#3E667D] focus:ring-1 focus:ring-[#3E667D] outline-none bg-white"
+                      >
+                        <option value="">Seleccionar...</option>
+                        <option value="ASIMILADOS">Asimilados a Salarios</option>
+                        <option value="FIC">Fideicomiso (FIC)</option>
+                        <option value="RESICO">RESICO</option>
+                        <option value="MORAL">Persona Moral</option>
+                        <option value="FRONTERIZA">Zona Fronteriza</option>
+                        <option value="SIN_IMPUESTO">Sin Impuesto</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Banking Data */}
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-1">
+                  <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
+                    <CreditCardIcon className="h-4 w-4 text-[#3E667D]" />
+                    Datos Bancarios
+                  </h2>
+                  <Tooltip text="Cuenta donde se depositarán tus comisiones. Debe estar a tu nombre y ser una cuenta bancaria mexicana con CLABE.">
+                    <QuestionMarkCircleIcon className="h-4 w-4 text-gray-400 hover:text-[#3E667D] cursor-help" />
+                  </Tooltip>
+                </div>
+                <div className="flex items-center gap-1.5 mb-4">
+                  <LockClosedIcon className="h-3 w-3 text-gray-400" />
+                  <p className="text-[10px] text-gray-400">La cuenta debe estar a nombre del distribuidor que recibirá las comisiones.</p>
+                </div>
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <FieldLabel label="Banco" tooltip="Nombre de tu banco. Ej: BBVA, Banorte, Santander, HSBC, etc." required />
+                      <FieldBadge value={bankName} />
+                    </div>
+                    <div className="relative">
+                      <BuildingLibraryIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="text"
+                        value={bankName}
+                        onChange={(e) => setBankName(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 pl-9 pr-3 py-2 text-sm focus:border-[#3E667D] focus:ring-1 focus:ring-[#3E667D] outline-none"
+                        placeholder="BBVA, Banorte, Santander..."
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <FieldLabel label="CLABE Interbancaria" tooltip="La CLABE es un número de 18 dígitos que identifica tu cuenta bancaria. La encuentras en tu estado de cuenta, app del banco, o carátula de la cuenta." required />
+                      <FieldBadge value={clabe && clabe.length === 18 ? clabe : undefined} />
+                    </div>
+                    <input
+                      type="text"
+                      value={clabe}
+                      onChange={(e) => setClabe(e.target.value.replace(/\D/g, '').slice(0, 18))}
+                      maxLength={18}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono tracking-wider focus:border-[#3E667D] focus:ring-1 focus:ring-[#3E667D] outline-none"
+                      placeholder="012345678901234567"
+                    />
+                    <div className="flex items-center justify-between mt-1">
+                      {clabe ? (
+                        <p className={`text-[10px] font-medium ${clabe.length === 18 ? 'text-emerald-500' : 'text-amber-500'}`}>
+                          {clabe.length}/18 dígitos {clabe.length === 18 && '- Completa'}
+                        </p>
+                      ) : (
+                        <span />
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <FieldLabel label="Titular de la cuenta" tooltip="Nombre exacto como aparece en tu estado de cuenta. Debe coincidir con tu nombre registrado como distribuidor." required />
+                      <FieldBadge value={accountHolder} />
+                    </div>
+                    <input
+                      type="text"
+                      value={accountHolder}
+                      onChange={(e) => setAccountHolder(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm uppercase focus:border-[#3E667D] focus:ring-1 focus:ring-[#3E667D] outline-none"
+                      placeholder="NOMBRE COMPLETO DEL TITULAR"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right column: Documents */}
+          <div className="space-y-6">
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-1">
+                  <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
+                    <ArrowDownTrayIcon className="h-4 w-4 text-[#3E667D]" />
+                    Documentos Requeridos
+                  </h2>
+                  <Tooltip text="Escaneados o fotos legibles de tus documentos. Se aceptan JPG, PNG y PDF. Máximo 5MB por archivo.">
+                    <QuestionMarkCircleIcon className="h-4 w-4 text-gray-400 hover:text-[#3E667D] cursor-help" />
+                  </Tooltip>
+                </div>
+                <p className="text-[10px] text-gray-400 mb-4">
+                  Sube fotos o escaneos legibles. El equipo de Tesorería los revisará y validará.
+                </p>
+                <div className="space-y-5">
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium text-gray-700">INE (Credencial de elector)</span>
+                      <FieldBadge value={paymentData?.documents.ineDocument.url} />
+                    </div>
+                    <p className="text-[10px] text-gray-400 mb-2">Foto por ambos lados. Debe verse claramente tu nombre, foto y número de credencial.</p>
+                    <FileUpload
+                      label=""
+                      name="ineDocument"
+                      existingUrl={resolveDocUrl(paymentData?.documents.ineDocument.url)}
+                      status={paymentData?.documents.ineDocument.status}
+                      rejectionReason={paymentData?.documents.ineDocument.rejectionReason}
+                      onChange={setIneFile}
+                    />
+                  </div>
+                  <div className="border-t border-gray-100 pt-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium text-gray-700">Constancia de Situación Fiscal (RFC)</span>
+                      <FieldBadge value={paymentData?.documents.taxIdDocument.url} />
+                    </div>
+                    <p className="text-[10px] text-gray-400 mb-2">Descárgala desde el portal del SAT. Debe indicar régimen de Sueldos y Salarios e Ingresos Asimilados a Salarios.</p>
+                    <FileUpload
+                      label=""
+                      name="taxIdDocument"
+                      existingUrl={resolveDocUrl(paymentData?.documents.taxIdDocument.url)}
+                      status={paymentData?.documents.taxIdDocument.status}
+                      rejectionReason={paymentData?.documents.taxIdDocument.rejectionReason}
+                      onChange={setTaxIdFile}
+                    />
+                  </div>
+                  <div className="border-t border-gray-100 pt-4">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium text-gray-700">Carátula de Estado de Cuenta</span>
+                      <FieldBadge value={paymentData?.documents.bankStatement.url} />
+                    </div>
+                    <p className="text-[10px] text-gray-400 mb-2">Documento del banco donde se vea tu nombre, nombre del banco y CLABE interbancaria completa.</p>
+                    <FileUpload
+                      label=""
+                      name="bankStatement"
+                      existingUrl={resolveDocUrl(paymentData?.documents.bankStatement.url)}
+                      status={paymentData?.documents.bankStatement.status}
+                      rejectionReason={paymentData?.documents.bankStatement.rejectionReason}
+                      onChange={setBankStatFile}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Contact info */}
+            <div className="rounded-xl border border-[#3E667D]/10 bg-[#3E667D]/5 p-4">
+              <p className="text-xs font-semibold text-[#3E667D] mb-1">Dudas sobre tus datos</p>
+              <p className="text-[10px] text-gray-600 leading-relaxed">
+                Envía tus documentos escaneados o foto legible a <span className="font-medium">comisiones@toniclife.com</span> o por
+                WhatsApp al <span className="font-medium">+52 462 220 1995</span>. Atención a clientes: <span className="font-medium">462 626 5304</span> Ext. 105, 124, 126.
               </p>
             </div>
-            <Link href="/distribuidor" className="w-full lg:w-auto">
-              <Button variant="secondary" className="w-full lg:w-auto">
-                Volver al Panel Principal
-              </Button>
-            </Link>
+
+            {/* Submit button */}
+            <button
+              type="submit"
+              disabled={updateMutation.isPending}
+              className="w-full rounded-xl bg-[#3E667D] px-6 py-3.5 text-sm font-semibold text-white shadow-lg hover:bg-[#2f5165] disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:shadow-xl flex items-center justify-center gap-2"
+            >
+              {updateMutation.isPending ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <CheckCircleIcon className="h-4 w-4" />
+                  Guardar Datos
+                </>
+              )}
+            </button>
           </div>
         </div>
-      </div>
+      </form>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Balance Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <BanknotesIcon className="h-8 w-8 text-white/80" />
-              </div>
-              <p className="text-sm text-white/80 mb-1">Saldo Disponible</p>
-              <p className="text-3xl font-bold">${availableBalance.toLocaleString('es-MX')}</p>
-              <Button
-                variant="secondary"
-                size="sm"
-                className="mt-4 w-full"
-                onClick={() => setShowWithdrawModal(true)}
-              >
-                Solicitar Retiro
-              </Button>
-            </CardContent>
-          </Card>
+      {/* Commission Payments History */}
+      <Card>
+        <CardContent className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
+              <BanknotesIcon className="h-4 w-4 text-[#3E667D]" />
+              Historial de Pagos de Comisiones
+            </h2>
+            <select
+              value={paymentFilter || ''}
+              onChange={(e) => setPaymentFilter(e.target.value || undefined)}
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs focus:border-[#3E667D] focus:ring-1 focus:ring-[#3E667D] outline-none bg-white"
+            >
+              <option value="">Todos los estados</option>
+              <option value="completed">Pagados</option>
+              <option value="pending">Pendientes</option>
+              <option value="failed">Fallidos</option>
+            </select>
+          </div>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <ClockIcon className="h-8 w-8 text-yellow-500" />
-              </div>
-              <p className="text-sm text-gray-600 mb-1">Pagos Pendientes</p>
-              <p className="text-3xl font-bold text-gray-900">${pendingAmount.toLocaleString('es-MX')}</p>
-              <p className="text-xs text-gray-500 mt-2">
-                Fecha estimada: {mockPendingPayments[0]?.paymentDate ? new Date(mockPendingPayments[0].paymentDate).toLocaleDateString('es-MX') : 'N/A'}
-              </p>
-            </CardContent>
-          </Card>
+          {paymentData?.overallStatus === 'incomplete' && (
+            <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 mb-4 text-xs text-amber-700">
+              <ExclamationTriangleIcon className="h-4 w-4 flex-shrink-0" />
+              Completa tus datos para comisiones arriba para poder recibir pagos.
+            </div>
+          )}
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <CheckCircleIcon className="h-8 w-8 text-green-500" />
-              </div>
-              <p className="text-sm text-gray-600 mb-1">Total Retirado</p>
-              <p className="text-3xl font-bold text-gray-900">${totalWithdrawn.toLocaleString('es-MX')}</p>
-              <p className="text-xs text-gray-500 mt-2">
-                {mockWithdrawals.length} retiros completados
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Left Column - Payment Methods */}
-          <div className="lg:col-span-1 space-y-6">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold text-gray-900">Métodos de Pago</h2>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    leftIcon={<PlusIcon className="h-4 w-4" />}
-                    onClick={() => setShowAddMethodModal(true)}
-                  >
-                    Agregar
-                  </Button>
-                </div>
-
-                <div className="space-y-4">
-                  {paymentMethods.length > 0 ? (
-                    paymentMethods.map((method) => (
-                      <div
-                        key={method.id}
-                        className={`border rounded-lg p-4 ${
-                          method.isDefault ? 'border-[#a7c1e2] bg-green-50' : 'border-gray-200'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            {method.type === 'bank' ? (
-                              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                                <CreditCardIcon className="h-5 w-5 text-blue-600" />
-                              </div>
-                            ) : (
-                              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                                <span className="text-purple-600 font-bold text-xs">PP</span>
-                              </div>
-                            )}
-                            <div>
-                              {method.type === 'bank' ? (
-                                <>
-                                  <p className="font-semibold text-gray-900">{method.bank}</p>
-                                  <p className="text-sm text-gray-600">{method.accountNumber}</p>
-                                </>
-                              ) : (
-                                <>
-                                  <p className="font-semibold text-gray-900">PayPal</p>
-                                  <p className="text-sm text-gray-600">{method.email}</p>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                          {method.verified && (
-                            <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                          )}
-                        </div>
-
-                        {method.isDefault && (
-                          <div className="mb-3">
-                            <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-[#3E667D] text-white">
-                              Predeterminado
-                            </span>
-                          </div>
-                        )}
-
-                        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                          {!method.isDefault && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="w-full sm:flex-1"
-                              onClick={() => handleSetDefault(method.id)}
-                            >
-                              Hacer Predeterminado
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full sm:w-auto"
-                            leftIcon={<PencilIcon className="h-4 w-4" />}
-                            onClick={() => toast.info('Abriendo edición')}
-                          >
-                            Editar
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full sm:w-auto text-red-600 hover:bg-red-50 hover:text-red-700"
-                            leftIcon={<TrashIcon className="h-4 w-4" />}
-                            onClick={() => handleDeleteMethod(method.id)}
-                          >
-                            Eliminar
-                          </Button>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-5 text-center">
-                      <p className="text-sm text-gray-600">Aún no tienes métodos de pago configurados.</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-3"
-                        leftIcon={<PlusIcon className="h-4 w-4" />}
-                        onClick={() => setShowAddMethodModal(true)}
-                      >
-                        Agregar método
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Pending Payments */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Pagos Programados</h3>
-                <div className="space-y-3">
-                  {mockPendingPayments.map((payment) => (
-                    <div key={payment.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <p className="font-semibold text-gray-900">
-                            ${payment.amount.toLocaleString('es-MX')}
-                          </p>
-                          <p className="text-sm text-gray-600">{payment.description}</p>
-                        </div>
-                        <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                          payment.type === 'commission' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
-                        }`}>
-                          {payment.type === 'commission' ? 'Comisión' : 'Bono'}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <CalendarIcon className="h-3 w-3" />
-                        Pago: {new Date(payment.paymentDate).toLocaleDateString('es-MX')}
-                      </div>
-                    </div>
+          {payments.length === 0 ? (
+            <div className="text-center py-8 text-gray-400 text-sm">
+              No hay pagos de comisiones registrados aún.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-2 px-2 text-xs font-semibold text-gray-500 uppercase">Periodo</th>
+                    <th className="text-right py-2 px-2 text-xs font-semibold text-gray-500 uppercase">Monto</th>
+                    <th className="text-left py-2 px-2 text-xs font-semibold text-gray-500 uppercase">Fecha</th>
+                    <th className="text-left py-2 px-2 text-xs font-semibold text-gray-500 uppercase">Método</th>
+                    <th className="text-left py-2 px-2 text-xs font-semibold text-gray-500 uppercase">Referencia</th>
+                    <th className="text-center py-2 px-2 text-xs font-semibold text-gray-500 uppercase">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.map((p: CommissionPayment) => (
+                    <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-2.5 px-2 font-medium text-gray-900">{p.periodName || p.periodCode}</td>
+                      <td className="py-2.5 px-2 text-right font-semibold text-gray-900">
+                        ${p.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                        <span className="text-xs text-gray-400 ml-1">{p.currencyCode}</span>
+                      </td>
+                      <td className="py-2.5 px-2 text-gray-600">
+                        {p.paymentDate
+                          ? new Date(p.paymentDate).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+                          : '—'
+                        }
+                      </td>
+                      <td className="py-2.5 px-2 text-gray-600 capitalize">{p.paymentMethod || '—'}</td>
+                      <td className="py-2.5 px-2 text-gray-500 font-mono text-xs">{p.reference || '—'}</td>
+                      <td className="py-2.5 px-2 text-center"><StatusBadge status={p.status} /></td>
+                    </tr>
                   ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right Column - Withdrawal History */}
-          <div className="lg:col-span-2 space-y-6">
-            <Card>
-              <CardContent className="p-6">
-                <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <h2 className="text-xl font-bold text-gray-900">Historial de Retiros</h2>
-                  <SearchableSelect
-                    options={[
-                      { value: 'completed', label: 'Completados' },
-                      { value: 'pending', label: 'Pendientes' },
-                      { value: 'processing', label: 'Procesando' },
-                      { value: 'failed', label: 'Fallidos' },
-                    ]}
-                    value={filterStatus}
-                    onChange={(val) => setParams({ status: val })}
-                    allLabel="Todos los estados"
-                    allValue="all"
-                    className="w-full sm:w-auto"
-                  />
-                </div>
-
-                <div className="space-y-4">
-                  {filteredWithdrawals.length > 0 ? filteredWithdrawals.map((withdrawal) => {
-                    const status = statusConfig[withdrawal.status as keyof typeof statusConfig];
-                    const StatusIcon = status.icon;
-
-                    return (
-                      <div key={withdrawal.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="flex items-start gap-3">
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                              withdrawal.status === 'completed' ? 'bg-green-100' :
-                              withdrawal.status === 'pending' ? 'bg-yellow-100' :
-                              withdrawal.status === 'processing' ? 'bg-blue-100' :
-                              'bg-red-100'
-                            }`}>
-                              <StatusIcon className={`h-5 w-5 ${
-                                withdrawal.status === 'completed' ? 'text-green-600' :
-                                withdrawal.status === 'pending' ? 'text-yellow-600' :
-                                withdrawal.status === 'processing' ? 'text-blue-600' :
-                                'text-red-600'
-                              }`} />
-                            </div>
-                            <div>
-                              <p className="font-bold text-gray-900 text-lg">
-                                ${withdrawal.amount.toLocaleString('es-MX')}
-                              </p>
-                              <p className="text-sm text-gray-600">{withdrawal.method}</p>
-                              <p className="text-xs text-gray-500 mt-1">
-                                Ref: {withdrawal.reference}
-                              </p>
-                            </div>
-                          </div>
-                          <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${status.color}`}>
-                            {status.label}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t">
-                          <div>
-                            <p className="text-xs text-gray-500">Fecha de Solicitud</p>
-                            <p className="text-sm font-medium text-gray-900">
-                              {new Date(withdrawal.date).toLocaleDateString('es-MX')}
-                            </p>
-                          </div>
-                          {withdrawal.processedDate && (
-                            <div>
-                              <p className="text-xs text-gray-500">Fecha de Proceso</p>
-                              <p className="text-sm font-medium text-gray-900">
-                                {new Date(withdrawal.processedDate).toLocaleDateString('es-MX')}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full sm:w-auto"
-                            leftIcon={<DocumentTextIcon className="h-4 w-4" />}
-                            onClick={() => toast.info('Descargando comprobante')}
-                          >
-                            Comprobante
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full sm:w-auto"
-                            leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
-                            onClick={() => toast.success('Exportando detalles')}
-                          >
-                            Exportar
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  }) : (
-                    <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
-                      <p className="text-sm text-gray-600">
-                        No hay retiros para el filtro seleccionado.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Tax Information */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Información Fiscal</h3>
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">RFC</p>
-                    <p className="font-semibold text-gray-900">GAML850615XX0</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Régimen Fiscal</p>
-                    <p className="font-semibold text-gray-900">Persona Física con Actividad Empresarial</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Retención ISR</p>
-                    <p className="font-semibold text-gray-900">10%</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Retención IVA</p>
-                    <p className="font-semibold text-gray-900">16%</p>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-4"
-                  onClick={() => toast.info('Abriendo edición de información fiscal')}
-                >
-                  Actualizar Información Fiscal
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* Withdrawal Request Modal */}
-        {showWithdrawModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-            <Card className="max-w-lg w-full rounded-t-2xl sm:rounded-xl max-h-[92vh] overflow-y-auto">
-              <CardContent className="p-5 sm:p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Solicitar Retiro</h2>
-                  <button
-                    onClick={() => setShowWithdrawModal(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <XCircleIcon className="h-6 w-6" />
-                  </button>
-                </div>
-
-                <div className="mb-6">
-                  <p className="text-sm text-gray-600 mb-1">Saldo Disponible</p>
-                  <p className="text-3xl font-bold text-[#3E667D]">
-                    ${availableBalance.toLocaleString('es-MX')}
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Monto a Retirar
-                    </label>
-                    <input
-                      type="number"
-                      placeholder="0.00"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Monto mínimo: $1,000 MXN
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Método de Pago
-                    </label>
-                    <SearchableSelect
-                      options={paymentMethods.map((method) => ({
-                        value: method.id,
-                        label: method.type === 'bank' ? `${method.bank} ${method.accountNumber}` : `PayPal - ${method.email}`,
-                      }))}
-                      value={paymentMethods[0]?.id || ''}
-                      onChange={() => {}}
-                      showAllOption={false}
-                      className="w-full"
-                    />
-                  </div>
-
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <p className="text-sm text-blue-800">
-                      ℹ️ Los retiros se procesan en 2-3 días hábiles. Se aplicarán las retenciones fiscales correspondientes.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 mt-6">
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => setShowWithdrawModal(false)}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    variant="primary"
-                    className="flex-1"
-                    onClick={handleRequestWithdrawal}
-                  >
-                    Solicitar Retiro
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Add Payment Method Modal */}
-        {showAddMethodModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-            <Card className="max-w-lg w-full rounded-t-2xl sm:rounded-xl max-h-[92vh] overflow-y-auto">
-              <CardContent className="p-5 sm:p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Agregar Método de Pago</h2>
-                  <button
-                    onClick={() => setShowAddMethodModal(false)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <XCircleIcon className="h-6 w-6" />
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tipo de Método
-                    </label>
-                    <SearchableSelect
-                      options={[
-                        { value: 'bank', label: 'Cuenta Bancaria' },
-                        { value: 'paypal', label: 'PayPal' },
-                      ]}
-                      value="bank"
-                      onChange={() => {}}
-                      showAllOption={false}
-                      className="w-full"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Banco
-                    </label>
-                    <SearchableSelect
-                      options={[
-                        { value: 'BBVA Bancomer', label: 'BBVA Bancomer' },
-                        { value: 'Santander', label: 'Santander' },
-                        { value: 'Banorte', label: 'Banorte' },
-                        { value: 'HSBC', label: 'HSBC' },
-                        { value: 'Citibanamex', label: 'Citibanamex' },
-                      ]}
-                      value="BBVA Bancomer"
-                      onChange={() => {}}
-                      showAllOption={false}
-                      className="w-full"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      CLABE Interbancaria
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="18 dígitos"
-                      maxLength={18}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Titular de la Cuenta
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Nombre completo"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-3 mt-6">
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => setShowAddMethodModal(false)}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    variant="primary"
-                    className="flex-1"
-                    onClick={() => {
-                      toast.success('Método de pago agregado');
-                      setShowAddMethodModal(false);
-                    }}
-                  >
-                    Agregar Método
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-      </div>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

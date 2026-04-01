@@ -98,9 +98,9 @@ const disabledModules = new Set([
   'Mi Negocio',
   'Prospectos',
   'Clientes',
-  'Herramientas',
+  'Materiales',
+  'Scripts de Venta',
   'Eventos',
-  'Pagos',
   'Comunicación',
   'Soporte',
 ]);
@@ -200,6 +200,16 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
             <ul className="mt-1 ml-8 space-y-1">
               {item.children.map((child) => {
                 const childIsActive = pathname === child.href;
+                const childDisabled = disabledModules.has(child.name);
+                if (childDisabled) {
+                  return (
+                    <li key={child.name}>
+                      <span className="block px-3 py-2 rounded-lg text-sm text-white/30 cursor-not-allowed">
+                        {child.name}
+                      </span>
+                    </li>
+                  );
+                }
                 return (
                   <li key={child.name}>
                     <Link
