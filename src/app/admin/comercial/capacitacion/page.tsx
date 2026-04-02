@@ -283,6 +283,7 @@ function CapacitacionContent() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Course | null>(null);
+  const [detailCourse, setDetailCourse] = useState<Course | null>(null);
 
   const { data, isLoading, refetch } = useCourses({
     search: searchQuery || undefined,
@@ -426,7 +427,7 @@ function CapacitacionContent() {
             const st = statusConfig[course.status] || statusConfig.draft;
             const StIcon = st.icon;
             return (
-              <div key={course.id} className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+              <div key={course.id} className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => setDetailCourse(course)}>
                 {/* Image */}
                 <div className="relative h-44 bg-gradient-to-br from-gray-100 to-gray-200">
                   {course.imageUrl ? (
@@ -472,7 +473,7 @@ function CapacitacionContent() {
                   <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
                     <button
                       type="button"
-                      onClick={() => { setEditingCourse(course); setIsModalOpen(true); }}
+                      onClick={(e) => { e.stopPropagation(); setEditingCourse(course); setIsModalOpen(true); }}
                       className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
                     >
                       <PencilIcon className="h-3 w-3" />
@@ -480,7 +481,7 @@ function CapacitacionContent() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setDeleteTarget(course)}
+                      onClick={(e) => { e.stopPropagation(); setDeleteTarget(course); }}
                       className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs text-red-600 hover:bg-red-50 transition-colors"
                     >
                       <TrashIcon className="h-3 w-3" />
@@ -501,6 +502,118 @@ function CapacitacionContent() {
         onClose={() => { setIsModalOpen(false); setEditingCourse(null); }}
         onSaved={() => refetch()}
       />
+
+      {/* Detail Modal */}
+      {detailCourse && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setDetailCourse(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-[90vw] max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            {/* Image */}
+            {detailCourse.imageUrl && (
+              <div className="relative">
+                <img
+                  src={resolveUrl(detailCourse.imageUrl)!}
+                  alt={detailCourse.title}
+                  className="w-full max-h-[400px] object-contain bg-gray-100 rounded-t-2xl"
+                />
+                <button
+                  type="button"
+                  onClick={() => setDetailCourse(null)}
+                  className="absolute top-3 right-3 rounded-full bg-black/40 p-1.5 text-white hover:bg-black/60 transition-colors"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+                {/* Status badge overlay */}
+                <div className="absolute top-3 left-3">
+                  {(() => {
+                    const st = statusConfig[detailCourse.status] || statusConfig.draft;
+                    const StIcon = st.icon;
+                    return (
+                      <span className={`inline-flex items-center gap-1 rounded-full bg-white/90 backdrop-blur-sm px-3 py-1 text-xs font-medium ${st.color}`}>
+                        <StIcon className="h-3.5 w-3.5" />
+                        {st.label}
+                      </span>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+            {!detailCourse.imageUrl && (
+              <div className="flex items-center justify-between px-6 pt-5">
+                <div />
+                <button type="button" onClick={() => setDetailCourse(null)} className="text-gray-400 hover:text-gray-600">
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+            )}
+
+            {/* Content */}
+            <div className="p-6">
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${categoryColors[detailCourse.category] || 'bg-gray-50 text-gray-600'}`}>
+                  {categoryLabels[detailCourse.category] || detailCourse.category}
+                </span>
+                <span className="text-xs text-gray-400">
+                  {difficultyLabels[detailCourse.difficulty] || detailCourse.difficulty}
+                </span>
+              </div>
+
+              <h2 className="text-xl font-bold text-gray-900 mb-1">{detailCourse.title}</h2>
+
+              {detailCourse.instructorName && (
+                <p className="text-sm text-gray-600 mb-3">
+                  Por <strong>{detailCourse.instructorName}</strong>
+                </p>
+              )}
+
+              {detailCourse.description && (
+                <p className="text-sm text-gray-500 mb-4 leading-relaxed">{detailCourse.description}</p>
+              )}
+
+              {/* Meta */}
+              <div className="grid grid-cols-3 gap-4 mb-5 p-4 bg-gray-50 rounded-xl">
+                <div className="text-center">
+                  <p className="text-lg font-bold text-[#3E667D]">{detailCourse.durationHours}h</p>
+                  <p className="text-[10px] text-gray-500">Duración</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold text-[#3E667D]">{detailCourse.lessonCount}</p>
+                  <p className="text-[10px] text-gray-500">Lecciones</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-lg font-bold text-[#3E667D]">#{detailCourse.sortOrder}</p>
+                  <p className="text-[10px] text-gray-500">Orden</p>
+                </div>
+              </div>
+
+              {/* Info row */}
+              <div className="flex items-center gap-3 text-xs text-gray-400 mb-5">
+                <span>Creado: {new Date(detailCourse.createdAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                <span>Actualizado: {new Date(detailCourse.updatedAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setDetailCourse(null); setEditingCourse(detailCourse); setIsModalOpen(true); }}
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-[#3E667D] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#2f5165] transition-colors"
+                >
+                  <PencilIcon className="h-4 w-4" />
+                  Editar Curso
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setDetailCourse(null); setDeleteTarget(detailCourse); }}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation */}
       {deleteTarget && (
