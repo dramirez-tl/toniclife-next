@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { ShoppingCartIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 
 export default function ComingSoonPage() {
@@ -38,13 +37,15 @@ export default function ComingSoonPage() {
 
         {/* Buttons */}
         <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 w-full max-w-lg">
-          <Link
-            href="#"
+          <a
+            href="https://tonic-life.net/login/empresariosindependientes"
+            target="_blank"
+            rel="noopener noreferrer"
             className="flex-1 flex items-center justify-center gap-3 px-8 py-4 rounded-full border-2 border-[#3E667D]/40 text-[#2d4f5e] font-semibold text-base hover:bg-[#3E667D]/10 transition-colors"
           >
             <ShoppingCartIcon className="w-7 h-7" />
             Comprar ahora
-          </Link>
+          </a>
           <a
             href="https://tonic-life.net/login/empresariosindependientes"
             target="_blank"
