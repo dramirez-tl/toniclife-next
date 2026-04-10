@@ -17,7 +17,7 @@ export default function ComingSoonPage() {
         {/* Logo icon */}
         <div className="mb-10">
           <img
-            src="/images/logo/svg/logo-circle-blue-outline.svg"
+            src="/images/logo/svg/logo-icon-green-solid.svg"
             alt="Tonic Life"
             className="w-16 h-16"
           />
