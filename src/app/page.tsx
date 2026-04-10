@@ -4,12 +4,12 @@ import { ShoppingCartIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 export default function ComingSoonPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden bg-[#d5e2ee]">
-      {/* Background watermark logo */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      {/* Background watermark logo — only top half visible, anchored at bottom */}
+      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[55%] pointer-events-none">
         <img
-          src="/images/logo/svg/logo-icon-blue-solid.svg"
+          src="/images/logo/svg/logo-circle-white.svg"
           alt=""
-          className="w-[600px] h-[600px] opacity-[0.08]"
+          className="w-[800px] h-[800px] sm:w-[1000px] sm:h-[1000px] opacity-[0.35]"
         />
       </div>
 
