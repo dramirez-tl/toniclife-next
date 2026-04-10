@@ -87,7 +87,6 @@ const navigation: NavItem[] = [
       { name: 'Estadísticas de Red', href: '/admin/mlm/estadisticas' },
     ],
   },
-  { name: 'Programa Arranque', href: '/admin/programa-arranque', icon: RocketLaunchIcon, permissions: ['startup-program:read', 'startup-program:*', 'config'] },
   {
     name: 'Facturación',
     href: '/admin/facturacion',
@@ -351,10 +350,15 @@ export function AdminSidebar({ mobile = false, onNavigate }: AdminSidebarProps) 
       aria-label="Barra lateral de administración"
     >
       {/* Logo */}
-      <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
-        <Link href="/admin" className="flex items-center" onClick={onNavigate} aria-label="Ir al panel de administración">
-          <div className="w-8 h-8 bg-[#C8DDF2] rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">TL</span>
+      <div className="flex h-16 items-center justify-center border-b border-white/10 px-4">
+        <Link href="/admin" className="flex items-center justify-center" onClick={onNavigate} aria-label="Ir al panel de administración">
+          <div className="w-11 h-11 bg-white rounded-full flex items-center justify-center shadow-sm overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/logo/svg/logo-icon-blue-solid.svg"
+              alt="TL"
+              className="w-8 h-8"
+            />
           </div>
         </Link>
         {mobile && (

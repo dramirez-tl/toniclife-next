@@ -31,6 +31,13 @@ import {
   useSatCfdiUses,
   useSatTaxRegimes,
 } from '@/hooks/useConfig';
+import {
+  useCategories,
+  useCreateCategory,
+  useUpdateCategory,
+  useDeleteCategory,
+} from '@/hooks/useProducts';
+import type { Category, CreateCategoryDto, UpdateCategoryDto } from '@/types/product';
 import type {
   Country,
   CreateCountryDto,
@@ -53,6 +60,7 @@ import type {
 // ================================
 
 type TabKey =
+  | 'categories'
   | 'countries'
   | 'currencies'
   | 'priceTypes'
@@ -68,6 +76,7 @@ interface Tab {
 }
 
 const TABS: Tab[] = [
+  { key: 'categories', label: 'Categorías' },
   { key: 'countries', label: 'Paises' },
   { key: 'currencies', label: 'Monedas' },
   { key: 'priceTypes', label: 'Tipos de Precio' },
@@ -230,6 +239,18 @@ function filterBySearch<T>(
 // COLUMN DEFINITIONS
 // ================================
 
+const categoryColumns: Column<Category>[] = [
+  { key: 'code', header: 'Código' },
+  { key: 'name', header: 'Nombre' },
+  { key: 'description', header: 'Descripción', render: (r) => r.description || '-' },
+  { key: 'sortOrder', header: 'Orden', render: (r) => String(r.sortOrder ?? 0) },
+  {
+    key: 'isActive',
+    header: 'Estado',
+    render: (r) => <StatusBadge active={r.isActive} />,
+  },
+];
+
 const countryColumns: Column<Country>[] = [
   { key: 'code', header: 'Codigo' },
   { key: 'name', header: 'Nombre' },
@@ -374,6 +395,14 @@ const satTaxRegimeColumns: Column<SatTaxRegime>[] = [
 // INITIAL FORM DATA FACTORIES
 // ================================
 
+const emptyCategoryForm = (): Record<string, string | number> => ({
+  name: '',
+  code: '',
+  description: '',
+  slug: '',
+  sortOrder: 0,
+});
+
 const emptyCountryForm = (): Record<string, string | number> => ({
   name: '',
   code: '',
@@ -471,6 +500,7 @@ function CatalogosContent() {
   // DATA HOOKS
   // ================================
 
+  const { data: categories = [], isLoading: loadingCategories } = useCategories();
   const { data: countries = [], isLoading: loadingCountries } = useCountries();
   const { data: currencies = [], isLoading: loadingCurrencies } = useCurrencies();
   const { data: priceTypes = [], isLoading: loadingPriceTypes } = usePriceTypes();
@@ -574,6 +604,10 @@ function CatalogosContent() {
     onError: () => toast.error('Error al actualizar'),
   });
 
+  const createCategory = useCreateCategory();
+  const updateCategory = useUpdateCategory();
+  const deleteCategory = useDeleteCategory();
+
   // ================================
   // MODAL HELPERS
   // ================================
@@ -587,6 +621,9 @@ function CatalogosContent() {
   const openCreate = useCallback(() => {
     setEditingItem(null);
     switch (activeTab) {
+      case 'categories':
+        setFormData(emptyCategoryForm());
+        break;
       case 'countries':
         setFormData(emptyCountryForm());
         break;
@@ -616,6 +653,17 @@ function CatalogosContent() {
     (item: any) => {
       setEditingItem(item);
       switch (activeTab) {
+        case 'categories': {
+          const c = item as Category;
+          setFormData({
+            name: c.name,
+            code: c.code,
+            description: c.description || '',
+            slug: c.slug || '',
+            sortOrder: c.sortOrder ?? 0,
+          });
+          break;
+        }
         case 'countries': {
           const c = item as Country;
           setFormData({
@@ -722,6 +770,27 @@ function CatalogosContent() {
     const itemId = (editingItem as Record<string, unknown>)?.id as string;
 
     switch (activeTab) {
+      case 'categories': {
+        const dto: CreateCategoryDto = {
+          name: formData.name as string,
+          code: formData.code as string,
+          description: (formData.description as string) || undefined,
+          slug: (formData.slug as string) || undefined,
+          sortOrder: Number(formData.sortOrder) || 0,
+        };
+        if (isEditing) {
+          updateCategory.mutate({ id: itemId, dto }, {
+            onSuccess: () => { toast.success('Categoría actualizada'); closeModal(); },
+            onError: () => toast.error('Error al actualizar'),
+          });
+        } else {
+          createCategory.mutate(dto, {
+            onSuccess: () => { toast.success('Categoría creada'); closeModal(); },
+            onError: () => toast.error('Error al crear'),
+          });
+        }
+        break;
+      }
       case 'countries': {
         const dto: CreateCountryDto = {
           name: formData.name as string,
@@ -859,6 +928,8 @@ function CatalogosContent() {
   // ================================
 
   const isSubmitting =
+    createCategory.isPending ||
+    updateCategory.isPending ||
     createCountry.isPending ||
     updateCountry.isPending ||
     createCurrency.isPending ||
@@ -876,6 +947,10 @@ function CatalogosContent() {
   // FILTERED DATA
   // ================================
 
+  const filteredCategories = useMemo(
+    () => filterBySearch(categories, searchTerm, ['name', 'code']),
+    [categories, searchTerm]
+  );
   const filteredCountries = useMemo(
     () => filterBySearch(countries, searchTerm, ['name', 'code']),
     [countries, searchTerm]
@@ -920,6 +995,7 @@ function CatalogosContent() {
   const modalTitle = useMemo(() => {
     const prefix = editingItem ? 'Editar' : 'Nuevo';
     const labels: Record<TabKey, string> = {
+      categories: 'Categoría',
       countries: 'Pais',
       currencies: 'Moneda',
       priceTypes: 'Tipo de Precio',
@@ -938,6 +1014,47 @@ function CatalogosContent() {
 
   const renderFormFields = () => {
     switch (activeTab) {
+      case 'categories':
+        return (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <FormInput
+                label="Nombre"
+                required
+                value={formData.name || ''}
+                onChange={(v) => updateField('name', v)}
+                placeholder="Ej: Cápsulas"
+              />
+              <FormInput
+                label="Código"
+                required
+                value={formData.code || ''}
+                onChange={(v) => updateField('code', v.toUpperCase())}
+                placeholder="CAPSULAS"
+              />
+            </div>
+            <FormInput
+              label="Descripción"
+              value={formData.description || ''}
+              onChange={(v) => updateField('description', v)}
+              placeholder="Descripción de la categoría"
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormInput
+                label="Slug (URL)"
+                value={formData.slug || ''}
+                onChange={(v) => updateField('slug', v.toLowerCase().replace(/\s+/g, '-'))}
+                placeholder="capsulas"
+              />
+              <FormInput
+                label="Orden"
+                type="number"
+                value={String(formData.sortOrder || 0)}
+                onChange={(v) => updateField('sortOrder', Number(v))}
+              />
+            </div>
+          </>
+        );
       case 'countries':
         return (
           <>
@@ -1335,6 +1452,18 @@ function CatalogosContent() {
     let tableElement: React.ReactNode = null;
 
     switch (activeTab) {
+      case 'categories':
+        tableElement = (
+          <CatalogTable<Category>
+            columns={categoryColumns}
+            data={filteredCategories}
+            isLoading={loadingCategories}
+            onEdit={openEdit}
+            showActions={true}
+            emptyMessage="No se encontraron categorías."
+          />
+        );
+        break;
       case 'countries':
         tableElement = (
           <CatalogTable<Country>

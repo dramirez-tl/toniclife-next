@@ -78,8 +78,8 @@ export async function generateTransferTicketPdf(transfer: TransferDto): Promise<
   // ----- 1. Logo + Company Header -----
   if (LOGO_BASE64) {
     try {
-      const logoW = 40;
-      const logoH = 20;
+      const logoW = 44;
+      const logoH = 9;
       doc.addImage(LOGO_BASE64, 'PNG', MARGIN, y, logoW, logoH);
       y += 2;
     } catch {

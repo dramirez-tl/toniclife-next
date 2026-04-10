@@ -69,7 +69,6 @@ const navigation: NavItem[] = [
       { name: 'Actividad', href: '/distribuidor/actividad' },
     ],
   },
-  { name: 'Programa Arranque', href: '/distribuidor/programa-arranque', icon: RocketLaunchIcon },
   { name: 'Prospectos', href: '/distribuidor/prospectos', icon: UserGroupIcon },
   { name: 'Clientes', href: '/distribuidor/clientes', icon: ClipboardDocumentListIcon },
   {
@@ -266,17 +265,11 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
           aria-label="Ir al panel de distribuidor"
           onClick={onNavigate}
         >
-          <Image
-            src="/images/logo/logo-text-light.png"
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/logo/svg/logo-text-dark-r.svg"
             alt="Tonic Life"
-            width={280}
-            height={90}
-            className="h-20 w-auto"
-            onError={(e) => {
-              // Fallback si no existe el logo blanco
-              const target = e.target as HTMLImageElement;
-              target.style.display = 'none';
-            }}
+            className="w-[140px] h-auto"
           />
         </Link>
       </div>

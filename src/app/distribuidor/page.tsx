@@ -34,8 +34,6 @@ import {
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
 import { toast } from 'sonner';
-import { useActivePrograms, useMyProgress } from '@/hooks/useStartupProgram';
-import { RocketLaunchIcon } from '@heroicons/react/24/outline';
 
 // Mapa de íconos para tipos de actividad
 const activityIcons: Record<string, typeof ChartBarIcon> = {
@@ -522,9 +520,6 @@ export default function DistribuidorDashboard() {
           </Card>
       </div>
 
-      {/* Programa de Arranque Widget */}
-      <StartupProgramWidget />
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
@@ -906,68 +901,3 @@ export default function DistribuidorDashboard() {
 
 // ─── Startup Program Widget ─────────────────────────────────────────────────
 
-function StartupProgramWidget() {
-  const { data: activePrograms, isLoading } = useActivePrograms();
-  const program = activePrograms?.[0];
-  const programId = program?.id ?? '';
-  const currency = program?.currencyCode ?? 'MXN';
-
-  const { data: progress } = useMyProgress(programId, !!programId);
-
-  if (isLoading) return null;
-  if (!program) return null;
-
-  const recruits = progress?.totalRecruits ?? 0;
-  const nextMilestone = progress?.nextMilestone;
-  const progressPct = nextMilestone && nextMilestone.recruitsNeeded > 0
-    ? Math.min(100, Math.round((recruits / nextMilestone.recruitsNeeded) * 100))
-    : 0;
-
-  const fmtCurrency = (amount: string | number) => {
-    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-    if (isNaN(num)) return '$0';
-    const sym = currency === 'USD' ? 'US$' : '$';
-    return `${sym}${num.toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-  };
-
-  return (
-    <Link href="/distribuidor/programa-arranque" className="block mb-2">
-      <Card className="border-0 shadow-md hover:shadow-lg transition-shadow cursor-pointer overflow-hidden">
-        <div className="flex items-stretch">
-          <div className="bg-gradient-to-b from-[#3E667D] to-[#002a5c] p-4 flex items-center justify-center">
-            <RocketLaunchIcon className="h-8 w-8 text-white" />
-          </div>
-          <CardContent className="p-4 flex-1">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-gray-900">Programa de Arranque</p>
-                <p className="text-xs text-gray-500">{program.name}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-lg font-bold text-[#3E667D]">{recruits}</p>
-                <p className="text-xs text-gray-500">inscritos</p>
-              </div>
-            </div>
-            {nextMilestone && (
-              <div className="mt-3">
-                <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                  <span>Proximo hito: {nextMilestone.recruitsNeeded} inscritos</span>
-                  <span className="font-medium text-[#3E667D]">
-                    {fmtCurrency(nextMilestone.bonusAmount)}
-                    <span className="text-[8px] font-semibold text-gray-400 ml-0.5">{currency}</span>
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-[#C8DDF2] h-2 rounded-full transition-all"
-                    style={{ width: `${progressPct}%` }}
-                  />
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </div>
-      </Card>
-    </Link>
-  );
-}

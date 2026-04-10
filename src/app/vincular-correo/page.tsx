@@ -186,7 +186,7 @@ export default function VincularCorreoPage() {
           <div className="text-center">
             <Link href="/">
               <Image
-                src="/images/logo/logo-text-dark.png"
+                src="/images/logo/svg/logo-text-blue-r.svg"
                 alt="Tonic Life"
                 width={180}
                 height={64}

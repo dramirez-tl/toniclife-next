@@ -51,7 +51,7 @@ export function QuizWelcome({
         {/* Logo */}
         <div className="flex justify-center mb-8">
           <Image
-            src="/images/logo/logo-text-dark.png"
+            src="/images/logo/svg/logo-text-blue-r.svg"
             alt="Tonic Life - Tu Centro de Bienestar"
             width={200}
             height={80}

@@ -50,7 +50,7 @@ function RegistroExitosoContent() {
         <div className="text-center mb-8">
           <Link href="/">
             <Image
-              src="/images/logo/logo-text-dark.png"
+              src="/images/logo/svg/logo-text-blue-r.svg"
               alt="Tonic Life"
               width={200}
               height={80}

@@ -4,9 +4,9 @@ import type { DailySalesSummary, Sale } from '@/types/pos';
 import { PosSaleStatus } from '@/types/pos';
 import { formatDateLocal, formatTimeLocal, DEFAULT_TIMEZONE } from '@/lib/timezone-utils';
 
-const PAGE_W = 80;
+const PAGE_W = 72; // mm — printable width of POS-80
 const PAGE_H = 200;
-const MARGIN = 4;
+const MARGIN = 3;
 const CONTENT_W = PAGE_W - MARGIN * 2;
 const TOP_MARGIN = 6;
 const BOTTOM_MARGIN = 6;
@@ -127,7 +127,7 @@ export async function generateCorteDiaPdf(
   // Logo
   if (LOGO_BASE64) {
     try {
-      const logoW = 36, logoH = 18;
+      const logoW = 38, logoH = 8;
       doc.addImage(LOGO_BASE64, 'PNG', (PAGE_W - logoW) / 2, y, logoW, logoH);
       y += logoH + 1;
     } catch { y += 2; }
@@ -138,19 +138,19 @@ export async function generateCorteDiaPdf(
   // Header
   y = drawSeparator(doc, y);
   doc.setFont(FONT_BODY, 'bold');
-  doc.setFontSize(9);
+  doc.setFontSize(10);
   y = centerText(doc, 'CORTE DEL DÍA', y);
-  doc.setFontSize(7);
+  doc.setFontSize(8);
   y = centerText(doc, branchName, y);
   y = centerText(doc, displayDate.replace(/^\w/, (c) => c.toUpperCase()), y);
 
   // Ventas completadas
   y = drawSeparator(doc, y);
   doc.setFont(FONT_BODY, 'bold');
-  doc.setFontSize(7);
+  doc.setFontSize(8);
   y = leftText(doc, 'VENTAS COMPLETADAS', y);
   doc.setFont(FONT_MONO, 'bold');
-  doc.setFontSize(6.5);
+  doc.setFontSize(7.5);
   y = rowLR(doc, 'Total ventas', String(summary.totalSales), y);
   y = rowLR(doc, 'Monto total', fmt(summary.totalAmount), y);
   y = rowLR(doc, 'Ticket promedio', fmt(summary.averageTicket), y);
@@ -159,10 +159,10 @@ export async function generateCorteDiaPdf(
   // Canceladas
   y = drawSeparator(doc, y);
   doc.setFont(FONT_BODY, 'bold');
-  doc.setFontSize(7);
+  doc.setFontSize(8);
   y = leftText(doc, 'CANCELADAS / DEVOLUCIONES', y);
   doc.setFont(FONT_MONO, 'bold');
-  doc.setFontSize(6.5);
+  doc.setFontSize(7.5);
   y = rowLR(doc, 'Cantidad', String(summary.refundsCount), y);
   y = rowLR(doc, 'Monto cancelado', fmt(summary.totalRefunds), y);
 
@@ -171,10 +171,10 @@ export async function generateCorteDiaPdf(
   if (paymentRows.length > 0) {
     y = drawSeparator(doc, y);
     doc.setFont(FONT_BODY, 'bold');
-    doc.setFontSize(7);
+    doc.setFontSize(8);
     y = leftText(doc, 'POR MÉTODO DE PAGO', y);
     doc.setFont(FONT_MONO, 'bold');
-    doc.setFontSize(6.5);
+    doc.setFontSize(7.5);
     for (const { key, label } of paymentRows) {
       y = rowLR(doc, label, fmt(summary[key] as number), y);
     }
@@ -184,7 +184,7 @@ export async function generateCorteDiaPdf(
   if (sales.length > 0) {
     y = drawSeparator(doc, y);
     doc.setFont(FONT_BODY, 'bold');
-    doc.setFontSize(7);
+    doc.setFontSize(8);
     y = leftText(doc, `DETALLE DE VENTAS (${sales.length})`, y);
     y += 1;
 
@@ -200,7 +200,7 @@ export async function generateCorteDiaPdf(
 
       // Line 1: folio (bold) + monto (right, bold)
       doc.setFont(FONT_MONO, 'bold');
-      doc.setFontSize(6.5);
+      doc.setFontSize(7.5);
       const folioText = isCancelled ? `[CANC] ${s.saleNumber}` : s.saleNumber;
       doc.text(folioText, MARGIN, y);
       const tw = doc.getTextWidth(totalStr);
@@ -209,7 +209,7 @@ export async function generateCorteDiaPdf(
 
       // Line 2: fecha/hora · estatus · método
       doc.setFont(FONT_MONO, 'bold');
-      doc.setFontSize(6);
+      doc.setFontSize(7);
       doc.text(`${fecha} ${hora}  ${status}  ${method}`, MARGIN, y);
       y += lh(doc) + 1.5;
     }
@@ -217,8 +217,8 @@ export async function generateCorteDiaPdf(
 
   // Footer
   y = drawSeparator(doc, y);
-  doc.setFont(FONT_BODY, 'bold');
-  doc.setFontSize(6);
+  doc.setFont(FONT_BODY, 'bolditalic');
+  doc.setFontSize(7);
   y = centerText(doc, '*** Fin del corte ***', y);
 
   const blob = doc.output('blob');

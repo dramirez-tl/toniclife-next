@@ -117,13 +117,11 @@ export function Footer() {
           {/* Brand Column */}
           <div className="col-span-2 md:col-span-3 lg:col-span-2">
             <Link href="/" className="inline-block">
-              <Image
-                src="/images/logo/logo-text-light.png"
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/images/logo/svg/logo-text-dark-r.svg"
                 alt="Tonic Life - Tu Centro de Bienestar"
-                width={280}
-                height={90}
-                className="h-20 lg:h-24 w-auto"
-                priority
+                className="w-[180px] lg:w-[220px] h-auto"
               />
             </Link>
             <p className="mt-4 text-white/70 text-sm leading-relaxed">

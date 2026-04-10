@@ -106,7 +106,7 @@ export default function ComingSoonPage() {
           <div className="absolute inset-0 rounded-full bg-[#C8DDF2]/20 blur-2xl scale-125" />
           <div className="relative rounded-full bg-white h-32 w-32 sm:h-40 sm:w-40 shadow-2xl shadow-black/30 flex items-center justify-center overflow-hidden ring-2 ring-white/20">
             <Image
-              src="/images/logo/logo-icon-blue-solid.png"
+              src="/images/logo/svg/logo-icon-blue-solid.svg"
               alt="Tonic Life"
               width={320}
               height={320}

@@ -47,7 +47,7 @@ export default function ConfigSistemasPage() {
       <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 p-8 max-w-md w-full text-center">
         <div className="mb-6">
           <Image
-            src="/images/logo/logo-text-light.png"
+            src="/images/logo/svg/logo-text-dark-r.svg"
             alt="Tonic Life"
             width={160}
             height={50}

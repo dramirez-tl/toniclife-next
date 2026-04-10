@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.ico',
     shortcut: '/favicon.ico',
-    apple: '/images/logo/logo-icon-blue-solid.png',
+    apple: '/images/logo/svg/logo-icon-blue-solid.svg',
   },
   openGraph: {
     title: "Tonic Life | Tu Centro de Bienestar Natural",
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: '/images/logo/logo-text-dark.png',
+        url: '/images/logo/svg/logo-text-blue-r.svg',
         width: 1200,
         height: 630,
         alt: 'Tonic Life - Tu Centro de Bienestar Natural',
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: "Tonic Life | Tu Centro de Bienestar Natural",
     description: "Bienestar Natural, Vida Plena - Descubre tu fórmula ideal de bienestar",
-    images: ['/images/logo/logo-text-dark.png'],
+    images: ['/images/logo/svg/logo-text-blue-r.svg'],
   },
 };
 

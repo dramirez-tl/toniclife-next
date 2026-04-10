@@ -164,7 +164,7 @@ export default function LoginPage() {
           <div className="text-center">
             <Link href="/">
               <Image
-                src="/images/logo/logo-text-dark.png"
+                src="/images/logo/svg/logo-text-blue-r.svg"
                 alt="Tonic Life"
                 width={400}
                 height={130}

@@ -24,9 +24,9 @@ interface TicketOptions {
 // Constants
 // ================================
 
-const PAGE_W = 80; // mm
+const PAGE_W = 72; // mm — printable width of POS-80
 const PAGE_H = 200; // mm — fixed page height like reference PDF
-const MARGIN = 4; // mm
+const MARGIN = 3; // mm
 const CONTENT_W = PAGE_W - MARGIN * 2;
 const TOP_MARGIN = 6;
 const BOTTOM_MARGIN = 6;
@@ -139,8 +139,8 @@ export async function generateOrderTicketPdf(order: Order, options?: TicketOptio
   // ----- 1. Logo -----
   if (LOGO_BASE64) {
     try {
-      const logoW = 36;
-      const logoH = 18;
+      const logoW = 38;
+      const logoH = 8;
       const logoX = (PAGE_W - logoW) / 2;
       doc.addImage(LOGO_BASE64, 'PNG', logoX, y, logoW, logoH);
       y += logoH + 1;
@@ -226,8 +226,8 @@ export async function generateOrderTicketPdf(order: Order, options?: TicketOptio
   y = drawSeparator(doc, y);
 
   const colClave = MARGIN;
-  const colCant = MARGIN + 18;
-  const colPrecio = MARGIN + 30;
+  const colCant = MARGIN + 16;
+  const colPrecio = MARGIN + 26;
   const colTotal = PAGE_W - MARGIN;
 
   doc.setFont(FONT_MONO, 'bold');

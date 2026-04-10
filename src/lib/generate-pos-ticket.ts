@@ -25,9 +25,9 @@ interface PosTicketOptions {
 // Constants
 // ================================
 
-const PAGE_W = 80; // mm
+const PAGE_W = 72; // mm — printable width of POS-80 (80mm paper minus physical margins)
 const PAGE_H = 200; // mm
-const MARGIN = 4;
+const MARGIN = 3;
 const CONTENT_W = PAGE_W - MARGIN * 2;
 const TOP_MARGIN = 6;
 const BOTTOM_MARGIN = 6;
@@ -145,19 +145,44 @@ export async function generatePosTicketPdf(
   const branch = options?.branch;
   const currencyLabel = options?.currencyLabel || 'Pesos Mexicanos';
 
+  // Generate barcode once (reused in both passes)
+  let barcodeDataUrl: string | null = null;
+  try {
+    barcodeDataUrl = await generateBarcodeDataUrl(sale.saleNumber);
+  } catch {
+    // barcode generation failed
+  }
+
+  // First pass: measure content height with a throwaway doc
+  const measureDoc = new JsPDF({ orientation: 'portrait', unit: 'mm', format: [PAGE_W, PAGE_H] });
+  const measuredHeight = renderTicketContent(measureDoc, sale, LOGO_BASE64, branch, currencyLabel, barcodeDataUrl);
+  const finalPageH = measuredHeight + BOTTOM_MARGIN;
+
+  // Second pass: create final doc with exact height
   const doc = new JsPDF({
     orientation: 'portrait',
     unit: 'mm',
-    format: [PAGE_W, PAGE_H],
+    format: [PAGE_W, finalPageH],
   });
 
+  renderTicketContent(doc, sale, LOGO_BASE64, branch, currencyLabel, barcodeDataUrl);
+
+  const blob = doc.output('blob');
+  return URL.createObjectURL(blob);
+}
+
+/**
+ * Renders all ticket content onto a jsPDF doc. Returns final Y position.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function renderTicketContent(doc: any, sale: Sale, LOGO_BASE64: string | null, branch: any, currencyLabel: string, barcodeDataUrl: string | null): number {
   let y = TOP_MARGIN;
 
   // ----- 1. Logo -----
   if (LOGO_BASE64) {
     try {
-      const logoW = 36;
-      const logoH = 18;
+      const logoW = 38;
+      const logoH = 8;
       const logoX = (PAGE_W - logoW) / 2;
       doc.addImage(LOGO_BASE64, 'PNG', logoX, y, logoW, logoH);
       y += logoH + 1;
@@ -172,10 +197,11 @@ export async function generatePosTicketPdf(
   y = drawSeparator(doc, y);
   y += 1;
   doc.setFont(FONT_BODY, 'bold');
-  doc.setFontSize(8);
+  doc.setFontSize(8.5);
   y = centerText(doc, COMPANY.name, y);
   y += 0.5;
-  doc.setFontSize(6.5);
+  doc.setFont(FONT_BODY, 'normal');
+  doc.setFontSize(7.5);
   y = centerText(doc, COMPANY.rfc, y);
   for (const line of COMPANY.address) {
     y = centerText(doc, line, y);
@@ -185,7 +211,7 @@ export async function generatePosTicketPdf(
   // ----- 3. Sucursal -----
   y = drawSeparator(doc, y);
   doc.setFont(FONT_BODY, 'bold');
-  doc.setFontSize(6.5);
+  doc.setFontSize(7.5);
 
   if (branch?.ticketName) {
     y = centerText(doc, branch.ticketName, y);
@@ -193,28 +219,35 @@ export async function generatePosTicketPdf(
     y = centerText(doc, sale.branchName, y);
   }
   if (branch?.ticketAddress) {
+    doc.setFont(FONT_BODY, 'normal');
     const addrLines = branch.ticketAddress.split('\n');
     for (const line of addrLines) {
       y = centerText(doc, line.trim(), y);
     }
   }
   if (branch?.addressPhone) {
+    doc.setFont(FONT_BODY, 'normal');
     y = centerText(doc, `TELS. ${branch.addressPhone}`, y);
   }
 
   // ----- 4. Info Venta -----
   y = drawSeparator(doc, y);
-  doc.setFont(FONT_BODY, 'bold');
-  doc.setFontSize(6.5);
+  doc.setFontSize(7.5);
 
-  if (sale.customerName) {
-    const customerLabel = sale.customerNumber
-      ? `Cliente: ${sale.customerName} (#${sale.customerNumber})`
-      : `Cliente: ${sale.customerName}`;
-    y = leftText(doc, customerLabel, y);
-  }
-  y = leftText(doc, `Venta: ${sale.saleNumber}`, y);
-  y = leftText(doc, `Caja: ${sale.cashRegisterName}`, y);
+  const custName = sale.customerName?.trim() || 'Público en General';
+  doc.setFont(FONT_BODY, 'bold');
+  const customerLabel = sale.customerNumber
+    ? `Cliente: ${custName} (#${sale.customerNumber})`
+    : `Cliente: ${custName}`;
+  y = leftText(doc, customerLabel, y);
+  y += 1;
+  doc.setFont(FONT_BODY, 'bold');
+  y = leftText(doc, 'Venta:', y);
+  doc.setFont(FONT_BODY, 'normal');
+  doc.setFontSize(7);
+  y = leftText(doc, sale.saleNumber, y);
+  doc.setFontSize(7.5);
+  doc.setFont(FONT_BODY, 'normal');
   y = leftText(doc, `Vendedor: ${sale.sellerName}`, y);
 
   const saleDate = sale.createdAt;
@@ -224,12 +257,12 @@ export async function generatePosTicketPdf(
   y = drawSeparator(doc, y);
 
   const colClave = MARGIN;
-  const colCant = MARGIN + 18;
-  const colPrecio = MARGIN + 30;
+  const colCant = MARGIN + 16;
+  const colPrecio = MARGIN + 26;
   const colTotal = PAGE_W - MARGIN;
 
   doc.setFont(FONT_MONO, 'bold');
-  doc.setFontSize(6.5);
+  doc.setFontSize(7.5);
   y = checkPage(doc, y, 4);
   doc.text('CLAVE', colClave, y);
   doc.text('CANT', colCant, y);
@@ -238,9 +271,10 @@ export async function generatePosTicketPdf(
   doc.text('TOTAL', colTotal - hdrTotalW, y);
   y += doc.getLineHeight() / doc.internal.scaleFactor;
 
-  y = leftText(doc, '---------  ---------  ---------  ---------', y);
+  y = leftText(doc, '--------  --------  --------  --------', y);
 
-  doc.setFontSize(6.5);
+  doc.setFont(FONT_MONO, 'normal');
+  doc.setFontSize(7.5);
   for (const item of sale.items) {
     const lh = doc.getLineHeight() / doc.internal.scaleFactor;
     y = checkPage(doc, y, lh * 2);
@@ -269,8 +303,8 @@ export async function generatePosTicketPdf(
 
   // ----- 6. Totales -----
   y = drawSeparator(doc, y);
-  doc.setFont(FONT_MONO, 'bold');
-  doc.setFontSize(6.5);
+  doc.setFont(FONT_MONO, 'normal');
+  doc.setFontSize(7.5);
 
   const totalsRows: [string, string][] = [
     ['SUB Total $', fmtCurrency(sale.subtotal)],
@@ -296,7 +330,7 @@ export async function generatePosTicketPdf(
   }
 
   doc.setFont(FONT_MONO, 'bold');
-  doc.setFontSize(7.5);
+  doc.setFontSize(8.5);
   y = checkPage(doc, y, 4);
   const totalLabel = 'TOTAL $';
   const totalVal = fmtCurrency(sale.total);
@@ -306,8 +340,8 @@ export async function generatePosTicketPdf(
   doc.text(totalVal, colTotal - tValW, y);
   y += doc.getLineHeight() / doc.internal.scaleFactor;
 
-  doc.setFont(FONT_MONO, 'bold');
-  doc.setFontSize(6.5);
+  doc.setFont(FONT_MONO, 'normal');
+  doc.setFontSize(7.5);
   const currLabel = 'MONEDA';
   const cLabelW = doc.getTextWidth(currLabel + '  ');
   const cValW = doc.getTextWidth(currencyLabel);
@@ -318,10 +352,10 @@ export async function generatePosTicketPdf(
   // ----- 7. Datos Pago -----
   y = drawSeparator(doc, y);
   doc.setFont(FONT_BODY, 'bold');
-  doc.setFontSize(7);
+  doc.setFontSize(8);
   y = leftText(doc, 'Datos del Pago', y);
-  doc.setFont(FONT_BODY, 'bold');
-  doc.setFontSize(6.5);
+  doc.setFont(FONT_BODY, 'normal');
+  doc.setFontSize(7.5);
 
   for (const payment of sale.payments) {
     const methodName = paymentMethodLabel(payment.paymentMethod);
@@ -338,7 +372,6 @@ export async function generatePosTicketPdf(
   }
 
   y = leftText(doc, `Fecha de Pago: ${fmtDate(saleDate)}`, y);
-  y = leftText(doc, `No. Operacion: ${sale.saleNumber}`, y);
 
   // ----- 8. Puntos y Volumen de Negocio -----
   const totalPoints = sale.items.reduce((sum, item) => sum + (item.points || 0) * item.quantity, 0);
@@ -347,10 +380,10 @@ export async function generatePosTicketPdf(
   if (totalPoints > 0 || totalBV > 0) {
     y = drawSeparator(doc, y);
     doc.setFont(FONT_BODY, 'bold');
-    doc.setFontSize(7);
+    doc.setFontSize(8);
     y = leftText(doc, 'Puntos y Volumen de Negocio', y);
-    doc.setFont(FONT_BODY, 'bold');
-    doc.setFontSize(6.5);
+    doc.setFont(FONT_BODY, 'normal');
+    doc.setFontSize(7.5);
     if (totalPoints > 0) {
       y = leftText(doc, `Puntos: ${totalPoints.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, y);
     }
@@ -365,8 +398,8 @@ export async function generatePosTicketPdf(
 
   // ----- 9. Footer -----
   y += 2;
-  doc.setFont(FONT_BODY, 'bold');
-  doc.setFontSize(5.5);
+  doc.setFont(FONT_BODY, 'normal');
+  doc.setFontSize(6.5);
   y = centerText(
     doc,
     'TE INVITAMOS A SER PREMIUM Y PARA PERFECCIONAR TU DESARROLLO INSCRIBETE AL SISTEMA EDUCATIVO UNIVERSIDAD TONIC LIFE',
@@ -375,32 +408,72 @@ export async function generatePosTicketPdf(
 
   y = drawSeparator(doc, y);
   doc.setFont(FONT_BODY, 'bold');
-  doc.setFontSize(6);
+  doc.setFontSize(7);
   y = centerText(doc, 'PAGO HECHO EN UNA SOLA EXHIBICION', y);
   y = centerText(doc, 'ESTE COMPROBANTE NO ES VALIDO', y);
   y = centerText(doc, 'PARA EFECTOS FISCALES', y);
 
   y = drawSeparator(doc, y);
-  doc.setFont(FONT_BODY, 'bold');
-  doc.setFontSize(6);
+  doc.setFont(FONT_BODY, 'normal');
+  doc.setFontSize(7);
   y = centerText(doc, 'https://toniclife.com/', y);
   y = centerText(doc, 'Tel. Callcenter', y);
+  doc.setFont(FONT_BODY, 'bold');
   y = centerText(doc, '800 832 1852', y);
   y = centerText(doc, '462 626 4304', y);
 
   y += 3;
   doc.setFont(FONT_BODY, 'bolditalic');
-  doc.setFontSize(6.5);
+  doc.setFontSize(7.5);
   y = centerText(doc, '"EN TONIC LIFE... CONFIAMOS EN DIOS"', y);
 
   if (branch?.ticketFooter) {
     y += 2;
-    doc.setFont(FONT_BODY, 'bold');
-    doc.setFontSize(5.5);
+    doc.setFont(FONT_BODY, 'normal');
+    doc.setFontSize(6.5);
     y = centerText(doc, branch.ticketFooter, y);
   }
 
-  // ----- Return blob URL for preview -----
-  const blob = doc.output('blob');
-  return URL.createObjectURL(blob);
+  // ----- 10. Barcode -----
+  if (barcodeDataUrl) {
+    try {
+      y += 2;
+      y = drawSeparator(doc, y);
+      const barcodeW = CONTENT_W - 4;
+      const barcodeH = 12;
+      const barcodeX = (PAGE_W - barcodeW) / 2;
+      doc.addImage(barcodeDataUrl, 'PNG', barcodeX, y, barcodeW, barcodeH);
+      y += barcodeH + 2.5;
+      doc.setFont(FONT_MONO, 'normal');
+      doc.setFontSize(5);
+      const numW = doc.getTextWidth(sale.saleNumber);
+      doc.text(sale.saleNumber, (PAGE_W - numW) / 2, y);
+      y += doc.getLineHeight() / doc.internal.scaleFactor;
+    } catch {
+      // barcode render failed — skip silently
+    }
+  }
+
+  return y;
+}
+
+/**
+ * Generates a Code 128 barcode as a data URL using an offscreen canvas.
+ */
+async function generateBarcodeDataUrl(text: string): Promise<string | null> {
+  if (typeof document === 'undefined') return null;
+  try {
+    const JsBarcode = (await import('jsbarcode')).default;
+    const canvas = document.createElement('canvas');
+    JsBarcode(canvas, text, {
+      format: 'CODE128',
+      width: 1,
+      height: 40,
+      displayValue: false,
+      margin: 0,
+    });
+    return canvas.toDataURL('image/png');
+  } catch {
+    return null;
+  }
 }
