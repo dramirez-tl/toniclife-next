@@ -4,12 +4,12 @@ import { ShoppingCartIcon, UserCircleIcon } from '@heroicons/react/24/outline';
 export default function ComingSoonPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center relative overflow-hidden bg-[#d5e2ee]">
-      {/* Background watermark logo — only top half visible, anchored at bottom */}
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[55%] pointer-events-none">
+      {/* Background watermark logo */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <img
-          src="/images/logo/svg/logo-circle-white.svg"
+          src="/images/logo/svg/logo-icon-blue-solid.svg"
           alt=""
-          className="w-[800px] h-[800px] sm:w-[1000px] sm:h-[1000px] opacity-[0.35]"
+          className="w-[600px] h-[600px] opacity-[0.08]"
         />
       </div>
 
@@ -42,7 +42,7 @@ export default function ComingSoonPage() {
             href="#"
             className="flex-1 flex items-center justify-center gap-3 px-8 py-4 rounded-full border-2 border-[#3E667D]/40 text-[#2d4f5e] font-semibold text-base hover:bg-[#3E667D]/10 transition-colors"
           >
-            <ShoppingCartIcon className="w-5 h-5" />
+            <ShoppingCartIcon className="w-7 h-7" />
             Comprar ahora
           </Link>
           <a
@@ -51,7 +51,7 @@ export default function ComingSoonPage() {
             rel="noopener noreferrer"
             className="flex-1 flex items-center justify-center gap-3 px-8 py-4 rounded-full border-2 border-[#3E667D]/40 text-[#2d4f5e] font-semibold text-base hover:bg-[#3E667D]/10 transition-colors"
           >
-            <UserCircleIcon className="w-5 h-5" />
+            <UserCircleIcon className="w-7 h-7" />
             Ir a mi oficina virtual
           </a>
         </div>
