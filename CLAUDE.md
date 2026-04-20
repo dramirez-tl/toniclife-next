@@ -1,403 +1,529 @@
-# CLAUDE.md
+# toniclife-next — Contexto del Frontend
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+> Este archivo complementa `../CLAUDE.md` (raíz del workspace) con reglas y
+> detalles técnicos específicos del frontend. En caso de contradicción,
+> el más específico (este) gana sobre temas de stack; las advertencias
+> críticas del raíz son inmutables.
 
-## Project Overview
+---
 
-**My Wellness Hub by Tonic Life** - A comprehensive MLM (Multi-Level Marketing) e-commerce platform for natural wellness supplements with personalized Health Quiz recommendations, distributor network management, and community features.
+## 🧱 Stack técnico
 
-**Philosophy**: "Made Simple" - Everything must be easy to understand, start, and live with.
+- **Framework:** Next.js 16.1.6 (App Router, Turbopack en dev)
+- **Lenguaje:** TypeScript
+- **React:** 19.2.0
+- **Estilos:** Tailwind CSS 4.1.17 (sintaxis v4 — usa `@tailwindcss/postcss`,
+  NO hay `tailwind.config.ts` tradicional)
+- **Componentes base:** Radix UI (primitivos) + DS propio en `src/components/ui/`
+- **Utilidades de UI:** `clsx`, `tailwind-merge` (combinados en helper `cn`),
+  `lucide-react` + `@heroicons/react` (iconos), `sonner` (toasts)
+- **Fetching/server state:** `@tanstack/react-query` 5.90.16 + devtools
+- **Cliente HTTP:** `axios` 1.13.x con interceptores (ver sección abajo)
+- **Estado global UI:** Zustand 5 + Redux Toolkit (coexisten, ver deuda técnica)
+- **Forms:** `react-hook-form` + `zod` (vía `@hookform/resolvers`)
+- **Deploy:** Vercel (output `standalone`, `@vercel/analytics` activos)
+- **Pagos:** `@stripe/stripe-js` + `@stripe/react-stripe-js`
+- **Extras notables:** `@xyflow/react` (visualización de red MLM), `jspdf`
+  (exportes), `canvas-confetti`, `date-fns`.
 
-## Critical Documentation
+> ⚠️ `class-variance-authority` está en `package.json` pero **NO se usa**
+> actualmente en los componentes del DS. Ver sección DS propio abajo.
 
-**MUST READ BEFORE ANY DEVELOPMENT**:
-- [CONSIDERACIONES.md](CONSIDERACIONES.md) - 20 fundamental considerations including MLM business model, multi-role permissions, Health Quiz logic, gamification, compliance (FDA, COFEPRIS, DSA, FTC), and scalability requirements
-- [PLAN_DE_DESARROLLO_MOCKUPS.md](PLAN_DE_DESARROLLO_MOCKUPS.md) - Complete development roadmap with 8 phases, current status (72 routes, 54% complete), and future implementation priorities
+---
 
-## Build & Development Commands
+## 🚨 Regla innegociable de UI
+
+### ❌ NO uses `npx shadcn add <componente>`
+
+El proyecto usa un **DS propio** en `src/components/ui/`, NO shadcn/ui CLI.
+- No existe `components.json` en la raíz.
+- Los componentes están en **PascalCase** (`Button.tsx`, `Card.tsx`,
+  `Input.tsx`, `Badge.tsx`, `DataTable.tsx`, `SearchableSelect.tsx`,
+  `FileUpload.tsx`).
+- Si ejecutas `npx shadcn add button`, te genera un `button.tsx` en
+  lowercase que convive con `Button.tsx` y rompe imports existentes.
+
+**Patrón para agregar un componente nuevo al DS:**
+1. Ubica un componente similar existente (ej. `Button.tsx`).
+2. Copia su estructura: `forwardRef` + tipos literales (`'primary' | 'secondary' | ...`)
+   + `Record<Variant, string>` para estilos + `cn(...)` para combinar clases.
+3. Mantén PascalCase en el nombre de archivo y `export const ComponentName`.
+4. Reexporta desde `src/components/ui/index.ts`.
+
+---
+
+## 🎨 Brand
+
+- **Primary (Dark Teal):** `#3E667D`
+- **Secondary (Sky Blue):** `#C8DDF2`
+- Paleta derivada usada en variantes de Button: `#2f5165` (teal oscuro),
+  `#a7c1e2` y `#8fb3d9` (azules secundarios), `#abc9ba`/`#96b8a6` (success).
+- Logo: SVG en `public/`, variantes (full color, solid green icon, white,
+  circle-white).
+
+**Patrón de headers de admin pages (real, tomado de `admin/productos/page.tsx`):**
+
+```tsx
+<div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
+  <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="flex items-center gap-3 mb-2">
+      <ShoppingBagIcon className="h-9 w-9" />
+      <h1 className="text-3xl font-bold sm:text-4xl">Gestión de Productos</h1>
+    </div>
+    <p className="text-base text-white/80 sm:text-lg">Subtítulo</p>
+  </div>
+</div>
+```
+
+---
+
+## 🌐 Cliente HTTP y autenticación
+
+### `src/lib/axios.ts` — configuración real
+
+```ts
+const api = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1',
+  headers: { 'Content-Type': 'application/json' },
+  withCredentials: true,
+});
+```
+
+**Import correcto:** `import api from '@/lib/axios';` (default export).
+
+**Request interceptor:** inyecta `Authorization: Bearer <accessToken>` leyendo
+el token desde `localStorage` o `sessionStorage` (lo que exista primero).
+
+**Response interceptor — flujo de refresh:**
+
+1. Si la URL matchea un endpoint de auth (`/auth/login`, `/auth/register`,
+   `/auth/forgot-password`, `/auth/reset-password`, `/auth/verify-email`,
+   `/auth/refresh`, `/auth/link-email`, `/auth/verify-link-email`) → NO
+   intenta refresh, propaga el error.
+2. Si la URL matchea un endpoint público (`/cart`, `/checkout`, `/products`,
+   `/categories`, `/quiz`) → propaga el error sin redirigir a login.
+3. Si recibe 401 en cualquier otro endpoint y no está marcado `_retry`:
+   - Si ya hay un refresh en vuelo, encola el request.
+   - Si no: llama `POST /auth/refresh` con el `refreshToken`, actualiza
+     tokens y cookies, reintenta el request original.
+4. Si el refresh falla: limpia `localStorage` + `sessionStorage` +
+   cookies (`accessToken`, `authRole`) y redirige a `/login` (salvo que ya
+   esté ahí).
+
+**API base:** `http://localhost:3001/api/v1` (dev) / variable
+`NEXT_PUBLIC_API_URL` apunta a Railway en producción y staging.
+
+### Autenticación — cómo se guarda y lee el JWT
+
+**Almacenamiento dual según `rememberMe`:**
+- Si `localStorage.getItem('rememberMe') === '1'` → tokens van a `localStorage`
+  (persisten entre cierres de navegador).
+- Si no → tokens van a `sessionStorage` (se limpian al cerrar la pestaña).
+- La lectura (`getToken`) probará primero `localStorage`, luego `sessionStorage`.
+
+**Claves usadas:**
+- `accessToken` — JWT de acceso.
+- `refreshToken` — JWT de refresh.
+- `rememberMe` — flag `'1'` / ausente.
+- `user` — payload del usuario serializado.
+
+**Cookies paralelas:** para que el middleware de Next pueda hacer routing
+según rol sin leer storage, el axios también setea:
+- `accessToken=1; path=/; max-age=30d; SameSite=Lax` (solo presencia, no el token).
+- `authRole=<role>; path=/; max-age=30d; SameSite=Lax` (para guards de rutas).
+
+Al fallar el refresh, ambas cookies se limpian (`max-age=0`).
+
+**Estado de auth en React:** el `authSlice` de Redux mantiene
+`{ user, isAuthenticated, isLoading, isInitialized, error, emailLinkRequired }`
+y usa `createAsyncThunk` para login/register/refresh. Hay overlap con React
+Query aquí — documentado como deuda técnica.
+
+---
+
+## 📡 Patrón de servicios (clase-singleton)
+
+Ubicación: `src/services/`. Patrón confirmado en `products.service.ts:28`:
+
+```ts
+import api from '@/lib/axios';
+import type { Product, ProductQueryParams, ProductListResponse } from '@/types/product';
+
+class ProductsService {
+  async getProducts(params?: ProductQueryParams): Promise<ProductListResponse> {
+    const response = await api.get<ProductListResponse>('/products', { params });
+    return response.data;
+  }
+
+  async getProductById(id: string): Promise<Product> {
+    const response = await api.get<Product>(`/products/${id}`);
+    return response.data;
+  }
+
+  // ... create, update, delete, byCode, bySlug, etc.
+}
+
+export const productsService = new ProductsService();
+```
+
+**Reglas:**
+- Un servicio por recurso del API.
+- Clase con métodos públicos, exportada como **instancia singleton**
+  (`export const xxxService = new XxxService();`).
+- Tipos fuertes en todos los métodos (`Promise<Product[]>`, nunca `any`).
+- NO incluyas lógica de caché aquí — eso va en los hooks de React Query.
+
+**⚠️ Inconsistencia de naming heredada:** la mayoría de los 30 archivos de
+servicios siguen el patrón `<recurso>.service.ts`
+(`products.service.ts`, `users.service.ts`, `orders.service.ts`, etc.),
+pero **5 archivos legados** usan `<recurso>Api.ts`:
+- `auditApi.ts`
+- `commissionsApi.ts`
+- `distributorApi.ts`
+- `networkApi.ts`
+- `securityApi.ts`
+
+Para servicios nuevos usa siempre `.service.ts`. Renombrar los 5 legados
+es deuda técnica de refactor menor.
+
+---
+
+## 🔄 React Query — patrón de hooks
+
+Todos los hooks de data-fetching siguen el patrón **key factory + hook**.
+Ejemplo canónico real tomado de `src/hooks/useProducts.ts`:
+
+```ts
+// 1. Key factory
+export const productKeys = {
+  all: ['products'] as const,
+  lists: () => [...productKeys.all, 'list'] as const,
+  list: (params: ProductQueryParams) => [...productKeys.lists(), params] as const,
+  details: () => [...productKeys.all, 'detail'] as const,
+  detail: (id: string) => [...productKeys.details(), id] as const,
+  bySlug: (slug: string) => [...productKeys.all, 'slug', slug] as const,
+  byCode: (code: string) => [...productKeys.all, 'code', code] as const,
+};
+
+// 2. Query hook
+export const useProducts = (params: ProductQueryParams = {}) => {
+  return useQuery({
+    queryKey: productKeys.list(params),
+    queryFn: () => productsService.getProducts(params),
+    staleTime: 2 * 60 * 1000, // 2 min
+    gcTime: 5 * 60 * 1000,    // 5 min
+  });
+};
+
+// 3. Mutation hook con invalidación (real, de useProducts.ts:298)
+export const useCreateProduct = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: CreateProductDto) => productsService.createProduct(dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: productKeys.all });
+    },
+  });
+};
+
+// 4. Mutation que invalida lista + detalle (real, de useProducts.ts:312)
+export const useUpdateProduct = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: UpdateProductDto }) =>
+      productsService.updateProduct(id, dto),
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.all });
+      queryClient.invalidateQueries({ queryKey: productKeys.detail(id) });
+    },
+  });
+};
+```
+
+**Reglas:**
+- Cada entidad tiene su propio hook (`useProducts`, `useUsers`, `useOrders`,
+  `usePos`, `useInventory`, `useCommissions`, `useTaxRules`, `useQuiz`,
+  `useStates`, etc.). Hay 15+ hooks con este patrón.
+- Key factory siempre en el mismo archivo del hook, exportado.
+- `staleTime` y `gcTime` explícitos por hook (no dependas del default).
+- Mutations invalidan queries relevantes en `onSuccess`.
+- **Feedback al usuario (toasts):** la convención dominante es llamar
+  `toast.success(...)` / `toast.error(...)` **desde el componente** tras
+  `mutate()` o `mutateAsync()`, no dentro del hook. Algunos hooks viejos
+  sí ponen toasts en `onSuccess` — no homogeneizar sin plan explícito.
+- Para paginación infinita existe `useInfiniteQuery` (ver `useInfiniteProducts`
+  en `useProducts.ts:68`).
+
+---
+
+## 🎯 Patrón de páginas de admin
+
+Estructura confirmada en `src/app/admin/productos/page.tsx`:
+
+```tsx
+'use client';
+import { Suspense } from 'react';
+import { Card, CardContent } from '@/components/ui/Card';
+import { DataTable } from '@/components/ui';
+import { toast } from 'sonner';
+import { useProducts, useDeleteProduct } from '@/hooks/useProducts';
+import { PermissionGuard } from '@/components/auth';
+import { ShoppingBagIcon } from '@heroicons/react/24/outline';
+
+export default function ProductosPage() {
+  return (
+    <Suspense fallback={<ProductosSkeleton />}>
+      <ProductosContent />
+    </Suspense>
+  );
+}
+
+function ProductosContent() {
+  const { data, isLoading } = useProducts();
+  // ...
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
+      {/* Header con gradient teal → azul */}
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3 mb-2">
+            <ShoppingBagIcon className="h-9 w-9" />
+            <h1 className="text-3xl font-bold sm:text-4xl">Gestión de Productos</h1>
+          </div>
+          <p className="text-base text-white/80 sm:text-lg">Subtítulo</p>
+        </div>
+      </div>
+
+      {/* Contenido en Cards */}
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <Card>
+          <CardContent className="p-6">
+            <DataTable columns={cols} data={rows} />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+```
+
+**Checklist para una página admin nueva:**
+- [ ] `'use client'` al inicio.
+- [ ] `Suspense` con un skeleton dedicado.
+- [ ] Header con `bg-gradient-to-r from-[#3E667D] to-[#0A4B94]` + icono heroicon + título `text-3xl font-bold`.
+- [ ] Contenido envuelto en `Card` / `CardContent`.
+- [ ] Data con hooks de React Query (no fetch manual).
+- [ ] Toasts con `import { toast } from 'sonner';`.
+- [ ] `PermissionGuard` en acciones que requieran rol específico.
+
+---
+
+## 🗃️ Estado global — situación actual
+
+### React Query
+- **Responsabilidad:** todo el server state (listas, detalles, caches de API).
+- **Es la fuente de verdad** para cualquier dato que venga del backend.
+- **Ubicación:** `src/hooks/*.ts`.
+
+### Zustand
+- **Ubicación:** `src/stores/` (carpeta plural — distinta de `src/store/` de Redux).
+- **Stores actuales (1):**
+  - `pos-cart.store.ts` — estado del carrito del POS con `persist` middleware.
+    Maneja items, totales, descuentos, flags `requiresInvoice`, `setCustomer`,
+    `setPublicPrice`, `refreshItemPrices`.
+- **Uso recomendado:** UI state puro y carritos/wizards que no viven en el
+  servidor. Persistencia opcional con middleware `persist`.
+
+### Redux Toolkit
+- **Ubicación:** `src/store/` (singular) — `store.ts`, `hooks.ts`,
+  `index.ts`, y 3 slices en `src/store/slices/`.
+- **Slices actuales (3):**
+  - `authSlice.ts` — `{ user, isAuthenticated, isLoading, isInitialized,
+    error, emailLinkRequired }`. Usa `createAsyncThunk` para `initializeAuth`,
+    login/register/refresh. **Overlap con React Query** (manejo de server-state
+    de auth).
+  - `uiSlice.ts` — sidebar (open/collapsed), theme, notifications, modalOpen,
+    isLoading global. **UI state puro, sin overlap.**
+  - `customersSlice.ts` — lista de clientes, paginación, filtros, selected
+    customer. **Overlap directo con React Query** — duplica caché de datos
+    del backend.
+- **⚠️ Deuda técnica:** Redux es previo a la adopción de React Query +
+  Zustand. Hay overlap significativo en `authSlice` y `customersSlice`.
+  **Sesión dedicada pendiente** para migrar esos a RQ y dejar Redux solo
+  para `uiSlice` (o migrar a Zustand completo).
+
+**Regla mientras no se resuelva:**
+- Para **datos nuevos del backend** → React Query.
+- Para **UI state nuevo** → Zustand (en `src/stores/`).
+- **NO agregar slices nuevos a Redux.** Si modificas uno existente, explica
+  en el commit por qué no migra a Zustand/RQ.
+
+---
+
+## 🧩 DS propio — inventario real
+
+Ubicación: `src/components/ui/`. Archivos en PascalCase.
+
+| Archivo | Tipo | Notas |
+|---------|------|-------|
+| `Badge.tsx` | Tag de estado | variantes de color |
+| `Button.tsx` | Botón | 7 variants (`primary/secondary/outline/ghost/danger/link/success`), 5 sizes (`sm/md/lg/xl/icon`), `isLoading`, `leftIcon`, `rightIcon`, `fullWidth` |
+| `Card.tsx` | Contenedor | Card + CardHeader/Content/Footer |
+| `DataTable.tsx` | Tabla genérica | con sort/filter/pagination; reexporta `DataTablePagination`, `DataTableColumn` |
+| `FileUpload.tsx` | Upload | drag & drop + preview |
+| `Input.tsx` | Input | con label/error/helper |
+| `SearchableSelect.tsx` | Select con búsqueda | sobre Radix Popover |
+| `index.ts` | Barrel | reexporta los anteriores |
+
+**Patrón real (NO usa `cva`):**
+```ts
+// Button.tsx usa tipos literales + Record + cn
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'link' | 'success';
+const variantStyles: Record<ButtonVariant, string> = {
+  primary: 'bg-[#3E667D] hover:bg-[#2f5165] text-white shadow-md hover:shadow-lg',
+  secondary: '...',
+  // ...
+};
+// Luego:
+className={cn('base-classes', variantStyles[variant], sizeStyles[size], className)}
+```
+
+**NO usar `cva`** en el DS por ahora (aunque esté en `package.json`) —
+mantén la consistencia con el resto de los componentes. Si quieres introducir
+`cva`, hazlo como refactor explícito y coordinado, no en un componente nuevo.
+
+**Componentes Radix usados directamente** (sin wrapper propio en `ui/`):
+Dialog, Dropdown, Popover, Tabs, Tooltip, Scroll-area, Checkbox, Switch,
+Toast, Accordion, Avatar, Label, Separator, Select. Si los necesitas,
+consúmelos desde `@radix-ui/react-*` directamente — NO hay envoltorio en `ui/`.
+
+---
+
+## 📢 Toasts y feedback de UI
+
+- Librería: `sonner`.
+- Importación: `import { toast } from 'sonner';`
+- Uso:
+  - `toast.success('Mensaje')` — operación exitosa
+  - `toast.error('Mensaje')` — error
+  - `toast.loading(...)` + `toast.dismiss(...)` — para operaciones largas
+- El `<Toaster />` se monta una sola vez en el layout raíz.
+- Convención actual: los toasts se disparan desde el **componente**, tras
+  llamar `mutate()` en un hook de React Query (no dentro del `onSuccess`
+  del hook, salvo en hooks legados).
+
+---
+
+## 📂 Estructura de carpetas
+
+```
+src/
+├── app/                    # App Router (131 rutas page.tsx)
+│   ├── admin/              # ~55 páginas: auditoría, comisiones, distribuidores,
+│   │                       #            facturación, inventario, logs, mlm,
+│   │                       #            notificaciones, pedidos, productos,
+│   │                       #            RRHH, seguridad, sucursales, usuarios
+│   ├── distribuidor/       # ~24 páginas: portal de distribuidor
+│   ├── (public rutas)/     # landing, blog, buscar, carrito, checkout,
+│   │                       # contacto, FAQ, productos públicos, etc.
+│   ├── layout.tsx
+│   └── page.tsx            # ⚠️ En main = landing "coming soon" productiva
+├── components/
+│   ├── ui/                 # DS propio (PascalCase) — 7 componentes
+│   ├── auth/               # PermissionGuard, AuthProvider, etc.
+│   ├── layout/             # Header, Footer, Sidebar
+│   ├── network/            # UserDetailPanel, NetworkVisualization (xyflow)
+│   ├── pos/                # PaymentModal, etc.
+│   └── (muchos más por dominio)
+├── hooks/                  # React Query hooks + key factories (15+ hooks)
+├── lib/
+│   ├── axios.ts            # Cliente HTTP con interceptores
+│   ├── stripe.ts           # Init Stripe
+│   └── utils.ts            # cn() helper, formatters
+├── services/               # Clases singleton que hablan con el API (30 archivos)
+├── store/                  # 🟥 Redux Toolkit (legacy) — 3 slices
+├── stores/                 # 🟩 Zustand — 1 store (pos-cart)
+├── providers/              # QueryProvider (React Query), etc.
+├── types/                  # Types y DTOs (Product, User, Order, POS, etc.)
+├── middleware.ts           # Next middleware: gate de countdown + routing por rol
+└── public/                 # Assets: logos SVG, imágenes
+```
+
+---
+
+## ⚙️ Comandos frecuentes
 
 ```bash
-# Development server with Turbopack
-npm run dev
-
-# Production build (generates 72 routes)
-npm run build
-
-# Production server
-npm start
-
-# Linting
-npm run lint
+npm install
+npm run dev              # Next 16 con Turbopack, puerto 3000
+npm run build            # build standalone
+npm run start            # correr el build local
+npm run lint             # ESLint
 ```
-
-## Tech Stack
-
-- **Framework**: Next.js 16.1.6 (App Router with Turbopack)
-- **React**: 19.2.0
-- **TypeScript**: 5.9.3
-- **Styling**: Tailwind CSS 4.1.17
-- **State Management**: Redux Toolkit + React-Redux (global) / Zustand (local) / TanStack React Query (server state)
-- **Forms**: React Hook Form + Zod (validación)
-- **UI Components**: Radix UI primitives (accordion, avatar, checkbox, dialog, dropdown, select, tabs, toast, tooltip, etc.)
-- **Icons**: Heroicons 2.2.0 + Lucide React
-- **Notifications**: Sonner 2.0.7
-- **HTTP Client**: Axios 1.13.2 (con interceptores para JWT refresh automático)
-- **Payments**: Stripe React (`@stripe/react-stripe-js`)
-- **Network Visualization**: `@xyflow/react` (árbol genealógico MLM)
-- **PDF**: jsPDF 4.2.0
-- **Analytics**: Vercel Analytics
-- **Utilities**: clsx + tailwind-merge (cn helper), date-fns, lodash
-
-## Architecture & Code Organization
-
-### Multi-Role System Architecture
-
-The system supports 7 user roles with distinct dashboards and permissions:
-- `customer` - Regular buyers
-- `distributor` - MLM network members (Bronze → Silver → Gold → Diamond ranks)
-- `admin` - Full system management
-- `support` - Customer service access
-- `hr` - Distributor management
-- Additional roles defined in types but not fully implemented
-
-**Critical**: All user-facing features must respect role-based permissions defined in `/src/types/index.ts`.
-
-### App Router Structure
-
-```
-/src/app/
-├── (public)/              # Landing, Quiz, Products, Checkout
-├── /cuenta/               # Customer account pages
-├── /distribuidor/         # Distributor portal (24 pages)
-├── /admin/                # Admin panel
-├── /productos/[slug]/     # Dynamic product pages
-│   └── /reviews/          # Product reviews system
-└── /blog/, /recetas/, etc.# Content pages
-```
-
-**Route Count**: 72 routes total (see build output for complete list)
-
-### Component Organization
-
-```
-/src/components/
-├── ui/                    # Reusable UI primitives (Button, Card, Badge, Input, DataTable, SearchableSelect)
-├── layout/                # Header, Footer (with nested navigation)
-├── landing/               # Homepage sections (Hero, Featured, Testimonials, Quiz CTA)
-├── quiz/                  # Health Quiz flow components
-├── products/              # Product grids, filters, cards
-├── cart/                  # Shopping cart components
-├── admin/                 # Admin-specific components
-├── distributor/           # Distributor portal components
-├── network/               # MLM genealogy tree visualization (@xyflow/react)
-├── commissions/           # Commission calculation UI
-├── pos/                   # Point-of-Sale components
-├── auth/                  # Login, register forms
-└── catalog/               # Product catalog management
-```
-
-### Services Layer
-
-```
-/src/services/             # 25+ archivos de integración con la API
-├── auth.service.ts        # Login, register, logout, refresh token
-├── products.service.ts    # Product CRUD & catalog
-├── orders.service.ts      # Order management
-├── cart.service.ts        # Shopping cart logic
-├── quiz.service.ts        # Health Quiz logic
-├── inventory.service.ts   # Inventory tracking
-├── hr.service.ts          # Human resources
-├── billing.service.ts     # Billing & invoicing
-├── networkApi.ts          # Distributor network relationships
-├── commissionsApi.ts      # Commission calculations
-├── auditApi.ts            # Audit trail
-├── config.service.ts      # System configuration
-├── customers.service.ts   # Customer management
-├── distributorApi.ts      # Distributor portal
-├── pos.service.ts         # Point-of-sale
-├── reports.service.ts     # Reporting
-└── [otros servicios...]
-```
-
-**Base URL**: `NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1`
-
-**Pattern**: All interactive components use `'use client'` directive. Server components by default.
-
-### Redux Store Structure
-
-```
-/src/store/
-├── store.ts               # Store configuration
-├── hooks.ts               # Typed hooks (useAppDispatch, useAppSelector)
-├── provider.tsx           # ReduxProvider for Next.js
-├── index.ts               # Barrel exports
-└── slices/
-    ├── authSlice.ts       # Auth state: user, tokens, login/logout, thunks completos
-    ├── uiSlice.ts         # UI state (sidebar, theme, notifications, modals)
-    └── customersSlice.ts  # Customer data
-```
-
-**React Query** (para server state / caché de datos de API):
-```typescript
-import { QueryProvider } from '@/providers/QueryProvider';
-// Wrappear con QueryProvider en el root layout
-```
-
-**Zustand** (para estado local simple sin Redux):
-```typescript
-import { create } from 'zustand';
-```
-
-**Usage**:
-```typescript
-import { useAppDispatch, useAppSelector } from '@/store';
-import { loginAsync, setTheme } from '@/store';
-
-const user = useAppSelector((state) => state.auth.user);
-const dispatch = useAppDispatch();
-dispatch(setTheme('dark'));
-```
-
-### Type System
-
-Central type definitions in `/src/types/index.ts`:
-- `Product` - Full product schema with benefits, usage, ingredients, combinations
-- `QuizQuestion`, `QuizAnswer`, `QuizResult` - Health Quiz flow types
-- `User`, `Distributor` - Multi-role user types with MLM hierarchy
-- `Cart`, `Order`, `OrderStatus` - E-commerce flow
-- `DailyHabit`, `SupplementLog` - Gamification tracker types
-
-**Important**: `ProductCategory` and `WellnessGoal` types drive the Health Quiz recommendation engine.
-
-### Health Quiz Logic
-
-The quiz is a 10-question flow with conditional branching:
-1. Question 1 determines gender
-2. Gender determines Question 7 path:
-   - Female → Question 7A (hormonal health)
-   - Male → Question 7B (masculine health)
-3. Final question determines `WellnessGoal`
-4. Goal maps to specific product bundles (see CONSIDERACIONES.md §5)
-
-**Data Flow**: QuizAnswer[] → HealthProfile → WellnessGoal → ProductBundle recommendation
-
-### MLM/Distributor System
-
-Key distributor features (all in `/distribuidor/`):
-- Genealogy tree visualization (`/red`)
-- Commission tracking and calculations (`/comisiones`)
-- Personal link/QR code generation (`/enlaces`)
-- CRM for client management (`/clientes`)
-- Marketing materials library (`/materiales`)
-- Training center (`/capacitacion`)
-
-**Critical**: Distributor rank (`bronze|silver|gold|diamond`) affects commission calculations and available features.
-
-### Mock Data Strategy
-
-Actualmente la mayoría de datos son **mock** — la capa de servicios (`/src/services/`) está implementada pero conectada a datos locales/mock:
-- Products: ~20 mock products en varios archivos
-- Quiz: Mock questions en componentes del quiz
-- Users/Distributors: Mock data en páginas de distribuidor
-- Orders: Mock order history
-
-**Auth service**: Completamente implementado (`auth.service.ts`) con JWT, refresh token y localStorage. Los thunks de Redux (`authSlice.ts`) están listos para conectarse al backend real.
-
-**Al integrar backend real**: Los servicios ya tienen la estructura correcta con axios. Apuntar `NEXT_PUBLIC_API_URL` al backend NestJS en producción.
-
-## Styling & Design System
-
-### Brand Colors (definidos en `globals.css` como CSS variables)
-- Primary Teal: `#3E667D` (`--color-primary`) — headers, texto, botones
-- Primary Dark: `#2f5165` (`--color-primary-dark`) — gradientes, hover
-- Primary Light: `#4d7a8f` (`--color-primary-light`) — midpoints de gradiente
-- Accent Blue: `#a7c1e2` (`--color-accent-blue`) — focus rings, borders, links
-- Accent Blue Light: `#C8DDF2` (`--color-accent-blue-light`) — fondos claros, badges
-- Sage Green: `#abc9ba` (`--color-sage`) — botones secundarios, accents de éxito
-- Cream: `#f5f7e7` (`--color-cream`) — fondos de página, cards
-
-**Importante**: No usar `#003B7A` ni `#7AB82E` — esos son colores de Tonic Life v1, ya no aplican.
-
-### Typography
-- Primary: Geist Sans (`--font-geist-sans`)
-- Monospace: Geist Mono (`--font-geist-mono`)
-
-### Design Principles
-- Mobile-first responsive design
-- Clean, minimal aesthetic (inspiration: AG1, Seed, Athletic Greens)
-- Generous white space
-- Subtle animations on hover/interactions
-
-### Toast Notifications
-Use `sonner` for all user feedback:
-```typescript
-import { toast } from 'sonner';
-toast.success('Message here');
-toast.error('Error message');
-```
-
-## Development Patterns
-
-### Client Components
-Mark components as client-side when they use:
-- `useState`, `useEffect`, or other React hooks
-- Browser APIs (window, localStorage)
-- Event handlers (onClick, onChange)
-
-```typescript
-'use client';
-import { useState } from 'react';
-```
-
-### Path Aliases
-Use `@/*` for all imports from src:
-```typescript
-import { Button } from '@/components/ui';
-import { Product } from '@/types';
-```
-
-### Dynamic Routes
-Product detail pages use slug-based routing:
-```
-/productos/[slug]/page.tsx
-/productos/[slug]/reviews/page.tsx
-```
-
-Reviews are a separate route, not a tab within product detail.
-
-## Current Phase Status
-
-**Phase 0-2, 4-6, 8**: ✅ Fully completed
-**Phase 3**: ⏸️ Not implemented (Daily Habit Tracker)
-**Phase 7**: ⚠️ 60% complete (Admin panel partially done)
-
-Next priorities:
-1. Complete Phase 7 admin features (categories, distributor detail, commission admin)
-2. Implement Phase 3 habit tracker with gamification
-3. Backend integration preparation
-
-## Known Constraints
-
-- **No tests**: Test infrastructure not set up
-- **Backend pendiente**: Los servicios están implementados pero apuntan a mocks/localhost; el backend NestJS corre en `localhost:3001`
-- **Auth**: Service layer completo, pero login real depende de que el backend esté corriendo
-- **No payment processing**: Stripe integration preparada pero no activa
-- **No i18n**: Spanish only (English planned for Phase 2+)
-- **SEO warnings**: metadataBase no configurado (solo en desarrollo)
-
-## Compliance & Regulations
-
-Any health claims or product descriptions must comply with:
-- FDA regulations (USA)
-- COFEPRIS (Mexico)
-- DSA Code of Ethics (MLM industry)
-- FTC Guidelines (testimonials and advertising)
-
-**Disclaimers required**:
-- "Results may vary"
-- "Consult physician before use"
-- "Does not diagnose, treat, or cure diseases"
-- "Distributors are independent contractors"
-
-## Multi-Language Support (Future)
-
-System is prepared for English/Spanish:
-- All user-facing strings should be extractable
-- Current default: Spanish (`lang="es"` in layout)
-- Future: i18n library integration needed
-
-## Important File Locations
-
-- Type definitions: `/src/types/index.ts`
-- Global styles: `/src/app/globals.css`
-- UI components: `/src/components/ui/`
-- Layout components: `/src/components/layout/`
-- Public assets: `/public/images/` (logos: logo.png, logo-white.png, logo-icon.png, favicon.ico)
-
-## Notes on This Codebase
-
-- **All pages are mockups**: Functional UI without real data persistence
-- **72 routes implemented**: See build output for complete list
-- **Distributor portal is most complex**: 24 pages with CRM, genealogy, commissions
-- **Quiz is the conversion funnel**: Drives product recommendations and distributor attribution
-- **Mobile-first**: Responsive design is critical (majority of traffic expected from mobile)
 
 ---
 
-## DIRECTRIZ OBLIGATORIA: Integración con Sistema de Auditoría
+## 🚢 Deploy (Vercel)
 
-**CRÍTICO**: Al integrar con el backend, todas las operaciones de mutación deben estar preparadas para el sistema de auditoría.
-
-### Consideraciones para el Frontend
-
-1. **Operaciones que requieren confirmación del usuario**:
-   - Antes de operaciones sensibles, mostrar modal de confirmación
-   - Operaciones de alto riesgo: eliminación, ajustes de inventario, cambios de precio
-   - Mostrar claramente qué acción se va a registrar
-
-2. **Feedback de auditoría**:
-   - Mostrar toast de éxito con referencia del registro de auditoría cuando aplique
-   - En caso de error, mostrar el ID de auditoría para soporte
-
-3. **Panel de Administración - Requisitos**:
-   - Dashboard de auditoría debe mostrar:
-     - Actividad reciente (últimas 24h)
-     - Operaciones de alto riesgo destacadas
-     - Filtros por usuario, acción, entidad, riesgo
-     - Exportación de logs
-   - Alertas en tiempo real para operaciones críticas
-
-4. **Permisos de visualización**:
-   | Rol | Acceso a Auditoría |
-   |-----|-------------------|
-   | `admin` | Todos los logs |
-   | `superadmin` | Todos los logs + análisis avanzado |
-   | `manager` | Logs de su sucursal |
-   | `distributor` | Solo sus propias acciones |
-   | `support` | Logs relevantes a tickets |
-
-5. **Páginas de auditoría a implementar**:
-   - `/admin/auditoria` - Dashboard principal
-   - `/admin/auditoria/logs` - Tabla de logs con filtros
-   - `/admin/auditoria/alertas` - Sistema de alertas
-   - `/admin/auditoria/reportes` - Reportes y exportación
-
-### Checklist para Nuevas Páginas Admin
-
-- [ ] ¿Las acciones destructivas tienen confirmación?
-- [ ] ¿Se muestra feedback del resultado de la operación?
-- [ ] ¿Las operaciones sensibles están marcadas visualmente?
-- [ ] ¿El usuario entiende qué quedará registrado?
+- Producción: rama `main` → `toniclife.com` (actualmente sirve la landing
+  "coming soon" — ver advertencia en `../CLAUDE.md`).
+- Staging: rama `staging` → preview URL de Vercel.
+- **Variables requeridas en Vercel:**
+  - `NEXT_PUBLIC_API_URL` — URL del backend (Railway prod/staging).
+  - `NODE_ENV`.
+  - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`.
+  - `NEXT_PUBLIC_BASE_URL` — para `metadataBase` en `app/layout.tsx`.
+    **Pendiente documentar en `.env.example`.**
+  - `LAUNCH_DATE` / `NEXT_PUBLIC_LAUNCH_DATE` — countdown gate opcional.
+- `vercel.json` NO está en git — config vive en la UI de Vercel.
+- Se usa `@vercel/analytics` — el `<Analytics />` está en el layout raíz.
+- `next.config.ts` fija `output: 'standalone'` (también listo para Docker
+  si alguna vez se mueve).
 
 ---
 
-## Development Workflow - OBLIGATORIO
+## 📉 Deuda técnica específica del frontend
 
-### Al completar trabajo en cualquier issue de Jira:
+Ver lista global en `../CLAUDE.md`. Puntos específicos del frontend:
 
-1. **Actualizar Jira**:
-   - Mover el issue al siguiente estado (En curso → Code Review → QA Testing → Done)
-   - Agregar comentario detallando qué se implementó
-   - Si hay cambios en el alcance, actualizar la descripción
-   - **Verificar/actualizar Story Points** si la estimación inicial fue incorrecta
+1. **Triple state management** — Redux Toolkit + Zustand + React Query
+   coexisten con overlap conocido en `authSlice` y `customersSlice`. Sesión
+   dedicada pendiente para mapear responsabilidades y retirar Redux o dejarlo
+   solo para UI state global (`uiSlice`).
+2. **Conteo de rutas actualizado:** 131 `page.tsx` (el CLAUDE.md viejo
+   decía 72).
+3. **Landing "coming soon" en `main`** — 5 commits exclusivos que NO deben
+   propagarse a staging. Ver advertencia en `../CLAUDE.md`.
+4. **Naming inconsistente en `src/services/`**: 5 archivos legados usan
+   sufijo `Api.ts` (`auditApi`, `commissionsApi`, `distributorApi`,
+   `networkApi`, `securityApi`) en vez de `.service.ts`. Refactor pendiente.
+5. **`class-variance-authority` en deps pero sin uso real** — el DS usa
+   `Record<Variant, string>` + `cn()`. Decidir: migrar todos a `cva` o
+   eliminar la dep.
+6. **`NEXT_PUBLIC_BASE_URL`** se usa en `app/layout.tsx` pero no está en
+   `.env.example`.
+7. **~9 PRs de Dependabot acumulados** en este repo (axios, eslint,
+   hook-form, lucide-react, next, react, tailwindcss, tailwindcss/postcss,
+   types/node). Revisar en sesión dedicada.
+8. **`UserDetailPanel.tsx`** tiene 3 desactivaciones (link sponsor, botón
+   "Ver Perfil Completo", sección ventas) heredadas en ambas ramas —
+   decisión de mantenerlas por ahora.
 
-2. **Actualizar Confluence** (si aplica):
-   - Documentar nuevos componentes en la página de Arquitectura
-   - Actualizar guías si hay cambios en el setup
-   - Agregar troubleshooting si se encontraron problemas comunes
+---
 
-3. **Commits**:
-   - Usar formato: `feat(TL20-XX): descripción breve`
-   - Tipos: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
-   - Referenciar siempre el issue de Jira
+## 🛑 Zonas de máximo cuidado
 
-### Recursos del Proyecto
+Cambios en estas áreas requieren confirmación explícita del usuario:
 
-| Recurso | URL |
-|---------|-----|
-| Jira Board | https://toniclife.atlassian.net/jira/software/projects/TL20/boards/5 |
-| Confluence | https://toniclife.atlassian.net/wiki/spaces/TL20 |
-| Arquitectura | https://toniclife.atlassian.net/wiki/spaces/TL20/pages/38895618 |
-| Setup Local | https://toniclife.atlassian.net/wiki/spaces/TL20/pages/38928385 |
-| DB Schema | https://toniclife.atlassian.net/wiki/spaces/TL20/pages/38961153 |
-| Roadmap | https://toniclife.atlassian.net/wiki/spaces/TL20/pages/38764839 |
+- **Cualquier página bajo `/admin/facturacion/*`** — emite facturas fiscales
+  reales vía Facturama.
+- **Cualquier página bajo `/admin/comisiones/*` y `/admin/mlm/*`** —
+  afectan cálculos que pagan dinero real a distribuidores.
+- **Checkout y carrito** (`app/checkout/*`, `app/carrito/*`) — cobros a
+  tarjeta real vía Stripe.
+- **Autenticación** (login, logout, refresh, middleware de routing,
+  `axios.ts`, `authSlice`) — errores aquí bloquean a todos los usuarios.
+- **`app/page.tsx`** en `main` — es la landing "coming soon" productiva.
+  NO modificar sin coordinar.
+- **`NetworkVisualization` y `UserDetailPanel`** — tocan datos MLM
+  sensibles y tienen 3 desactivaciones intencionales vigentes.
