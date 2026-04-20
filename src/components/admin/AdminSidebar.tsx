@@ -137,7 +137,7 @@ const navigation: NavItem[] = [
   { name: 'Cupones', href: '/admin/cupones', icon: TagIcon, permissions: ['customers.promos', 'config'] },
   { name: 'Banners', href: '/admin/banners', icon: PhotoIcon, permissions: ['config'] },
   { name: 'Contenido', href: '/admin/contenido', icon: ComputerDesktopIcon, permissions: ['config'] },
-  { name: 'Punto de Venta', href: '/admin/pos', icon: ComputerDesktopIcon, permissions: ['pos:read', 'pos:write', 'pos:*', 'sales.pos', 'sales.pos.read', 'sales.pos.create'] },
+  { name: 'Punto de Venta', href: '/admin/pos', icon: ComputerDesktopIcon, permissions: ['pos:read', 'pos:create', 'pos:*', 'sales.pos', 'sales.pos.read', 'sales.pos.create'] },
   {
     name: 'Auditoría',
     href: '/admin/auditoria',
