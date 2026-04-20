@@ -387,7 +387,7 @@ function DistribuidoresContent() {
   // Loading state
   if (isLoading && customers.length === 0) {
     return (
-      <PermissionGuard permissions={['users:read']}>
+      <PermissionGuard permissions={['customers:read']}>
         <div className="min-h-screen bg-gray-50">
           <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -420,7 +420,7 @@ function DistribuidoresContent() {
   // Error state
   if (error && customers.length === 0) {
     return (
-      <PermissionGuard permissions={['users:read']}>
+      <PermissionGuard permissions={['customers:read']}>
         <div className="min-h-screen bg-gray-50">
           <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -449,7 +449,7 @@ function DistribuidoresContent() {
   }
 
   return (
-    <PermissionGuard permissions={['users:read']}>
+    <PermissionGuard permissions={['customers:read']}>
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
         {/* Header */}
         <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
