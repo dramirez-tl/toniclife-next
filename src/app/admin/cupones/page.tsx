@@ -20,6 +20,7 @@ import {
   ShoppingBagIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { confirmAction } from '@/lib/utils';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 
@@ -218,10 +219,9 @@ function CuponesContent() {
     toast.success(`Cupón "${coupon.code}" duplicado`);
   };
 
-  const handleDelete = (coupon: typeof coupons[0]) => {
-    if (confirm(`¿Estás seguro de que deseas eliminar el cupón "${coupon.code}"?`)) {
-      toast.success('Cupón eliminado');
-    }
+  const handleDelete = async (coupon: typeof coupons[0]) => {
+    const ok = await confirmAction(`¿Estás seguro de que deseas eliminar el cupón "${coupon.code}"?`);
+    if (ok) toast.success('Cupón eliminado');
   };
 
   const handleToggleStatus = (coupon: typeof coupons[0]) => {

@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
+import { confirmAction } from '@/lib/utils';
 import { NetworkGraph } from './NetworkGraph';
 import { UserDetailPanel } from './UserDetailPanel';
 import { NetworkSearch } from './NetworkSearch';
@@ -153,9 +154,9 @@ export function NetworkVisualization({
   }, []);
 
   // Manejar cambio de profundidad con confirmación para valores altos
-  const handleDepthChange = useCallback((newDepth: number) => {
+  const handleDepthChange = useCallback(async (newDepth: number) => {
     if (newDepth >= 4 && isLoadTriggered) {
-      const ok = window.confirm(
+      const ok = await confirmAction(
         `Cargar ${newDepth} niveles puede tardar bastante si tu red es grande. ¿Deseas continuar?`
       );
       if (!ok) return;

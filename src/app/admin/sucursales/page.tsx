@@ -43,6 +43,7 @@ import {
   EyeSlashIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { confirmAction } from '@/lib/utils';
 import { PermissionGuard } from '@/components/auth';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
@@ -551,9 +552,8 @@ function SucursalesContent() {
   };
 
   const handleDeleteBranch = async (branch: Branch) => {
-    if (!confirm(`¿Estas seguro de eliminar la sucursal "${branch.name}"? Esta accion no se puede deshacer.`)) {
-      return;
-    }
+    const ok = await confirmAction(`¿Estás seguro de eliminar la sucursal "${branch.name}"? Esta acción no se puede deshacer.`);
+    if (!ok) return;
     try {
       await deleteBranch.mutateAsync(branch.id);
       toast.success('Sucursal eliminada correctamente');
@@ -1539,7 +1539,7 @@ function SucursalesContent() {
                           {user.isActive && (
                             <button
                               onClick={async () => {
-                                if (!confirm(`Desactivar usuario ${user.firstName} ${user.lastName}?`)) return;
+                                if (!(await confirmAction(`Desactivar usuario ${user.firstName} ${user.lastName}?`))) return;
                                 try {
                                   await deactivatePosUser.mutateAsync({ branchId: editingBranch.id, userId: user.id });
                                   toast.success('Usuario POS desactivado');

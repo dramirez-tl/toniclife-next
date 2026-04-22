@@ -24,6 +24,7 @@ import {
   ClockIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { confirmAction } from '@/lib/utils';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 // Mock data - In real app, fetch based on [id]
@@ -171,16 +172,14 @@ export default function UserDetailAdminPage() {
     }
   };
 
-  const handleResetPassword = () => {
-    if (confirm('¿Enviar email de restablecimiento de contraseña a este usuario?')) {
-      toast.success('Correo de restablecimiento enviado');
-    }
+  const handleResetPassword = async () => {
+    const ok = await confirmAction('¿Enviar email de restablecimiento de contraseña a este usuario?');
+    if (ok) toast.success('Correo de restablecimiento enviado');
   };
 
-  const handleDeleteUser = () => {
-    if (confirm('¿Estás seguro de que deseas eliminar este usuario? Esta acción no se puede deshacer.')) {
-      toast.success('Usuario eliminado');
-    }
+  const handleDeleteUser = async () => {
+    const ok = await confirmAction('¿Estás seguro de que deseas eliminar este usuario? Esta acción no se puede deshacer.');
+    if (ok) toast.success('Usuario eliminado');
   };
 
   const handleSendEmail = () => {

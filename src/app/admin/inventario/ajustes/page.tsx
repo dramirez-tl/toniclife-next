@@ -20,6 +20,7 @@ import {
   PlayIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { confirmAction } from '@/lib/utils';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import {
   useAdjustments,
@@ -92,9 +93,8 @@ function AjustesContent() {
   };
 
   const handleApply = async (adjustment: AdjustmentDto) => {
-    if (!confirm('¿Estás seguro de aplicar este ajuste? Esta acción modificará el inventario.')) {
-      return;
-    }
+    const ok = await confirmAction('¿Estás seguro de aplicar este ajuste? Esta acción modificará el inventario.');
+    if (!ok) return;
 
     try {
       await applyAdjustment.mutateAsync({ id: adjustment.id });
@@ -105,7 +105,8 @@ function AjustesContent() {
   };
 
   const handleCancel = async (adjustment: AdjustmentDto) => {
-    if (!confirm('¿Estás seguro de cancelar este ajuste?')) return;
+    const ok2 = await confirmAction('¿Estás seguro de cancelar este ajuste?');
+    if (!ok2) return;
 
     try {
       await cancelAdjustment.mutateAsync(adjustment.id);

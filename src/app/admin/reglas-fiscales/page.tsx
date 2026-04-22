@@ -30,6 +30,7 @@ import {
   GlobeAltIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { confirmAction } from '@/lib/utils';
 import { PermissionGuard } from '@/components/auth';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
@@ -291,7 +292,8 @@ function ReglasFiscalesContent() {
   };
 
   const handleDelete = async (rule: TaxRule) => {
-    if (!confirm(`¿Desactivar la regla fiscal "${rule.name}"?`)) return;
+    const ok = await confirmAction(`¿Desactivar la regla fiscal "${rule.name}"?`);
+    if (!ok) return;
     try {
       await deleteTaxRule.mutateAsync(rule.id);
       toast.success('Regla fiscal desactivada');

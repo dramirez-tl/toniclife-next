@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { toast } from 'sonner';
 import { DEFAULT_TIMEZONE } from '@/lib/timezone-utils';
 
 /**
@@ -59,6 +60,26 @@ export function truncate(str: string, length: number): string {
  */
 export function generateId(): string {
   return Math.random().toString(36).substring(2, 15);
+}
+
+/**
+ * Shows a confirmation toast and returns a promise that resolves to true/false.
+ */
+export function confirmAction(message: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    toast(message, {
+      duration: Infinity,
+      action: {
+        label: 'Confirmar',
+        onClick: () => resolve(true),
+      },
+      cancel: {
+        label: 'Cancelar',
+        onClick: () => resolve(false),
+      },
+      onDismiss: () => resolve(false),
+    });
+  });
 }
 
 /**

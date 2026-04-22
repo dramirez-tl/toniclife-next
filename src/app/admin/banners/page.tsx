@@ -19,6 +19,7 @@ import {
   CalendarIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { confirmAction } from '@/lib/utils';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 
@@ -208,10 +209,9 @@ function BannersContent() {
     toast.success(`Banner ${newStatus === 'active' ? 'activado' : 'desactivado'}`);
   };
 
-  const handleDelete = (banner: typeof banners[0]) => {
-    if (confirm(`¿Estás seguro de que deseas eliminar el banner "${banner.title}"?`)) {
-      toast.success('Banner eliminado');
-    }
+  const handleDelete = async (banner: typeof banners[0]) => {
+    const ok = await confirmAction(`¿Estás seguro de que deseas eliminar el banner "${banner.title}"?`);
+    if (ok) toast.success('Banner eliminado');
   };
 
   const handleMoveUp = (banner: typeof banners[0]) => {

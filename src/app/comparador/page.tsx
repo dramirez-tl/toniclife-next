@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarSolid, HeartIcon as HeartSolid } from '@heroicons/react/24/solid';
 import { toast } from 'sonner';
+import { confirmAction } from '@/lib/utils';
 
 // Mock products for comparison
 const mockProducts = [
@@ -152,8 +153,9 @@ export default function ComparadorPage() {
     }
   };
 
-  const handleClearAll = () => {
-    if (confirm('¿Estás seguro de que quieres limpiar toda la comparación?')) {
+  const handleClearAll = async () => {
+    const ok = await confirmAction('¿Estás seguro de que quieres limpiar toda la comparación?');
+    if (ok) {
       setSelectedProducts([]);
       toast.success('Comparación limpiada');
     }
