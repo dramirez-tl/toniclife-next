@@ -14,6 +14,7 @@ import {
   FunnelIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { confirmAction } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
@@ -37,6 +38,31 @@ import type {
 
 // ─── Role Form Modal ───
 
+// Módulos disponibles para el selector de módulo por defecto
+const MODULE_OPTIONS = [
+  { value: '', label: 'Ninguno (Panel principal)' },
+  { value: 'dashboard', label: 'Panel Principal' },
+  { value: 'sucursales', label: 'Sucursales' },
+  { value: 'usuarios', label: 'Usuarios' },
+  { value: 'distribuidores', label: 'Distribuidores' },
+  { value: 'productos', label: 'Productos' },
+  { value: 'pedidos', label: 'Pedidos' },
+  { value: 'inventario', label: 'Inventario' },
+  { value: 'pos', label: 'Punto de Venta' },
+  { value: 'mlm', label: 'MLM' },
+  { value: 'facturacion', label: 'Facturacion' },
+  { value: 'reportes', label: 'Reportes' },
+  { value: 'tesoreria', label: 'Tesoreria' },
+  { value: 'rrhh', label: 'Recursos Humanos' },
+  { value: 'comercial', label: 'Comercial' },
+  { value: 'cupones', label: 'Cupones' },
+  { value: 'banners', label: 'Banners' },
+  { value: 'contenido', label: 'Contenido' },
+  { value: 'auditoria', label: 'Auditoria' },
+  { value: 'seguridad', label: 'Seguridad' },
+  { value: 'configuracion', label: 'Configuracion' },
+];
+
 function RoleFormModal({
   role,
   onClose,
@@ -45,16 +71,22 @@ function RoleFormModal({
   onClose: () => void;
 }) {
   const isEditing = !!role;
-  const [formData, setFormData] = useState<CreateRoleDto & UpdateRoleDto>({
+  const [formData, setFormData] = useState<CreateRoleDto & UpdateRoleDto & { isActive?: boolean }>({
     code: role?.code || '',
     name: role?.name || '',
     description: role?.description || '',
     defaultModule: role?.defaultModule || '',
     requiresCashClose: role?.requiresCashClose || false,
+    isActive: role?.isActive ?? true,
   });
 
   const createMutation = useCreateRole();
   const updateMutation = useUpdateRole();
+
+  // Auto-format code: lowercase, replace spaces with underscore
+  const handleCodeChange = (val: string) => {
+    setFormData({ ...formData, code: val.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,6 +99,7 @@ function RoleFormModal({
             description: formData.description || undefined,
             defaultModule: formData.defaultModule || undefined,
             requiresCashClose: formData.requiresCashClose,
+            isActive: formData.isActive,
           },
         });
         toast.success('Rol actualizado correctamente');
@@ -94,73 +127,146 @@ function RoleFormModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-lg font-semibold text-gray-900">
-            {isEditing ? 'Editar Rol' : 'Crear Nuevo Rol'}
-          </h2>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">
+              {isEditing ? 'Editar Rol' : 'Crear Nuevo Rol'}
+            </h2>
+            {isEditing && role.userCount > 0 && (
+              <p className="text-xs text-gray-500 mt-0.5">
+                {role.userCount} usuario{role.userCount !== 1 ? 's' : ''} con este rol
+              </p>
+            )}
+          </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <XMarkIcon className="h-5 w-5" />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {!isEditing && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Codigo</label>
-              <input
-                type="text"
-                value={formData.code}
-                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {/* Identificacion */}
+          <fieldset>
+            <legend className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Identificacion</legend>
+            <div className={`grid gap-4 ${!isEditing ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+              {!isEditing && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Codigo <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.code}
+                    onChange={(e) => handleCodeChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent font-mono text-sm"
+                    placeholder="ventas_regional"
+                    required
+                  />
+                  <p className="text-[11px] text-gray-400 mt-1">Solo letras, numeros y guion bajo</p>
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                  placeholder="Ventas Regional"
+                  required
+                />
+              </div>
+            </div>
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Descripcion</label>
+              <textarea
+                value={formData.description || ''}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                placeholder="ej: ventas_regional"
-                required
+                rows={2}
+                placeholder="Breve descripcion de las responsabilidades de este rol..."
               />
             </div>
+          </fieldset>
+
+          {/* Configuracion */}
+          <fieldset>
+            <legend className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Configuracion</legend>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Modulo por defecto</label>
+                <select
+                  value={formData.defaultModule || ''}
+                  onChange={(e) => setFormData({ ...formData, defaultModule: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent bg-white"
+                >
+                  {MODULE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-gray-400 mt-1">Pantalla que se muestra al iniciar sesion</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                {isEditing ? (
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+                    className={`w-full flex items-center justify-between px-3 py-2 border rounded-lg transition-colors ${
+                      formData.isActive
+                        ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                        : 'border-red-300 bg-red-50 text-red-700'
+                    }`}
+                  >
+                    <span className="text-sm font-medium">{formData.isActive ? 'Activo' : 'Inactivo'}</span>
+                    <div className={`w-8 h-4 rounded-full relative transition-colors ${formData.isActive ? 'bg-emerald-400' : 'bg-red-400'}`}>
+                      <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${formData.isActive ? 'right-0.5' : 'left-0.5'}`} />
+                    </div>
+                  </button>
+                ) : (
+                  <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-500">
+                    Activo por defecto
+                  </div>
+                )}
+              </div>
+            </div>
+          </fieldset>
+
+          {/* Opciones */}
+          <fieldset>
+            <legend className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Opciones</legend>
+            <div className="space-y-3">
+              <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
+                <input
+                  type="checkbox"
+                  checked={formData.requiresCashClose || false}
+                  onChange={(e) => setFormData({ ...formData, requiresCashClose: e.target.checked })}
+                  className="h-4 w-4 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
+                />
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Requiere corte de caja</p>
+                  <p className="text-[11px] text-gray-400">El usuario debe hacer corte de caja al finalizar su turno</p>
+                </div>
+              </label>
+            </div>
+          </fieldset>
+
+          {/* Info: permisos */}
+          {isEditing && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
+              <KeyIcon className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-blue-700">
+                Para configurar los permisos de este rol, cierra este formulario y usa el boton de llave
+                <KeyIcon className="h-3 w-3 inline mx-0.5" />
+                en la tabla.
+              </p>
+            </div>
           )}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-              placeholder="ej: Ventas Regional"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Descripcion</label>
-            <textarea
-              value={formData.description || ''}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-              rows={3}
-              placeholder="Descripcion del rol..."
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Modulo por defecto</label>
-            <input
-              type="text"
-              value={formData.defaultModule || ''}
-              onChange={(e) => setFormData({ ...formData, defaultModule: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-              placeholder="ej: ventas"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="requiresCashClose"
-              checked={formData.requiresCashClose || false}
-              onChange={(e) => setFormData({ ...formData, requiresCashClose: e.target.checked })}
-              className="h-4 w-4 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
-            />
-            <label htmlFor="requiresCashClose" className="text-sm text-gray-700">
-              Requiere corte de caja
-            </label>
-          </div>
-          <div className="flex justify-end gap-3 pt-4">
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-2 border-t">
             <button
               type="button"
               onClick={onClose}
@@ -171,7 +277,7 @@ function RoleFormModal({
             <button
               type="submit"
               disabled={isPending}
-              className="px-4 py-2 text-sm text-white bg-[#3E667D] rounded-lg hover:bg-[#3E667D]/90 disabled:opacity-50"
+              className="px-5 py-2 text-sm text-white bg-[#3E667D] rounded-lg hover:bg-[#2f5165] disabled:opacity-50 font-medium"
             >
               {isPending ? 'Guardando...' : isEditing ? 'Guardar Cambios' : 'Crear Rol'}
             </button>
@@ -474,7 +580,8 @@ function RolesContent() {
       toast.error(`No se puede eliminar: el rol tiene ${role.userCount} usuario(s) asignado(s)`);
       return;
     }
-    if (!confirm(`¿Estas seguro de eliminar el rol "${role.name}"?`)) return;
+    const ok = await confirmAction(`¿Estás seguro de eliminar el rol "${role.name}"?`);
+    if (!ok) return;
     try {
       await deleteMutation.mutateAsync(role.id);
       toast.success('Rol eliminado correctamente');
