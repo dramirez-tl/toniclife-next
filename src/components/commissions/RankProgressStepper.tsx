@@ -1,10 +1,19 @@
 // components/commissions/RankProgressStepper.tsx
 'use client';
 
+import { useState } from 'react';
 import { MlmRank } from '@/types/commissions';
 import { Card, CardContent } from '@/components/ui/Card';
 import { CheckIcon, LockClosedIcon, StarIcon } from '@heroicons/react/24/solid';
-import { TrophyIcon } from '@heroicons/react/24/outline';
+import {
+  TrophyIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  BoltIcon,
+  UserGroupIcon,
+  CurrencyDollarIcon,
+  SparklesIcon,
+} from '@heroicons/react/24/outline';
 
 interface RankProgressStepperProps {
   ranks: MlmRank[];
@@ -27,6 +36,60 @@ const rankColors: Record<string, { bg: string; text: string; border: string; glo
 
 const defaultColor = { bg: 'bg-gray-400', text: 'text-gray-500', border: 'border-gray-300', glow: '' };
 
+// Beneficios por rango (qué ganas al alcanzarlo)
+const rankBenefits: Record<string, string[]> = {
+  distribuidor: [
+    'Precio de distribuidor en productos',
+    'Enlace personal de tienda y registro',
+  ],
+  bronce: [
+    'Comisiones por niveles (hasta nivel 2)',
+    'Acceso a materiales de marketing',
+  ],
+  plata: [
+    'Comisiones hasta nivel 4',
+    'Inicia nueva generación en tu línea',
+    'Acceso a entrenamientos exclusivos',
+  ],
+  oro: [
+    'Comisiones hasta nivel 6',
+    'Comisiones por generación',
+    'Mayor porcentaje de comisión',
+  ],
+  platino: [
+    'Comisiones hasta nivel 8',
+    'Comisiones por 2 generaciones',
+    'Elegible para Bono Auto',
+  ],
+  diamante: [
+    'Comisiones hasta nivel 10',
+    'Comisiones por 3 generaciones',
+    'Bono Auto mensual',
+    'Invitaciones a eventos VIP',
+  ],
+  doble_diamante: [
+    'Comisiones por 4 generaciones',
+    'Bono Auto aumentado',
+    'Viajes de reconocimiento',
+  ],
+  triple_diamante: [
+    'Comisiones por 5 generaciones',
+    'Bono Auto premium',
+    'Reconocimiento internacional',
+  ],
+  sirius: [
+    'Comisiones por 6 generaciones',
+    'Bono Auto elite',
+    'Consejo de líderes',
+  ],
+  azul: [
+    'Máximo nivel de comisiones',
+    'Bono Auto máximo',
+    'Participación en utilidades',
+    'Reconocimiento Diamante Azul',
+  ],
+};
+
 function formatPoints(pts: number): string {
   if (pts >= 1_000_000) return `${(pts / 1_000_000).toFixed(pts % 1_000_000 === 0 ? 0 : 1)}M`;
   if (pts >= 1_000) return `${(pts / 1_000).toFixed(pts % 1_000 === 0 ? 0 : 1)}K`;
@@ -38,7 +101,11 @@ export function RankProgressStepper({
   currentRankNumber,
   currencyCode = 'MXN',
 }: RankProgressStepperProps) {
-  const nextRank = ranks.find((r) => r.rankNumber === currentRankNumber + 1);
+  const [selectedRank, setSelectedRank] = useState<MlmRank | null>(null);
+
+  const handleRankClick = (rank: MlmRank) => {
+    setSelectedRank((prev) => (prev?.id === rank.id ? null : rank));
+  };
 
   return (
     <Card>
@@ -48,14 +115,14 @@ export function RankProgressStepper({
             <h3 className="text-xl font-bold text-gray-900">
               Progresion de Rango
             </h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Tu camino desde Distribuidor hasta Diamante Azul
+            <p className="text-sm text-gray-500 mt-1">
+              Toca cualquier rango para ver sus beneficios y requisitos
             </p>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <TrophyIcon className="h-5 w-5 text-yellow-500" />
             <span className="font-medium text-gray-700">
-              Rango actual: <span className="text-[#3E667D] font-bold">{ranks.find((r) => r.rankNumber === currentRankNumber)?.name || 'Distribuidor'}</span>
+              <span className="text-[#3E667D] font-bold">{ranks.find((r) => r.rankNumber === currentRankNumber)?.name || 'Distribuidor'}</span>
             </span>
           </div>
         </div>
@@ -67,23 +134,28 @@ export function RankProgressStepper({
               const isCompleted = rank.rankNumber < currentRankNumber;
               const isCurrent = rank.rankNumber === currentRankNumber;
               const isLocked = rank.rankNumber > currentRankNumber;
+              const isSelected = selectedRank?.id === rank.id;
               const colors = rankColors[rank.code] || defaultColor;
               const isLast = index === ranks.length - 1;
 
               return (
                 <div key={rank.id} className="flex items-start">
                   {/* Step */}
-                  <div className="flex flex-col items-center" style={{ width: '96px' }}>
+                  <button
+                    onClick={() => handleRankClick(rank)}
+                    className="flex flex-col items-center group cursor-pointer"
+                    style={{ width: '96px' }}
+                  >
                     {/* Circle */}
                     <div className="relative">
                       <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center border-3 transition-all ${
+                        className={`w-12 h-12 rounded-full flex items-center justify-center border-3 transition-all group-hover:scale-110 ${
                           isCompleted
                             ? `${colors.bg} border-transparent text-white shadow-lg ${colors.glow}`
                             : isCurrent
                               ? `${colors.bg} border-transparent text-white shadow-lg shadow-md ${colors.glow} ring-4 ring-offset-2 ring-current ${colors.text}`
-                              : 'bg-gray-100 border-gray-200 text-gray-400'
-                        }`}
+                              : 'bg-gray-100 border-gray-200 text-gray-400 group-hover:bg-gray-200'
+                        } ${isSelected ? 'ring-4 ring-offset-2 ring-[#3E667D]' : ''}`}
                       >
                         {isCompleted ? (
                           <CheckIcon className="h-5 w-5" />
@@ -108,7 +180,7 @@ export function RankProgressStepper({
                     {/* Label */}
                     <p
                       className={`mt-2 text-xs font-semibold text-center leading-tight ${
-                        isCurrent ? colors.text : isCompleted ? 'text-gray-700' : 'text-gray-400'
+                        isSelected ? 'text-[#3E667D]' : isCurrent ? colors.text : isCompleted ? 'text-gray-700' : 'text-gray-400'
                       }`}
                     >
                       {rank.name}
@@ -120,7 +192,7 @@ export function RankProgressStepper({
                         {formatPoints(rank.pointsGroupRequired)} pts
                       </p>
                     )}
-                  </div>
+                  </button>
 
                   {/* Connector line */}
                   {!isLast && (
@@ -142,47 +214,131 @@ export function RankProgressStepper({
           </div>
         </div>
 
-        {/* Next rank requirements card */}
-        {nextRank && (
-          <div className="mt-6 p-4 bg-gradient-to-r from-[#3E667D]/5 to-[#C8DDF2]/5 rounded-xl border border-[#3E667D]/10">
-            <p className="text-sm font-semibold text-[#3E667D] mb-3">
-              Siguiente rango: {nextRank.name}
+        {/* Expand/collapse hint */}
+        {!selectedRank && (
+          <div className="text-center mt-2">
+            <p className="text-xs text-gray-400 flex items-center justify-center gap-1">
+              <ChevronDownIcon className="h-3 w-3" />
+              Selecciona un rango para ver detalles
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-                <p className="text-[10px] uppercase tracking-wider text-gray-400 font-medium">Pts. Personales</p>
-                <p className="text-lg font-bold text-gray-900 mt-0.5">
-                  {formatPoints(nextRank.pointsPersonalRequired)}
-                </p>
-              </div>
-              <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-                <p className="text-[10px] uppercase tracking-wider text-gray-400 font-medium">Pts. Grupo</p>
-                <p className="text-lg font-bold text-gray-900 mt-0.5">
-                  {formatPoints(nextRank.pointsGroupRequired)}
-                </p>
-              </div>
-              <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-                <p className="text-[10px] uppercase tracking-wider text-gray-400 font-medium">Calificados 1er Niv.</p>
-                <p className="text-lg font-bold text-gray-900 mt-0.5">
-                  {nextRank.qualifiersFirstLevel}
-                </p>
-              </div>
-              {nextRank.autoBonusMxn && parseFloat(nextRank.autoBonusMxn) > 0 && (
-                <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-                  <p className="text-[10px] uppercase tracking-wider text-gray-400 font-medium">
-                    Bono Auto {currencyCode}
-                  </p>
-                  <p className="text-lg font-bold text-[#3E667D] mt-0.5">
-                    ${currencyCode === 'USD'
-                      ? parseFloat(nextRank.autoBonusUsd || '0').toLocaleString('en-US')
-                      : parseFloat(nextRank.autoBonusMxn).toLocaleString('es-MX')
-                    }
-                  </p>
-                </div>
-              )}
-            </div>
           </div>
         )}
+
+        {/* ── Selected rank detail panel ── */}
+        {selectedRank && (() => {
+          const isCompleted = selectedRank.rankNumber < currentRankNumber;
+          const isCurrent = selectedRank.rankNumber === currentRankNumber;
+          const isLocked = selectedRank.rankNumber > currentRankNumber;
+          const colors = rankColors[selectedRank.code] || defaultColor;
+          const benefits = rankBenefits[selectedRank.code] || [];
+          const autoBonus = currencyCode === 'USD'
+            ? parseFloat(selectedRank.autoBonusUsd || '0')
+            : parseFloat(selectedRank.autoBonusMxn || '0');
+
+          return (
+            <div className="mt-4 border border-gray-200 rounded-xl overflow-hidden animate-in slide-in-from-top-2 duration-200">
+              {/* Header */}
+              <div className={`px-5 py-3 flex items-center justify-between ${
+                isCompleted ? 'bg-emerald-50' : isCurrent ? 'bg-[#C8DDF2]/30' : 'bg-gray-50'
+              }`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${colors.bg}`}>
+                    {isCompleted ? <CheckIcon className="h-4 w-4" /> : isCurrent ? <StarIcon className="h-4 w-4" /> : <LockClosedIcon className="h-3.5 w-3.5" />}
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-900">{selectedRank.name}</p>
+                    <p className="text-xs text-gray-500">
+                      {isCompleted ? 'Rango alcanzado' : isCurrent ? 'Tu rango actual' : 'Rango bloqueado'}
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => setSelectedRank(null)} className="p-1 hover:bg-gray-200 rounded-full transition-colors">
+                  <ChevronUpIcon className="h-5 w-5 text-gray-400" />
+                </button>
+              </div>
+
+              <div className="p-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {/* Requisitos */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
+                      <BoltIcon className="h-4 w-4 text-amber-500" />
+                      {isLocked ? 'Requisitos para desbloquear' : 'Requisitos'}
+                    </h4>
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                        <span className="text-sm text-gray-600">Puntos personales</span>
+                        <span className="font-bold text-gray-900">{formatPoints(selectedRank.pointsPersonalRequired)}</span>
+                      </div>
+                      {selectedRank.pointsGroupRequired > 0 && (
+                        <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                          <span className="text-sm text-gray-600">Puntos de grupo</span>
+                          <span className="font-bold text-gray-900">{formatPoints(selectedRank.pointsGroupRequired)}</span>
+                        </div>
+                      )}
+                      {selectedRank.qualifiersFirstLevel > 0 && (
+                        <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                          <div className="flex items-center gap-1.5">
+                            <UserGroupIcon className="h-4 w-4 text-gray-400" />
+                            <span className="text-sm text-gray-600">Calificados 1er nivel</span>
+                          </div>
+                          <span className="font-bold text-gray-900">{selectedRank.qualifiersFirstLevel}</span>
+                        </div>
+                      )}
+                      {selectedRank.levelMax && (
+                        <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                          <span className="text-sm text-gray-600">Niveles de comision</span>
+                          <span className="font-bold text-gray-900">Hasta nivel {selectedRank.levelMax}</span>
+                        </div>
+                      )}
+                      {selectedRank.generationMax && selectedRank.generationMax > 0 && (
+                        <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                          <span className="text-sm text-gray-600">Generaciones</span>
+                          <span className="font-bold text-gray-900">{selectedRank.generationMax} generacion{selectedRank.generationMax > 1 ? 'es' : ''}</span>
+                        </div>
+                      )}
+                      {autoBonus > 0 && (
+                        <div className="flex items-center justify-between bg-emerald-50 rounded-lg px-3 py-2 border border-emerald-100">
+                          <div className="flex items-center gap-1.5">
+                            <CurrencyDollarIcon className="h-4 w-4 text-emerald-500" />
+                            <span className="text-sm font-medium text-emerald-700">Bono Auto</span>
+                          </div>
+                          <span className="font-bold text-emerald-700">
+                            ${autoBonus.toLocaleString(currencyCode === 'USD' ? 'en-US' : 'es-MX')} {currencyCode}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Beneficios */}
+                  <div>
+                    <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
+                      <SparklesIcon className="h-4 w-4 text-[#3E667D]" />
+                      Beneficios de este rango
+                    </h4>
+                    {benefits.length > 0 ? (
+                      <ul className="space-y-2">
+                        {benefits.map((benefit, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <CheckIcon className={`h-4 w-4 mt-0.5 flex-shrink-0 ${
+                              isLocked ? 'text-gray-300' : 'text-emerald-500'
+                            }`} />
+                            <span className={`text-sm ${isLocked ? 'text-gray-400' : 'text-gray-700'}`}>
+                              {benefit}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-gray-400">Informacion no disponible</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </CardContent>
     </Card>
   );
