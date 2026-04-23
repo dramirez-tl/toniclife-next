@@ -19,7 +19,11 @@ import {
   ArchiveBoxIcon,
   PhotoIcon,
   ArrowPathIcon,
+  VideoCameraIcon,
+  LockClosedIcon,
+  GlobeAltIcon,
 } from '@heroicons/react/24/outline';
+import { CourseContentModal } from './CourseContentModal';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3001';
 
@@ -83,6 +87,7 @@ function CourseModal({
   const [lessonCount, setLessonCount] = useState('');
   const [status, setStatus] = useState('draft');
   const [sortOrder, setSortOrder] = useState('0');
+  const [accessType, setAccessType] = useState<'public' | 'restricted'>('public');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [initialized, setInitialized] = useState(false);
 
@@ -96,11 +101,13 @@ function CourseModal({
     setLessonCount(String(course.lessonCount || ''));
     setStatus(course.status);
     setSortOrder(String(course.sortOrder || 0));
+    setAccessType(course.accessType || 'public');
     setInitialized(true);
   }
   if (isOpen && !course && !initialized) {
     setTitle(''); setDescription(''); setCategory('liderazgo'); setDifficulty('intermedio');
     setInstructorName(''); setDurationHours(''); setLessonCount(''); setStatus('draft'); setSortOrder('0');
+    setAccessType('public');
     setInitialized(true);
   }
 
@@ -124,6 +131,7 @@ function CourseModal({
       lessonCount: lessonCount ? parseInt(lessonCount) : undefined,
       status,
       sortOrder: sortOrder ? parseInt(sortOrder) : undefined,
+      accessType,
     };
 
     try {
@@ -239,6 +247,35 @@ function CourseModal({
             </div>
           </div>
 
+          {/* Access type */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Acceso al curso</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setAccessType('public')}
+                className={`rounded-lg border px-3 py-2 text-left transition-colors ${accessType === 'public' ? 'border-[#3E667D] bg-[#3E667D]/5 ring-1 ring-[#3E667D]/20' : 'border-gray-300 bg-white hover:border-gray-400'}`}
+              >
+                <div className="flex items-center gap-2">
+                  <GlobeAltIcon className="h-4 w-4 text-[#3E667D]" />
+                  <span className="text-xs font-semibold text-gray-900">Público</span>
+                </div>
+                <p className="text-[10px] text-gray-500 mt-0.5">Todos los distribuidores</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAccessType('restricted')}
+                className={`rounded-lg border px-3 py-2 text-left transition-colors ${accessType === 'restricted' ? 'border-[#3E667D] bg-[#3E667D]/5 ring-1 ring-[#3E667D]/20' : 'border-gray-300 bg-white hover:border-gray-400'}`}
+              >
+                <div className="flex items-center gap-2">
+                  <LockClosedIcon className="h-4 w-4 text-[#3E667D]" />
+                  <span className="text-xs font-semibold text-gray-900">Restringido</span>
+                </div>
+                <p className="text-[10px] text-gray-500 mt-0.5">Solo customers inscritos</p>
+              </button>
+            </div>
+          </div>
+
           {/* Image Upload */}
           <div>
             <FileUpload
@@ -284,6 +321,7 @@ function CapacitacionContent() {
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Course | null>(null);
   const [detailCourse, setDetailCourse] = useState<Course | null>(null);
+  const [contentCourse, setContentCourse] = useState<Course | null>(null);
 
   const { data, isLoading, refetch } = useCourses({
     search: searchQuery || undefined,
@@ -459,6 +497,17 @@ function CapacitacionContent() {
                     <span className="text-[10px] text-gray-400">
                       {difficultyLabels[course.difficulty] || course.difficulty}
                     </span>
+                    {course.accessType === 'restricted' ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                        <LockClosedIcon className="h-2.5 w-2.5" />
+                        Restringido
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                        <GlobeAltIcon className="h-2.5 w-2.5" />
+                        Público
+                      </span>
+                    )}
                   </div>
                   <h3 className="text-sm font-semibold text-gray-900 mb-1 line-clamp-2">{course.title}</h3>
                   {course.instructorName && (
@@ -470,7 +519,15 @@ function CapacitacionContent() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setContentCourse(course); }}
+                      className="inline-flex items-center gap-1 rounded-lg bg-[#3E667D] px-2.5 py-1.5 text-xs font-medium text-white hover:bg-[#2f5165] transition-colors"
+                    >
+                      <VideoCameraIcon className="h-3 w-3" />
+                      Editar Contenido
+                    </button>
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); setEditingCourse(course); setIsModalOpen(true); }}
@@ -502,6 +559,16 @@ function CapacitacionContent() {
         onClose={() => { setIsModalOpen(false); setEditingCourse(null); }}
         onSaved={() => refetch()}
       />
+
+      {/* Content Modal (lessons + access) */}
+      {contentCourse && (
+        <CourseContentModal
+          course={contentCourse}
+          isOpen={!!contentCourse}
+          onClose={() => setContentCourse(null)}
+          onChanged={() => refetch()}
+        />
+      )}
 
       {/* Detail Modal */}
       {detailCourse && (

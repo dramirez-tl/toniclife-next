@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
 import {
@@ -81,8 +82,9 @@ function CapacitacionContent() {
     totalHours: allCourses.reduce((sum, c) => sum + c.durationHours, 0),
   };
 
-  const handleStartCourse = (courseTitle: string) => {
-    toast.info(`Próximamente: ${courseTitle} — Los videos estarán disponibles en breve.`);
+  const router = useRouter();
+  const handleStartCourse = (course: Course) => {
+    router.push(`/distribuidor/capacitacion/${course.id}`);
   };
 
   return (
@@ -257,7 +259,7 @@ function CapacitacionContent() {
                         size="sm"
                         className="w-full"
                         leftIcon={<PlayIcon className="h-4 w-4" />}
-                        onClick={() => handleStartCourse(course.title)}
+                        onClick={() => handleStartCourse(course)}
                       >
                         Ver Curso
                       </Button>
