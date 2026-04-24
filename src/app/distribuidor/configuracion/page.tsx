@@ -14,7 +14,6 @@ import {
   DevicePhoneMobileIcon,
   EnvelopeIcon,
   LockClosedIcon,
-  UserCircleIcon,
 } from '@heroicons/react/24/outline';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
@@ -60,10 +59,6 @@ export default function ConfiguracionPage() {
 
   const handleSave = () => {
     toast.success('Configuración guardada exitosamente');
-  };
-
-  const handleResetSettings = () => {
-    toast.info('Configuración restablecida a valores predeterminados');
   };
 
   return (
@@ -121,12 +116,6 @@ export default function ConfiguracionPage() {
                     <div className="flex items-center gap-3">
                       <LockClosedIcon className="h-5 w-5" />
                       <span className="text-sm font-medium">Seguridad</span>
-                    </div>
-                  </a>
-                  <a href="#account" className="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <UserCircleIcon className="h-5 w-5" />
-                      <span className="text-sm font-medium">Cuenta</span>
                     </div>
                   </a>
                 </nav>
@@ -499,40 +488,6 @@ export default function ConfiguracionPage() {
                     >
                       Cambiar Contraseña
                     </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Account Management Section */}
-            <Card id="account">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <UserCircleIcon className="h-6 w-6 text-[#3E667D]" />
-                  <h2 className="text-2xl font-bold text-gray-900">Gestión de Cuenta</h2>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-sm text-yellow-800 mb-3">
-                      ⚠️ Las siguientes acciones son permanentes y no se pueden deshacer.
-                    </p>
-                    <div className="space-y-2">
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={handleResetSettings}
-                      >
-                        Restablecer Configuración
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="w-full text-red-600 border-red-300 hover:bg-red-50"
-                        onClick={() => toast.error('Esta acción requiere confirmación adicional')}
-                      >
-                        Desactivar Cuenta
-                      </Button>
-                    </div>
                   </div>
                 </div>
               </CardContent>
