@@ -97,7 +97,6 @@ const disabledModules = new Set([
   'Mi Negocio',
   'Prospectos',
   'Clientes',
-  'Materiales',
   'Scripts de Venta',
   'Eventos',
   'Comunicación',
