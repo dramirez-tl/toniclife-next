@@ -4,6 +4,7 @@ import type {
   CreateMaterialDto,
   UpdateMaterialDto,
   MaterialQueryParams,
+  CreateMaterialEnrollmentsDto,
 } from '@/types/material';
 
 const keys = {
@@ -12,6 +13,9 @@ const keys = {
   detail: (id: string) => ['materials', id] as const,
   published: (params?: MaterialQueryParams) =>
     ['materials', 'published', params] as const,
+  myMaterials: (params?: MaterialQueryParams) =>
+    ['materials', 'my-materials', params] as const,
+  enrollments: (id: string) => ['materials', id, 'enrollments'] as const,
 };
 
 export function useMaterials(params?: MaterialQueryParams) {
@@ -84,5 +88,43 @@ export function useUploadMaterialThumbnail() {
     mutationFn: ({ id, file }: { id: string; file: File }) =>
       materialsService.uploadThumbnail(id, file),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.all }),
+  });
+}
+
+// ===== my-materials =====
+
+export function useMyMaterials(params?: MaterialQueryParams) {
+  return useQuery({
+    queryKey: keys.myMaterials(params),
+    queryFn: () => materialsService.getMyMaterials(params),
+    staleTime: 1000 * 60 * 2,
+  });
+}
+
+// ===== Enrollments =====
+
+export function useMaterialEnrollments(id: string, enabled = true) {
+  return useQuery({
+    queryKey: keys.enrollments(id),
+    queryFn: () => materialsService.listEnrollments(id),
+    enabled: !!id && enabled,
+  });
+}
+
+export function useAddMaterialEnrollments(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: CreateMaterialEnrollmentsDto) =>
+      materialsService.addEnrollments(id, dto),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.enrollments(id) }),
+  });
+}
+
+export function useRemoveMaterialEnrollment(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (customerId: string) =>
+      materialsService.removeEnrollment(id, customerId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.enrollments(id) }),
   });
 }

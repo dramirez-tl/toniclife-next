@@ -10,6 +10,14 @@ export type MaterialCategory =
   | 'otros';
 export type MaterialStatus = 'draft' | 'published' | 'archived';
 
+export type MaterialAccessType = 'public' | 'restricted';
+
+export interface MaterialCountry {
+  id: string;
+  code: string | null;
+  name: string | null;
+}
+
 export interface MarketingMaterial {
   id: string;
   title: string;
@@ -24,6 +32,9 @@ export interface MarketingMaterial {
   status: MaterialStatus;
   sortOrder: number;
   downloadCount: number;
+  accessType: MaterialAccessType;
+  countryIds: string[];
+  countries: MaterialCountry[];
   createdAt: string;
   updatedAt: string;
 }
@@ -35,9 +46,33 @@ export interface CreateMaterialDto {
   category?: MaterialCategory;
   status?: MaterialStatus;
   sortOrder?: number;
+  accessType?: MaterialAccessType;
+  countryIds?: string[];
 }
 
 export interface UpdateMaterialDto extends Partial<CreateMaterialDto> {}
+
+export interface MaterialEnrollment {
+  id: string;
+  materialId: string;
+  customerId: string;
+  customerNumber: string | null;
+  customerName: string | null;
+  customerEmail: string | null;
+  grantedBy: string | null;
+  notes: string | null;
+  enrolledAt: string;
+}
+
+export interface CreateMaterialEnrollmentsDto {
+  customerIds: string[];
+  notes?: string;
+}
+
+export interface MaterialAccessResult {
+  canAccess: boolean;
+  reason: 'admin' | 'public' | 'enrolled' | 'not_enrolled' | 'wrong_country' | 'not_found';
+}
 
 export interface MaterialQueryParams {
   status?: string;

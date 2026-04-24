@@ -10,13 +10,20 @@ import {
   useDeleteMaterial,
   useUploadMaterialFile,
   useUploadMaterialThumbnail,
+  useMaterialEnrollments,
+  useAddMaterialEnrollments,
+  useRemoveMaterialEnrollment,
 } from '@/hooks/useMaterials';
+import { useActiveCountries } from '@/hooks/useConfig';
+import { customersService } from '@/services/customers.service';
+import type { Customer } from '@/types/customer';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import type {
   MarketingMaterial,
   CreateMaterialDto,
   MaterialCategory,
   MaterialType,
+  MaterialAccessType,
 } from '@/types/material';
 import {
   FolderOpenIcon,
@@ -35,6 +42,9 @@ import {
   PresentationChartBarIcon,
   ArrowDownTrayIcon,
   ArrowPathIcon,
+  GlobeAltIcon,
+  LockClosedIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3001';
@@ -105,12 +115,16 @@ function MaterialModal({
   const uploadFileMutation = useUploadMaterialFile();
   const uploadThumbMutation = useUploadMaterialThumbnail();
 
+  const { data: countries = [] } = useActiveCountries();
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [type, setType] = useState<MaterialType>('pdf');
   const [category, setCategory] = useState<MaterialCategory>('otros');
   const [status, setStatus] = useState('draft');
   const [sortOrder, setSortOrder] = useState('0');
+  const [accessType, setAccessType] = useState<MaterialAccessType>('public');
+  const [selectedCountryIds, setSelectedCountryIds] = useState<string[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [thumbFile, setThumbFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -132,6 +146,8 @@ function MaterialModal({
         setCategory(material.category);
         setStatus(material.status);
         setSortOrder(String(material.sortOrder || 0));
+        setAccessType(material.accessType || 'public');
+        setSelectedCountryIds(material.countryIds || []);
       } else {
         setTitle('');
         setDescription('');
@@ -139,10 +155,18 @@ function MaterialModal({
         setCategory('otros');
         setStatus('draft');
         setSortOrder('0');
+        setAccessType('public');
+        setSelectedCountryIds([]);
       }
       setInitialized(true);
     }
   }, [isOpen, material, initialized]);
+
+  const toggleCountry = (id: string) => {
+    setSelectedCountryIds((prev) =>
+      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id],
+    );
+  };
 
   const isPending =
     createMutation.isPending ||
@@ -172,6 +196,8 @@ function MaterialModal({
       category,
       status: status as 'draft' | 'published' | 'archived',
       sortOrder: sortOrder ? parseInt(sortOrder) : 0,
+      accessType,
+      countryIds: selectedCountryIds,
     };
 
     try {
@@ -308,6 +334,91 @@ function MaterialModal({
             </div>
           </div>
 
+          {/* Países */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Países donde se mostrará
+            </label>
+            <p className="text-[11px] text-gray-500 mb-2">
+              Deja vacío para mostrar en todos los países. Marca uno o varios para limitar.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto rounded-lg border border-gray-200 p-2 bg-gray-50">
+              {countries.length === 0 ? (
+                <p className="col-span-full text-xs text-gray-400 text-center py-2">
+                  Cargando países...
+                </p>
+              ) : (
+                countries.map((c) => {
+                  const checked = selectedCountryIds.includes(c.id);
+                  return (
+                    <label
+                      key={c.id}
+                      className={`inline-flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs cursor-pointer transition-colors ${
+                        checked
+                          ? 'border-[#3E667D] bg-[#3E667D]/10 text-[#2f5165] font-medium'
+                          : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-700'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleCountry(c.id)}
+                        className="accent-[#3E667D]"
+                      />
+                      <span className="truncate">
+                        {c.code ? `${c.code} · ` : ''}{c.name}
+                      </span>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Tipo de acceso */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Acceso al material
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setAccessType('public')}
+                className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                  accessType === 'public'
+                    ? 'border-[#3E667D] bg-[#3E667D]/5 ring-1 ring-[#3E667D]/20'
+                    : 'border-gray-300 bg-white hover:border-gray-400'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <GlobeAltIcon className="h-4 w-4 text-[#3E667D]" />
+                  <span className="text-xs font-semibold text-gray-900">Público</span>
+                </div>
+                <p className="text-[10px] text-gray-500 mt-0.5">Todos los distribuidores (según país)</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setAccessType('restricted')}
+                className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                  accessType === 'restricted'
+                    ? 'border-[#3E667D] bg-[#3E667D]/5 ring-1 ring-[#3E667D]/20'
+                    : 'border-gray-300 bg-white hover:border-gray-400'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <LockClosedIcon className="h-4 w-4 text-[#3E667D]" />
+                  <span className="text-xs font-semibold text-gray-900">Restringido</span>
+                </div>
+                <p className="text-[10px] text-gray-500 mt-0.5">Solo customers inscritos</p>
+              </button>
+            </div>
+          </div>
+
+          {/* Enrollments (solo cuando el material ya existe y es restringido) */}
+          {material && accessType === 'restricted' && (
+            <MaterialEnrollmentsSection materialId={material.id} />
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Archivo {material?.hasFile ? '(reemplazar)' : ''}
@@ -378,6 +489,153 @@ function MaterialModal({
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+// ============ ENROLLMENTS SECTION (embedded in edit modal) ============
+
+function MaterialEnrollmentsSection({ materialId }: { materialId: string }) {
+  const { data: enrollments = [], refetch } = useMaterialEnrollments(materialId);
+  const addMutation = useAddMaterialEnrollments(materialId);
+  const removeMutation = useRemoveMaterialEnrollment(materialId);
+
+  const [search, setSearch] = useState('');
+  const [results, setResults] = useState<Customer[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  const enrolledIds = new Set(enrollments.map((e) => e.customerId));
+
+  const handleSearch = async () => {
+    if (!search.trim() || search.trim().length < 2) {
+      toast.error('Escribe al menos 2 caracteres');
+      return;
+    }
+    try {
+      setIsSearching(true);
+      const res = await customersService.getAll({ search: search.trim(), limit: 20 });
+      setResults(res.data || []);
+    } catch {
+      toast.error('Error al buscar customers');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleAdd = async (customer: Customer) => {
+    try {
+      await addMutation.mutateAsync({ customerIds: [customer.id] });
+      toast.success(`${customer.firstName} inscrito`);
+      refetch();
+    } catch {
+      toast.error('Error al inscribir');
+    }
+  };
+
+  const handleRemove = async (enrollmentCustomerId: string, name: string) => {
+    if (!confirm(`¿Quitar acceso a ${name || 'este customer'}?`)) return;
+    try {
+      await removeMutation.mutateAsync(enrollmentCustomerId);
+      toast.success('Acceso retirado');
+      refetch();
+    } catch {
+      toast.error('Error al quitar acceso');
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-3 space-y-3">
+      <div className="flex items-center gap-2">
+        <UserGroupIcon className="h-4 w-4 text-[#3E667D]" />
+        <span className="text-xs font-semibold text-gray-800">
+          Customers con acceso ({enrollments.length})
+        </span>
+      </div>
+
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleSearch();
+              }
+            }}
+            placeholder="Buscar por nombre, email o número..."
+            className="w-full rounded-md border border-gray-300 pl-7 pr-2 py-1.5 text-xs bg-white focus:border-[#3E667D] outline-none"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={handleSearch}
+          disabled={isSearching}
+          className="rounded-md bg-[#3E667D] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2f5165] disabled:opacity-50"
+        >
+          {isSearching ? '...' : 'Buscar'}
+        </button>
+      </div>
+
+      {results.length > 0 && (
+        <div className="rounded-md border border-gray-200 bg-white max-h-40 overflow-y-auto divide-y divide-gray-100">
+          {results.map((c) => {
+            const isEnrolled = enrolledIds.has(c.id);
+            return (
+              <div key={c.id} className="flex items-center justify-between px-2 py-1.5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-gray-900 truncate">
+                    {c.firstName} {c.lastName}
+                  </p>
+                  <p className="text-[10px] text-gray-500 truncate">{c.email}</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={isEnrolled || addMutation.isPending}
+                  onClick={() => handleAdd(c)}
+                  className={`ml-2 rounded-md px-2 py-1 text-[10px] font-medium transition-colors ${
+                    isEnrolled
+                      ? 'bg-emerald-50 text-emerald-700'
+                      : 'bg-[#3E667D] text-white hover:bg-[#2f5165] disabled:opacity-50'
+                  }`}
+                >
+                  {isEnrolled ? 'Ya inscrito' : 'Dar acceso'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {enrollments.length === 0 ? (
+        <p className="text-[11px] text-gray-500 text-center py-2">
+          Aún no hay customers con acceso.
+        </p>
+      ) : (
+        <div className="rounded-md border border-gray-200 bg-white divide-y divide-gray-100 max-h-40 overflow-y-auto">
+          {enrollments.map((e) => (
+            <div key={e.id} className="flex items-center justify-between px-2 py-1.5">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-gray-900 truncate">
+                  {e.customerName || '—'}
+                </p>
+                <p className="text-[10px] text-gray-500 truncate">
+                  {e.customerEmail || '—'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleRemove(e.customerId, e.customerName || '')}
+                className="ml-2 inline-flex items-center gap-1 rounded-md border border-red-200 px-2 py-1 text-[10px] text-red-600 hover:bg-red-50"
+              >
+                <TrashIcon className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -631,10 +889,31 @@ function MaterialesContent() {
                   </div>
                 </div>
                 <div className="p-4">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                     <span className="inline-flex rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[10px] font-medium text-gray-600">
                       {categoryLabels[material.category]}
                     </span>
+                    {material.accessType === 'restricted' ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                        <LockClosedIcon className="h-2.5 w-2.5" />
+                        Restringido
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                        <GlobeAltIcon className="h-2.5 w-2.5" />
+                        Público
+                      </span>
+                    )}
+                    {material.countries.length > 0 && (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-medium text-blue-700"
+                        title={material.countries.map((c) => c.name).join(', ')}
+                      >
+                        {material.countries.length === 1
+                          ? material.countries[0].code || material.countries[0].name
+                          : `${material.countries.length} países`}
+                      </span>
+                    )}
                   </div>
                   <h3 className="text-sm font-semibold text-gray-900 mb-1 line-clamp-2">
                     {material.title}

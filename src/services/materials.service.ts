@@ -5,6 +5,9 @@ import type {
   UpdateMaterialDto,
   MaterialQueryParams,
   MaterialsListResponse,
+  MaterialEnrollment,
+  CreateMaterialEnrollmentsDto,
+  MaterialAccessResult,
 } from '@/types/material';
 
 function uploadToSignedUrl(
@@ -45,6 +48,32 @@ class MaterialsService {
 
   async getPublished(params?: MaterialQueryParams): Promise<MarketingMaterial[]> {
     const { data } = await api.get(`${this.basePath}/published`, { params });
+    return data;
+  }
+
+  async getMyMaterials(params?: MaterialQueryParams): Promise<MarketingMaterial[]> {
+    const { data } = await api.get(`${this.basePath}/my-materials`, { params });
+    return data;
+  }
+
+  async canAccess(id: string): Promise<MaterialAccessResult> {
+    const { data } = await api.get(`${this.basePath}/${id}/can-access`);
+    return data;
+  }
+
+  // Enrollments
+  async listEnrollments(id: string): Promise<MaterialEnrollment[]> {
+    const { data } = await api.get(`${this.basePath}/${id}/enrollments`);
+    return data;
+  }
+
+  async addEnrollments(id: string, dto: CreateMaterialEnrollmentsDto): Promise<{ added: number }> {
+    const { data } = await api.post(`${this.basePath}/${id}/enrollments`, dto);
+    return data;
+  }
+
+  async removeEnrollment(id: string, customerId: string): Promise<{ success: boolean }> {
+    const { data } = await api.delete(`${this.basePath}/${id}/enrollments/${customerId}`);
     return data;
   }
 

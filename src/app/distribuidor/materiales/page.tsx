@@ -18,7 +18,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
-import { usePublishedMaterials } from '@/hooks/useMaterials';
+import { useMyMaterials } from '@/hooks/useMaterials';
 import { materialsService } from '@/services/materials.service';
 import type { MarketingMaterial, MaterialType, MaterialCategory } from '@/types/material';
 import { toast } from 'sonner';
@@ -92,7 +92,7 @@ function MaterialesContent() {
   const filterType = get('type');
   const sortBy = get('sortBy');
 
-  const { data: materials = [], isLoading } = usePublishedMaterials({
+  const { data: materials = [], isLoading } = useMyMaterials({
     category: filterCategory !== 'all' ? filterCategory : undefined,
     type: filterType !== 'all' ? filterType : undefined,
     search: searchQuery || undefined,
