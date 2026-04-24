@@ -132,6 +132,7 @@ const navigation: NavItem[] = [
     permissions: ['config', 'customers:read'],
     children: [
       { name: 'Capacitación', href: '/admin/comercial/capacitacion' },
+      { name: 'Materiales', href: '/admin/comercial/materiales' },
     ],
   },
   { name: 'Cupones', href: '/admin/cupones', icon: TagIcon, permissions: ['customers.promos', 'config'] },

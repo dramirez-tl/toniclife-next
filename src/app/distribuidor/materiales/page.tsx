@@ -10,6 +10,7 @@ import {
   PhotoIcon,
   VideoCameraIcon,
   PresentationChartLineIcon,
+  DocumentIcon,
   ShareIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -17,116 +18,70 @@ import {
 } from '@heroicons/react/24/outline';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
+import { usePublishedMaterials } from '@/hooks/useMaterials';
+import { materialsService } from '@/services/materials.service';
+import type { MarketingMaterial, MaterialType, MaterialCategory } from '@/types/material';
 import { toast } from 'sonner';
 
-const mockMaterials = [
-  {
-    id: '1',
-    title: 'Catálogo Digital 2025',
-    type: 'PDF',
-    category: 'Catálogos',
-    description: 'Catálogo completo de productos con precios y beneficios',
-    size: '12.5 MB',
-    downloads: 234,
-    preview: '/materials/catalog-preview.jpg',
-    date: '2025-01-15',
-  },
-  {
-    id: '2',
-    title: 'Banner Facebook - Promoción Enero',
-    type: 'Imagen',
-    category: 'Redes Sociales',
-    description: 'Banner optimizado para Facebook (1200x628px)',
-    size: '450 KB',
-    downloads: 189,
-    preview: '/materials/fb-banner.jpg',
-    date: '2025-01-10',
-  },
-  {
-    id: '3',
-    title: 'Video Testimonio - Vitamina D3',
-    type: 'Video',
-    category: 'Testimonios',
-    description: 'Video testimonial de cliente satisfecho',
-    size: '45 MB',
-    downloads: 156,
-    preview: '/materials/video-thumb.jpg',
-    date: '2025-01-05',
-  },
-  {
-    id: '4',
-    title: 'Presentación Negocio Tonic Life',
-    type: 'PowerPoint',
-    category: 'Presentaciones',
-    description: 'Presentación completa del plan de negocio',
-    size: '8.2 MB',
-    downloads: 312,
-    preview: '/materials/ppt-preview.jpg',
-    date: '2024-12-20',
-  },
-  {
-    id: '5',
-    title: 'Stories Instagram - Pack 10 diseños',
-    type: 'Imagen',
-    category: 'Redes Sociales',
-    description: 'Pack de 10 stories editables para Instagram',
-    size: '3.5 MB',
-    downloads: 267,
-    preview: '/materials/ig-stories.jpg',
-    date: '2024-12-15',
-  },
-  {
-    id: '6',
-    title: 'Guía de Beneficios por Producto',
-    type: 'PDF',
-    category: 'Guías',
-    description: 'Guía detallada de beneficios y usos de cada producto',
-    size: '5.8 MB',
-    downloads: 423,
-    preview: '/materials/benefits-guide.jpg',
-    date: '2024-12-10',
-  },
-  {
-    id: '7',
-    title: 'Tarjetas de Presentación Editables',
-    type: 'PDF',
-    category: 'Branding',
-    description: 'Plantilla editable para tarjetas personales',
-    size: '1.2 MB',
-    downloads: 198,
-    preview: '/materials/business-cards.jpg',
-    date: '2024-12-05',
-  },
-  {
-    id: '8',
-    title: 'Video Explicativo - Cómo Ganar',
-    type: 'Video',
-    category: 'Capacitación',
-    description: 'Video explicando el plan de compensación',
-    size: '67 MB',
-    downloads: 289,
-    preview: '/materials/comp-plan-video.jpg',
-    date: '2024-11-25',
-  },
-];
+const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3001';
+function resolveUrl(url: string | null): string | null {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  return `${API_BASE}${url}`;
+}
 
-const categories = ['Todas', 'Catálogos', 'Redes Sociales', 'Testimonios', 'Presentaciones', 'Guías', 'Branding', 'Capacitación'];
-const types = ['Todos', 'PDF', 'Imagen', 'Video', 'PowerPoint'];
-
-const typeIcons = {
-  PDF: DocumentTextIcon,
-  Imagen: PhotoIcon,
-  Video: VideoCameraIcon,
-  PowerPoint: PresentationChartLineIcon,
+const categoryLabels: Record<MaterialCategory, string> = {
+  catalogos: 'Catálogos',
+  redes_sociales: 'Redes Sociales',
+  testimonios: 'Testimonios',
+  presentaciones: 'Presentaciones',
+  guias: 'Guías',
+  branding: 'Branding',
+  capacitacion: 'Capacitación',
+  otros: 'Otros',
 };
 
+const typeLabels: Record<MaterialType, string> = {
+  pdf: 'PDF',
+  image: 'Imagen',
+  video: 'Video',
+  document: 'Documento',
+  presentation: 'Presentación',
+};
+
+const typeIcons: Record<MaterialType, typeof DocumentTextIcon> = {
+  pdf: DocumentTextIcon,
+  image: PhotoIcon,
+  video: VideoCameraIcon,
+  document: DocumentIcon,
+  presentation: PresentationChartLineIcon,
+};
+
+const typeBadgeColors: Record<MaterialType, string> = {
+  pdf: 'bg-red-100 text-red-800',
+  image: 'bg-blue-100 text-blue-800',
+  video: 'bg-purple-100 text-purple-800',
+  document: 'bg-gray-100 text-gray-800',
+  presentation: 'bg-orange-100 text-orange-800',
+};
+
+function formatBytes(bytes: number | null): string {
+  if (!bytes) return '—';
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
 export default function MaterialesPage() {
-  return <Suspense><MaterialesContent /></Suspense>;
+  return (
+    <Suspense>
+      <MaterialesContent />
+    </Suspense>
+  );
 }
 
 function MaterialesContent() {
   const [searchQuery, setSearchQuery] = useState('');
-
   const { get, setParams } = useQueryFilters({
     category: 'all',
     type: 'all',
@@ -137,36 +92,65 @@ function MaterialesContent() {
   const filterType = get('type');
   const sortBy = get('sortBy');
 
-  const filteredMaterials = mockMaterials.filter(material => {
-    if (searchQuery && !material.title.toLowerCase().includes(searchQuery.toLowerCase()) && !material.description.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
-    if (filterCategory !== 'all' && material.category !== filterCategory) {
-      return false;
-    }
-    if (filterType !== 'all' && material.type !== filterType) {
-      return false;
-    }
-    return true;
+  const { data: materials = [], isLoading } = usePublishedMaterials({
+    category: filterCategory !== 'all' ? filterCategory : undefined,
+    type: filterType !== 'all' ? filterType : undefined,
+    search: searchQuery || undefined,
   });
 
-  const handleDownload = (materialTitle: string) => {
-    toast.success(`Descargando: ${materialTitle}`);
-  };
-
-  const handlePreview = (materialTitle: string) => {
-    toast.info(`Abriendo vista previa: ${materialTitle}`);
-  };
-
-  const handleShare = (materialTitle: string) => {
-    toast.success(`Enlace de ${materialTitle} copiado al portapapeles`);
-  };
+  const sorted = [...materials].sort((a, b) => {
+    if (sortBy === 'popular') return b.downloadCount - a.downloadCount;
+    if (sortBy === 'name') return a.title.localeCompare(b.title);
+    // recent (default): createdAt desc
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
 
   const stats = {
-    totalMaterials: mockMaterials.length,
-    totalDownloads: mockMaterials.reduce((sum, m) => sum + m.downloads, 0),
-    categories: [...new Set(mockMaterials.map(m => m.category))].length,
+    totalMaterials: materials.length,
+    totalDownloads: materials.reduce((sum, m) => sum + m.downloadCount, 0),
+    categories: new Set(materials.map((m) => m.category)).size,
   };
+
+  const handleDownload = async (material: MarketingMaterial) => {
+    if (!material.hasFile) {
+      toast.error('Este material aún no tiene archivo disponible');
+      return;
+    }
+    try {
+      const { url } = await materialsService.getDownloadUrl(material.id);
+      // Abrir en nueva pestaña para respetar Content-Disposition attachment
+      window.open(url, '_blank', 'noopener');
+      toast.success(`Descargando: ${material.title}`);
+    } catch {
+      toast.error('No se pudo iniciar la descarga');
+    }
+  };
+
+  const handlePreview = async (material: MarketingMaterial) => {
+    if (!material.hasFile) {
+      toast.error('No hay archivo para mostrar');
+      return;
+    }
+    try {
+      const { url } = await materialsService.getPreviewUrl(material.id);
+      window.open(url, '_blank', 'noopener');
+    } catch {
+      toast.error('No se pudo abrir la vista previa');
+    }
+  };
+
+  const handleShare = async (material: MarketingMaterial) => {
+    try {
+      const { url } = await materialsService.getPreviewUrl(material.id);
+      await navigator.clipboard.writeText(url);
+      toast.success(`Enlace de ${material.title} copiado (válido 1 hora)`);
+    } catch {
+      toast.error('No se pudo copiar el enlace');
+    }
+  };
+
+  const categoryOptions = Object.entries(categoryLabels).map(([value, label]) => ({ value, label }));
+  const typeOptions = Object.entries(typeLabels).map(([value, label]) => ({ value, label }));
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -184,9 +168,7 @@ function MaterialesContent() {
               </p>
             </div>
             <Link href="/distribuidor">
-              <Button variant="secondary">
-                Volver al Panel Principal
-              </Button>
+              <Button variant="secondary">Volver al Panel Principal</Button>
             </Link>
           </div>
         </div>
@@ -207,7 +189,6 @@ function MaterialesContent() {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -219,7 +200,6 @@ function MaterialesContent() {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -237,7 +217,6 @@ function MaterialesContent() {
         <Card className="mb-6">
           <CardContent className="p-6">
             <div className="flex flex-col lg:flex-row gap-4">
-              {/* Search */}
               <div className="flex-1 relative">
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
@@ -248,26 +227,20 @@ function MaterialesContent() {
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                 />
               </div>
-
-              {/* Category Filter */}
               <SearchableSelect
-                options={categories.filter(c => c !== 'Todas').map(cat => ({ value: cat, label: cat }))}
+                options={categoryOptions}
                 value={filterCategory}
                 onChange={(val) => setParams({ category: val })}
                 allLabel="Todas"
                 allValue="all"
               />
-
-              {/* Type Filter */}
               <SearchableSelect
-                options={types.filter(t => t !== 'Todos').map(type => ({ value: type, label: type }))}
+                options={typeOptions}
                 value={filterType}
                 onChange={(val) => setParams({ type: val })}
                 allLabel="Todos"
                 allValue="all"
               />
-
-              {/* Sort */}
               <SearchableSelect
                 options={[
                   { value: 'recent', label: 'Más Recientes' },
@@ -283,31 +256,47 @@ function MaterialesContent() {
         </Card>
 
         {/* Materials Grid */}
-        {filteredMaterials.length === 0 ? (
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="animate-pulse rounded-xl bg-white h-72 border border-gray-200" />
+            ))}
+          </div>
+        ) : sorted.length === 0 ? (
           <Card>
             <CardContent className="p-16 text-center">
               <DocumentTextIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-xl font-bold text-gray-900 mb-2">
-                No se encontraron materiales
+                No hay materiales disponibles
               </h3>
               <p className="text-gray-600">
-                Intenta ajustar los filtros de búsqueda
+                {searchQuery || filterCategory !== 'all' || filterType !== 'all'
+                  ? 'Intenta ajustar los filtros de búsqueda'
+                  : 'Los materiales de marketing aparecerán aquí cuando el administrador los publique.'}
               </p>
             </CardContent>
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredMaterials.map((material) => {
-              const IconComponent = typeIcons[material.type as keyof typeof typeIcons];
+            {sorted.map((material) => {
+              const IconComponent = typeIcons[material.type] || DocumentIcon;
               return (
                 <Card key={material.id} className="hover:shadow-lg transition-shadow">
                   <CardContent className="p-6">
-                    {/* Preview Image */}
+                    {/* Preview */}
                     <div className="aspect-video bg-gray-100 rounded-lg mb-4 flex items-center justify-center relative overflow-hidden">
-                      <div className="absolute inset-0 bg-gradient-to-br from-[#3E667D]/20 to-[#C8DDF2]/20 flex items-center justify-center">
-                        <IconComponent className="h-16 w-16 text-gray-400" />
-                      </div>
-                      {material.type === 'Video' && (
+                      {material.thumbnailUrl ? (
+                        <img
+                          src={resolveUrl(material.thumbnailUrl)!}
+                          alt={material.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-br from-[#3E667D]/20 to-[#C8DDF2]/20 flex items-center justify-center">
+                          <IconComponent className="h-16 w-16 text-gray-400" />
+                        </div>
+                      )}
+                      {material.type === 'video' && (
                         <div className="absolute inset-0 flex items-center justify-center">
                           <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
                             <div className="w-0 h-0 border-t-6 border-t-transparent border-l-10 border-l-[#3E667D] border-b-6 border-b-transparent ml-1" />
@@ -316,32 +305,29 @@ function MaterialesContent() {
                       )}
                     </div>
 
-                    {/* Type Badge */}
+                    {/* Type + Category */}
                     <div className="flex items-center gap-2 mb-2">
-                      <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                        material.type === 'PDF' ? 'bg-red-100 text-red-800' :
-                        material.type === 'Imagen' ? 'bg-blue-100 text-blue-800' :
-                        material.type === 'Video' ? 'bg-purple-100 text-purple-800' :
-                        'bg-orange-100 text-orange-800'
-                      }`}>
+                      <span
+                        className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${typeBadgeColors[material.type]}`}
+                      >
                         <IconComponent className="h-3 w-3 mr-1" />
-                        {material.type}
+                        {typeLabels[material.type]}
                       </span>
-                      <span className="text-xs text-gray-500">{material.category}</span>
+                      <span className="text-xs text-gray-500">{categoryLabels[material.category]}</span>
                     </div>
 
-                    {/* Title & Description */}
-                    <h3 className="font-bold text-gray-900 mb-2 line-clamp-2">
-                      {material.title}
-                    </h3>
-                    <p className="text-sm text-gray-600 mb-4 line-clamp-2">
-                      {material.description}
-                    </p>
+                    {/* Title + Description */}
+                    <h3 className="font-bold text-gray-900 mb-2 line-clamp-2">{material.title}</h3>
+                    {material.description && (
+                      <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                        {material.description}
+                      </p>
+                    )}
 
-                    {/* Meta Info */}
+                    {/* Meta */}
                     <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
-                      <span>{material.size}</span>
-                      <span>{material.downloads} descargas</span>
+                      <span>{formatBytes(material.fileSize)}</span>
+                      <span>{material.downloadCount} descargas</span>
                     </div>
 
                     {/* Actions */}
@@ -351,7 +337,7 @@ function MaterialesContent() {
                         size="sm"
                         className="w-full"
                         leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
-                        onClick={() => handleDownload(material.title)}
+                        onClick={() => handleDownload(material)}
                       >
                         Descargar
                       </Button>
@@ -360,7 +346,7 @@ function MaterialesContent() {
                           variant="outline"
                           size="sm"
                           leftIcon={<EyeIcon className="h-4 w-4" />}
-                          onClick={() => handlePreview(material.title)}
+                          onClick={() => handlePreview(material)}
                         >
                           Vista Previa
                         </Button>
@@ -368,7 +354,7 @@ function MaterialesContent() {
                           variant="ghost"
                           size="sm"
                           leftIcon={<ShareIcon className="h-4 w-4" />}
-                          onClick={() => handleShare(material.title)}
+                          onClick={() => handleShare(material)}
                         >
                           Compartir
                         </Button>
@@ -407,7 +393,7 @@ function MaterialesContent() {
           </CardContent>
         </Card>
 
-        {/* Tips Section */}
+        {/* Tips */}
         <Card className="mt-6">
           <CardContent className="p-8">
             <h3 className="text-xl font-bold text-gray-900 mb-4">

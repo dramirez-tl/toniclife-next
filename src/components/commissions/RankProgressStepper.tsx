@@ -37,8 +37,11 @@ const rankColors: Record<string, { bg: string; text: string; border: string; glo
 
 const defaultColor = { bg: 'bg-gray-400', text: 'text-gray-500', border: 'border-gray-300', glow: '' };
 
-// Imágenes oficiales de cada rango (public/images/rangos). "distribuidor" no tiene imagen.
+// Imágenes oficiales de cada rango (public/images/rangos).
+// NOTA: incluye alias porque en el histórico de migraciones convivieron dos
+// convenciones de `code`: "sirius"/"azul" (mig 008) y "diamante_sirius"/"diamante_azul" (mig 004).
 const rankImages: Record<string, string> = {
+  distribuidor: '/images/rangos/distribuidor.png',
   bronce: '/images/rangos/bronce.PNG',
   plata: '/images/rangos/plata.PNG',
   oro: '/images/rangos/oro.PNG',
@@ -47,7 +50,9 @@ const rankImages: Record<string, string> = {
   doble_diamante: '/images/rangos/doble_diamante.PNG',
   triple_diamante: '/images/rangos/triple_diamante.PNG',
   sirius: '/images/rangos/diamante_sirius.PNG',
+  diamante_sirius: '/images/rangos/diamante_sirius.PNG',
   azul: '/images/rangos/diamante_azul.PNG',
+  diamante_azul: '/images/rangos/diamante_azul.PNG',
 };
 
 // Beneficios por rango (qué ganas al alcanzarlo)
@@ -142,7 +147,7 @@ export function RankProgressStepper({
         </div>
 
         {/* Stepper horizontal scrollable */}
-        <div className="overflow-x-auto pb-4 -mx-2 px-2">
+        <div className="overflow-x-auto pt-4 pb-4 -mx-2 px-2">
           <div className="flex items-start min-w-max">
             {ranks.map((rank, index) => {
               const isCompleted = rank.rankNumber < currentRankNumber;
