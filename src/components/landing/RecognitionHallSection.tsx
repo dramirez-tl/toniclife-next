@@ -7,7 +7,6 @@ import {
   FireIcon,
   UserGroupIcon,
   ArrowTrendingUpIcon,
-  AcademicCapIcon,
   ArrowUpCircleIcon,
   MegaphoneIcon,
 } from '@heroicons/react/24/outline';
@@ -64,12 +63,6 @@ const topRecruiters = [
     metric: '13 nuevos distribuidores',
     label: 'Reclutamiento del mes',
   },
-];
-
-const fifthStudyAchievers = [
-  { id: 'study-1', name: 'Paola Ramírez', zone: 'Mérida, YUC', achievement: '5to estudio completado' },
-  { id: 'study-2', name: 'Iván Aguirre', zone: 'Tijuana, BC', achievement: '5to estudio completado' },
-  { id: 'study-3', name: 'Silvia Torres', zone: 'CDMX', achievement: '5to estudio completado' },
 ];
 
 const newRangeAchievers = [
@@ -224,13 +217,7 @@ export function RecognitionHallSection() {
           </Card>
         </div>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-2">
-          <AchievementList
-            title="Quienes lograron 5to Estudio"
-            icon={<AcademicCapIcon className="h-5 w-5 text-[#3E667D]" />}
-            items={fifthStudyAchievers}
-            accent="bg-[#3E667D]/10"
-          />
+        <div className="mt-6">
           <AchievementList
             title="Nuevos Rangos del Mes"
             icon={<ArrowUpCircleIcon className="h-5 w-5 text-[#3E667D]" />}
