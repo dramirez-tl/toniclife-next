@@ -66,6 +66,14 @@ export function useDeleteMaterial() {
   });
 }
 
+export function useReorderMaterials() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (orderedIds: string[]) => materialsService.reorder(orderedIds),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.all }),
+  });
+}
+
 export function useUploadMaterialFile() {
   const qc = useQueryClient();
   return useMutation({

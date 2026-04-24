@@ -13,6 +13,7 @@ import {
   useMaterialEnrollments,
   useAddMaterialEnrollments,
   useRemoveMaterialEnrollment,
+  useReorderMaterials,
 } from '@/hooks/useMaterials';
 import { useActiveCountries } from '@/hooks/useConfig';
 import { customersService } from '@/services/customers.service';
@@ -45,6 +46,7 @@ import {
   GlobeAltIcon,
   LockClosedIcon,
   UserGroupIcon,
+  Bars3Icon,
 } from '@heroicons/react/24/outline';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3001';
@@ -125,6 +127,7 @@ function MaterialModal({
   const [sortOrder, setSortOrder] = useState('0');
   const [accessType, setAccessType] = useState<MaterialAccessType>('public');
   const [selectedCountryIds, setSelectedCountryIds] = useState<string[]>([]);
+  const [thumbnailIsFile, setThumbnailIsFile] = useState(true);
   const [file, setFile] = useState<File | null>(null);
   const [thumbFile, setThumbFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -148,6 +151,7 @@ function MaterialModal({
         setSortOrder(String(material.sortOrder || 0));
         setAccessType(material.accessType || 'public');
         setSelectedCountryIds(material.countryIds || []);
+        setThumbnailIsFile(material.thumbnailIsFile ?? true);
       } else {
         setTitle('');
         setDescription('');
@@ -157,6 +161,7 @@ function MaterialModal({
         setSortOrder('0');
         setAccessType('public');
         setSelectedCountryIds([]);
+        setThumbnailIsFile(true);
       }
       setInitialized(true);
     }
@@ -198,6 +203,7 @@ function MaterialModal({
       sortOrder: sortOrder ? parseInt(sortOrder) : 0,
       accessType,
       countryIds: selectedCountryIds,
+      thumbnailIsFile: type === 'image' ? thumbnailIsFile : false,
     };
 
     try {
@@ -223,7 +229,7 @@ function MaterialModal({
         toast.success('Archivo subido');
       }
 
-      if (thumbFile) {
+      if (thumbFile && !(type === 'image' && thumbnailIsFile)) {
         await uploadThumbMutation.mutateAsync({ id: saved.id, file: thumbFile });
         toast.success('Thumbnail subido');
       }
@@ -440,20 +446,43 @@ function MaterialModal({
             )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Thumbnail (opcional, imagen de preview)
+          {type === 'image' && (
+            <label className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 cursor-pointer select-none">
+              <span className="text-xs text-gray-700">
+                Usar el mismo archivo como thumbnail
+              </span>
+              <input
+                type="checkbox"
+                checked={thumbnailIsFile}
+                onChange={(e) => setThumbnailIsFile(e.target.checked)}
+                className="sr-only peer"
+              />
+              <span className="relative inline-flex h-5 w-9 items-center rounded-full bg-gray-300 transition-colors peer-checked:bg-[#3E667D]">
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    thumbnailIsFile ? 'translate-x-4' : 'translate-x-0.5'
+                  }`}
+                />
+              </span>
             </label>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={(e) => setThumbFile(e.target.files?.[0] || null)}
-              className="w-full text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-gray-200 file:text-gray-700 file:text-xs hover:file:bg-gray-300"
-            />
-            {material?.thumbnailUrl && !thumbFile && (
-              <p className="text-[11px] text-emerald-600 mt-1">✓ Ya tiene thumbnail</p>
-            )}
-          </div>
+          )}
+
+          {!(type === 'image' && thumbnailIsFile) && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Thumbnail (opcional, imagen de preview)
+              </label>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) => setThumbFile(e.target.files?.[0] || null)}
+                className="w-full text-xs text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-gray-200 file:text-gray-700 file:text-xs hover:file:bg-gray-300"
+              />
+              {material?.thumbnailUrl && !thumbFile && (
+                <p className="text-[11px] text-emerald-600 mt-1">✓ Ya tiene thumbnail</p>
+              )}
+            </div>
+          )}
 
           {uploadFileMutation.isPending && file && (
             <div className="space-y-1">
@@ -673,8 +702,58 @@ function MaterialesContent() {
     limit: pageSize,
   });
   const deleteMutation = useDeleteMaterial();
+  const reorderMutation = useReorderMaterials();
 
   const materials = data?.data || [];
+
+  // Estado local para drag & drop con optimistic update
+  const [localOrder, setLocalOrder] = useState<MarketingMaterial[]>([]);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Sincroniza cuando llega data fresca, salvo mientras arrastramos
+    if (!draggingId) setLocalOrder(materials);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
+
+  const handleDragStart = (id: string) => {
+    setDraggingId(id);
+  };
+  const handleDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    if (id !== dragOverId) setDragOverId(id);
+  };
+  const handleDragEnd = () => {
+    setDraggingId(null);
+    setDragOverId(null);
+  };
+  const handleDrop = async (targetId: string) => {
+    if (!draggingId || draggingId === targetId) {
+      handleDragEnd();
+      return;
+    }
+    const srcIdx = localOrder.findIndex((m) => m.id === draggingId);
+    const tgtIdx = localOrder.findIndex((m) => m.id === targetId);
+    if (srcIdx < 0 || tgtIdx < 0) {
+      handleDragEnd();
+      return;
+    }
+    const next = [...localOrder];
+    const [moved] = next.splice(srcIdx, 1);
+    next.splice(tgtIdx, 0, moved);
+    setLocalOrder(next);
+    handleDragEnd();
+
+    try {
+      await reorderMutation.mutateAsync(next.map((m) => m.id));
+      toast.success('Orden actualizado');
+    } catch {
+      toast.error('No se pudo guardar el nuevo orden');
+      setLocalOrder(materials); // revertir
+    }
+  };
+
   const stats = data?.stats || {
     total: 0,
     published: 0,
@@ -838,7 +917,7 @@ function MaterialesContent() {
             <div key={i} className="animate-pulse rounded-xl border border-gray-200 bg-white h-48" />
           ))}
         </div>
-      ) : materials.length === 0 ? (
+      ) : localOrder.length === 0 ? (
         <div className="text-center py-16">
           <FolderOpenIcon className="mx-auto h-12 w-12 text-gray-300 mb-3" />
           <h3 className="text-lg font-semibold text-gray-900 mb-1">No hay materiales</h3>
@@ -855,15 +934,31 @@ function MaterialesContent() {
           </button>
         </div>
       ) : (
+        <>
+          <p className="text-[11px] text-gray-500 flex items-center gap-1.5">
+            <Bars3Icon className="h-3.5 w-3.5" />
+            Arrastra los cards para cambiar el orden
+          </p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {materials.map((material) => {
+          {localOrder.map((material) => {
             const st = statusConfig[material.status] || statusConfig.draft;
             const StIcon = st.icon;
             const TypeIcon = typeIcons[material.type] || DocumentIcon;
             return (
               <div
                 key={material.id}
-                className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                draggable
+                onDragStart={() => handleDragStart(material.id)}
+                onDragOver={(e) => handleDragOver(e, material.id)}
+                onDragEnd={handleDragEnd}
+                onDrop={() => handleDrop(material.id)}
+                className={`rounded-xl border bg-white overflow-hidden shadow-sm hover:shadow-md transition-all cursor-move ${
+                  draggingId === material.id
+                    ? 'opacity-40 border-[#3E667D] ring-2 ring-[#3E667D]/30'
+                    : dragOverId === material.id
+                      ? 'border-[#3E667D] ring-2 ring-[#3E667D]'
+                      : 'border-gray-200'
+                }`}
               >
                 <div className="relative h-36 bg-gradient-to-br from-gray-100 to-gray-200">
                   {material.thumbnailUrl ? (
@@ -955,6 +1050,7 @@ function MaterialesContent() {
             );
           })}
         </div>
+        </>
       )}
 
       <MaterialModal

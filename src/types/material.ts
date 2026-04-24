@@ -35,6 +35,7 @@ export interface MarketingMaterial {
   accessType: MaterialAccessType;
   countryIds: string[];
   countries: MaterialCountry[];
+  thumbnailIsFile: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -48,6 +49,7 @@ export interface CreateMaterialDto {
   sortOrder?: number;
   accessType?: MaterialAccessType;
   countryIds?: string[];
+  thumbnailIsFile?: boolean;
 }
 
 export interface UpdateMaterialDto extends Partial<CreateMaterialDto> {}

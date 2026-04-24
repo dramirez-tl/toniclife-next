@@ -97,6 +97,11 @@ class MaterialsService {
     return data;
   }
 
+  async reorder(orderedIds: string[]): Promise<{ updated: number }> {
+    const { data } = await api.post(`${this.basePath}/reorder`, { orderedIds });
+    return data;
+  }
+
   async uploadFile(
     id: string,
     file: File,

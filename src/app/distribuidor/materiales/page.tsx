@@ -85,7 +85,7 @@ function MaterialesContent() {
   const { get, setParams } = useQueryFilters({
     category: 'all',
     type: 'all',
-    sortBy: 'recent',
+    sortBy: 'default',
   });
 
   const filterCategory = get('category');
@@ -98,12 +98,19 @@ function MaterialesContent() {
     search: searchQuery || undefined,
   });
 
-  const sorted = [...materials].sort((a, b) => {
-    if (sortBy === 'popular') return b.downloadCount - a.downloadCount;
-    if (sortBy === 'name') return a.title.localeCompare(b.title);
-    // recent (default): createdAt desc
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
+  // El backend ya devuelve la lista en el orden definido por el admin
+  // (sort_order ASC, created_at DESC). Solo aplicamos sort client-side
+  // cuando el usuario elige explícitamente otro criterio.
+  const sorted =
+    sortBy === 'default'
+      ? materials
+      : [...materials].sort((a, b) => {
+          if (sortBy === 'popular') return b.downloadCount - a.downloadCount;
+          if (sortBy === 'name') return a.title.localeCompare(b.title);
+          if (sortBy === 'recent')
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          return 0;
+        });
 
   const stats = {
     totalMaterials: materials.length,
@@ -243,6 +250,7 @@ function MaterialesContent() {
               />
               <SearchableSelect
                 options={[
+                  { value: 'default', label: 'Orden destacado' },
                   { value: 'recent', label: 'Más Recientes' },
                   { value: 'popular', label: 'Más Descargados' },
                   { value: 'name', label: 'Nombre A-Z' },
