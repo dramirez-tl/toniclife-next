@@ -79,6 +79,11 @@ class CoursesService {
     return data;
   }
 
+  async getMyCourses(): Promise<Course[]> {
+    const { data } = await api.get(`${this.basePath}/my-courses`);
+    return data;
+  }
+
   async create(dto: CreateCourseDto): Promise<Course> {
     const { data } = await api.post(this.basePath, dto);
     return data;

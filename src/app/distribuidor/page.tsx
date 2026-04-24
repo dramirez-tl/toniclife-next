@@ -32,6 +32,7 @@ import {
   useShareReferralLink,
 } from '@/hooks/useDistributor';
 import { useCommissionStructure } from '@/hooks/useCommissions';
+import { useMyCourses } from '@/hooks/useCourses';
 import { RankProgressStepper } from '@/components/commissions';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
@@ -107,6 +108,7 @@ export default function DistribuidorDashboard() {
     user?.customerId || '',
     !!user?.customerId,
   );
+  const { data: myCourses = [] } = useMyCourses();
 
   // Extraer el código de referido del perfil
   const referralCode = useMemo(() => {
@@ -475,6 +477,33 @@ export default function DistribuidorDashboard() {
               </p>
             </div>
             <ChevronRightIcon className="h-5 w-5 text-amber-400 group-hover:text-amber-600 transition-colors flex-shrink-0" />
+          </div>
+        </Link>
+      )}
+
+      {/* ══════════════ Capacitación disponible ══════════════ */}
+      {myCourses.length > 0 && (
+        <Link
+          href="/distribuidor/capacitacion"
+          className="block rounded-xl border border-[#a7c1e2] bg-gradient-to-r from-[#C8DDF2]/40 to-[#abc9ba]/30 p-4 hover:shadow-md transition-shadow group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#3E667D]/10 flex items-center justify-center">
+              <AcademicCapIcon className="h-5 w-5 text-[#3E667D]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-[#2f5165]">
+                {myCourses.length === 1
+                  ? 'Tienes acceso a 1 curso de capacitación'
+                  : `Tienes acceso a ${myCourses.length} cursos de capacitación`}
+              </p>
+              <p className="text-xs text-[#3E667D]/80 mt-0.5 line-clamp-1">
+                {myCourses.length === 1
+                  ? myCourses[0].title
+                  : 'Entra a la Academia y continúa aprendiendo con los mejores coaches.'}
+              </p>
+            </div>
+            <ChevronRightIcon className="h-5 w-5 text-[#3E667D]/50 group-hover:text-[#3E667D] transition-colors flex-shrink-0" />
           </div>
         </Link>
       )}

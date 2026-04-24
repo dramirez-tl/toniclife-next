@@ -41,6 +41,14 @@ export function usePublishedCourses() {
   });
 }
 
+export function useMyCourses() {
+  return useQuery({
+    queryKey: ['courses', 'my-courses'],
+    queryFn: () => coursesService.getMyCourses(),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
 export function useCreateCourse() {
   const qc = useQueryClient();
   return useMutation({
