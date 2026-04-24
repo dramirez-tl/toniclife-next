@@ -194,6 +194,24 @@ class CoursesService {
     return data;
   }
 
+  async searchCustomersForEnrollment(
+    query: string,
+    limit = 20,
+  ): Promise<
+    {
+      id: string;
+      customerNumber: string | null;
+      firstName: string | null;
+      lastName: string | null;
+      email: string | null;
+    }[]
+  > {
+    const { data } = await api.get(`${this.basePath}/enrollments/customer-search`, {
+      params: { q: query, limit },
+    });
+    return data;
+  }
+
   async removeEnrollment(
     courseId: string,
     customerId: string,

@@ -16,8 +16,15 @@ import {
   useReorderMaterials,
 } from '@/hooks/useMaterials';
 import { useActiveCountries } from '@/hooks/useConfig';
-import { customersService } from '@/services/customers.service';
-import type { Customer } from '@/types/customer';
+import { materialsService } from '@/services/materials.service';
+
+interface EnrollmentCandidate {
+  id: string;
+  customerNumber: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+}
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import type {
   MarketingMaterial,
@@ -530,7 +537,7 @@ function MaterialEnrollmentsSection({ materialId }: { materialId: string }) {
   const removeMutation = useRemoveMaterialEnrollment(materialId);
 
   const [search, setSearch] = useState('');
-  const [results, setResults] = useState<Customer[]>([]);
+  const [results, setResults] = useState<EnrollmentCandidate[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
   const enrolledIds = new Set(enrollments.map((e) => e.customerId));
@@ -542,8 +549,8 @@ function MaterialEnrollmentsSection({ materialId }: { materialId: string }) {
     }
     try {
       setIsSearching(true);
-      const res = await customersService.getAll({ search: search.trim(), limit: 20 });
-      setResults(res.data || []);
+      const res = await materialsService.searchCustomersForEnrollment(search.trim(), 20);
+      setResults(res);
     } catch {
       toast.error('Error al buscar customers');
     } finally {
@@ -551,10 +558,10 @@ function MaterialEnrollmentsSection({ materialId }: { materialId: string }) {
     }
   };
 
-  const handleAdd = async (customer: Customer) => {
+  const handleAdd = async (customer: EnrollmentCandidate) => {
     try {
       await addMutation.mutateAsync({ customerIds: [customer.id] });
-      toast.success(`${customer.firstName} inscrito`);
+      toast.success(`${customer.firstName || 'Customer'} inscrito`);
       refetch();
     } catch {
       toast.error('Error al inscribir');

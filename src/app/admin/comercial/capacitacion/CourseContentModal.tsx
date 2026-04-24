@@ -26,9 +26,15 @@ import {
   useUpdateCourse,
 } from '@/hooks/useCourses';
 import { coursesService } from '@/services/courses.service';
-import { customersService } from '@/services/customers.service';
 import type { Course, CourseLesson, CourseEnrollment } from '@/types/course';
-import type { Customer } from '@/types/customer';
+
+interface EnrollmentCandidate {
+  id: string;
+  customerNumber: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+}
 
 type Tab = 'lessons' | 'access';
 
@@ -569,7 +575,7 @@ function AccessTab({ course, onChanged }: { course: Course; onChanged?: () => vo
   const removeEnrollment = useRemoveEnrollment(course.id);
 
   const [search, setSearch] = useState('');
-  const [results, setResults] = useState<Customer[]>([]);
+  const [results, setResults] = useState<EnrollmentCandidate[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
   const enrolledIds = new Set(enrollments.map((e) => e.customerId));
@@ -602,8 +608,8 @@ function AccessTab({ course, onChanged }: { course: Course; onChanged?: () => vo
     }
     try {
       setIsSearching(true);
-      const res = await customersService.getAll({ search: search.trim(), limit: 20 });
-      setResults(res.data || []);
+      const res = await coursesService.searchCustomersForEnrollment(search.trim(), 20);
+      setResults(res);
     } catch {
       toast.error('Error al buscar customers');
     } finally {
@@ -611,10 +617,10 @@ function AccessTab({ course, onChanged }: { course: Course; onChanged?: () => vo
     }
   };
 
-  const handleAdd = async (customer: Customer) => {
+  const handleAdd = async (customer: EnrollmentCandidate) => {
     try {
       await addEnrollments.mutateAsync({ customerIds: [customer.id] });
-      toast.success(`${customer.firstName} inscrito al curso`);
+      toast.success(`${customer.firstName || 'Customer'} inscrito al curso`);
       refetch();
       onChanged?.();
     } catch {
@@ -712,7 +718,7 @@ function AccessTab({ course, onChanged }: { course: Course; onChanged?: () => vo
               <div className="mt-3 rounded-xl border border-gray-200 bg-white max-h-64 overflow-y-auto divide-y divide-gray-100">
                 {results.map((c) => {
                   const isEnrolled = enrolledIds.has(c.id);
-                  const fullName = `${c.firstName} ${c.lastName}`.trim();
+                  const fullName = `${c.firstName || ''} ${c.lastName || ''}`.trim() || '—';
                   return (
                     <div key={c.id} className="flex items-center justify-between px-3 py-2.5">
                       <div className="min-w-0 flex-1">
