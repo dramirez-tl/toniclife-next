@@ -2,6 +2,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { MlmRank } from '@/types/commissions';
 import { Card, CardContent } from '@/components/ui/Card';
 import { CheckIcon, LockClosedIcon, StarIcon } from '@heroicons/react/24/solid';
@@ -35,6 +36,19 @@ const rankColors: Record<string, { bg: string; text: string; border: string; glo
 };
 
 const defaultColor = { bg: 'bg-gray-400', text: 'text-gray-500', border: 'border-gray-300', glow: '' };
+
+// Imágenes oficiales de cada rango (public/images/rangos). "distribuidor" no tiene imagen.
+const rankImages: Record<string, string> = {
+  bronce: '/images/rangos/bronce.PNG',
+  plata: '/images/rangos/plata.PNG',
+  oro: '/images/rangos/oro.PNG',
+  platino: '/images/rangos/platino.PNG',
+  diamante: '/images/rangos/diamante.PNG',
+  doble_diamante: '/images/rangos/doble_diamante.PNG',
+  triple_diamante: '/images/rangos/triple_diamante.PNG',
+  sirius: '/images/rangos/diamante_sirius.PNG',
+  azul: '/images/rangos/diamante_azul.PNG',
+};
 
 // Beneficios por rango (qué ganas al alcanzarlo)
 const rankBenefits: Record<string, string[]> = {
@@ -146,25 +160,54 @@ export function RankProgressStepper({
                     className="flex flex-col items-center group cursor-pointer"
                     style={{ width: '96px' }}
                   >
-                    {/* Circle */}
+                    {/* Circle / Rank image */}
                     <div className="relative">
-                      <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center border-3 transition-all group-hover:scale-110 ${
-                          isCompleted
-                            ? `${colors.bg} border-transparent text-white shadow-lg ${colors.glow}`
-                            : isCurrent
-                              ? `${colors.bg} border-transparent text-white shadow-lg shadow-md ${colors.glow} ring-4 ring-offset-2 ring-current ${colors.text}`
-                              : 'bg-gray-100 border-gray-200 text-gray-400 group-hover:bg-gray-200'
-                        } ${isSelected ? 'ring-4 ring-offset-2 ring-[#3E667D]' : ''}`}
-                      >
-                        {isCompleted ? (
-                          <CheckIcon className="h-5 w-5" />
-                        ) : isCurrent ? (
-                          <StarIcon className="h-5 w-5" />
-                        ) : (
-                          <LockClosedIcon className="h-4 w-4" />
-                        )}
-                      </div>
+                      {rankImages[rank.code] ? (
+                        <div
+                          className={`w-14 h-14 rounded-full overflow-hidden bg-white flex items-center justify-center transition-all group-hover:scale-110 ${
+                            isCurrent
+                              ? `shadow-lg ${colors.glow} ring-4 ring-offset-2 ring-current ${colors.text}`
+                              : isCompleted
+                                ? `shadow-md ${colors.glow}`
+                                : ''
+                          } ${isSelected ? 'ring-4 ring-offset-2 ring-[#3E667D]' : ''}`}
+                        >
+                          <Image
+                            src={rankImages[rank.code]}
+                            alt={rank.name}
+                            width={56}
+                            height={56}
+                            className={`w-full h-full object-contain transition-all ${
+                              isLocked ? 'grayscale opacity-40' : ''
+                            }`}
+                          />
+                          {isLocked && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-6 h-6 rounded-full bg-gray-700/70 flex items-center justify-center">
+                                <LockClosedIcon className="h-3 w-3 text-white" />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div
+                          className={`w-14 h-14 rounded-full flex items-center justify-center border-3 transition-all group-hover:scale-110 ${
+                            isCompleted
+                              ? `${colors.bg} border-transparent text-white shadow-lg ${colors.glow}`
+                              : isCurrent
+                                ? `${colors.bg} border-transparent text-white shadow-lg shadow-md ${colors.glow} ring-4 ring-offset-2 ring-current ${colors.text}`
+                                : 'bg-gray-100 border-gray-200 text-gray-400 group-hover:bg-gray-200'
+                          } ${isSelected ? 'ring-4 ring-offset-2 ring-[#3E667D]' : ''}`}
+                        >
+                          {isCompleted ? (
+                            <CheckIcon className="h-5 w-5" />
+                          ) : isCurrent ? (
+                            <StarIcon className="h-5 w-5" />
+                          ) : (
+                            <LockClosedIcon className="h-4 w-4" />
+                          )}
+                        </div>
+                      )}
                       {/* Rank number badge */}
                       <div
                         className={`absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
@@ -242,9 +285,21 @@ export function RankProgressStepper({
                 isCompleted ? 'bg-emerald-50' : isCurrent ? 'bg-[#C8DDF2]/30' : 'bg-gray-50'
               }`}>
                 <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${colors.bg}`}>
-                    {isCompleted ? <CheckIcon className="h-4 w-4" /> : isCurrent ? <StarIcon className="h-4 w-4" /> : <LockClosedIcon className="h-3.5 w-3.5" />}
-                  </div>
+                  {rankImages[selectedRank.code] ? (
+                    <div className="relative w-10 h-10 rounded-full overflow-hidden bg-white shadow-sm flex items-center justify-center">
+                      <Image
+                        src={rankImages[selectedRank.code]}
+                        alt={selectedRank.name}
+                        width={40}
+                        height={40}
+                        className={`w-full h-full object-contain ${isLocked ? 'grayscale opacity-50' : ''}`}
+                      />
+                    </div>
+                  ) : (
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${colors.bg}`}>
+                      {isCompleted ? <CheckIcon className="h-4 w-4" /> : isCurrent ? <StarIcon className="h-4 w-4" /> : <LockClosedIcon className="h-3.5 w-3.5" />}
+                    </div>
+                  )}
                   <div>
                     <p className="font-bold text-gray-900">{selectedRank.name}</p>
                     <p className="text-xs text-gray-500">
