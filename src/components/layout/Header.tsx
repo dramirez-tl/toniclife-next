@@ -57,7 +57,13 @@ export function Header() {
     if (!isAuthenticated) return '/login';
 
     // Admin roles that should access the admin panel (database role codes)
-    const adminRoles = ['super_admin', 'administrador', 'subadmin', 'almacen', 'ventas_mostrador', 'rh', 'contabilidad', 'auditor', 'viewer'];
+    const adminRoles = [
+      'super_admin', 'administrador', 'subadmin',
+      'almacen', 'ventas_mostrador', 'rh', 'contabilidad', 'auditor', 'viewer',
+      'comercial', 'comercial_two', 'comercial_three', 'comercial_usa', 'dircomer',
+      'call_center', 'sucursales', 'auxiliar_sucursal', 'supervisor', 'auxiliar',
+      'cedea', 'cedea_two', 'cedeas', 'cedeas2', 'compras',
+    ];
     if (userRoles.some(role => adminRoles.includes(role))) return '/admin';
 
     // All authenticated users go to distributor dashboard

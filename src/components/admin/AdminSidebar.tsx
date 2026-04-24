@@ -129,7 +129,17 @@ const navigation: NavItem[] = [
     name: 'Comercial',
     href: '/admin/comercial',
     icon: AcademicCapIcon,
-    permissions: ['config', 'customers:read'],
+    permissions: [
+      'config',
+      'customers:read',
+      'comercial',
+      'courses',
+      'courses:read',
+      'courses:manage',
+      'materials',
+      'materials:read',
+      'materials:manage',
+    ],
     children: [
       { name: 'Capacitación', href: '/admin/comercial/capacitacion' },
       { name: 'Materiales', href: '/admin/comercial/materiales' },
@@ -223,7 +233,7 @@ export function AdminSidebar({ mobile = false, onNavigate }: AdminSidebarProps) 
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
   // Roles con acceso al sidebar filtrado por permisos
-  const FULL_ACCESS_ROLES = ['super_admin', 'administrador', 'viewer', 'subadmin', 'sucursales', 'auxiliar_sucursal', 'contabilidad', 'call_center', 'cedea', 'cedea_two', 'cedeas', 'cedeas2'];
+  const FULL_ACCESS_ROLES = ['super_admin', 'administrador', 'viewer', 'subadmin', 'sucursales', 'auxiliar_sucursal', 'contabilidad', 'call_center', 'cedea', 'cedea_two', 'cedeas', 'cedeas2', 'comercial', 'comercial_two', 'comercial_three', 'comercial_usa', 'dircomer'];
 
   const isWorkerUser = useMemo(() => {
     if (!user?.roles?.length) return true;
