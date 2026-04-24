@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, Suspense } from 'react';
+import Image from 'next/image';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/Card';
 import { FileUpload } from '@/components/ui/FileUpload';
@@ -353,23 +354,43 @@ function CapacitacionContent() {
   };
 
   return (
-    <div className="space-y-6 px-4 sm:px-6 lg:px-8 pb-8">
+    <div className="space-y-6 px-4 sm:px-6 lg:px-8 pt-6 pb-8">
       {/* Header */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#3E667D] to-[#2f5165] px-6 py-6 shadow-lg">
-        <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/5" />
-        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <AcademicCapIcon className="h-7 w-7 text-white/80" />
-              <h1 className="text-2xl font-bold text-white">Gestión de Capacitación</h1>
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#3E667D] via-[#355a70] to-[#2f5165] px-6 py-8 shadow-xl">
+        {/* Decorative circles */}
+        <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/5 blur-2xl" />
+        <div className="pointer-events-none absolute -left-8 -bottom-12 h-48 w-48 rounded-full bg-[#abc9ba]/10 blur-2xl" />
+
+        <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="flex items-center gap-5">
+            {/* Logo emblemático */}
+            <div className="flex-shrink-0 bg-white/10 backdrop-blur-sm rounded-2xl p-2 border border-white/20 shadow-lg">
+              <Image
+                src="/images/rise_academy/RiseAcademyWhite.png"
+                alt="Rise Academy"
+                width={200}
+                height={200}
+                className="h-28 w-28 sm:h-32 sm:w-32 lg:h-36 lg:w-36 object-contain"
+                priority
+              />
             </div>
-            <p className="text-sm text-white/70 mt-1">
-              Administra los cursos de la academia para distribuidores
-            </p>
+            {/* Título y subtítulo */}
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-xs uppercase tracking-[0.25em] text-white/60 font-semibold mb-1">
+                Rise Academy · Administración
+              </p>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white leading-tight">
+                Gestión de Capacitación
+              </h1>
+              <p className="text-sm sm:text-base text-white/70 mt-1.5">
+                Administra los cursos de la academia para distribuidores
+              </p>
+            </div>
           </div>
+
           <button
             onClick={() => { setEditingCourse(null); setIsModalOpen(true); }}
-            className="inline-flex items-center gap-2 rounded-lg bg-white/15 backdrop-blur-sm border border-white/20 px-4 py-2.5 text-sm font-medium text-white hover:bg-white/25 transition-all"
+            className="inline-flex items-center gap-2 rounded-lg bg-white/15 backdrop-blur-sm border border-white/20 px-4 py-2.5 text-sm font-medium text-white hover:bg-white/25 transition-all self-start lg:self-auto flex-shrink-0"
           >
             <PlusIcon className="h-4 w-4" />
             Nuevo Curso

@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
@@ -91,18 +92,34 @@ function CapacitacionContent() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <AcademicCapIcon className="h-10 w-10" />
-                <h1 className="text-4xl font-bold">Academia de Capacitación</h1>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex items-center gap-6 flex-1 min-w-0">
+              {/* Logo grande a la izquierda */}
+              <div className="flex-shrink-0 bg-white/10 backdrop-blur-sm rounded-2xl p-2 border border-white/15 shadow-lg">
+                <Image
+                  src="/images/rise_academy/RiseAcademyWhite.png"
+                  alt="Rise Academy"
+                  width={280}
+                  height={280}
+                  className="h-40 w-40 sm:h-48 sm:w-48 lg:h-56 lg:w-56 object-contain"
+                  priority
+                />
               </div>
-              <p className="text-white/80 text-lg">
-                Cursos élite de grandes coaches en multinivel
-              </p>
+              {/* Título y subtítulo */}
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm uppercase tracking-[0.2em] text-white/60 font-medium mb-1">
+                  Rise Academy
+                </p>
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight">
+                  Sistema de Capacitación
+                </h1>
+                <p className="text-white/80 text-base sm:text-lg mt-2">
+                  Cursos élite de grandes coaches en multinivel
+                </p>
+              </div>
             </div>
-            <Link href="/distribuidor">
+            <Link href="/distribuidor" className="flex-shrink-0">
               <Button variant="secondary">
                 Volver al Panel Principal
               </Button>
