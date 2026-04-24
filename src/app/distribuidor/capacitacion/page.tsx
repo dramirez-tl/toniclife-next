@@ -19,7 +19,7 @@ import {
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
-import { usePublishedCourses } from '@/hooks/useCourses';
+import { useMyCourses } from '@/hooks/useCourses';
 import { toast } from 'sonner';
 import type { Course } from '@/types/course';
 
@@ -64,7 +64,7 @@ function CapacitacionContent() {
   const filterLevel = get('level');
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
-  const { data: courses, isLoading } = usePublishedCourses();
+  const { data: courses, isLoading } = useMyCourses();
 
   const allCourses = courses || [];
   const categories = [...new Set(allCourses.map(c => c.category))];
