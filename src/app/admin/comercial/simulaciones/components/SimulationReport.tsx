@@ -516,6 +516,7 @@ function CommissionHistoryTable({
           <thead className="bg-[#3E667D] text-white">
             <tr>
               <Th>Periodo</Th>
+              <Th>Rango</Th>
               <Th align="right">Comisión total</Th>
               <Th align="center">Registros</Th>
             </tr>
@@ -524,6 +525,15 @@ function CommissionHistoryTable({
             {rows.map((r) => (
               <tr key={r.periodCode}>
                 <Td>{r.periodName} ({r.periodCode})</Td>
+                <Td>
+                  {r.rankName ? (
+                    <span className="inline-block rounded-md px-2 py-0.5 bg-[#C8DDF2]/40 text-[#2f5165] text-xs font-semibold">
+                      {r.rankName}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-400">Sin rango</span>
+                  )}
+                </Td>
                 <Td align="right" className="font-semibold">
                   {fmtCurrency(r.totalCommission)}
                 </Td>
@@ -535,7 +545,8 @@ function CommissionHistoryTable({
       </div>
       <p className="text-xs text-gray-500 italic mt-2">
         Promedio mensual: {fmtCurrency(avg)} — sumatoria de aportaciones en{' '}
-        commission_details.
+        commission_details. El rango proviene del último cambio registrado en
+        rank_history vigente al cierre de cada periodo.
       </p>
     </>
   );

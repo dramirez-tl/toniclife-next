@@ -475,17 +475,18 @@ function drawCommissionHistory(
   y = drawSectionTitle(doc, 'Historial de comisiones', y);
   const rows = r.commissionHistory.map((row) => [
     `${row.periodName} (${row.periodCode})`,
+    row.rankName ?? '—',
     fmtCurrency(row.totalCommission),
     String(row.recordsCount),
   ]);
   return drawTable(
     doc,
     y,
-    ['Periodo', 'Comisión total', 'Registros'],
+    ['Periodo', 'Rango', 'Comisión total', 'Registros'],
     rows,
     {
-      columnAligns: ['left', 'right', 'center'],
-      columnWidths: [80, 50, CONTENT_WIDTH - 130],
+      columnAligns: ['left', 'left', 'right', 'center'],
+      columnWidths: [70, 35, 45, CONTENT_WIDTH - 150],
     },
   );
 }

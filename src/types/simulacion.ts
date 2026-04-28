@@ -112,6 +112,7 @@ export interface CommissionHistoryRow {
   periodName: string;
   totalCommission: number;
   recordsCount: number;
+  rankName?: string;
 }
 
 export interface SimulationSummary {
