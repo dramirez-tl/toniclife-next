@@ -143,6 +143,7 @@ const navigation: NavItem[] = [
     children: [
       { name: 'Capacitación', href: '/admin/comercial/capacitacion' },
       { name: 'Materiales', href: '/admin/comercial/materiales' },
+      { name: 'Simulaciones', href: '/admin/comercial/simulaciones' },
     ],
   },
   { name: 'Cupones', href: '/admin/cupones', icon: TagIcon, permissions: ['customers.promos', 'config'] },
