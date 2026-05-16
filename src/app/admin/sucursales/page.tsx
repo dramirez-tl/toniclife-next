@@ -16,6 +16,14 @@ import {
   useDeactivatePosUser,
 } from '@/hooks/useBranches';
 import type { Branch, BranchQueryParams, CreateBranchDto, UpdateBranchDto, PosUser } from '@/types/branch';
+import {
+  usePosLicensesByBranch,
+  useCreatePosLicense,
+  useRevokePosLicense,
+  useUnbindPosLicense,
+} from '@/hooks/usePosLicenses';
+import type { PosLicense } from '@/types/posLicense';
+import { PosLicensesModal } from '@/components/pos-licenses/PosLicensesModal';
 import { useStates } from '@/hooks/useStates';
 import { useBranchTaxRules, useAssignBranchTaxRule, useRemoveBranchTaxRule, useActiveTaxRules } from '@/hooks/useTaxRules';
 import type { BranchTaxRule } from '@/services/tax-rules.service';
@@ -41,6 +49,10 @@ import {
   ShieldCheckIcon,
   EyeIcon,
   EyeSlashIcon,
+  KeyIcon,
+  ClipboardDocumentIcon,
+  LockClosedIcon,
+  LockOpenIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { confirmAction } from '@/lib/utils';
@@ -408,6 +420,21 @@ function SucursalesContent() {
   // POS user form state
   const [showPosUserForm, setShowPosUserForm] = useState(false);
   const [posUserForm, setPosUserForm] = useState({ email: '', password: '', firstName: '', lastName: '' });
+
+  // POS Licenses (Electron terminals) — only when editing an existing branch with POS enabled
+  const isPosEnabledForLicenses = !!editingBranch && (
+    formData.isPosEnabled ?? editingBranch.isPosEnabled ?? false
+  );
+  const { data: posLicenses = [] } = usePosLicensesByBranch(
+    isPosEnabledForLicenses ? editingBranch?.id : undefined,
+  );
+  const createPosLicense = useCreatePosLicense();
+  const revokePosLicense = useRevokePosLicense();
+  const unbindPosLicense = useUnbindPosLicense();
+  const [licenseLabelInput, setLicenseLabelInput] = useState('');
+
+  // Modal dedicado de licencias (lanzado desde el row action en la tabla).
+  const [licensesBranch, setLicensesBranch] = useState<Branch | null>(null);
 
   // Computed stats (server-side totals)
   const stats = useMemo(() => ({
@@ -829,6 +856,16 @@ function SucursalesContent() {
           >
             <PencilIcon className="h-4 w-4 text-blue-600" />
           </button>
+          {branch.isPosEnabled && (
+            <button
+              onClick={() => setLicensesBranch(branch)}
+              className="rounded-lg p-2 transition-colors hover:bg-[#3E667D]/10"
+              title="Licencias POS"
+              aria-label={`Licencias POS de ${branch.name}`}
+            >
+              <KeyIcon className="h-4 w-4 text-[#3E667D]" />
+            </button>
+          )}
           {branch.isActive ? (
             <button
               onClick={() => handleToggleActive(branch)}
@@ -1644,6 +1681,196 @@ function SucursalesContent() {
           </div>
         )}
 
+        {/* POS Licenses Section (Electron terminals) */}
+        {isPosEnabledForLicenses && editingBranch && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3 border-b border-gray-100 pb-2 flex items-center gap-2">
+              <KeyIcon className="h-4 w-4" />
+              Licencias POS (Terminales Electron) ({posLicenses.length})
+            </h3>
+            <p className="text-xs text-gray-500 mb-3">
+              Cada licencia activa una terminal Electron en un equipo especifico.
+              Tras la primera activacion la licencia queda vinculada al hardware y no
+              puede usarse en otra maquina hasta liberarla o revocarla.
+            </p>
+
+            {posLicenses.length > 0 ? (
+              <div className="border rounded-lg overflow-hidden mb-3">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left px-3 py-2 font-medium text-gray-700">Clave</th>
+                      <th className="text-left px-3 py-2 font-medium text-gray-700">Etiqueta</th>
+                      <th className="text-left px-3 py-2 font-medium text-gray-700">Estado</th>
+                      <th className="text-left px-3 py-2 font-medium text-gray-700">Equipo</th>
+                      <th className="text-right px-3 py-2 font-medium text-gray-700">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {posLicenses.map((license: PosLicense) => (
+                      <tr key={license.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 font-mono text-xs text-gray-900">
+                          {license.licenseKey}
+                        </td>
+                        <td className="px-3 py-2 text-gray-700">
+                          {license.label || <span className="text-gray-400 italic">sin etiqueta</span>}
+                        </td>
+                        <td className="px-3 py-2">
+                          {license.status === 'active' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                              <LockClosedIcon className="h-3 w-3" />
+                              Activa
+                            </span>
+                          )}
+                          {license.status === 'inactive' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                              <LockOpenIcon className="h-3 w-3" />
+                              Sin canjear
+                            </span>
+                          )}
+                          {license.status === 'revoked' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                              <XCircleIcon className="h-3 w-3" />
+                              Revocada
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-xs text-gray-600">
+                          {license.status === 'active' && license.hardwareFingerprint ? (
+                            <div className="flex items-center gap-1">
+                              <ComputerDesktopIcon className="h-3 w-3 text-gray-400 shrink-0" />
+                              <div>
+                                <div className="font-medium text-gray-800">
+                                  {(license.hardwareInfo?.hostname as string | undefined) ??
+                                    `HW-${license.hardwareFingerprint.slice(0, 12).toUpperCase()}`}
+                                </div>
+                                {license.hardwareInfo?.osPlatform && (
+                                  <div className="text-gray-500">
+                                    {license.hardwareInfo.osPlatform as string}{' '}
+                                    {(license.hardwareInfo.osRelease as string | undefined) ?? ''}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 italic">no vinculada</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={async () => {
+                                try {
+                                  await navigator.clipboard.writeText(license.licenseKey);
+                                  toast.success('Clave copiada al portapapeles');
+                                } catch {
+                                  toast.error('No se pudo copiar la clave');
+                                }
+                              }}
+                              className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
+                              title="Copiar clave"
+                            >
+                              <ClipboardDocumentIcon className="h-4 w-4" />
+                            </button>
+                            {license.status === 'active' && (
+                              <button
+                                onClick={async () => {
+                                  if (!(await confirmAction(
+                                    `Liberar la licencia ${license.licenseKey} del equipo actual? Quedara lista para activarse en otra maquina.`,
+                                  ))) return;
+                                  try {
+                                    await unbindPosLicense.mutateAsync(license.id);
+                                    toast.success('Licencia liberada del equipo');
+                                  } catch (err) {
+                                    const e = err as { response?: { data?: { message?: string } } };
+                                    toast.error(e.response?.data?.message || 'Error al liberar licencia');
+                                  }
+                                }}
+                                className="p-1 rounded hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
+                                title="Liberar del equipo (sigue siendo valida)"
+                              >
+                                <LockOpenIcon className="h-4 w-4" />
+                              </button>
+                            )}
+                            {license.status !== 'revoked' && (
+                              <button
+                                onClick={async () => {
+                                  if (!(await confirmAction(
+                                    `Revocar la licencia ${license.licenseKey} permanentemente? Esta accion no se puede deshacer.`,
+                                  ))) return;
+                                  try {
+                                    await revokePosLicense.mutateAsync({ id: license.id });
+                                    toast.success('Licencia revocada');
+                                  } catch (err) {
+                                    const e = err as { response?: { data?: { message?: string } } };
+                                    toast.error(e.response?.data?.message || 'Error al revocar licencia');
+                                  }
+                                }}
+                                className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                                title="Revocar permanentemente"
+                              >
+                                <TrashIcon className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 mb-3 italic">
+                Esta sucursal aun no tiene licencias POS generadas.
+              </p>
+            )}
+
+            {/* Inline create form */}
+            <div className="border rounded-lg p-3 bg-gray-50 flex items-end gap-3">
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Etiqueta para identificar la terminal (opcional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej. Caja 1 mostrador, Call Center turno noche"
+                  value={licenseLabelInput}
+                  onChange={(e) => setLicenseLabelInput(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                  maxLength={100}
+                />
+              </div>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    const license = await createPosLicense.mutateAsync({
+                      branchId: editingBranch.id,
+                      label: licenseLabelInput.trim() || undefined,
+                    });
+                    toast.success(`Licencia generada: ${license.licenseKey}`);
+                    setLicenseLabelInput('');
+                    try {
+                      await navigator.clipboard.writeText(license.licenseKey);
+                      toast.success('Clave copiada al portapapeles', { duration: 2500 });
+                    } catch {
+                      // ignore clipboard failure
+                    }
+                  } catch (err) {
+                    const e = err as { response?: { data?: { message?: string } } };
+                    toast.error(e.response?.data?.message || 'Error al generar licencia');
+                  }
+                }}
+                isLoading={createPosLicense.isPending}
+                leftIcon={<PlusIcon className="h-4 w-4" />}
+              >
+                Generar licencia
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Ticket */}
         <FormSection title="Configuracion de Ticket">
           <FormField label="Nombre en Ticket" fullWidth>
@@ -1675,6 +1902,17 @@ function SucursalesContent() {
           </FormField>
         </FormSection>
       </BranchModal>
+
+      {/* Modal dedicado de licencias POS (lanzado desde el row action). */}
+      {licensesBranch && (
+        <PosLicensesModal
+          isOpen={!!licensesBranch}
+          onClose={() => setLicensesBranch(null)}
+          branchId={licensesBranch.id}
+          branchName={licensesBranch.name}
+          branchCode={licensesBranch.code}
+        />
+      )}
     </div>
     </PermissionGuard>
   );

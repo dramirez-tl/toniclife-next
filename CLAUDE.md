@@ -511,6 +511,45 @@ Ver lista global en `../CLAUDE.md`. Puntos específicos del frontend:
 
 ---
 
+## 🔒 POS — apertura/cierre de caja REMOVIDOS
+
+**Decisión vigente (mayo 2026):** el POS ya NO tiene UI manual de apertura
+ni cierre de sesión de caja. Las sesiones se crean automáticamente al
+primer cobro con `opening_amount = 0` y nunca se cierran.
+
+### Estado en Next
+
+- ❌ `SessionManager.tsx` eliminado por completo.
+- ❌ Hook `useOpenSession` y `useCloseSession` removidos de `usePos.ts`.
+- ❌ Hook `useAvailableRegisters` removido (sólo lo usaba el SessionManager).
+- ❌ Tipo `CloseSessionInput` removido.
+- ✅ `posService.openSession()` y `posService.getAvailableRegisters()` **se
+  mantienen** — uso **interno** únicamente por la función `ensureSession()`
+  en [admin/pos/page.tsx](src/app/admin/pos/page.tsx) que auto-abre al
+  primer cobro. NO usar para construir UI nueva de apertura manual.
+- ✅ Tipo `OpenSessionInput` se mantiene con un comentario explícito sobre
+  su uso interno.
+- ✅ `CorteDiaModal` (corte del día / reporte de ventas) se mantiene — es
+  visualización, NO transacción de cierre.
+
+### Reglas para futuros cambios
+
+Si recibes peticiones tipo:
+- "Agregar botón abrir/cerrar caja"
+- "Restaurar SessionManager"
+- "Mostrar widget de caja abierta con apertura"
+- "Permitir cambiar monto de apertura"
+
+→ **confirma explícitamente con el usuario antes de restaurar.** La
+decisión es intencional. Si necesitas rotación diaria o reconciliación
+automática, implementa cron en el backend (`toniclife-api/src/modules/pos`),
+NO UI manual.
+
+Detalle del trade-off de schema y trazabilidad en
+`../toniclife-api/CLAUDE.md` sección "Apertura/Cierre de caja — UI REMOVIDA".
+
+---
+
 ## 🛑 Zonas de máximo cuidado
 
 Cambios en estas áreas requieren confirmación explícita del usuario:

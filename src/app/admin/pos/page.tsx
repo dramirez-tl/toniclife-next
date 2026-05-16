@@ -21,7 +21,9 @@ import {
   EyeIcon,
   ChartBarIcon,
 } from '@heroicons/react/24/outline';
-import { PosCart, PaymentModal, PosProductGrid } from '@/components/pos';
+import { PosCart, PaymentModal, PosProductGrid, KitProspectModal } from '@/components/pos';
+import type { QuickProduct } from '@/types/pos';
+import type { KitEnrollmentResponse } from '@/types/kit';
 import { CorteDiaModal } from '@/components/pos/CorteDiaModal';
 import { PosCustomerSelector } from '@/components/pos/PosCustomerSelector';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -87,6 +89,9 @@ export default function PosPage() {
 
   // Corte del día
   const [showCorte, setShowCorte] = useState(false);
+
+  // Kit de inscripción detectado en el carrito (dispara modal de prospecto)
+  const [pendingKit, setPendingKit] = useState<QuickProduct | null>(null);
 
   const user = useSelector(selectUser);
   const userRoles = useSelector(selectUserRoles);
@@ -793,7 +798,22 @@ export default function PosPage() {
 
                   {/* Product catalog grid */}
                   <div className="flex-grow min-h-0">
-                    <PosProductGrid key={cart.customerId || 'public'} branchId={effectiveBranchId} priceTypeId={cartPriceTypeId} countryId={branchCountryId} currencySymbol={currencySymbol} currencyCode={currencyCode} />
+                    <PosProductGrid
+                      key={cart.customerId || 'public'}
+                      branchId={effectiveBranchId}
+                      priceTypeId={cartPriceTypeId}
+                      countryId={branchCountryId}
+                      currencySymbol={currencySymbol}
+                      currencyCode={currencyCode}
+                      onKitDetected={(kit) => {
+                        // Solo permitir si hay un distribuidor seleccionado (no precio público)
+                        if (!cart.customerId) {
+                          toast.error('Selecciona primero al distribuidor patrocinador para vender un kit de inscripción');
+                          return;
+                        }
+                        setPendingKit(kit);
+                      }}
+                    />
                   </div>
                 </div>
               ) : (
@@ -875,6 +895,55 @@ export default function PosPage() {
           branchName={selectedBranch?.name}
           branchCountryName={selectedBranch?.countryName}
           branchCountryId={selectedBranch?.countryId}
+        />
+
+        {/* Kit Enrollment Modal — se abre al detectar product_type=kit en la búsqueda */}
+        <KitProspectModal
+          open={!!pendingKit}
+          onClose={() => setPendingKit(null)}
+          sponsor={
+            cart.customerId && cart.customerName
+              ? {
+                  id: cart.customerId,
+                  customerNumber: undefined,
+                  // El customerName guarda nombre completo. Lo separamos en first/last
+                  // de forma simple para mostrarlo; la validación dura es del backend.
+                  firstName: (cart.customerName || '').split(' ')[0] || cart.customerName || '',
+                  lastName: (cart.customerName || '').split(' ').slice(1).join(' ') || '',
+                  // customerType/status no están en la store; el backend valida.
+                }
+              : null
+          }
+          kit={
+            pendingKit
+              ? {
+                  id: pendingKit.id,
+                  code: pendingKit.sku,
+                  name: pendingKit.name,
+                  kitPosition: pendingKit.kitPosition,
+                }
+              : null
+          }
+          branchId={effectiveBranchId}
+          onEnrolled={(result: KitEnrollmentResponse) => {
+            // 1. Cambiar cliente del POS al nuevo distribuidor inscrito.
+            //    El kit se factura al nuevo, no al sponsor.
+            const store = usePosCartStore.getState();
+            const currentPriceTypeId = store.cart.priceTypeId;
+            store.setCustomer(
+              result.customerId,
+              `${result.fullName} (${result.customerNumber})`,
+              undefined,
+              currentPriceTypeId,
+            );
+
+            // 2. Agregar el kit al carrito.
+            if (pendingKit) {
+              store.addItem(pendingKit, 1);
+              toast.success(`Kit ${pendingKit.sku} agregado para ${result.fullName}`);
+            }
+            setPendingKit(null);
+          }}
         />
 
         {/* Ticket Preview Modal */}

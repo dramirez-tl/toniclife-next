@@ -37,6 +37,64 @@ class CustomersService {
     return response.data;
   }
 
+  async listPeriodsForSelector(): Promise<
+    {
+      id: string;
+      code: string | null;
+      name: string | null;
+      startDate: string | null;
+      endDate: string | null;
+      status: string | null;
+      isClosed: boolean;
+    }[]
+  > {
+    const response = await api.get(`${this.basePath}/periods/list`);
+    return response.data;
+  }
+
+  async getCustomerStatsForPeriod(
+    customerId: string,
+    periodId: string,
+  ): Promise<{
+    period: {
+      id: string;
+      code: string | null;
+      name: string | null;
+      startDate: string | null;
+      endDate: string | null;
+      status: string | null;
+      isClosed: boolean;
+    };
+    rank: { id: string | null; code: string | null; name: string | null; rankNumber: number | null };
+    points: {
+      personal: number;
+      group: number;
+      rollOver: number;
+      businessMxn: number;
+      businessUsd: number;
+      qualificationThreshold: number;
+      isQualified: boolean;
+    };
+    network: {
+      size: number;
+      active: number;
+      qualifiedFirstLevel: number;
+      newDirectRecruits: number;
+    };
+    sales: {
+      ordersCount: number;
+      ordersTotalMxn: number;
+      posSalesCount: number;
+      posSalesTotalMxn: number;
+      totalMxn: number;
+    };
+  }> {
+    const response = await api.get(
+      `${this.basePath}/${customerId}/period-stats/${periodId}`,
+    );
+    return response.data;
+  }
+
   async getByReferralCode(code: string): Promise<Customer> {
     const response = await api.get<Customer>(`${this.basePath}/referral/${code}`);
     return response.data;

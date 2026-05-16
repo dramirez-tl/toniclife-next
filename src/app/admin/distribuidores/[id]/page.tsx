@@ -18,6 +18,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { customersService } from '@/services/customers.service';
 import { toast } from 'sonner';
 import type { PaymentReadinessItem, DocumentValidation } from '@/types/payment-data';
+import { DistributorPeriodActivity } from '@/components/distributor/DistributorPeriodActivity';
 import {
   ArrowLeftIcon,
   UserIcon,
@@ -235,6 +236,9 @@ export default function DetalleDistribuidorPage() {
                 </div>
               </div>
             </div>
+
+            {/* Actividad por Periodo */}
+            <DistributorPeriodActivity customerId={customer.id} />
 
             {/* Información Fiscal */}
             <div className="bg-white rounded-lg shadow p-6">

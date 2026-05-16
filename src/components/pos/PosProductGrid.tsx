@@ -16,9 +16,11 @@ interface PosProductGridProps {
   countryId?: string;
   currencySymbol?: string;
   currencyCode?: string;
+  /** Cuando se detecta un kit de inscripción (product_type=kit con kitPosition), se delega al padre en lugar de añadirlo al carrito. */
+  onKitDetected?: (product: QuickProduct) => void;
 }
 
-export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbol = '$', currencyCode }: PosProductGridProps) {
+export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbol = '$', currencyCode, onKitDetected }: PosProductGridProps) {
   const [filter, setFilter] = useState('');
   const [skuQuery, setSkuQuery] = useState('');
   const [bulkMode, setBulkMode] = useState(false);
@@ -45,6 +47,11 @@ export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbo
   });
 
   const handleAdd = (product: QuickProduct) => {
+    // Si es un kit de inscripción, delegar al padre (abre modal de prospecto)
+    if (product.productType === 'kit' && product.kitPosition && onKitDetected) {
+      onKitDetected(product);
+      return;
+    }
     if (product.stock !== undefined && product.stock <= 0) {
       toast.error(`${product.name} no tiene existencias`);
       return;
@@ -70,6 +77,12 @@ export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbo
 
     const product = await posService.getProductBySku(sku, countryId, branchId, priceTypeId);
     if (product) {
+      // Si es un kit de inscripción, delegar al padre
+      if (product.productType === 'kit' && product.kitPosition && onKitDetected) {
+        onKitDetected(product);
+        setSkuQuery('');
+        return;
+      }
       if (product.stock !== undefined && product.stock <= 0) {
         toast.error(`${product.name} no tiene existencias en esta sucursal`);
         return;
@@ -97,7 +110,7 @@ export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbo
     } else {
       toast.error(`Producto no encontrado: ${sku}`);
     }
-  }, [addItem, countryId, branchId, priceTypeId]);
+  }, [addItem, countryId, branchId, priceTypeId, onKitDetected]);
 
   const handleSkuKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && skuQuery.trim().length > 0) {

@@ -19,6 +19,22 @@ export enum KitType {
   PREFERENTE = 'preferente',
 }
 
+/**
+ * Posicion del kit: rango que se asigna al distribuidor que se inscribe
+ * comprando este kit. Mapea a la columna products.kit_position.
+ */
+export enum KitPosition {
+  BASIC = 'basic',
+  PREMIUM = 'premium',
+  PREFERENTE = 'preferente',
+}
+
+export const KIT_POSITION_LABEL: Record<KitPosition, string> = {
+  [KitPosition.BASIC]: 'Básico',
+  [KitPosition.PREMIUM]: 'Premium',
+  [KitPosition.PREFERENTE]: 'Preferente',
+};
+
 // ================================
 // CATEGORY TYPES (matches CategoryDto from category.dto.ts)
 // ================================
@@ -61,6 +77,7 @@ export interface Product {
   brand?: string;
   productType: string;
   kitType?: string;
+  kitPosition?: string;
   kitDeductsInventory: boolean;
   pointsValue: string;
   businessVolume: string;
@@ -175,6 +192,7 @@ export interface ProductQueryParams {
   isFeatured?: boolean;
   availableInPos?: boolean;
   productType?: ProductType;
+  kitPosition?: KitPosition;
   brand?: string;
   tracksInventory?: boolean;
   sortBy?: string;
@@ -234,6 +252,7 @@ export interface CreateProductDto {
   brand?: string;
   productType?: ProductType;
   kitType?: KitType;
+  kitPosition?: KitPosition;
   kitDeductsInventory?: boolean;
   pointsValue?: number;
   businessVolume?: number;

@@ -142,16 +142,16 @@ export interface ActiveSession {
   };
 }
 
+/**
+ * Input para apertura de sesion. Uso INTERNO unicamente — `ensureSession()`
+ * auto-abre con $0 cuando no hay sesion activa al cobrar la primera venta.
+ * NO usar para construir UI de apertura manual.
+ */
 export interface OpenSessionInput {
   cashRegisterId: string;
   openingAmount: number;
   openingNotes?: string;
   currencyId?: string;
-}
-
-export interface CloseSessionInput {
-  actualClosingAmount: number;
-  closingNotes?: string;
 }
 
 export interface SessionQueryParams {
@@ -486,4 +486,8 @@ export interface QuickProduct {
   isIncludedInPrice?: boolean;
   points?: number;
   businessVolume?: number;
+  /** Tipo de producto. Cuando es 'kit' con kitPosition, dispara el flujo de inscripción. */
+  productType?: string;
+  /** Posición del kit (basic/premium/preferente). Solo aplica cuando productType='kit'. */
+  kitPosition?: string;
 }

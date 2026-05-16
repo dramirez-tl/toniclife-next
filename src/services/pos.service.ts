@@ -13,7 +13,6 @@ import type {
   Session,
   ActiveSession,
   OpenSessionInput,
-  CloseSessionInput,
   SessionQueryParams,
   SessionListResponse,
   // Sale
@@ -58,7 +57,8 @@ class PosService {
   }
 
   /**
-   * Get available registers (not in use)
+   * Get available registers (uso interno: ensureSession auto-abre la primera
+   * disponible al cobrar, no se expone como UI de seleccion).
    */
   async getAvailableRegisters(branchId?: string): Promise<CashRegister[]> {
     const response = await api.get<CashRegister[]>('/pos/registers/available', {
@@ -86,20 +86,17 @@ class PosService {
   // ================================
   // SESSIONS
   // ================================
+  // Nota: NO hay UI de apertura manual. El metodo openSession existe solo
+  // para que ensureSession() (auto-open al primer cobro) pueda crear una
+  // sesion con monto $0 cuando no hay activa. Ver Electron PosScreen y
+  // Next admin/pos/page.tsx.
 
   /**
-   * Open a new session
+   * Open a session — uso interno por ensureSession. Monto $0, notas
+   * autogeneradas. NO exponer en UI.
    */
   async openSession(data: OpenSessionInput): Promise<Session> {
     const response = await api.post<Session>('/pos/sessions/open', data);
-    return response.data;
-  }
-
-  /**
-   * Close a session
-   */
-  async closeSession(sessionId: string, data: CloseSessionInput): Promise<Session> {
-    const response = await api.post<Session>(`/pos/sessions/${sessionId}/close`, data);
     return response.data;
   }
 
@@ -283,21 +280,27 @@ class PosService {
       },
     });
     // Map to QuickProduct format (API returns code, price, not sku/basePrice)
-    return response.data.data?.map((p: any) => ({
-      id: p.id,
-      sku: p.code,
-      name: p.name,
-      slug: p.slug,
-      imageUrl: p.imageUrl,
-      basePrice: parseFloat(p.price || '0'),
-      categoryName: p.categoryName,
-      stock: p.stock,
-      isActive: p.isActive,
-      taxRate: p.taxRate != null ? Number(p.taxRate) : undefined,
-      isIncludedInPrice: p.taxIncludedInPrice,
-      points: p.pricePoints != null ? Number(p.pricePoints) : 0,
-      businessVolume: p.priceBusinessValue != null ? Number(p.priceBusinessValue) : 0,
-    })) || [];
+    return response.data.data?.map((p: any) => {
+      const isKit = p.productType === 'kit';
+      return {
+        id: p.id,
+        sku: p.code,
+        name: p.name,
+        slug: p.slug,
+        imageUrl: p.imageUrl,
+        basePrice: parseFloat(p.price || '0'),
+        categoryName: p.categoryName,
+        // Kits no rastrean stock propio (descuentan de componentes)
+        stock: isKit ? undefined : p.stock,
+        isActive: p.isActive,
+        taxRate: p.taxRate != null ? Number(p.taxRate) : undefined,
+        isIncludedInPrice: p.taxIncludedInPrice,
+        points: p.pricePoints != null ? Number(p.pricePoints) : 0,
+        businessVolume: p.priceBusinessValue != null ? Number(p.priceBusinessValue) : 0,
+        productType: p.productType,
+        kitPosition: p.kitPosition,
+      };
+    }) || [];
   }
 
   /**
@@ -328,6 +331,8 @@ class PosService {
       // Reject products not available in POS
       if (!p.availableInPos) return null;
 
+      const isKit = p.productType === 'kit';
+
       return {
         id: p.id,
         sku: p.code,
@@ -336,10 +341,13 @@ class PosService {
         imageUrl: p.imageUrl,
         basePrice: parseFloat(p.price || '0'),
         categoryName: p.categoryName,
-        stock: p.stock,
+        // Kits no rastrean stock propio (descuentan de componentes via kit_deducts_inventory)
+        stock: isKit ? undefined : p.stock,
         isActive: p.isActive,
         taxRate: p.taxRate != null ? Number(p.taxRate) : undefined,
         isIncludedInPrice: p.taxIncludedInPrice,
+        productType: p.productType,
+        kitPosition: p.kitPosition,
       };
     } catch {
       return null;

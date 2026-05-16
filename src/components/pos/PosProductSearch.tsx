@@ -12,13 +12,15 @@ import Image from 'next/image';
 
 interface PosProductSearchProps {
   onProductSelected?: (product: QuickProduct) => void;
+  /** Cuando se detecta un kit de inscripción, en vez de agregarlo se delega al padre (para abrir modal de prospecto). */
+  onKitDetected?: (product: QuickProduct) => void;
   autoFocus?: boolean;
   branchId?: string;
   priceTypeId?: string;
   countryId?: string;
 }
 
-export function PosProductSearch({ onProductSelected, autoFocus = true, branchId, priceTypeId, countryId }: PosProductSearchProps) {
+export function PosProductSearch({ onProductSelected, onKitDetected, autoFocus = true, branchId, priceTypeId, countryId }: PosProductSearchProps) {
   const [query, setQuery] = useState('');
   const [skuQuery, setSkuQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
@@ -52,7 +54,14 @@ export function PosProductSearch({ onProductSelected, autoFocus = true, branchId
 
     const product = await posService.getProductBySku(sku, countryId, branchId);
     if (product) {
-      // Validate stock
+      // Si es un kit de inscripción, delegar al padre (abre modal de prospecto en lugar de agregar)
+      if (product.productType === 'kit' && product.kitPosition && onKitDetected) {
+        onKitDetected(product);
+        setQuery('');
+        setSkuQuery('');
+        return;
+      }
+      // Validate stock (los kits no tienen stock propio, ya filtrados arriba)
       if (product.stock !== undefined && product.stock <= 0) {
         toast.error(`${product.name} no tiene existencias en esta sucursal`);
         return;
@@ -82,7 +91,7 @@ export function PosProductSearch({ onProductSelected, autoFocus = true, branchId
     } else {
       toast.error(`Producto no encontrado: ${sku}`);
     }
-  }, [addItem, onProductSelected, countryId, branchId]);
+  }, [addItem, onProductSelected, onKitDetected, countryId, branchId]);
 
   // Parse bulk input lines: "SKU,qty" or just "SKU" (qty defaults to 1)
   const parseBulkInput = useCallback((text: string): Array<{ sku: string; quantity: number }> => {
@@ -224,6 +233,17 @@ export function PosProductSearch({ onProductSelected, autoFocus = true, branchId
   const cartItems = usePosCartStore((state) => state.cart.items);
 
   const handleSelectProduct = (product: QuickProduct) => {
+    // Si es un kit de inscripción, delegar al padre antes de validar nada
+    if (product.productType === 'kit' && product.kitPosition && onKitDetected) {
+      onKitDetected(product);
+      setQuery('');
+      setSkuQuery('');
+      setIsOpen(false);
+      setSelectedIndex(0);
+      inputRef.current?.focus();
+      return;
+    }
+
     // Parse quantity from SKU input if comma present (e.g. "9019,4")
     const skuParts = skuQuery.split(',');
     const parsedQty = skuParts.length > 1 ? parseInt(skuParts[1].trim(), 10) : 1;

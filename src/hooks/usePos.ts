@@ -10,8 +10,6 @@ import type {
   UpdateCashRegisterInput,
   CashRegisterQueryParams,
   // Session
-  OpenSessionInput,
-  CloseSessionInput,
   SessionQueryParams,
   // Sale
   CreateSaleInput,
@@ -69,17 +67,6 @@ export const useCashRegisters = (params?: CashRegisterQueryParams) => {
     queryKey: posKeys.registerList(params),
     queryFn: () => posService.getRegisters(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
-  });
-};
-
-/**
- * Get available registers
- */
-export const useAvailableRegisters = (branchId?: string) => {
-  return useQuery({
-    queryKey: posKeys.registerAvailable(branchId),
-    queryFn: () => posService.getAvailableRegisters(branchId),
-    staleTime: 30 * 1000, // 30 seconds - needs to be fresh
   });
 };
 
@@ -162,37 +149,6 @@ export const useSession = (id: string, enabled = true) => {
     queryFn: () => posService.getSessionById(id),
     enabled: enabled && !!id,
     staleTime: 2 * 60 * 1000,
-  });
-};
-
-/**
- * Open session mutation
- */
-export const useOpenSession = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (data: OpenSessionInput) => posService.openSession(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: posKeys.sessions() });
-      queryClient.invalidateQueries({ queryKey: posKeys.registers() });
-    },
-  });
-};
-
-/**
- * Close session mutation
- */
-export const useCloseSession = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ sessionId, data }: { sessionId: string; data: CloseSessionInput }) =>
-      posService.closeSession(sessionId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: posKeys.sessions() });
-      queryClient.invalidateQueries({ queryKey: posKeys.registers() });
-    },
   });
 };
 
