@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   GiftIcon,
@@ -13,6 +13,7 @@ import {
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useKits } from '@/hooks/useKits';
+import { useCountries } from '@/hooks/useConfig';
 import { KitPosition, KIT_POSITION_LABEL } from '@/types/product';
 import type { Product } from '@/types/product';
 
@@ -33,10 +34,26 @@ export default function KitsPage() {
 function KitsContent() {
   const [search, setSearch] = useState('');
   const [position, setPosition] = useState<KitPosition | ''>('');
+  const [countryId, setCountryId] = useState<string>('');
+
+  const { data: countries } = useCountries();
+
+  // Default al primer pais activo (Mexico, por orden alfabetico) la primera
+  // vez que llegan los paises. Asi el admin ve siempre precios en una moneda
+  // concreta en vez de "el primer match" implicito del backend.
+  useEffect(() => {
+    if (!countryId && countries && countries.length > 0) {
+      const mx = countries.find((c) => c.code === 'MX');
+      setCountryId(mx?.id ?? countries[0].id);
+    }
+  }, [countries, countryId]);
+
+  const selectedCountry = countries?.find((c) => c.id === countryId);
 
   const { data, isLoading } = useKits({
     search: search.trim() || undefined,
     kitPosition: position || undefined,
+    countryId: countryId || undefined,
     limit: 50,
   });
 
@@ -68,7 +85,7 @@ function KitsContent() {
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <Card className="mb-6">
           <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
                 <div className="relative">
@@ -81,6 +98,21 @@ function KitsContent() {
                     className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
                   />
                 </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">País (precio)</label>
+                <select
+                  value={countryId}
+                  onChange={(e) => setCountryId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
+                  disabled={!countries || countries.length === 0}
+                >
+                  {(countries ?? []).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.code} — {c.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Posición</label>
@@ -121,7 +153,9 @@ function KitsContent() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Código</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Posición</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precio</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Precio {selectedCountry ? `(${selectedCountry.code})` : ''}
+                      </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Países</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
@@ -151,7 +185,11 @@ function KitsContent() {
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          {kit.price ? `$${Number(kit.price).toLocaleString('es-MX')} ${kit.priceCurrency || ''}` : '—'}
+                          {kit.price && Number(kit.price) > 0 ? (
+                            `$${Number(kit.price).toLocaleString('es-MX')} ${kit.priceCurrency || ''}`
+                          ) : (
+                            <span className="text-xs text-gray-400 italic">Sin precio</span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           {(kit.activeCountries ?? []).join(', ') || '—'}
