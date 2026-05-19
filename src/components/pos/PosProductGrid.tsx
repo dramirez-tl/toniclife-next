@@ -16,7 +16,7 @@ interface PosProductGridProps {
   countryId?: string;
   currencySymbol?: string;
   currencyCode?: string;
-  /** Cuando se detecta un kit de inscripción (product_type=kit con kitPosition), se delega al padre en lugar de añadirlo al carrito. */
+  /** Cuando se detecta un kit de inscripción (isEnrollmentKit=true), se delega al padre en lugar de añadirlo al carrito. */
   onKitDetected?: (product: QuickProduct) => void;
 }
 
@@ -48,7 +48,7 @@ export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbo
 
   const handleAdd = (product: QuickProduct) => {
     // Si es un kit de inscripción, delegar al padre (abre modal de prospecto)
-    if (product.productType === 'kit' && product.kitPosition && onKitDetected) {
+    if (product.isEnrollmentKit && onKitDetected) {
       onKitDetected(product);
       return;
     }
@@ -78,7 +78,7 @@ export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbo
     const product = await posService.getProductBySku(sku, countryId, branchId, priceTypeId);
     if (product) {
       // Si es un kit de inscripción, delegar al padre
-      if (product.productType === 'kit' && product.kitPosition && onKitDetected) {
+      if (product.isEnrollmentKit && onKitDetected) {
         onKitDetected(product);
         setSkuQuery('');
         return;

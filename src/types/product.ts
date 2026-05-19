@@ -78,6 +78,7 @@ export interface Product {
   productType: string;
   kitType?: string;
   kitPosition?: string;
+  isEnrollmentKit: boolean;
   kitDeductsInventory: boolean;
   pointsValue: string;
   businessVolume: string;
@@ -193,6 +194,7 @@ export interface ProductQueryParams {
   availableInPos?: boolean;
   productType?: ProductType;
   kitPosition?: KitPosition;
+  isEnrollmentKit?: boolean;
   brand?: string;
   tracksInventory?: boolean;
   sortBy?: string;
@@ -253,6 +255,7 @@ export interface CreateProductDto {
   productType?: ProductType;
   kitType?: KitType;
   kitPosition?: KitPosition;
+  isEnrollmentKit?: boolean;
   kitDeductsInventory?: boolean;
   pointsValue?: number;
   businessVolume?: number;

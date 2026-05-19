@@ -299,6 +299,7 @@ class PosService {
         businessVolume: p.priceBusinessValue != null ? Number(p.priceBusinessValue) : 0,
         productType: p.productType,
         kitPosition: p.kitPosition,
+        isEnrollmentKit: p.isEnrollmentKit === true,
       };
     }) || [];
   }
@@ -348,6 +349,7 @@ class PosService {
         isIncludedInPrice: p.taxIncludedInPrice,
         productType: p.productType,
         kitPosition: p.kitPosition,
+        isEnrollmentKit: p.isEnrollmentKit === true,
       };
     } catch {
       return null;

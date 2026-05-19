@@ -15,12 +15,15 @@ import type {
 
 class KitsService {
   /**
-   * Lista kits (products con product_type=kit). Permite filtrar por
-   * posicion, busqueda, etc.
+   * Lista kits de inscripción. Filtra por defecto a is_enrollment_kit=TRUE
+   * (excluye los 714 paquetes promocionales legacy clasificados como
+   * product_type='kit'). El consumidor puede pasar isEnrollmentKit=false
+   * explicitamente si necesita ver el catalogo completo.
    */
   async listKits(params: KitListQueryParams = {}): Promise<ProductListResponse> {
     const response = await api.get<ProductListResponse>('/products', {
       params: {
+        isEnrollmentKit: true,
         ...params,
         productType: ProductType.KIT,
       },

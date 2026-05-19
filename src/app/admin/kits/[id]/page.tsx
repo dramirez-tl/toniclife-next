@@ -40,6 +40,7 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
   const [shortName, setShortName] = useState('');
   const [description, setDescription] = useState('');
   const [kitPosition, setKitPosition] = useState<KitPosition | ''>('');
+  const [isEnrollmentKit, setIsEnrollmentKit] = useState(false);
   const [isActive, setIsActive] = useState(true);
 
   const [rows, setRows] = useState<CompRow[]>([]);
@@ -52,6 +53,7 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
       setShortName(kit.shortName ?? '');
       setDescription(kit.description ?? '');
       setKitPosition((kit.kitPosition as KitPosition) || '');
+      setIsEnrollmentKit(kit.isEnrollmentKit ?? false);
       setIsActive(kit.isActive);
     }
   }, [kit]);
@@ -108,6 +110,10 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
 
   const handleSaveDetails = async () => {
     if (!kit) return;
+    if (isEnrollmentKit && !kitPosition) {
+      toast.error('Un kit de inscripción requiere posición (Básico, Premium o Preferente)');
+      return;
+    }
     try {
       await updateProduct.mutateAsync({
         id: kit.id,
@@ -116,6 +122,7 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
           shortName: shortName.trim() || undefined,
           description: description.trim() || undefined,
           kitPosition: (kitPosition || undefined) as KitPosition | undefined,
+          isEnrollmentKit,
           isActive,
         },
       });
@@ -198,18 +205,40 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Posición</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Posición {isEnrollmentKit && <span className="text-red-500">*</span>}
+              </label>
               <select
                 value={kitPosition}
                 onChange={(e) => setKitPosition(e.target.value as KitPosition | '')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100 disabled:text-gray-400"
+                required={isEnrollmentKit}
+                disabled={!isEnrollmentKit}
               >
                 <option value="">Sin posición</option>
                 <option value={KitPosition.BASIC}>{KIT_POSITION_LABEL.basic}</option>
                 <option value={KitPosition.PREMIUM}>{KIT_POSITION_LABEL.premium}</option>
                 <option value={KitPosition.PREFERENTE}>{KIT_POSITION_LABEL.preferente}</option>
               </select>
+              {!isEnrollmentKit && (
+                <p className="text-xs text-gray-500 mt-1">Solo aplica para kits de inscripción</p>
+              )}
             </div>
+
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isEnrollmentKit}
+                onChange={(e) => setIsEnrollmentKit(e.target.checked)}
+                className="h-4 w-4 mt-0.5"
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-700">Kit de inscripción de distribuidor</span>
+                <p className="text-xs text-gray-500">
+                  Vender este kit en POS abre el alta de distribuidor y paga bono al sponsor. Requiere posición.
+                </p>
+              </div>
+            </label>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>

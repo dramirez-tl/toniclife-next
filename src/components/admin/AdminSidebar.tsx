@@ -31,6 +31,7 @@ import {
   ReceiptPercentIcon,
   AcademicCapIcon,
   GiftIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutAsync, selectUser, selectUserPermissions } from '@/store/slices/authSlice';
@@ -53,6 +54,7 @@ const navigation: NavItem[] = [
   { name: 'Distribuidores', href: '/admin/distribuidores', icon: UsersIcon, permissions: ['customers:read', 'customers', 'customers.list.read'] },
   { name: 'Productos', href: '/admin/productos', icon: ShoppingBagIcon, permissions: ['config.products', 'config.products.read'] },
   { name: 'Kits', href: '/admin/kits', icon: GiftIcon, permissions: ['config.products', 'config.products.read'] },
+  { name: 'Promociones', href: '/admin/promociones', icon: SparklesIcon, permissions: ['config.products', 'config.products.read'] },
   { name: 'Pedidos', href: '/admin/pedidos', icon: ClipboardDocumentListIcon, permissions: ['sales.orders', 'sales.orders.read'] },
   {
     name: 'Inventario',

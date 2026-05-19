@@ -21,7 +21,7 @@ import {
   EyeIcon,
   ChartBarIcon,
 } from '@heroicons/react/24/outline';
-import { PosCart, PaymentModal, PosProductGrid, KitProspectModal } from '@/components/pos';
+import { PosCart, PaymentModal, PosProductGrid, KitProspectModal, PosAvailablePromotions } from '@/components/pos';
 import type { QuickProduct } from '@/types/pos';
 import type { KitEnrollmentResponse } from '@/types/kit';
 import { CorteDiaModal } from '@/components/pos/CorteDiaModal';
@@ -328,9 +328,13 @@ export default function PosPage() {
         clearCart();
         refetchSales();
         refetchSession();
-        // Invalidar puntos del cliente para que PosPointsBar muestre datos actualizados
+        // Invalidar puntos del cliente para que PosPointsBar muestre datos actualizados.
+        // Tambien invalidar promos disponibles porque la venta pudo haber:
+        //   - sumado puntos que desbloquean nuevas promos, o
+        //   - canjeado una promo con consumes_points=true que descuenta.
         if (cart.customerId) {
           queryClient.invalidateQueries({ queryKey: ['customer-period-stats', cart.customerId] });
+          queryClient.invalidateQueries({ queryKey: ['promotions', 'available', cart.customerId] });
         }
 
         toast.success(`Venta ${sale.saleNumber} completada`);
@@ -795,6 +799,14 @@ export default function PosPage() {
                       Cambiar
                     </button>
                   </div>
+
+                  {/* Available promotions strip — solo cuando hay distribuidor y pais */}
+                  {cart.customerId && branchCountryId && (
+                    <PosAvailablePromotions
+                      customerId={cart.customerId}
+                      countryId={branchCountryId}
+                    />
+                  )}
 
                   {/* Product catalog grid */}
                   <div className="flex-grow min-h-0">
@@ -1422,6 +1434,7 @@ export default function PosPage() {
                       refetchSales();
                       if (cancelledSaleCustomerId) {
                         queryClient.invalidateQueries({ queryKey: ['customer-period-stats', cancelledSaleCustomerId] });
+                        queryClient.invalidateQueries({ queryKey: ['promotions', 'available', cancelledSaleCustomerId] });
                       }
                     } catch (err: any) {
                       const msg = err?.response?.data?.message || 'Error al cancelar la venta';

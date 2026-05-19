@@ -25,6 +25,7 @@ export interface BulkReplaceComponentsDto {
 export interface KitListQueryParams {
   search?: string;
   kitPosition?: KitPosition;
+  isEnrollmentKit?: boolean;
   isActive?: boolean;
   countryId?: string;
   page?: number;

@@ -55,7 +55,7 @@ export function PosProductSearch({ onProductSelected, onKitDetected, autoFocus =
     const product = await posService.getProductBySku(sku, countryId, branchId);
     if (product) {
       // Si es un kit de inscripción, delegar al padre (abre modal de prospecto en lugar de agregar)
-      if (product.productType === 'kit' && product.kitPosition && onKitDetected) {
+      if (product.isEnrollmentKit && onKitDetected) {
         onKitDetected(product);
         setQuery('');
         setSkuQuery('');
@@ -234,7 +234,7 @@ export function PosProductSearch({ onProductSelected, onKitDetected, autoFocus =
 
   const handleSelectProduct = (product: QuickProduct) => {
     // Si es un kit de inscripción, delegar al padre antes de validar nada
-    if (product.productType === 'kit' && product.kitPosition && onKitDetected) {
+    if (product.isEnrollmentKit && onKitDetected) {
       onKitDetected(product);
       setQuery('');
       setSkuQuery('');

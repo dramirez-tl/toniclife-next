@@ -22,6 +22,7 @@ export default function NuevoKitPage() {
     description: '',
     kitPosition: '' as KitPosition | '',
     kitType: KitType.PREMIUM, // 'basico' / 'premium' / 'preferente' (modo costeo)
+    isEnrollmentKit: true,
     kitDeductsInventory: true,
     qualifiesForCommission: true,
     isVisibleEcommerce: true,
@@ -40,8 +41,8 @@ export default function NuevoKitPage() {
       toast.error('Código y nombre son requeridos');
       return;
     }
-    if (!form.kitPosition) {
-      toast.error('Selecciona la posición del kit (Básico, Premium o Preferente)');
+    if (form.isEnrollmentKit && !form.kitPosition) {
+      toast.error('Un kit de inscripción requiere posición (Básico, Premium o Preferente)');
       return;
     }
 
@@ -52,7 +53,8 @@ export default function NuevoKitPage() {
       description: form.description.trim() || undefined,
       productType: ProductType.KIT,
       kitType: form.kitType,
-      kitPosition: form.kitPosition,
+      kitPosition: form.kitPosition || undefined,
+      isEnrollmentKit: form.isEnrollmentKit,
       kitDeductsInventory: form.kitDeductsInventory,
       qualifiesForCommission: form.qualifiesForCommission,
       isVisibleEcommerce: form.isVisibleEcommerce,
@@ -111,20 +113,25 @@ export default function NuevoKitPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Posición <span className="text-red-500">*</span>
+                  Posición {form.isEnrollmentKit && <span className="text-red-500">*</span>}
                 </label>
                 <select
                   value={form.kitPosition}
                   onChange={(e) => handleChange('kitPosition', e.target.value as KitPosition)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
-                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3E667D] disabled:bg-gray-100 disabled:text-gray-400"
+                  required={form.isEnrollmentKit}
+                  disabled={!form.isEnrollmentKit}
                 >
                   <option value="">Seleccionar...</option>
                   <option value={KitPosition.BASIC}>{KIT_POSITION_LABEL.basic}</option>
                   <option value={KitPosition.PREMIUM}>{KIT_POSITION_LABEL.premium}</option>
                   <option value={KitPosition.PREFERENTE}>{KIT_POSITION_LABEL.preferente}</option>
                 </select>
-                <p className="text-xs text-gray-500 mt-1">Rango asignado al inscribirse con este kit</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  {form.isEnrollmentKit
+                    ? 'Rango asignado al inscribirse con este kit'
+                    : 'Solo aplica para kits de inscripción'}
+                </p>
               </div>
             </div>
 
@@ -183,6 +190,21 @@ export default function NuevoKitPage() {
               </select>
               <p className="text-xs text-gray-500 mt-1">Categoría usada por reglas de comisiones</p>
             </div>
+
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.isEnrollmentKit}
+                onChange={(e) => handleChange('isEnrollmentKit', e.target.checked)}
+                className="h-4 w-4 rounded"
+              />
+              <div>
+                <span className="text-sm font-medium text-gray-700">Kit de inscripción de distribuidor</span>
+                <p className="text-xs text-gray-500">
+                  Cuando está marcado, vender este kit en POS abre el flujo de alta de distribuidor y paga bono al sponsor. Requiere posición.
+                </p>
+              </div>
+            </label>
 
             <label className="flex items-center gap-3 cursor-pointer">
               <input

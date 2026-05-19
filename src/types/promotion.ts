@@ -1,0 +1,98 @@
+// Types for Promotions module (especializacion sobre Product con
+// product_type='promotional'). Las promos viven en la tabla products del
+// backend; aqui se exponen tipos con nombres mas explicitos para la UI,
+// mas las reglas de canje (product_promotion_rules).
+//
+// Ref backend:
+//   - toniclife-api/src/modules/promotions/promotions.controller.ts
+//   - toniclife-api/src/modules/promotions/dto/promotion-rule.dto.ts
+//   - toniclife-api/sql/migrations/036_promotion_rules.sql
+
+import type { Product, ProductComponent } from './product';
+
+/**
+ * Una Promocion es un Product con product_type='promotional'. Se re-exporta
+ * el tipo para que la UI exprese mejor su intencion.
+ */
+export type Promotion = Product;
+
+export type PromotionComponent = ProductComponent;
+
+// ================================
+// REGLA DE CANJE (por pais)
+// ================================
+export interface PromotionRule {
+  id: string;
+  productId: string;
+  countryId: string;
+  /** Codigo ISO del pais (ej. 'MX', 'US'). Puede venir vacio si el JOIN falla. */
+  countryCode?: string;
+  /** Nombre legible del pais (ej. 'Mexico', 'Estados Unidos'). */
+  countryName?: string;
+  /** Puntos personales acumulados del periodo requeridos para canjear. */
+  minPointsRequired: string;
+  /** Si TRUE, al canjear se descuentan los puntos del periodo del distribuidor. */
+  consumesPoints: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertPromotionRuleDto {
+  countryId: string;
+  minPointsRequired: number;
+  consumesPoints?: boolean;
+  isActive?: boolean;
+}
+
+// ================================
+// ELEGIBILIDAD
+// ================================
+export interface PromotionEligibility {
+  eligible: boolean;
+  currentPoints: number;
+  requiredPoints: number;
+  missing: number;
+  periodId?: string;
+  consumesPoints?: boolean;
+  /** Mensaje legible para mostrar al usuario cuando NO es elegible. */
+  reason?: string;
+}
+
+/**
+ * Item del endpoint GET /promotions/available/:customerId — promos que el
+ * cliente puede canjear hoy en un pais dado.
+ */
+export interface AvailablePromotionForCustomer {
+  productId: string;
+  code: string;
+  name: string;
+  description?: string;
+  minPointsRequired: number;
+  currentPoints: number;
+  consumesPoints: boolean;
+}
+
+// ================================
+// LIST QUERY (UI de admin)
+// ================================
+export interface PromotionListQueryParams {
+  search?: string;
+  isActive?: boolean;
+  countryId?: string;
+  page?: number;
+  limit?: number;
+}
+
+// ================================
+// BULK COMPONENTS (reuso del compositor de kits)
+// ================================
+export interface BulkPromotionComponentItem {
+  componentProductId: string;
+  quantity: number;
+  sortOrder?: number;
+}
+
+export interface BulkReplacePromotionComponentsDto {
+  components: BulkPromotionComponentItem[];
+}

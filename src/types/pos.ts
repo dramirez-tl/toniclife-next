@@ -486,8 +486,15 @@ export interface QuickProduct {
   isIncludedInPrice?: boolean;
   points?: number;
   businessVolume?: number;
-  /** Tipo de producto. Cuando es 'kit' con kitPosition, dispara el flujo de inscripción. */
+  /** Tipo de producto. */
   productType?: string;
   /** Posición del kit (basic/premium/preferente). Solo aplica cuando productType='kit'. */
   kitPosition?: string;
+  /**
+   * TRUE solo para kits de inscripción reales. Gate autoritativo (mig 037)
+   * que dispara el flujo de inscripción (KitProspectModal) en POS.
+   * El campo kitPosition existe en paquetes legacy mal clasificados como 'kit'
+   * por motivos historicos, por lo que NO se debe usar como gate por si solo.
+   */
+  isEnrollmentKit?: boolean;
 }
