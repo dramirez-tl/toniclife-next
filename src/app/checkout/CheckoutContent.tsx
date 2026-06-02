@@ -196,10 +196,7 @@ export default function CheckoutContent() {
       return;
     }
 
-    if (!referralCode.trim()) {
-      toast.error('El código de referido es obligatorio');
-      return;
-    }
+    // El código de referido es OPCIONAL: no bloquea el checkout.
 
     // Pre-fill shipping address name and phone
     if (!shippingAddress.fullName) {
@@ -428,15 +425,14 @@ export default function CheckoutContent() {
                     {/* Referral Code */}
                     <div className="pt-4 border-t border-gray-200">
                       <Input
-                        label="Código de referido *"
+                        label="Código de referido (opcional)"
                         type="text"
                         value={referralCode}
                         onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
                         placeholder="CODIGO123"
-                        required
                       />
                       <p className="text-xs text-gray-500 mt-1">
-                        Ingresa el código de tu distribuidor para continuar
+                        Si te refirió un distribuidor, ingresa su código (opcional).
                       </p>
                     </div>
 
