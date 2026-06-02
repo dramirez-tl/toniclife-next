@@ -87,6 +87,16 @@ export const initializeAuth = createAsyncThunk(
         return null;
       }
 
+      // Si la sesión NO es "recordada" y la cookie de sesión ya no existe, el
+      // navegador se cerró y reabrió → limpiar y exigir re-login. Si la cookie
+      // sigue (misma sesión del navegador, incluida una PESTAÑA NUEVA), se
+      // mantiene la sesión: los tokens viven en localStorage y se comparten
+      // entre pestañas.
+      if (!authService.isRemembered() && !authService.hasAuthCookie()) {
+        authService.clearTokens();
+        return null;
+      }
+
       // Return stored user immediately for fast UI render
       // Token validation happens via API interceptors on actual requests
       return storedUser;

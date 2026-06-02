@@ -67,6 +67,14 @@ export enum AdjustmentType {
   FOUND = 'found',
 }
 
+// Tipo de conteo de inventario — coincide con CountType del backend (CreateCountDto)
+export enum CountType {
+  FULL = 'full',
+  PARTIAL = 'partial',
+  SPOT_CHECK = 'spot_check',
+  CYCLE = 'cycle',
+}
+
 export enum AdjustmentStatus {
   DRAFT = 'draft',
   PENDING_APPROVAL = 'pending_approval',
@@ -418,11 +426,11 @@ export interface CreateAdjustmentItemDto {
 
 export interface CreateAdjustmentDto {
   branchId: string;
-  adjustmentType: AdjustmentType;
-  reason: string;
+  countType: CountType;
   items: CreateAdjustmentItemDto[];
   notes?: string;
-  submitForApproval?: boolean;
+  plannedDate?: string;
+  locationId?: string;
 }
 
 export interface UpdateAdjustmentDto {

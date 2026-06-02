@@ -6,26 +6,23 @@ import { useSelector } from 'react-redux';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent } from '@/components/ui/Card';
-import { NetworkVisualization, RootUserDetailData } from '@/components/network';
+import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import { selectUser } from '@/store/slices/authSlice';
-import { RootUserData, useNetworkDownlines } from '@/hooks/useNetwork';
+import { useNetworkDownlines } from '@/hooks/useNetwork';
+import { networkApi } from '@/services/networkApi';
 import {
   useDistributorDashboard,
   useCopyReferralLink,
   useShareReferralLink,
 } from '@/hooks/useDistributor';
-import { RankType, DownlineQuery } from '@/types/network';
-import { RANK_LABELS } from '@/constants/ranks';
+import { DownlineItem, DownlineQuery } from '@/types/network';
+import { RANK_ORDER, RANK_LABELS } from '@/constants/ranks';
 import {
   UsersIcon,
-  ChartBarIcon,
   UserPlusIcon,
-  EyeIcon,
-  Squares2X2Icon,
   MagnifyingGlassIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   ArrowPathIcon,
+  ArrowDownTrayIcon,
   ClipboardDocumentIcon,
   ShareIcon,
   XMarkIcon,
@@ -33,27 +30,16 @@ import {
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
 
-type ViewMode = 'graph' | 'tree';
-
 export default function RedPage() {
   return <Suspense><RedContent /></Suspense>;
 }
 
 function RedContent() {
-  const [viewMode, setViewMode] = useState<ViewMode>('tree');
   const [isInvitePanelOpen, setIsInvitePanelOpen] = useState(false);
   const user = useSelector(selectUser);
 
-  // Obtener datos completos del dashboard del distribuidor
-  const {
-    profile: distributorProfile,
-    networkSummary,
-    commissionsSummary,
-    points,
-  } = useDistributorDashboard();
+  const { profile: distributorProfile } = useDistributorDashboard();
 
-  // Obtener datos del usuario autenticado para el nodo raíz
-  const currentUserId = user?.id || 'root-001';
   const copyLinkMutation = useCopyReferralLink();
   const shareLinkMutation = useShareReferralLink();
 
@@ -76,52 +62,6 @@ function RedContent() {
     if (typeof window === 'undefined' || !referralCode) return '';
     return `${window.location.origin}/registro/distribuidor?ref=${referralCode}`;
   }, [referralCode]);
-
-  // Datos básicos para el nodo del grafo
-  const rootUserData: RootUserData | undefined = useMemo(() => {
-    if (!user) return undefined;
-
-    // Usar el rango del perfil del distribuidor si está disponible
-    const rank = (distributorProfile?.rank as RankType) || 'distribuidor';
-
-    return {
-      id: user.id,
-      name: `${user.firstName} ${user.lastName}`,
-      code: distributorProfile?.code || `TL-${user.id.substring(0, 6).toUpperCase()}`,
-      rank,
-      // Datos adicionales de la red real
-      networkCount: networkSummary?.totalDistributors,
-      directCount: networkSummary?.directDistributors,
-    };
-  }, [user, distributorProfile, networkSummary]);
-
-  // Datos detallados para el panel lateral cuando se selecciona el nodo raíz
-  const rootUserDetailData: RootUserDetailData | undefined = useMemo(() => {
-    if (!user) return undefined;
-
-    const rank = (distributorProfile?.rank as RankType) || 'distribuidor';
-    const rankLabel = RANK_LABELS[rank] || 'Distribuidor';
-
-    return {
-      id: user.id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      phone: user.phone || undefined,
-      code: distributorProfile?.code || `TL-${user.id.substring(0, 6).toUpperCase()}`,
-      rank,
-      rankLabel,
-      joinDate: distributorProfile?.joinDate,
-      networkCount: networkSummary?.totalDistributors,
-      directCount: networkSummary?.directDistributors,
-      maxDepth: networkSummary?.maxDepth,
-      personalSales: points?.personalPoints,
-      teamSales: points?.groupPoints,
-      totalBusinessPoints: points?.totalPoints?.toString(),
-      currentCommission: commissionsSummary?.totalNet,
-      historicCommission: commissionsSummary?.totalPaid,
-    };
-  }, [user, distributorProfile, networkSummary, points, commissionsSummary]);
 
   const handleInviteMember = () => {
     setIsInvitePanelOpen(true);
@@ -191,64 +131,7 @@ function RedContent() {
 
       {/* Main Content */}
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
-        {/* View Toggle */}
-        <Card className="mb-6">
-          <CardContent className="p-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <h2 className="text-lg font-semibold text-gray-900">Modo de Vista</h2>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setViewMode('tree')}
-                    aria-pressed={viewMode === 'tree'}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                      viewMode === 'tree'
-                        ? 'bg-[#3E667D] text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                    }`}
-                  >
-                    <Squares2X2Icon className="h-4 w-4" />
-                    <span className="hidden sm:inline">Lista</span>
-                  </button>
-                  <button
-                    onClick={() => setViewMode('graph')}
-                    aria-pressed={viewMode === 'graph'}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
-                      viewMode === 'graph'
-                        ? 'bg-[#3E667D] text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                    }`}
-                  >
-                    <EyeIcon className="h-4 w-4" />
-                    <span className="hidden sm:inline">Gráfico</span>
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4 text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                  <ChartBarIcon className="h-5 w-5 text-gray-400" />
-                  <span>
-                    Haz <strong>doble clic</strong> en un nodo para expandir su red
-                  </span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Network Visualization */}
-        {viewMode === 'graph' ? (
-          <NetworkVisualization
-            rootUserId={currentUserId}
-            rootUserData={rootUserData}
-            rootUserDetailData={rootUserDetailData}
-            initialDepth={3}
-            className="shadow-lg"
-          />
-        ) : (
-          <TreeListView currentUserId={currentUserId} />
-        )}
+        <TreeListView />
 
         {/* Help CTA */}
         <Card className="mt-8 bg-gradient-to-r from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
@@ -341,17 +224,82 @@ function RedContent() {
   );
 }
 
-// Componente de vista en lista con datos reales
-function TreeListView({ currentUserId }: { currentUserId: string }) {
+// Etiquetas de estado para el archivo exportado
+const STATUS_LABELS_EXPORT: Record<string, string> = {
+  active: 'Activo',
+  inactive: 'Inactivo',
+  suspended: 'Suspendido',
+};
+
+// Genera y descarga un CSV (UTF-8 + BOM, separador ";") que Excel abre en columnas.
+function downloadDownlinesCsv(rows: DownlineItem[]) {
+  const headers = ['Nombre', 'Email', 'Teléfono', 'Nivel', 'Rango', 'Patrocinador', 'ID patrocinador', 'Estado', 'Puntos personales', 'Fecha de ingreso'];
+  const esc = (v: string | number | null | undefined) =>
+    `"${(v == null ? '' : String(v)).replace(/"/g, '""')}"`;
+
+  const body = rows.map((r) =>
+    [
+      r.fullName,
+      r.email,
+      r.phone || '',
+      r.level,
+      r.rankName || 'Distribuidor',
+      r.sponsorName || '',
+      r.sponsorCode || '',
+      STATUS_LABELS_EXPORT[r.status] || r.status,
+      r.personalPoints ?? 0,
+      r.createdAt ? new Date(r.createdAt).toLocaleDateString('es-MX') : '',
+    ]
+      .map(esc)
+      .join(';'),
+  );
+
+  const csv = '﻿' + [headers.map(esc).join(';'), ...body].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `descendencia-red-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Colores por rango (etiquetas en español devueltas por el backend)
+const rankColors: Record<string, string> = {
+  'Diamante': 'text-blue-600 bg-blue-50',
+  'Diamante Doble': 'text-blue-600 bg-blue-50',
+  'Diamante Triple': 'text-blue-600 bg-blue-50',
+  'Platino': 'text-purple-600 bg-purple-50',
+  'Oro': 'text-yellow-600 bg-yellow-50',
+  'Plata': 'text-gray-600 bg-gray-100',
+  'Bronce': 'text-orange-600 bg-orange-50',
+  'Distribuidor': 'text-green-700 bg-green-50',
+};
+
+const statusLabels: Record<string, { label: string; color: string }> = {
+  active: { label: 'Activo', color: 'text-green-700 bg-green-50' },
+  inactive: { label: 'Inactivo', color: 'text-red-600 bg-red-50' },
+  suspended: { label: 'Suspendido', color: 'text-amber-600 bg-amber-50' },
+};
+
+// Vista de la descendencia de red (tabla con paginación del servidor)
+function TreeListView() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const { get, getNumber, setParams } = useQueryFilters({ page: '1' });
+  const [isExporting, setIsExporting] = useState(false);
+  const { get, getNumber, setParams } = useQueryFilters({ page: '1', limit: '20' });
   const levelFilterStr = get('level');
   const levelFilter = levelFilterStr ? parseInt(levelFilterStr) : undefined;
   const statusFilterStr = get('status');
   const statusFilter = (statusFilterStr || undefined) as DownlineQuery['status'] | undefined;
+  const qualifiedStr = get('qualified');
+  const qualified = qualifiedStr === 'true' ? true : qualifiedStr === 'false' ? false : undefined;
+  const rankStr = get('rank');
+  const rankNumber = rankStr ? parseInt(rankStr) : undefined;
   const page = getNumber('page') || 1;
-  const limit = 20;
+  const pageSize = getNumber('limit') || 20;
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -365,33 +313,178 @@ function TreeListView({ currentUserId }: { currentUserId: string }) {
     search: debouncedSearch || undefined,
     level: levelFilter,
     status: statusFilter,
+    qualified,
+    rankNumber,
     page,
-    limit,
+    limit: pageSize,
     sortBy: 'level',
     sortOrder: 'asc',
-  }), [debouncedSearch, levelFilter, statusFilter, page]);
+  }), [debouncedSearch, levelFilter, statusFilter, qualified, rankNumber, page, pageSize]);
 
-  const { data: response, isLoading, error, refetch } = useNetworkDownlines(query);
+  const { data: response, isLoading, isFetching, error, refetch } = useNetworkDownlines(query);
 
-  const rankColors: Record<string, string> = {
-    'Diamante': 'text-blue-600 bg-blue-50',
-    'Diamante Doble': 'text-blue-600 bg-blue-50',
-    'Diamante Triple': 'text-blue-600 bg-blue-50',
-    'Platino': 'text-purple-600 bg-purple-50',
-    'Oro': 'text-yellow-600 bg-yellow-50',
-    'Plata': 'text-gray-600 bg-gray-100',
-    'Bronce': 'text-orange-600 bg-orange-50',
-    'Distribuidor': 'text-green-700 bg-green-50',
+  const hasActiveFilters = Boolean(
+    debouncedSearch || levelFilter || statusFilter || qualifiedStr || rankStr,
+  );
+
+  // Descarga la red COMPLETA (sin filtros), paginando hasta traer todos los registros.
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const fetchSize = 100; // el backend limita `limit` a 100 (@Max(100))
+      const rows: DownlineItem[] = [];
+      let total = 0;
+      let p = 1;
+      do {
+        const res = await networkApi.getDownlines({
+          page: p,
+          limit: fetchSize,
+          sortBy: 'level',
+          sortOrder: 'asc',
+        });
+        total = res.total;
+        if (!res.data.length) break;
+        rows.push(...res.data);
+        p += 1;
+      } while (rows.length < total && p <= 2000);
+
+      if (!rows.length) {
+        toast('No tienes distribuidores en tu red para exportar');
+        return;
+      }
+      downloadDownlinesCsv(rows);
+      toast.success(`Se descargaron ${rows.length} distribuidores`);
+    } catch {
+      toast.error('No se pudo generar el archivo');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
-  const statusLabels: Record<string, { label: string; color: string }> = {
-    active: { label: 'Activo', color: 'text-green-700 bg-green-50' },
-    inactive: { label: 'Inactivo', color: 'text-red-600 bg-red-50' },
-    suspended: { label: 'Suspendido', color: 'text-amber-600 bg-amber-50' },
-  };
+  const columns: DataTableColumn<DownlineItem>[] = [
+    {
+      key: 'fullName',
+      header: 'Distribuidor',
+      sortable: true,
+      sortValue: (m) => m.fullName,
+      render: (m) => {
+        const initials = m.fullName
+          .split(' ')
+          .map((n) => n[0])
+          .join('')
+          .slice(0, 2)
+          .toUpperCase();
+        return (
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-gradient-to-br from-[#3E667D] to-[#C8DDF2] rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+              {initials}
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-gray-900 truncate">{m.fullName}</p>
+              <p className="text-xs text-gray-500 truncate">
+                {m.email}
+                {m.phone ? ` · ${m.phone}` : ''}
+              </p>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'level',
+      header: 'Nivel',
+      sortable: true,
+      sortValue: (m) => m.level,
+      render: (m) => <span className="text-sm text-gray-600">Nivel {m.level}</span>,
+    },
+    {
+      key: 'rankName',
+      header: 'Rango',
+      sortable: true,
+      sortValue: (m) => m.rankName || 'Distribuidor',
+      render: (m) => {
+        const rank = m.rankName || 'Distribuidor';
+        return (
+          <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${rankColors[rank] || rankColors['Distribuidor']}`}>
+            {rank}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'sponsorName',
+      header: 'Patrocinador',
+      sortable: true,
+      sortValue: (m) => m.sponsorName || '',
+      render: (m) =>
+        m.sponsorName ? (
+          <div className="min-w-0">
+            <p className="text-sm text-gray-700 truncate">{m.sponsorName}</p>
+            {m.sponsorCode && (
+              <p className="text-xs text-gray-400 font-mono">ID {m.sponsorCode}</p>
+            )}
+          </div>
+        ) : (
+          <span className="text-sm text-gray-400">—</span>
+        ),
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      sortable: true,
+      sortValue: (m) => m.status,
+      render: (m) => {
+        const s = statusLabels[m.status] || statusLabels.active;
+        return <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${s.color}`}>{s.label}</span>;
+      },
+    },
+    {
+      key: 'personalPoints',
+      header: 'Pts. personales',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      sortable: true,
+      sortValue: (m) => m.personalPoints ?? 0,
+      render: (m) => (
+        <span className="font-bold text-gray-900">{(m.personalPoints ?? 0).toLocaleString()}</span>
+      ),
+    },
+    {
+      key: 'createdAt',
+      header: 'Ingreso',
+      sortable: true,
+      sortValue: (m) => m.createdAt || '',
+      render: (m) => (
+        <span className="text-sm text-gray-500">
+          {m.createdAt ? new Date(m.createdAt).toLocaleDateString('es-MX') : '—'}
+        </span>
+      ),
+    },
+  ];
 
   return (
     <div className="space-y-4">
+      {/* Encabezado: Descendencia de Red + descarga */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Descendencia de Red</h2>
+              <p className="text-sm text-gray-500">Consulta tu red y descarga la lista completa en Excel</p>
+            </div>
+            <Button
+              variant="primary"
+              leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
+              onClick={handleExport}
+              isLoading={isExporting}
+              disabled={isExporting}
+            >
+              Descargar Excel
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Filtros */}
       <Card>
         <CardContent className="p-4">
@@ -411,7 +504,7 @@ function TreeListView({ currentUserId }: { currentUserId: string }) {
             <SearchableSelect
               options={[1, 2, 3, 4, 5].map(n => ({ value: String(n), label: `Nivel ${n}` }))}
               value={levelFilterStr}
-              onChange={(val) => setParams({ level: val || null })}
+              onChange={(val) => setParams({ level: val || null, page: null })}
               allLabel="Todos los niveles"
               allValue=""
             />
@@ -423,23 +516,38 @@ function TreeListView({ currentUserId }: { currentUserId: string }) {
                 { value: 'suspended', label: 'Suspendidos' },
               ]}
               value={statusFilterStr}
-              onChange={(val) => setParams({ status: val || null })}
+              onChange={(val) => setParams({ status: val || null, page: null })}
               allLabel="Todos los estados"
+              allValue=""
+            />
+            {/* Filtro de calificación */}
+            <SearchableSelect
+              options={[
+                { value: 'false', label: 'No calificados' },
+                { value: 'true', label: 'Calificados' },
+              ]}
+              value={qualifiedStr}
+              onChange={(val) => setParams({ qualified: val || null, page: null })}
+              allLabel="Calificación: todos"
+              allValue=""
+            />
+            {/* Filtro de rango */}
+            <SearchableSelect
+              options={RANK_ORDER.map((code, i) => ({
+                value: String(i + 1),
+                label: RANK_LABELS[code],
+              }))}
+              value={rankStr}
+              onChange={(val) => setParams({ rank: val || null, page: null })}
+              allLabel="Todos los rangos"
               allValue=""
             />
           </div>
         </CardContent>
       </Card>
 
-      {/* Resultados */}
-      {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <div className="text-center">
-            <ArrowPathIcon className="h-8 w-8 text-[#3E667D] animate-spin mx-auto mb-3" />
-            <p className="text-sm text-gray-500">Cargando distribuidores...</p>
-          </div>
-        </div>
-      ) : error ? (
+      {/* Tabla */}
+      {error ? (
         <Card>
           <CardContent className="p-8 text-center">
             <p className="text-red-500 mb-2">Error al cargar los distribuidores</p>
@@ -455,97 +563,45 @@ function TreeListView({ currentUserId }: { currentUserId: string }) {
             </Button>
           </CardContent>
         </Card>
-      ) : !response || response.data.length === 0 ? (
+      ) : (
         <Card>
-          <CardContent className="p-8 text-center">
-            <UsersIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">
-              {debouncedSearch || levelFilter || statusFilter
-                ? 'No se encontraron distribuidores con los filtros aplicados'
-                : 'No tienes distribuidores en tu red aún'}
-            </p>
+          <CardContent className="p-4 sm:p-6">
+            {isFetching && !isLoading && (
+              <div className="mb-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700">
+                Actualizando resultados...
+              </div>
+            )}
+            <DataTable
+              columns={columns}
+              data={response?.data ?? []}
+              isLoading={isLoading}
+              getRowKey={(m) => m.id}
+              minWidthClassName="min-w-[920px]"
+              emptyState={
+                <div className="py-4 text-center">
+                  <UsersIcon className="mx-auto mb-3 h-12 w-12 text-gray-300" />
+                  <p className="text-gray-500">
+                    {hasActiveFilters
+                      ? 'No se encontraron distribuidores con los filtros aplicados'
+                      : 'No tienes distribuidores en tu red aún'}
+                  </p>
+                </div>
+              }
+            />
+
+            {response && response.total > 0 && (
+              <DataTablePagination
+                currentPage={page}
+                pageSize={pageSize}
+                totalItems={response.total}
+                isLoading={isLoading || isFetching}
+                onPageChange={(p) => setParams({ page: String(p) })}
+                onPageSizeChange={(size) => setParams({ limit: String(size), page: null })}
+                pageSizeOptions={[10, 20, 50, 100]}
+              />
+            )}
           </CardContent>
         </Card>
-      ) : (
-        <>
-          {/* Header de resultados */}
-          <div className="flex items-center justify-between text-sm text-gray-600 px-1">
-            <span>
-              Mostrando <strong>{(page - 1) * limit + 1}-{Math.min(page * limit, response.total)}</strong> de <strong>{response.total}</strong> distribuidores
-            </span>
-          </div>
-
-          {/* Lista */}
-          <div className="space-y-2">
-            {response.data.map(member => {
-              const initials = member.fullName
-                .split(' ')
-                .map(n => n[0])
-                .join('')
-                .slice(0, 2)
-                .toUpperCase();
-              const rank = member.rankName || 'Distribuidor';
-              const statusInfo = statusLabels[member.status] || statusLabels.active;
-
-              return (
-                <Card key={member.id}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-11 h-11 bg-gradient-to-br from-[#3E667D] to-[#C8DDF2] rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                        {initials}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <h3 className="font-semibold text-gray-900 truncate">{member.fullName}</h3>
-                          <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${rankColors[rank] || rankColors['Distribuidor']}`}>
-                            {rank}
-                          </span>
-                          <span className="text-[11px] text-gray-400">Nivel {member.level}</span>
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${statusInfo.color}`}>
-                            {statusInfo.label}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-                          <span>{member.email}</span>
-                          {member.phone && <span>{member.phone}</span>}
-                        </div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-[11px] text-gray-400">Pts. personales</p>
-                        <p className="font-bold text-gray-900">{(member.personalPoints ?? 0).toLocaleString()}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-
-          {/* Paginación */}
-          {response.totalPages > 1 && (
-            <div className="flex items-center justify-center gap-3 pt-2">
-              <button
-                onClick={() => setParams({ page: String(Math.max(1, page - 1)) })}
-                disabled={page <= 1}
-                aria-label="Página anterior"
-                className="p-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronLeftIcon className="h-4 w-4" />
-              </button>
-              <span className="text-sm text-gray-600">
-                Página <strong>{page}</strong> de <strong>{response.totalPages}</strong>
-              </span>
-              <button
-                onClick={() => setParams({ page: String(Math.min(response.totalPages, page + 1)) })}
-                disabled={page >= response.totalPages}
-                aria-label="Página siguiente"
-                className="p-2 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              >
-                <ChevronRightIcon className="h-4 w-4" />
-              </button>
-            </div>
-          )}
-        </>
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { writeAuthCookies, clearAuthCookies } from '@/lib/auth-cookies';
 
 const ACCESS_TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';
@@ -10,11 +11,16 @@ const getToken = (key: string): string | null => {
   return localStorage.getItem(key) || sessionStorage.getItem(key);
 };
 
-/** Write to the active storage based on rememberMe flag. */
+/**
+ * Persist a token. SIEMPRE en localStorage para coincidir con auth.service y
+ * compartir la sesión entre pestañas. Antes escribía en sessionStorage cuando
+ * "Recordarme" estaba off, pero getToken lee localStorage primero → el token
+ * recién refrescado quedaba "sombreado" por el viejo de localStorage, el header
+ * seguía mandando el token caducado → 401 → refresh en bucle infinito.
+ */
 const setToken = (key: string, value: string): void => {
   if (typeof window === 'undefined') return;
-  const storage = localStorage.getItem(REMEMBER_KEY) === '1' ? localStorage : sessionStorage;
-  storage.setItem(key, value);
+  localStorage.setItem(key, value);
 };
 
 const api = axios.create({
@@ -139,13 +145,8 @@ api.interceptors.response.use(
           if (newRefreshToken) {
             setToken(REFRESH_TOKEN_KEY, newRefreshToken);
           }
-          // Renew auth cookies so middleware keeps routing correctly
-          document.cookie = `accessToken=1; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
-          try {
-            const payload = JSON.parse(atob(accessToken.split('.')[1]));
-            const role = Array.isArray(payload.roles) ? payload.roles[0] : (payload.role || '');
-            document.cookie = `authRole=${role}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
-          } catch { /* ignore decode errors */ }
+          // Renew routing cookies (lifetime matches the storage mode + the new role)
+          writeAuthCookies(accessToken);
         }
 
         processQueue(null, accessToken);
@@ -166,8 +167,7 @@ api.interceptors.response.use(
           sessionStorage.removeItem(ACCESS_TOKEN_KEY);
           sessionStorage.removeItem(REFRESH_TOKEN_KEY);
           sessionStorage.removeItem('user');
-          document.cookie = `${ACCESS_TOKEN_KEY}=; path=/; max-age=0`;
-          document.cookie = `authRole=; path=/; max-age=0`;
+          clearAuthCookies();
 
           // Only redirect if not already on login page
           if (!window.location.pathname.includes('/login')) {

@@ -18,6 +18,8 @@ import {
   DocumentCheckIcon,
   ExclamationTriangleIcon,
   PlayIcon,
+  LockClosedIcon,
+  LockOpenIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { confirmAction } from '@/lib/utils';
@@ -28,6 +30,7 @@ import {
   useRejectAdjustment,
   useApplyAdjustment,
   useCancelAdjustment,
+  useBranchPosLock,
 } from '@/hooks/useInventory';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { inventoryService } from '@/services/inventory.service';
@@ -66,6 +69,8 @@ function AjustesContent() {
   };
 
   const { data: adjustmentsData, isLoading } = useAdjustments(query);
+  const { data: branchLock } = useBranchPosLock(branchFilter || null);
+  const selectedBranchName = branches?.find((b) => b.id === branchFilter)?.name;
   const approveAdjustment = useApproveAdjustment();
   const rejectAdjustment = useRejectAdjustment();
   const applyAdjustment = useApplyAdjustment();
@@ -116,41 +121,29 @@ function AjustesContent() {
     }
   };
 
-  const getStatusBadge = (status: AdjustmentStatus) => {
-    const config: Record<AdjustmentStatus, { bg: string; text: string; icon: React.ReactNode }> = {
-      [AdjustmentStatus.DRAFT]: {
-        bg: 'bg-gray-100',
-        text: 'text-gray-700',
-        icon: <ClockIcon className="h-3 w-3" />,
-      },
-      [AdjustmentStatus.PENDING_APPROVAL]: {
-        bg: 'bg-yellow-100',
-        text: 'text-yellow-700',
-        icon: <ClockIcon className="h-3 w-3" />,
-      },
-      [AdjustmentStatus.APPROVED]: {
-        bg: 'bg-blue-100',
-        text: 'text-blue-700',
-        icon: <CheckIcon className="h-3 w-3" />,
-      },
-      [AdjustmentStatus.APPLIED]: {
-        bg: 'bg-green-100',
-        text: 'text-green-700',
-        icon: <DocumentCheckIcon className="h-3 w-3" />,
-      },
-      [AdjustmentStatus.REJECTED]: {
-        bg: 'bg-red-100',
-        text: 'text-red-700',
-        icon: <XMarkIcon className="h-3 w-3" />,
-      },
-      [AdjustmentStatus.CANCELLED]: {
-        bg: 'bg-red-100',
-        text: 'text-red-700',
-        icon: <XMarkIcon className="h-3 w-3" />,
-      },
+  const getStatusBadge = (status: AdjustmentStatus | string) => {
+    // Cubre estados de ajustes (legacy) Y de conteos de inventario v2.0
+    // (planned/in_progress/completed/reviewed/pending_review/approved/applied/cancelled).
+    const config: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
+      draft: { bg: 'bg-gray-100', text: 'text-gray-700', icon: <ClockIcon className="h-3 w-3" /> },
+      planned: { bg: 'bg-gray-100', text: 'text-gray-700', icon: <ClockIcon className="h-3 w-3" /> },
+      in_progress: { bg: 'bg-indigo-100', text: 'text-indigo-700', icon: <ClockIcon className="h-3 w-3" /> },
+      pending_approval: { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: <ClockIcon className="h-3 w-3" /> },
+      pending_review: { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: <ClockIcon className="h-3 w-3" /> },
+      completed: { bg: 'bg-cyan-100', text: 'text-cyan-700', icon: <CheckIcon className="h-3 w-3" /> },
+      reviewed: { bg: 'bg-purple-100', text: 'text-purple-700', icon: <CheckIcon className="h-3 w-3" /> },
+      approved: { bg: 'bg-blue-100', text: 'text-blue-700', icon: <CheckIcon className="h-3 w-3" /> },
+      applied: { bg: 'bg-green-100', text: 'text-green-700', icon: <DocumentCheckIcon className="h-3 w-3" /> },
+      rejected: { bg: 'bg-red-100', text: 'text-red-700', icon: <XMarkIcon className="h-3 w-3" /> },
+      cancelled: { bg: 'bg-red-100', text: 'text-red-700', icon: <XMarkIcon className="h-3 w-3" /> },
     };
 
-    const { bg, text, icon } = config[status];
+    // Fallback defensivo: nunca reventar si llega un status no mapeado.
+    const { bg, text, icon } = config[status] ?? {
+      bg: 'bg-gray-100',
+      text: 'text-gray-700',
+      icon: <ClockIcon className="h-3 w-3" />,
+    };
     return (
       <span className={`inline-flex items-center gap-1 px-2 py-1 ${bg} ${text} rounded-full text-xs font-medium`}>
         {icon}
@@ -209,6 +202,52 @@ function AjustesContent() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Indicador de bloqueo de POS por inventario (al seleccionar sucursal) */}
+        {branchFilter && branchLock && (
+          <div
+            className={`mb-6 rounded-xl border p-4 ${
+              branchLock.locked
+                ? 'border-red-200 bg-red-50'
+                : 'border-green-200 bg-green-50'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${
+                  branchLock.locked ? 'bg-red-100' : 'bg-green-100'
+                }`}
+              >
+                {branchLock.locked ? (
+                  <LockClosedIcon className="h-5 w-5 text-red-600" />
+                ) : (
+                  <LockOpenIcon className="h-5 w-5 text-green-600" />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p
+                  className={`text-sm font-semibold ${
+                    branchLock.locked ? 'text-red-800' : 'text-green-800'
+                  }`}
+                >
+                  {branchLock.locked
+                    ? 'POS BLOQUEADO — inventario en progreso'
+                    : 'POS activo'}
+                  {selectedBranchName ? ` · ${selectedBranchName}` : ''}
+                </p>
+                <p
+                  className={`mt-0.5 text-xs ${
+                    branchLock.locked ? 'text-red-600' : 'text-green-600'
+                  }`}
+                >
+                  {branchLock.locked
+                    ? 'Las terminales POS de esta sucursal están bloqueadas hasta que se apliquen o cancelen los conteos activos.'
+                    : 'Al iniciar un conteo para esta sucursal, su POS se bloqueará automáticamente hasta aplicarlo o cancelarlo.'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card>

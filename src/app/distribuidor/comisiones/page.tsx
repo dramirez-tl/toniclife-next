@@ -9,6 +9,7 @@ import {
   CommissionTable,
   CommissionChart,
   CommissionPercentagesTable,
+  CommissionBreakdown,
   RankProgressStepper,
 } from '@/components/commissions';
 import {
@@ -18,6 +19,7 @@ import {
   useCommissionProjection,
   useCommissionTrends,
   useCommissionStructure,
+  useCommissionLevelBreakdown,
   useRequestPayment,
   useDownloadStatement,
 } from '@/hooks/useCommissions';
@@ -90,11 +92,16 @@ function ComisionesContent() {
     !!user?.customerId && !!selectedPeriodId,
   );
   const { data: projection } = useCommissionProjection();
-  const { data: trends } = useCommissionTrends(6);
+  const { data: trends } = useCommissionTrends(user?.customerId || '', 6);
   const { data: commissionStructure } = useCommissionStructure(
     user?.customerId || '',
     !!user?.customerId && !!selectedPeriodId,
     selectedPeriodId || undefined,
+  );
+  const { data: levelBreakdown } = useCommissionLevelBreakdown(
+    user?.customerId || '',
+    selectedPeriodId || '',
+    !!user?.customerId && !!selectedPeriodId,
   );
 
   const requestPaymentMutation = useRequestPayment();
@@ -137,6 +144,15 @@ function ComisionesContent() {
   // Get current period name for display
   // periodsData is an array from getPeriods()
   const periodsArray = Array.isArray(periodsData) ? periodsData : (periodsData as any)?.data ?? [];
+  // Ordenar descendente: los más recientes primero, los más viejos al final.
+  // El id es UUID (no cronológico), así que ordenamos por startDate y, si no
+  // existe, por periodNumber (ambos descendentes).
+  const sortedPeriods = [...periodsArray].sort((a: any, b: any) => {
+    const ad = String(a?.startDate ?? a?.start_date ?? '');
+    const bd = String(b?.startDate ?? b?.start_date ?? '');
+    if (ad && bd && ad !== bd) return bd.localeCompare(ad);
+    return Number(b?.periodNumber ?? b?.period_number ?? 0) - Number(a?.periodNumber ?? a?.period_number ?? 0);
+  });
   const currentPeriod = periodsArray.find((p: any) => p.id === selectedPeriodId);
   const hasActiveFilters = filterType !== 'all' || filterStatus !== 'all';
 
@@ -232,9 +248,9 @@ function ComisionesContent() {
                 <div className="flex items-center gap-3 bg-gradient-to-r from-[#3E667D]/5 to-[#3E667D]/10 rounded-xl px-4 py-2.5 border border-[#3E667D]/10">
                   <CalendarDaysIcon className="h-5 w-5 text-[#3E667D]" />
                   <SearchableSelect
-                    options={periodsArray.map((period: any) => ({
+                    options={sortedPeriods.map((period: any) => ({
                       value: period.id,
-                      label: `${period.name}${period.status === 'open' ? ' (Actual)' : ''}`,
+                      label: `${period.name}${period.isCurrent ? ' (Actual)' : ''}`,
                     }))}
                     value={selectedPeriodId}
                     onChange={setSelectedPeriodId}
@@ -383,12 +399,23 @@ function ComisionesContent() {
 
         {/* Content based on view mode */}
         {viewMode === 'summary' && (
-          <CommissionSummaryCards
-            summary={commissionsData?.summary || null}
-            isLoading={isLoadingCommissions}
-            currencyCode={user?.currencyCode}
-            isActivePeriod={currentPeriod?.status === 'open'}
-          />
+          <div className="space-y-6">
+            <CommissionSummaryCards
+              summary={commissionsData?.summary || null}
+              isLoading={isLoadingCommissions}
+              currencyCode={user?.currencyCode}
+              isActivePeriod={currentPeriod?.status === 'open'}
+            />
+            {!isLoadingCommissions && commissionsData?.summary && (
+              <CommissionBreakdown
+                summary={commissionsData.summary}
+                structure={commissionStructure ?? null}
+                levelBreakdown={levelBreakdown ?? null}
+                currencyCode={currencyCode}
+                isActivePeriod={currentPeriod?.status === 'open'}
+              />
+            )}
+          </div>
         )}
 
         {viewMode === 'table' && (
@@ -507,23 +534,23 @@ function ComisionesContent() {
                   {/* Stats highlight */}
                   <div className="lg:w-72">
                     <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                      <p className="text-white/70 text-sm uppercase tracking-wide mb-4">Potencial de Ganancias</p>
+                      <p className="text-white/70 text-sm uppercase tracking-wide mb-4">Porcentajes de comisión</p>
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <span className="text-white/80">1 calificado</span>
-                          <span className="font-bold">+5%</span>
+                          <span className="text-white/80">Nivel 1 (directos)</span>
+                          <span className="font-bold">15%</span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-white/80">3 calificados</span>
-                          <span className="font-bold">+15%</span>
+                          <span className="text-white/80">Nivel 1 con 5+ calificados</span>
+                          <span className="font-bold text-yellow-300">20%</span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-white/80">5+ calificados</span>
-                          <span className="font-bold text-yellow-300">+25%</span>
+                          <span className="text-white/80">Niveles 2 y 3</span>
+                          <span className="font-bold">5%</span>
                         </div>
                         <div className="pt-4 border-t border-white/20">
                           <p className="text-xs text-white/60">
-                            Porcentajes adicionales sobre tu comisión base
+                            Más comisiones por generación según tu rango. Tus directos cuentan al tener ≥3,300 puntos.
                           </p>
                         </div>
                       </div>

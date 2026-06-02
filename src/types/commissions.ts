@@ -172,3 +172,21 @@ export interface MonthlyCommissionTrend {
   adjustment: number;
   total: number;
 }
+
+// Desglose exacto de comisión MLM por nivel de red (recálculo de solo lectura)
+export interface CommissionLevelBreakdownItem {
+  level: number;
+  percentage: string;
+  upgraded: boolean;
+  members: number;
+  businessPointsMxn: string;
+  amount: string;
+}
+
+export interface CommissionLevelBreakdown {
+  currencyCode: string;
+  levelMax: number;
+  qualifiedCount: number;
+  totalMlm: string;
+  levels: CommissionLevelBreakdownItem[];
+}

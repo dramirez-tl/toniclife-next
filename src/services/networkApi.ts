@@ -233,6 +233,8 @@ class NetworkApi {
     if (query.search) params.search = query.search;
     if (query.level !== undefined) params.level = query.level.toString();
     if (query.status) params.status = query.status;
+    if (query.qualified !== undefined) params.qualified = query.qualified ? 'true' : 'false';
+    if (query.rankNumber !== undefined) params.rankNumber = query.rankNumber.toString();
     if (query.page) params.page = query.page.toString();
     if (query.limit) params.limit = query.limit.toString();
     if (query.sortBy) params.sortBy = query.sortBy;

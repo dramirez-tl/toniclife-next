@@ -77,7 +77,7 @@ export default function NuevoKitPage() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
         <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
-          <Link href="/admin/kits" className="inline-flex items-center text-white/80 hover:text-white mb-3 text-sm">
+          <Link href="/admin/productos?tab=kits" className="inline-flex items-center text-white/80 hover:text-white mb-3 text-sm">
             <ArrowLeftIcon className="h-4 w-4 mr-1" /> Volver a Kits
           </Link>
           <div className="flex items-center gap-3 mb-2">
@@ -262,7 +262,7 @@ export default function NuevoKitPage() {
         </Card>
 
         <div className="flex justify-end gap-3">
-          <Link href="/admin/kits">
+          <Link href="/admin/productos?tab=kits">
             <Button variant="ghost">Cancelar</Button>
           </Link>
           <Button type="submit" variant="primary" isLoading={createProduct.isPending}>

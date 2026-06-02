@@ -1,20 +1,20 @@
 import { Header, Footer } from '@/components/layout';
 import {
-  HeroSection,
-  FeaturedProducts,
-  CategoriesSection,
-  RecognitionHallSection,
+  HeroBanner,
+  ProductCategoriesBento,
+  EvaluationBanner,
 } from '@/components/landing';
 
 export default function HomePage() {
   return (
     <>
       <Header />
+      {/* Espaciador para el header fijo (barra superior + nav) */}
+      <div className="h-28 lg:h-32" />
       <main>
-        <HeroSection />
-        <FeaturedProducts />
-        <CategoriesSection />
-        <RecognitionHallSection />
+        <HeroBanner />
+        <ProductCategoriesBento />
+        <EvaluationBanner />
       </main>
       <Footer />
     </>

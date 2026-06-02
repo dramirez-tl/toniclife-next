@@ -9,6 +9,7 @@ import type {
   CommissionPercentage,
   CommissionStructure,
   MonthlyCommissionTrend,
+  CommissionLevelBreakdown,
   CommissionType,
   CommissionStatus,
 } from '@/types/commissions';
@@ -131,13 +132,15 @@ class CommissionsApi {
   }
 
   /**
-   * Obtiene tendencia mensual de comisiones
-   * TODO: Endpoint not implemented in backend
+   * Obtiene tendencia mensual de comisiones de un cliente
+   * Backend: GET /mlm/commissions/customer/:customerId/trend
+   * Montos ya convertidos a la moneda del distribuidor.
    */
-  async getMonthlyTrend(months: number = 6): Promise<MonthlyCommissionTrend[]> {
-    const { data } = await api.get<MonthlyCommissionTrend[]>('/mlm/commissions/trend', {
-      params: { months: months.toString() },
-    });
+  async getMonthlyTrend(customerId: string, months: number = 6): Promise<MonthlyCommissionTrend[]> {
+    const { data } = await api.get<MonthlyCommissionTrend[]>(
+      `/mlm/commissions/customer/${customerId}/trend`,
+      { params: { months: months.toString() } },
+    );
     return data;
   }
 
@@ -183,6 +186,21 @@ class CommissionsApi {
     const { data } = await api.get<CommissionsListResponse>(
       `/mlm/commissions/customer/${customerId}`,
       { params },
+    );
+    return data;
+  }
+
+  /**
+   * Obtiene el desglose exacto de la comisión MLM por nivel de red
+   * Backend: GET /mlm/commissions/customer/:customerId/level-breakdown?periodId=...
+   */
+  async getLevelBreakdown(
+    customerId: string,
+    periodId: string,
+  ): Promise<CommissionLevelBreakdown> {
+    const { data } = await api.get<CommissionLevelBreakdown>(
+      `/mlm/commissions/customer/${customerId}/level-breakdown`,
+      { params: { periodId } },
     );
     return data;
   }

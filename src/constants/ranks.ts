@@ -74,3 +74,32 @@ export function getRankIndex(rank: RankType): number {
 export function compareRanks(a: RankType, b: RankType): number {
   return getRankIndex(a) - getRankIndex(b);
 }
+
+// Medallas oficiales de cada rango (public/images/rangos).
+export const RANK_IMAGES: Record<RankType, string> = {
+  distribuidor: '/images/rangos/distribuidor.png',
+  bronce: '/images/rangos/bronce.PNG',
+  plata: '/images/rangos/plata.PNG',
+  oro: '/images/rangos/oro.PNG',
+  platino: '/images/rangos/platino.PNG',
+  diamante: '/images/rangos/diamante.PNG',
+  doble_diamante: '/images/rangos/doble_diamante.PNG',
+  triple_diamante: '/images/rangos/triple_diamante.PNG',
+  sirius: '/images/rangos/diamante_sirius.PNG',
+  azul: '/images/rangos/diamante_azul.PNG',
+};
+
+// Alias de códigos heredados: la migración 004 usó "diamante_sirius"/"diamante_azul"
+// mientras que la 008 usó "sirius"/"azul". Ambos deben resolver a la misma medalla.
+const RANK_CODE_ALIASES: Record<string, RankType> = {
+  diamante_sirius: 'sirius',
+  diamante_azul: 'azul',
+};
+
+// Devuelve la ruta de la medalla para cualquier código de rango (canónico o alias).
+// Cae a la medalla de distribuidor si el código es desconocido o nulo.
+export function getRankImage(code: string | null | undefined): string {
+  if (!code) return RANK_IMAGES.distribuidor;
+  const normalized = RANK_CODE_ALIASES[code] ?? (code as RankType);
+  return RANK_IMAGES[normalized] ?? RANK_IMAGES.distribuidor;
+}

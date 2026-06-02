@@ -7,6 +7,7 @@ import {
   MovementStatus,
   AdjustmentStatus,
   AdjustmentType,
+  CountType,
   MovementType,
   LotStatus,
 } from '@/types/inventory';
@@ -65,6 +66,30 @@ class InventoryService {
       `/inventory/branches/${branchId}?${params.toString()}`
     );
     return response.data;
+  }
+
+  /**
+   * Trae TODO el stock de una sucursal (todas las páginas), para iniciar un
+   * conteo físico completo. Pagina en bloques hasta reunir todos los productos.
+   */
+  async getAllBranchStock(branchId: string): Promise<ProductStockDto[]> {
+    const pageSize = 100;
+    const rows: ProductStockDto[] = [];
+    let page = 1;
+    let total = 0;
+    do {
+      const res = await this.getBranchStock(branchId, {
+        page,
+        limit: pageSize,
+        sortBy: 'productName',
+        sortOrder: 'asc',
+      });
+      total = res.total;
+      if (!res.data.length) break;
+      rows.push(...res.data);
+      page += 1;
+    } while (rows.length < total && page <= 1000);
+    return rows;
   }
 
   async getProductStock(productId: string): Promise<ProductStockDto[]> {
@@ -200,6 +225,38 @@ class InventoryService {
 
   async getAdjustment(id: string): Promise<AdjustmentDto> {
     const response = await api.get<AdjustmentDto>(`/inventory/counts/${id}`);
+    return response.data;
+  }
+
+  async getBranchPosLock(branchId: string): Promise<{ locked: boolean; message: string | null }> {
+    const response = await api.get<{ locked: boolean; message: string | null }>(
+      `/inventory/counts/branch-lock/${branchId}`,
+    );
+    return response.data;
+  }
+
+  async lockBranchPos(branchId: string): Promise<{ locked: boolean; message: string | null }> {
+    const response = await api.post<{ locked: boolean; message: string | null }>(
+      `/inventory/counts/branch-lock/${branchId}`,
+    );
+    return response.data;
+  }
+
+  async unlockBranchPos(branchId: string): Promise<{ locked: boolean; message: string | null }> {
+    const response = await api.delete<{ locked: boolean; message: string | null }>(
+      `/inventory/counts/branch-lock/${branchId}`,
+    );
+    return response.data;
+  }
+
+  async forceUnlockBranchPos(
+    branchId: string,
+  ): Promise<{ locked: boolean; message: string | null; cancelledCounts: number }> {
+    const response = await api.post<{
+      locked: boolean;
+      message: string | null;
+      cancelledCounts: number;
+    }>(`/inventory/counts/branch-lock/${branchId}/force-unlock`);
     return response.data;
   }
 
@@ -376,26 +433,37 @@ class InventoryService {
     return colors[status] || 'default';
   }
 
-  getAdjustmentStatusLabel(status: AdjustmentStatus): string {
-    const labels: Record<AdjustmentStatus, string> = {
-      [AdjustmentStatus.DRAFT]: 'Borrador',
-      [AdjustmentStatus.PENDING_APPROVAL]: 'Pendiente de Aprobación',
-      [AdjustmentStatus.APPROVED]: 'Aprobado',
-      [AdjustmentStatus.APPLIED]: 'Aplicado',
-      [AdjustmentStatus.REJECTED]: 'Rechazado',
-      [AdjustmentStatus.CANCELLED]: 'Cancelado',
+  getAdjustmentStatusLabel(status: AdjustmentStatus | string): string {
+    // Incluye estados de ajustes (legacy) y de conteos de inventario v2.0.
+    const labels: Record<string, string> = {
+      draft: 'Borrador',
+      planned: 'Planificado',
+      in_progress: 'En Progreso',
+      pending_approval: 'Pendiente de Aprobación',
+      pending_review: 'Pendiente de Revisión',
+      completed: 'Completado',
+      reviewed: 'Revisado',
+      approved: 'Aprobado',
+      applied: 'Aplicado',
+      rejected: 'Rechazado',
+      cancelled: 'Cancelado',
     };
     return labels[status] || status;
   }
 
-  getAdjustmentStatusColor(status: AdjustmentStatus): string {
-    const colors: Record<AdjustmentStatus, string> = {
-      [AdjustmentStatus.DRAFT]: 'default',
-      [AdjustmentStatus.PENDING_APPROVAL]: 'warning',
-      [AdjustmentStatus.APPROVED]: 'info',
-      [AdjustmentStatus.APPLIED]: 'success',
-      [AdjustmentStatus.REJECTED]: 'error',
-      [AdjustmentStatus.CANCELLED]: 'error',
+  getAdjustmentStatusColor(status: AdjustmentStatus | string): string {
+    const colors: Record<string, string> = {
+      draft: 'default',
+      planned: 'default',
+      in_progress: 'info',
+      pending_approval: 'warning',
+      pending_review: 'warning',
+      completed: 'info',
+      reviewed: 'info',
+      approved: 'info',
+      applied: 'success',
+      rejected: 'error',
+      cancelled: 'error',
     };
     return colors[status] || 'default';
   }
@@ -408,6 +476,16 @@ class InventoryService {
       [AdjustmentType.EXPIRATION]: 'Caducidad',
       [AdjustmentType.LOSS]: 'Pérdida',
       [AdjustmentType.FOUND]: 'Encontrado',
+    };
+    return labels[type] || type;
+  }
+
+  getCountTypeLabel(type: CountType): string {
+    const labels: Record<CountType, string> = {
+      [CountType.FULL]: 'Completo',
+      [CountType.PARTIAL]: 'Parcial',
+      [CountType.SPOT_CHECK]: 'Punto de control',
+      [CountType.CYCLE]: 'Cíclico',
     };
     return labels[type] || type;
   }

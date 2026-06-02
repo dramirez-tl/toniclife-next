@@ -77,7 +77,7 @@ const faqCategories = [
       },
       {
         question: '¿Cómo calculo mis comisiones?',
-        answer: 'Las comisiones se calculan según tu rango: 25% nivel 1, 10% nivel 2, y 5% nivel 3. Puedes ver el desglose en tu panel de comisiones.',
+        answer: 'Las comisiones por nivel son: Nivel 1 (directos) 15%, que sube a 20% si tienes 5 o más directos calificados; Nivel 2 y Nivel 3 (este último solo en rango Bronce) 5%. Además, según tu rango, ganas comisiones por generación sobre líderes Plata o superior en tu red. Un distribuidor cuenta como calificado al alcanzar 3,300 puntos personales. Puedes ver el desglose completo en tu panel de comisiones.',
       },
       {
         question: '¿Puedo cambiar mi método de pago?',

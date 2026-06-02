@@ -58,6 +58,8 @@ export const inventoryKeys = {
     [...inventoryKeys.adjustments(), 'list', query] as const,
   adjustmentDetail: (id: string) =>
     [...inventoryKeys.adjustments(), 'detail', id] as const,
+  branchPosLock: (branchId: string) =>
+    [...inventoryKeys.all, 'branch-pos-lock', branchId] as const,
 };
 
 // ================================
@@ -82,6 +84,20 @@ export function useBranchStock(branchId: string | null, query: BranchStockQueryD
     queryFn: () => inventoryService.getBranchStock(branchId!, query),
     enabled: !!branchId,
     staleTime: 30 * 1000, // 30 seconds
+  });
+}
+
+/**
+ * Trae TODOS los productos con stock de una sucursal (todas las páginas).
+ * Para iniciar un conteo físico completo en Ajustes › Nuevo.
+ */
+export function useAllBranchStock(branchId: string | null) {
+  return useQuery({
+    queryKey: [...inventoryKeys.stock(), 'branch-all', branchId || ''] as const,
+    queryFn: () => inventoryService.getAllBranchStock(branchId!),
+    enabled: !!branchId,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -296,6 +312,54 @@ export function useAdjustment(id: string | null) {
     queryFn: () => inventoryService.getAdjustment(id!),
     enabled: !!id,
     staleTime: 30 * 1000,
+  });
+}
+
+/**
+ * Estado de bloqueo del POS por inventario de una sucursal. Refresca cada 20s
+ * para reflejar cambios (el admin no recibe el evento websocket del POS).
+ */
+export function useBranchPosLock(
+  branchId: string | null,
+  options?: { refetchInterval?: number },
+) {
+  return useQuery({
+    queryKey: inventoryKeys.branchPosLock(branchId || ''),
+    queryFn: () => inventoryService.getBranchPosLock(branchId!),
+    enabled: !!branchId,
+    staleTime: 10 * 1000,
+    refetchInterval: options?.refetchInterval ?? 20 * 1000,
+  });
+}
+
+export function useLockBranchPos() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (branchId: string) => inventoryService.lockBranchPos(branchId),
+    onSuccess: (_, branchId) => {
+      queryClient.invalidateQueries({ queryKey: inventoryKeys.branchPosLock(branchId) });
+    },
+  });
+}
+
+export function useUnlockBranchPos() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (branchId: string) => inventoryService.unlockBranchPos(branchId),
+    onSuccess: (_, branchId) => {
+      queryClient.invalidateQueries({ queryKey: inventoryKeys.branchPosLock(branchId) });
+    },
+  });
+}
+
+export function useForceUnlockBranchPos() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (branchId: string) => inventoryService.forceUnlockBranchPos(branchId),
+    onSuccess: (_, branchId) => {
+      queryClient.invalidateQueries({ queryKey: inventoryKeys.branchPosLock(branchId) });
+      queryClient.invalidateQueries({ queryKey: inventoryKeys.adjustments() });
+    },
   });
 }
 

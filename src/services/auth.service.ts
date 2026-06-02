@@ -1,4 +1,5 @@
 import api from '@/lib/axios';
+import { writeAuthCookies, clearAuthCookies } from '@/lib/auth-cookies';
 
 // Types
 export interface LoginCredentials {
@@ -95,20 +96,17 @@ const ACCESS_TOKEN_KEY = 'accessToken';
 const REFRESH_TOKEN_KEY = 'refreshToken';
 const USER_KEY = 'user';
 const REMEMBER_KEY = 'rememberMe';
-// Small cookie the middleware reads for auth/role routing (the full JWT is too
-// large for a cookie when it embeds 100+ permissions).
-const AUTH_COOKIE = 'accessToken';
-const ROLE_COOKIE = 'authRole';
 
 class AuthService {
   /**
-   * Returns the active storage: localStorage when "Recordarme" was checked,
-   * sessionStorage otherwise (cleared when browser closes).
+   * Token storage. SIEMPRE localStorage para que la sesión se comparta entre
+   * pestañas: sessionStorage es por-pestaña y rompía la sesión al abrir un
+   * enlace en otra pestaña (la pestaña nueva no veía el token → /login).
+   * La diferencia de "Recordarme" se maneja con la cookie (de sesión vs
+   * persistente) + la verificación en initializeAuth (ver hasAuthCookie).
    */
   private getStorage(): Storage {
-    if (typeof window === 'undefined') return localStorage;
-    // If rememberMe flag exists in localStorage, use localStorage
-    return localStorage.getItem(REMEMBER_KEY) === '1' ? localStorage : sessionStorage;
+    return localStorage;
   }
 
   setRemember(remember: boolean): void {
@@ -118,6 +116,24 @@ class AuthService {
     } else {
       localStorage.removeItem(REMEMBER_KEY);
     }
+  }
+
+  /** True si el usuario marcó "Recordarme" (sesión persistente entre reinicios). */
+  isRemembered(): boolean {
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(REMEMBER_KEY) === '1';
+  }
+
+  /**
+   * True si la cookie de sesión del middleware sigue presente. Cuando "Recordarme"
+   * está apagado, esa cookie es de sesión y desaparece al cerrar el navegador;
+   * su ausencia indica reinicio del navegador (≠ una pestaña nueva, donde sí está).
+   */
+  hasAuthCookie(): boolean {
+    if (typeof window === 'undefined') return false;
+    return document.cookie
+      .split('; ')
+      .some((c) => c.startsWith('accessToken=') && c.slice('accessToken='.length) !== '');
   }
 
   // Token management
@@ -137,20 +153,8 @@ class AuthService {
     const storage = this.getStorage();
     storage.setItem(ACCESS_TOKEN_KEY, accessToken);
 
-    // Set a tiny "logged-in" flag cookie so the middleware knows the user is
-    // authenticated.  We intentionally do NOT store the full JWT here because
-    // tokens with many permissions can exceed the 4 KB cookie limit and the
-    // browser silently drops them.
-    document.cookie = `${AUTH_COOKIE}=1; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
-
-    // Store the role in a separate small cookie for middleware routing
-    try {
-      const payload = JSON.parse(atob(accessToken.split('.')[1]));
-      const role: string = Array.isArray(payload.roles) ? payload.roles[0] : (payload.role || '');
-      document.cookie = `${ROLE_COOKIE}=${role}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
-    } catch {
-      // If decoding fails, just set the flag – middleware will allow through
-    }
+    // Routing cookies for the middleware (lifetime matches the storage mode).
+    writeAuthCookies(accessToken);
 
     if (refreshToken) {
       storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
@@ -167,9 +171,8 @@ class AuthService {
     sessionStorage.removeItem(ACCESS_TOKEN_KEY);
     sessionStorage.removeItem(REFRESH_TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);
-    // Clear cookies
-    document.cookie = `${AUTH_COOKIE}=; path=/; max-age=0`;
-    document.cookie = `${ROLE_COOKIE}=; path=/; max-age=0`;
+    // Clear routing cookies
+    clearAuthCookies();
   }
 
   getStoredUser(): UserResponse | null {

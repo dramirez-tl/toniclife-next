@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { MlmRank } from '@/types/commissions';
+import { getRankImage } from '@/constants/ranks';
 import { Card, CardContent } from '@/components/ui/Card';
 import { CheckIcon, LockClosedIcon, StarIcon } from '@heroicons/react/24/solid';
 import {
@@ -37,72 +38,52 @@ const rankColors: Record<string, { bg: string; text: string; border: string; glo
 
 const defaultColor = { bg: 'bg-gray-400', text: 'text-gray-500', border: 'border-gray-300', glow: '' };
 
-// Imágenes oficiales de cada rango (public/images/rangos).
-// NOTA: incluye alias porque en el histórico de migraciones convivieron dos
-// convenciones de `code`: "sirius"/"azul" (mig 008) y "diamante_sirius"/"diamante_azul" (mig 004).
-const rankImages: Record<string, string> = {
-  distribuidor: '/images/rangos/distribuidor.png',
-  bronce: '/images/rangos/bronce.PNG',
-  plata: '/images/rangos/plata.PNG',
-  oro: '/images/rangos/oro.PNG',
-  platino: '/images/rangos/platino.PNG',
-  diamante: '/images/rangos/diamante.PNG',
-  doble_diamante: '/images/rangos/doble_diamante.PNG',
-  triple_diamante: '/images/rangos/triple_diamante.PNG',
-  sirius: '/images/rangos/diamante_sirius.PNG',
-  diamante_sirius: '/images/rangos/diamante_sirius.PNG',
-  azul: '/images/rangos/diamante_azul.PNG',
-  diamante_azul: '/images/rangos/diamante_azul.PNG',
-};
+// Las medallas de cada rango viven en src/constants/ranks.ts (RANK_IMAGES + getRankImage),
+// que ya resuelve los alias de migración (sirius/diamante_sirius, azul/diamante_azul).
 
-// Beneficios por rango (qué ganas al alcanzarlo)
+// Beneficios cualitativos por rango (qué ganas al alcanzarlo).
+// NOTA: los números de niveles/generaciones de comisión NO se hardcodean aquí
+// porque varían por rango y ya se muestran, con datos reales de la API, en la
+// sección "Requisitos" (Hasta nivel {levelMax} / {generationMax} generaciones).
+// Aquí solo van los beneficios cualitativos.
 const rankBenefits: Record<string, string[]> = {
   distribuidor: [
     'Precio de distribuidor en productos',
     'Enlace personal de tienda y registro',
   ],
   bronce: [
-    'Comisiones por niveles (hasta nivel 2)',
+    'Desbloquea comisiones por niveles',
     'Acceso a materiales de marketing',
   ],
   plata: [
-    'Comisiones hasta nivel 4',
-    'Inicia nueva generación en tu línea',
+    'Inicia comisiones por generación',
     'Acceso a entrenamientos exclusivos',
   ],
   oro: [
-    'Comisiones hasta nivel 6',
-    'Comisiones por generación',
-    'Mayor porcentaje de comisión',
+    'Mayor alcance de generaciones',
+    'Reconocimiento de liderazgo',
   ],
   platino: [
-    'Comisiones hasta nivel 8',
-    'Comisiones por 2 generaciones',
-    'Elegible para Bono Auto',
+    'Elegible para Bono Auto mensual',
+    'Acceso a incentivos de liderazgo',
   ],
   diamante: [
-    'Comisiones hasta nivel 10',
-    'Comisiones por 3 generaciones',
     'Bono Auto mensual',
     'Invitaciones a eventos VIP',
   ],
   doble_diamante: [
-    'Comisiones por 4 generaciones',
     'Bono Auto aumentado',
     'Viajes de reconocimiento',
   ],
   triple_diamante: [
-    'Comisiones por 5 generaciones',
     'Bono Auto premium',
     'Reconocimiento internacional',
   ],
   sirius: [
-    'Comisiones por 6 generaciones',
     'Bono Auto elite',
     'Consejo de líderes',
   ],
   azul: [
-    'Máximo nivel de comisiones',
     'Bono Auto máximo',
     'Participación en utilidades',
     'Reconocimiento Diamante Azul',
@@ -156,6 +137,7 @@ export function RankProgressStepper({
               const isSelected = selectedRank?.id === rank.id;
               const colors = rankColors[rank.code] || defaultColor;
               const isLast = index === ranks.length - 1;
+              const rankImg = getRankImage(rank.code);
 
               return (
                 <div key={rank.id} className="flex items-start">
@@ -167,7 +149,7 @@ export function RankProgressStepper({
                   >
                     {/* Circle / Rank image */}
                     <div className="relative">
-                      {rankImages[rank.code] ? (
+                      {rankImg ? (
                         <div
                           className={`w-14 h-14 rounded-full overflow-hidden bg-white flex items-center justify-center transition-all group-hover:scale-110 ${
                             isCurrent
@@ -178,7 +160,7 @@ export function RankProgressStepper({
                           } ${isSelected ? 'ring-4 ring-offset-2 ring-[#3E667D]' : ''}`}
                         >
                           <Image
-                            src={rankImages[rank.code]}
+                            src={rankImg}
                             alt={rank.name}
                             width={56}
                             height={56}
@@ -279,6 +261,7 @@ export function RankProgressStepper({
           const isLocked = selectedRank.rankNumber > currentRankNumber;
           const colors = rankColors[selectedRank.code] || defaultColor;
           const benefits = rankBenefits[selectedRank.code] || [];
+          const selRankImg = getRankImage(selectedRank.code);
           const autoBonus = currencyCode === 'USD'
             ? parseFloat(selectedRank.autoBonusUsd || '0')
             : parseFloat(selectedRank.autoBonusMxn || '0');
@@ -290,10 +273,10 @@ export function RankProgressStepper({
                 isCompleted ? 'bg-emerald-50' : isCurrent ? 'bg-[#C8DDF2]/30' : 'bg-gray-50'
               }`}>
                 <div className="flex items-center gap-3">
-                  {rankImages[selectedRank.code] ? (
+                  {selRankImg ? (
                     <div className="relative w-10 h-10 rounded-full overflow-hidden bg-white shadow-sm flex items-center justify-center">
                       <Image
-                        src={rankImages[selectedRank.code]}
+                        src={selRankImg}
                         alt={selectedRank.name}
                         width={40}
                         height={40}

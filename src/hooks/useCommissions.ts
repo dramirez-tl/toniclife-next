@@ -10,6 +10,7 @@ import {
   CommissionPercentage,
   CommissionStructure,
   MonthlyCommissionTrend,
+  CommissionLevelBreakdown,
 } from '@/types/commissions';
 
 // Query keys
@@ -23,7 +24,8 @@ export const commissionKeys = {
   periods: () => [...commissionKeys.all, 'periods'] as const,
   percentages: () => [...commissionKeys.all, 'percentages'] as const,
   structure: (customerId: string, periodId?: string) => [...commissionKeys.all, 'structure', customerId, periodId] as const,
-  trends: (months: number) => [...commissionKeys.all, 'trends', months] as const,
+  trends: (customerId: string, months: number) => [...commissionKeys.all, 'trends', customerId, months] as const,
+  levelBreakdown: (customerId: string, periodId: string) => [...commissionKeys.all, 'levelBreakdown', customerId, periodId] as const,
   customer: (customerId: string) => [...commissionKeys.all, 'customer', customerId] as const,
   currentPeriod: () => [...commissionKeys.all, 'currentPeriod'] as const,
 };
@@ -137,12 +139,29 @@ export function useCommissionStructure(customerId: string, enabled = true, perio
 }
 
 /**
- * Hook para obtener tendencia mensual
+ * Hook para obtener tendencia mensual de un cliente
  */
-export function useCommissionTrends(months: number = 6) {
+export function useCommissionTrends(customerId: string, months: number = 6) {
   return useQuery<MonthlyCommissionTrend[]>({
-    queryKey: commissionKeys.trends(months),
-    queryFn: () => commissionsApi.getMonthlyTrend(months),
+    queryKey: commissionKeys.trends(customerId, months),
+    queryFn: () => commissionsApi.getMonthlyTrend(customerId, months),
+    enabled: !!customerId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * Hook para el desglose exacto de comisión MLM por nivel
+ */
+export function useCommissionLevelBreakdown(
+  customerId: string,
+  periodId: string,
+  enabled = true,
+) {
+  return useQuery<CommissionLevelBreakdown>({
+    queryKey: commissionKeys.levelBreakdown(customerId, periodId),
+    queryFn: () => commissionsApi.getLevelBreakdown(customerId, periodId),
+    enabled: enabled && !!customerId && !!periodId,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -188,10 +207,10 @@ export function useDownloadStatement() {
 /**
  * Hook combinado para obtener todos los datos de comisiones de una vez
  */
-export function useCommissionsDashboard(periodId: string) {
+export function useCommissionsDashboard(periodId: string, customerId: string) {
   const commissionsQuery = useCommissions({ periodId });
   const projectionQuery = useCommissionProjection();
-  const trendsQuery = useCommissionTrends(6);
+  const trendsQuery = useCommissionTrends(customerId, 6);
   const percentagesQuery = useCommissionPercentages();
 
   return {

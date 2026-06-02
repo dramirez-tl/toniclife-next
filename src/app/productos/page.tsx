@@ -4,7 +4,6 @@ import { useState, useMemo, useEffect } from 'react';
 import { Header, Footer } from '@/components/layout';
 import { ProductGrid } from '@/components/products/ProductGrid';
 import { ProductFilters } from '@/components/products/ProductFilters';
-import { Badge } from '@/components/ui';
 import { FunnelIcon, Squares2X2Icon, ListBulletIcon } from '@heroicons/react/24/outline';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useProducts, useCategories } from '@/hooks/useProducts';
@@ -121,22 +120,27 @@ export default function ProductsPage() {
   return (
     <>
       <Header />
-      <main className="min-h-screen pt-32 pb-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Page Header */}
-          <div className="text-center mb-12">
-            <Badge variant="success" size="lg" className="mb-4">
-              Catálogo Completo
-            </Badge>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#3E667D]">
-              Nuestros Productos
-            </h1>
-            <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
-              Explora nuestra línea completa de suplementos naturales diseñados
-              para transformar tu bienestar.
-            </p>
-          </div>
+      <main className="min-h-screen pb-20 bg-gray-50">
+        {/* Offset del header fijo */}
+        <div className="h-28 lg:h-32" />
 
+        {/* Hero banner - propuesta 2026 */}
+        <section className="relative w-full overflow-hidden bg-[#C8DDF2]">
+          {/* Tira de productos a la derecha (fallback: azul claro de marca) */}
+          <div
+            className="pointer-events-none absolute inset-y-0 right-0 left-1/2 hidden bg-contain bg-right bg-no-repeat sm:block lg:left-1/3"
+            style={{ backgroundImage: "url('/images/productos/banner-productos.png')" }}
+          />
+          <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="flex min-h-[180px] items-center lg:min-h-[220px]">
+              <h1 className="max-w-[12rem] text-3xl font-bold leading-tight text-[#3E667D] sm:max-w-xs sm:text-4xl lg:text-5xl">
+                Nuestros productos
+              </h1>
+            </div>
+          </div>
+        </section>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
           {/* Search Bar */}
           <div className="mb-6">
             <div className="relative max-w-xl mx-auto">

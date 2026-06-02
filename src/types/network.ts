@@ -104,6 +104,8 @@ export interface DownlineItem {
   phone?: string;
   level: number;
   rankName?: string;
+  sponsorName?: string;
+  sponsorCode?: string;
   personalPoints?: number;
   status: string;
   createdAt: string;
@@ -121,6 +123,8 @@ export interface DownlineQuery {
   search?: string;
   level?: number;
   status?: 'active' | 'inactive' | 'suspended';
+  qualified?: boolean;
+  rankNumber?: number;
   page?: number;
   limit?: number;
   sortBy?: 'name' | 'email' | 'createdAt' | 'level';

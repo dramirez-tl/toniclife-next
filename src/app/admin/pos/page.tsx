@@ -20,6 +20,7 @@ import {
   NoSymbolIcon,
   EyeIcon,
   ChartBarIcon,
+  LockClosedIcon,
 } from '@heroicons/react/24/outline';
 import { PosCart, PaymentModal, PosProductGrid, KitProspectModal, PosAvailablePromotions } from '@/components/pos';
 import type { QuickProduct } from '@/types/pos';
@@ -30,6 +31,7 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { usePosCartStore } from '@/stores/pos-cart.store';
 import { useActiveSession, useCreateSale, useProcessPayment, useSales, useDailySalesSummary } from '@/hooks/usePos';
 import { useActiveBranches } from '@/hooks/useBranches';
+import { useBranchPosLock } from '@/hooks/useInventory';
 import { useActiveCurrencies, useActivePriceTypes } from '@/hooks/useConfig';
 import type { CreatePaymentInput, PosPaymentMethod, Sale, CancelSaleInput } from '@/types/pos';
 import { PosSaleStatus } from '@/types/pos';
@@ -160,6 +162,12 @@ export default function PosPage() {
   }, [selectedBranchId, posBranches, userDefaultBranchId, router, searchParams]);
 
   const effectiveBranchId = selectedBranchId;
+
+  // Bloqueo del POS por inventario (mismo estado que el POS de Electron).
+  // Polling rápido para que el bloqueo aparezca casi de inmediato a call center.
+  const { data: posLock } = useBranchPosLock(effectiveBranchId || null, {
+    refetchInterval: 7000,
+  });
 
   // Recent sales — filtered by branch and date
   const { data: recentSales, refetch: refetchSales, isLoading: isLoadingSales, isFetching: isFetchingSales } = useSales({
@@ -418,7 +426,7 @@ export default function PosPage() {
     <PermissionGuard permissions={['pos:read', 'pos:*']}>
       <div className="h-[calc(100vh-3.5rem)] lg:h-[calc(100vh-3rem)] flex flex-col bg-gray-100">
         {/* Top Bar */}
-        <header className="bg-[#3E667D] text-white px-4 py-3 flex items-center justify-between shadow-lg">
+        <header className="relative z-50 bg-[#3E667D] text-white px-4 py-3 flex items-center justify-between shadow-lg">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setShowSidebar(!showSidebar)}
@@ -487,7 +495,35 @@ export default function PosPage() {
         </header>
 
         {/* Main Content */}
-        <div className="flex-grow flex overflow-hidden">
+        <div className="relative flex-grow flex overflow-hidden">
+          {/* Bloqueo por inventario: cubre solo el área de trabajo del POS.
+              Deja libres el selector de sucursal (header) y el sidebar del admin,
+              para poder cambiar de sucursal o navegar a otra parte. */}
+          {posLock?.locked && (
+            <div className="absolute inset-0 z-[45] flex flex-col items-center justify-center gap-6 bg-[#3E667D] p-8 text-center text-white">
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/10">
+                <LockClosedIcon className="h-10 w-10" />
+              </div>
+              <div className="max-w-md">
+                <h2 className="text-3xl font-bold">POS bloqueado</h2>
+                {selectedBranch?.name && (
+                  <p className="mt-1 text-sm text-white/70">{selectedBranch.name}</p>
+                )}
+                <p className="mt-4 text-base leading-relaxed text-white/85">
+                  {posLock.message ||
+                    'Inventario en progreso. No se pueden registrar ventas en esta sucursal hasta que finalice el conteo.'}
+                </p>
+                <p className="mt-4 text-sm text-white/70">
+                  Puedes cambiar de sucursal arriba o navegar a otra sección desde el menú.
+                </p>
+                <p className="mt-8 flex items-center justify-center gap-2 text-xs text-white/50">
+                  <span className="inline-block size-2 rounded-full bg-white/80 animate-pulse" />
+                  El POS se reactivará automáticamente cuando Operaciones termine.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Left Sidebar - Recent Sales (Desktop) */}
           <aside
             className={`

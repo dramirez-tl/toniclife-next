@@ -10,27 +10,23 @@ import {
   XMarkIcon,
   ShoppingCartIcon,
   GlobeAltIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 import { useCartSummary } from '@/hooks/useCart';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated, selectUserRoles, selectUser, selectIsInitialized } from '@/store/slices/authSlice';
 
-const navigation = [
+interface NavItem {
+  name: string;
+  href: string;
+  children?: { name: string; href: string }[];
+  highlight?: boolean;
+}
+
+const navigation: NavItem[] = [
   { name: 'Inicio', href: '/' },
-  {
-    name: 'Productos',
-    href: '/productos',
-    children: [
-      { name: 'Energía', href: '/productos/energia' },
-      { name: 'Detox', href: '/productos/detox' },
-      { name: 'Belleza', href: '/productos/belleza' },
-      { name: 'Estrés & Sueño', href: '/productos/estres' },
-      { name: 'Salud Femenina', href: '/productos/hormonal' },
-      { name: 'Salud Masculina', href: '/productos/masculino' },
-      { name: 'Ver todos', href: '/productos' }
-    ]
-  },
+  { name: 'Productos', href: '/productos' },
   { name: 'Evaluación de Salud', href: '/quiz', highlight: true },
   { name: 'Distribuidores', href: '/#reconocimientos' }
 ];
@@ -99,22 +95,23 @@ export function Header() {
   }, []);
 
   return (
+    <>
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md shadow-sm">
       {/* Top bar */}
-      <div className="bg-[#3E667D] text-white text-sm py-2">
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#2f5165] text-white text-sm py-2">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <p className="hidden sm:block">Bienestar natural desde 2004 — Tonic Life</p>
-          <p className="sm:hidden text-center w-full">Bienestar natural — Tonic Life</p>
+          <p className="hidden sm:block text-white/90">Bienestar natural desde 2004 — Tonic Life</p>
+          <p className="sm:hidden text-center w-full text-white/90">Bienestar natural — Tonic Life</p>
           <div className="hidden sm:flex items-center gap-4">
             <button
               onClick={() => setLanguage(language === 'es' ? 'en' : 'es')}
-              className="flex items-center gap-1 hover:text-[#3E667D] transition-colors"
+              className="flex items-center gap-1 text-white/90 hover:text-[#C8DDF2] transition-colors"
             >
               <GlobeAltIcon className="h-4 w-4" />
               {language === 'es' ? 'ES' : 'EN'}
             </button>
-            <span>|</span>
-            <Link href="/ayuda" className="hover:text-[#3E667D] transition-colors">
+            <span className="text-white/30">|</span>
+            <Link href="/ayuda" className="text-white/90 hover:text-[#C8DDF2] transition-colors">
               Ayuda
             </Link>
           </div>
@@ -185,16 +182,17 @@ export function Header() {
                     href={item.href}
                     aria-current={isActive(item.href) ? 'page' : undefined}
                     className={`
-                      px-3 xl:px-4 py-2 rounded-full
-                      text-sm xl:text-base font-medium transition-colors
+                      flex items-center gap-1.5 px-3 xl:px-4 py-2 rounded-full
+                      text-sm xl:text-base font-medium transition-all
                       ${item.highlight
-                        ? 'bg-[#3E667D] text-white hover:bg-[#2f5165]'
+                        ? 'bg-[#C8DDF2] text-[#2f5165] ring-1 ring-[#3E667D]/15 hover:bg-[#b6d2ec] hover:ring-[#3E667D]/25'
                         : isActive(item.href)
-                          ? 'bg-[#3E667D]/8 text-[#3E667D]'
+                          ? 'bg-[#3E667D]/10 text-[#3E667D] font-semibold'
                           : 'text-[#3E667D] hover:bg-[#3E667D]/5'
                       }
                     `}
                   >
+                    {item.highlight && <SparklesIcon className="h-4 w-4" />}
                     {item.name}
                   </Link>
                 )}
@@ -204,14 +202,16 @@ export function Header() {
 
           {/* Right side actions */}
           <div className="flex items-center gap-2">
+            <span className="hidden lg:block h-6 w-px bg-gray-200 mr-1" aria-hidden="true" />
             {/* Cart */}
             <Link
               href="/carrito"
+              aria-label={`Carrito${cartItemCount > 0 ? ` (${cartItemCount})` : ''}`}
               className="relative p-2 rounded-full hover:bg-gray-100 transition-colors"
             >
               <ShoppingCartIcon className="h-6 w-6 text-[#3E667D]" />
               {cartItemCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[#3E667D] text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-[#3E667D] text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center ring-2 ring-white">
                   {cartItemCount}
                 </span>
               )}
@@ -266,7 +266,7 @@ export function Header() {
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden bg-white border-t border-gray-100 animate-in slide-in-from-top-2 duration-200">
+        <div className="lg:hidden relative z-50 bg-white border-t border-gray-100 shadow-xl rounded-b-2xl animate-in slide-in-from-top-2 duration-200">
           <div className="max-w-7xl mx-auto px-4 py-4 space-y-1">
             {navigation.map((item) => (
               <div key={item.name}>
@@ -305,31 +305,31 @@ export function Header() {
                     href={item.href}
                     aria-current={isActive(item.href) ? 'page' : undefined}
                     className={`
-                      block px-4 py-3 rounded-xl font-medium
+                      flex items-center gap-2 px-4 py-3 rounded-xl font-medium
                       ${item.highlight
-                        ? 'bg-[#3E667D] text-white'
+                        ? 'bg-[#C8DDF2] text-[#2f5165] ring-1 ring-[#3E667D]/15'
                         : isActive(item.href)
-                          ? 'bg-[#3E667D]/10 text-[#3E667D]'
+                          ? 'bg-[#3E667D]/10 text-[#3E667D] font-semibold'
                           : 'text-[#3E667D] hover:bg-gray-50'
                       }
                     `}
                     onClick={() => setMobileMenuOpen(false)}
                   >
+                    {item.highlight && <SparklesIcon className="h-5 w-5" />}
                     {item.name}
                   </Link>
                 )}
               </div>
             ))}
 
-            <div className="pt-4 border-t border-gray-100 mt-4 space-y-3">
-              <Link href={dashboardUrl} onClick={() => setMobileMenuOpen(false)}>
-                <Button fullWidth size="lg" variant={isAuthenticated ? 'outline' : 'primary'}>
+            <div className="pt-4 mt-2 border-t border-gray-100">
+              <Link
+                href={dashboardUrl}
+                onClick={() => setMobileMenuOpen(false)}
+                className="block"
+              >
+                <Button fullWidth size="lg" variant="primary">
                   {isAuthenticated ? 'Mi Cuenta' : 'Iniciar Sesión'}
-                </Button>
-              </Link>
-              <Link href="/quiz" onClick={() => setMobileMenuOpen(false)}>
-                <Button fullWidth size="lg" variant={isAuthenticated ? 'primary' : 'outline'}>
-                  Mi Evaluación
                 </Button>
               </Link>
             </div>
@@ -337,5 +337,16 @@ export function Header() {
         </div>
       )}
     </header>
+
+      {/* Backdrop del menú móvil — atenúa el contenido para efecto modal */}
+      {mobileMenuOpen && (
+        <button
+          type="button"
+          aria-label="Cerrar menú"
+          onClick={() => setMobileMenuOpen(false)}
+          className="lg:hidden fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
+        />
+      )}
+    </>
   );
 }
