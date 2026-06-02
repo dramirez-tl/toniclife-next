@@ -8,6 +8,9 @@ import { FunnelIcon, Squares2X2Icon, ListBulletIcon } from '@heroicons/react/24/
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useProducts, useCategories } from '@/hooks/useProducts';
 import { ECOMMERCE_BRANCH_ID } from '@/services/products.service';
+import { useAppSelector } from '@/store/hooks';
+import { selectUserRoles } from '@/store/slices/authSlice';
+import { SparklesIcon } from '@heroicons/react/24/solid';
 import type { Product as APIProduct, Category } from '@/types/product';
 import type { Product as MockProduct } from '@/types';
 
@@ -67,6 +70,11 @@ export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const limit = 20;
+
+  // ¿El visitante es distribuidor? La API ya resuelve el precio (distribuidor si
+  // su cuenta está activa con kit; público si no), aquí solo mostramos el aviso.
+  const roles = useAppSelector(selectUserRoles);
+  const isDistributor = roles.includes('distributor');
 
   // Obtener datos del API
   const {
@@ -141,6 +149,19 @@ export default function ProductsPage() {
         </section>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+          {/* Aviso de precios de distribuidor */}
+          {isDistributor && (
+            <div className="mb-6 flex items-center gap-3 rounded-xl border border-[#a7c1e2]/40 bg-[#C8DDF2]/20 px-4 py-3">
+              <SparklesIcon className="h-5 w-5 flex-shrink-0 text-[#3E667D]" />
+              <p className="text-sm text-[#3E667D]">
+                <span className="font-semibold">Precios de distribuidor.</span>{' '}
+                Estás viendo los precios de tu cuenta y los puntos que suma cada
+                producto. Si tu kit aún no está activo, verás precio público
+                hasta completarlo.
+              </p>
+            </div>
+          )}
+
           {/* Search Bar */}
           <div className="mb-6">
             <div className="relative max-w-xl mx-auto">

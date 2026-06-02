@@ -180,11 +180,29 @@ export interface AuthenticatedCheckoutInput {
   paymentMethod: PaymentMethod;
   paymentData?: Record<string, any>;
   shippingMethod: ShippingMethod;
+  /** Sucursal donde recoger (requerido si shippingMethod=PICKUP). */
+  pickupBranchId?: string;
   requiresInvoice?: boolean;
   invoiceData?: InvoiceData;
   notes?: string;
   saveShippingAddress?: boolean;
   saveBillingAddress?: boolean;
+}
+
+/** Sucursal disponible para recolección (GET /checkout/pickup-branches). */
+export interface PickupBranch {
+  id: string;
+  code: string;
+  name: string;
+  addressStreet: string | null;
+  addressCity: string | null;
+  addressState: string | null;
+  addressZip: string | null;
+  phone: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  countryCode: string;
+  countryName: string;
 }
 
 export interface CheckoutResponse {

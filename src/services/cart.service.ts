@@ -16,6 +16,7 @@ import type {
   CheckoutSummary,
   SavedAddress,
   ShippingMethod,
+  PickupBranch,
 } from '@/types/cart';
 
 // Helper to get/create session ID for guest carts
@@ -169,6 +170,11 @@ class CartService {
 
   async getCustomerAddresses(): Promise<SavedAddress[]> {
     const response = await api.get<SavedAddress[]>('/checkout/addresses');
+    return response.data;
+  }
+
+  async getPickupBranches(): Promise<PickupBranch[]> {
+    const response = await api.get<PickupBranch[]>('/checkout/pickup-branches');
     return response.data;
   }
 

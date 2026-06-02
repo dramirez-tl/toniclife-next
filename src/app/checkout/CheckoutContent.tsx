@@ -13,6 +13,8 @@ import {
   ArrowLeftIcon,
   DocumentTextIcon,
   UserIcon,
+  BuildingStorefrontIcon,
+  MapPinIcon,
 } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -25,15 +27,20 @@ import {
   useGuestCheckout,
   useAuthenticatedCheckout,
   useCustomerAddresses,
+  usePickupBranches,
 } from '@/hooks/useCart';
 import { useReferralCode } from '@/hooks/useReferralCode';
 import { cartService } from '@/services/cart.service';
+import { useAppSelector } from '@/store/hooks';
+import { selectUser } from '@/store/slices/authSlice';
 import {
   PaymentMethod,
   ShippingMethod,
   type CheckoutAddress,
   type InvoiceData,
   type GuestCheckoutInput,
+  type AuthenticatedCheckoutInput,
+  type CheckoutResponse,
 } from '@/types/cart';
 
 function CheckoutProductImage({ src, name }: { src?: string; name: string }) {
@@ -93,7 +100,13 @@ const FISCAL_REGIME_OPTIONS = [
 export default function CheckoutContent() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('info');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const currentUser = useAppSelector(selectUser);
+  const isAuthenticated = !!currentUser;
+  // Modo de entrega: envío a domicilio (default) o recoger en sucursal.
+  const [deliveryMode, setDeliveryMode] = useState<'delivery' | 'pickup'>(
+    'delivery',
+  );
+  const [pickupBranchId, setPickupBranchId] = useState<string>('');
   const [orderResult, setOrderResult] = useState<{
     orderId: string;
     orderNumber: string;
@@ -145,6 +158,7 @@ export default function CheckoutContent() {
   const guestCheckout = useGuestCheckout();
   const authenticatedCheckout = useAuthenticatedCheckout();
   const { data: savedAddresses } = useCustomerAddresses();
+  const { data: pickupBranches } = usePickupBranches();
 
   // Referral code from URL or localStorage
   const { referralCode: storedReferralCode } = useReferralCode();
@@ -202,6 +216,16 @@ export default function CheckoutContent() {
   const handleShippingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (deliveryMode === 'pickup') {
+      if (!pickupBranchId) {
+        toast.error('Selecciona una sucursal para recoger tu pedido');
+        return;
+      }
+      setCurrentStep('payment');
+      toast.success('Sucursal de recolección seleccionada');
+      return;
+    }
+
     const requiredFields: (keyof CheckoutAddress)[] = [
       'fullName', 'phone', 'street', 'city', 'state', 'postalCode', 'country',
     ];
@@ -233,21 +257,40 @@ export default function CheckoutContent() {
     }
 
     try {
-      const checkoutData: GuestCheckoutInput = {
-        email: customerInfo.email,
-        name: customerInfo.name,
-        phone: customerInfo.phone,
-        shippingAddress,
-        paymentMethod: selectedPaymentMethod,
-        shippingMethod: selectedShippingMethod,
-        requiresInvoice,
-        invoiceData: requiresInvoice ? invoiceData : undefined,
-        notes: notes || undefined,
-        referralCode: referralCode || undefined,
-        acceptTerms,
-      };
+      const isPickup = deliveryMode === 'pickup';
 
-      const result = await guestCheckout.mutateAsync(checkoutData);
+      // Usuarios autenticados (distribuidores/clientes) van por el checkout
+      // autenticado; los invitados por el de invitado. En recoger se manda
+      // pickupBranchId; en envío, la dirección.
+      let result: CheckoutResponse;
+      if (isAuthenticated) {
+        const authData: AuthenticatedCheckoutInput = {
+          shippingAddress: isPickup ? undefined : shippingAddress,
+          pickupBranchId: isPickup ? pickupBranchId : undefined,
+          paymentMethod: selectedPaymentMethod,
+          shippingMethod: selectedShippingMethod,
+          requiresInvoice,
+          invoiceData: requiresInvoice ? invoiceData : undefined,
+          notes: notes || undefined,
+          saveShippingAddress: !isPickup,
+        };
+        result = await authenticatedCheckout.mutateAsync(authData);
+      } else {
+        const checkoutData: GuestCheckoutInput = {
+          email: customerInfo.email,
+          name: customerInfo.name,
+          phone: customerInfo.phone,
+          shippingAddress,
+          paymentMethod: selectedPaymentMethod,
+          shippingMethod: selectedShippingMethod,
+          requiresInvoice,
+          invoiceData: requiresInvoice ? invoiceData : undefined,
+          notes: notes || undefined,
+          referralCode: referralCode || undefined,
+          acceptTerms,
+        };
+        result = await guestCheckout.mutateAsync(checkoutData);
+      }
 
       if (result.success) {
         setOrderResult({
@@ -416,6 +459,85 @@ export default function CheckoutContent() {
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleShippingSubmit} className="space-y-6">
+                    {/* Selector: recoger en sucursal vs envío a domicilio */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeliveryMode('delivery');
+                          setSelectedShippingMethod(ShippingMethod.STANDARD);
+                        }}
+                        className={`flex items-center gap-3 rounded-lg border-2 p-4 text-left transition-all ${
+                          deliveryMode === 'delivery'
+                            ? 'border-[#a7c1e2] bg-[#C8DDF2]/10'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <TruckIcon className="h-5 w-5 flex-shrink-0 text-[#3E667D]" />
+                        <div>
+                          <p className="font-medium text-gray-900">Envío a domicilio</p>
+                          <p className="text-xs text-gray-500">Lo enviamos a tu dirección</p>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeliveryMode('pickup');
+                          setSelectedShippingMethod(ShippingMethod.PICKUP);
+                        }}
+                        className={`flex items-center gap-3 rounded-lg border-2 p-4 text-left transition-all ${
+                          deliveryMode === 'pickup'
+                            ? 'border-[#a7c1e2] bg-[#C8DDF2]/10'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <BuildingStorefrontIcon className="h-5 w-5 flex-shrink-0 text-[#3E667D]" />
+                        <div>
+                          <p className="font-medium text-gray-900">Recoger en sucursal</p>
+                          <p className="text-xs text-gray-500">En cualquier sucursal disponible</p>
+                        </div>
+                      </button>
+                    </div>
+
+                    {deliveryMode === 'pickup' && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Sucursal de recolección *
+                        </label>
+                        <SearchableSelect
+                          options={(pickupBranches ?? []).map((b) => ({
+                            value: b.id,
+                            label: `${b.name} — ${b.countryName}${b.addressCity ? ` (${b.addressCity})` : ''}`,
+                          }))}
+                          value={pickupBranchId}
+                          onChange={setPickupBranchId}
+                          showAllOption={false}
+                          placeholder="Selecciona una sucursal..."
+                          className="w-full"
+                        />
+                        {pickupBranchId &&
+                          (() => {
+                            const b = (pickupBranches ?? []).find(
+                              (x) => x.id === pickupBranchId,
+                            );
+                            if (!b) return null;
+                            return (
+                              <div className="mt-3 flex items-start gap-2 rounded-lg bg-gray-50 p-3 text-sm text-gray-600">
+                                <MapPinIcon className="h-4 w-4 mt-0.5 flex-shrink-0 text-[#3E667D]" />
+                                <span>
+                                  {[b.addressStreet, b.addressCity, b.addressState, b.countryName]
+                                    .filter(Boolean)
+                                    .join(', ')}
+                                  {b.phone ? ` · Tel: ${b.phone}` : ''}
+                                </span>
+                              </div>
+                            );
+                          })()}
+                      </div>
+                    )}
+
+                    {deliveryMode === 'delivery' && (
+                      <>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Input
                         label="Nombre del destinatario *"
@@ -547,6 +669,8 @@ export default function CheckoutContent() {
                         ))}
                       </div>
                     </div>
+                      </>
+                    )}
 
                     <div className="flex gap-3">
                       <Button
@@ -577,30 +701,178 @@ export default function CheckoutContent() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="py-8 text-center">
-                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-50">
-                      <ShieldCheckIcon className="h-8 w-8 text-amber-500" />
+                  <form onSubmit={handlePaymentSubmit} className="space-y-6">
+                    <div className="bg-[#C8DDF2]/10 border border-[#a7c1e2]/30 rounded-lg p-4 flex items-start gap-3">
+                      <ShieldCheckIcon className="h-6 w-6 text-[#3E667D] flex-shrink-0" />
+                      <div className="text-sm">
+                        <p className="font-semibold text-[#3E667D]">Pago 100% seguro</p>
+                        <p className="text-gray-600">
+                          El pago con tarjeta se procesa en la pasarela segura de Stripe; tus datos
+                          de tarjeta nunca pasan por nuestro sitio.
+                        </p>
+                      </div>
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      Pagos en línea disponibles pronto
-                    </h3>
-                    <p className="text-gray-500 max-w-md mx-auto">
-                      Estamos confirmando algunos ajustes para habilitar los pagos en línea.
-                      Esta opción estará disponible en breve.
-                    </p>
-                  </div>
 
-                  <div className="pt-4 border-t border-gray-200">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="lg"
-                      onClick={() => setCurrentStep('shipping')}
-                      className="w-full"
-                    >
-                      Regresar
-                    </Button>
-                  </div>
+                    {/* Selección de método de pago (solo los soportados) */}
+                    <div className="space-y-3">
+                      {[
+                        {
+                          value: PaymentMethod.STRIPE,
+                          label: 'Tarjeta de Crédito/Débito',
+                          icon: '💳',
+                          desc: 'Pago en línea seguro vía Stripe',
+                        },
+                        {
+                          value: PaymentMethod.TRANSFER,
+                          label: 'Transferencia bancaria',
+                          icon: '🏦',
+                          desc: 'Tu pedido queda pendiente hasta confirmar el pago',
+                        },
+                      ].map((method) => (
+                        <label
+                          key={method.value}
+                          className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                            selectedPaymentMethod === method.value
+                              ? 'border-[#a7c1e2] bg-[#C8DDF2]/5'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <input
+                            type="radio"
+                            name="paymentMethod"
+                            value={method.value}
+                            checked={selectedPaymentMethod === method.value}
+                            onChange={(e) =>
+                              setSelectedPaymentMethod(e.target.value as PaymentMethod)
+                            }
+                            className="w-4 h-4 text-[#3E667D] focus:ring-[#a7c1e2]"
+                          />
+                          <span className="text-xl">{method.icon}</span>
+                          <div>
+                            <p className="font-medium text-gray-900">{method.label}</p>
+                            <p className="text-xs text-gray-500">{method.desc}</p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+
+                    {/* Opción de factura */}
+                    <div className="pt-4 border-t border-gray-200">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={requiresInvoice}
+                          onChange={(e) => setRequiresInvoice(e.target.checked)}
+                          className="w-5 h-5 text-[#3E667D] border-gray-300 rounded focus:ring-[#a7c1e2]"
+                        />
+                        <div className="flex items-center gap-2">
+                          <DocumentTextIcon className="h-5 w-5 text-gray-500" />
+                          <span className="font-medium text-gray-900">Requiero factura</span>
+                        </div>
+                      </label>
+
+                      {requiresInvoice && (
+                        <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Input
+                              label="RFC *"
+                              type="text"
+                              value={invoiceData.rfc}
+                              onChange={(e) =>
+                                setInvoiceData({ ...invoiceData, rfc: e.target.value.toUpperCase() })
+                              }
+                              placeholder="XAXX010101000"
+                              maxLength={13}
+                            />
+                            <Input
+                              label="Razón social *"
+                              type="text"
+                              value={invoiceData.name}
+                              onChange={(e) =>
+                                setInvoiceData({ ...invoiceData, name: e.target.value })
+                              }
+                            />
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Régimen fiscal *
+                              </label>
+                              <SearchableSelect
+                                options={FISCAL_REGIME_OPTIONS}
+                                value={invoiceData.regime}
+                                onChange={(val) =>
+                                  setInvoiceData({ ...invoiceData, regime: val })
+                                }
+                                showAllOption={false}
+                                placeholder="Seleccionar..."
+                                className="w-full"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Uso CFDI *
+                              </label>
+                              <SearchableSelect
+                                options={CFDI_USAGE_OPTIONS}
+                                value={invoiceData.useCfdi}
+                                onChange={(val) =>
+                                  setInvoiceData({ ...invoiceData, useCfdi: val })
+                                }
+                                showAllOption={false}
+                                placeholder="Seleccionar..."
+                                className="w-full"
+                              />
+                            </div>
+                          </div>
+                          <Input
+                            label="Código Postal fiscal *"
+                            type="text"
+                            value={invoiceData.postalCode}
+                            onChange={(e) =>
+                              setInvoiceData({ ...invoiceData, postalCode: e.target.value })
+                            }
+                            maxLength={5}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Términos */}
+                    <label className="flex items-start gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={acceptTerms}
+                        onChange={(e) => setAcceptTerms(e.target.checked)}
+                        className="w-5 h-5 mt-0.5 text-[#3E667D] border-gray-300 rounded focus:ring-[#a7c1e2]"
+                      />
+                      <span className="text-sm text-gray-600">
+                        Acepto los términos y condiciones y la política de privacidad.
+                      </span>
+                    </label>
+
+                    <div className="flex gap-3 pt-4 border-t border-gray-200">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="lg"
+                        onClick={() => setCurrentStep('shipping')}
+                        className="flex-1"
+                      >
+                        Regresar
+                      </Button>
+                      <Button
+                        type="submit"
+                        size="lg"
+                        className="flex-1"
+                        isLoading={
+                          authenticatedCheckout.isPending || guestCheckout.isPending
+                        }
+                      >
+                        Realizar pedido
+                      </Button>
+                    </div>
+                  </form>
                 </CardContent>
               </Card>
             )}
@@ -625,21 +897,33 @@ export default function CheckoutContent() {
 
                   <div className="border-t border-gray-200 pt-6 mb-6">
                     <div className="text-left space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Envío a:</span>
-                        <span className="font-medium text-gray-900">
-                          {shippingAddress.fullName}
-                        </span>
-                      </div>
+                      {deliveryMode === 'pickup' ? (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Recoger en:</span>
+                          <span className="font-medium text-gray-900 text-right max-w-xs">
+                            {(pickupBranches ?? []).find((b) => b.id === pickupBranchId)
+                              ?.name ?? 'Sucursal seleccionada'}
+                          </span>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Envío a:</span>
+                            <span className="font-medium text-gray-900">
+                              {shippingAddress.fullName}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Dirección:</span>
+                            <span className="font-medium text-gray-900 text-right max-w-xs">
+                              {shippingAddress.street} {shippingAddress.exteriorNumber}, {shippingAddress.neighborhood && `${shippingAddress.neighborhood},`} {shippingAddress.city}, {shippingAddress.state} {shippingAddress.postalCode}
+                            </span>
+                          </div>
+                        </>
+                      )}
                       <div className="flex justify-between">
                         <span className="text-gray-600">Email:</span>
                         <span className="font-medium text-gray-900">{customerInfo.email}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Dirección:</span>
-                        <span className="font-medium text-gray-900 text-right max-w-xs">
-                          {shippingAddress.street} {shippingAddress.exteriorNumber}, {shippingAddress.neighborhood && `${shippingAddress.neighborhood},`} {shippingAddress.city}, {shippingAddress.state} {shippingAddress.postalCode}
-                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Total del pedido:</span>

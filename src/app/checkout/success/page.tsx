@@ -8,16 +8,22 @@ function SuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
+  const orderId = searchParams.get('orderId');
 
   useEffect(() => {
-    // Redirigir a la pagina de confirmacion con el session_id de Stripe
+    // Redirigir a la confirmacion con el orderId (Stripe lo incluye en el
+    // success_url) y el session_id. La confirmación usa el orderId para mostrar
+    // el pedido; el pago se confirma server-side vía webhook de Stripe.
     const params = new URLSearchParams();
+    if (orderId) {
+      params.set('orderId', orderId);
+    }
     if (sessionId) {
       params.set('stripe_session', sessionId);
     }
     const query = params.toString();
     router.replace(`/confirmacion${query ? `?${query}` : ''}`);
-  }, [router, sessionId]);
+  }, [router, sessionId, orderId]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">

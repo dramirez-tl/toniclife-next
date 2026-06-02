@@ -3,6 +3,8 @@
 
 import { useQuery, useQueryClient, useInfiniteQuery, useMutation } from '@tanstack/react-query';
 import { productsService } from '@/services/products.service';
+import { useAppSelector } from '@/store/hooks';
+import { selectUser } from '@/store/slices/authSlice';
 import {
   ProductType,
   type Product,
@@ -54,8 +56,12 @@ export const categoryKeys = {
  * Hook para obtener lista de productos con filtros
  */
 export const useProducts = (params: ProductQueryParams = {}) => {
+  // El precio que devuelve la API es rol-aware (precio distribuidor si el JWT
+  // corresponde a un distribuidor activo con kit). Incluimos el customerId en la
+  // key para que React Query refresque los precios al iniciar/cerrar sesión.
+  const viewerId = useAppSelector(selectUser)?.customerId ?? 'guest';
   return useQuery({
-    queryKey: productKeys.list(params),
+    queryKey: [...productKeys.list(params), 'v', viewerId],
     queryFn: () => productsService.getProducts(params),
     staleTime: 2 * 60 * 1000, // 2 minutos
     gcTime: 5 * 60 * 1000, // 5 minutos
@@ -66,8 +72,13 @@ export const useProducts = (params: ProductQueryParams = {}) => {
  * Hook para paginación infinita de productos
  */
 export const useInfiniteProducts = (params: Omit<ProductQueryParams, 'page'>) => {
+  const viewerId = useAppSelector(selectUser)?.customerId ?? 'guest';
   return useInfiniteQuery({
-    queryKey: productKeys.list({ ...params, infinite: true } as ProductQueryParams),
+    queryKey: [
+      ...productKeys.list({ ...params, infinite: true } as ProductQueryParams),
+      'v',
+      viewerId,
+    ],
     queryFn: ({ pageParam = 1 }) =>
       productsService.getProducts({ ...params, page: pageParam }),
     initialPageParam: 1,
@@ -97,8 +108,9 @@ export const useProduct = (id: string, enabled = true) => {
  * Hook para obtener producto por slug
  */
 export const useProductBySlug = (slug: string, enabled = true) => {
+  const viewerId = useAppSelector(selectUser)?.customerId ?? 'guest';
   return useQuery({
-    queryKey: productKeys.bySlug(slug),
+    queryKey: [...productKeys.bySlug(slug), 'v', viewerId],
     queryFn: () => productsService.getProductBySlug(slug),
     enabled: enabled && !!slug,
     staleTime: 5 * 60 * 1000,

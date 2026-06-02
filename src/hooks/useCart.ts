@@ -210,3 +210,12 @@ export const useAuthenticatedCheckout = () => {
     },
   });
 };
+
+/** Sucursales disponibles para recoger (todos los países). */
+export const usePickupBranches = () => {
+  return useQuery({
+    queryKey: [...cartKeys.checkout(), 'pickup-branches'],
+    queryFn: () => cartService.getPickupBranches(),
+    staleTime: 10 * 60 * 1000, // 10 min — cambian poco
+  });
+};
