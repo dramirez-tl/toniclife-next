@@ -17,6 +17,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { DataTable, type DataTableColumn } from '@/components/ui';
+import type { RolloverHistory } from '@/types/mlm-rollover';
 import { useCurrentPeriod, usePeriods } from '@/hooks/useMlmPeriods';
 import {
   useRolloverStatus,
@@ -94,6 +96,39 @@ export default function RolloverPage() {
   };
 
   const isLoading = statusLoading || statsLoading;
+
+  const historyColumns: DataTableColumn<RolloverHistory>[] = [
+    {
+      key: 'periodId',
+      header: 'Periodo',
+      cellClassName: 'text-sm text-gray-700',
+      render: (entry) => entry.periodId,
+    },
+    {
+      key: 'originalSponsorId',
+      header: 'Patrocinador Original',
+      cellClassName: 'text-sm text-gray-700',
+      render: (entry) => entry.originalSponsorId,
+    },
+    {
+      key: 'newSponsorId',
+      header: 'Nuevo Patrocinador',
+      cellClassName: 'text-sm font-medium text-[#3E667D]',
+      render: (entry) => entry.newSponsorId,
+    },
+    {
+      key: 'reason',
+      header: 'Razon',
+      cellClassName: 'text-sm text-gray-600',
+      render: (entry) => entry.reason,
+    },
+    {
+      key: 'createdAt',
+      header: 'Fecha',
+      cellClassName: 'text-sm text-gray-700',
+      render: (entry) => formatDate(entry.createdAt),
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -268,51 +303,19 @@ export default function RolloverPage() {
               </Button>
             </form>
 
-            {historyLoading ? (
-              <div className="text-center py-8">
-                <div className="inline-block w-8 h-8 border-4 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
-                <p className="mt-2 text-gray-600">Cargando historial...</p>
-              </div>
-            ) : searchedCustomerId && rolloverHistory ? (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Periodo</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Patrocinador Original</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Nuevo Patrocinador</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Razon</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Fecha</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rolloverHistory.length > 0 ? (
-                      rolloverHistory.map((entry) => (
-                        <tr key={entry.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-3 px-4 text-sm text-gray-700">{entry.periodId}</td>
-                          <td className="py-3 px-4 text-sm text-gray-700">{entry.originalSponsorId}</td>
-                          <td className="py-3 px-4 text-sm font-medium text-[#3E667D]">{entry.newSponsorId}</td>
-                          <td className="py-3 px-4 text-sm text-gray-600">{entry.reason}</td>
-                          <td className="py-3 px-4 text-sm text-gray-700">{formatDate(entry.createdAt)}</td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={5} className="py-8 text-center text-gray-500">
-                          No se encontró historial de puntos acumulados para este distribuidor
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+            {searchedCustomerId ? (
+              <DataTable<RolloverHistory>
+                columns={historyColumns}
+                data={rolloverHistory ?? []}
+                getRowKey={(entry, index) => String(entry.id ?? index)}
+                isLoading={historyLoading}
+                emptyMessage="No se encontró historial de puntos acumulados para este distribuidor"
+              />
             ) : (
-              !searchedCustomerId && (
-                <div className="text-center py-8">
-                  <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                  <p className="text-gray-500">Ingresa un ID de distribuidor para ver su historial de puntos acumulados</p>
-                </div>
-              )
+              <div className="text-center py-8">
+                <ChartBarIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                <p className="text-gray-500">Ingresa un ID de distribuidor para ver su historial de puntos acumulados</p>
+              </div>
             )}
           </CardContent>
         </Card>

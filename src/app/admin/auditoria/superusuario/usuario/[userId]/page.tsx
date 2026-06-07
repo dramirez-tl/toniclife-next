@@ -18,7 +18,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { useUserAuditHistory } from '@/hooks/useAudit';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import { RISK_LEVEL_CONFIG, ACTION_CATEGORIES } from '@/types/audit';
+import { DataTable, type DataTableColumn } from '@/components/ui';
+import { RISK_LEVEL_CONFIG, ACTION_CATEGORIES, type AuditLog } from '@/types/audit';
 
 export default function UserAuditPage() {
   const params = useParams();
@@ -92,6 +93,72 @@ export default function UserAuditPage() {
   const getCategoryLabel = (value: string) => {
     return ACTION_CATEGORIES.find((c) => c.value === value)?.label || value;
   };
+
+  // Columns for the audit log table
+  const columns: DataTableColumn<AuditLog>[] = [
+    {
+      key: 'createdAt',
+      header: 'Fecha',
+      cellClassName: 'text-sm text-gray-600 whitespace-nowrap',
+      render: (log) => formatTimestamp(log.createdAt),
+    },
+    {
+      key: 'action',
+      header: 'Acción',
+      render: (log) => (
+        <>
+          <span className="text-sm font-medium text-gray-900">{log.action}</span>
+          <span className="block text-xs text-gray-500">
+            {getCategoryLabel(log.actionCategory || '')}
+          </span>
+        </>
+      ),
+    },
+    {
+      key: 'description',
+      header: 'Descripción',
+      cellClassName: 'text-sm text-gray-600 max-w-xs truncate',
+      render: (log) => log.description || '-',
+    },
+    {
+      key: 'entity',
+      header: 'Entidad',
+      cellClassName: 'text-sm text-gray-600',
+      render: (log) => log.entityName || log.entityType || '-',
+    },
+    {
+      key: 'risk',
+      header: 'Riesgo',
+      render: (log) => {
+        const riskConfig = log.riskLevel
+          ? RISK_LEVEL_CONFIG[log.riskLevel as keyof typeof RISK_LEVEL_CONFIG]
+          : null;
+        return (
+          riskConfig && (
+            <span
+              className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${riskConfig.bgColor} ${riskConfig.color}`}
+            >
+              {riskConfig.label}
+            </span>
+          )
+        );
+      },
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      render: (log) =>
+        log.success === false ? (
+          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-700">
+            Fallido
+          </span>
+        ) : (
+          <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">
+            Exitoso
+          </span>
+        ),
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -384,83 +451,11 @@ export default function UserAuditPage() {
                 </div>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-y border-gray-200">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Fecha
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Acción
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Descripción
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Entidad
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Riesgo
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Estado
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {logs?.map((log) => {
-                        const riskConfig = log.riskLevel
-                          ? RISK_LEVEL_CONFIG[
-                              log.riskLevel as keyof typeof RISK_LEVEL_CONFIG
-                            ]
-                          : null;
-
-                        return (
-                          <tr key={log.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
-                              {formatTimestamp(log.createdAt)}
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className="text-sm font-medium text-gray-900">
-                                {log.action}
-                              </span>
-                              <span className="block text-xs text-gray-500">
-                                {getCategoryLabel(log.actionCategory || '')}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate">
-                              {log.description || '-'}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-gray-600">
-                              {log.entityName || log.entityType || '-'}
-                            </td>
-                            <td className="px-4 py-3">
-                              {riskConfig && (
-                                <span
-                                  className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${riskConfig.bgColor} ${riskConfig.color}`}
-                                >
-                                  {riskConfig.label}
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3">
-                              {log.success === false ? (
-                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-700">
-                                  Fallido
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">
-                                  Exitoso
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <DataTable<AuditLog>
+                  columns={columns}
+                  data={logs ?? []}
+                  getRowKey={(log, index) => String(log.id ?? index)}
+                />
               </CardContent>
             </Card>
           </>

@@ -1,7 +1,9 @@
 'use client';
 
+import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { DataTable, type DataTableColumn } from '@/components/ui';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -22,26 +24,6 @@ interface CatalogTableProps<T extends { id: string }> {
   showActions?: boolean;
 }
 
-// ── Skeleton row helper ──────────────────────────────────────────────────────
-
-function SkeletonRows({ columns, showActions }: { columns: number; showActions: boolean }) {
-  const totalCols = showActions ? columns + 1 : columns;
-
-  return (
-    <>
-      {Array.from({ length: 5 }).map((_, rowIdx) => (
-        <tr key={rowIdx}>
-          {Array.from({ length: totalCols }).map((_, colIdx) => (
-            <td key={colIdx} className="px-6 py-4">
-              <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4" />
-            </td>
-          ))}
-        </tr>
-      ))}
-    </>
-  );
-}
-
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function CatalogTable<T extends { id: string; activo?: boolean }>({
@@ -53,99 +35,72 @@ export function CatalogTable<T extends { id: string; activo?: boolean }>({
   emptyMessage = 'No se encontraron registros.',
   showActions = true,
 }: CatalogTableProps<T>) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left">
-        {/* ── Header ─────────────────────────────────────────────────────── */}
-        <thead>
-          <tr className="border-b border-gray-200">
-            {columns.map((col) => (
-              <th
-                key={col.key}
-                className={`px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${col.className ?? ''}`}
+  const dataTableColumns = useMemo<DataTableColumn<T>[]>(() => {
+    const cols: DataTableColumn<T>[] = columns.map((col) => ({
+      key: col.key,
+      header: col.header,
+      headerClassName: col.className,
+      cellClassName: col.className,
+      render: (item) =>
+        col.render
+          ? col.render(item)
+          : ((item as Record<string, unknown>)[col.key] as React.ReactNode),
+    }));
+
+    if (showActions) {
+      cols.push({
+        key: '__actions',
+        header: 'Acciones',
+        headerClassName: 'text-right',
+        cellClassName: 'text-right',
+        render: (item) => (
+          <div className="flex items-center justify-end gap-3">
+            {/* Active / Inactive toggle */}
+            {onToggleActive && (
+              <button
+                type="button"
+                onClick={() => onToggleActive(item)}
+                className="focus:outline-none"
               >
-                {col.header}
-              </th>
-            ))}
-            {showActions && (
-              <th className="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider text-right">
-                Acciones
-              </th>
+                <Badge
+                  variant="outline"
+                  className={`px-1.5 py-0 text-[10px] cursor-pointer select-none ${
+                    (item as Record<string, unknown>).activo
+                      ? 'border-green-300 bg-green-50 text-green-700'
+                      : 'border-red-300 bg-red-50 text-red-700'
+                  }`}
+                >
+                  {(item as Record<string, unknown>).activo ? 'Activo' : 'Inactivo'}
+                </Badge>
+              </button>
             )}
-          </tr>
-        </thead>
 
-        {/* ── Body ───────────────────────────────────────────────────────── */}
-        <tbody className="divide-y divide-gray-100">
-          {isLoading ? (
-            <SkeletonRows columns={columns.length} showActions={showActions} />
-          ) : data.length === 0 ? (
-            <tr>
-              <td
-                colSpan={columns.length + (showActions ? 1 : 0)}
-                className="px-6 py-12 text-center text-sm text-gray-500"
+            {/* Edit button */}
+            {onEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onEdit(item)}
               >
-                {emptyMessage}
-              </td>
-            </tr>
-          ) : (
-            data.map((item) => (
-              <tr
-                key={item.id}
-                className="hover:bg-gray-50 transition-colors duration-150"
-              >
-                {columns.map((col) => (
-                  <td
-                    key={col.key}
-                    className={`px-6 py-4 text-sm text-gray-900 ${col.className ?? ''}`}
-                  >
-                    {col.render
-                      ? col.render(item)
-                      : (item as Record<string, unknown>)[col.key] as React.ReactNode}
-                  </td>
-                ))}
+                Editar
+              </Button>
+            )}
+          </div>
+        ),
+      });
+    }
 
-                {showActions && (
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-3">
-                      {/* Active / Inactive toggle */}
-                      {onToggleActive && (
-                        <button
-                          type="button"
-                          onClick={() => onToggleActive(item)}
-                          className="focus:outline-none"
-                        >
-                          <Badge
-                            variant="outline"
-                            className={`px-1.5 py-0 text-[10px] cursor-pointer select-none ${
-                              (item as Record<string, unknown>).activo
-                                ? 'border-green-300 bg-green-50 text-green-700'
-                                : 'border-red-300 bg-red-50 text-red-700'
-                            }`}
-                          >
-                            {(item as Record<string, unknown>).activo ? 'Activo' : 'Inactivo'}
-                          </Badge>
-                        </button>
-                      )}
+    return cols;
+  }, [columns, showActions, onEdit, onToggleActive]);
 
-                      {/* Edit button */}
-                      {onEdit && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onEdit(item)}
-                        >
-                          Editar
-                        </Button>
-                      )}
-                    </div>
-                  </td>
-                )}
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
+  return (
+    <DataTable<T>
+      columns={dataTableColumns}
+      data={data}
+      getRowKey={(item, index) => String(item.id ?? index)}
+      isLoading={isLoading}
+      loadingRows={5}
+      emptyMessage={emptyMessage}
+    />
   );
 }

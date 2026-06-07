@@ -1396,62 +1396,75 @@ function SucursalesContent() {
               <ReceiptPercentIcon className="h-4 w-4" />
               Reglas Fiscales de la Sucursal
             </h3>
-            {branchTaxRules.length > 0 ? (
-              <div className="border rounded-lg overflow-hidden mb-3">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="text-left px-3 py-2 font-medium text-gray-700">Regla</th>
-                      <th className="text-left px-3 py-2 font-medium text-gray-700">Tipo</th>
-                      <th className="text-right px-3 py-2 font-medium text-gray-700">Tasa</th>
-                      <th className="text-center px-3 py-2 font-medium text-gray-700">Incluido</th>
-                      <th className="text-right px-3 py-2 font-medium text-gray-700"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {branchTaxRules.map((btr: BranchTaxRule) => (
-                      <tr key={btr.id} className="hover:bg-gray-50">
-                        <td className="px-3 py-2">
-                          <span className="font-medium text-gray-900">{btr.name}</span>
-                          <span className="ml-2 text-xs text-gray-500 font-mono">{btr.code}</span>
-                        </td>
-                        <td className="px-3 py-2">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                            {btr.taxType}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 text-right font-medium">{btr.rate}%</td>
-                        <td className="px-3 py-2 text-center">
-                          {btr.isIncludedInPrice ? (
-                            <CheckCircleIcon className="h-4 w-4 text-green-500 mx-auto" />
-                          ) : (
-                            <XCircleIcon className="h-4 w-4 text-gray-400 mx-auto" />
-                          )}
-                        </td>
-                        <td className="px-3 py-2 text-right">
-                          <button
-                            onClick={async () => {
-                              try {
-                                await removeTaxRule.mutateAsync({ branchId: editingBranch.id, taxRuleId: btr.taxRuleId });
-                                toast.success('Regla fiscal removida');
-                              } catch (err: any) {
-                                toast.error(err.response?.data?.message || 'Error al remover regla');
-                              }
-                            }}
-                            className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
-                            title="Quitar regla"
-                          >
-                            <TrashIcon className="h-4 w-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500 mb-3 italic">No hay reglas fiscales asignadas a esta sucursal.</p>
-            )}
+            <div className="border rounded-lg overflow-hidden mb-3">
+              <DataTable<BranchTaxRule>
+                columns={[
+                  {
+                    key: 'name',
+                    header: 'Regla',
+                    render: (btr) => (
+                      <>
+                        <span className="font-medium text-gray-900">{btr.name}</span>
+                        <span className="ml-2 text-xs text-gray-500 font-mono">{btr.code}</span>
+                      </>
+                    ),
+                  },
+                  {
+                    key: 'taxType',
+                    header: 'Tipo',
+                    render: (btr) => (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                        {btr.taxType}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: 'rate',
+                    header: 'Tasa',
+                    headerClassName: 'text-right',
+                    cellClassName: 'text-right font-medium',
+                    render: (btr) => <>{btr.rate}%</>,
+                  },
+                  {
+                    key: 'isIncludedInPrice',
+                    header: 'Incluido',
+                    headerClassName: 'text-center',
+                    cellClassName: 'text-center',
+                    render: (btr) =>
+                      btr.isIncludedInPrice ? (
+                        <CheckCircleIcon className="h-4 w-4 text-green-500 mx-auto" />
+                      ) : (
+                        <XCircleIcon className="h-4 w-4 text-gray-400 mx-auto" />
+                      ),
+                  },
+                  {
+                    key: 'actions',
+                    header: '',
+                    headerClassName: 'text-right',
+                    cellClassName: 'text-right',
+                    render: (btr) => (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await removeTaxRule.mutateAsync({ branchId: editingBranch.id, taxRuleId: btr.taxRuleId });
+                            toast.success('Regla fiscal removida');
+                          } catch (err: any) {
+                            toast.error(err.response?.data?.message || 'Error al remover regla');
+                          }
+                        }}
+                        className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                        title="Quitar regla"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    ),
+                  },
+                ]}
+                data={branchTaxRules}
+                getRowKey={(btr, i) => String(btr.id ?? i)}
+                emptyMessage="No hay reglas fiscales asignadas a esta sucursal."
+              />
+            </div>
             {/* Add tax rule */}
             <div className="flex items-center gap-2">
               <select
@@ -1543,64 +1556,76 @@ function SucursalesContent() {
               Usuarios POS ({posUsers.length})
             </h4>
 
-            {posUsers.length > 0 ? (
-              <div className="border rounded-lg overflow-hidden mb-3">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="text-left px-3 py-2 font-medium text-gray-700">Nombre</th>
-                      <th className="text-left px-3 py-2 font-medium text-gray-700">Email</th>
-                      <th className="text-left px-3 py-2 font-medium text-gray-700">Rol</th>
-                      <th className="text-center px-3 py-2 font-medium text-gray-700">Estado</th>
-                      <th className="text-right px-3 py-2 font-medium text-gray-700"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {posUsers.map((user: PosUser) => (
-                      <tr key={user.id} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 font-medium text-gray-900">
-                          {user.firstName} {user.lastName}
-                        </td>
-                        <td className="px-3 py-2 text-gray-600">{user.email}</td>
-                        <td className="px-3 py-2">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
-                            {user.roleCode}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2 text-center">
-                          {user.isActive ? (
-                            <CheckCircleIcon className="h-4 w-4 text-green-500 mx-auto" />
-                          ) : (
-                            <XCircleIcon className="h-4 w-4 text-gray-400 mx-auto" />
-                          )}
-                        </td>
-                        <td className="px-3 py-2 text-right">
-                          {user.isActive && (
-                            <button
-                              onClick={async () => {
-                                if (!(await confirmAction(`Desactivar usuario ${user.firstName} ${user.lastName}?`))) return;
-                                try {
-                                  await deactivatePosUser.mutateAsync({ branchId: editingBranch.id, userId: user.id });
-                                  toast.success('Usuario POS desactivado');
-                                } catch (err: any) {
-                                  toast.error(err.response?.data?.message || 'Error al desactivar usuario');
-                                }
-                              }}
-                              className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
-                              title="Desactivar usuario"
-                            >
-                              <XCircleIcon className="h-4 w-4" />
-                            </button>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500 mb-3 italic">No hay usuarios POS asignados a esta sucursal.</p>
-            )}
+            <div className="border rounded-lg overflow-hidden mb-3">
+              <DataTable<PosUser>
+                columns={[
+                  {
+                    key: 'name',
+                    header: 'Nombre',
+                    cellClassName: 'font-medium text-gray-900',
+                    render: (user) => (
+                      <>
+                        {user.firstName} {user.lastName}
+                      </>
+                    ),
+                  },
+                  {
+                    key: 'email',
+                    header: 'Email',
+                    cellClassName: 'text-gray-600',
+                    render: (user) => <>{user.email}</>,
+                  },
+                  {
+                    key: 'roleCode',
+                    header: 'Rol',
+                    render: (user) => (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                        {user.roleCode}
+                      </span>
+                    ),
+                  },
+                  {
+                    key: 'isActive',
+                    header: 'Estado',
+                    headerClassName: 'text-center',
+                    cellClassName: 'text-center',
+                    render: (user) =>
+                      user.isActive ? (
+                        <CheckCircleIcon className="h-4 w-4 text-green-500 mx-auto" />
+                      ) : (
+                        <XCircleIcon className="h-4 w-4 text-gray-400 mx-auto" />
+                      ),
+                  },
+                  {
+                    key: 'actions',
+                    header: '',
+                    headerClassName: 'text-right',
+                    cellClassName: 'text-right',
+                    render: (user) =>
+                      user.isActive ? (
+                        <button
+                          onClick={async () => {
+                            if (!(await confirmAction(`Desactivar usuario ${user.firstName} ${user.lastName}?`))) return;
+                            try {
+                              await deactivatePosUser.mutateAsync({ branchId: editingBranch.id, userId: user.id });
+                              toast.success('Usuario POS desactivado');
+                            } catch (err: any) {
+                              toast.error(err.response?.data?.message || 'Error al desactivar usuario');
+                            }
+                          }}
+                          className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                          title="Desactivar usuario"
+                        >
+                          <XCircleIcon className="h-4 w-4" />
+                        </button>
+                      ) : null,
+                  },
+                ]}
+                data={posUsers}
+                getRowKey={(user, i) => String(user.id ?? i)}
+                emptyMessage="No hay usuarios POS asignados a esta sucursal."
+              />
+            </div>
 
             {/* Create POS User Form */}
             {!showPosUserForm ? (
@@ -1697,136 +1722,143 @@ function SucursalesContent() {
               puede usarse en otra maquina hasta liberarla o revocarla.
             </p>
 
-            {posLicenses.length > 0 ? (
-              <div className="border rounded-lg overflow-hidden mb-3">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="text-left px-3 py-2 font-medium text-gray-700">Clave</th>
-                      <th className="text-left px-3 py-2 font-medium text-gray-700">Etiqueta</th>
-                      <th className="text-left px-3 py-2 font-medium text-gray-700">Estado</th>
-                      <th className="text-left px-3 py-2 font-medium text-gray-700">Equipo</th>
-                      <th className="text-right px-3 py-2 font-medium text-gray-700">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {posLicenses.map((license: PosLicense) => (
-                      <tr key={license.id} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 font-mono text-xs text-gray-900">
-                          {license.licenseKey}
-                        </td>
-                        <td className="px-3 py-2 text-gray-700">
-                          {license.label || <span className="text-gray-400 italic">sin etiqueta</span>}
-                        </td>
-                        <td className="px-3 py-2">
-                          {license.status === 'active' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                              <LockClosedIcon className="h-3 w-3" />
-                              Activa
-                            </span>
-                          )}
-                          {license.status === 'inactive' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-                              <LockOpenIcon className="h-3 w-3" />
-                              Sin canjear
-                            </span>
-                          )}
-                          {license.status === 'revoked' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                              <XCircleIcon className="h-3 w-3" />
-                              Revocada
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 text-xs text-gray-600">
-                          {license.status === 'active' && license.hardwareFingerprint ? (
-                            <div className="flex items-center gap-1">
-                              <ComputerDesktopIcon className="h-3 w-3 text-gray-400 shrink-0" />
-                              <div>
-                                <div className="font-medium text-gray-800">
-                                  {(license.hardwareInfo?.hostname as string | undefined) ??
-                                    `HW-${license.hardwareFingerprint.slice(0, 12).toUpperCase()}`}
-                                </div>
-                                {license.hardwareInfo?.osPlatform && (
-                                  <div className="text-gray-500">
-                                    {license.hardwareInfo.osPlatform as string}{' '}
-                                    {(license.hardwareInfo.osRelease as string | undefined) ?? ''}
-                                  </div>
-                                )}
-                              </div>
+            <div className="border rounded-lg overflow-hidden mb-3">
+              <DataTable<PosLicense>
+                columns={[
+                  {
+                    key: 'licenseKey',
+                    header: 'Clave',
+                    cellClassName: 'font-mono text-xs text-gray-900',
+                    render: (license) => <>{license.licenseKey}</>,
+                  },
+                  {
+                    key: 'label',
+                    header: 'Etiqueta',
+                    cellClassName: 'text-gray-700',
+                    render: (license) =>
+                      license.label || <span className="text-gray-400 italic">sin etiqueta</span>,
+                  },
+                  {
+                    key: 'status',
+                    header: 'Estado',
+                    render: (license) => (
+                      <>
+                        {license.status === 'active' && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                            <LockClosedIcon className="h-3 w-3" />
+                            Activa
+                          </span>
+                        )}
+                        {license.status === 'inactive' && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                            <LockOpenIcon className="h-3 w-3" />
+                            Sin canjear
+                          </span>
+                        )}
+                        {license.status === 'revoked' && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                            <XCircleIcon className="h-3 w-3" />
+                            Revocada
+                          </span>
+                        )}
+                      </>
+                    ),
+                  },
+                  {
+                    key: 'hardware',
+                    header: 'Equipo',
+                    cellClassName: 'text-xs text-gray-600',
+                    render: (license) =>
+                      license.status === 'active' && license.hardwareFingerprint ? (
+                        <div className="flex items-center gap-1">
+                          <ComputerDesktopIcon className="h-3 w-3 text-gray-400 shrink-0" />
+                          <div>
+                            <div className="font-medium text-gray-800">
+                              {(license.hardwareInfo?.hostname as string | undefined) ??
+                                `HW-${license.hardwareFingerprint.slice(0, 12).toUpperCase()}`}
                             </div>
-                          ) : (
-                            <span className="text-gray-400 italic">no vinculada</span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              onClick={async () => {
-                                try {
-                                  await navigator.clipboard.writeText(license.licenseKey);
-                                  toast.success('Clave copiada al portapapeles');
-                                } catch {
-                                  toast.error('No se pudo copiar la clave');
-                                }
-                              }}
-                              className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
-                              title="Copiar clave"
-                            >
-                              <ClipboardDocumentIcon className="h-4 w-4" />
-                            </button>
-                            {license.status === 'active' && (
-                              <button
-                                onClick={async () => {
-                                  if (!(await confirmAction(
-                                    `Liberar la licencia ${license.licenseKey} del equipo actual? Quedara lista para activarse en otra maquina.`,
-                                  ))) return;
-                                  try {
-                                    await unbindPosLicense.mutateAsync(license.id);
-                                    toast.success('Licencia liberada del equipo');
-                                  } catch (err) {
-                                    const e = err as { response?: { data?: { message?: string } } };
-                                    toast.error(e.response?.data?.message || 'Error al liberar licencia');
-                                  }
-                                }}
-                                className="p-1 rounded hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
-                                title="Liberar del equipo (sigue siendo valida)"
-                              >
-                                <LockOpenIcon className="h-4 w-4" />
-                              </button>
-                            )}
-                            {license.status !== 'revoked' && (
-                              <button
-                                onClick={async () => {
-                                  if (!(await confirmAction(
-                                    `Revocar la licencia ${license.licenseKey} permanentemente? Esta accion no se puede deshacer.`,
-                                  ))) return;
-                                  try {
-                                    await revokePosLicense.mutateAsync({ id: license.id });
-                                    toast.success('Licencia revocada');
-                                  } catch (err) {
-                                    const e = err as { response?: { data?: { message?: string } } };
-                                    toast.error(e.response?.data?.message || 'Error al revocar licencia');
-                                  }
-                                }}
-                                className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
-                                title="Revocar permanentemente"
-                              >
-                                <TrashIcon className="h-4 w-4" />
-                              </button>
+                            {license.hardwareInfo?.osPlatform && (
+                              <div className="text-gray-500">
+                                {license.hardwareInfo.osPlatform as string}{' '}
+                                {(license.hardwareInfo.osRelease as string | undefined) ?? ''}
+                              </div>
                             )}
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500 mb-3 italic">
-                Esta sucursal aun no tiene licencias POS generadas.
-              </p>
-            )}
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 italic">no vinculada</span>
+                      ),
+                  },
+                  {
+                    key: 'actions',
+                    header: 'Acciones',
+                    headerClassName: 'text-right',
+                    cellClassName: 'text-right',
+                    render: (license) => (
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(license.licenseKey);
+                              toast.success('Clave copiada al portapapeles');
+                            } catch {
+                              toast.error('No se pudo copiar la clave');
+                            }
+                          }}
+                          className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
+                          title="Copiar clave"
+                        >
+                          <ClipboardDocumentIcon className="h-4 w-4" />
+                        </button>
+                        {license.status === 'active' && (
+                          <button
+                            onClick={async () => {
+                              if (!(await confirmAction(
+                                `Liberar la licencia ${license.licenseKey} del equipo actual? Quedara lista para activarse en otra maquina.`,
+                              ))) return;
+                              try {
+                                await unbindPosLicense.mutateAsync(license.id);
+                                toast.success('Licencia liberada del equipo');
+                              } catch (err) {
+                                const e = err as { response?: { data?: { message?: string } } };
+                                toast.error(e.response?.data?.message || 'Error al liberar licencia');
+                              }
+                            }}
+                            className="p-1 rounded hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
+                            title="Liberar del equipo (sigue siendo valida)"
+                          >
+                            <LockOpenIcon className="h-4 w-4" />
+                          </button>
+                        )}
+                        {license.status !== 'revoked' && (
+                          <button
+                            onClick={async () => {
+                              if (!(await confirmAction(
+                                `Revocar la licencia ${license.licenseKey} permanentemente? Esta accion no se puede deshacer.`,
+                              ))) return;
+                              try {
+                                await revokePosLicense.mutateAsync({ id: license.id });
+                                toast.success('Licencia revocada');
+                              } catch (err) {
+                                const e = err as { response?: { data?: { message?: string } } };
+                                toast.error(e.response?.data?.message || 'Error al revocar licencia');
+                              }
+                            }}
+                            className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                            title="Revocar permanentemente"
+                          >
+                            <TrashIcon className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    ),
+                  },
+                ]}
+                data={posLicenses}
+                getRowKey={(license, i) => String(license.id ?? i)}
+                emptyMessage="Esta sucursal aun no tiene licencias POS generadas."
+              />
+            </div>
 
             {/* Inline create form */}
             <div className="border rounded-lg p-3 bg-gray-50 flex items-end gap-3">

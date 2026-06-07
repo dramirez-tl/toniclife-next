@@ -355,6 +355,37 @@ function ComisionesContent() {
     },
   ];
 
+  type CommissionRate = { level: string; personalRate: number; teamRate: number; minSales: number };
+  const commissionRateColumns: DataTableColumn<CommissionRate>[] = [
+    {
+      key: 'level',
+      header: 'Nivel',
+      render: (rate) => (
+        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+          {rate.level}
+        </span>
+      ),
+    },
+    {
+      key: 'personalRate',
+      header: 'Comisión Personal',
+      cellClassName: 'text-sm font-semibold text-green-600',
+      render: (rate) => <>{rate.personalRate}%</>,
+    },
+    {
+      key: 'teamRate',
+      header: 'Comisión Equipo',
+      cellClassName: 'text-sm font-semibold text-blue-600',
+      render: (rate) => <>{rate.teamRate}%</>,
+    },
+    {
+      key: 'minSales',
+      header: 'Ventas Mínimas',
+      cellClassName: 'text-sm text-gray-900',
+      render: (rate) => <>{formatCurrency(rate.minSales)}</>,
+    },
+  ];
+
   return (
     <PermissionGuard permissions={['commissions:read', 'commissions:*']}>
     <div className="min-h-screen bg-gray-50">
@@ -535,32 +566,11 @@ function ComisionesContent() {
         <Card className="mb-6">
           <CardContent className="p-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Tasas de Comisión por Nivel</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Nivel</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Comisión Personal</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Comisión Equipo</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Ventas Mínimas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {commissionRates.map((rate) => (
-                    <tr key={rate.level} className="border-b border-gray-100">
-                      <td className="py-3 px-4">
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                          {rate.level}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-sm font-semibold text-green-600">{rate.personalRate}%</td>
-                      <td className="py-3 px-4 text-sm font-semibold text-blue-600">{rate.teamRate}%</td>
-                      <td className="py-3 px-4 text-sm text-gray-900">{formatCurrency(rate.minSales)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              columns={commissionRateColumns}
+              data={commissionRates}
+              getRowKey={(rate) => rate.level}
+            />
           </CardContent>
         </Card>
 

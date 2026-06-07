@@ -26,6 +26,15 @@ import {
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
   useTransfer,
   useApproveTransfer,
   useApplyTransfer,
@@ -425,54 +434,54 @@ export default function TransferDetailPage() {
                 Productos ({transfer.totalItems})
               </h2>
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Producto</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Codigo</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-gray-600">Cantidad</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Lote / CAD</th>
+                <Table className="w-full">
+                  <TableHeader>
+                    <TableRow className="border-b border-gray-200 hover:bg-transparent">
+                      <TableHead className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Producto</TableHead>
+                      <TableHead className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Codigo</TableHead>
+                      <TableHead className="text-center py-3 px-4 text-sm font-semibold text-gray-600">Cantidad</TableHead>
+                      <TableHead className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Lote / CAD</TableHead>
                       {transfer.status === 'applied' && (
                         <>
-                          <th className="text-center py-3 px-4 text-sm font-semibold text-gray-600">Antes</th>
-                          <th className="text-center py-3 px-4 text-sm font-semibold text-gray-600">Despues</th>
+                          <TableHead className="text-center py-3 px-4 text-sm font-semibold text-gray-600">Antes</TableHead>
+                          <TableHead className="text-center py-3 px-4 text-sm font-semibold text-gray-600">Despues</TableHead>
                         </>
                       )}
-                    </tr>
-                  </thead>
-                  <tbody>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {transfer.items.map((item) => (
-                      <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4 font-medium text-gray-900">{item.productName}</td>
-                        <td className="py-3 px-4 text-sm text-gray-500 font-mono">{item.productCode}</td>
-                        <td className="py-3 px-4 text-center font-semibold text-[#3E667D]">{item.quantity}</td>
-                        <td className="py-3 px-4 text-xs">
+                      <TableRow key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <TableCell className="py-3 px-4 font-medium text-gray-900">{item.productName}</TableCell>
+                        <TableCell className="py-3 px-4 text-sm text-gray-500 font-mono">{item.productCode}</TableCell>
+                        <TableCell className="py-3 px-4 text-center font-semibold text-[#3E667D]">{item.quantity}</TableCell>
+                        <TableCell className="py-3 px-4 text-xs">
                           {item.lotNumber
                             ? <><p className="font-mono text-gray-700">{item.lotNumber}</p>{item.expirationDate && <p className="text-gray-400">CAD: {item.expirationDate}</p>}</>
                             : <span className="text-gray-400">—</span>}
-                        </td>
+                        </TableCell>
                         {transfer.status === 'applied' && (
                           <>
-                            <td className="py-3 px-4 text-center text-sm text-gray-500">{item.quantityBefore}</td>
-                            <td className="py-3 px-4 text-center text-sm text-gray-500">{item.quantityAfter}</td>
+                            <TableCell className="py-3 px-4 text-center text-sm text-gray-500">{item.quantityBefore}</TableCell>
+                            <TableCell className="py-3 px-4 text-center text-sm text-gray-500">{item.quantityAfter}</TableCell>
                           </>
                         )}
-                      </tr>
+                      </TableRow>
                     ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="bg-gray-50">
-                      <td colSpan={2} className="py-3 px-4 font-medium text-right text-gray-600">
+                  </TableBody>
+                  <TableFooter>
+                    <TableRow className="bg-gray-50">
+                      <TableCell colSpan={2} className="py-3 px-4 font-medium text-right text-gray-600">
                         Total:
-                      </td>
-                      <td className="py-3 px-4 text-center font-bold text-[#3E667D]">
+                      </TableCell>
+                      <TableCell className="py-3 px-4 text-center font-bold text-[#3E667D]">
                         {transfer.totalQuantity} unidades
-                      </td>
-                      <td />
-                      {transfer.status === 'applied' && <td colSpan={2} />}
-                    </tr>
-                  </tfoot>
-                </table>
+                      </TableCell>
+                      <TableCell />
+                      {transfer.status === 'applied' && <TableCell colSpan={2} />}
+                    </TableRow>
+                  </TableFooter>
+                </Table>
               </div>
             </div>
 

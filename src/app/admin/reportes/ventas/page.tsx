@@ -12,7 +12,7 @@ import { useActiveBranches } from '@/hooks/useBranches';
 import { useSales, useUpdateSalePaymentMethod } from '@/hooks/usePos';
 import { useAppSelector } from '@/store';
 import { selectUserRoles } from '@/store';
-import type { Sale, SaleQueryParams, PosSaleStatus, PosPaymentMethod } from '@/types/pos';
+import type { Sale, SaleItem, SaleQueryParams, PosSaleStatus, PosPaymentMethod } from '@/types/pos';
 import { posService } from '@/services/pos.service';
 import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
 import { toast } from 'sonner';
@@ -242,6 +242,43 @@ function SaleDetailModal({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
 
   const currency = sale.currencyCode || 'MXN';
 
+  const itemColumns: DataTableColumn<SaleItem>[] = [
+    {
+      key: 'product',
+      header: 'Producto',
+      headerClassName: 'text-left px-4 py-2.5 text-xs font-medium text-gray-500',
+      cellClassName: 'px-4 py-3',
+      render: (item) => (
+        <>
+          <p className="font-medium text-gray-900">{item.productName}</p>
+          <p className="text-xs text-gray-400">{item.productSku}</p>
+          {item.lotNumber && <p className="text-xs text-gray-400">Lote: {item.lotNumber}</p>}
+        </>
+      ),
+    },
+    {
+      key: 'quantity',
+      header: 'Cant.',
+      headerClassName: 'text-center px-3 py-2.5 text-xs font-medium text-gray-500',
+      cellClassName: 'px-3 py-3 text-center text-gray-700',
+      render: (item) => item.quantity,
+    },
+    {
+      key: 'unitPrice',
+      header: 'P. Unit.',
+      headerClassName: 'text-right px-3 py-2.5 text-xs font-medium text-gray-500',
+      cellClassName: 'px-3 py-3 text-right text-gray-700',
+      render: (item) => formatCurrency(item.unitPrice, currency),
+    },
+    {
+      key: 'total',
+      header: 'Total',
+      headerClassName: 'text-right px-4 py-2.5 text-xs font-medium text-gray-500',
+      cellClassName: 'px-4 py-3 text-right font-medium text-gray-900',
+      render: (item) => formatCurrency(item.total, currency),
+    },
+  ];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
@@ -314,30 +351,11 @@ function SaleDetailModal({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
             <div>
               <h3 className="text-sm font-semibold text-gray-700 mb-3">Productos</h3>
               <div className="border border-gray-200 rounded-xl overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500">Producto</th>
-                      <th className="text-center px-3 py-2.5 text-xs font-medium text-gray-500">Cant.</th>
-                      <th className="text-right px-3 py-2.5 text-xs font-medium text-gray-500">P. Unit.</th>
-                      <th className="text-right px-4 py-2.5 text-xs font-medium text-gray-500">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {sale.items.map((item) => (
-                      <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3">
-                          <p className="font-medium text-gray-900">{item.productName}</p>
-                          <p className="text-xs text-gray-400">{item.productSku}</p>
-                          {item.lotNumber && <p className="text-xs text-gray-400">Lote: {item.lotNumber}</p>}
-                        </td>
-                        <td className="px-3 py-3 text-center text-gray-700">{item.quantity}</td>
-                        <td className="px-3 py-3 text-right text-gray-700">{formatCurrency(item.unitPrice, currency)}</td>
-                        <td className="px-4 py-3 text-right font-medium text-gray-900">{formatCurrency(item.total, currency)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <DataTable<SaleItem>
+                  columns={itemColumns}
+                  data={sale.items}
+                  getRowKey={(item, i) => String(item.id ?? i)}
+                />
               </div>
             </div>
           )}

@@ -7,6 +7,15 @@ import { useUsers } from '@/hooks/useUsers';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
 import type { User } from '@/types/user';
 
 function toDateOnly(dateStr: string): string {
@@ -366,52 +375,52 @@ export default function VentasUsuarioPage() {
               <span className="text-sm font-medium text-gray-700">Detalle de ventas</span>
               <span className="text-xs text-gray-400">{data.rows.length.toLocaleString()} registros</span>
             </div>
-            <table className="min-w-full">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Fecha</th>
-                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">No. Documento</th>
-                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Sucursal</th>
-                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">ID Cliente</th>
-                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Cliente</th>
-                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Usuario</th>
-                  <th className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Venta Total</th>
-                  <th className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Venta USD</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="min-w-full">
+              <TableHeader>
+                <TableRow className="border-b border-gray-200 bg-gray-50 hover:bg-gray-50">
+                  <TableHead className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Fecha</TableHead>
+                  <TableHead className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">No. Documento</TableHead>
+                  <TableHead className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Sucursal</TableHead>
+                  <TableHead className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">ID Cliente</TableHead>
+                  <TableHead className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Cliente</TableHead>
+                  <TableHead className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Usuario</TableHead>
+                  <TableHead className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Venta Total</TableHead>
+                  <TableHead className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Venta USD</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {data.rows.map((row, idx) => (
-                  <tr
+                  <TableRow
                     key={`${row.saleNumber}-${idx}`}
                     className={`border-b border-gray-100 transition-colors hover:bg-[#3E667D]/[0.03] ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
                   >
-                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{formatSaleDate(row.date)}</td>
-                    <td className="px-4 py-3 text-sm font-mono font-medium text-gray-900 whitespace-nowrap">{row.saleNumber}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap max-w-[200px] truncate" title={row.branchName}>{row.branchName}</td>
-                    <td className="px-4 py-3 text-sm font-mono text-gray-500 whitespace-nowrap">{row.customerId}</td>
-                    <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap max-w-[220px] truncate" title={row.customerName}>{row.customerName}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{row.sellerUsername}</td>
-                    <td className="px-4 py-3 text-sm text-right tabular-nums whitespace-nowrap font-medium text-gray-900">
+                    <TableCell className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{formatSaleDate(row.date)}</TableCell>
+                    <TableCell className="px-4 py-3 text-sm font-mono font-medium text-gray-900 whitespace-nowrap">{row.saleNumber}</TableCell>
+                    <TableCell className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap max-w-[200px] truncate" title={row.branchName}>{row.branchName}</TableCell>
+                    <TableCell className="px-4 py-3 text-sm font-mono text-gray-500 whitespace-nowrap">{row.customerId}</TableCell>
+                    <TableCell className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap max-w-[220px] truncate" title={row.customerName}>{row.customerName}</TableCell>
+                    <TableCell className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{row.sellerUsername}</TableCell>
+                    <TableCell className="px-4 py-3 text-sm text-right tabular-nums whitespace-nowrap font-medium text-gray-900">
                       {row.total > 0 ? formatCurrency(row.total, row.currencyCode === 'USD' ? 'USD' : 'MXN') : formatCurrency(0, 'MXN')}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-right tabular-nums whitespace-nowrap text-gray-600">
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-sm text-right tabular-nums whitespace-nowrap text-gray-600">
                       {row.totalUsd > 0 ? formatCurrency(row.totalUsd, 'USD') : formatCurrency(0, 'USD')}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-[#3E667D]/20 bg-[#3E667D]/[0.04]">
-                  <td colSpan={6} className="px-4 py-4 text-sm font-bold text-[#3E667D]">TOTAL</td>
-                  <td className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">
+              </TableBody>
+              <TableFooter className="bg-transparent">
+                <TableRow className="border-t-2 border-[#3E667D]/20 bg-[#3E667D]/[0.04] hover:bg-[#3E667D]/[0.04]">
+                  <TableCell colSpan={6} className="px-4 py-4 text-sm font-bold text-[#3E667D]">TOTAL</TableCell>
+                  <TableCell className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">
                     {formatCurrency(data.summary.totalSales, 'MXN')}
-                  </td>
-                  <td className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">
+                  </TableCell>
+                  <TableCell className="px-4 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">
                     {formatCurrency(data.summary.totalUsd, 'USD')}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
+                  </TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
           </div>
         )}
       </div>

@@ -15,6 +15,14 @@ import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
   usePromotion,
   usePromotionComponents,
   useReplacePromotionComponents,
@@ -448,17 +456,17 @@ export default function EditarPromocionPage({ params }: { params: Promise<{ id: 
                   No hay reglas configuradas. Sin reglas, la promoción no se puede canjear en ningún país.
                 </div>
               ) : (
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">País</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Puntos mínimos</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Consume puntos</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
-                      <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
+                <Table className="w-full">
+                  <TableHeader className="bg-gray-50 border-b">
+                    <TableRow>
+                      <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">País</TableHead>
+                      <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Puntos mínimos</TableHead>
+                      <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Consume puntos</TableHead>
+                      <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estado</TableHead>
+                      <TableHead className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody className="divide-y divide-gray-200">
                     {(rules ?? []).map((rule) => (
                       <RuleRow
                         key={rule.id}
@@ -476,8 +484,8 @@ export default function EditarPromocionPage({ params }: { params: Promise<{ id: 
                         removePending={removeRule.isPending}
                       />
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               )}
             </div>
 
@@ -579,9 +587,9 @@ function RuleRow({
   const dirty = min !== initialMin || consumes !== initialConsumes;
 
   return (
-    <tr className="hover:bg-gray-50">
-      <td className="px-4 py-2 text-sm font-medium">{countryLabel}</td>
-      <td className="px-4 py-2">
+    <TableRow className="hover:bg-gray-50">
+      <TableCell className="px-4 py-2 text-sm font-medium">{countryLabel}</TableCell>
+      <TableCell className="px-4 py-2">
         <input
           type="number"
           min={0}
@@ -590,8 +598,8 @@ function RuleRow({
           onChange={(e) => setMin(Number(e.target.value))}
           className="w-32 px-2 py-1 border border-gray-300 rounded text-sm text-right"
         />
-      </td>
-      <td className="px-4 py-2">
+      </TableCell>
+      <TableCell className="px-4 py-2">
         <label className="flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
@@ -603,8 +611,8 @@ function RuleRow({
             {consumes ? 'Sí, consume' : 'Solo desbloquea'}
           </span>
         </label>
-      </td>
-      <td className="px-4 py-2">
+      </TableCell>
+      <TableCell className="px-4 py-2">
         <span
           className={
             isActive
@@ -614,8 +622,8 @@ function RuleRow({
         >
           {isActive ? 'Activa' : 'Inactiva'}
         </span>
-      </td>
-      <td className="px-4 py-2 text-right">
+      </TableCell>
+      <TableCell className="px-4 py-2 text-right">
         <div className="inline-flex gap-2">
           <Button
             variant="default"
@@ -638,7 +646,7 @@ function RuleRow({
             Quitar
           </Button>
         </div>
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }

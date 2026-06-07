@@ -8,6 +8,15 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
   DocumentTextIcon,
   ArrowLeftIcon,
   ArrowDownTrayIcon,
@@ -330,74 +339,74 @@ export default function InvoiceDetailPage() {
               <CardContent className="p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Conceptos</h2>
                 <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-2 px-3 text-sm font-medium text-gray-600">
+                  <Table className="w-full">
+                    <TableHeader>
+                      <TableRow className="border-b border-gray-200">
+                        <TableHead className="text-left py-2 px-3 text-sm font-medium text-gray-600">
                           Descripción
-                        </th>
-                        <th className="text-right py-2 px-3 text-sm font-medium text-gray-600">
+                        </TableHead>
+                        <TableHead className="text-right py-2 px-3 text-sm font-medium text-gray-600">
                           Cantidad
-                        </th>
-                        <th className="text-right py-2 px-3 text-sm font-medium text-gray-600">
+                        </TableHead>
+                        <TableHead className="text-right py-2 px-3 text-sm font-medium text-gray-600">
                           P. Unitario
-                        </th>
-                        <th className="text-right py-2 px-3 text-sm font-medium text-gray-600">
+                        </TableHead>
+                        <TableHead className="text-right py-2 px-3 text-sm font-medium text-gray-600">
                           Importe
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {invoice.items?.map((item: any, index: number) => (
-                        <tr key={item.id || index} className="border-b border-gray-100">
-                          <td className="py-3 px-3">
+                        <TableRow key={item.id || index} className="border-b border-gray-100">
+                          <TableCell className="py-3 px-3">
                             <p className="font-medium text-gray-900">{item.description}</p>
                             <p className="text-xs text-gray-500">
                               Clave: {item.sat_product_code} | Unidad: {item.sat_unit_code}
                             </p>
-                          </td>
-                          <td className="py-3 px-3 text-right text-gray-900">
+                          </TableCell>
+                          <TableCell className="py-3 px-3 text-right text-gray-900">
                             {item.quantity}
-                          </td>
-                          <td className="py-3 px-3 text-right text-gray-900">
+                          </TableCell>
+                          <TableCell className="py-3 px-3 text-right text-gray-900">
                             {formatCurrency(item.unit_price || 0)}
-                          </td>
-                          <td className="py-3 px-3 text-right font-medium text-gray-900">
+                          </TableCell>
+                          <TableCell className="py-3 px-3 text-right font-medium text-gray-900">
                             {formatCurrency(item.total || 0)}
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t-2 border-gray-200">
-                        <td colSpan={3} className="py-3 px-3 text-right font-medium">
+                    </TableBody>
+                    <TableFooter>
+                      <TableRow className="border-t-2 border-gray-200">
+                        <TableCell colSpan={3} className="py-3 px-3 text-right font-medium">
                           Subtotal:
-                        </td>
-                        <td className="py-3 px-3 text-right font-medium">
+                        </TableCell>
+                        <TableCell className="py-3 px-3 text-right font-medium">
                           {formatCurrency(invoice.subtotal || 0)}
-                        </td>
-                      </tr>
-                      <tr>
-                        <td colSpan={3} className="py-2 px-3 text-right text-gray-600">
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell colSpan={3} className="py-2 px-3 text-right text-gray-600">
                           IVA ({((Number(invoice.tax_rate) || 0.16) * 100).toFixed(0)}%):
-                        </td>
-                        <td className="py-2 px-3 text-right">
+                        </TableCell>
+                        <TableCell className="py-2 px-3 text-right">
                           {formatCurrency(invoice.tax_amount || 0)}
-                        </td>
-                      </tr>
-                      <tr className="bg-gray-50">
-                        <td
+                        </TableCell>
+                      </TableRow>
+                      <TableRow className="bg-gray-50">
+                        <TableCell
                           colSpan={3}
                           className="py-3 px-3 text-right font-bold text-gray-900"
                         >
                           Total:
-                        </td>
-                        <td className="py-3 px-3 text-right font-bold text-xl text-[#3E667D]">
+                        </TableCell>
+                        <TableCell className="py-3 px-3 text-right font-bold text-xl text-[#3E667D]">
                           {formatCurrency(invoice.total || 0)}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                        </TableCell>
+                      </TableRow>
+                    </TableFooter>
+                  </Table>
                 </div>
               </CardContent>
             </Card>

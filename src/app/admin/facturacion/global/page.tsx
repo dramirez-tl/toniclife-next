@@ -19,6 +19,14 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useCreateGlobalInvoice } from '@/hooks/useBilling';
 import { useOrders } from '@/hooks/useOrders';
 import { useActiveBranches } from '@/hooks/useBranches';
@@ -376,41 +384,41 @@ export default function GlobalInvoicePage() {
                     <>
                       {/* Table */}
                       <div className="overflow-x-auto">
-                        <table className="w-full">
-                          <thead>
-                            <tr className="bg-gray-50 border-b">
-                              <th className="px-4 py-3 text-left w-12">
+                        <Table className="w-full">
+                          <TableHeader>
+                            <TableRow className="bg-gray-50 border-b hover:bg-gray-50">
+                              <TableHead className="px-4 py-3 text-left w-12">
                                 <input
                                   type="checkbox"
                                   checked={allSelected}
                                   onChange={toggleSelectAll}
                                   className="rounded border-gray-300 text-[#3E667D] focus:ring-[#3E667D]"
                                 />
-                              </th>
-                              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                              </TableHead>
+                              <TableHead className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
                                 ID Venta
-                              </th>
-                              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                              </TableHead>
+                              <TableHead className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
                                 Cliente
-                              </th>
-                              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
+                              </TableHead>
+                              <TableHead className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
                                 Método de Pago
-                              </th>
-                              <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
+                              </TableHead>
+                              <TableHead className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
                                 Total
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-100">
+                              </TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody className="divide-y divide-gray-100">
                             {orders.map((order) => (
-                              <tr
+                              <TableRow
                                 key={order.id}
                                 className={`hover:bg-gray-50 transition-colors cursor-pointer ${
                                   selectedOrderIds.has(order.id) ? 'bg-[#3E667D]/5' : ''
                                 }`}
                                 onClick={() => toggleOrder(order.id)}
                               >
-                                <td className="px-4 py-3">
+                                <TableCell className="px-4 py-3">
                                   <input
                                     type="checkbox"
                                     checked={selectedOrderIds.has(order.id)}
@@ -418,8 +426,8 @@ export default function GlobalInvoicePage() {
                                     onClick={(e) => e.stopPropagation()}
                                     className="rounded border-gray-300 text-[#3E667D] focus:ring-[#3E667D]"
                                   />
-                                </td>
-                                <td className="px-4 py-3 text-sm font-medium">
+                                </TableCell>
+                                <TableCell className="px-4 py-3 text-sm font-medium">
                                   <a
                                     href={`/admin/pedidos/${order.id}`}
                                     target="_blank"
@@ -429,20 +437,20 @@ export default function GlobalInvoicePage() {
                                   >
                                     {getOrderDisplay(order)}
                                   </a>
-                                </td>
-                                <td className="px-4 py-3 text-sm text-gray-600">
+                                </TableCell>
+                                <TableCell className="px-4 py-3 text-sm text-gray-600">
                                   {getCustomerName(order)}
-                                </td>
-                                <td className="px-4 py-3 text-sm text-gray-600">
+                                </TableCell>
+                                <TableCell className="px-4 py-3 text-sm text-gray-600">
                                   {order.paymentMethodName || 'Sin definir'}
-                                </td>
-                                <td className="px-4 py-3 text-sm font-semibold text-gray-900 text-right">
+                                </TableCell>
+                                <TableCell className="px-4 py-3 text-sm font-semibold text-gray-900 text-right">
                                   {formatCurrency(order.total)}
-                                </td>
-                              </tr>
+                                </TableCell>
+                              </TableRow>
                             ))}
-                          </tbody>
-                        </table>
+                          </TableBody>
+                        </Table>
                       </div>
 
                       {/* Footer: Selection summary + Payment config + Submit */}

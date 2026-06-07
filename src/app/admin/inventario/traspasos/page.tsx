@@ -24,6 +24,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { DataTable, type DataTableColumn } from '@/components/ui';
 import {
   useTransfers,
   useApproveTransfer,
@@ -226,6 +227,139 @@ function TraspasosContent() {
     applied: appliedStatsData?.total ?? 0,
   };
 
+  const columns: DataTableColumn<TransferDto>[] = useMemo(() => [
+    {
+      key: 'movementNumber',
+      header: '# Movimiento',
+      render: (transfer) => (
+        <Link
+          href={`/admin/inventario/traspasos/${transfer.id}`}
+          className="font-mono font-semibold text-[#3E667D] hover:underline"
+        >
+          {transfer.movementNumber}
+        </Link>
+      ),
+    },
+    {
+      key: 'route',
+      header: 'Origen → Destino',
+      render: (transfer) => (
+        <div className="flex items-center gap-2">
+          <span className="font-medium">{transfer.branch.name}</span>
+          <ArrowsRightLeftIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+          <span className="font-medium">{transfer.destinationBranch.name}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'totalItems',
+      header: 'Items',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (transfer) => <span className="font-semibold">{transfer.totalItems}</span>,
+    },
+    {
+      key: 'totalQuantity',
+      header: 'Cantidad',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (transfer) => <span className="font-semibold">{transfer.totalQuantity}</span>,
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      render: (transfer) => getStatusBadge(transfer.status),
+    },
+    {
+      key: 'requestedAt',
+      header: 'Solicitado',
+      cellClassName: 'text-sm text-gray-600',
+      render: (transfer) => {
+        const tz = branches?.find(b => b.code === transfer.branch.code)?.timezone || DEFAULT_TIMEZONE;
+        return (
+          <div>
+            <p>{inventoryService.formatDateTime(transfer.requestedAt, tz)}<span className="text-gray-400"> · {getTimezoneShortLabel(tz)}</span></p>
+            {transfer.requestedBy && (
+              <p className="text-xs text-gray-500">por {transfer.requestedBy.name}</p>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'actions',
+      header: 'Acciones',
+      headerClassName: 'text-right',
+      render: (transfer) => (
+        <div className="flex items-center justify-end gap-1">
+          <Link href={`/admin/inventario/traspasos/${transfer.id}`}>
+            <Button variant="ghost" size="icon" className="hover:bg-blue-50" title="Ver Detalle">
+              <EyeIcon className="h-4 w-4 text-blue-600" />
+            </Button>
+          </Link>
+
+          {transfer.status === 'pending_approval' && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleApprove(transfer)}
+                className="hover:bg-green-50 disabled:opacity-40"
+                title={currentUser?.id === transfer.requestedBy?.id ? 'No puedes aprobar tu propio traspaso' : 'Aprobar'}
+                disabled={approveTransfer.isPending || currentUser?.id === transfer.requestedBy?.id}
+              >
+                <CheckIcon className="h-4 w-4 text-green-600" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setActionModal({ type: 'reject', transfer })}
+                className="hover:bg-orange-50"
+                title="Rechazar"
+              >
+                <XMarkIcon className="h-4 w-4 text-orange-600" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setActionModal({ type: 'cancel', transfer })}
+                className="hover:bg-red-50"
+                title="Cancelar"
+              >
+                <NoSymbolIcon className="h-4 w-4 text-red-600" />
+              </Button>
+            </>
+          )}
+
+          {transfer.status === 'approved' && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleApply(transfer)}
+                className="hover:bg-green-50"
+                title="Aplicar Traspaso"
+                disabled={applyTransfer.isPending}
+              >
+                <PlayIcon className="h-4 w-4 text-green-600" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setActionModal({ type: 'cancel', transfer })}
+                className="hover:bg-red-50"
+                title="Cancelar"
+              >
+                <NoSymbolIcon className="h-4 w-4 text-red-600" />
+              </Button>
+            </>
+          )}
+        </div>
+      ),
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [branches, currentUser, approveTransfer.isPending, applyTransfer.isPending]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -373,167 +507,45 @@ function TraspasosContent() {
         {/* Transfers Table */}
         <Card>
           <CardContent className="p-6">
-            {isLoading ? (
-              <div className="text-center py-12">
-                <div className="inline-block w-12 h-12 border-4 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
-                <p className="mt-4 text-gray-600">Cargando traspasos...</p>
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900"># Movimiento</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Origen → Destino</th>
-                        <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">Items</th>
-                        <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">Cantidad</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Estado</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Solicitado</th>
-                        <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {transfersData?.data.map((transfer) => (
-                        <tr key={transfer.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                          <td className="py-4 px-4">
-                            <Link
-                              href={`/admin/inventario/traspasos/${transfer.id}`}
-                              className="font-mono font-semibold text-[#3E667D] hover:underline"
-                            >
-                              {transfer.movementNumber}
-                            </Link>
-                          </td>
-                          <td className="py-4 px-4">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{transfer.branch.name}</span>
-                              <ArrowsRightLeftIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                              <span className="font-medium">{transfer.destinationBranch.name}</span>
-                            </div>
-                          </td>
-                          <td className="py-4 px-4 text-center">
-                            <span className="font-semibold">{transfer.totalItems}</span>
-                          </td>
-                          <td className="py-4 px-4 text-center">
-                            <span className="font-semibold">{transfer.totalQuantity}</span>
-                          </td>
-                          <td className="py-4 px-4">{getStatusBadge(transfer.status)}</td>
-                          <td className="py-4 px-4 text-sm text-gray-600">
-                            {(() => { const tz = branches?.find(b => b.code === transfer.branch.code)?.timezone || DEFAULT_TIMEZONE; return (
-                            <div>
-                              <p>{inventoryService.formatDateTime(transfer.requestedAt, tz)}<span className="text-gray-400"> · {getTimezoneShortLabel(tz)}</span></p>
-                              {transfer.requestedBy && (
-                                <p className="text-xs text-gray-500">por {transfer.requestedBy.name}</p>
-                              )}
-                            </div>
-                            ); })()}
-                          </td>
-                          <td className="py-4 px-4">
-                            <div className="flex items-center justify-end gap-1">
-                              <Link href={`/admin/inventario/traspasos/${transfer.id}`}>
-                                <Button variant="ghost" size="icon" className="hover:bg-blue-50" title="Ver Detalle">
-                                  <EyeIcon className="h-4 w-4 text-blue-600" />
-                                </Button>
-                              </Link>
-
-                              {transfer.status === 'pending_approval' && (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleApprove(transfer)}
-                                    className="hover:bg-green-50 disabled:opacity-40"
-                                    title={currentUser?.id === transfer.requestedBy?.id ? 'No puedes aprobar tu propio traspaso' : 'Aprobar'}
-                                    disabled={approveTransfer.isPending || currentUser?.id === transfer.requestedBy?.id}
-                                  >
-                                    <CheckIcon className="h-4 w-4 text-green-600" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setActionModal({ type: 'reject', transfer })}
-                                    className="hover:bg-orange-50"
-                                    title="Rechazar"
-                                  >
-                                    <XMarkIcon className="h-4 w-4 text-orange-600" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setActionModal({ type: 'cancel', transfer })}
-                                    className="hover:bg-red-50"
-                                    title="Cancelar"
-                                  >
-                                    <NoSymbolIcon className="h-4 w-4 text-red-600" />
-                                  </Button>
-                                </>
-                              )}
-
-                              {transfer.status === 'approved' && (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => handleApply(transfer)}
-                                    className="hover:bg-green-50"
-                                    title="Aplicar Traspaso"
-                                    disabled={applyTransfer.isPending}
-                                  >
-                                    <PlayIcon className="h-4 w-4 text-green-600" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => setActionModal({ type: 'cancel', transfer })}
-                                    className="hover:bg-red-50"
-                                    title="Cancelar"
-                                  >
-                                    <NoSymbolIcon className="h-4 w-4 text-red-600" />
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            <DataTable<TransferDto>
+              columns={columns}
+              data={transfersData?.data ?? []}
+              getRowKey={(transfer) => transfer.id}
+              isLoading={isLoading}
+              loadingRows={10}
+              emptyState={
+                <div className="text-center py-12">
+                  <ArrowsRightLeftIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">No se encontraron traspasos</h3>
+                  <p className="text-gray-600">Crea un nuevo traspaso para comenzar</p>
                 </div>
+              }
+            />
 
-                {(!transfersData?.data || transfersData.data.length === 0) && (
-                  <div className="text-center py-12">
-                    <ArrowsRightLeftIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">No se encontraron traspasos</h3>
-                    <p className="text-gray-600">Crea un nuevo traspaso para comenzar</p>
-                  </div>
-                )}
-
-                {transfersData && transfersData.totalPages > 1 && (
-                  <div className="mt-6 flex items-center justify-between">
-                    <p className="text-sm text-gray-600">
-                      Página {transfersData.page} de {transfersData.totalPages} ({transfersData.total} traspasos)
-                    </p>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setParams({ page: String(page - 1) })}
-                        disabled={page === 1}
-                      >
-                        Anterior
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setParams({ page: String(page + 1) })}
-                        disabled={page >= transfersData.totalPages}
-                      >
-                        Siguiente
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </>
+            {!isLoading && transfersData && transfersData.totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-between">
+                <p className="text-sm text-gray-600">
+                  Página {transfersData.page} de {transfersData.totalPages} ({transfersData.total} traspasos)
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setParams({ page: String(page - 1) })}
+                    disabled={page === 1}
+                  >
+                    Anterior
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setParams({ page: String(page + 1) })}
+                    disabled={page >= transfersData.totalPages}
+                  >
+                    Siguiente
+                  </Button>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>

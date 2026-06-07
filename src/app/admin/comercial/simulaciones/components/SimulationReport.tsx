@@ -8,6 +8,18 @@ import {
   PrinterIcon,
 } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
+import {
+  DataTable,
+  type DataTableColumn,
+} from '@/components/ui';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import type { RankProjectionResponse } from '@/types/simulacion';
 import { exportReportPdf } from '../utils/exportPdf';
 import { toast } from 'sonner';
@@ -285,32 +297,53 @@ function RequirementsTable({
 }: {
   rows: RankProjectionResponse['requirements'];
 }) {
+  type RequirementRow = RankProjectionResponse['requirements'][number];
+  const columns: DataTableColumn<RequirementRow>[] = [
+    {
+      key: 'label',
+      header: 'Requisito',
+      render: (r) => r.label,
+    },
+    {
+      key: 'required',
+      header: 'Necesita',
+      cellClassName: 'font-bold',
+      render: (r) => r.required,
+    },
+    {
+      key: 'current',
+      header: 'Actualmente',
+      render: (r) => (
+        <span
+          className={
+            r.meets
+              ? 'text-emerald-700 font-semibold'
+              : 'text-red-600 font-semibold'
+          }
+        >
+          {r.current}{' '}
+          {r.meets && <CheckCircleIcon className="inline h-4 w-4 ml-1" />}
+        </span>
+      ),
+    },
+    {
+      key: 'gap',
+      header: 'Qué falta',
+      render: (r) => (
+        <span className={r.meets ? 'text-emerald-700' : 'text-red-600'}>
+          {r.gap}
+        </span>
+      ),
+    },
+  ];
+
   return (
     <div className="overflow-hidden rounded-lg border border-gray-200">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-[#3E667D] text-white">
-          <tr>
-            <Th>Requisito</Th>
-            <Th>Necesita</Th>
-            <Th>Actualmente</Th>
-            <Th>Qué falta</Th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100 bg-white text-sm">
-          {rows.map((r) => (
-            <tr key={r.label}>
-              <Td>{r.label}</Td>
-              <Td className="font-bold">{r.required}</Td>
-              <Td className={r.meets ? 'text-emerald-700 font-semibold' : 'text-red-600 font-semibold'}>
-                {r.current} {r.meets && <CheckCircleIcon className="inline h-4 w-4 ml-1" />}
-              </Td>
-              <Td className={r.meets ? 'text-emerald-700' : 'text-red-600'}>
-                {r.gap}
-              </Td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <DataTable<RequirementRow>
+        columns={columns}
+        data={rows}
+        getRowKey={(r, i) => String(r.label ?? i)}
+      />
     </div>
   );
 }
@@ -368,33 +401,33 @@ function Scenario({
       </div>
 
       <div className="overflow-hidden rounded-lg border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-[#3E667D] text-white">
-            <tr>
+        <Table className="min-w-full divide-y divide-gray-200">
+          <TableHeader className="bg-[#3E667D] text-white">
+            <TableRow className="hover:bg-transparent">
               <Th>Concepto</Th>
               <Th>Cálculo</Th>
               <Th align="right">Monto</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 bg-white text-sm">
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y divide-gray-100 bg-white text-sm">
             {scenario.commissionBreakdown.map((line, i) => (
-              <tr key={i}>
+              <TableRow key={i}>
                 <Td>{line.concept}</Td>
                 <Td className="text-gray-500">{line.calculation}</Td>
                 <Td align="right" className="font-semibold text-emerald-700">
                   {fmtCurrency(line.amount)}
                 </Td>
-              </tr>
+              </TableRow>
             ))}
-            <tr className="bg-[#C8DDF2]/40">
+            <TableRow className="bg-[#C8DDF2]/40">
               <Td className="font-bold uppercase">Total estimado</Td>
               <Td />
               <Td align="right" className="font-bold text-[#2f5165] text-base">
                 {fmtCurrency(scenario.totalEstimated)}
               </Td>
-            </tr>
-          </tbody>
-        </table>
+            </TableRow>
+          </TableBody>
+        </Table>
       </div>
 
       {scenario.notes.length > 0 && (
@@ -413,47 +446,73 @@ function RankComparisonTable({
 }: {
   rows: RankProjectionResponse['rankComparison'];
 }) {
+  type RankComparisonRow = RankProjectionResponse['rankComparison'][number];
+  const columns: DataTableColumn<RankComparisonRow>[] = [
+    {
+      key: 'rankName',
+      header: 'Rango',
+      render: (r) => (
+        <>
+          {r.isTarget && '▪ '}
+          {r.rankName}
+        </>
+      ),
+    },
+    {
+      key: 'ml1',
+      header: 'ML1',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (r) => fmtCurrency(r.ml1),
+    },
+    {
+      key: 'ml2',
+      header: 'ML2',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (r) => fmtCurrency(r.ml2),
+    },
+    {
+      key: 'ml3',
+      header: 'ML3',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (r) => fmtCurrency(r.ml3),
+    },
+    {
+      key: 'generations',
+      header: 'Generaciones',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (r) => fmtCurrency(r.generations),
+    },
+    {
+      key: 'total',
+      header: 'Total',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (r) => (
+        <span
+          className={
+            r.isTarget
+              ? 'text-emerald-700 font-bold'
+              : 'font-semibold text-gray-800'
+          }
+        >
+          {fmtCurrency(r.total)}
+        </span>
+      ),
+    },
+  ];
+
   return (
     <div className="overflow-hidden rounded-lg border border-gray-200">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-[#3E667D] text-white">
-          <tr>
-            <Th>Rango</Th>
-            <Th align="right">ML1</Th>
-            <Th align="right">ML2</Th>
-            <Th align="right">ML3</Th>
-            <Th align="right">Generaciones</Th>
-            <Th align="right">Total</Th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100 bg-white text-sm">
-          {rows.map((r) => (
-            <tr
-              key={r.rankCode}
-              className={r.isTarget ? 'bg-emerald-50 font-semibold' : ''}
-            >
-              <Td>
-                {r.isTarget && '▪ '}
-                {r.rankName}
-              </Td>
-              <Td align="right">{fmtCurrency(r.ml1)}</Td>
-              <Td align="right">{fmtCurrency(r.ml2)}</Td>
-              <Td align="right">{fmtCurrency(r.ml3)}</Td>
-              <Td align="right">{fmtCurrency(r.generations)}</Td>
-              <Td
-                align="right"
-                className={
-                  r.isTarget
-                    ? 'text-emerald-700 font-bold'
-                    : 'font-semibold text-gray-800'
-                }
-              >
-                {fmtCurrency(r.total)}
-              </Td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <DataTable<RankComparisonRow>
+        columns={columns}
+        data={rows}
+        getRowKey={(r, i) => String(r.rankCode ?? i)}
+        rowClassName={(r) => (r.isTarget ? 'bg-emerald-50 font-semibold' : '')}
+      />
     </div>
   );
 }
@@ -463,41 +522,64 @@ function PotentialLeadersTable({
 }: {
   rows: RankProjectionResponse['potentialLeaders'];
 }) {
+  type PotentialLeaderRow = RankProjectionResponse['potentialLeaders'][number];
+  const columns: DataTableColumn<PotentialLeaderRow>[] = [
+    {
+      key: 'leader',
+      header: 'Líder',
+      render: (r) => (
+        <>
+          <div className="font-semibold">{r.fullName}</div>
+          <div className="text-xs text-gray-500">#{r.legacyId}</div>
+        </>
+      ),
+    },
+    {
+      key: 'relativeDepth',
+      header: 'Profundidad',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (r) => `N${r.relativeDepth}`,
+    },
+    {
+      key: 'personalPoints',
+      header: 'Compra pers.',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (r) => fmtNumber(r.personalPoints),
+    },
+    {
+      key: 'qualifiedFirstLevelCount',
+      header: 'N1 calif.',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (r) => r.qualifiedFirstLevelCount,
+    },
+    {
+      key: 'rollOverCapped',
+      header: 'Roll over',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right font-semibold',
+      render: (r) => fmtCurrency(r.rollOverCapped),
+    },
+    {
+      key: 'potentialRankName',
+      header: 'Rango pot.',
+      render: (r) => (
+        <span className="inline-block rounded-md px-2 py-0.5 bg-[#C8DDF2]/40 text-[#2f5165] text-xs font-semibold">
+          {r.potentialRankName}
+        </span>
+      ),
+    },
+  ];
+
   return (
     <div className="overflow-hidden rounded-lg border border-gray-200">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-[#3E667D] text-white">
-          <tr>
-            <Th>Líder</Th>
-            <Th align="center">Profundidad</Th>
-            <Th align="right">Compra pers.</Th>
-            <Th align="center">N1 calif.</Th>
-            <Th align="right">Roll over</Th>
-            <Th>Rango pot.</Th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100 bg-white text-sm">
-          {rows.map((r) => (
-            <tr key={r.customerId}>
-              <Td>
-                <div className="font-semibold">{r.fullName}</div>
-                <div className="text-xs text-gray-500">#{r.legacyId}</div>
-              </Td>
-              <Td align="center">N{r.relativeDepth}</Td>
-              <Td align="right">{fmtNumber(r.personalPoints)}</Td>
-              <Td align="center">{r.qualifiedFirstLevelCount}</Td>
-              <Td align="right" className="font-semibold">
-                {fmtCurrency(r.rollOverCapped)}
-              </Td>
-              <Td>
-                <span className="inline-block rounded-md px-2 py-0.5 bg-[#C8DDF2]/40 text-[#2f5165] text-xs font-semibold">
-                  {r.potentialRankName}
-                </span>
-              </Td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <DataTable<PotentialLeaderRow>
+        columns={columns}
+        data={rows}
+        getRowKey={(r, i) => String(r.customerId ?? i)}
+      />
     </div>
   );
 }
@@ -509,39 +591,52 @@ function CommissionHistoryTable({
 }) {
   const avg =
     rows.reduce((acc, r) => acc + r.totalCommission, 0) / Math.max(1, rows.length);
+  type CommissionHistoryRow = RankProjectionResponse['commissionHistory'][number];
+  const columns: DataTableColumn<CommissionHistoryRow>[] = [
+    {
+      key: 'period',
+      header: 'Periodo',
+      render: (r) => (
+        <>
+          {r.periodName} ({r.periodCode})
+        </>
+      ),
+    },
+    {
+      key: 'rankName',
+      header: 'Rango',
+      render: (r) =>
+        r.rankName ? (
+          <span className="inline-block rounded-md px-2 py-0.5 bg-[#C8DDF2]/40 text-[#2f5165] text-xs font-semibold">
+            {r.rankName}
+          </span>
+        ) : (
+          <span className="text-xs text-gray-400">Sin rango</span>
+        ),
+    },
+    {
+      key: 'totalCommission',
+      header: 'Comisión total',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right font-semibold',
+      render: (r) => fmtCurrency(r.totalCommission),
+    },
+    {
+      key: 'recordsCount',
+      header: 'Registros',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (r) => r.recordsCount,
+    },
+  ];
   return (
     <>
       <div className="overflow-hidden rounded-lg border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-[#3E667D] text-white">
-            <tr>
-              <Th>Periodo</Th>
-              <Th>Rango</Th>
-              <Th align="right">Comisión total</Th>
-              <Th align="center">Registros</Th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 bg-white text-sm">
-            {rows.map((r) => (
-              <tr key={r.periodCode}>
-                <Td>{r.periodName} ({r.periodCode})</Td>
-                <Td>
-                  {r.rankName ? (
-                    <span className="inline-block rounded-md px-2 py-0.5 bg-[#C8DDF2]/40 text-[#2f5165] text-xs font-semibold">
-                      {r.rankName}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-gray-400">Sin rango</span>
-                  )}
-                </Td>
-                <Td align="right" className="font-semibold">
-                  {fmtCurrency(r.totalCommission)}
-                </Td>
-                <Td align="center">{r.recordsCount}</Td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <DataTable<CommissionHistoryRow>
+          columns={columns}
+          data={rows}
+          getRowKey={(r, i) => String(r.periodCode ?? i)}
+        />
       </div>
       <p className="text-xs text-gray-500 italic mt-2">
         Promedio mensual: {fmtCurrency(avg)} — sumatoria de aportaciones en{' '}

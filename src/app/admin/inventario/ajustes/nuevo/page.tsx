@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { DataTable, type DataTableColumn } from '@/components/ui';
 import {
   useCreateAdjustment,
   useAllBranchStock,
@@ -155,6 +156,83 @@ export default function NuevoAjustePage() {
       ),
     );
   };
+
+  const columns = useMemo<DataTableColumn<AdjustmentItem>[]>(
+    () => [
+      {
+        key: 'producto',
+        header: 'Producto',
+        render: (item) => (
+          <>
+            <div className="font-medium">{item.productName}</div>
+            <div className="text-sm text-gray-500">{item.productCode}</div>
+          </>
+        ),
+      },
+      {
+        key: 'currentQuantity',
+        header: 'Existencias en Sistema',
+        headerClassName: 'text-right',
+        cellClassName: 'text-right text-gray-600',
+        render: (item) => item.currentQuantity,
+      },
+      {
+        key: 'newQuantity',
+        header: 'Cantidad Real',
+        headerClassName: 'text-right',
+        cellClassName: 'text-right',
+        render: (item) => (
+          <input
+            type="number"
+            min="0"
+            value={item.newQuantity}
+            onChange={(e) =>
+              handleNewQuantityChange(item.productId, parseInt(e.target.value) || 0)
+            }
+            className="w-24 px-2 py-1 border border-gray-300 rounded text-right focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
+          />
+        ),
+      },
+      {
+        key: 'difference',
+        header: 'Diferencia',
+        headerClassName: 'text-right',
+        cellClassName: 'text-right',
+        render: (item) =>
+          item.difference !== 0 ? (
+            <span
+              className={`inline-flex items-center gap-1 font-medium ${
+                item.difference > 0 ? 'text-green-600' : 'text-red-600'
+              }`}
+            >
+              {item.difference > 0 ? (
+                <ArrowUpIcon className="h-4 w-4" />
+              ) : (
+                <ArrowDownIcon className="h-4 w-4" />
+              )}
+              {item.difference > 0 ? '+' : ''}
+              {item.difference}
+            </span>
+          ) : (
+            <span className="text-gray-400">Sin cambio</span>
+          ),
+      },
+      {
+        key: 'reason',
+        header: 'Motivo',
+        render: (item) => (
+          <input
+            type="text"
+            value={item.reason || ''}
+            onChange={(e) => handleReasonChange(item.productId, e.target.value)}
+            placeholder="Opcional..."
+            className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent text-sm"
+          />
+        ),
+      },
+    ],
+    [],
+  );
 
   const branchName = useMemo(
     () => branches?.find((b) => b.id === formData.branchId)?.name ?? 'Sucursal',
@@ -451,76 +529,16 @@ export default function NuevoAjustePage() {
                 />
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Producto</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-gray-600">Existencias en Sistema</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-gray-600">Cantidad Real</th>
-                      <th className="text-right py-3 px-4 text-sm font-medium text-gray-600">Diferencia</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-gray-600">Motivo</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleItems.map((item) => (
-                      <tr key={item.productId} className="border-b border-gray-100">
-                        <td className="py-3 px-4">
-                          <div className="font-medium">{item.productName}</div>
-                          <div className="text-sm text-gray-500">{item.productCode}</div>
-                        </td>
-                        <td className="py-3 px-4 text-right text-gray-600">{item.currentQuantity}</td>
-                        <td className="py-3 px-4 text-right">
-                          <input
-                            type="number"
-                            min="0"
-                            value={item.newQuantity}
-                            onChange={(e) =>
-                              handleNewQuantityChange(item.productId, parseInt(e.target.value) || 0)
-                            }
-                            className="w-24 px-2 py-1 border border-gray-300 rounded text-right focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-                          />
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          {item.difference !== 0 ? (
-                            <span
-                              className={`inline-flex items-center gap-1 font-medium ${
-                                item.difference > 0 ? 'text-green-600' : 'text-red-600'
-                              }`}
-                            >
-                              {item.difference > 0 ? (
-                                <ArrowUpIcon className="h-4 w-4" />
-                              ) : (
-                                <ArrowDownIcon className="h-4 w-4" />
-                              )}
-                              {item.difference > 0 ? '+' : ''}
-                              {item.difference}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400">Sin cambio</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4">
-                          <input
-                            type="text"
-                            value={item.reason || ''}
-                            onChange={(e) => handleReasonChange(item.productId, e.target.value)}
-                            placeholder="Opcional..."
-                            className="w-full px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent text-sm"
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                    {visibleItems.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="py-8 text-center text-gray-500">
-                          Ningún producto coincide con "{filter}"
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <DataTable<AdjustmentItem>
+                columns={columns}
+                data={visibleItems}
+                getRowKey={(item, i) => String(item.productId ?? i)}
+                emptyState={
+                  <p className="text-sm text-gray-500">
+                    Ningún producto coincide con &quot;{filter}&quot;
+                  </p>
+                }
+              />
 
               {/* Summary */}
               <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap justify-end gap-6 text-sm">

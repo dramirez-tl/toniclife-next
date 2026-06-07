@@ -16,6 +16,7 @@ import { useSelector } from 'react-redux';
 import { selectUser } from '@/store/slices/authSlice';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { DataTable, type DataTableColumn } from '@/components/ui';
 import {
   useProductPrices,
   useCreateProductPrice,
@@ -441,6 +442,250 @@ export function ProductPricesSection({
 
             const currencyCode = country.currencyCode?.trim() || '???';
 
+            // Columns for the price types table (per-country render closures).
+            // Logic is identical to the previous <tbody> map: each render
+            // recomputes the row-derived values from outer state using `pt`.
+            const priceColumns: DataTableColumn<PriceType>[] = [
+              {
+                key: 'priceType',
+                header: 'Tipo de Precio',
+                headerClassName: 'w-[170px] text-xs font-medium text-gray-500 uppercase',
+                cellClassName: 'align-top',
+                render: (pt) => (
+                  <div className="flex items-start gap-1.5">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-medium text-gray-700">
+                          {pt.name}
+                        </span>
+                        {pt.discountPercentage > 0 && (
+                          <span className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-medium">
+                            -{pt.discountPercentage}%
+                          </span>
+                        )}
+                        {/* Tooltip trigger */}
+                        <div className="relative group">
+                          <InformationCircleIcon className="h-4 w-4 text-gray-400 hover:text-[#3E667D] cursor-help" />
+                          {/* Tooltip content */}
+                          <div className="absolute left-6 top-0 z-30 hidden group-hover:block w-72">
+                            <div className="bg-gray-900 text-white text-xs rounded-lg p-3 shadow-xl">
+                              <p className="font-semibold mb-1.5">
+                                {pt.name}
+                                {pt.discountPercentage > 0 && ` (${pt.discountPercentage}% desc.)`}
+                              </p>
+                              <p className="text-gray-300 mb-2">
+                                {PRICE_TYPE_HELPERS[pt.code]?.description || pt.description || 'Tipo de precio personalizado.'}
+                              </p>
+                              <div className="border-t border-gray-700 pt-1.5 mt-1.5">
+                                <p className="text-yellow-300 font-medium text-[11px] uppercase tracking-wide mb-0.5">Ejemplo</p>
+                                <p className="text-gray-300">
+                                  {PRICE_TYPE_HELPERS[pt.code]?.example || 'Ingresa el precio y costo para este tipo.'}
+                                </p>
+                              </div>
+                              {/* Arrow */}
+                              <div className="absolute -left-1.5 top-2 w-3 h-3 bg-gray-900 rotate-45" />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Applies to badge */}
+                      {pt.appliesTo && pt.appliesTo.length > 0 && (
+                        <div className="flex gap-1 mt-1">
+                          {pt.appliesTo.map((target: string) => (
+                            <span
+                              key={target}
+                              className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded"
+                            >
+                              {target === 'customer' ? 'Clientes' :
+                               target === 'distributor' ? 'Distribuidores' :
+                               target === 'employee' ? 'Empleados' :
+                               target === 'all' ? 'Todos' : target}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                key: 'price',
+                header: `Precio (${currencyCode})`,
+                headerClassName: 'text-xs font-medium text-gray-500 uppercase',
+                render: (pt) => {
+                  const editData = editPrices[priceKey(countryId, pt.id)] || {
+                    price: '',
+                    cost: '',
+                    points: '',
+                    businessValue: '',
+                  };
+                  return (
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={editData.price}
+                      onChange={(e) =>
+                        handlePriceChange(countryId, pt.id, 'price', e.target.value)
+                      }
+                      placeholder="0.00"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D] outline-none"
+                    />
+                  );
+                },
+              },
+              {
+                key: 'cost',
+                header: `Costo (${currencyCode})`,
+                headerClassName: 'text-xs font-medium text-gray-500 uppercase',
+                render: (pt) => {
+                  const editData = editPrices[priceKey(countryId, pt.id)] || {
+                    price: '',
+                    cost: '',
+                    points: '',
+                    businessValue: '',
+                  };
+                  return (
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={editData.cost}
+                      onChange={(e) =>
+                        handlePriceChange(countryId, pt.id, 'cost', e.target.value)
+                      }
+                      placeholder="0.00"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D] outline-none"
+                    />
+                  );
+                },
+              },
+              {
+                key: 'points',
+                header: 'Puntos',
+                headerClassName: 'text-xs font-medium text-gray-500 uppercase',
+                render: (pt) => {
+                  const editData = editPrices[priceKey(countryId, pt.id)] || {
+                    price: '',
+                    cost: '',
+                    points: '',
+                    businessValue: '',
+                  };
+                  return (
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={editData.points}
+                      onChange={(e) =>
+                        handlePriceChange(countryId, pt.id, 'points', e.target.value)
+                      }
+                      placeholder="0.00"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D] outline-none"
+                    />
+                  );
+                },
+              },
+              {
+                key: 'businessValue',
+                header: 'Valor Negocio',
+                headerClassName: 'text-xs font-medium text-gray-500 uppercase',
+                render: (pt) => {
+                  const editData = editPrices[priceKey(countryId, pt.id)] || {
+                    price: '',
+                    cost: '',
+                    points: '',
+                    businessValue: '',
+                  };
+                  return (
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={editData.businessValue}
+                      onChange={(e) =>
+                        handlePriceChange(countryId, pt.id, 'businessValue', e.target.value)
+                      }
+                      placeholder="0.00"
+                      className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D] outline-none"
+                    />
+                  );
+                },
+              },
+              {
+                key: 'actions',
+                header: 'Acciones',
+                headerClassName: 'w-[80px] text-center text-xs font-medium text-gray-500 uppercase',
+                render: (pt) => {
+                  const key = priceKey(countryId, pt.id);
+                  const editData = editPrices[key] || {
+                    price: '',
+                    cost: '',
+                    points: '',
+                    businessValue: '',
+                  };
+                  const isSaving = savingKey === key;
+                  const isDeleting = deletingKey === key;
+                  const hasExisting = !!editData.existingId;
+
+                  // Detect if any field changed vs. the server snapshot
+                  const orig = originalPrices[key];
+                  const normalize = (v: string | undefined) => v || '';
+                  const hasChanges = !orig
+                    ? !!(editData.price || editData.cost || editData.points || editData.businessValue)
+                    : normalize(editData.price) !== normalize(orig.price) ||
+                      normalize(editData.cost) !== normalize(orig.cost) ||
+                      normalize(editData.points) !== normalize(orig.points) ||
+                      normalize(editData.businessValue) !== normalize(orig.businessValue);
+
+                  return (
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSavePrice(countryId, pt.id)
+                          }
+                          disabled={isSaving || !editData.price || !hasChanges}
+                          className="p-1.5 rounded-md text-[#3E667D] hover:bg-[#C8DDF2]/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          title="Guardar"
+                        >
+                          {isSaving ? (
+                            <div className="h-4 w-4 border-2 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Save className="h-4 w-4" />
+                          )}
+                        </button>
+                        {hasExisting && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setResetConfirmKey(key);
+                              setResetConfirmText('');
+                            }}
+                            disabled={isDeleting}
+                            className="p-1.5 rounded-md text-amber-500 hover:bg-amber-50 disabled:opacity-30 transition-colors"
+                            title="Reiniciar a 0"
+                          >
+                            {isDeleting ? (
+                              <div className="h-4 w-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <ArrowPathIcon className="h-4 w-4" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                      {editData.updatedByName && (
+                        <span className="text-[10px] text-gray-400 text-center leading-tight" title={editData.updatedAt ? new Date(editData.updatedAt).toLocaleString('es-MX') : ''}>
+                          {editData.updatedByName.split('@')[0]}
+                        </span>
+                      )}
+                    </div>
+                  );
+                },
+              },
+            ];
+
             return (
               <div
                 key={countryId}
@@ -471,216 +716,13 @@ export function ProductPricesSection({
                 </div>
 
                 {/* Price types table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-100 bg-gray-50/50">
-                        <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase w-[170px]">
-                          Tipo de Precio
-                        </th>
-                        <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">
-                          Precio ({currencyCode})
-                        </th>
-                        <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">
-                          Costo ({currencyCode})
-                        </th>
-                        <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">
-                          Puntos
-                        </th>
-                        <th className="text-left px-3 py-2 text-xs font-medium text-gray-500 uppercase">
-                          Valor Negocio
-                        </th>
-                        <th className="text-center px-3 py-2 text-xs font-medium text-gray-500 uppercase w-[80px]">
-                          Acciones
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {priceTypes.map((pt: PriceType) => {
-                        const key = priceKey(countryId, pt.id);
-                        const editData = editPrices[key] || {
-                          price: '',
-                          cost: '',
-                          points: '',
-                          businessValue: '',
-                        };
-                        const isSaving = savingKey === key;
-                        const isDeleting = deletingKey === key;
-                        const hasExisting = !!editData.existingId;
+                <DataTable<PriceType>
+                  columns={priceColumns}
+                  data={priceTypes}
+                  getRowKey={(pt) => pt.id}
+                  minWidthClassName="w-full"
+                />
 
-                        // Detect if any field changed vs. the server snapshot
-                        const orig = originalPrices[key];
-                        const normalize = (v: string | undefined) => v || '';
-                        const hasChanges = !orig
-                          ? !!(editData.price || editData.cost || editData.points || editData.businessValue)
-                          : normalize(editData.price) !== normalize(orig.price) ||
-                            normalize(editData.cost) !== normalize(orig.cost) ||
-                            normalize(editData.points) !== normalize(orig.points) ||
-                            normalize(editData.businessValue) !== normalize(orig.businessValue);
-
-                        return (
-                          <tr
-                            key={pt.id}
-                            className="border-b border-gray-50 hover:bg-gray-50/50"
-                          >
-                            <td className="px-3 py-3">
-                              <div className="flex items-start gap-1.5">
-                                <div>
-                                  <div className="flex items-center gap-1.5">
-                                    <span className="font-medium text-gray-700">
-                                      {pt.name}
-                                    </span>
-                                    {pt.discountPercentage > 0 && (
-                                      <span className="text-xs bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-medium">
-                                        -{pt.discountPercentage}%
-                                      </span>
-                                    )}
-                                    {/* Tooltip trigger */}
-                                    <div className="relative group">
-                                      <InformationCircleIcon className="h-4 w-4 text-gray-400 hover:text-[#3E667D] cursor-help" />
-                                      {/* Tooltip content */}
-                                      <div className="absolute left-6 top-0 z-30 hidden group-hover:block w-72">
-                                        <div className="bg-gray-900 text-white text-xs rounded-lg p-3 shadow-xl">
-                                          <p className="font-semibold mb-1.5">
-                                            {pt.name}
-                                            {pt.discountPercentage > 0 && ` (${pt.discountPercentage}% desc.)`}
-                                          </p>
-                                          <p className="text-gray-300 mb-2">
-                                            {PRICE_TYPE_HELPERS[pt.code]?.description || pt.description || 'Tipo de precio personalizado.'}
-                                          </p>
-                                          <div className="border-t border-gray-700 pt-1.5 mt-1.5">
-                                            <p className="text-yellow-300 font-medium text-[11px] uppercase tracking-wide mb-0.5">Ejemplo</p>
-                                            <p className="text-gray-300">
-                                              {PRICE_TYPE_HELPERS[pt.code]?.example || 'Ingresa el precio y costo para este tipo.'}
-                                            </p>
-                                          </div>
-                                          {/* Arrow */}
-                                          <div className="absolute -left-1.5 top-2 w-3 h-3 bg-gray-900 rotate-45" />
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  {/* Applies to badge */}
-                                  {pt.appliesTo && pt.appliesTo.length > 0 && (
-                                    <div className="flex gap-1 mt-1">
-                                      {pt.appliesTo.map((target: string) => (
-                                        <span
-                                          key={target}
-                                          className="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded"
-                                        >
-                                          {target === 'customer' ? 'Clientes' :
-                                           target === 'distributor' ? 'Distribuidores' :
-                                           target === 'employee' ? 'Empleados' :
-                                           target === 'all' ? 'Todos' : target}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-3 py-2">
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={editData.price}
-                                onChange={(e) =>
-                                  handlePriceChange(countryId, pt.id, 'price', e.target.value)
-                                }
-                                placeholder="0.00"
-                                className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D] outline-none"
-                              />
-                            </td>
-                            <td className="px-3 py-2">
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={editData.cost}
-                                onChange={(e) =>
-                                  handlePriceChange(countryId, pt.id, 'cost', e.target.value)
-                                }
-                                placeholder="0.00"
-                                className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D] outline-none"
-                              />
-                            </td>
-                            <td className="px-3 py-2">
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={editData.points}
-                                onChange={(e) =>
-                                  handlePriceChange(countryId, pt.id, 'points', e.target.value)
-                                }
-                                placeholder="0.00"
-                                className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D] outline-none"
-                              />
-                            </td>
-                            <td className="px-3 py-2">
-                              <input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={editData.businessValue}
-                                onChange={(e) =>
-                                  handlePriceChange(countryId, pt.id, 'businessValue', e.target.value)
-                                }
-                                placeholder="0.00"
-                                className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D] outline-none"
-                              />
-                            </td>
-                            <td className="px-3 py-2">
-                              <div className="flex flex-col items-center gap-1">
-                                <div className="flex items-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      handleSavePrice(countryId, pt.id)
-                                    }
-                                    disabled={isSaving || !editData.price || !hasChanges}
-                                    className="p-1.5 rounded-md text-[#3E667D] hover:bg-[#C8DDF2]/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                                    title="Guardar"
-                                  >
-                                    {isSaving ? (
-                                      <div className="h-4 w-4 border-2 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
-                                    ) : (
-                                      <Save className="h-4 w-4" />
-                                    )}
-                                  </button>
-                                  {hasExisting && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setResetConfirmKey(key);
-                                        setResetConfirmText('');
-                                      }}
-                                      disabled={isDeleting}
-                                      className="p-1.5 rounded-md text-amber-500 hover:bg-amber-50 disabled:opacity-30 transition-colors"
-                                      title="Reiniciar a 0"
-                                    >
-                                      {isDeleting ? (
-                                        <div className="h-4 w-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
-                                      ) : (
-                                        <ArrowPathIcon className="h-4 w-4" />
-                                      )}
-                                    </button>
-                                  )}
-                                </div>
-                                {editData.updatedByName && (
-                                  <span className="text-[10px] text-gray-400 text-center leading-tight" title={editData.updatedAt ? new Date(editData.updatedAt).toLocaleString('es-MX') : ''}>
-                                    {editData.updatedByName.split('@')[0]}
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
 
                 {/* Reglas Fiscales section */}
                 {(() => {

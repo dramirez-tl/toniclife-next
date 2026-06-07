@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
+import { DataTable, type DataTableColumn } from '@/components/ui';
 import {
   DocumentTextIcon,
   CheckCircleIcon,
@@ -266,6 +267,59 @@ export default function PagosPage() {
   }
 
   const payments = paymentsData?.data || [];
+
+  const paymentColumns: DataTableColumn<CommissionPayment>[] = useMemo(() => [
+    {
+      key: 'period',
+      header: 'Periodo',
+      headerClassName: 'text-xs font-semibold text-gray-500 uppercase',
+      cellClassName: 'font-medium text-gray-900',
+      render: (p) => p.periodName || p.periodCode,
+    },
+    {
+      key: 'amount',
+      header: 'Monto',
+      headerClassName: 'text-right text-xs font-semibold text-gray-500 uppercase',
+      cellClassName: 'text-right font-semibold text-gray-900',
+      render: (p) => (
+        <>
+          ${p.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+          <span className="text-xs text-gray-400 ml-1">{p.currencyCode}</span>
+        </>
+      ),
+    },
+    {
+      key: 'date',
+      header: 'Fecha',
+      headerClassName: 'text-xs font-semibold text-gray-500 uppercase',
+      cellClassName: 'text-gray-600',
+      render: (p) =>
+        p.paymentDate
+          ? new Date(p.paymentDate).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+          : '—',
+    },
+    {
+      key: 'method',
+      header: 'Método',
+      headerClassName: 'text-xs font-semibold text-gray-500 uppercase',
+      cellClassName: 'text-gray-600 capitalize',
+      render: (p) => p.paymentMethod || '—',
+    },
+    {
+      key: 'reference',
+      header: 'Referencia',
+      headerClassName: 'text-xs font-semibold text-gray-500 uppercase',
+      cellClassName: 'text-gray-500 font-mono text-xs',
+      render: (p) => p.reference || '—',
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      headerClassName: 'text-center text-xs font-semibold text-gray-500 uppercase',
+      cellClassName: 'text-center',
+      render: (p) => <StatusBadge status={p.status} />,
+    },
+  ], []);
 
   return (
     <div className="space-y-6 px-4 sm:px-6 lg:px-8 pb-8">
@@ -689,46 +743,12 @@ export default function PagosPage() {
             </div>
           )}
 
-          {payments.length === 0 ? (
-            <div className="text-center py-8 text-gray-400 text-sm">
-              No hay pagos de comisiones registrados aún.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-2 px-2 text-xs font-semibold text-gray-500 uppercase">Periodo</th>
-                    <th className="text-right py-2 px-2 text-xs font-semibold text-gray-500 uppercase">Monto</th>
-                    <th className="text-left py-2 px-2 text-xs font-semibold text-gray-500 uppercase">Fecha</th>
-                    <th className="text-left py-2 px-2 text-xs font-semibold text-gray-500 uppercase">Método</th>
-                    <th className="text-left py-2 px-2 text-xs font-semibold text-gray-500 uppercase">Referencia</th>
-                    <th className="text-center py-2 px-2 text-xs font-semibold text-gray-500 uppercase">Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payments.map((p: CommissionPayment) => (
-                    <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-2.5 px-2 font-medium text-gray-900">{p.periodName || p.periodCode}</td>
-                      <td className="py-2.5 px-2 text-right font-semibold text-gray-900">
-                        ${p.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                        <span className="text-xs text-gray-400 ml-1">{p.currencyCode}</span>
-                      </td>
-                      <td className="py-2.5 px-2 text-gray-600">
-                        {p.paymentDate
-                          ? new Date(p.paymentDate).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
-                          : '—'
-                        }
-                      </td>
-                      <td className="py-2.5 px-2 text-gray-600 capitalize">{p.paymentMethod || '—'}</td>
-                      <td className="py-2.5 px-2 text-gray-500 font-mono text-xs">{p.reference || '—'}</td>
-                      <td className="py-2.5 px-2 text-center"><StatusBadge status={p.status} /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <DataTable<CommissionPayment>
+            columns={paymentColumns}
+            data={payments}
+            getRowKey={(p) => String(p.id)}
+            emptyMessage="No hay pagos de comisiones registrados aún."
+          />
         </CardContent>
       </Card>
     </div>

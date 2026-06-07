@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DataTable, type DataTableColumn } from '@/components/ui';
 import {
   ShieldCheckIcon,
   DocumentChartBarIcon,
@@ -70,6 +71,53 @@ export default function AuditReportsPage() {
       icon: TableCellsIcon,
     },
   ];
+
+  // Distribución por categoría — datos derivados de stats.byCategory (misma fuente que el <tbody> original)
+  const categoryRows: [string, number][] = stats?.byCategory
+    ? Object.entries(stats.byCategory).sort((a, b) => b[1] - a[1])
+    : [];
+
+  const categoryColumns: DataTableColumn<[string, number]>[] = useMemo(
+    () => [
+      {
+        key: 'category',
+        header: 'Categoría',
+        cellClassName: 'text-sm font-medium text-gray-900',
+        render: ([category]) => {
+          const categoryInfo = ACTION_CATEGORIES.find((c) => c.value === category);
+          return categoryInfo?.label || category;
+        },
+      },
+      {
+        key: 'count',
+        header: 'Cantidad',
+        cellClassName: 'text-sm text-gray-600',
+        render: ([, count]) => count.toLocaleString(),
+      },
+      {
+        key: 'percentage',
+        header: 'Porcentaje',
+        cellClassName: 'text-sm text-gray-600',
+        render: ([, count]) => `${Math.round((count / (stats?.totalLogs || 1)) * 100)}%`,
+      },
+      {
+        key: 'chart',
+        header: 'Gráfico',
+        render: ([, count]) => {
+          const percentage = Math.round((count / (stats?.totalLogs || 1)) * 100);
+          return (
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="h-2 rounded-full bg-[#3E667D]"
+                style={{ width: `${percentage}%` }}
+              />
+            </div>
+          );
+        },
+      },
+    ],
+    [stats?.totalLogs]
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -238,54 +286,12 @@ export default function AuditReportsPage() {
                     <CardTitle>Distribución por Categoría</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                              Categoría
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                              Cantidad
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                              Porcentaje
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                              Gráfico
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {stats?.byCategory &&
-                            Object.entries(stats.byCategory)
-                              .sort((a, b) => b[1] - a[1])
-                              .map(([category, count]) => {
-                                const percentage = Math.round((count / (stats.totalLogs || 1)) * 100);
-                                const categoryInfo = ACTION_CATEGORIES.find((c) => c.value === category);
-                                return (
-                                  <tr key={category}>
-                                    <td className="px-4 py-3 text-sm font-medium text-gray-900">
-                                      {categoryInfo?.label || category}
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-gray-600">
-                                      {count.toLocaleString()}
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-gray-600">{percentage}%</td>
-                                    <td className="px-4 py-3">
-                                      <div className="w-full bg-gray-200 rounded-full h-2">
-                                        <div
-                                          className="h-2 rounded-full bg-[#3E667D]"
-                                          style={{ width: `${percentage}%` }}
-                                        />
-                                      </div>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                        </tbody>
-                      </table>
-                    </div>
+                    <DataTable<[string, number]>
+                      columns={categoryColumns}
+                      data={categoryRows}
+                      getRowKey={([category], i) => String(category ?? i)}
+                      emptyMessage="No hay datos de categorías para este periodo."
+                    />
                   </CardContent>
                 </Card>
               </div>

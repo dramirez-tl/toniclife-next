@@ -5,6 +5,15 @@ import { useSalesByBranch } from '@/hooks/useReports';
 import { usePeriods, useCurrentPeriod } from '@/hooks/useMlmPeriods';
 import { toast } from 'sonner';
 import type { MlmPeriod } from '@/types/mlm-periods';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
 
 type CurrencyCode = 'MXN' | 'USD' | 'COP' | 'GTQ';
 
@@ -281,63 +290,63 @@ export default function VentasSucursalPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            <Table className="min-w-full">
+              <TableHeader>
+                <TableRow className="border-b border-gray-200 bg-gray-50 hover:bg-gray-50">
+                  <TableHead className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Sucursal
-                  </th>
+                  </TableHead>
                   {CURRENCY_CONFIG.map((c) => (
-                    <th key={c.key} className="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <TableHead key={c.key} className="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       {c.flag} {c.key}
-                    </th>
+                    </TableHead>
                   ))}
-                  <th className="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <TableHead className="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Órdenes
-                  </th>
-                  <th className="px-6 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  </TableHead>
+                  <TableHead className="px-6 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Período
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {data.branches.map((branch, idx) => (
-                  <tr
+                  <TableRow
                     key={branch.branchId}
                     className={`border-b border-gray-100 transition-colors hover:bg-[#3E667D]/[0.03] ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
                   >
-                    <td className="px-6 py-3.5 text-sm font-medium text-gray-900 whitespace-nowrap">
+                    <TableCell className="px-6 py-3.5 text-sm font-medium text-gray-900 whitespace-nowrap">
                       {branch.branchName}
-                    </td>
+                    </TableCell>
                     {CURRENCY_CONFIG.map((c) => (
-                      <td key={c.key} className="px-6 py-3.5 text-sm text-right text-gray-600 whitespace-nowrap tabular-nums">
+                      <TableCell key={c.key} className="px-6 py-3.5 text-sm text-right text-gray-600 whitespace-nowrap tabular-nums">
                         {formatCurrency(getCurrencyTotal(branch as unknown as Record<string, unknown>, c.key), c.key)}
-                      </td>
+                      </TableCell>
                     ))}
-                    <td className="px-6 py-3.5 text-sm text-right text-gray-600 whitespace-nowrap tabular-nums">
+                    <TableCell className="px-6 py-3.5 text-sm text-right text-gray-600 whitespace-nowrap tabular-nums">
                       {branch.orderCount.toLocaleString()}
-                    </td>
-                    <td className="px-6 py-3.5 text-xs text-center text-gray-400 whitespace-nowrap">
+                    </TableCell>
+                    <TableCell className="px-6 py-3.5 text-xs text-center text-gray-400 whitespace-nowrap">
                       {periodLabel}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-[#3E667D]/20 bg-[#3E667D]/[0.04]">
-                  <td className="px-6 py-4 text-sm font-bold text-[#3E667D]">TOTAL</td>
+              </TableBody>
+              <TableFooter className="bg-transparent">
+                <TableRow className="border-t-2 border-[#3E667D]/20 bg-[#3E667D]/[0.04] hover:bg-[#3E667D]/[0.04]">
+                  <TableCell className="px-6 py-4 text-sm font-bold text-[#3E667D]">TOTAL</TableCell>
                   {CURRENCY_CONFIG.map((c) => (
-                    <td key={c.key} className="px-6 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">
+                    <TableCell key={c.key} className="px-6 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">
                       {formatCurrency(totalsByKey[c.key], c.key)}
-                    </td>
+                    </TableCell>
                   ))}
-                  <td className="px-6 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">
+                  <TableCell className="px-6 py-4 text-sm text-right font-bold text-[#3E667D] tabular-nums">
                     {totals.orderCount.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4" />
-                </tr>
-              </tfoot>
-            </table>
+                  </TableCell>
+                  <TableCell className="px-6 py-4" />
+                </TableRow>
+              </TableFooter>
+            </Table>
           </div>
         )}
       </div>

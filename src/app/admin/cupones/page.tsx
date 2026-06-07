@@ -1,7 +1,8 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { PermissionGuard } from '@/components/auth';
+import { DataTable, type DataTableColumn } from '@/components/ui';
 import {
   MagnifyingGlassIcon,
   PlusIcon,
@@ -285,6 +286,139 @@ function CuponesContent() {
     }
   };
 
+  type Coupon = typeof coupons[0];
+
+  const columns = useMemo<DataTableColumn<Coupon>[]>(() => [
+    {
+      key: 'code',
+      header: 'Código',
+      render: (coupon) => (
+        <div>
+          <div className="flex items-center gap-2">
+            <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono font-medium text-gray-900">
+              {coupon.code}
+            </code>
+            {coupon.stackable && (
+              <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded">
+                Stackable
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-600 mt-1">{coupon.description}</p>
+          <p className="text-xs text-gray-400 mt-1">ID: {coupon.id}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'type',
+      header: 'Tipo',
+      cellClassName: 'whitespace-nowrap',
+      render: (coupon) => (
+        <div className="flex items-center gap-2">
+          <div className="p-2 bg-gray-100 rounded">
+            {getTypeIcon(coupon.type)}
+          </div>
+          <span className="text-sm text-gray-900">{getTypeLabel(coupon.type)}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'value',
+      header: 'Valor',
+      cellClassName: 'whitespace-nowrap',
+      render: (coupon) => (
+        <div>
+          {coupon.type === 'percentage' && (
+            <p className="text-sm font-bold text-gray-900">{coupon.value}%</p>
+          )}
+          {coupon.type === 'fixed' && (
+            <p className="text-sm font-bold text-gray-900">${coupon.value.toFixed(2)}</p>
+          )}
+          {coupon.type === 'free_shipping' && (
+            <p className="text-sm font-bold text-gray-900">Envío Gratis</p>
+          )}
+          {coupon.minPurchase > 0 && (
+            <p className="text-xs text-gray-500">Min: ${coupon.minPurchase.toFixed(2)}</p>
+          )}
+          {coupon.maxDiscount && (
+            <p className="text-xs text-gray-500">Max: ${coupon.maxDiscount.toFixed(2)}</p>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'usage',
+      header: 'Uso',
+      cellClassName: 'whitespace-nowrap',
+      render: (coupon) => (
+        <div>
+          <p className="text-sm font-medium text-gray-900">
+            {coupon.usedCount.toLocaleString()}{coupon.usageLimit ? ` / ${coupon.usageLimit.toLocaleString()}` : ''}
+          </p>
+          {coupon.usageLimit && (
+            <div className="mt-1 w-full bg-gray-200 rounded-full h-1.5">
+              <div
+                className="bg-[#C8DDF2] h-1.5 rounded-full"
+                style={{ width: `${Math.min((coupon.usedCount / coupon.usageLimit) * 100, 100)}%` }}
+              />
+            </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'validity',
+      header: 'Vigencia',
+      cellClassName: 'whitespace-nowrap',
+      render: (coupon) => (
+        <div className="text-sm">
+          <p className="text-gray-900">{coupon.startDate}</p>
+          <p className="text-gray-500">{coupon.endDate || 'Sin límite'}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      cellClassName: 'whitespace-nowrap',
+      render: (coupon) => (
+        <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(coupon.status)}`}>
+          {getStatusLabel(coupon.status)}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Acciones',
+      cellClassName: 'whitespace-nowrap',
+      render: (coupon) => (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => toast.success('Editar cupón')}
+            className="p-1 text-[#3E667D] hover:bg-blue-50 rounded"
+            title="Editar"
+          >
+            <PencilIcon className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => handleDuplicate(coupon)}
+            className="p-1 text-gray-600 hover:bg-gray-50 rounded"
+            title="Duplicar"
+          >
+            <DocumentDuplicateIcon className="h-5 w-5" />
+          </button>
+          <button
+            onClick={() => handleDelete(coupon)}
+            className="p-1 text-red-600 hover:bg-red-50 rounded"
+            title="Eliminar"
+          >
+            <TrashIcon className="h-5 w-5" />
+          </button>
+        </div>
+      ),
+    },
+  ], []);
+
   return (
     <PermissionGuard permissions={['products:read']}>
     <div className="min-h-screen bg-gray-50">
@@ -411,142 +545,17 @@ function CuponesContent() {
 
         {/* Coupons List */}
         <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Código
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Tipo
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Valor
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Uso
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Vigencia
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Estado
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Acciones
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredCoupons.map((coupon) => (
-                  <tr key={coupon.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono font-medium text-gray-900">
-                            {coupon.code}
-                          </code>
-                          {coupon.stackable && (
-                            <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded">
-                              Stackable
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-600 mt-1">{coupon.description}</p>
-                        <p className="text-xs text-gray-400 mt-1">ID: {coupon.id}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <div className="p-2 bg-gray-100 rounded">
-                          {getTypeIcon(coupon.type)}
-                        </div>
-                        <span className="text-sm text-gray-900">{getTypeLabel(coupon.type)}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        {coupon.type === 'percentage' && (
-                          <p className="text-sm font-bold text-gray-900">{coupon.value}%</p>
-                        )}
-                        {coupon.type === 'fixed' && (
-                          <p className="text-sm font-bold text-gray-900">${coupon.value.toFixed(2)}</p>
-                        )}
-                        {coupon.type === 'free_shipping' && (
-                          <p className="text-sm font-bold text-gray-900">Envío Gratis</p>
-                        )}
-                        {coupon.minPurchase > 0 && (
-                          <p className="text-xs text-gray-500">Min: ${coupon.minPurchase.toFixed(2)}</p>
-                        )}
-                        {coupon.maxDiscount && (
-                          <p className="text-xs text-gray-500">Max: ${coupon.maxDiscount.toFixed(2)}</p>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {coupon.usedCount.toLocaleString()}{coupon.usageLimit ? ` / ${coupon.usageLimit.toLocaleString()}` : ''}
-                        </p>
-                        {coupon.usageLimit && (
-                          <div className="mt-1 w-full bg-gray-200 rounded-full h-1.5">
-                            <div
-                              className="bg-[#C8DDF2] h-1.5 rounded-full"
-                              style={{ width: `${Math.min((coupon.usedCount / coupon.usageLimit) * 100, 100)}%` }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm">
-                        <p className="text-gray-900">{coupon.startDate}</p>
-                        <p className="text-gray-500">{coupon.endDate || 'Sin límite'}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(coupon.status)}`}>
-                        {getStatusLabel(coupon.status)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => toast.success('Editar cupón')}
-                          className="p-1 text-[#3E667D] hover:bg-blue-50 rounded"
-                          title="Editar"
-                        >
-                          <PencilIcon className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDuplicate(coupon)}
-                          className="p-1 text-gray-600 hover:bg-gray-50 rounded"
-                          title="Duplicar"
-                        >
-                          <DocumentDuplicateIcon className="h-5 w-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(coupon)}
-                          className="p-1 text-red-600 hover:bg-red-50 rounded"
-                          title="Eliminar"
-                        >
-                          <TrashIcon className="h-5 w-5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {filteredCoupons.length === 0 && (
-            <div className="text-center py-12">
-              <TicketIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No se encontraron cupones</p>
-            </div>
-          )}
+          <DataTable<Coupon>
+            columns={columns}
+            data={filteredCoupons}
+            getRowKey={(coupon) => coupon.id}
+            emptyState={
+              <div className="text-center py-12">
+                <TicketIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">No se encontraron cupones</p>
+              </div>
+            }
+          />
         </div>
 
         {/* Results count */}

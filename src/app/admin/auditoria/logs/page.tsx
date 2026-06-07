@@ -1,9 +1,10 @@
 'use client';
 
-import { Suspense } from 'react';
+import { Suspense, useMemo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { DataTable, type DataTableColumn } from '@/components/ui';
 import {
   ShieldCheckIcon,
   MagnifyingGlassIcon,
@@ -19,7 +20,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { useAuditLogs, useMarkAsReviewed } from '@/hooks/useAudit';
-import { AuditFilters, RISK_LEVEL_CONFIG, ACTION_CATEGORIES, RiskLevel } from '@/types/audit';
+import { AuditFilters, AuditLog, RISK_LEVEL_CONFIG, ACTION_CATEGORIES, RiskLevel } from '@/types/audit';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 
@@ -78,6 +79,121 @@ function AuditLogsContent() {
       second: '2-digit',
     });
   };
+
+  // Table columns
+  const columns = useMemo<DataTableColumn<AuditLog>[]>(
+    () => [
+      {
+        key: 'createdAt',
+        header: 'Fecha/Hora',
+        cellClassName: 'text-sm text-gray-500 whitespace-nowrap',
+        render: (log) => (
+          <div className="flex items-center gap-1">
+            <CalendarIcon className="h-4 w-4" />
+            {formatTimestamp(log.createdAt)}
+          </div>
+        ),
+      },
+      {
+        key: 'riskLevel',
+        header: 'Riesgo',
+        render: (log) => {
+          const riskConfig = log.riskLevel
+            ? RISK_LEVEL_CONFIG[log.riskLevel as keyof typeof RISK_LEVEL_CONFIG]
+            : null;
+          return (
+            riskConfig && (
+              <span
+                className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${riskConfig.bgColor} ${riskConfig.color}`}
+              >
+                {riskConfig.label}
+              </span>
+            )
+          );
+        },
+      },
+      {
+        key: 'action',
+        header: 'Acción',
+        render: (log) => (
+          <div>
+            <p className="text-sm font-medium text-gray-900">{log.action}</p>
+            <p className="text-xs text-gray-500">{log.actionCategory}</p>
+          </div>
+        ),
+      },
+      {
+        key: 'user',
+        header: 'Usuario',
+        render: (log) => (
+          <div className="flex items-center gap-2">
+            <UserIcon className="h-4 w-4 text-gray-400" />
+            <div>
+              <p className="text-sm font-medium text-gray-900">
+                {log.userName || 'Sistema'}
+              </p>
+              <p className="text-xs text-gray-500">{log.userEmail}</p>
+            </div>
+          </div>
+        ),
+      },
+      {
+        key: 'entity',
+        header: 'Entidad',
+        render: (log) => (
+          <div>
+            <p className="text-sm font-medium text-gray-900">
+              {log.entityName || '-'}
+            </p>
+            <p className="text-xs text-gray-500">{log.entityType}</p>
+          </div>
+        ),
+      },
+      {
+        key: 'status',
+        header: 'Estado',
+        render: (log) => (
+          <div className="flex items-center gap-2">
+            {log.success ? (
+              <CheckCircleIcon className="h-5 w-5 text-green-500" />
+            ) : (
+              <XCircleIcon className="h-5 w-5 text-red-500" />
+            )}
+            {log.requiresReview && !log.reviewedAt && (
+              <span className="bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5 rounded">
+                Revisión
+              </span>
+            )}
+          </div>
+        ),
+      },
+      {
+        key: 'actions',
+        header: 'Acciones',
+        render: (log) => (
+          <div className="flex items-center gap-2">
+            <button
+              className="p-1 hover:bg-gray-100 rounded"
+              title="Ver detalle"
+            >
+              <EyeIcon className="h-5 w-5 text-gray-500" />
+            </button>
+            {log.requiresReview && !log.reviewedAt && (
+              <button
+                className="p-1 hover:bg-green-100 rounded"
+                title="Marcar como revisado"
+                onClick={() => handleMarkAsReviewed(log.id)}
+              >
+                <CheckCircleIcon className="h-5 w-5 text-green-500" />
+              </button>
+            )}
+          </div>
+        ),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -196,171 +312,55 @@ function AuditLogsContent() {
         {/* Logs Table */}
         <Card>
           <CardContent className="p-0">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3E667D]"></div>
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Fecha/Hora
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Riesgo
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Acción
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Usuario
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Entidad
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Estado
-                        </th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Acciones
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {data?.data.map((log) => {
-                        const riskConfig = log.riskLevel
-                          ? RISK_LEVEL_CONFIG[log.riskLevel as keyof typeof RISK_LEVEL_CONFIG]
-                          : null;
-
-                        return (
-                          <tr key={log.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-4 text-sm text-gray-500 whitespace-nowrap">
-                              <div className="flex items-center gap-1">
-                                <CalendarIcon className="h-4 w-4" />
-                                {formatTimestamp(log.createdAt)}
-                              </div>
-                            </td>
-                            <td className="px-4 py-4">
-                              {riskConfig && (
-                                <span
-                                  className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${riskConfig.bgColor} ${riskConfig.color}`}
-                                >
-                                  {riskConfig.label}
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-4 py-4">
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">{log.action}</p>
-                                <p className="text-xs text-gray-500">{log.actionCategory}</p>
-                              </div>
-                            </td>
-                            <td className="px-4 py-4">
-                              <div className="flex items-center gap-2">
-                                <UserIcon className="h-4 w-4 text-gray-400" />
-                                <div>
-                                  <p className="text-sm font-medium text-gray-900">
-                                    {log.userName || 'Sistema'}
-                                  </p>
-                                  <p className="text-xs text-gray-500">{log.userEmail}</p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-4 py-4">
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">
-                                  {log.entityName || '-'}
-                                </p>
-                                <p className="text-xs text-gray-500">{log.entityType}</p>
-                              </div>
-                            </td>
-                            <td className="px-4 py-4">
-                              <div className="flex items-center gap-2">
-                                {log.success ? (
-                                  <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                                ) : (
-                                  <XCircleIcon className="h-5 w-5 text-red-500" />
-                                )}
-                                {log.requiresReview && !log.reviewedAt && (
-                                  <span className="bg-yellow-100 text-yellow-700 text-xs px-2 py-0.5 rounded">
-                                    Revisión
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-4 py-4">
-                              <div className="flex items-center gap-2">
-                                <button
-                                  className="p-1 hover:bg-gray-100 rounded"
-                                  title="Ver detalle"
-                                >
-                                  <EyeIcon className="h-5 w-5 text-gray-500" />
-                                </button>
-                                {log.requiresReview && !log.reviewedAt && (
-                                  <button
-                                    className="p-1 hover:bg-green-100 rounded"
-                                    title="Marcar como revisado"
-                                    onClick={() => handleMarkAsReviewed(log.id)}
-                                  >
-                                    <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+            <DataTable<AuditLog>
+              columns={columns}
+              data={data?.data ?? []}
+              getRowKey={(log, i) => String(log.id ?? i)}
+              isLoading={isLoading}
+              loadingRows={20}
+              rowClassName="border-b border-gray-200 transition-colors hover:bg-gray-50"
+              emptyState={
+                <div className="text-center py-12">
+                  <ShieldCheckIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    No se encontraron registros
+                  </h3>
+                  <p className="text-gray-600">Intenta ajustar los filtros de búsqueda</p>
                 </div>
+              }
+            />
 
-                {/* Empty State */}
-                {(!data?.data || data.data.length === 0) && (
-                  <div className="text-center py-12">
-                    <ShieldCheckIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">
-                      No se encontraron registros
-                    </h3>
-                    <p className="text-gray-600">Intenta ajustar los filtros de búsqueda</p>
-                  </div>
-                )}
-
-                {/* Pagination */}
-                {data && data.totalPages > 1 && (
-                  <div className="flex items-center justify-between px-4 py-4 border-t">
-                    <p className="text-sm text-gray-600">
-                      Mostrando {(currentPage - 1) * 20 + 1} -{' '}
-                      {Math.min(currentPage * 20, data.total)} de {data.total} registros
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={currentPage === 1}
-                        onClick={() => setParams({ page: String(currentPage - 1) })}
-                      >
-                        <ChevronLeftIcon className="h-4 w-4" />
-                        Anterior
-                      </Button>
-                      <span className="px-3 py-1 text-sm">
-                        {currentPage} / {data.totalPages}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={currentPage === data.totalPages}
-                        onClick={() => setParams({ page: String(currentPage + 1) })}
-                      >
-                        Siguiente
-                        <ChevronRightIcon className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </>
+            {/* Pagination */}
+            {!isLoading && data && data.totalPages > 1 && (
+              <div className="flex items-center justify-between px-4 py-4 border-t">
+                <p className="text-sm text-gray-600">
+                  Mostrando {(currentPage - 1) * 20 + 1} -{' '}
+                  {Math.min(currentPage * 20, data.total)} de {data.total} registros
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === 1}
+                    onClick={() => setParams({ page: String(currentPage - 1) })}
+                  >
+                    <ChevronLeftIcon className="h-4 w-4" />
+                    Anterior
+                  </Button>
+                  <span className="px-3 py-1 text-sm">
+                    {currentPage} / {data.totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === data.totalPages}
+                    onClick={() => setParams({ page: String(currentPage + 1) })}
+                  >
+                    Siguiente
+                    <ChevronRightIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>

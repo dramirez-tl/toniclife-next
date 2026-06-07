@@ -50,6 +50,8 @@ import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 type TabKey = 'users' | 'verification';
 
+type MonthlyVerificationRow = { month: string; verified: number; registered: number };
+
 const formatNumber = (n: number) => new Intl.NumberFormat('es-MX').format(n);
 
 export default function UsuariosPage() {
@@ -1095,6 +1097,57 @@ function EmailVerificationTab() {
     return date.toLocaleDateString('es-MX', { month: 'short', year: 'numeric' });
   };
 
+  const monthlyColumns: DataTableColumn<MonthlyVerificationRow>[] = [
+    {
+      key: 'month',
+      header: 'Mes',
+      cellClassName: 'text-sm text-gray-700 font-medium',
+      render: (row) => formatMonth(row.month),
+    },
+    {
+      key: 'registered',
+      header: 'Registros',
+      headerClassName: 'text-right',
+      cellClassName: 'text-sm text-gray-600 text-right',
+      render: (row) => row.registered.toLocaleString('es-MX'),
+    },
+    {
+      key: 'verified',
+      header: 'Verificados',
+      headerClassName: 'text-right',
+      cellClassName: 'text-sm text-right',
+      render: (row) => (
+        <span className={row.verified > 0 ? 'text-emerald-600 font-semibold' : 'text-gray-400'}>
+          {row.verified.toLocaleString('es-MX')}
+        </span>
+      ),
+    },
+    {
+      key: 'percent',
+      header: '%',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (row) => {
+        const pct = row.registered > 0
+          ? Math.round((row.verified / row.registered) * 10000) / 100
+          : 0;
+        return (
+          <div className="flex items-center justify-end gap-2">
+            <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-emerald-500 rounded-full transition-all"
+                style={{ width: `${Math.min(pct, 100)}%` }}
+              />
+            </div>
+            <span className="text-xs text-gray-500 w-12 text-right">
+              {pct}%
+            </span>
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1163,57 +1216,12 @@ function EmailVerificationTab() {
               Actividad por Mes
             </h3>
 
-            {emailStats.recentVerifications.length === 0 ? (
-              <p className="text-gray-500 text-sm">Sin datos en los últimos 6 meses.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-2 text-sm font-semibold text-gray-700">Mes</th>
-                      <th className="text-right py-2 text-sm font-semibold text-gray-700">Registros</th>
-                      <th className="text-right py-2 text-sm font-semibold text-gray-700">Verificados</th>
-                      <th className="text-right py-2 text-sm font-semibold text-gray-700">%</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {emailStats.recentVerifications.map((row) => {
-                      const pct = row.registered > 0
-                        ? Math.round((row.verified / row.registered) * 10000) / 100
-                        : 0;
-                      return (
-                        <tr key={row.month} className="border-b border-gray-100">
-                          <td className="py-3 text-sm text-gray-700 font-medium">
-                            {formatMonth(row.month)}
-                          </td>
-                          <td className="py-3 text-sm text-gray-600 text-right">
-                            {row.registered.toLocaleString('es-MX')}
-                          </td>
-                          <td className="py-3 text-sm text-right">
-                            <span className={row.verified > 0 ? 'text-emerald-600 font-semibold' : 'text-gray-400'}>
-                              {row.verified.toLocaleString('es-MX')}
-                            </span>
-                          </td>
-                          <td className="py-3 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-emerald-500 rounded-full transition-all"
-                                  style={{ width: `${Math.min(pct, 100)}%` }}
-                                />
-                              </div>
-                              <span className="text-xs text-gray-500 w-12 text-right">
-                                {pct}%
-                              </span>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <DataTable<MonthlyVerificationRow>
+              columns={monthlyColumns}
+              data={emailStats.recentVerifications}
+              getRowKey={(row) => row.month}
+              emptyMessage="Sin datos en los últimos 6 meses."
+            />
           </CardContent>
         </Card>
       </div>

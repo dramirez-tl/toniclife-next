@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { DataTable, type DataTableColumn } from '@/components/ui';
 import { Loader2 } from 'lucide-react';
 import {
   CalendarDaysIcon,
@@ -158,6 +159,84 @@ export default function PeriodosPage() {
   const totalPeriods = periods?.length || 0;
   const openPeriods = periods?.filter((p) => !p.isClosed).length || 0;
   const closedPeriods = periods?.filter((p) => p.isClosed).length || 0;
+
+  const columns = useMemo<DataTableColumn<MlmPeriod>[]>(
+    () => [
+      {
+        key: 'code',
+        header: 'Codigo',
+        render: (period) => (
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+            {period.code}
+          </span>
+        ),
+      },
+      {
+        key: 'name',
+        header: 'Nombre',
+        cellClassName: 'text-sm font-medium text-gray-900',
+        render: (period) => period.name,
+      },
+      {
+        key: 'startDate',
+        header: 'Fecha Inicio',
+        cellClassName: 'text-sm text-gray-700',
+        render: (period) => formatDate(period.startDate),
+      },
+      {
+        key: 'endDate',
+        header: 'Fecha Fin',
+        cellClassName: 'text-sm text-gray-700',
+        render: (period) => formatDate(period.endDate),
+      },
+      {
+        key: 'status',
+        header: 'Estado',
+        headerClassName: 'text-center',
+        cellClassName: 'text-center',
+        render: (period) => getStatusBadge(period),
+      },
+      {
+        key: 'actions',
+        header: 'Acciones',
+        headerClassName: 'text-center',
+        render: (period) => (
+          <div className="flex items-center justify-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => handleEdit(period)}>
+              <PencilSquareIcon className="h-4 w-4" />
+              Editar
+            </Button>
+            {!period.isClosed && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleClose(period.id)}
+                disabled={closeMutation.isPending}
+              >
+                {closeMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                <LockClosedIcon className="h-4 w-4" />
+                Cerrar
+              </Button>
+            )}
+            {period.isClosed && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleReopen(period.id)}
+                disabled={reopenMutation.isPending}
+              >
+                {reopenMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                <LockOpenIcon className="h-4 w-4" />
+                Reabrir
+              </Button>
+            )}
+          </div>
+        ),
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [closeMutation.isPending, reopenMutation.isPending],
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -334,100 +413,28 @@ export default function PeriodosPage() {
         )}
 
         {/* Periods Table */}
-        {isLoading ? (
-          <Card>
-            <CardContent className="p-12">
-              <div className="text-center">
-                <div className="inline-block w-12 h-12 border-4 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
-                <p className="mt-4 text-gray-600">Cargando periodos...</p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Codigo</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Nombre</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Fecha Inicio</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Fecha Fin</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">Estado</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(periods || []).length > 0 ? (
-                      (periods || []).map((period) => (
-                        <tr key={period.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-3 px-4">
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                              {period.code}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-sm font-medium text-gray-900">{period.name}</td>
-                          <td className="py-3 px-4 text-sm text-gray-700">{formatDate(period.startDate)}</td>
-                          <td className="py-3 px-4 text-sm text-gray-700">{formatDate(period.endDate)}</td>
-                          <td className="py-3 px-4 text-center">{getStatusBadge(period)}</td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center justify-center gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEdit(period)}
-                              >
-                                <PencilSquareIcon className="h-4 w-4" />
-                                Editar
-                              </Button>
-                              {!period.isClosed && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleClose(period.id)}
-                                  disabled={closeMutation.isPending}
-                                >
-                                  {closeMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-                                  <LockClosedIcon className="h-4 w-4" />
-                                  Cerrar
-                                </Button>
-                              )}
-                              {period.isClosed && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleReopen(period.id)}
-                                  disabled={reopenMutation.isPending}
-                                >
-                                  {reopenMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-                                  <LockOpenIcon className="h-4 w-4" />
-                                  Reabrir
-                                </Button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td colSpan={6} className="py-12 text-center">
-                          <CalendarDaysIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                          <h3 className="text-xl font-bold text-gray-900 mb-2">
-                            No se encontraron periodos
-                          </h3>
-                          <p className="text-gray-600">
-                            Crea un periodo manualmente o genera periodos automaticamente
-                          </p>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <Card>
+          <CardContent className="p-0">
+            <DataTable<MlmPeriod>
+              columns={columns}
+              data={periods || []}
+              getRowKey={(period) => period.id}
+              isLoading={isLoading}
+              loadingRows={6}
+              emptyState={
+                <>
+                  <CalendarDaysIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    No se encontraron periodos
+                  </h3>
+                  <p className="text-gray-600">
+                    Crea un periodo manualmente o genera periodos automaticamente
+                  </p>
+                </>
+              }
+            />
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

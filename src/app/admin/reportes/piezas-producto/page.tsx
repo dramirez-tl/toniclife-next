@@ -6,6 +6,14 @@ import { usePeriods } from '@/hooks/useMlmPeriods';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import type { MlmPeriod } from '@/types/mlm-periods';
 
 type CurrencyFilter = 'ALL' | 'MXN' | 'USD' | 'COP' | 'GTQ';
@@ -314,57 +322,57 @@ export default function PiezasProductoPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50">
-                  <th className="sticky left-0 bg-gray-50 px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap z-10">
+            <Table className="min-w-full">
+              <TableHeader>
+                <TableRow className="border-b border-gray-200 bg-gray-50 hover:bg-gray-50">
+                  <TableHead className="sticky left-0 bg-gray-50 px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap z-10">
                     Producto
-                  </th>
-                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  </TableHead>
+                  <TableHead className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                     Nombre
-                  </th>
-                  <th className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                  </TableHead>
+                  <TableHead className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                     Sucursal
-                  </th>
+                  </TableHead>
                   {data!.periodColumns.map((pc) => (
-                    <th
+                    <TableHead
                       key={pc.id}
                       className="px-4 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap"
                     >
                       {pc.name}
-                    </th>
+                    </TableHead>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {rowsWithSales.map((row, idx) => (
-                  <tr
+                  <TableRow
                     key={`${row.sku}-${row.branchName}`}
                     className={`border-b border-gray-100 transition-colors hover:bg-[#3E667D]/[0.03] ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
                   >
-                    <td className="sticky left-0 bg-inherit px-4 py-3 text-sm font-mono font-medium text-gray-900 whitespace-nowrap z-10">
+                    <TableCell className="sticky left-0 bg-inherit px-4 py-3 text-sm font-mono font-medium text-gray-900 whitespace-nowrap z-10">
                       {row.sku}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap max-w-[250px] truncate" title={row.productName}>
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap max-w-[250px] truncate" title={row.productName}>
                       {row.productName}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap max-w-[200px] truncate" title={row.branchName}>
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap max-w-[200px] truncate" title={row.branchName}>
                       {row.branchName}
-                    </td>
+                    </TableCell>
                     {row.periods.map((p) => (
-                      <td
+                      <TableCell
                         key={p.periodId}
                         className={`px-4 py-3 text-sm text-center tabular-nums whitespace-nowrap ${
                           p.quantity > 0 ? 'text-gray-900 font-medium' : 'text-gray-300'
                         }`}
                       >
                         {p.quantity > 0 ? p.quantity.toLocaleString() : ''}
-                      </td>
+                      </TableCell>
                     ))}
-                  </tr>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>

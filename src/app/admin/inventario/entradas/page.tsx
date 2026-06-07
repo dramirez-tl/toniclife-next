@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { DataTable, type DataTableColumn } from '@/components/ui';
 import {
   ArrowDownTrayIcon,
   MagnifyingGlassIcon,
@@ -157,6 +158,96 @@ function EntradasContent() {
     pending: pendingStatsData?.total ?? 0,
   };
 
+  const columns: DataTableColumn<MovementDto>[] = useMemo(() => [
+    {
+      key: 'movementNumber',
+      header: 'No. Movimiento',
+      cellClassName: 'font-mono text-xs',
+      render: (movement) => movement.movementNumber,
+    },
+    {
+      key: 'branchName',
+      header: 'Sucursal',
+      render: (movement) => movement.branchName,
+    },
+    {
+      key: 'reason',
+      header: 'Razón',
+      render: (movement) => inventoryService.getMovementReasonLabel(movement.reason),
+    },
+    {
+      key: 'totalItems',
+      header: 'Items',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (movement) => movement.totalItems,
+    },
+    {
+      key: 'totalQuantity',
+      header: 'Cantidad',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center font-medium',
+      render: (movement) => movement.totalQuantity,
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (movement) => getStatusBadge(movement.status),
+    },
+    {
+      key: 'createdAt',
+      header: 'Fecha',
+      cellClassName: 'text-xs text-gray-500',
+      render: (movement) => {
+        const tz = branches?.find(b => b.name === movement.branchName)?.timezone || DEFAULT_TIMEZONE;
+        return <>{inventoryService.formatDateTime(movement.createdAt, tz)}<span className="text-gray-400"> · {getTimezoneShortLabel(tz)}</span></>;
+      },
+    },
+    {
+      key: 'actions',
+      header: 'Acciones',
+      headerClassName: 'text-center',
+      render: (movement) => (
+        <div className="flex items-center justify-center gap-1">
+          <button
+            onClick={() => router.push(`/admin/inventario/entradas/${movement.id}`)}
+            className="p-1.5 text-gray-500 hover:text-[#3E667D] hover:bg-gray-100 rounded-lg transition-colors"
+            title="Ver detalle"
+          >
+            <EyeIcon className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => handleDownloadPdf(movement)}
+            className="p-1.5 text-gray-500 hover:text-[#3E667D] hover:bg-gray-100 rounded-lg transition-colors"
+            title="Descargar PDF"
+          >
+            <DocumentArrowDownIcon className="h-4 w-4" />
+          </button>
+          {movement.status === 'pending_approval' && (
+            <>
+              <button
+                onClick={() => handleApprove(movement.id)}
+                className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                title="Aprobar"
+              >
+                <CheckIcon className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setShowRejectModal(movement.id)}
+                className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Rechazar"
+              >
+                <XMarkIcon className="h-4 w-4" />
+              </button>
+            </>
+          )}
+        </div>
+      ),
+    },
+  ], [branches]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -280,81 +371,20 @@ function EntradasContent() {
         {/* Table */}
         <Card>
           <CardContent className="p-0">
-            {isLoading ? (
-              <div className="p-12 text-center text-gray-500">Cargando entradas...</div>
-            ) : !movementsData?.data.length ? (
-              <div className="p-12 text-center text-gray-500">
-                <ArrowDownTrayIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-lg font-medium">No hay entradas registradas</p>
-                <p className="text-sm mt-1">Crea una nueva entrada para comenzar</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-50 border-b">
-                      <th className="px-4 py-3 text-left font-medium text-gray-600">No. Movimiento</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-600">Sucursal</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-600">Razón</th>
-                      <th className="px-4 py-3 text-center font-medium text-gray-600">Items</th>
-                      <th className="px-4 py-3 text-center font-medium text-gray-600">Cantidad</th>
-                      <th className="px-4 py-3 text-center font-medium text-gray-600">Estado</th>
-                      <th className="px-4 py-3 text-left font-medium text-gray-600">Fecha</th>
-                      <th className="px-4 py-3 text-center font-medium text-gray-600">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {movementsData.data.map((movement) => (
-                      <tr key={movement.id} className="border-b hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3 font-mono text-xs">{movement.movementNumber}</td>
-                        <td className="px-4 py-3">{movement.branchName}</td>
-                        <td className="px-4 py-3">{inventoryService.getMovementReasonLabel(movement.reason)}</td>
-                        <td className="px-4 py-3 text-center">{movement.totalItems}</td>
-                        <td className="px-4 py-3 text-center font-medium">{movement.totalQuantity}</td>
-                        <td className="px-4 py-3 text-center">{getStatusBadge(movement.status)}</td>
-                        <td className="px-4 py-3 text-xs text-gray-500">{(() => { const tz = branches?.find(b => b.name === movement.branchName)?.timezone || DEFAULT_TIMEZONE; return <>{inventoryService.formatDateTime(movement.createdAt, tz)}<span className="text-gray-400"> · {getTimezoneShortLabel(tz)}</span></>; })()}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => router.push(`/admin/inventario/entradas/${movement.id}`)}
-                              className="p-1.5 text-gray-500 hover:text-[#3E667D] hover:bg-gray-100 rounded-lg transition-colors"
-                              title="Ver detalle"
-                            >
-                              <EyeIcon className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDownloadPdf(movement)}
-                              className="p-1.5 text-gray-500 hover:text-[#3E667D] hover:bg-gray-100 rounded-lg transition-colors"
-                              title="Descargar PDF"
-                            >
-                              <DocumentArrowDownIcon className="h-4 w-4" />
-                            </button>
-                            {movement.status === 'pending_approval' && (
-                              <>
-                                <button
-                                  onClick={() => handleApprove(movement.id)}
-                                  className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                  title="Aprobar"
-                                >
-                                  <CheckIcon className="h-4 w-4" />
-                                </button>
-                                <button
-                                  onClick={() => setShowRejectModal(movement.id)}
-                                  className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                  title="Rechazar"
-                                >
-                                  <XMarkIcon className="h-4 w-4" />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <DataTable<MovementDto>
+              columns={columns}
+              data={movementsData?.data ?? []}
+              getRowKey={(movement) => movement.id}
+              isLoading={isLoading}
+              loadingRows={8}
+              emptyState={
+                <div className="py-6 text-center text-gray-500">
+                  <ArrowDownTrayIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg font-medium">No hay entradas registradas</p>
+                  <p className="text-sm mt-1">Crea una nueva entrada para comenzar</p>
+                </div>
+              }
+            />
 
             {movementsData && movementsData.totalPages > 1 && (
               <div className="flex items-center justify-between px-4 py-3 border-t">

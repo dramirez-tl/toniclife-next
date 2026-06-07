@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useMemo, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { DataTable, type DataTableColumn } from '@/components/ui';
 import {
   CubeIcon,
   MagnifyingGlassIcon,
@@ -111,6 +112,8 @@ const mockInventory = [
   },
 ];
 
+type InventoryItem = (typeof mockInventory)[number];
+
 const statusConfig = {
   in_stock: { label: 'En Existencia', color: 'bg-green-100 text-green-800', icon: CheckCircleIcon },
   low_stock: { label: 'Existencias Bajas', color: 'bg-yellow-100 text-yellow-800', icon: ExclamationTriangleIcon },
@@ -188,6 +191,134 @@ function InventarioContent() {
   const handleOrder = (itemId: string, quantity: number) => {
     toast.success(`Pedido de ${quantity} unidades solicitado`);
   };
+
+  const columns = useMemo<DataTableColumn<InventoryItem>[]>(() => [
+    {
+      key: 'product',
+      header: 'Producto',
+      render: (item) => (
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
+            <CubeIcon className="h-6 w-6 text-gray-400" />
+          </div>
+          <div>
+            <p className="font-medium text-gray-900">{item.name}</p>
+            <p className="text-sm text-gray-600">{item.category}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'code',
+      header: 'SKU',
+      render: (item) => (
+        <code className="text-sm bg-gray-100 px-2 py-1 rounded">{item.code}</code>
+      ),
+    },
+    {
+      key: 'stock',
+      header: 'Existencias',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (item) => {
+        const stockPercentage = (item.stock / item.maxStock) * 100;
+        return (
+          <div className="text-center">
+            <p className="font-bold text-gray-900 mb-1">{item.stock}</p>
+            <div className="w-full bg-gray-200 rounded-full h-1.5">
+              <div
+                className={`h-1.5 rounded-full ${
+                  stockPercentage > 50 ? 'bg-green-500' :
+                  stockPercentage > 25 ? 'bg-yellow-500' :
+                  'bg-red-500'
+                }`}
+                style={{ width: `${stockPercentage}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Min: {item.minStock} / Max: {item.maxStock}
+            </p>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (item) => {
+        const status = statusConfig[item.status as keyof typeof statusConfig];
+        const StatusIcon = status.icon;
+        return (
+          <div className="flex justify-center">
+            <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${status.color}`}>
+              <StatusIcon className="h-3 w-3 mr-1" />
+              {status.label}
+            </span>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'price',
+      header: 'Precio',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (item) => (
+        <>
+          <p className="font-semibold text-gray-900">${item.price}</p>
+          <p className="text-xs text-gray-500">Costo: ${item.cost}</p>
+        </>
+      ),
+    },
+    {
+      key: 'value',
+      header: 'Valor',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (item) => (
+        <p className="font-bold text-[#3E667D]">
+          ${(item.stock * item.price).toLocaleString('es-MX')}
+        </p>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Acciones',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (item) => (
+        <div className="flex items-center justify-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleAdjustStock(item.id, -1)}
+            disabled={item.stock === 0}
+          >
+            <MinusIcon className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleAdjustStock(item.id, 1)}
+          >
+            <PlusIcon className="h-4 w-4" />
+          </Button>
+          {item.status !== 'in_stock' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleRestock(item.id)}
+            >
+              <ArrowPathIcon className="h-4 w-4" />
+              Reabastecer
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ], [handleAdjustStock, handleRestock]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -370,124 +501,12 @@ function InventarioContent() {
         {/* Inventory Table */}
         <Card>
           <CardContent className="p-6">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">Producto</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">SKU</th>
-                    <th className="text-center py-3 px-4 font-semibold text-gray-900">Existencias</th>
-                    <th className="text-center py-3 px-4 font-semibold text-gray-900">Estado</th>
-                    <th className="text-right py-3 px-4 font-semibold text-gray-900">Precio</th>
-                    <th className="text-right py-3 px-4 font-semibold text-gray-900">Valor</th>
-                    <th className="text-center py-3 px-4 font-semibold text-gray-900">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredInventory.map((item) => {
-                    const status = statusConfig[item.status as keyof typeof statusConfig];
-                    const StatusIcon = status.icon;
-                    const stockPercentage = (item.stock / item.maxStock) * 100;
-
-                    return (
-                      <tr key={item.id} className="border-b hover:bg-gray-50">
-                        {/* Product */}
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
-                              <CubeIcon className="h-6 w-6 text-gray-400" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">{item.name}</p>
-                              <p className="text-sm text-gray-600">{item.category}</p>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* SKU */}
-                        <td className="py-4 px-4">
-                          <code className="text-sm bg-gray-100 px-2 py-1 rounded">{item.code}</code>
-                        </td>
-
-                        {/* Stock */}
-                        <td className="py-4 px-4">
-                          <div className="text-center">
-                            <p className="font-bold text-gray-900 mb-1">{item.stock}</p>
-                            <div className="w-full bg-gray-200 rounded-full h-1.5">
-                              <div
-                                className={`h-1.5 rounded-full ${
-                                  stockPercentage > 50 ? 'bg-green-500' :
-                                  stockPercentage > 25 ? 'bg-yellow-500' :
-                                  'bg-red-500'
-                                }`}
-                                style={{ width: `${stockPercentage}%` }}
-                              />
-                            </div>
-                            <p className="text-xs text-gray-500 mt-1">
-                              Min: {item.minStock} / Max: {item.maxStock}
-                            </p>
-                          </div>
-                        </td>
-
-                        {/* Status */}
-                        <td className="py-4 px-4">
-                          <div className="flex justify-center">
-                            <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${status.color}`}>
-                              <StatusIcon className="h-3 w-3 mr-1" />
-                              {status.label}
-                            </span>
-                          </div>
-                        </td>
-
-                        {/* Price */}
-                        <td className="py-4 px-4 text-right">
-                          <p className="font-semibold text-gray-900">${item.price}</p>
-                          <p className="text-xs text-gray-500">Costo: ${item.cost}</p>
-                        </td>
-
-                        {/* Value */}
-                        <td className="py-4 px-4 text-right">
-                          <p className="font-bold text-[#3E667D]">
-                            ${(item.stock * item.price).toLocaleString('es-MX')}
-                          </p>
-                        </td>
-
-                        {/* Actions */}
-                        <td className="py-4 px-4">
-                          <div className="flex items-center justify-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleAdjustStock(item.id, -1)}
-                              disabled={item.stock === 0}
-                            >
-                              <MinusIcon className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleAdjustStock(item.id, 1)}
-                            >
-                              <PlusIcon className="h-4 w-4" />
-                            </Button>
-                            {item.status !== 'in_stock' && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleRestock(item.id)}
-                              >
-                                <ArrowPathIcon className="h-4 w-4" />
-                                Reabastecer
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <DataTable<InventoryItem>
+              columns={columns}
+              data={filteredInventory}
+              getRowKey={(item) => item.id}
+              emptyMessage="No se encontraron productos."
+            />
           </CardContent>
         </Card>
       </div>

@@ -21,6 +21,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { DataTable, type DataTableColumn } from '@/components/ui';
 import { useEmployees, useCreateEmployee, useUpdateEmployee } from '@/hooks/useHR';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
@@ -193,6 +194,133 @@ function EmpleadosContent() {
   const getAvatarUrl = (name: string) => {
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=003B7A&color=fff`;
   };
+
+  const columns: DataTableColumn<Employee>[] = [
+    {
+      key: 'employee',
+      header: 'Empleado',
+      render: (employee) => {
+        const fullName = `${employee.firstName} ${employee.lastName}`;
+        return (
+          <div className="flex items-center gap-3">
+            <img
+              src={getAvatarUrl(fullName)}
+              alt={fullName}
+              className="w-10 h-10 rounded-full"
+            />
+            <div>
+              <p className="font-semibold text-gray-900">{fullName}</p>
+              <p className="text-sm text-gray-500">{employee.employeeNumber}</p>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'position',
+      header: 'Puesto',
+      render: (employee) => (
+        <div className="flex items-center gap-2">
+          <p className="text-gray-900">{employee.position}</p>
+          {employee.isManager && (
+            <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">
+              Gerente
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'department',
+      header: 'Departamento',
+      cellClassName: 'text-gray-600',
+      render: (employee) => employee.department,
+    },
+    {
+      key: 'branch',
+      header: 'Sucursal',
+      render: (employee) => (
+        <div className="flex items-center gap-1 text-gray-600">
+          <BuildingOfficeIcon className="h-4 w-4" />
+          <span>{employee.branch || 'Sin asignar'}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'hireDate',
+      header: 'Ingreso',
+      cellClassName: 'text-sm text-gray-600',
+      render: (employee) => formatDate(employee.hireDate),
+    },
+    {
+      key: 'vacation',
+      header: 'Vacaciones',
+      render: (employee) => {
+        const vacationDays = employee.vacationDaysPerYear ?? 12;
+        const vacationUsed = employee.vacationDaysUsed ?? 0;
+        const vacationRemaining = vacationDays - vacationUsed;
+        return (
+          <>
+            <div className="text-sm">
+              <span className="font-semibold text-gray-900">
+                {vacationRemaining}
+              </span>
+              <span className="text-gray-500"> / {vacationDays} días</span>
+            </div>
+            <div className="w-24 h-1.5 bg-gray-200 rounded-full mt-1">
+              <div
+                className="h-full bg-green-500 rounded-full"
+                style={{
+                  width: `${Math.max(0, (vacationRemaining / vacationDays) * 100)}%`,
+                }}
+              />
+            </div>
+          </>
+        );
+      },
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      render: (employee) => (
+        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusConfig[employee.status]?.color || 'bg-gray-100 text-gray-700'}`}>
+          {statusConfig[employee.status]?.label || employee.status}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Acciones',
+      headerClassName: 'text-right',
+      render: (employee) => (
+        <div className="flex items-center justify-end gap-2">
+          <button
+            onClick={() => openEditModal(employee)}
+            className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
+            title="Editar empleado"
+          >
+            <PencilIcon className="h-4 w-4 text-blue-600" />
+          </button>
+          <a
+            href={`mailto:${employee.email}`}
+            className="p-2 hover:bg-green-50 rounded-lg transition-colors"
+            title="Enviar email"
+          >
+            <EnvelopeIcon className="h-4 w-4 text-green-600" />
+          </a>
+          {employee.phone && (
+            <a
+              href={`tel:${employee.phone}`}
+              className="p-2 hover:bg-purple-50 rounded-lg transition-colors"
+              title="Llamar"
+            >
+              <PhoneIcon className="h-4 w-4 text-purple-600" />
+            </a>
+          )}
+        </div>
+      ),
+    },
+  ];
 
   // Loading state
   if (isLoading) {
@@ -397,128 +525,22 @@ function EmpleadosContent() {
         {/* Employees Table */}
         <Card>
           <CardContent className="p-6">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Empleado</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Puesto</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Departamento</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Sucursal</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Ingreso</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Vacaciones</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Estado</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {employees.map((employee) => {
-                    const vacationDays = employee.vacationDaysPerYear ?? 12;
-                    const vacationUsed = employee.vacationDaysUsed ?? 0;
-                    const vacationRemaining = vacationDays - vacationUsed;
-                    const fullName = `${employee.firstName} ${employee.lastName}`;
-
-                    return (
-                      <tr key={employee.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={getAvatarUrl(fullName)}
-                              alt={fullName}
-                              className="w-10 h-10 rounded-full"
-                            />
-                            <div>
-                              <p className="font-semibold text-gray-900">{fullName}</p>
-                              <p className="text-sm text-gray-500">{employee.employeeNumber}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-2">
-                            <p className="text-gray-900">{employee.position}</p>
-                            {employee.isManager && (
-                              <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">
-                                Gerente
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-4 px-4 text-gray-600">{employee.department}</td>
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-1 text-gray-600">
-                            <BuildingOfficeIcon className="h-4 w-4" />
-                            <span>{employee.branch || 'Sin asignar'}</span>
-                          </div>
-                        </td>
-                        <td className="py-4 px-4 text-sm text-gray-600">
-                          {formatDate(employee.hireDate)}
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="text-sm">
-                            <span className="font-semibold text-gray-900">
-                              {vacationRemaining}
-                            </span>
-                            <span className="text-gray-500"> / {vacationDays} días</span>
-                          </div>
-                          <div className="w-24 h-1.5 bg-gray-200 rounded-full mt-1">
-                            <div
-                              className="h-full bg-green-500 rounded-full"
-                              style={{
-                                width: `${Math.max(0, (vacationRemaining / vacationDays) * 100)}%`,
-                              }}
-                            />
-                          </div>
-                        </td>
-                        <td className="py-4 px-4">
-                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusConfig[employee.status]?.color || 'bg-gray-100 text-gray-700'}`}>
-                            {statusConfig[employee.status]?.label || employee.status}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => openEditModal(employee)}
-                              className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="Editar empleado"
-                            >
-                              <PencilIcon className="h-4 w-4 text-blue-600" />
-                            </button>
-                            <a
-                              href={`mailto:${employee.email}`}
-                              className="p-2 hover:bg-green-50 rounded-lg transition-colors"
-                              title="Enviar email"
-                            >
-                              <EnvelopeIcon className="h-4 w-4 text-green-600" />
-                            </a>
-                            {employee.phone && (
-                              <a
-                                href={`tel:${employee.phone}`}
-                                className="p-2 hover:bg-purple-50 rounded-lg transition-colors"
-                                title="Llamar"
-                              >
-                                <PhoneIcon className="h-4 w-4 text-purple-600" />
-                              </a>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {employees.length === 0 && (
-              <div className="text-center py-12">
-                <UserGroupIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  No se encontraron empleados
-                </h3>
-                <p className="text-gray-600">
-                  Intenta ajustar los filtros de búsqueda
-                </p>
-              </div>
-            )}
+            <DataTable<Employee>
+              columns={columns}
+              data={employees}
+              getRowKey={(employee) => employee.id}
+              emptyState={
+                <div className="text-center py-12">
+                  <UserGroupIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    No se encontraron empleados
+                  </h3>
+                  <p className="text-gray-600">
+                    Intenta ajustar los filtros de búsqueda
+                  </p>
+                </div>
+              }
+            />
 
             {/* Pagination */}
             {employees.length > 0 && pagination && (

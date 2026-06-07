@@ -21,6 +21,7 @@ import {
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { DataTable, type DataTableColumn } from '@/components/ui';
 import { confirmAction } from '@/lib/utils';
 import {
   usePosLicensesByBranch,
@@ -116,6 +117,110 @@ export function PosLicensesModal({
     }
   }
 
+  const columns: DataTableColumn<PosLicense>[] = [
+    {
+      key: 'licenseKey',
+      header: 'Clave',
+      cellClassName: 'font-mono text-xs text-gray-900 whitespace-nowrap',
+      render: (license) => license.licenseKey,
+    },
+    {
+      key: 'label',
+      header: 'Etiqueta',
+      cellClassName: 'text-gray-700',
+      render: (license) =>
+        license.label || (
+          <span className="text-gray-400 italic">sin etiqueta</span>
+        ),
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      render: (license) => (
+        <>
+          {license.status === 'active' && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+              <LockClosedIcon className="h-3 w-3" />
+              Activa
+            </span>
+          )}
+          {license.status === 'inactive' && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+              <LockOpenIcon className="h-3 w-3" />
+              Sin canjear
+            </span>
+          )}
+          {license.status === 'revoked' && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+              <XCircleIcon className="h-3 w-3" />
+              Revocada
+            </span>
+          )}
+        </>
+      ),
+    },
+    {
+      key: 'hardware',
+      header: 'Equipo',
+      cellClassName: 'text-xs text-gray-600',
+      render: (license) =>
+        license.status === 'active' && license.hardwareFingerprint ? (
+          <div className="flex items-center gap-1">
+            <ComputerDesktopIcon className="h-3 w-3 text-gray-400 shrink-0" />
+            <div>
+              <div className="font-medium text-gray-800">
+                {(license.hardwareInfo?.hostname as string | undefined) ??
+                  `HW-${license.hardwareFingerprint.slice(0, 12).toUpperCase()}`}
+              </div>
+              {license.hardwareInfo?.osPlatform && (
+                <div className="text-gray-500">
+                  {license.hardwareInfo.osPlatform as string}{' '}
+                  {(license.hardwareInfo.osRelease as string | undefined) ?? ''}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <span className="text-gray-400 italic">no vinculada</span>
+        ),
+    },
+    {
+      key: 'actions',
+      header: 'Acciones',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (license) => (
+        <div className="flex items-center justify-end gap-1">
+          <button
+            onClick={() => handleCopy(license.licenseKey)}
+            className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
+            title="Copiar clave"
+          >
+            <ClipboardDocumentIcon className="h-4 w-4" />
+          </button>
+          {license.status === 'active' && (
+            <button
+              onClick={() => handleUnbind(license)}
+              className="p-1 rounded hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
+              title="Liberar del equipo (sigue siendo valida)"
+            >
+              <LockOpenIcon className="h-4 w-4" />
+            </button>
+          )}
+          {license.status !== 'revoked' && (
+            <button
+              onClick={() => handleRevoke(license)}
+              className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+              title="Revocar permanentemente"
+            >
+              <TrashIcon className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
@@ -153,113 +258,15 @@ export function PosLicensesModal({
             y no puede usarse en otra maquina hasta liberarla o revocarla.
           </p>
 
-          {isLoading ? (
-            <div className="text-sm text-gray-500 py-6 text-center">
-              Cargando licencias...
-            </div>
-          ) : licenses.length > 0 ? (
-            <div className="border rounded-lg overflow-hidden mb-4">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="text-left px-3 py-2 font-medium text-gray-700">Clave</th>
-                    <th className="text-left px-3 py-2 font-medium text-gray-700">Etiqueta</th>
-                    <th className="text-left px-3 py-2 font-medium text-gray-700">Estado</th>
-                    <th className="text-left px-3 py-2 font-medium text-gray-700">Equipo</th>
-                    <th className="text-right px-3 py-2 font-medium text-gray-700">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {licenses.map((license: PosLicense) => (
-                    <tr key={license.id} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 font-mono text-xs text-gray-900 whitespace-nowrap">
-                        {license.licenseKey}
-                      </td>
-                      <td className="px-3 py-2 text-gray-700">
-                        {license.label || (
-                          <span className="text-gray-400 italic">sin etiqueta</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2">
-                        {license.status === 'active' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                            <LockClosedIcon className="h-3 w-3" />
-                            Activa
-                          </span>
-                        )}
-                        {license.status === 'inactive' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-                            <LockOpenIcon className="h-3 w-3" />
-                            Sin canjear
-                          </span>
-                        )}
-                        {license.status === 'revoked' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-                            <XCircleIcon className="h-3 w-3" />
-                            Revocada
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-gray-600">
-                        {license.status === 'active' && license.hardwareFingerprint ? (
-                          <div className="flex items-center gap-1">
-                            <ComputerDesktopIcon className="h-3 w-3 text-gray-400 shrink-0" />
-                            <div>
-                              <div className="font-medium text-gray-800">
-                                {(license.hardwareInfo?.hostname as string | undefined) ??
-                                  `HW-${license.hardwareFingerprint.slice(0, 12).toUpperCase()}`}
-                              </div>
-                              {license.hardwareInfo?.osPlatform && (
-                                <div className="text-gray-500">
-                                  {license.hardwareInfo.osPlatform as string}{' '}
-                                  {(license.hardwareInfo.osRelease as string | undefined) ?? ''}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400 italic">no vinculada</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => handleCopy(license.licenseKey)}
-                            className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
-                            title="Copiar clave"
-                          >
-                            <ClipboardDocumentIcon className="h-4 w-4" />
-                          </button>
-                          {license.status === 'active' && (
-                            <button
-                              onClick={() => handleUnbind(license)}
-                              className="p-1 rounded hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
-                              title="Liberar del equipo (sigue siendo valida)"
-                            >
-                              <LockOpenIcon className="h-4 w-4" />
-                            </button>
-                          )}
-                          {license.status !== 'revoked' && (
-                            <button
-                              onClick={() => handleRevoke(license)}
-                              className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
-                              title="Revocar permanentemente"
-                            >
-                              <TrashIcon className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="text-sm text-gray-500 mb-4 italic">
-              Esta sucursal aun no tiene licencias POS generadas.
-            </p>
-          )}
+          <div className="border rounded-lg overflow-hidden mb-4">
+            <DataTable<PosLicense>
+              columns={columns}
+              data={licenses}
+              getRowKey={(license, index) => String(license.id ?? index)}
+              isLoading={isLoading}
+              emptyMessage="Esta sucursal aun no tiene licencias POS generadas."
+            />
+          </div>
 
           {/* Inline create form */}
           <div className="border rounded-lg p-3 bg-gray-50 flex items-end gap-3">

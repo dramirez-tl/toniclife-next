@@ -14,6 +14,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Button } from '@/components/ui/button';
+import { DataTable, type DataTableColumn } from '@/components/ui';
+import type { DistributorCommission, RankUp } from '@/types/reports';
 import { useCommissionsReport, usePointsReport, useRankUpsReport } from '@/hooks/useReports';
 import { useCommissionPeriods } from '@/hooks/useCommissions';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
@@ -95,6 +97,110 @@ function ComisionesReportesContent() {
   const pointsSummary = pointsData?.summary;
   const rankUps = rankUpsData?.rankUps ?? [];
   const totalRankUps = rankUpsData?.totalRankUps ?? 0;
+
+  const commissionColumns = useMemo<DataTableColumn<DistributorCommission>[]>(() => [
+    {
+      key: 'distributor',
+      header: 'Distribuidor',
+      cellClassName: 'whitespace-nowrap',
+      render: (distributor, index) => (
+        <div className="flex items-center">
+          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 text-green-700 text-xs font-medium flex items-center justify-center mr-3">
+            {index + 1}
+          </span>
+          <div>
+            <p className="text-sm font-medium text-gray-900">{distributor.customerName}</p>
+            <p className="text-xs text-gray-500">{distributor.email}</p>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'rank',
+      header: 'Rango',
+      headerClassName: 'text-center',
+      cellClassName: 'whitespace-nowrap text-center',
+      render: (distributor) => (
+        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getRankColor(distributor.rank)}`}>
+          {distributor.rank}
+        </span>
+      ),
+    },
+    {
+      key: 'grossMxn',
+      header: 'Bruto MXN',
+      headerClassName: 'text-right',
+      cellClassName: 'whitespace-nowrap text-right text-sm text-gray-900',
+      render: (distributor) => formatCurrency(distributor.grossAmountMxn),
+    },
+    {
+      key: 'grossUsd',
+      header: 'Bruto USD',
+      headerClassName: 'text-right',
+      cellClassName: 'whitespace-nowrap text-right text-sm text-gray-500',
+      render: (distributor) => formatCurrency(distributor.grossAmountUsd, 'USD'),
+    },
+    {
+      key: 'retentions',
+      header: 'Retenciones',
+      headerClassName: 'text-right',
+      cellClassName: 'whitespace-nowrap text-right text-sm text-red-600',
+      render: (distributor) => <>-{formatCurrency(distributor.retentions)}</>,
+    },
+    {
+      key: 'netMxn',
+      header: 'Neto MXN',
+      headerClassName: 'text-right',
+      cellClassName: 'whitespace-nowrap text-right text-sm font-medium text-green-600',
+      render: (distributor) => formatCurrency(distributor.netAmountMxn),
+    },
+  ], []);
+
+  const rankUpColumns = useMemo<DataTableColumn<RankUp>[]>(() => [
+    {
+      key: 'distributor',
+      header: 'Distribuidor',
+      cellClassName: 'whitespace-nowrap',
+      render: (rankUp) => (
+        <div className="flex items-center">
+          <TrophyIcon className="h-5 w-5 text-yellow-500 mr-2" />
+          <span className="text-sm font-medium text-gray-900">{rankUp.customerName}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'previousRank',
+      header: 'Rango Anterior',
+      headerClassName: 'text-center',
+      cellClassName: 'whitespace-nowrap text-center',
+      render: (rankUp) => (
+        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getRankColor(rankUp.previousRank)}`}>
+          {rankUp.previousRank}
+        </span>
+      ),
+    },
+    {
+      key: 'newRank',
+      header: 'Nuevo Rango',
+      headerClassName: 'text-center',
+      cellClassName: 'whitespace-nowrap text-center',
+      render: (rankUp) => (
+        <div className="flex items-center justify-center space-x-2">
+          <ArrowTrendingUpIcon className="h-4 w-4 text-green-500" />
+          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getRankColor(rankUp.newRank)}`}>
+            {rankUp.newRank}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'achievedAt',
+      header: 'Fecha',
+      headerClassName: 'text-center',
+      cellClassName: 'whitespace-nowrap text-center text-sm text-gray-500',
+      render: (rankUp) => new Date(rankUp.achievedAt).toLocaleDateString('es-MX'),
+    },
+  ], []);
 
   return (
     <div className="space-y-6">
@@ -281,73 +387,17 @@ function ComisionesReportesContent() {
                 <div className="px-6 py-4 border-b border-gray-200">
                   <h3 className="text-lg font-semibold text-gray-900">Detalle de Comisiones</h3>
                 </div>
-                {distributorCommissions.length === 0 ? (
-                  <div className="py-12 text-center">
-                    <CurrencyDollarIcon className="mx-auto h-12 w-12 text-gray-400" />
-                    <p className="mt-2 text-sm text-gray-500">No hay comisiones para este periodo</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                            Distribuidor
-                          </th>
-                          <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
-                            Rango
-                          </th>
-                          <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                            Bruto MXN
-                          </th>
-                          <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                            Bruto USD
-                          </th>
-                          <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                            Retenciones
-                          </th>
-                          <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                            Neto MXN
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200 bg-white">
-                        {distributorCommissions.map((distributor, index) => (
-                          <tr key={distributor.customerId} className="hover:bg-gray-50">
-                            <td className="whitespace-nowrap px-6 py-4">
-                              <div className="flex items-center">
-                                <span className="flex-shrink-0 w-6 h-6 rounded-full bg-green-100 text-green-700 text-xs font-medium flex items-center justify-center mr-3">
-                                  {index + 1}
-                                </span>
-                                <div>
-                                  <p className="text-sm font-medium text-gray-900">{distributor.customerName}</p>
-                                  <p className="text-xs text-gray-500">{distributor.email}</p>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="whitespace-nowrap px-6 py-4 text-center">
-                              <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getRankColor(distributor.rank)}`}>
-                                {distributor.rank}
-                              </span>
-                            </td>
-                            <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-900">
-                              {formatCurrency(distributor.grossAmountMxn)}
-                            </td>
-                            <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
-                              {formatCurrency(distributor.grossAmountUsd, 'USD')}
-                            </td>
-                            <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-red-600">
-                              -{formatCurrency(distributor.retentions)}
-                            </td>
-                            <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-green-600">
-                              {formatCurrency(distributor.netAmountMxn)}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                <DataTable<DistributorCommission>
+                  columns={commissionColumns}
+                  data={distributorCommissions}
+                  getRowKey={(distributor, index) => String(distributor.customerId ?? index)}
+                  emptyState={
+                    <div className="py-12 text-center">
+                      <CurrencyDollarIcon className="mx-auto h-12 w-12 text-gray-400" />
+                      <p className="mt-2 text-sm text-gray-500">No hay comisiones para este periodo</p>
+                    </div>
+                  }
+                />
               </div>
             </>
           )}
@@ -475,61 +525,17 @@ function ComisionesReportesContent() {
                 <div className="px-6 py-4 border-b border-gray-200">
                   <h3 className="text-lg font-semibold text-gray-900">Subidas de Rango del Periodo</h3>
                 </div>
-                {rankUps.length === 0 ? (
-                  <div className="py-12 text-center">
-                    <TrophyIcon className="mx-auto h-12 w-12 text-gray-400" />
-                    <p className="mt-2 text-sm text-gray-500">No hay subidas de rango en este periodo</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                            Distribuidor
-                          </th>
-                          <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
-                            Rango Anterior
-                          </th>
-                          <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
-                            Nuevo Rango
-                          </th>
-                          <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
-                            Fecha
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200 bg-white">
-                        {rankUps.map((rankUp) => (
-                          <tr key={rankUp.customerId} className="hover:bg-gray-50">
-                            <td className="whitespace-nowrap px-6 py-4">
-                              <div className="flex items-center">
-                                <TrophyIcon className="h-5 w-5 text-yellow-500 mr-2" />
-                                <span className="text-sm font-medium text-gray-900">{rankUp.customerName}</span>
-                              </div>
-                            </td>
-                            <td className="whitespace-nowrap px-6 py-4 text-center">
-                              <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getRankColor(rankUp.previousRank)}`}>
-                                {rankUp.previousRank}
-                              </span>
-                            </td>
-                            <td className="whitespace-nowrap px-6 py-4 text-center">
-                              <div className="flex items-center justify-center space-x-2">
-                                <ArrowTrendingUpIcon className="h-4 w-4 text-green-500" />
-                                <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getRankColor(rankUp.newRank)}`}>
-                                  {rankUp.newRank}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="whitespace-nowrap px-6 py-4 text-center text-sm text-gray-500">
-                              {new Date(rankUp.achievedAt).toLocaleDateString('es-MX')}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                <DataTable<RankUp>
+                  columns={rankUpColumns}
+                  data={rankUps}
+                  getRowKey={(rankUp, index) => String(rankUp.customerId ?? index)}
+                  emptyState={
+                    <div className="py-12 text-center">
+                      <TrophyIcon className="mx-auto h-12 w-12 text-gray-400" />
+                      <p className="mt-2 text-sm text-gray-500">No hay subidas de rango en este periodo</p>
+                    </div>
+                  }
+                />
               </div>
             </>
           )}

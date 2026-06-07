@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { DataTable, type DataTableColumn } from '@/components/ui';
 import { Loader2 } from 'lucide-react';
 import {
   TrophyIcon,
@@ -123,6 +124,93 @@ export default function RangosPage() {
   const totalRanks = ranks?.length || 0;
   const activeRanks = ranks?.filter((r) => r.isActive).length || 0;
   const inactiveRanks = totalRanks - activeRanks;
+
+  // Same data + ordering that was applied inline in <tbody> (sort by rankNumber)
+  const sortedRanks = useMemo(
+    () => [...filteredRanks].sort((a, b) => a.rankNumber - b.rankNumber),
+    [filteredRanks]
+  );
+
+  const columns = useMemo<DataTableColumn<MlmRank>[]>(
+    () => [
+      {
+        key: 'rankNumber',
+        header: 'Rango',
+        render: (rank) => (
+          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#3E667D] text-white text-sm font-bold">
+            {rank.rankNumber}
+          </span>
+        ),
+      },
+      {
+        key: 'code',
+        header: 'Codigo',
+        render: (rank) => (
+          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+            {rank.code}
+          </span>
+        ),
+      },
+      {
+        key: 'name',
+        header: 'Nombre',
+        cellClassName: 'text-sm font-medium text-gray-900',
+        render: (rank) => rank.name,
+      },
+      {
+        key: 'pointsPersonalRequired',
+        header: 'Pts. Personales',
+        headerClassName: 'text-right',
+        cellClassName: 'text-sm text-right text-gray-700',
+        render: (rank) => formatNumber(rank.pointsPersonalRequired),
+      },
+      {
+        key: 'pointsGroupRequired',
+        header: 'Pts. Grupo',
+        headerClassName: 'text-right',
+        cellClassName: 'text-sm text-right text-gray-700',
+        render: (rank) => formatNumber(rank.pointsGroupRequired),
+      },
+      {
+        key: 'qualifiersFirstLevel',
+        header: 'Calif. 1er Nivel',
+        headerClassName: 'text-right',
+        cellClassName: 'text-sm text-right text-gray-700',
+        render: (rank) => rank.qualifiersFirstLevel,
+      },
+      {
+        key: 'isActive',
+        header: 'Estado',
+        headerClassName: 'text-center',
+        cellClassName: 'text-center',
+        render: (rank) =>
+          rank.isActive ? (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+              <CheckCircleIcon className="h-3 w-3" />
+              Activo
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
+              <XCircleIcon className="h-3 w-3" />
+              Inactivo
+            </span>
+          ),
+      },
+      {
+        key: 'actions',
+        header: 'Acciones',
+        headerClassName: 'text-center',
+        cellClassName: 'text-center',
+        render: (rank) => (
+          <Button variant="ghost" size="sm" onClick={() => handleEdit(rank)}>
+            <PencilSquareIcon className="h-4 w-4" />
+            Editar
+          </Button>
+        ),
+      },
+    ],
+    []
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -331,96 +419,29 @@ export default function RangosPage() {
         </Card>
 
         {/* Ranks Table */}
-        {isLoading ? (
-          <Card>
-            <CardContent className="p-12">
-              <div className="text-center">
-                <div className="inline-block w-12 h-12 border-4 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
-                <p className="mt-4 text-gray-600">Cargando rangos...</p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Rango</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Codigo</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Nombre</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">Pts. Personales</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">Pts. Grupo</th>
-                      <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">Calif. 1er Nivel</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">Estado</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredRanks.length > 0 ? (
-                      filteredRanks
-                        .sort((a, b) => a.rankNumber - b.rankNumber)
-                        .map((rank) => (
-                          <tr key={rank.id} className="border-b border-gray-100 hover:bg-gray-50">
-                            <td className="py-3 px-4">
-                              <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#3E667D] text-white text-sm font-bold">
-                                {rank.rankNumber}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                                {rank.code}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4 text-sm font-medium text-gray-900">{rank.name}</td>
-                            <td className="py-3 px-4 text-sm text-right text-gray-700">{formatNumber(rank.pointsPersonalRequired)}</td>
-                            <td className="py-3 px-4 text-sm text-right text-gray-700">{formatNumber(rank.pointsGroupRequired)}</td>
-                            <td className="py-3 px-4 text-sm text-right text-gray-700">{rank.qualifiersFirstLevel}</td>
-                            <td className="py-3 px-4 text-center">
-                              {rank.isActive ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                                  <CheckCircleIcon className="h-3 w-3" />
-                                  Activo
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-medium">
-                                  <XCircleIcon className="h-3 w-3" />
-                                  Inactivo
-                                </span>
-                              )}
-                            </td>
-                            <td className="py-3 px-4 text-center">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEdit(rank)}
-                              >
-                                <PencilSquareIcon className="h-4 w-4" />
-                                Editar
-                              </Button>
-                            </td>
-                          </tr>
-                        ))
-                    ) : (
-                      <tr>
-                        <td colSpan={8} className="py-12 text-center">
-                          <TrophyIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                          <h3 className="text-xl font-bold text-gray-900 mb-2">
-                            No se encontraron rangos
-                          </h3>
-                          <p className="text-gray-600">
-                            {searchQuery ? 'Intenta ajustar tu busqueda' : 'Crea el primer rango para comenzar'}
-                          </p>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <Card>
+          <CardContent className="p-0">
+            <DataTable<MlmRank>
+              columns={columns}
+              data={sortedRanks}
+              getRowKey={(rank) => String(rank.id)}
+              isLoading={isLoading}
+              loadingRows={8}
+              rowClassName="border-b border-gray-100 hover:bg-gray-50"
+              emptyState={
+                <div className="py-12 text-center">
+                  <TrophyIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    No se encontraron rangos
+                  </h3>
+                  <p className="text-gray-600">
+                    {searchQuery ? 'Intenta ajustar tu busqueda' : 'Crea el primer rango para comenzar'}
+                  </p>
+                </div>
+              }
+            />
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

@@ -13,6 +13,15 @@ import {
   AdjustmentsHorizontalIcon,
 } from '@heroicons/react/24/outline';
 import { Fragment, useState } from 'react';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '@/components/ui/table';
 
 interface CommissionTableProps {
   commissions: Commission[];
@@ -90,41 +99,41 @@ export function CommissionTable({ commissions, showTaxDetails = false, currencyC
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-gray-200">
-            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
+      <Table className="w-full">
+        <TableHeader>
+          <TableRow className="border-b border-gray-200 hover:bg-transparent">
+            <TableHead className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
               Fecha
-            </th>
-            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
+            </TableHead>
+            <TableHead className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
               Tipo
-            </th>
-            <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
+            </TableHead>
+            <TableHead className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
               Distribuidor
-            </th>
-            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">
+            </TableHead>
+            <TableHead className="text-right py-3 px-4 text-sm font-semibold text-gray-600">
               Subtotal
-            </th>
+            </TableHead>
             {showTaxDetails && (
               <>
-                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">
+                <TableHead className="text-right py-3 px-4 text-sm font-semibold text-gray-600">
                   IVA
-                </th>
-                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">
+                </TableHead>
+                <TableHead className="text-right py-3 px-4 text-sm font-semibold text-gray-600">
                   Ret. IVA
-                </th>
+                </TableHead>
               </>
             )}
-            <th className="text-right py-3 px-4 text-sm font-semibold text-gray-600">
+            <TableHead className="text-right py-3 px-4 text-sm font-semibold text-gray-600">
               Total
-            </th>
-            <th className="text-center py-3 px-4 text-sm font-semibold text-gray-600">
+            </TableHead>
+            <TableHead className="text-center py-3 px-4 text-sm font-semibold text-gray-600">
               Estado
-            </th>
-            <th className="w-10"></th>
-          </tr>
-        </thead>
-        <tbody>
+            </TableHead>
+            <TableHead className="w-10"></TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {commissions.map((commission) => {
             const type = typeConfig[commission.commissionType];
             const status = statusConfig[commission.status];
@@ -133,25 +142,25 @@ export function CommissionTable({ commissions, showTaxDetails = false, currencyC
 
             return (
               <Fragment key={commission.id}>
-                <tr
+                <TableRow
                   className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
                   onClick={() => toggleExpand(commission.id)}
                 >
-                  <td className="py-4 px-4">
+                  <TableCell className="py-4 px-4">
                     <div className="flex items-center gap-2">
                       <CalendarIcon className="h-4 w-4 text-gray-400" />
                       <span className="text-sm text-gray-900">
                         {formatDate(commission.createdAt)}
                       </span>
                     </div>
-                  </td>
-                  <td className="py-4 px-4">
+                  </TableCell>
+                  <TableCell className="py-4 px-4">
                     <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium ${type.color}`}>
                       <TypeIcon className="h-3.5 w-3.5" />
                       <span>{type.label}</span>
                     </div>
-                  </td>
-                  <td className="py-4 px-4">
+                  </TableCell>
+                  <TableCell className="py-4 px-4">
                     <div className="text-sm">
                       <p className="text-gray-900 font-medium">
                         {commission.customerName}
@@ -160,49 +169,49 @@ export function CommissionTable({ commissions, showTaxDetails = false, currencyC
                         {commission.periodCode}
                       </p>
                     </div>
-                  </td>
-                  <td className="py-4 px-4 text-right">
+                  </TableCell>
+                  <TableCell className="py-4 px-4 text-right">
                     <span className="text-sm text-gray-900">
                       {formatCurrency(commission.subtotalEarnings)}<CurrBadge />
                     </span>
-                  </td>
+                  </TableCell>
                   {showTaxDetails && (
                     <>
-                      <td className="py-4 px-4 text-right">
+                      <TableCell className="py-4 px-4 text-right">
                         <span className="text-sm text-gray-600">
                           +{formatCurrency(commission.ivaAmount || '0')}<CurrBadge />
                         </span>
-                      </td>
-                      <td className="py-4 px-4 text-right">
+                      </TableCell>
+                      <TableCell className="py-4 px-4 text-right">
                         <span className="text-sm text-red-600">
                           -{formatCurrency(commission.ivaWithholding || '0')}<CurrBadge />
                         </span>
-                      </td>
+                      </TableCell>
                     </>
                   )}
-                  <td className="py-4 px-4 text-right">
+                  <TableCell className="py-4 px-4 text-right">
                     <span className="text-sm font-bold text-[#3E667D]">
                       {formatCurrency(commission.totalAmount)}<CurrBadge />
                     </span>
-                  </td>
-                  <td className="py-4 px-4 text-center">
+                  </TableCell>
+                  <TableCell className="py-4 px-4 text-center">
                     <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${status.color}`}>
                       {status.label}
                     </span>
-                  </td>
-                  <td className="py-4 px-2">
+                  </TableCell>
+                  <TableCell className="py-4 px-2">
                     {isExpanded ? (
                       <ChevronUpIcon className="h-4 w-4 text-gray-400" />
                     ) : (
                       <ChevronDownIcon className="h-4 w-4 text-gray-400" />
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
 
                 {/* Expanded details row */}
                 {isExpanded && (
-                  <tr key={`${commission.id}-details`} className="bg-gray-50">
-                    <td colSpan={showTaxDetails ? 9 : 7} className="px-4 py-4">
+                  <TableRow key={`${commission.id}-details`} className="bg-gray-50 hover:bg-gray-50">
+                    <TableCell colSpan={showTaxDetails ? 9 : 7} className="px-4 py-4">
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
                           <p className="text-gray-500 text-xs">ID Comision</p>
@@ -249,25 +258,25 @@ export function CommissionTable({ commissions, showTaxDetails = false, currencyC
                           </div>
                         )}
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 )}
               </Fragment>
             );
           })}
-        </tbody>
-        <tfoot>
-          <tr className="bg-gray-100 font-bold">
-            <td colSpan={showTaxDetails ? 6 : 4} className="py-4 px-4 text-right text-gray-700">
+        </TableBody>
+        <TableFooter>
+          <TableRow className="bg-gray-100 font-bold hover:bg-gray-100">
+            <TableCell colSpan={showTaxDetails ? 6 : 4} className="py-4 px-4 text-right text-gray-700">
               Total:
-            </td>
-            <td className="py-4 px-4 text-right text-[#3E667D]">
+            </TableCell>
+            <TableCell className="py-4 px-4 text-right text-[#3E667D]">
               {formatCurrency(commissions.reduce((sum, c) => sum + parseFloat(c.totalAmount), 0))}<CurrBadge />
-            </td>
-            <td colSpan={2}></td>
-          </tr>
-        </tfoot>
-      </table>
+            </TableCell>
+            <TableCell colSpan={2}></TableCell>
+          </TableRow>
+        </TableFooter>
+      </Table>
     </div>
   );
 }

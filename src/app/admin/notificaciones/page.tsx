@@ -28,6 +28,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { DataTable, type DataTableColumn } from '@/components/ui';
 
 // ================================
 // CONSTANTS
@@ -66,6 +67,18 @@ const TARGET_GROUP_OPTIONS = [
   { value: 'admins', label: 'Administradores' },
   { value: 'customers', label: 'Clientes' },
 ];
+
+// Shape of a sent-notification history row (placeholder until the admin
+// endpoint is integrated). Mirrors the historical table columns.
+interface NotificationHistoryItem {
+  id: string;
+  title: string;
+  channel: string;
+  recipients: string;
+  priority: NotificationPriority;
+  date: string;
+  status: string;
+}
 
 // ================================
 // MAIN PAGE COMPONENT
@@ -184,6 +197,39 @@ export default function NotificacionesAdminPage() {
       </span>
     );
   };
+
+  const historyColumns: DataTableColumn<NotificationHistoryItem>[] = [
+    {
+      key: 'title',
+      header: 'Titulo',
+      render: (item) => item.title,
+    },
+    {
+      key: 'channel',
+      header: 'Canal',
+      render: (item) => item.channel,
+    },
+    {
+      key: 'recipients',
+      header: 'Destinatarios',
+      render: (item) => item.recipients,
+    },
+    {
+      key: 'priority',
+      header: 'Prioridad',
+      render: (item) => getPriorityBadge(item.priority),
+    },
+    {
+      key: 'date',
+      header: 'Fecha',
+      render: (item) => item.date,
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      render: (item) => item.status,
+    },
+  ];
 
   return (
     <PermissionGuard permissions={['notifications:read']}>
@@ -582,52 +628,29 @@ export default function NotificacionesAdminPage() {
               </div>
 
               {/* Placeholder table */}
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                        Titulo
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                        Canal
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                        Destinatarios
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                        Prioridad
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                        Fecha
-                      </th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                        Estado
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {/* Empty state */}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="text-center py-16">
-                <ClockIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  Sin historial de envios
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  El historial de notificaciones aparecera aqui cuando se integre el endpoint de administracion.
-                </p>
-                <Button
-                  variant="outline"
-                  onClick={() => setActiveTab('send')}
-                >
-                  <PaperAirplaneIcon className="h-4 w-4" />
-                  Enviar Primera Notificacion
-                </Button>
-              </div>
+              <DataTable<NotificationHistoryItem>
+                columns={historyColumns}
+                data={[]}
+                getRowKey={(item, i) => String(item.id ?? i)}
+                emptyState={
+                  <div className="text-center py-16">
+                    <ClockIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">
+                      Sin historial de envios
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      El historial de notificaciones aparecera aqui cuando se integre el endpoint de administracion.
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={() => setActiveTab('send')}
+                    >
+                      <PaperAirplaneIcon className="h-4 w-4" />
+                      Enviar Primera Notificacion
+                    </Button>
+                  </div>
+                }
+              />
             </CardContent>
           </Card>
         )}

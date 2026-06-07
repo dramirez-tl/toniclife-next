@@ -3,6 +3,7 @@
 
 import { CommissionStructure } from '@/types/commissions';
 import { Card, CardContent } from '@/components/ui/card';
+import { DataTable, type DataTableColumn } from '@/components/ui';
 import {
   InformationCircleIcon,
   CheckIcon,
@@ -13,10 +14,224 @@ interface CommissionPercentagesTableProps {
   structure: CommissionStructure;
 }
 
+type LevelRow = CommissionStructure['levels'][number];
+type GenerationRow = CommissionStructure['generations'][number];
+
 export function CommissionPercentagesTable({
   structure,
 }: CommissionPercentagesTableProps) {
   const { levels, generations, userLevelMax = 2, userGenerationMax = 0, userQualifiedCount = 0, userRankName = 'Distribuidor' } = structure;
+
+  const levelColumns: DataTableColumn<LevelRow>[] = [
+    {
+      key: 'nivel',
+      header: 'Nivel',
+      render: (row) => {
+        const isUnlocked = row.levelNumber <= userLevelMax;
+        return (
+          <div className="flex items-center gap-3">
+            <div
+              className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
+                isUnlocked
+                  ? 'bg-[#3E667D] text-white'
+                  : 'bg-gray-200 text-gray-500'
+              }`}
+            >
+              {row.levelNumber}
+            </div>
+            <div>
+              <p className="font-medium text-gray-900">
+                {row.name}
+              </p>
+              <p className="text-xs text-gray-500">
+                {row.levelNumber === 1 ? 'Directos' : `${row.levelNumber} niveles de profundidad`}
+              </p>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'basePercent',
+      header: '% Base',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (row) => {
+        const isUnlocked = row.levelNumber <= userLevelMax;
+        const basePercent = parseFloat(row.basePercentage) * 100;
+        const upgradedPercent = parseFloat(row.upgradedPercentage || '0') * 100;
+        const qualRequired = row.qualifiersRequired || 0;
+        const hasIncreasedRate = qualRequired > 0 && userQualifiedCount >= qualRequired;
+        return (
+          <span
+            className={`text-lg font-medium ${
+              !hasIncreasedRate && isUnlocked
+                ? 'text-[#3E667D] font-bold'
+                : 'text-gray-400'
+            }`}
+          >
+            {basePercent}%
+          </span>
+        );
+      },
+    },
+    {
+      key: 'upgradedPercent',
+      header: '% Aumentado',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (row) => {
+        const isUnlocked = row.levelNumber <= userLevelMax;
+        const upgradedPercent = parseFloat(row.upgradedPercentage || '0') * 100;
+        const qualRequired = row.qualifiersRequired || 0;
+        const hasIncreasedRate = qualRequired > 0 && userQualifiedCount >= qualRequired;
+        return upgradedPercent > 0 ? (
+          <span
+            className={`text-lg font-medium ${
+              hasIncreasedRate && isUnlocked
+                ? 'text-[#3E667D] font-bold'
+                : 'text-gray-400'
+            }`}
+          >
+            {upgradedPercent}%
+          </span>
+        ) : (
+          <span className="text-gray-300">—</span>
+        );
+      },
+    },
+    {
+      key: 'qualRequired',
+      header: 'Calificados Requeridos',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (row) => {
+        const qualRequired = row.qualifiersRequired || 0;
+        return (
+          <div className="flex items-center justify-center gap-2">
+            {qualRequired > 0 ? (
+              <>
+                <span className="text-gray-700">{qualRequired}+</span>
+                {userQualifiedCount >= qualRequired && (
+                  <CheckIcon className="h-4 w-4 text-green-500" />
+                )}
+              </>
+            ) : (
+              <span className="text-gray-300">—</span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'estado',
+      header: 'Tu Estado',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (row) => {
+        const isUnlocked = row.levelNumber <= userLevelMax;
+        const basePercent = parseFloat(row.basePercentage) * 100;
+        const upgradedPercent = parseFloat(row.upgradedPercentage || '0') * 100;
+        const qualRequired = row.qualifiersRequired || 0;
+        const hasIncreasedRate = qualRequired > 0 && userQualifiedCount >= qualRequired;
+        const currentRate = hasIncreasedRate && upgradedPercent > 0 ? upgradedPercent : basePercent;
+        return isUnlocked ? (
+          <div className="inline-flex items-center gap-2">
+            <span
+              className={`px-3 py-1 rounded-full text-sm font-medium ${
+                hasIncreasedRate
+                  ? 'bg-[#C8DDF2]/10 text-[#3E667D]'
+                  : 'bg-[#3E667D]/10 text-[#3E667D]'
+              }`}
+            >
+              {currentRate}%
+            </span>
+            {hasIncreasedRate && (
+              <span className="text-xs text-[#3E667D]">Aumentado</span>
+            )}
+          </div>
+        ) : (
+          <div className="inline-flex items-center gap-2 text-gray-400">
+            <LockClosedIcon className="h-4 w-4" />
+            <span className="text-sm">Bloqueado</span>
+          </div>
+        );
+      },
+    },
+  ];
+
+  const generationColumns: DataTableColumn<GenerationRow>[] = [
+    {
+      key: 'generacion',
+      header: 'Generacion',
+      render: (gen) => {
+        const isUnlocked = userGenerationMax > 0 && gen.generationNumber < userGenerationMax;
+        return (
+          <div className="flex items-center gap-3">
+            <div
+              className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
+                isUnlocked
+                  ? 'bg-yellow-500 text-white'
+                  : 'bg-gray-200 text-gray-500'
+              }`}
+            >
+              {gen.generationNumber + 1}
+            </div>
+            <div>
+              <p className="font-medium text-gray-900">
+                Generacion {gen.generationNumber + 1}
+              </p>
+              <p className="text-xs text-gray-500">
+                {gen.generationNumber === 0
+                  ? 'Primer lider Plata+ en tu linea'
+                  : `${gen.generationNumber + 1}° lider Plata+ en profundidad`}
+              </p>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'porcentaje',
+      header: 'Porcentaje',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (gen) => {
+        const isUnlocked = userGenerationMax > 0 && gen.generationNumber < userGenerationMax;
+        const percent = parseFloat(gen.percentage) * 100;
+        return (
+          <span
+            className={`text-lg font-bold ${
+              isUnlocked ? 'text-yellow-600' : 'text-gray-400'
+            }`}
+          >
+            {percent}%
+          </span>
+        );
+      },
+    },
+    {
+      key: 'estado',
+      header: 'Tu Estado',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (gen) => {
+        const isUnlocked = userGenerationMax > 0 && gen.generationNumber < userGenerationMax;
+        const percent = parseFloat(gen.percentage) * 100;
+        return isUnlocked ? (
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-700">
+            {percent}%
+            <CheckIcon className="h-3.5 w-3.5" />
+          </span>
+        ) : (
+          <div className="inline-flex items-center gap-2 text-gray-400">
+            <LockClosedIcon className="h-4 w-4" />
+            <span className="text-sm">Bloqueado</span>
+          </div>
+        );
+      },
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -38,133 +253,16 @@ export function CommissionPercentagesTable({
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-                    Nivel
-                  </th>
-                  <th className="text-center py-3 px-4 text-sm font-semibold text-gray-600">
-                    % Base
-                  </th>
-                  <th className="text-center py-3 px-4 text-sm font-semibold text-gray-600">
-                    % Aumentado
-                  </th>
-                  <th className="text-center py-3 px-4 text-sm font-semibold text-gray-600">
-                    Calificados Requeridos
-                  </th>
-                  <th className="text-center py-3 px-4 text-sm font-semibold text-gray-600">
-                    Tu Estado
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {levels.map((row) => {
-                  const isUnlocked = row.levelNumber <= userLevelMax;
-                  const basePercent = parseFloat(row.basePercentage) * 100;
-                  const upgradedPercent = parseFloat(row.upgradedPercentage || '0') * 100;
-                  const qualRequired = row.qualifiersRequired || 0;
-                  const hasIncreasedRate = qualRequired > 0 && userQualifiedCount >= qualRequired;
-                  const currentRate = hasIncreasedRate && upgradedPercent > 0 ? upgradedPercent : basePercent;
-
-                  return (
-                    <tr
-                      key={row.levelNumber}
-                      className={`border-b border-gray-100 ${
-                        !isUnlocked ? 'opacity-50' : ''
-                      }`}
-                    >
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
-                              isUnlocked
-                                ? 'bg-[#3E667D] text-white'
-                                : 'bg-gray-200 text-gray-500'
-                            }`}
-                          >
-                            {row.levelNumber}
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {row.name}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {row.levelNumber === 1 ? 'Directos' : `${row.levelNumber} niveles de profundidad`}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <span
-                          className={`text-lg font-medium ${
-                            !hasIncreasedRate && isUnlocked
-                              ? 'text-[#3E667D] font-bold'
-                              : 'text-gray-400'
-                          }`}
-                        >
-                          {basePercent}%
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        {upgradedPercent > 0 ? (
-                          <span
-                            className={`text-lg font-medium ${
-                              hasIncreasedRate && isUnlocked
-                                ? 'text-[#3E667D] font-bold'
-                                : 'text-gray-400'
-                            }`}
-                          >
-                            {upgradedPercent}%
-                          </span>
-                        ) : (
-                          <span className="text-gray-300">—</span>
-                        )}
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          {qualRequired > 0 ? (
-                            <>
-                              <span className="text-gray-700">{qualRequired}+</span>
-                              {userQualifiedCount >= qualRequired && (
-                                <CheckIcon className="h-4 w-4 text-green-500" />
-                              )}
-                            </>
-                          ) : (
-                            <span className="text-gray-300">—</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        {isUnlocked ? (
-                          <div className="inline-flex items-center gap-2">
-                            <span
-                              className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                hasIncreasedRate
-                                  ? 'bg-[#C8DDF2]/10 text-[#3E667D]'
-                                  : 'bg-[#3E667D]/10 text-[#3E667D]'
-                              }`}
-                            >
-                              {currentRate}%
-                            </span>
-                            {hasIncreasedRate && (
-                              <span className="text-xs text-[#3E667D]">Aumentado</span>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="inline-flex items-center gap-2 text-gray-400">
-                            <LockClosedIcon className="h-4 w-4" />
-                            <span className="text-sm">Bloqueado</span>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <DataTable<LevelRow>
+            columns={levelColumns}
+            data={levels}
+            getRowKey={(row) => String(row.levelNumber)}
+            rowClassName={(row) =>
+              `border-b border-gray-100 ${
+                row.levelNumber <= userLevelMax ? '' : 'opacity-50'
+              }`
+            }
+          />
         </CardContent>
       </Card>
 
@@ -192,84 +290,18 @@ export function CommissionPercentagesTable({
               )}
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-                      Generacion
-                    </th>
-                    <th className="text-center py-3 px-4 text-sm font-semibold text-gray-600">
-                      Porcentaje
-                    </th>
-                    <th className="text-center py-3 px-4 text-sm font-semibold text-gray-600">
-                      Tu Estado
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {generations.map((gen) => {
-                    const isUnlocked = userGenerationMax > 0 && gen.generationNumber < userGenerationMax;
-                    const percent = parseFloat(gen.percentage) * 100;
-
-                    return (
-                      <tr
-                        key={gen.generationNumber}
-                        className={`border-b border-gray-100 ${
-                          !isUnlocked ? 'opacity-50' : ''
-                        }`}
-                      >
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
-                                isUnlocked
-                                  ? 'bg-yellow-500 text-white'
-                                  : 'bg-gray-200 text-gray-500'
-                              }`}
-                            >
-                              {gen.generationNumber + 1}
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">
-                                Generacion {gen.generationNumber + 1}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {gen.generationNumber === 0
-                                  ? 'Primer lider Plata+ en tu linea'
-                                  : `${gen.generationNumber + 1}° lider Plata+ en profundidad`}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <span
-                            className={`text-lg font-bold ${
-                              isUnlocked ? 'text-yellow-600' : 'text-gray-400'
-                            }`}
-                          >
-                            {percent}%
-                          </span>
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          {isUnlocked ? (
-                            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-700">
-                              {percent}%
-                              <CheckIcon className="h-3.5 w-3.5" />
-                            </span>
-                          ) : (
-                            <div className="inline-flex items-center gap-2 text-gray-400">
-                              <LockClosedIcon className="h-4 w-4" />
-                              <span className="text-sm">Bloqueado</span>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <DataTable<GenerationRow>
+              columns={generationColumns}
+              data={generations}
+              getRowKey={(gen) => String(gen.generationNumber)}
+              rowClassName={(gen) =>
+                `border-b border-gray-100 ${
+                  userGenerationMax > 0 && gen.generationNumber < userGenerationMax
+                    ? ''
+                    : 'opacity-50'
+                }`
+              }
+            />
           </CardContent>
         </Card>
       )}

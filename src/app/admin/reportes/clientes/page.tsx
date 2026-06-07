@@ -18,8 +18,10 @@ import {
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DataTable, type DataTableColumn } from '@/components/ui';
 import { useNewCustomersReport, useInactiveCustomersReport } from '@/hooks/useReports';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
+import type { NewCustomer, InactiveCustomer } from '@/types/reports';
 
 type ViewMode = 'new' | 'inactive';
 
@@ -133,6 +135,120 @@ function ClientesReportesContent() {
       })
       .sort((a, b) => b.inactiveDays - a.inactiveDays);
   }, [inactiveCustomers, searchTerm]);
+
+  const newCustomerColumns = useMemo<DataTableColumn<NewCustomer>[]>(
+    () => [
+      {
+        key: 'customer',
+        header: 'Cliente',
+        render: (customer) => (
+          <div className="flex items-center">
+            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+              <span className="text-sm font-medium text-green-700">
+                {customer.name.split(' ').map((n) => n[0]).join('')}
+              </span>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-900">{customer.name}</p>
+              <p className="text-sm text-gray-500 flex items-center">
+                <EnvelopeIcon className="h-3 w-3 mr-1" />
+                {customer.email}
+              </p>
+            </div>
+          </div>
+        ),
+      },
+      {
+        key: 'type',
+        header: 'Tipo',
+        headerClassName: 'text-center',
+        cellClassName: 'text-center',
+        render: (customer) => (
+          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getTypeColor(customer.type)}`}>
+            {customer.type}
+          </span>
+        ),
+      },
+      {
+        key: 'sponsor',
+        header: 'Patrocinador',
+        cellClassName: 'text-sm text-gray-500',
+        render: (customer) =>
+          customer.sponsorName || (
+            <span className="text-gray-400 italic">Sin patrocinador</span>
+          ),
+      },
+      {
+        key: 'createdAt',
+        header: 'Fecha Registro',
+        headerClassName: 'text-center',
+        cellClassName: 'text-center text-sm text-gray-500',
+        render: (customer) => new Date(customer.createdAt).toLocaleDateString('es-MX'),
+      },
+    ],
+    []
+  );
+
+  const inactiveCustomerColumns = useMemo<DataTableColumn<InactiveCustomer>[]>(
+    () => [
+      {
+        key: 'customer',
+        header: 'Cliente',
+        render: (customer) => (
+          <div className="flex items-center">
+            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
+              <span className="text-sm font-medium text-gray-700">
+                {customer.name.split(' ').map((n) => n[0]).join('')}
+              </span>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-gray-900">{customer.name}</p>
+              <p className="text-sm text-gray-500 flex items-center">
+                <EnvelopeIcon className="h-3 w-3 mr-1" />
+                {customer.email}
+              </p>
+            </div>
+          </div>
+        ),
+      },
+      {
+        key: 'lastOrderDate',
+        header: 'Última Compra',
+        headerClassName: 'text-center',
+        cellClassName: 'text-center text-sm text-gray-500',
+        render: (customer) =>
+          customer.lastOrderDate
+            ? new Date(customer.lastOrderDate).toLocaleDateString('es-MX')
+            : 'Nunca',
+      },
+      {
+        key: 'inactiveDays',
+        header: 'Días Inactivo',
+        headerClassName: 'text-center',
+        cellClassName: 'text-center',
+        render: (customer) => (
+          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getInactivityColor(customer.inactiveDays)}`}>
+            {customer.inactiveDays} días
+          </span>
+        ),
+      },
+      {
+        key: 'totalPurchases',
+        header: 'Total Histórico',
+        headerClassName: 'text-right',
+        cellClassName: 'text-right',
+        render: (customer) => (
+          <div className="flex items-center justify-end">
+            <CurrencyDollarIcon className="h-4 w-4 text-gray-400 mr-1" />
+            <span className="text-sm font-medium text-gray-900">
+              {formatCurrency(customer.totalPurchases)}
+            </span>
+          </div>
+        ),
+      },
+    ],
+    []
+  );
 
   return (
     <div className="space-y-6">
@@ -331,68 +447,17 @@ function ClientesReportesContent() {
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900">Clientes Nuevos del Periodo</h3>
             </div>
-            {filteredNewCustomers.length === 0 ? (
-              <div className="py-12 text-center">
-                <UserPlusIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <p className="mt-2 text-sm text-gray-500">No hay clientes nuevos en este periodo</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Cliente
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Tipo
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Patrocinador
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Fecha Registro
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {filteredNewCustomers.map((customer) => (
-                      <tr key={customer.customerId} className="hover:bg-gray-50">
-                        <td className="whitespace-nowrap px-6 py-4">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-                              <span className="text-sm font-medium text-green-700">
-                                {customer.name.split(' ').map((n) => n[0]).join('')}
-                              </span>
-                            </div>
-                            <div className="ml-4">
-                              <p className="text-sm font-medium text-gray-900">{customer.name}</p>
-                              <p className="text-sm text-gray-500 flex items-center">
-                                <EnvelopeIcon className="h-3 w-3 mr-1" />
-                                {customer.email}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-center">
-                          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getTypeColor(customer.type)}`}>
-                            {customer.type}
-                          </span>
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                          {customer.sponsorName || (
-                            <span className="text-gray-400 italic">Sin patrocinador</span>
-                          )}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-center text-sm text-gray-500">
-                          {new Date(customer.createdAt).toLocaleDateString('es-MX')}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <DataTable<NewCustomer>
+              columns={newCustomerColumns}
+              data={filteredNewCustomers}
+              getRowKey={(customer) => customer.customerId}
+              emptyState={
+                <div className="py-12 text-center">
+                  <UserPlusIcon className="mx-auto h-12 w-12 text-gray-400" />
+                  <p className="mt-2 text-sm text-gray-500">No hay clientes nuevos en este periodo</p>
+                </div>
+              }
+            />
           </>
         ) : null}
 
@@ -402,73 +467,17 @@ function ClientesReportesContent() {
               <h3 className="text-lg font-semibold text-gray-900">Clientes Inactivos</h3>
               <p className="text-sm text-gray-500">Clientes sin compras en los últimos {inactiveDays} días</p>
             </div>
-            {filteredInactiveCustomers.length === 0 ? (
-              <div className="py-12 text-center">
-                <UserMinusIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <p className="mt-2 text-sm text-gray-500">No hay clientes inactivos con los filtros seleccionados</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Cliente
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Última Compra
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Días Inactivo
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Total Histórico
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {filteredInactiveCustomers.map((customer) => (
-                      <tr key={customer.customerId} className="hover:bg-gray-50">
-                        <td className="whitespace-nowrap px-6 py-4">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10 rounded-full bg-gray-100 flex items-center justify-center">
-                              <span className="text-sm font-medium text-gray-700">
-                                {customer.name.split(' ').map((n) => n[0]).join('')}
-                              </span>
-                            </div>
-                            <div className="ml-4">
-                              <p className="text-sm font-medium text-gray-900">{customer.name}</p>
-                              <p className="text-sm text-gray-500 flex items-center">
-                                <EnvelopeIcon className="h-3 w-3 mr-1" />
-                                {customer.email}
-                              </p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-center text-sm text-gray-500">
-                          {customer.lastOrderDate
-                            ? new Date(customer.lastOrderDate).toLocaleDateString('es-MX')
-                            : 'Nunca'}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-center">
-                          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getInactivityColor(customer.inactiveDays)}`}>
-                            {customer.inactiveDays} días
-                          </span>
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-right">
-                          <div className="flex items-center justify-end">
-                            <CurrencyDollarIcon className="h-4 w-4 text-gray-400 mr-1" />
-                            <span className="text-sm font-medium text-gray-900">
-                              {formatCurrency(customer.totalPurchases)}
-                            </span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <DataTable<InactiveCustomer>
+              columns={inactiveCustomerColumns}
+              data={filteredInactiveCustomers}
+              getRowKey={(customer) => customer.customerId}
+              emptyState={
+                <div className="py-12 text-center">
+                  <UserMinusIcon className="mx-auto h-12 w-12 text-gray-400" />
+                  <p className="mt-2 text-sm text-gray-500">No hay clientes inactivos con los filtros seleccionados</p>
+                </div>
+              }
+            />
           </>
         )}
       </div>

@@ -15,9 +15,11 @@ import {
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DataTable, type DataTableColumn } from '@/components/ui';
 import { useInventoryReport, useLowStockReport, useExpiringProductsReport } from '@/hooks/useReports';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
+import type { InventoryStock, ExpiringProduct } from '@/types/reports';
 
 type ViewMode = 'stock' | 'low-stock' | 'expiring';
 
@@ -101,6 +103,128 @@ function InventarioReportesContent() {
     if (days <= 30) return 'text-yellow-600 bg-yellow-50';
     return 'text-green-600 bg-green-50';
   };
+
+  const stockColumns: DataTableColumn<InventoryStock>[] = useMemo(
+    () => [
+      {
+        key: 'productName',
+        header: 'Producto',
+        cellClassName: 'whitespace-nowrap text-sm font-medium text-gray-900',
+        render: (item) => item.productName,
+      },
+      {
+        key: 'code',
+        header: 'SKU',
+        cellClassName: 'whitespace-nowrap text-sm text-gray-500',
+        render: (item) => item.code,
+      },
+      {
+        key: 'branchName',
+        header: 'Sucursal',
+        cellClassName: 'whitespace-nowrap text-sm text-gray-500',
+        render: (item) => item.branchName || '-',
+      },
+      {
+        key: 'currentStock',
+        header: 'Existencias Actuales',
+        headerClassName: 'text-right',
+        cellClassName: 'whitespace-nowrap text-right',
+        render: (item) => (
+          <div className="flex items-center justify-end space-x-2">
+            <span className="text-sm font-medium text-gray-900">{item.currentStock}</span>
+            <div className="w-24 bg-gray-200 rounded-full h-2">
+              <div
+                className={`h-2 rounded-full ${getStockStatusColor(item.currentStock, item.minStock, item.maxStock)}`}
+                style={{ width: `${Math.min((item.currentStock / item.maxStock) * 100, 100)}%` }}
+              />
+            </div>
+          </div>
+        ),
+      },
+      {
+        key: 'minMax',
+        header: 'Mín / Máx',
+        headerClassName: 'text-right',
+        cellClassName: 'whitespace-nowrap text-right text-sm text-gray-500',
+        render: (item) => `${item.minStock} / ${item.maxStock}`,
+      },
+      {
+        key: 'status',
+        header: 'Estado',
+        headerClassName: 'text-center',
+        cellClassName: 'whitespace-nowrap text-center',
+        render: (item) =>
+          item.isLowStock ? (
+            <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
+              <ExclamationTriangleIcon className="mr-1 h-3 w-3" />
+              Existencias Bajas
+            </span>
+          ) : (
+            <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
+              <CheckCircleIcon className="mr-1 h-3 w-3" />
+              Normal
+            </span>
+          ),
+      },
+    ],
+    []
+  );
+
+  const expiringColumns: DataTableColumn<ExpiringProduct>[] = useMemo(
+    () => [
+      {
+        key: 'product',
+        header: 'Producto',
+        cellClassName: 'whitespace-nowrap',
+        render: (item) => (
+          <div>
+            <p className="text-sm font-medium text-gray-900">{item.productName}</p>
+            <p className="text-xs text-gray-500">{item.code}</p>
+          </div>
+        ),
+      },
+      {
+        key: 'lotNumber',
+        header: 'Lote',
+        cellClassName: 'whitespace-nowrap text-sm text-gray-500',
+        render: (item) => item.lotNumber,
+      },
+      {
+        key: 'branchName',
+        header: 'Sucursal',
+        cellClassName: 'whitespace-nowrap text-sm text-gray-500',
+        render: (item) => item.branchName || '-',
+      },
+      {
+        key: 'quantity',
+        header: 'Cantidad',
+        headerClassName: 'text-right',
+        cellClassName: 'whitespace-nowrap text-right text-sm font-medium text-gray-900',
+        render: (item) => item.quantity,
+      },
+      {
+        key: 'expirationDate',
+        header: 'Vencimiento',
+        headerClassName: 'text-center',
+        cellClassName: 'whitespace-nowrap text-center text-sm text-gray-500',
+        render: (item) => new Date(item.expirationDate).toLocaleDateString('es-MX'),
+      },
+      {
+        key: 'daysUntilExpiration',
+        header: 'Días Restantes',
+        headerClassName: 'text-center',
+        cellClassName: 'whitespace-nowrap text-center',
+        render: (item) => (
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getExpirationColor(item.daysUntilExpiration)}`}
+          >
+            {item.daysUntilExpiration} días
+          </span>
+        ),
+      },
+    ],
+    []
+  );
 
   return (
     <div className="space-y-6">
@@ -274,85 +398,22 @@ function InventarioReportesContent() {
                 {viewMode === 'stock' ? 'Inventario Actual' : 'Productos con Existencias Bajas'}
               </h3>
             </div>
-            {filteredItems.length === 0 ? (
-              <div className="py-12 text-center">
-                <CubeIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <p className="mt-2 text-sm text-gray-500">
-                  {viewMode === 'low-stock'
-                    ? 'No hay productos con bajo stock'
-                    : 'No se encontraron productos'}
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Producto
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        SKU
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Sucursal
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Existencias Actuales
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Mín / Máx
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Estado
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {filteredItems.map((item) => (
-                      <tr key={item.productId} className="hover:bg-gray-50">
-                        <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">
-                          {item.productName}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                          {item.code}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                          {item.branchName || '-'}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-right">
-                          <div className="flex items-center justify-end space-x-2">
-                            <span className="text-sm font-medium text-gray-900">{item.currentStock}</span>
-                            <div className="w-24 bg-gray-200 rounded-full h-2">
-                              <div
-                                className={`h-2 rounded-full ${getStockStatusColor(item.currentStock, item.minStock, item.maxStock)}`}
-                                style={{ width: `${Math.min((item.currentStock / item.maxStock) * 100, 100)}%` }}
-                              />
-                            </div>
-                          </div>
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500">
-                          {item.minStock} / {item.maxStock}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-center">
-                          {item.isLowStock ? (
-                            <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">
-                              <ExclamationTriangleIcon className="mr-1 h-3 w-3" />
-                              Existencias Bajas
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">
-                              <CheckCircleIcon className="mr-1 h-3 w-3" />
-                              Normal
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <DataTable<InventoryStock>
+              columns={stockColumns}
+              data={filteredItems}
+              getRowKey={(item) => item.productId}
+              isLoading={isLoading}
+              emptyState={
+                <div className="py-12 text-center">
+                  <CubeIcon className="mx-auto h-12 w-12 text-gray-400" />
+                  <p className="mt-2 text-sm text-gray-500">
+                    {viewMode === 'low-stock'
+                      ? 'No hay productos con bajo stock'
+                      : 'No se encontraron productos'}
+                  </p>
+                </div>
+              }
+            />
           </>
         ) : null}
 
@@ -361,72 +422,18 @@ function InventarioReportesContent() {
             <div className="px-6 py-4 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900">Productos Próximos a Vencer</h3>
             </div>
-            {filteredExpiring.length === 0 ? (
-              <div className="py-12 text-center">
-                <ClockIcon className="mx-auto h-12 w-12 text-gray-400" />
-                <p className="mt-2 text-sm text-gray-500">No hay productos próximos a vencer</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Producto
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Lote
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Sucursal
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Cantidad
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Vencimiento
-                      </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Días Restantes
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {filteredExpiring
-                      .sort((a, b) => a.daysUntilExpiration - b.daysUntilExpiration)
-                      .map((item) => (
-                        <tr key={item.lotId} className="hover:bg-gray-50">
-                          <td className="whitespace-nowrap px-6 py-4">
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{item.productName}</p>
-                              <p className="text-xs text-gray-500">{item.code}</p>
-                            </div>
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            {item.lotNumber}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                            {item.branchName || '-'}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium text-gray-900">
-                            {item.quantity}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-center text-sm text-gray-500">
-                            {new Date(item.expirationDate).toLocaleDateString('es-MX')}
-                          </td>
-                          <td className="whitespace-nowrap px-6 py-4 text-center">
-                            <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getExpirationColor(item.daysUntilExpiration)}`}
-                            >
-                              {item.daysUntilExpiration} días
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <DataTable<ExpiringProduct>
+              columns={expiringColumns}
+              data={[...filteredExpiring].sort((a, b) => a.daysUntilExpiration - b.daysUntilExpiration)}
+              getRowKey={(item) => item.lotId}
+              isLoading={isLoading}
+              emptyState={
+                <div className="py-12 text-center">
+                  <ClockIcon className="mx-auto h-12 w-12 text-gray-400" />
+                  <p className="mt-2 text-sm text-gray-500">No hay productos próximos a vencer</p>
+                </div>
+              }
+            />
           </>
         )}
       </div>

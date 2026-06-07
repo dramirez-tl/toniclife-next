@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { DataTable, type DataTableColumn } from '@/components/ui';
 import { useDashboardKPIs } from '@/hooks/useReports';
+import type { RecentOrder } from '@/types/reports';
 import {
   UserGroupIcon,
   ShoppingBagIcon,
@@ -135,6 +137,63 @@ export default function AdminDashboard() {
     },
   ];
 
+  const recentOrdersColumns: DataTableColumn<RecentOrder>[] = [
+    {
+      key: 'orderNumber',
+      header: 'Pedido',
+      headerClassName: 'text-left py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider',
+      cellClassName: 'py-4 px-6',
+      render: (order) => (
+        <span className="text-sm font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
+          {order.orderNumber}
+        </span>
+      ),
+    },
+    {
+      key: 'customerName',
+      header: 'Cliente',
+      headerClassName: 'text-left py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider',
+      cellClassName: 'py-4 px-6',
+      render: (order) => (
+        <p className="text-sm font-medium text-gray-900">{order.customerName}</p>
+      ),
+    },
+    {
+      key: 'amount',
+      header: 'Monto',
+      headerClassName: 'text-right py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider',
+      cellClassName: 'py-4 px-6 text-right',
+      render: (order) => (
+        <p className="text-sm font-semibold text-gray-900">
+          ${order.amount.toLocaleString('es-MX')}
+        </p>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      headerClassName: 'text-center py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider',
+      cellClassName: 'py-4 px-6 text-center',
+      render: (order) => {
+        const status = getStatusConfig(order.status);
+        return (
+          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${status.bg} ${status.color}`}>
+            {status.label}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'date',
+      header: 'Fecha',
+      headerClassName: 'text-right py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider',
+      cellClassName: 'py-4 px-6 text-right',
+      render: (order) => (
+        <p className="text-sm text-gray-500">{formatDate(order.date)}</p>
+      ),
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       {/* Header */}
@@ -217,59 +276,19 @@ export default function AdminDashboard() {
               </Link>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px]">
-                <thead>
-                  <tr className="bg-gray-50/70">
-                    <th className="text-left py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Pedido</th>
-                    <th className="text-left py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
-                    <th className="text-right py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Monto</th>
-                    <th className="text-center py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                    <th className="text-right py-3 px-6 text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {(kpis?.recentOrders ?? []).length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="py-14 text-center">
-                        <ShoppingBagIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                        <p className="text-gray-500 text-sm font-medium">No hay pedidos recientes</p>
-                        <p className="mt-1 text-xs text-gray-400">Cuando se registren nuevas ventas aparecerán aquí.</p>
-                      </td>
-                    </tr>
-                  ) : (
-                    (kpis?.recentOrders ?? []).map((order) => {
-                      const status = getStatusConfig(order.status);
-                      return (
-                        <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
-                          <td className="py-4 px-6">
-                            <span className="text-sm font-mono text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                              {order.orderNumber}
-                            </span>
-                          </td>
-                          <td className="py-4 px-6">
-                            <p className="text-sm font-medium text-gray-900">{order.customerName}</p>
-                          </td>
-                          <td className="py-4 px-6 text-right">
-                            <p className="text-sm font-semibold text-gray-900">
-                              ${order.amount.toLocaleString('es-MX')}
-                            </p>
-                          </td>
-                          <td className="py-4 px-6 text-center">
-                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${status.bg} ${status.color}`}>
-                              {status.label}
-                            </span>
-                          </td>
-                          <td className="py-4 px-6 text-right">
-                            <p className="text-sm text-gray-500">{formatDate(order.date)}</p>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <DataTable<RecentOrder>
+              columns={recentOrdersColumns}
+              data={kpis?.recentOrders ?? []}
+              getRowKey={(order) => order.id}
+              minWidthClassName="min-w-[640px]"
+              emptyState={
+                <>
+                  <ShoppingBagIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                  <p className="text-gray-500 text-sm font-medium">No hay pedidos recientes</p>
+                  <p className="mt-1 text-xs text-gray-400">Cuando se registren nuevas ventas aparecerán aquí.</p>
+                </>
+              }
+            />
           </div>
 
           {/* Top Products */}

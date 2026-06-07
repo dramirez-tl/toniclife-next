@@ -19,6 +19,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { DataTable, type DataTableColumn } from '@/components/ui';
 import { useAttendanceReport, useManualAttendance } from '@/hooks/useHR';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 
@@ -31,6 +32,16 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
 };
 
 const todayStr = () => new Date().toISOString().split('T')[0];
+
+type AttendanceRecord = {
+  id: string;
+  employeeId?: string;
+  status?: string;
+  checkIn?: string;
+  checkOut?: string;
+  hoursWorked?: number;
+  employee?: { firstName: string; lastName: string; employeeNumber?: string; branch?: string };
+};
 
 export default function AsistenciaPage() {
   return (
@@ -148,6 +159,127 @@ function AsistenciaContent() {
       minute: '2-digit',
     });
   };
+
+  const columns = useMemo<DataTableColumn<AttendanceRecord>[]>(() => [
+    {
+      key: 'employee',
+      header: 'Empleado',
+      render: (record) => {
+        const employeeName = record.employee
+          ? `${record.employee.firstName} ${record.employee.lastName}`
+          : 'Empleado';
+        return (
+          <div className="flex items-center gap-3">
+            <img
+              src={getAvatarUrl(employeeName)}
+              alt={employeeName}
+              className="w-10 h-10 rounded-full"
+            />
+            <div>
+              <p className="font-semibold text-gray-900">{employeeName}</p>
+              <p className="text-sm text-gray-500">{record.employee?.employeeNumber || ''}</p>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'branch',
+      header: 'Sucursal',
+      cellClassName: 'text-gray-600',
+      render: (record) => record.employee?.branch || 'Sin asignar',
+    },
+    {
+      key: 'checkIn',
+      header: 'Entrada',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (record) => {
+        const checkInTime = formatTime(record.checkIn || null);
+        return checkInTime ? (
+          <div className="flex items-center justify-center gap-1 text-green-600">
+            <ArrowRightOnRectangleIcon className="h-4 w-4" />
+            <span className="font-medium">{checkInTime}</span>
+          </div>
+        ) : (
+          <span className="text-gray-400">—</span>
+        );
+      },
+    },
+    {
+      key: 'checkOut',
+      header: 'Salida',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (record) => {
+        const checkOutTime = formatTime(record.checkOut || null);
+        return checkOutTime ? (
+          <div className="flex items-center justify-center gap-1 text-red-600">
+            <ArrowLeftOnRectangleIcon className="h-4 w-4" />
+            <span className="font-medium">{checkOutTime}</span>
+          </div>
+        ) : (
+          <span className="text-gray-400">—</span>
+        );
+      },
+    },
+    {
+      key: 'hoursWorked',
+      header: 'Horas',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (record) => record.hoursWorked ? (
+        <span className="font-semibold text-gray-900">{record.hoursWorked.toFixed(1)}h</span>
+      ) : (
+        <span className="text-gray-400">—</span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (record) => {
+        const StatusIcon = statusConfig[record.status || 'PRESENT']?.icon || ClockIcon;
+        return (
+          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusConfig[record.status || 'PRESENT']?.color || 'bg-gray-100 text-gray-700'}`}>
+            <StatusIcon className="h-3 w-3" />
+            {statusConfig[record.status || 'PRESENT']?.label || record.status}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'actions',
+      header: 'Acciones',
+      headerClassName: 'text-right',
+      render: (record) => (
+        <div className="flex items-center justify-end gap-2">
+          {!record.checkIn && record.status !== 'VACATION' && record.employeeId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleManualCheckIn(record.employeeId!)}
+              disabled={manualAttendance.isPending}
+            >
+              <ArrowRightOnRectangleIcon className="h-4 w-4 text-green-600" />
+            </Button>
+          )}
+          {record.checkIn && !record.checkOut && record.employeeId && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleManualCheckOut(record.employeeId!)}
+              disabled={manualAttendance.isPending}
+            >
+              <ArrowLeftOnRectangleIcon className="h-4 w-4 text-red-600" />
+            </Button>
+          )}
+        </div>
+      ),
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [manualAttendance.isPending]);
 
   // Loading state
   if (isLoading) {
@@ -370,119 +502,22 @@ function AsistenciaContent() {
         {/* Attendance Table */}
         <Card>
           <CardContent className="p-6">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Empleado</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">Sucursal</th>
-                    <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">Entrada</th>
-                    <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">Salida</th>
-                    <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">Horas</th>
-                    <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">Estado</th>
-                    <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(filteredAttendance as unknown as Array<{id: string; employeeId?: string; status?: string; checkIn?: string; checkOut?: string; hoursWorked?: number; employee?: {firstName: string; lastName: string; employeeNumber?: string; branch?: string}}>).map((record) => {
-                    const StatusIcon = statusConfig[record.status || 'PRESENT']?.icon || ClockIcon;
-                    const employeeName = record.employee
-                      ? `${record.employee.firstName} ${record.employee.lastName}`
-                      : 'Empleado';
-                    const checkInTime = formatTime(record.checkIn || null);
-                    const checkOutTime = formatTime(record.checkOut || null);
-
-                    return (
-                      <tr key={record.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={getAvatarUrl(employeeName)}
-                              alt={employeeName}
-                              className="w-10 h-10 rounded-full"
-                            />
-                            <div>
-                              <p className="font-semibold text-gray-900">{employeeName}</p>
-                              <p className="text-sm text-gray-500">{record.employee?.employeeNumber || ''}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-4 px-4 text-gray-600">{record.employee?.branch || 'Sin asignar'}</td>
-                        <td className="py-4 px-4 text-center">
-                          {checkInTime ? (
-                            <div className="flex items-center justify-center gap-1 text-green-600">
-                              <ArrowRightOnRectangleIcon className="h-4 w-4" />
-                              <span className="font-medium">{checkInTime}</span>
-                            </div>
-                          ) : (
-                            <span className="text-gray-400">—</span>
-                          )}
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          {checkOutTime ? (
-                            <div className="flex items-center justify-center gap-1 text-red-600">
-                              <ArrowLeftOnRectangleIcon className="h-4 w-4" />
-                              <span className="font-medium">{checkOutTime}</span>
-                            </div>
-                          ) : (
-                            <span className="text-gray-400">—</span>
-                          )}
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          {record.hoursWorked ? (
-                            <span className="font-semibold text-gray-900">{record.hoursWorked.toFixed(1)}h</span>
-                          ) : (
-                            <span className="text-gray-400">—</span>
-                          )}
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusConfig[record.status || 'PRESENT']?.color || 'bg-gray-100 text-gray-700'}`}>
-                            <StatusIcon className="h-3 w-3" />
-                            {statusConfig[record.status || 'PRESENT']?.label || record.status}
-                          </span>
-                        </td>
-                        <td className="py-4 px-4">
-                          <div className="flex items-center justify-end gap-2">
-                            {!record.checkIn && record.status !== 'VACATION' && record.employeeId && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleManualCheckIn(record.employeeId!)}
-                                disabled={manualAttendance.isPending}
-                              >
-                                <ArrowRightOnRectangleIcon className="h-4 w-4 text-green-600" />
-                              </Button>
-                            )}
-                            {record.checkIn && !record.checkOut && record.employeeId && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleManualCheckOut(record.employeeId!)}
-                                disabled={manualAttendance.isPending}
-                              >
-                                <ArrowLeftOnRectangleIcon className="h-4 w-4 text-red-600" />
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {filteredAttendance.length === 0 && (
-              <div className="text-center py-12">
-                <ClockIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  No se encontraron registros
-                </h3>
-                <p className="text-gray-600">
-                  Intenta ajustar los filtros de búsqueda o seleccionar otra fecha
-                </p>
-              </div>
-            )}
+            <DataTable<AttendanceRecord>
+              columns={columns}
+              data={filteredAttendance as unknown as AttendanceRecord[]}
+              getRowKey={(record, index) => String(record.id ?? index)}
+              emptyState={
+                <div className="text-center py-12">
+                  <ClockIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    No se encontraron registros
+                  </h3>
+                  <p className="text-gray-600">
+                    Intenta ajustar los filtros de búsqueda o seleccionar otra fecha
+                  </p>
+                </div>
+              }
+            />
           </CardContent>
         </Card>
     </div>

@@ -6,6 +6,15 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
   ArrowLeftIcon,
   ArrowDownTrayIcon,
   CheckIcon,
@@ -226,64 +235,64 @@ function EntradaDetailContent() {
               Productos ({movement.items?.length ?? 0})
             </h2>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50 border-b">
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Producto</th>
-                    <th className="px-3 py-2 text-center font-medium text-gray-600">Cantidad</th>
-                    {hasCostData && <th className="px-3 py-2 text-center font-medium text-gray-600">Costo Unit.</th>}
-                    {hasCostData && <th className="px-3 py-2 text-center font-medium text-gray-600">Costo Total</th>}
-                    <th className="px-3 py-2 text-center font-medium text-gray-600">Stock Antes</th>
-                    <th className="px-3 py-2 text-center font-medium text-gray-600">Stock Después</th>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Lote / CAD</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table className="w-full text-sm">
+                <TableHeader>
+                  <TableRow className="bg-gray-50 border-b">
+                    <TableHead className="px-3 py-2 text-left font-medium text-gray-600">Producto</TableHead>
+                    <TableHead className="px-3 py-2 text-center font-medium text-gray-600">Cantidad</TableHead>
+                    {hasCostData && <TableHead className="px-3 py-2 text-center font-medium text-gray-600">Costo Unit.</TableHead>}
+                    {hasCostData && <TableHead className="px-3 py-2 text-center font-medium text-gray-600">Costo Total</TableHead>}
+                    <TableHead className="px-3 py-2 text-center font-medium text-gray-600">Stock Antes</TableHead>
+                    <TableHead className="px-3 py-2 text-center font-medium text-gray-600">Stock Después</TableHead>
+                    <TableHead className="px-3 py-2 text-left font-medium text-gray-600">Lote / CAD</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {(movement.items ?? []).map((item) => (
-                    <tr key={item.id} className="border-b hover:bg-gray-50">
-                      <td className="px-3 py-3">
+                    <TableRow key={item.id} className="border-b hover:bg-gray-50">
+                      <TableCell className="px-3 py-3">
                         <p className="font-medium">{item.productName}</p>
                         <p className="text-xs text-gray-500 font-mono">{item.productCode}</p>
-                      </td>
-                      <td className="px-3 py-3 text-center font-semibold text-green-600">
+                      </TableCell>
+                      <TableCell className="px-3 py-3 text-center font-semibold text-green-600">
                         +{item.quantity}
-                      </td>
+                      </TableCell>
                       {hasCostData && (
-                        <td className="px-3 py-3 text-center text-gray-600">
+                        <TableCell className="px-3 py-3 text-center text-gray-600">
                           {item.unitCost ? `$${Number(item.unitCost).toLocaleString('es-MX', { minimumFractionDigits: 2 })}` : '—'}
-                        </td>
+                        </TableCell>
                       )}
                       {hasCostData && (
-                        <td className="px-3 py-3 text-center text-gray-600">
+                        <TableCell className="px-3 py-3 text-center text-gray-600">
                           {item.totalCost ? `$${Number(item.totalCost).toLocaleString('es-MX', { minimumFractionDigits: 2 })}` : '—'}
-                        </td>
+                        </TableCell>
                       )}
-                      <td className="px-3 py-3 text-center text-gray-500">{item.quantityBefore}</td>
-                      <td className="px-3 py-3 text-center font-medium text-green-700">{item.quantityAfter}</td>
-                      <td className="px-3 py-3 text-xs">
+                      <TableCell className="px-3 py-3 text-center text-gray-500">{item.quantityBefore}</TableCell>
+                      <TableCell className="px-3 py-3 text-center font-medium text-green-700">{item.quantityAfter}</TableCell>
+                      <TableCell className="px-3 py-3 text-xs">
                         {item.lotNumber
                           ? <><p className="font-mono text-gray-700">{item.lotNumber}</p>{item.expirationDate && <p className="text-gray-400">CAD: {item.expirationDate}</p>}</>
                           : <span className="text-gray-400">—</span>}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-gray-50 font-semibold">
-                    <td className="px-3 py-2">Total</td>
-                    <td className="px-3 py-2 text-center text-green-600">+{movement.totalQuantity}</td>
-                    {hasCostData && <td className="px-3 py-2 text-center">—</td>}
+                </TableBody>
+                <TableFooter>
+                  <TableRow className="bg-gray-50 font-semibold">
+                    <TableCell className="px-3 py-2">Total</TableCell>
+                    <TableCell className="px-3 py-2 text-center text-green-600">+{movement.totalQuantity}</TableCell>
+                    {hasCostData && <TableCell className="px-3 py-2 text-center">—</TableCell>}
                     {hasCostData && (
-                      <td className="px-3 py-2 text-center">
+                      <TableCell className="px-3 py-2 text-center">
                         {movement.totalCost
                           ? `$${Number(movement.totalCost).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
                           : '—'}
-                      </td>
+                      </TableCell>
                     )}
-                    <td colSpan={hasCostData ? 3 : 5} />
-                  </tr>
-                </tfoot>
-              </table>
+                    <TableCell colSpan={hasCostData ? 3 : 5} />
+                  </TableRow>
+                </TableFooter>
+              </Table>
             </div>
           </CardContent>
         </Card>

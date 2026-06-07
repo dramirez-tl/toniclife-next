@@ -42,6 +42,7 @@ import {
 } from '@/types/inventory';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
+import { DataTable, type DataTableColumn } from '@/components/ui';
 
 export default function AjustesPage() {
   return <Suspense><AjustesContent /></Suspense>;
@@ -167,6 +168,139 @@ function AjustesContent() {
     approved: adjustmentsData?.data.filter(a => a.status === AdjustmentStatus.APPROVED).length || 0,
     applied: adjustmentsData?.data.filter(a => a.status === AdjustmentStatus.APPLIED).length || 0,
   };
+
+  const columns: DataTableColumn<AdjustmentDto>[] = [
+    {
+      key: 'adjustmentNumber',
+      header: '# Ajuste',
+      render: (adjustment) => (
+        <span className="font-mono font-semibold text-[#3E667D]">
+          {adjustment.adjustmentNumber}
+        </span>
+      ),
+    },
+    {
+      key: 'branch',
+      header: 'Sucursal',
+      render: (adjustment) => <span className="font-medium">{adjustment.branch.name}</span>,
+    },
+    {
+      key: 'adjustmentType',
+      header: 'Tipo',
+      render: (adjustment) => getTypeBadge(adjustment.adjustmentType),
+    },
+    {
+      key: 'totalItems',
+      header: 'Items',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (adjustment) => <span className="font-semibold">{adjustment.totalItems}</span>,
+    },
+    {
+      key: 'totalDifference',
+      header: 'Diferencia',
+      headerClassName: 'text-center',
+      cellClassName: 'text-center',
+      render: (adjustment) => (
+        <span
+          className={`font-bold ${
+            adjustment.totalDifference > 0
+              ? 'text-green-600'
+              : adjustment.totalDifference < 0
+              ? 'text-red-600'
+              : 'text-gray-600'
+          }`}
+        >
+          {adjustment.totalDifference > 0 ? '+' : ''}
+          {adjustment.totalDifference}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      render: (adjustment) => getStatusBadge(adjustment.status),
+    },
+    {
+      key: 'createdAt',
+      header: 'Creado',
+      cellClassName: 'text-sm text-gray-600',
+      render: (adjustment) => {
+        const tz = branches?.find(b => b.name === adjustment.branch.name)?.timezone || DEFAULT_TIMEZONE;
+        return (
+          <div>
+            <p>{inventoryService.formatDateTime(adjustment.createdAt, tz)}<span className="text-gray-400"> · {getTimezoneShortLabel(tz)}</span></p>
+            {adjustment.createdBy && (
+              <p className="text-xs text-gray-500">
+                por {adjustment.createdBy.name}
+              </p>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'actions',
+      header: 'Acciones',
+      headerClassName: 'text-right',
+      render: (adjustment) => (
+        <div className="flex items-center justify-end gap-2">
+          <Link href={`/admin/inventario/ajustes/${adjustment.id}`}>
+            <button
+              className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
+              title="Ver Detalle"
+            >
+              <EyeIcon className="h-4 w-4 text-blue-600" />
+            </button>
+          </Link>
+
+          {adjustment.status === AdjustmentStatus.PENDING_APPROVAL && (
+            <>
+              <button
+                onClick={() => handleApprove(adjustment)}
+                className="p-2 hover:bg-green-50 rounded-lg transition-colors"
+                title="Aprobar"
+                disabled={approveAdjustment.isPending}
+              >
+                <CheckIcon className="h-4 w-4 text-green-600" />
+              </button>
+              <button
+                onClick={() => handleReject(adjustment)}
+                className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                title="Rechazar"
+                disabled={rejectAdjustment.isPending}
+              >
+                <XMarkIcon className="h-4 w-4 text-red-600" />
+              </button>
+            </>
+          )}
+
+          {adjustment.status === AdjustmentStatus.APPROVED && (
+            <button
+              onClick={() => handleApply(adjustment)}
+              className="p-2 hover:bg-purple-50 rounded-lg transition-colors"
+              title="Aplicar"
+              disabled={applyAdjustment.isPending}
+            >
+              <PlayIcon className="h-4 w-4 text-purple-600" />
+            </button>
+          )}
+
+          {(adjustment.status === AdjustmentStatus.DRAFT ||
+            adjustment.status === AdjustmentStatus.PENDING_APPROVAL) && (
+            <button
+              onClick={() => handleCancel(adjustment)}
+              className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+              title="Cancelar"
+              disabled={cancelAdjustment.isPending}
+            >
+              <XMarkIcon className="h-4 w-4 text-red-600" />
+            </button>
+          )}
+        </div>
+      ),
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -359,189 +493,48 @@ function AjustesContent() {
         {/* Adjustments Table */}
         <Card>
           <CardContent className="p-6">
-            {isLoading ? (
-              <div className="text-center py-12">
-                <div className="inline-block w-12 h-12 border-4 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
-                <p className="mt-4 text-gray-600">Cargando ajustes...</p>
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                          # Ajuste
-                        </th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                          Sucursal
-                        </th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                          Tipo
-                        </th>
-                        <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">
-                          Items
-                        </th>
-                        <th className="text-center py-3 px-4 text-sm font-semibold text-gray-900">
-                          Diferencia
-                        </th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                          Estado
-                        </th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900">
-                          Creado
-                        </th>
-                        <th className="text-right py-3 px-4 text-sm font-semibold text-gray-900">
-                          Acciones
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {adjustmentsData?.data.map((adjustment) => (
-                        <tr
-                          key={adjustment.id}
-                          className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                        >
-                          <td className="py-4 px-4">
-                            <span className="font-mono font-semibold text-[#3E667D]">
-                              {adjustment.adjustmentNumber}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4">
-                            <span className="font-medium">{adjustment.branch.name}</span>
-                          </td>
-                          <td className="py-4 px-4">
-                            {getTypeBadge(adjustment.adjustmentType)}
-                          </td>
-                          <td className="py-4 px-4 text-center">
-                            <span className="font-semibold">{adjustment.totalItems}</span>
-                          </td>
-                          <td className="py-4 px-4 text-center">
-                            <span
-                              className={`font-bold ${
-                                adjustment.totalDifference > 0
-                                  ? 'text-green-600'
-                                  : adjustment.totalDifference < 0
-                                  ? 'text-red-600'
-                                  : 'text-gray-600'
-                              }`}
-                            >
-                              {adjustment.totalDifference > 0 ? '+' : ''}
-                              {adjustment.totalDifference}
-                            </span>
-                          </td>
-                          <td className="py-4 px-4">{getStatusBadge(adjustment.status)}</td>
-                          <td className="py-4 px-4 text-sm text-gray-600">
-                            {(() => { const tz = branches?.find(b => b.name === adjustment.branch.name)?.timezone || DEFAULT_TIMEZONE; return (
-                            <div>
-                              <p>{inventoryService.formatDateTime(adjustment.createdAt, tz)}<span className="text-gray-400"> · {getTimezoneShortLabel(tz)}</span></p>
-                              {adjustment.createdBy && (
-                                <p className="text-xs text-gray-500">
-                                  por {adjustment.createdBy.name}
-                                </p>
-                              )}
-                            </div>
-                            ); })()}
-                          </td>
-                          <td className="py-4 px-4">
-                            <div className="flex items-center justify-end gap-2">
-                              <Link href={`/admin/inventario/ajustes/${adjustment.id}`}>
-                                <button
-                                  className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
-                                  title="Ver Detalle"
-                                >
-                                  <EyeIcon className="h-4 w-4 text-blue-600" />
-                                </button>
-                              </Link>
-
-                              {adjustment.status === AdjustmentStatus.PENDING_APPROVAL && (
-                                <>
-                                  <button
-                                    onClick={() => handleApprove(adjustment)}
-                                    className="p-2 hover:bg-green-50 rounded-lg transition-colors"
-                                    title="Aprobar"
-                                    disabled={approveAdjustment.isPending}
-                                  >
-                                    <CheckIcon className="h-4 w-4 text-green-600" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleReject(adjustment)}
-                                    className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                                    title="Rechazar"
-                                    disabled={rejectAdjustment.isPending}
-                                  >
-                                    <XMarkIcon className="h-4 w-4 text-red-600" />
-                                  </button>
-                                </>
-                              )}
-
-                              {adjustment.status === AdjustmentStatus.APPROVED && (
-                                <button
-                                  onClick={() => handleApply(adjustment)}
-                                  className="p-2 hover:bg-purple-50 rounded-lg transition-colors"
-                                  title="Aplicar"
-                                  disabled={applyAdjustment.isPending}
-                                >
-                                  <PlayIcon className="h-4 w-4 text-purple-600" />
-                                </button>
-                              )}
-
-                              {(adjustment.status === AdjustmentStatus.DRAFT ||
-                                adjustment.status === AdjustmentStatus.PENDING_APPROVAL) && (
-                                <button
-                                  onClick={() => handleCancel(adjustment)}
-                                  className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                                  title="Cancelar"
-                                  disabled={cancelAdjustment.isPending}
-                                >
-                                  <XMarkIcon className="h-4 w-4 text-red-600" />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+            <DataTable<AdjustmentDto>
+              columns={columns}
+              data={adjustmentsData?.data ?? []}
+              getRowKey={(adjustment) => adjustment.id}
+              isLoading={isLoading}
+              loadingRows={8}
+              emptyState={
+                <div className="text-center py-12">
+                  <ClipboardDocumentCheckIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    No se encontraron ajustes
+                  </h3>
+                  <p className="text-gray-600">Crea un nuevo ajuste para comenzar</p>
                 </div>
+              }
+            />
 
-                {(!adjustmentsData?.data || adjustmentsData.data.length === 0) && (
-                  <div className="text-center py-12">
-                    <ClipboardDocumentCheckIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">
-                      No se encontraron ajustes
-                    </h3>
-                    <p className="text-gray-600">Crea un nuevo ajuste para comenzar</p>
-                  </div>
-                )}
-
-                {/* Pagination */}
-                {adjustmentsData && adjustmentsData.totalPages > 1 && (
-                  <div className="mt-6 flex items-center justify-between">
-                    <p className="text-sm text-gray-600">
-                      Página {adjustmentsData.page} de {adjustmentsData.totalPages} ({adjustmentsData.total} ajustes)
-                    </p>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setParams({ page: String(page - 1) })}
-                        disabled={page === 1}
-                      >
-                        Anterior
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setParams({ page: String(page + 1) })}
-                        disabled={page >= adjustmentsData.totalPages}
-                      >
-                        Siguiente
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </>
+            {/* Pagination */}
+            {adjustmentsData && adjustmentsData.totalPages > 1 && (
+              <div className="mt-6 flex items-center justify-between">
+                <p className="text-sm text-gray-600">
+                  Página {adjustmentsData.page} de {adjustmentsData.totalPages} ({adjustmentsData.total} ajustes)
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setParams({ page: String(page - 1) })}
+                    disabled={page === 1}
+                  >
+                    Anterior
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setParams({ page: String(page + 1) })}
+                    disabled={page >= adjustmentsData.totalPages}
+                  >
+                    Siguiente
+                  </Button>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>

@@ -7,6 +7,14 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useProductStock, useUpdateStockSettings } from '@/hooks/useInventory';
 import { useActiveBranches } from '@/hooks/useBranches';
 import type { ProductStockDto } from '@/types/inventory';
@@ -187,20 +195,20 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
         {branches.length > 0 && (
           <div className="border border-gray-200 rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
-                    <th className="text-center px-3 py-2.5 text-xs font-medium text-gray-500 uppercase w-[70px]">
+              <Table className="w-full text-sm">
+                <TableHeader>
+                  <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 hover:bg-transparent">
+                    <TableHead className="text-center px-3 py-2.5 text-xs font-medium text-gray-500 uppercase w-[70px]">
                       Activo
-                    </th>
-                    <th className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase w-[180px]">
+                    </TableHead>
+                    <TableHead className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase w-[180px]">
                       Sucursal
-                    </th>
-                    <th className="text-center px-3 py-2.5 text-xs font-medium text-gray-500 uppercase w-[80px]">
+                    </TableHead>
+                    <TableHead className="text-center px-3 py-2.5 text-xs font-medium text-gray-500 uppercase w-[80px]">
                       Stock
-                    </th>
+                    </TableHead>
                     {OVERRIDE_FIELDS.map((field) => (
-                      <th key={field.key} className="text-left px-3 py-2.5 text-xs font-medium text-gray-500 uppercase">
+                      <TableHead key={field.key} className="text-left px-3 py-2.5 text-xs font-medium text-gray-500 uppercase">
                         <div className="flex items-center gap-1">
                           {field.label}
                           <div className="relative group">
@@ -216,14 +224,14 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
                             </div>
                           </div>
                         </div>
-                      </th>
+                      </TableHead>
                     ))}
-                    <th className="text-center px-3 py-2.5 text-xs font-medium text-gray-500 uppercase w-[60px]">
+                    <TableHead className="text-center px-3 py-2.5 text-xs font-medium text-gray-500 uppercase w-[60px]">
                       Acc.
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {/* Branches WITH stock data */}
                   {activeBranchesWithStock.map((branch) => {
                     const stock = branchStockMap.get(branch.id)!;
@@ -238,12 +246,12 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
                     const isToggling = togglingBranchId === branch.id;
 
                     return (
-                      <tr
+                      <TableRow
                         key={branch.id}
                         className={`border-b border-gray-50 hover:bg-gray-50/50 ${!isActive ? 'opacity-50' : ''}`}
                       >
                         {/* Toggle */}
-                        <td className="px-3 py-3 text-center">
+                        <TableCell className="px-3 py-3 text-center">
                           <button
                             type="button"
                             role="switch"
@@ -260,10 +268,10 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
                               }`}
                             />
                           </button>
-                        </td>
+                        </TableCell>
 
                         {/* Branch info */}
-                        <td className="px-4 py-3">
+                        <TableCell className="px-4 py-3">
                           <div>
                             <span className="font-medium text-gray-700 text-sm">
                               {branch.name}
@@ -272,10 +280,10 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
                               {branch.code}
                             </span>
                           </div>
-                        </td>
+                        </TableCell>
 
                         {/* Current stock */}
-                        <td className="px-3 py-3 text-center">
+                        <TableCell className="px-3 py-3 text-center">
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                               !isActive
@@ -289,14 +297,14 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
                           >
                             {stock.quantityAvailable}
                           </span>
-                        </td>
+                        </TableCell>
 
                         {/* Override fields */}
                         {OVERRIDE_FIELDS.map((field) => {
                           const hasOverride = values[field.key] !== '';
 
                           return (
-                            <td key={field.key} className="px-3 py-2">
+                            <TableCell key={field.key} className="px-3 py-2">
                               <div className="relative">
                                 <input
                                   type="number"
@@ -320,12 +328,12 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
                                   </span>
                                 )}
                               </div>
-                            </td>
+                            </TableCell>
                           );
                         })}
 
                         {/* Save button — enabled only when inputs differ from server values */}
-                        <td className="px-3 py-2 text-center">
+                        <TableCell className="px-3 py-2 text-center">
                           {(() => {
                             const dirty = isDirty(branch.id);
                             return (
@@ -350,8 +358,8 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
                               </button>
                             );
                           })()}
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
 
@@ -360,12 +368,12 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
                     const isToggling = togglingBranchId === branch.id;
 
                     return (
-                      <tr
+                      <TableRow
                         key={branch.id}
                         className="border-b border-gray-50 hover:bg-gray-50/50 opacity-50"
                       >
                         {/* Toggle — will create stock_levels row when enabled */}
-                        <td className="px-3 py-3 text-center">
+                        <TableCell className="px-3 py-3 text-center">
                           <button
                             type="button"
                             role="switch"
@@ -376,10 +384,10 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
                           >
                             <span className="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-0" />
                           </button>
-                        </td>
+                        </TableCell>
 
                         {/* Branch info */}
-                        <td className="px-4 py-3">
+                        <TableCell className="px-4 py-3">
                           <div>
                             <span className="font-medium text-gray-700 text-sm">
                               {branch.name}
@@ -388,36 +396,36 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
                               {branch.code}
                             </span>
                           </div>
-                        </td>
+                        </TableCell>
 
                         {/* No stock */}
-                        <td className="px-3 py-3 text-center">
+                        <TableCell className="px-3 py-3 text-center">
                           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-400">
                             —
                           </span>
-                        </td>
+                        </TableCell>
 
                         {/* Empty override fields */}
                         {OVERRIDE_FIELDS.map((field) => (
-                          <td key={field.key} className="px-3 py-2">
+                          <TableCell key={field.key} className="px-3 py-2">
                             <input
                               type="number"
                               disabled
                               placeholder={String(defaults[field.key])}
                               className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-md bg-gray-50 text-gray-400"
                             />
-                          </td>
+                          </TableCell>
                         ))}
 
                         {/* No save button */}
-                        <td className="px-3 py-2 text-center">
+                        <TableCell className="px-3 py-2 text-center">
                           <span className="text-gray-300">—</span>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </div>
         )}

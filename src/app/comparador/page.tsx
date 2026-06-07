@@ -5,6 +5,14 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
   XMarkIcon,
   ShoppingCartIcon,
   HeartIcon,
@@ -292,14 +300,14 @@ export default function ComparadorPage() {
             <div className="overflow-x-auto">
               <Card>
                 <CardContent className="p-0">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="p-4 text-left bg-gray-50 w-48 sticky left-0 z-10">
+                  <Table className="w-full">
+                    <TableHeader>
+                      <TableRow className="border-b hover:bg-transparent">
+                        <TableHead className="p-4 text-left bg-gray-50 w-48 sticky left-0 z-10 whitespace-normal align-top">
                           <span className="font-bold text-gray-900">Característica</span>
-                        </th>
+                        </TableHead>
                         {selectedProducts.map((product) => (
-                          <th key={product.id} className="p-4 bg-white min-w-[280px]">
+                          <TableHead key={product.id} className="p-4 bg-white min-w-[280px] whitespace-normal align-top">
                             <div className="relative">
                               {/* Remove Button */}
                               <button
@@ -395,25 +403,25 @@ export default function ComparadorPage() {
                                 </Button>
                               </div>
                             </div>
-                          </th>
+                          </TableHead>
                         ))}
-                      </tr>
-                    </thead>
-                    <tbody>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
                       {allFeatures.map((feature, index) => (
-                        <tr key={feature} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                          <td className="p-4 font-medium text-gray-900 bg-gray-50 sticky left-0 z-10">
+                        <TableRow key={feature} className={`${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-transparent`}>
+                          <TableCell className="p-4 font-medium text-gray-900 bg-gray-50 sticky left-0 z-10 whitespace-normal align-middle">
                             {feature}
-                          </td>
+                          </TableCell>
                           {selectedProducts.map((product) => (
-                            <td key={product.id} className="p-4 text-center">
+                            <TableCell key={product.id} className="p-4 text-center whitespace-normal align-middle">
                               {renderFeatureValue(product.features[feature as keyof typeof product.features])}
-                            </td>
+                            </TableCell>
                           ))}
-                        </tr>
+                        </TableRow>
                       ))}
-                    </tbody>
-                  </table>
+                    </TableBody>
+                  </Table>
                 </CardContent>
               </Card>
             </div>
