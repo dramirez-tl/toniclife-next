@@ -12,6 +12,11 @@ import {
   type ProductQueryParams,
   type ProductPrice,
   type ProductComponent,
+  type ProductImage,
+  type ProductDocument,
+  type UpdateProductImageDto,
+  type ProductPriceSchedule,
+  type CreatePriceScheduleDto,
   type Category,
   type CategoryTree,
   type CreateProductDto,
@@ -33,6 +38,9 @@ export const productKeys = {
   prices: (id: string) => [...productKeys.all, 'prices', id] as const,
   components: (id: string) => [...productKeys.all, 'components', id] as const,
   taxes: (id: string) => [...productKeys.all, 'taxes', id] as const,
+  images: (id: string) => [...productKeys.all, 'images', id] as const,
+  documents: (id: string) => [...productKeys.all, 'documents', id] as const,
+  priceSchedules: (id: string) => [...productKeys.all, 'price-schedules', id] as const,
   featured: () => [...productKeys.all, 'featured'] as const,
   newArrivals: () => [...productKeys.all, 'new'] as const,
   bestSellers: () => [...productKeys.all, 'bestsellers'] as const,
@@ -559,6 +567,128 @@ export const useDeleteCategory = () => {
     mutationFn: (id: string) => productsService.deleteCategory(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: categoryKeys.all });
+    },
+  });
+};
+
+// ================================
+// PRODUCT IMAGE HOOKS (galería)
+// ================================
+
+export const useProductImages = (productId: string, enabled = true) => {
+  return useQuery<ProductImage[]>({
+    queryKey: productKeys.images(productId),
+    queryFn: () => productsService.getProductImages(productId),
+    enabled: enabled && !!productId,
+    staleTime: 2 * 60 * 1000,
+  });
+};
+
+export const useUploadProductImage = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, file }: { productId: string; file: File }) =>
+      productsService.uploadProductImage(productId, file),
+    onSuccess: (_, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.images(productId) });
+      queryClient.invalidateQueries({ queryKey: productKeys.detail(productId) });
+      queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+    },
+  });
+};
+
+export const useUpdateProductImage = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, imageId, dto }: { productId: string; imageId: string; dto: UpdateProductImageDto }) =>
+      productsService.updateProductImage(productId, imageId, dto),
+    onSuccess: (_, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.images(productId) });
+      queryClient.invalidateQueries({ queryKey: productKeys.detail(productId) });
+      queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+    },
+  });
+};
+
+export const useDeleteProductImage = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, imageId }: { productId: string; imageId: string }) =>
+      productsService.deleteProductImage(productId, imageId),
+    onSuccess: (_, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.images(productId) });
+      queryClient.invalidateQueries({ queryKey: productKeys.detail(productId) });
+      queryClient.invalidateQueries({ queryKey: productKeys.lists() });
+    },
+  });
+};
+
+// ================================
+// PRODUCT DOCUMENT HOOKS (ficha técnica PDF interna)
+// ================================
+
+export const useProductDocuments = (productId: string, enabled = true) => {
+  return useQuery<ProductDocument[]>({
+    queryKey: productKeys.documents(productId),
+    queryFn: () => productsService.getProductDocuments(productId),
+    enabled: enabled && !!productId,
+    staleTime: 2 * 60 * 1000,
+  });
+};
+
+export const useUploadProductDocument = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, file, documentType }: { productId: string; file: File; documentType?: string }) =>
+      productsService.uploadProductDocument(productId, file, documentType),
+    onSuccess: (_, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.documents(productId) });
+    },
+  });
+};
+
+export const useDeleteProductDocument = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, documentId }: { productId: string; documentId: string }) =>
+      productsService.deleteProductDocument(productId, documentId),
+    onSuccess: (_, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.documents(productId) });
+    },
+  });
+};
+
+// ================================
+// PRICE SCHEDULE HOOKS (cambios de precio programados)
+// ================================
+
+export const usePriceSchedules = (productId: string, enabled = true) => {
+  return useQuery<ProductPriceSchedule[]>({
+    queryKey: productKeys.priceSchedules(productId),
+    queryFn: () => productsService.getPriceSchedules(productId),
+    enabled: enabled && !!productId,
+    staleTime: 60 * 1000,
+  });
+};
+
+export const useCreatePriceSchedule = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, dto }: { productId: string; dto: CreatePriceScheduleDto }) =>
+      productsService.createPriceSchedule(productId, dto),
+    onSuccess: (_, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.priceSchedules(productId) });
+    },
+  });
+};
+
+export const useCancelPriceSchedule = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, scheduleId }: { productId: string; scheduleId: string }) =>
+      productsService.cancelPriceSchedule(productId, scheduleId),
+    onSuccess: (_, { productId }) => {
+      queryClient.invalidateQueries({ queryKey: productKeys.priceSchedules(productId) });
     },
   });
 };

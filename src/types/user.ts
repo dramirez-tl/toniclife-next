@@ -21,6 +21,10 @@ export interface User {
   lastName: string;
   phone: string | null;
   customerNumber: string | null;
+  /** ID del registro de cliente MLM enlazado (users.customer_id), si existe. */
+  customerId?: string | null;
+  /** Tipo en el MLM del cliente enlazado: 'distributor' | 'preferred_customer' | 'final_customer'. */
+  customerType?: string | null;
   isActive: boolean;
   emailVerifiedAt: string | null;
   role: RoleDto;

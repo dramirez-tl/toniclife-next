@@ -81,7 +81,7 @@ export function DataTable<T>({
   minWidthClassName = 'min-w-full',
   emptyState,
   emptyMessage = 'No hay registros disponibles.',
-  rowClassName = 'border-b border-gray-100 transition-colors hover:bg-gray-50',
+  rowClassName = 'border-b border-border transition-colors hover:bg-muted/50',
   sortingMode = 'client',
   sortState,
   onSortChange,
@@ -245,7 +245,7 @@ export function DataTable<T>({
     <div className="overflow-x-auto">
       <Table className={`w-full ${minWidthClassName}`}>
         <TableHeader>
-          <TableRow className="border-b border-gray-200 hover:bg-transparent">
+          <TableRow className="border-b border-border hover:bg-transparent">
             {enableRowSelection && (
               <TableHead className="w-10 px-4 py-3 text-left">
                 {rowSelectionMode === 'multiple' && (
@@ -260,7 +260,7 @@ export function DataTable<T>({
             {columns.map((column) => (
               <TableHead
                 key={column.key}
-                className={`px-4 py-3 text-left text-sm font-semibold text-gray-900 ${column.headerClassName ?? ''}`}
+                className={`px-4 py-3 text-left text-sm font-semibold text-foreground ${column.headerClassName ?? ''}`}
                 aria-sort={
                   column.sortable && activeSortState?.key === column.key
                     ? activeSortState.direction === 'asc'
@@ -273,15 +273,15 @@ export function DataTable<T>({
                   <button
                     type="button"
                     onClick={() => handleSort(column)}
-                    className="inline-flex items-center gap-1.5 transition-colors hover:text-[#3E667D]"
+                    className="inline-flex items-center gap-1.5 transition-colors hover:text-primary"
                   >
                     <span>{column.header}</span>
                     {activeSortState?.key !== column.key ? (
-                      <ArrowsUpDownIcon className="h-4 w-4 text-gray-400" />
+                      <ArrowsUpDownIcon className="h-4 w-4 text-muted-foreground" />
                     ) : activeSortState.direction === 'asc' ? (
-                      <ChevronUpIcon className="h-4 w-4 text-[#3E667D]" />
+                      <ChevronUpIcon className="h-4 w-4 text-primary" />
                     ) : (
-                      <ChevronDownIcon className="h-4 w-4 text-[#3E667D]" />
+                      <ChevronDownIcon className="h-4 w-4 text-primary" />
                     )}
                   </button>
                 ) : (
@@ -291,7 +291,7 @@ export function DataTable<T>({
             ))}
           </TableRow>
           {enableColumnFilters && (
-            <TableRow className="border-b border-gray-100 bg-gray-50/60 hover:bg-gray-50/60">
+            <TableRow className="border-b border-border bg-muted/40 hover:bg-muted/40">
               {enableRowSelection && <TableHead className="px-4 py-2" />}
               {columns.map((column) => {
                 const filterConfig = column.filter;
@@ -319,7 +319,7 @@ export function DataTable<T>({
                         value={value}
                         onChange={(e) => handleFilterChange(column.key, e.target.value)}
                         placeholder={filterConfig.placeholder || 'Filtrar'}
-                        className="h-auto w-full rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-none placeholder:text-gray-400 focus-visible:border-[#3E667D] focus-visible:ring-0"
+                        className="h-auto w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-foreground shadow-none placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-0"
                       />
                     )}
                   </TableHead>
@@ -331,15 +331,15 @@ export function DataTable<T>({
         <TableBody>
           {isLoading ? (
             [...Array(loadingRows)].map((_, rowIndex) => (
-              <TableRow key={`loading-${rowIndex}`} className="border-b border-gray-100 hover:bg-transparent">
+              <TableRow key={`loading-${rowIndex}`} className="border-b border-border hover:bg-transparent">
                 {enableRowSelection && (
                   <TableCell className="px-4 py-4">
-                    <Skeleton className="h-4 w-4 rounded bg-gray-200" />
+                    <Skeleton className="h-4 w-4 rounded bg-muted" />
                   </TableCell>
                 )}
                 {columns.map((column) => (
                   <TableCell key={`${column.key}-${rowIndex}`} className="px-4 py-4">
-                    <Skeleton className="h-4 w-3/4 rounded bg-gray-200" />
+                    <Skeleton className="h-4 w-3/4 rounded bg-muted" />
                   </TableCell>
                 ))}
               </TableRow>
@@ -347,7 +347,7 @@ export function DataTable<T>({
           ) : processedData.length === 0 ? (
             <TableRow className="hover:bg-transparent">
               <TableCell colSpan={columns.length + (enableRowSelection ? 1 : 0)} className="px-4 py-10 text-center">
-                {emptyState || <p className="text-sm text-gray-500">{emptyMessage}</p>}
+                {emptyState || <p className="text-sm text-muted-foreground">{emptyMessage}</p>}
               </TableCell>
             </TableRow>
           ) : (
@@ -413,15 +413,15 @@ export function DataTablePagination({
   }, [currentPage, totalPages]);
 
   return (
-    <div className={`mt-6 flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:items-center sm:justify-between ${className}`}>
+    <div className={`mt-6 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between ${className}`}>
       <div className="flex flex-wrap items-center gap-3">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted-foreground">
           Mostrando {pageStart}-{pageEnd} de {totalItems}
           {totalPages > 1 && ` (Pagina ${currentPage} de ${totalPages})`}
         </p>
         {onPageSizeChange && (
           <div className="flex items-center gap-2">
-            <label className="text-sm text-gray-500">Ver</label>
+            <label className="text-sm text-muted-foreground">Ver</label>
             <SearchableSelect
               options={pageSizeOptions.map((size) => ({ value: String(size), label: String(size) }))}
               value={String(pageSize)}
@@ -437,7 +437,7 @@ export function DataTablePagination({
           type="button"
           variant="outline"
           size="sm"
-          className="rounded-lg border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className="rounded-lg text-sm font-medium"
           disabled={currentPage <= 1 || isLoading}
           onClick={() => onPageChange(Math.max(1, currentPage - 1))}
         >
@@ -450,11 +450,7 @@ export function DataTablePagination({
             type="button"
             variant={page === currentPage ? 'default' : 'outline'}
             size="sm"
-            className={
-              page === currentPage
-                ? 'rounded-lg bg-[#3E667D] text-sm font-medium text-white hover:bg-[#3E667D]'
-                : 'rounded-lg border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50'
-            }
+            className="rounded-lg text-sm font-medium"
             disabled={isLoading}
             onClick={() => onPageChange(page)}
           >
@@ -466,7 +462,7 @@ export function DataTablePagination({
           type="button"
           variant="outline"
           size="sm"
-          className="rounded-lg border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
+          className="rounded-lg text-sm font-medium"
           disabled={currentPage >= totalPages || isLoading}
           onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
         >

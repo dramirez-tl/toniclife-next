@@ -207,8 +207,10 @@ class ReportsService {
   // DASHBOARD KPIs
   // ================================
 
-  async getDashboardKPIs(): Promise<DashboardKPIs> {
-    const response = await api.get<DashboardKPIs>('/reports/dashboard');
+  async getDashboardKPIs(periodId?: string): Promise<DashboardKPIs> {
+    const response = await api.get<DashboardKPIs>('/reports/dashboard', {
+      params: periodId ? { periodId } : undefined,
+    });
     return response.data;
   }
 

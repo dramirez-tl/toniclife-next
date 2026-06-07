@@ -15,7 +15,6 @@ import {
   PlusIcon,
   PencilIcon,
   TrashIcon,
-  EyeIcon,
   ArrowDownTrayIcon,
   CubeIcon,
   TagIcon,
@@ -410,13 +409,6 @@ export function ProductosTab() {
             title="Ver Kardex"
           >
             <ChartBarIcon className="h-4 w-4 text-[#3E667D]" />
-          </button>
-          <button
-            onClick={() => router.push(`/admin/productos/${product.id}/editar`)}
-            className="rounded-lg p-2 transition-colors hover:bg-blue-50"
-            title="Ver detalles"
-          >
-            <EyeIcon className="h-4 w-4 text-blue-600" />
           </button>
           <button
             onClick={() => router.push(`/admin/productos/${product.id}/editar`)}

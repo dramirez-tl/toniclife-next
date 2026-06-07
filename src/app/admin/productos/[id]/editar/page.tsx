@@ -5,9 +5,6 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeftIcon,
-  PhotoIcon,
-  PlusIcon,
-  XMarkIcon,
   ArrowPathIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
@@ -24,6 +21,7 @@ import { ProductType, KitType } from '@/types/product';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { ProductPricesSection } from '@/components/admin/products/ProductPricesSection';
 import { ProductInventoryByBranch } from '@/components/admin/products/ProductInventoryByBranch';
+import { ProductMediaSection } from '@/components/admin/products/ProductMediaSection';
 import { selectUser } from '@/store/slices/authSlice';
 
 // Confirmation info for sensitive toggles
@@ -97,18 +95,9 @@ export default function EditarProductoAdminPage() {
     // Status
     isActive: true,
     sortOrder: '0',
-    // UI-only fields
-    imageUrl: '',
-    videoUrl: '',
-    usageInstructions: '',
-    usageFormat: '',
-    ingredients: '',
-    warnings: '',
   });
 
-  const [activeTab, setActiveTab] = useState<'general' | 'precios' | 'inventario'>('general');
-  const [healthBenefits, setHealthBenefits] = useState<string[]>(['']);
-  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<'general' | 'media' | 'precios' | 'inventario'>('general');
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Confirmation modal for sensitive toggles (tracksInventory / tracksLots)
@@ -153,19 +142,7 @@ export default function EditarProductoAdminPage() {
         metaDescription: product.metaDescription || '',
         isActive: product.isActive ?? true,
         sortOrder: product.sortOrder?.toString() || '0',
-        imageUrl: product.imageUrl || '',
-        videoUrl: product.videoUrl || '',
-        usageInstructions: product.usageInstructions || '',
-        usageFormat: product.usageFormat || '',
-        ingredients: product.ingredients || '',
-        warnings: product.warnings || '',
       });
-      setHealthBenefits(
-        product.healthBenefits && product.healthBenefits.length > 0
-          ? product.healthBenefits
-          : ['']
-      );
-      setGalleryUrls(product.galleryUrls || []);
       setIsInitialized(true);
     }
   }, [product, isInitialized]);
@@ -211,14 +188,6 @@ export default function EditarProductoAdminPage() {
   };
 
   const cancelToggle = () => setPendingToggle(null);
-
-  const addHealthBenefit = () => setHealthBenefits([...healthBenefits, '']);
-  const removeHealthBenefit = (index: number) => setHealthBenefits(healthBenefits.filter((_, i) => i !== index));
-  const updateHealthBenefit = (index: number, value: string) => {
-    const updated = [...healthBenefits];
-    updated[index] = value;
-    setHealthBenefits(updated);
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -271,7 +240,6 @@ export default function EditarProductoAdminPage() {
       {
         onSuccess: () => {
           toast.success('Producto actualizado exitosamente');
-          router.push('/admin/productos');
         },
         onError: (error: any) => {
           const message = error?.response?.data?.message || error?.message || 'Error al actualizar el producto';
@@ -342,13 +310,15 @@ export default function EditarProductoAdminPage() {
               >
                 Cancelar
               </Link>
-              <Button
-                variant="default"
-                onClick={handleSubmit}
-                disabled={updateProduct.isPending}
-              >
-                {updateProduct.isPending ? 'Guardando...' : 'Guardar Cambios'}
-              </Button>
+              {activeTab !== 'media' && (
+                <Button
+                  variant="default"
+                  onClick={handleSubmit}
+                  disabled={updateProduct.isPending}
+                >
+                  {updateProduct.isPending ? 'Guardando...' : 'Guardar Cambios'}
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -358,8 +328,8 @@ export default function EditarProductoAdminPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Tab Navigation */}
         <div className="flex gap-1 mb-6 border-b border-gray-200">
-          {(['general', 'precios', 'inventario'] as const).map((tab) => {
-            const labels = { general: 'General', precios: 'Precios y Fiscal', inventario: 'Inventario' };
+          {(['general', 'media', 'precios', 'inventario'] as const).map((tab) => {
+            const labels = { general: 'General', media: 'Imágenes y ficha', precios: 'Precios y Fiscal', inventario: 'Inventario' };
             return (
               <Button
                 key={tab}
@@ -423,25 +393,36 @@ export default function EditarProductoAdminPage() {
                         </div>
                       </div>
                       <div>
-                        <label className={labelClass}>Descripcion Corta</label>
-                        <textarea
+                        <label className={labelClass}>Nombre Corto</label>
+                        <Input
+                          type="text"
                           name="shortName"
-                          rows={3}
+                          maxLength={100}
                           value={formData.shortName}
                           onChange={handleChange}
-                          className={`${inputClass} resize-none`}
-                          placeholder="Descripcion breve para listados (max. 160 caracteres)"
+                          placeholder="Nombre breve para listados y tickets"
                         />
                       </div>
                       <div>
-                        <label className={labelClass}>Descripcion Completa</label>
+                        <label className={labelClass}>Descripcion</label>
                         <textarea
                           name="description"
-                          rows={6}
+                          rows={4}
                           value={formData.description}
                           onChange={handleChange}
                           className={`${inputClass} resize-none`}
-                          placeholder="Descripcion detallada del producto"
+                          placeholder="Descripcion breve del producto"
+                        />
+                      </div>
+                      <div>
+                        <label className={labelClass}>Descripcion larga (tienda en linea)</label>
+                        <textarea
+                          name="longDescription"
+                          rows={6}
+                          value={formData.longDescription}
+                          onChange={handleChange}
+                          className={`${inputClass} resize-none`}
+                          placeholder="Descripcion detallada para la ficha de producto en e-commerce"
                         />
                       </div>
                     </div>
@@ -504,100 +485,21 @@ export default function EditarProductoAdminPage() {
                           />
                         </div>
                       )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Usage & Health */}
-                <Card className="p-0">
-                  <CardContent className="p-6">
-                    <h2 className="text-lg font-bold text-gray-900 mb-6">Uso y Salud</h2>
-                    <div className="space-y-4">
-                      <div>
-                        <label className={labelClass}>Instrucciones de Uso</label>
-                        <textarea
-                          name="usageInstructions"
-                          rows={3}
-                          value={formData.usageInstructions}
-                          onChange={handleChange}
-                          className={`${inputClass} resize-none`}
-                          placeholder="Ej: Tomar 2 capsulas al dia con alimentos"
-                        />
-                      </div>
-                      <div>
-                        <label className={labelClass}>Formato de Uso</label>
-                        <Input
-                          type="text"
-                          name="usageFormat"
-                          value={formData.usageFormat}
-                          onChange={handleChange}
-                          placeholder="Ej: Capsulas, Polvo, Liquido"
-                        />
-                      </div>
-                      <div>
-                        <label className={labelClass}>Ingredientes</label>
-                        <textarea
-                          name="ingredients"
-                          rows={3}
-                          value={formData.ingredients}
-                          onChange={handleChange}
-                          className={`${inputClass} resize-none`}
-                          placeholder="Lista de ingredientes del producto"
-                        />
-                      </div>
-                      <div>
-                        <label className={labelClass}>Advertencias</label>
-                        <textarea
-                          name="warnings"
-                          rows={3}
-                          value={formData.warnings}
-                          onChange={handleChange}
-                          className={`${inputClass} resize-none`}
-                          placeholder="Advertencias y contraindicaciones"
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Health Benefits */}
-                <Card className="p-0">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h2 className="text-lg font-bold text-gray-900">Beneficios de Salud</h2>
-                      <Button
-                        type="button"
-                        variant="default"
-                        size="sm"
-                        onClick={addHealthBenefit}
-                      >
-                        <PlusIcon className="h-4 w-4" />
-                        Agregar
-                      </Button>
-                    </div>
-                    <div className="space-y-3">
-                      {healthBenefits.map((benefit, index) => (
-                        <div key={index} className="flex gap-2">
-                          <Input
-                            type="text"
-                            value={benefit}
-                            onChange={(e) => updateHealthBenefit(index, e.target.value)}
-                            className="flex-1"
-                            placeholder="Ej: Aumenta masa muscular magra"
+                      {formData.productType === 'kit' && (
+                        <div className="col-span-2 flex items-center">
+                          <input
+                            type="checkbox"
+                            name="kitDeductsInventory"
+                            id="kitDeductsInventory"
+                            checked={formData.kitDeductsInventory}
+                            onChange={handleChange}
+                            className="h-4 w-4 text-[#3E667D] focus:ring-[#3E667D] border-gray-300 rounded"
                           />
-                          {healthBenefits.length > 1 && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeHealthBenefit(index)}
-                              className="text-red-600 hover:bg-red-50 hover:text-red-600"
-                            >
-                              <XMarkIcon className="h-5 w-5" />
-                            </Button>
-                          )}
+                          <label htmlFor="kitDeductsInventory" className="ml-2 text-sm text-gray-700">
+                            El kit deduce inventario de componentes
+                          </label>
                         </div>
-                      ))}
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -660,33 +562,6 @@ export default function EditarProductoAdminPage() {
                         <input type="checkbox" name="availableInPos" id="availableInPos" checked={formData.availableInPos} onChange={handleChange} className="h-4 w-4 text-[#3E667D] focus:ring-[#3E667D] border-gray-300 rounded" />
                         <label htmlFor="availableInPos" className="ml-2 text-sm text-gray-700">Disponible en POS</label>
                       </div>
-                      <div>
-                        <label className={labelClass}>Orden de Aparicion</label>
-                        <Input type="number" name="sortOrder" value={formData.sortOrder} onChange={handleChange} placeholder="0" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Media */}
-                <Card className="p-0">
-                  <CardContent className="p-6">
-                    <h2 className="text-lg font-bold text-gray-900 mb-4">Media</h2>
-                    <div className="space-y-4">
-                      <div>
-                        <label className={labelClass}>URL de Imagen Principal</label>
-                        <Input type="url" name="imageUrl" value={formData.imageUrl} onChange={handleChange} placeholder="https://..." />
-                      </div>
-                      <div>
-                        <label className={labelClass}>URL de Video</label>
-                        <Input type="url" name="videoUrl" value={formData.videoUrl} onChange={handleChange} placeholder="https://..." />
-                      </div>
-                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                        <PhotoIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                        <p className="text-sm text-gray-600 mb-2">Arrastra imagenes aqui o</p>
-                        <Button type="button" variant="link" className="h-auto p-0">Seleccionar archivos</Button>
-                        <p className="text-xs text-gray-500 mt-2">PNG, JPG hasta 5MB</p>
-                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -717,32 +592,16 @@ export default function EditarProductoAdminPage() {
             </div>
           )}
 
+          {/* ===== TAB: MEDIA (imágenes + ficha técnica) ===== */}
+          {activeTab === 'media' && product && (
+            <div className="max-w-4xl">
+              <ProductMediaSection productId={id} />
+            </div>
+          )}
+
           {/* ===== TAB: PRECIOS ===== */}
           {activeTab === 'precios' && (
             <div className="space-y-6 max-w-4xl">
-              {/* MLM */}
-              <Card className="p-0">
-                <CardContent className="p-6">
-                  <h2 className="text-lg font-bold text-gray-900 mb-6">MLM</h2>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className={labelClass}>Puntos Personales</label>
-                      <Input type="number" name="pointsValue" step="0.01" value={formData.pointsValue} onChange={handleChange} placeholder="0.00" />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Volumen de Negocio</label>
-                      <Input type="number" name="businessVolume" step="0.01" value={formData.businessVolume} onChange={handleChange} placeholder="0.00" />
-                    </div>
-                    {formData.productType === 'kit' && (
-                      <div className="col-span-2 flex items-center">
-                        <input type="checkbox" name="kitDeductsInventory" id="kitDeductsInventory" checked={formData.kitDeductsInventory} onChange={handleChange} className="h-4 w-4 text-[#3E667D] focus:ring-[#3E667D] border-gray-300 rounded" />
-                        <label htmlFor="kitDeductsInventory" className="ml-2 text-sm text-gray-700">El kit deduce inventario de componentes</label>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-
               {/* Precios por País */}
               {product && (
                 <ProductPricesSection
@@ -757,9 +616,9 @@ export default function EditarProductoAdminPage() {
 
           {/* ===== TAB: INVENTARIO ===== */}
           {activeTab === 'inventario' && (
-            <div className="space-y-6 max-w-4xl">
+            <div className="space-y-6">
               {/* Inventory Defaults & Physical */}
-              <Card className="p-0">
+              <Card className="p-0 max-w-4xl">
                 <CardContent className="p-6">
                   <h2 className="text-lg font-bold text-gray-900 mb-6">Configuracion de Inventario</h2>
                   <h3 className="text-sm font-semibold text-gray-700 mb-3">Propiedades Físicas</h3>

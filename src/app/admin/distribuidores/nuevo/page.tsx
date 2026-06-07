@@ -12,6 +12,8 @@ import {
   fetchCustomerByReferralCode,
 } from '@/store/slices/customersSlice';
 import type { CreateCustomerDto, Customer } from '@/types/customer';
+import { useActivePriceTypes } from '@/hooks/useConfig';
+import { findPriceTypeIdForCustomerType } from '@/lib/priceType';
 import {
   ArrowLeftIcon,
   UserIcon,
@@ -21,6 +23,7 @@ import {
   IdentificationIcon,
   BuildingOfficeIcon,
   UserGroupIcon,
+  StarIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
@@ -30,6 +33,7 @@ export default function NuevoDistribuidorPage() {
   const dispatch = useAppDispatch();
   const isLoading = useAppSelector(selectCustomersLoading);
   const error = useAppSelector(selectCustomersError);
+  const { data: priceTypes } = useActivePriceTypes();
 
   const [formData, setFormData] = useState<CreateCustomerDto & { _customerType: string }>({
     _customerType: 'distributor',
@@ -85,14 +89,23 @@ export default function NuevoDistribuidorPage() {
     e.preventDefault();
     dispatch(clearError());
 
+    const customerType = formData.customerType || formData._customerType;
+    // Clientes (final_customer) y preferentes (preferred_customer) usan
+    // directamente su price_type_id. Para distribuidor se mantiene el flujo
+    // actual (el kit/enrollment define su precio).
+    const resolvedPriceTypeId =
+      customerType === 'distributor'
+        ? formData.priceTypeId
+        : findPriceTypeIdForCustomerType(priceTypes, customerType) ?? formData.priceTypeId;
+
     // Clean up empty optional fields
     const cleanData: CreateCustomerDto = {
       firstName: formData.firstName,
       lastName: formData.lastName,
       email: formData.email,
-      priceTypeId: formData.priceTypeId,
+      priceTypeId: resolvedPriceTypeId,
       branchId: formData.branchId,
-      customerType: formData.customerType || formData._customerType,
+      customerType,
     };
 
     if (formData.phone) cleanData.phone = formData.phone;
@@ -154,7 +167,7 @@ export default function NuevoDistribuidorPage() {
           {/* Tipo de registro */}
           <div className="bg-white rounded-lg shadow p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Tipo de Registro</h2>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <label
                 className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
                   formData.customerType === 'distributor'
@@ -170,15 +183,15 @@ export default function NuevoDistribuidorPage() {
                   onChange={handleChange}
                   className="sr-only"
                 />
-                <UserGroupIcon className="h-6 w-6 text-[#3E667D]" />
+                <UserGroupIcon className="h-6 w-6 shrink-0 text-[#3E667D]" />
                 <div>
                   <p className="font-medium text-gray-900">Distribuidor</p>
-                  <p className="text-sm text-gray-500">Puede vender y reclutar</p>
+                  <p className="text-sm text-gray-500">Vende, recluta y genera red</p>
                 </div>
               </label>
               <label
                 className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                  formData.customerType === 'retail'
+                  formData.customerType === 'preferred_customer'
                     ? 'border-[#3E667D] bg-blue-50'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
@@ -186,15 +199,36 @@ export default function NuevoDistribuidorPage() {
                 <input
                   type="radio"
                   name="customerType"
-                  value="retail"
-                  checked={formData.customerType === 'retail'}
+                  value="preferred_customer"
+                  checked={formData.customerType === 'preferred_customer'}
                   onChange={handleChange}
                   className="sr-only"
                 />
-                <UserIcon className="h-6 w-6 text-purple-600" />
+                <StarIcon className="h-6 w-6 shrink-0 text-amber-500" />
+                <div>
+                  <p className="font-medium text-gray-900">Preferente</p>
+                  <p className="text-sm text-gray-500">Precio preferente, sin red ni puntos</p>
+                </div>
+              </label>
+              <label
+                className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                  formData.customerType === 'final_customer'
+                    ? 'border-[#3E667D] bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="customerType"
+                  value="final_customer"
+                  checked={formData.customerType === 'final_customer'}
+                  onChange={handleChange}
+                  className="sr-only"
+                />
+                <UserIcon className="h-6 w-6 shrink-0 text-purple-600" />
                 <div>
                   <p className="font-medium text-gray-900">Cliente</p>
-                  <p className="text-sm text-gray-500">Solo compra productos</p>
+                  <p className="text-sm text-gray-500">Solo compra a precio público</p>
                 </div>
               </label>
             </div>

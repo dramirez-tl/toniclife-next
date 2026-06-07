@@ -17,7 +17,6 @@ import {
   CurrencyDollarIcon,
   TagIcon,
   PhotoIcon,
-  UsersIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   ArrowLeftOnRectangleIcon,
@@ -49,7 +48,6 @@ const navigation: NavItem[] = [
   { name: 'Panel Principal', href: '/admin', icon: HomeIcon }, // Todos pueden ver el panel principal
   { name: 'Sucursales', href: '/admin/sucursales', icon: BuildingStorefrontIcon, permissions: ['config.branches', 'config.branches.read'] },
   { name: 'Usuarios', href: '/admin/usuarios', icon: UserGroupIcon, permissions: ['users:read', 'config.users', 'config.users.read'] },
-  { name: 'Distribuidores', href: '/admin/distribuidores', icon: UsersIcon, permissions: ['customers:read', 'customers', 'customers.list.read'] },
   { name: 'Productos', href: '/admin/productos', icon: ShoppingBagIcon, permissions: ['config.products', 'config.products.read'] },
   { name: 'Pedidos', href: '/admin/pedidos', icon: ClipboardDocumentListIcon, permissions: ['sales.orders', 'sales.orders.read'] },
   {
@@ -222,10 +220,11 @@ function hasAnyPermission(userPermissions: string[], requiredPermissions?: strin
 
 interface AdminSidebarProps {
   mobile?: boolean;
+  collapsed?: boolean;
   onNavigate?: () => void;
 }
 
-export function AdminSidebar({ mobile = false, onNavigate }: AdminSidebarProps) {
+export function AdminSidebar({ mobile = false, collapsed = false, onNavigate }: AdminSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -357,26 +356,26 @@ export function AdminSidebar({ mobile = false, onNavigate }: AdminSidebarProps) 
   return (
     <aside
       className={`z-40 w-64 bg-[#3E667D] text-white flex flex-col ${
-        mobile ? 'h-full' : 'fixed left-0 top-0 h-screen'
+        mobile
+          ? 'h-full'
+          : `fixed left-0 top-0 h-screen transition-transform duration-300 ${collapsed ? '-translate-x-full' : 'translate-x-0'}`
       }`}
       aria-label="Barra lateral de administración"
     >
       {/* Logo */}
-      <div className="flex h-16 items-center justify-center border-b border-white/10 px-4">
-        <Link href="/admin" className="flex items-center justify-center" onClick={onNavigate} aria-label="Ir al panel de administración">
-          <div className="w-11 h-11 bg-white rounded-full flex items-center justify-center shadow-sm overflow-hidden">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/images/logo/svg/logo-icon-blue-solid.svg"
-              alt="TL"
-              className="w-8 h-8"
-            />
-          </div>
+      <div className="relative flex h-16 items-center justify-center border-b border-white/10 px-5">
+        <Link href="/admin" className="flex min-w-0 items-center justify-center" onClick={onNavigate} aria-label="Ir al panel de administración">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/logo/svg/logo-text-light.svg"
+            alt="Tonic Life"
+            className="h-8 w-auto brightness-0 invert"
+          />
         </Link>
         {mobile && (
           <button
             onClick={onNavigate}
-            className="rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+            className="absolute right-3 rounded-lg p-1.5 text-white/70 transition-colors hover:bg-white/10 hover:text-white"
             aria-label="Cerrar menú"
           >
             <XMarkIcon className="h-5 w-5" />
@@ -404,7 +403,7 @@ export function AdminSidebar({ mobile = false, onNavigate }: AdminSidebarProps) 
                       aria-expanded={isExpanded}
                       className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                         active || childActive
-                          ? 'bg-white/12 text-white ring-1 ring-white/10'
+                          ? 'bg-white/15 text-white shadow-[inset_3px_0_0_0_#C8DDF2]'
                           : 'text-white/70 hover:bg-white/5 hover:text-white'
                       }`}
                     >
@@ -429,7 +428,7 @@ export function AdminSidebar({ mobile = false, onNavigate }: AdminSidebarProps) 
                                 onClick={onNavigate}
                                 className={`block px-3 py-2 rounded-lg text-sm transition-colors ${
                                   childIsActive
-                                    ? 'bg-[#3E667D] text-white font-medium shadow-sm'
+                                    ? 'bg-white/15 text-white font-medium shadow-[inset_3px_0_0_0_#C8DDF2]'
                                     : 'text-white/60 hover:bg-white/5 hover:text-white'
                                 }`}
                               >
@@ -447,7 +446,7 @@ export function AdminSidebar({ mobile = false, onNavigate }: AdminSidebarProps) 
                     onClick={onNavigate}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                       active
-                        ? 'bg-[#3E667D] text-white shadow-sm'
+                        ? 'bg-white/15 text-white shadow-[inset_3px_0_0_0_#C8DDF2]'
                         : 'text-white/70 hover:bg-white/5 hover:text-white'
                     }`}
                   >
@@ -472,28 +471,28 @@ export function AdminSidebar({ mobile = false, onNavigate }: AdminSidebarProps) 
       </nav>
 
       {/* User section */}
-      <div className="border-t border-white/10 p-4">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 bg-[#C8DDF2] rounded-full flex items-center justify-center">
-            <span className="text-white font-bold text-sm">{getUserInitials()}</span>
+      <div className="border-t border-white/10 p-3">
+        <div className="mb-2 flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2.5">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C8DDF2] text-sm font-bold text-[#2f5165] ring-1 ring-white/20">
+            {getUserInitials()}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">{getUserDisplayName()}</p>
-            <p className="text-xs text-white/60 truncate">{getUserRoleLabel()}</p>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-white">{getUserDisplayName()}</p>
+            <p className="truncate text-xs text-white/60">{getUserRoleLabel()}</p>
           </div>
         </div>
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           <Link
             href="/"
             onClick={onNavigate}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors"
+            className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/5 hover:text-white"
           >
             <ArrowLeftOnRectangleIcon className="h-5 w-5" />
             <span>Volver al sitio</span>
           </Link>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-300 hover:bg-red-500/10 hover:text-red-200 transition-colors"
+            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-red-300 transition-colors hover:bg-red-500/10 hover:text-red-200"
           >
             <ArrowRightOnRectangleIcon className="h-5 w-5" />
             <span>Cerrar sesión</span>

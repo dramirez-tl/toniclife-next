@@ -11,13 +11,11 @@ import {
   GiftIcon,
   MagnifyingGlassIcon,
   PencilIcon,
-  EyeIcon,
   CheckCircleIcon,
   XCircleIcon,
   ArrowPathIcon,
   PlusIcon,
   CubeIcon,
-  StarIcon,
 } from '@heroicons/react/24/outline';
 import { useKits } from '@/hooks/useKits';
 import { useCountries } from '@/hooks/useConfig';
@@ -96,9 +94,8 @@ export function KitsTab() {
     return {
       total,
       active,
-      positions: new Set(kits.map((k) => k.kitPosition).filter(Boolean)).size,
     };
-  }, [total, activeStatsData, filterStatus, kits]);
+  }, [total, activeStatsData, filterStatus]);
 
   const hasActiveFilters = Boolean(
     searchQuery || filterPosition || filterStatus !== 'all',
@@ -257,13 +254,6 @@ export function KitsTab() {
         <div className="flex items-center justify-end gap-2">
           <button
             onClick={() => router.push(`/admin/kits/${kit.id}`)}
-            className="rounded-lg p-2 transition-colors hover:bg-blue-50"
-            title="Ver detalles"
-          >
-            <EyeIcon className="h-4 w-4 text-blue-600" />
-          </button>
-          <button
-            onClick={() => router.push(`/admin/kits/${kit.id}`)}
             className="rounded-lg p-2 transition-colors hover:bg-green-50"
             title="Editar kit"
           >
@@ -294,7 +284,7 @@ export function KitsTab() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -318,20 +308,6 @@ export function KitsTab() {
               </div>
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                 <CheckCircleIcon className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Posiciones disponibles</p>
-                <p className="text-3xl font-bold text-amber-600">{formatNumber(stats.positions)}</p>
-              </div>
-              <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
-                <StarIcon className="h-6 w-6 text-amber-600" />
               </div>
             </div>
           </CardContent>

@@ -3,6 +3,7 @@
 import { Suspense, useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
@@ -131,15 +132,15 @@ function BranchModal({ isOpen, onClose, title, children, onSubmit, isSubmitting,
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="relative mx-4 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-border bg-card text-card-foreground shadow-xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">{title}</h2>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h2 className="text-xl font-bold text-foreground">{title}</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-muted rounded-lg transition-colors"
           >
-            <XMarkIcon className="h-5 w-5 text-gray-500" />
+            <XMarkIcon className="h-5 w-5 text-muted-foreground" />
           </button>
         </div>
 
@@ -149,7 +150,7 @@ function BranchModal({ isOpen, onClose, title, children, onSubmit, isSubmitting,
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-muted/50 rounded-b-2xl">
           <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancelar
           </Button>
@@ -174,7 +175,7 @@ function BranchModal({ isOpen, onClose, title, children, onSubmit, isSubmitting,
 function FormSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mb-6">
-      <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3 border-b border-gray-100 pb-2">
+      <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-3 border-b border-border pb-2">
         {title}
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -198,7 +199,7 @@ interface FormFieldProps {
 function FormField({ label, required, fullWidth, children }: FormFieldProps) {
   return (
     <div className={fullWidth ? 'md:col-span-2' : ''}>
-      <label className="block text-sm font-medium text-gray-700 mb-1">
+      <label className="block text-sm font-medium text-foreground mb-1">
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>
@@ -220,17 +221,17 @@ interface CheckboxFieldProps {
 
 function CheckboxField({ label, description, checked, onChange }: CheckboxFieldProps) {
   return (
-    <label className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
+    <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors">
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#3E667D] focus:ring-[#a7c1e2]"
+        className="mt-0.5 h-4 w-4 rounded border-input text-primary accent-primary focus:ring-ring"
       />
       <div>
-        <span className="text-sm font-medium text-gray-900">{label}</span>
+        <span className="text-sm font-medium text-foreground">{label}</span>
         {description && (
-          <p className="text-xs text-gray-500 mt-0.5">{description}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
         )}
       </div>
     </label>
@@ -263,7 +264,7 @@ function TimezoneSection({ timezone, onChange }: { timezone: string; onChange: (
 
   return (
     <div className="mb-6">
-      <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3 border-b border-gray-100 pb-2">
+      <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-3 border-b border-border pb-2">
         Zona Horaria
       </h3>
       <div className="grid grid-cols-1 gap-4">
@@ -271,7 +272,7 @@ function TimezoneSection({ timezone, onChange }: { timezone: string; onChange: (
           <select
             value={timezone}
             onChange={(e) => onChange(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
           >
             {TIMEZONE_OPTIONS.map((group) => (
               <optgroup key={group.group} label={group.group}>
@@ -281,11 +282,11 @@ function TimezoneSection({ timezone, onChange }: { timezone: string; onChange: (
               </optgroup>
             ))}
           </select>
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             Afecta fechas en tickets, facturas y reportes diarios del POS
           </p>
           {localTime && (
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               🕐 Hora actual en esta zona: <span className="font-mono font-medium">{localTime}</span>
             </p>
           )}
@@ -596,77 +597,58 @@ function SucursalesContent() {
     const badges = [];
     if (branch.isWarehouse) {
       badges.push(
-        <span
-          key="warehouse"
-          className="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium"
-        >
+        <Badge key="warehouse" variant="warning">
           <CubeIcon className="h-3 w-3" />
           Almacen
-        </span>
+        </Badge>
       );
     }
     if (branch.isPickupPoint) {
       badges.push(
-        <span
-          key="pickup"
-          className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium"
-        >
+        <Badge key="pickup" variant="info">
           <MapPinIcon className="h-3 w-3" />
           Punto de Recogida
-        </span>
+        </Badge>
       );
     }
     if (branch.isPosEnabled) {
       badges.push(
-        <span
-          key="pos"
-          className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium"
-        >
+        <Badge key="pos" variant="secondary">
           <ComputerDesktopIcon className="h-3 w-3" />
           POS
-        </span>
+        </Badge>
       );
     }
     if (branch.isEcommerceEnabled) {
       badges.push(
-        <span
-          key="ecommerce"
-          className="inline-flex items-center gap-1 px-2 py-1 bg-teal-100 text-teal-700 rounded-full text-xs font-medium"
-        >
+        <Badge key="ecommerce" variant="success">
           <GlobeAltIcon className="h-3 w-3" />
           E-commerce
-        </span>
+        </Badge>
       );
     }
     if (badges.length === 0) {
       badges.push(
-        <span
-          key="none"
-          className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-500 rounded-full text-xs font-medium"
-        >
+        <Badge key="none" variant="outline" className="text-muted-foreground">
           Sin tipo
-        </span>
+        </Badge>
       );
     }
     return badges;
   };
 
-  const getStatusBadge = (isActive: boolean) => {
-    if (isActive) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-          <CheckCircleIcon className="h-3 w-3" />
-          Activa
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+  const getStatusBadge = (isActive: boolean) =>
+    isActive ? (
+      <Badge variant="success">
+        <CheckCircleIcon className="h-3 w-3" />
+        Activa
+      </Badge>
+    ) : (
+      <Badge variant="outline" className="text-muted-foreground">
         <XCircleIcon className="h-3 w-3" />
         Inactiva
-      </span>
+      </Badge>
     );
-  };
 
   const getLocationString = (branch: Branch) => {
     const parts = [];
@@ -694,26 +676,24 @@ function SucursalesContent() {
   // Loading state
   if (isLoading && !branchesData) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div className="flex items-center gap-3 mb-2">
-              <BuildingOffice2Icon className="h-10 w-10" />
-              <h1 className="text-4xl font-bold">Gestion de Sucursales</h1>
+      <div className="min-h-screen">
+        <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
+          <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8">
+            <div className="mb-1 flex items-center gap-2.5">
+              <BuildingOffice2Icon className="h-7 w-7" />
+              <h1 className="text-2xl font-bold sm:text-3xl">Gestion de Sucursales</h1>
             </div>
-            <p className="text-white/80 text-lg">Cargando sucursales...</p>
+            <p className="text-sm text-white/80 sm:text-base">Cargando sucursales...</p>
           </div>
         </div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <div className="mb-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
             {[...Array(4)].map((_, i) => (
-              <Card key={i}>
-                <CardContent className="p-6">
-                  <div className="animate-pulse">
-                    <div className="h-4 w-24 bg-gray-200 rounded mb-2" />
-                    <div className="h-8 w-16 bg-gray-200 rounded" />
-                  </div>
-                </CardContent>
+              <Card key={i} className="gap-0 p-5">
+                <div className="animate-pulse">
+                  <div className="mb-2 h-4 w-24 rounded bg-muted" />
+                  <div className="h-8 w-16 rounded bg-muted" />
+                </div>
               </Card>
             ))}
           </div>
@@ -725,19 +705,19 @@ function SucursalesContent() {
   // Error state
   if (error && !branchesData) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-            <div className="flex items-center gap-3 mb-2">
-              <BuildingOffice2Icon className="h-10 w-10" />
-              <h1 className="text-4xl font-bold">Gestion de Sucursales</h1>
+      <div className="min-h-screen">
+        <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
+          <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-2.5">
+              <BuildingOffice2Icon className="h-7 w-7" />
+              <h1 className="text-2xl font-bold sm:text-3xl">Gestion de Sucursales</h1>
             </div>
           </div>
         </div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Card className="border-red-200 bg-red-50">
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <Card className="border-destructive/30 bg-destructive/5">
             <CardContent className="p-6">
-              <div className="flex items-center gap-3 text-red-700">
+              <div className="flex items-center gap-3 text-destructive">
                 <ExclamationTriangleIcon className="h-6 w-6" />
                 <p>Error al cargar las sucursales. Por favor, intenta de nuevo.</p>
               </div>
@@ -759,13 +739,13 @@ function SucursalesContent() {
       sortValue: (branch) => branch.name,
       render: (branch) => (
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 flex-shrink-0 rounded-full bg-[#3E667D]/10 flex items-center justify-center">
-            <BuildingOffice2Icon className="h-5 w-5 text-[#3E667D]" />
+          <div className="h-10 w-10 flex-shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
+            <BuildingOffice2Icon className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <p className="font-semibold text-gray-900">{branch.name}</p>
+            <p className="font-semibold text-foreground">{branch.name}</p>
             {branch.addressEmail && (
-              <p className="text-sm text-gray-500">{branch.addressEmail}</p>
+              <p className="text-sm text-muted-foreground">{branch.addressEmail}</p>
             )}
           </div>
         </div>
@@ -778,17 +758,17 @@ function SucursalesContent() {
       sortValue: (branch) => branch.code,
       render: (branch) => (
         <div>
-          <span className="inline-flex items-center rounded-md bg-gray-100 px-2.5 py-1 text-sm font-mono font-medium text-gray-800">
+          <span className="inline-flex items-center rounded-md bg-muted px-2.5 py-1 text-sm font-mono font-medium text-foreground">
             {branch.code}
           </span>
           {branch.isCedea && (
             <div className="mt-1">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full text-xs font-medium">
                 <ShieldCheckIcon className="h-3 w-3" />
                 CEDEA
               </span>
               {branch.cedeaDistributorName && (
-                <p className="text-xs text-gray-500 mt-0.5">{branch.cedeaDistributorName}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{branch.cedeaDistributorName}</p>
               )}
             </div>
           )}
@@ -801,8 +781,8 @@ function SucursalesContent() {
       sortable: true,
       sortValue: (branch) => branch.countryName ?? '',
       render: (branch) => (
-        <span className="text-sm text-gray-600">
-          {branch.countryName || <span className="text-gray-400 italic">Sin pais</span>}
+        <span className="text-sm text-muted-foreground">
+          {branch.countryName || <span className="text-muted-foreground italic">Sin pais</span>}
         </span>
       ),
     },
@@ -812,7 +792,7 @@ function SucursalesContent() {
       sortable: true,
       sortValue: (branch) => getLocationString(branch),
       render: (branch) => (
-        <span className="text-sm text-gray-600">{getLocationString(branch)}</span>
+        <span className="text-sm text-muted-foreground">{getLocationString(branch)}</span>
       ),
     },
     {
@@ -820,7 +800,7 @@ function SucursalesContent() {
       header: 'Zona Horaria',
       render: (branch) => (
         <span
-          className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-md text-xs font-medium"
+          className="inline-flex items-center gap-1 px-2 py-1 bg-sky-500/10 text-sky-700 dark:text-sky-300 rounded-md text-xs font-medium"
           title={getTimezoneLabel(branch.timezone)}
         >
           {getTimezoneShortLabel(branch.timezone || 'America/Mexico_City')}
@@ -852,7 +832,7 @@ function SucursalesContent() {
         <div className="flex items-center justify-end gap-2">
           <button
             onClick={() => handleOpenEditModal(branch)}
-            className="rounded-lg p-2 transition-colors hover:bg-blue-50"
+            className="rounded-lg p-2 transition-colors hover:bg-muted"
             title="Editar sucursal"
             aria-label={`Editar ${branch.name}`}
           >
@@ -861,17 +841,17 @@ function SucursalesContent() {
           {branch.isPosEnabled && (
             <button
               onClick={() => setLicensesBranch(branch)}
-              className="rounded-lg p-2 transition-colors hover:bg-[#3E667D]/10"
+              className="rounded-lg p-2 transition-colors hover:bg-primary/10"
               title="Licencias POS"
               aria-label={`Licencias POS de ${branch.name}`}
             >
-              <KeyIcon className="h-4 w-4 text-[#3E667D]" />
+              <KeyIcon className="h-4 w-4 text-primary" />
             </button>
           )}
           {branch.isActive ? (
             <button
               onClick={() => handleToggleActive(branch)}
-              className="rounded-lg p-2 transition-colors hover:bg-yellow-50"
+              className="rounded-lg p-2 transition-colors hover:bg-muted"
               title="Desactivar sucursal"
               disabled={updateBranch.isPending}
               aria-label={`Desactivar ${branch.name}`}
@@ -881,7 +861,7 @@ function SucursalesContent() {
           ) : (
             <button
               onClick={() => handleToggleActive(branch)}
-              className="rounded-lg p-2 transition-colors hover:bg-green-50"
+              className="rounded-lg p-2 transition-colors hover:bg-muted"
               title="Activar sucursal"
               disabled={updateBranch.isPending}
               aria-label={`Activar ${branch.name}`}
@@ -891,7 +871,7 @@ function SucursalesContent() {
           )}
           <button
             onClick={() => handleDeleteBranch(branch)}
-            className="rounded-lg p-2 transition-colors hover:bg-red-50"
+            className="rounded-lg p-2 transition-colors hover:bg-muted"
             title="Eliminar sucursal"
             disabled={deleteBranch.isPending}
             aria-label={`Eliminar ${branch.name}`}
@@ -905,27 +885,31 @@ function SucursalesContent() {
 
   return (
     <PermissionGuard permissions={['settings:read', 'settings:*']}>
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
-      {/* Header */}
+    <div className="min-h-screen">
+      {/* Header (banda de marca, slim) */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="mb-2 flex items-center gap-3">
-                <BuildingOffice2Icon className="h-9 w-9" />
-                <h1 className="text-3xl font-bold sm:text-4xl">Gestion de Sucursales</h1>
+              <div className="mb-1 flex items-center gap-2.5">
+                <BuildingOffice2Icon className="h-7 w-7" />
+                <h1 className="text-2xl font-bold sm:text-3xl">Gestion de Sucursales</h1>
               </div>
-              <p className="text-base text-white/80 sm:text-lg">
+              <p className="text-sm text-white/80 sm:text-base">
                 Administra sucursales, almacenes y puntos de venta
               </p>
             </div>
-            <div className="flex flex-wrap gap-3">
-              <Link href="/admin">
-                <Button variant="secondary">Volver al Panel Principal</Button>
-              </Link>
+            <div className="flex flex-wrap gap-2">
               <Button
-                variant="default"
+                asChild
+                variant="ghost"
+                className="border border-white/25 text-white hover:bg-white/10 hover:text-white"
+              >
+                <Link href="/admin">Volver al Panel</Link>
+              </Button>
+              <Button
                 onClick={handleOpenCreateModal}
+                className="bg-white text-primary hover:bg-white/90"
               >
                 <PlusIcon className="h-5 w-5" />
                 Nueva Sucursal
@@ -937,75 +921,40 @@ function SucursalesContent() {
 
       {/* Main Content */}
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Stats Cards */}
-        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Sucursales</p>
-                  <p className="text-3xl font-bold text-gray-900">{formatNumber(stats.total)}</p>
+        {/* Stats Cards — un solo acento, compactas */}
+        <div className="mb-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
+          {[
+            { label: 'Total Sucursales', value: stats.total, icon: BuildingOffice2Icon },
+            { label: 'Activas', value: stats.active, icon: CheckCircleIcon },
+            { label: 'Almacenes', value: stats.warehouses, icon: CubeIcon },
+            { label: 'Punto de Venta', value: stats.pos, icon: ComputerDesktopIcon },
+          ].map((s) => (
+            <Card key={s.label} className="gap-0 p-5 transition-shadow duration-200 hover:shadow-md">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="mb-1 truncate text-sm text-muted-foreground">{s.label}</p>
+                  <p className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                    {formatNumber(s.value)}
+                  </p>
                 </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <BuildingOffice2Icon className="h-6 w-6 text-blue-600" />
-                </div>
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <s.icon className="h-5 w-5" />
+                </span>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Activas</p>
-                  <p className="text-3xl font-bold text-green-600">{formatNumber(stats.active)}</p>
-                </div>
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <CheckCircleIcon className="h-6 w-6 text-green-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Almacenes</p>
-                  <p className="text-3xl font-bold text-amber-600">{formatNumber(stats.warehouses)}</p>
-                </div>
-                <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center">
-                  <CubeIcon className="h-6 w-6 text-amber-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Punto de Venta</p>
-                  <p className="text-3xl font-bold text-purple-600">{formatNumber(stats.pos)}</p>
-                </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                  <ComputerDesktopIcon className="h-6 w-6 text-purple-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            </Card>
+          ))}
         </div>
 
         {/* Filters and Search */}
-        <Card className="mb-6 border-gray-100 shadow-sm">
+        <Card className="mb-6 border-border shadow-sm">
           <CardContent className="p-4 sm:p-6">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm font-medium text-gray-700">Busqueda y filtros</p>
+              <p className="text-sm font-medium text-foreground">Busqueda y filtros</p>
               <div className="flex flex-wrap items-center gap-2">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="gap-2 text-gray-600"
+                  className="gap-2 text-muted-foreground"
                   onClick={handleRefresh}
                   disabled={isFetching}
                 >
@@ -1024,7 +973,7 @@ function SucursalesContent() {
               <div className="lg:col-span-5">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <div className="relative flex-1">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <input
                     type="text"
                     placeholder="Buscar por nombre o codigo..."
@@ -1036,7 +985,7 @@ function SucursalesContent() {
                         handleSearch();
                       }
                     }}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                    className="w-full rounded-lg border border-input bg-background py-2 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                   />
                   </div>
                   <Button
@@ -1100,26 +1049,26 @@ function SucursalesContent() {
             </div>
             {hasActiveFilters && (
               <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-                <span className="rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-700">
+                <span className="rounded-full bg-primary/10 px-2.5 py-1 font-medium text-primary">
                   Filtros activos
                 </span>
                 {searchQuery && (
-                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
+                  <span className="rounded-full bg-muted px-2.5 py-1 text-foreground">
                     Busqueda: {searchQuery}
                   </span>
                 )}
                 {filterCountry !== 'all' && (
-                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
+                  <span className="rounded-full bg-muted px-2.5 py-1 text-foreground">
                     Pais: {countries.find((c: Country) => c.id === filterCountry)?.name ?? filterCountry}
                   </span>
                 )}
                 {filterType !== 'all' && (
-                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
+                  <span className="rounded-full bg-muted px-2.5 py-1 text-foreground">
                     Tipo: {filterType}
                   </span>
                 )}
                 {filterStatus !== 'all' && (
-                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
+                  <span className="rounded-full bg-muted px-2.5 py-1 text-foreground">
                     Estado: {filterStatus}
                   </span>
                 )}
@@ -1129,16 +1078,16 @@ function SucursalesContent() {
         </Card>
 
         {/* Branches Table */}
-        <Card className="border-gray-100 shadow-sm">
+        <Card className="border-border shadow-sm">
           <CardContent className="p-6">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-base font-semibold text-gray-900">Listado de sucursales</h2>
-              <p className="text-sm text-gray-600">
+              <h2 className="text-base font-semibold text-foreground">Listado de sucursales</h2>
+              <p className="text-sm text-muted-foreground">
                 Mostrando {branches.length} de {branchesData?.total ?? 0}
               </p>
             </div>
             {isFetching && (
-              <div className="mb-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700">
+              <div className="mb-3 rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground">
                 Actualizando resultados...
               </div>
             )}
@@ -1150,11 +1099,11 @@ function SucursalesContent() {
               minWidthClassName="min-w-[920px]"
               emptyState={
                 <div className="py-2 text-center">
-                  <BuildingOffice2Icon className="mx-auto mb-4 h-16 w-16 text-gray-400" />
-                  <h3 className="mb-2 text-xl font-bold text-gray-900">
+                  <BuildingOffice2Icon className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
+                  <h3 className="mb-2 text-xl font-bold text-foreground">
                     No se encontraron sucursales
                   </h3>
-                  <p className="text-gray-600">Intenta ajustar los filtros de busqueda o crear una nueva sucursal.</p>
+                  <p className="text-muted-foreground">Intenta ajustar los filtros de busqueda o crear una nueva sucursal.</p>
                   <div className="mt-4 flex justify-center gap-2">
                     {hasActiveFilters && (
                       <Button variant="outline" onClick={resetFilters}>
@@ -1206,7 +1155,7 @@ function SucursalesContent() {
               value={formData.name}
               onChange={(e) => handleFormChange('name', e.target.value)}
               placeholder="Ej: Sucursal Monterrey Centro"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             />
           </FormField>
           <FormField label="Codigo" required>
@@ -1215,7 +1164,7 @@ function SucursalesContent() {
               value={formData.code}
               onChange={(e) => handleFormChange('code', e.target.value.toUpperCase())}
               placeholder="Ej: MTY-CTR"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm font-mono"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 font-mono"
             />
           </FormField>
         </FormSection>
@@ -1228,7 +1177,7 @@ function SucursalesContent() {
               value={formData.addressStreet || ''}
               onChange={(e) => handleFormChange('addressStreet', e.target.value)}
               placeholder="Calle y numero"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             />
           </FormField>
           <FormField label="Ciudad">
@@ -1237,7 +1186,7 @@ function SucursalesContent() {
               value={formData.addressCity || ''}
               onChange={(e) => handleFormChange('addressCity', e.target.value)}
               placeholder="Ciudad"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             />
           </FormField>
           <FormField label="Estado">
@@ -1246,7 +1195,7 @@ function SucursalesContent() {
               value={formData.addressState || ''}
               onChange={(e) => handleFormChange('addressState', e.target.value)}
               placeholder="Estado"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             />
           </FormField>
           <FormField label="Codigo Postal">
@@ -1255,7 +1204,7 @@ function SucursalesContent() {
               value={formData.addressZip || ''}
               onChange={(e) => handleFormChange('addressZip', e.target.value)}
               placeholder="C.P."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             />
           </FormField>
         </FormSection>
@@ -1268,7 +1217,7 @@ function SucursalesContent() {
               value={formData.addressPhone || ''}
               onChange={(e) => handleFormChange('addressPhone', e.target.value)}
               placeholder="(81) 1234-5678"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             />
           </FormField>
           <FormField label="Correo electrónico">
@@ -1277,7 +1226,7 @@ function SucursalesContent() {
               value={formData.addressEmail || ''}
               onChange={(e) => handleFormChange('addressEmail', e.target.value)}
               placeholder="sucursal@toniclife.com"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             />
           </FormField>
         </FormSection>
@@ -1322,7 +1271,7 @@ function SucursalesContent() {
             <select
               value={formData.countryId || ''}
               onChange={(e) => handleCountryChange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             >
               <option value="">Seleccionar pais...</option>
               {countries.map((c: Country) => (
@@ -1337,7 +1286,7 @@ function SucursalesContent() {
               <select
                 value={formData.stateId || ''}
                 onChange={(e) => handleFormChange('stateId', e.target.value || undefined)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
               >
                 <option value="">Seleccionar estado...</option>
                 {statesForCountry.map((s) => (
@@ -1349,11 +1298,11 @@ function SucursalesContent() {
           <FormField label="Moneda">
             <input
               type="text"
-              value={formData.currencyCode || '—'}
+              value={formData.currencyCode || '-'}
               readOnly
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm font-mono text-gray-600 cursor-not-allowed"
+              className="w-full cursor-not-allowed rounded-lg border border-input bg-muted px-3 py-2 font-mono text-sm text-muted-foreground"
             />
-            <p className="text-xs text-gray-400 mt-1">Se asigna automaticamente segun el pais</p>
+            <p className="text-xs text-muted-foreground mt-1">Se asigna automaticamente segun el pais</p>
           </FormField>
           <FormField label="Envio Gratis Desde">
             <input
@@ -1366,7 +1315,7 @@ function SucursalesContent() {
                 )
               }
               placeholder="Monto minimo para envio gratis"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
               min={0}
               step={0.01}
             />
@@ -1382,7 +1331,7 @@ function SucursalesContent() {
                 )
               }
               placeholder="Costo base de envio"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
               min={0}
               step={0.01}
             />
@@ -1392,7 +1341,7 @@ function SucursalesContent() {
         {/* Branch Tax Rules (only when editing) */}
         {editingBranch && (
           <div className="mb-6">
-            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3 border-b border-gray-100 pb-2 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-3 border-b border-border pb-2 flex items-center gap-2">
               <ReceiptPercentIcon className="h-4 w-4" />
               Reglas Fiscales de la Sucursal
             </h3>
@@ -1404,8 +1353,8 @@ function SucursalesContent() {
                     header: 'Regla',
                     render: (btr) => (
                       <>
-                        <span className="font-medium text-gray-900">{btr.name}</span>
-                        <span className="ml-2 text-xs text-gray-500 font-mono">{btr.code}</span>
+                        <span className="font-medium text-foreground">{btr.name}</span>
+                        <span className="ml-2 text-xs text-muted-foreground font-mono">{btr.code}</span>
                       </>
                     ),
                   },
@@ -1413,7 +1362,7 @@ function SucursalesContent() {
                     key: 'taxType',
                     header: 'Tipo',
                     render: (btr) => (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-sky-500/10 text-sky-700 dark:text-sky-300">
                         {btr.taxType}
                       </span>
                     ),
@@ -1434,7 +1383,7 @@ function SucursalesContent() {
                       btr.isIncludedInPrice ? (
                         <CheckCircleIcon className="h-4 w-4 text-green-500 mx-auto" />
                       ) : (
-                        <XCircleIcon className="h-4 w-4 text-gray-400 mx-auto" />
+                        <XCircleIcon className="h-4 w-4 text-muted-foreground mx-auto" />
                       ),
                   },
                   {
@@ -1452,7 +1401,7 @@ function SucursalesContent() {
                             toast.error(err.response?.data?.message || 'Error al remover regla');
                           }
                         }}
-                        className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                        className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-600 transition-colors"
                         title="Quitar regla"
                       >
                         <TrashIcon className="h-4 w-4" />
@@ -1469,7 +1418,7 @@ function SucursalesContent() {
             <div className="flex items-center gap-2">
               <select
                 id="add-tax-rule-select"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#3E667D] focus:border-[#3E667D]"
+                className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                 defaultValue=""
               >
                 <option value="" disabled>Seleccionar regla fiscal...</option>
@@ -1509,7 +1458,7 @@ function SucursalesContent() {
         {/* CEDEA Section (only for CEDEA branches when editing) */}
         {editingBranch?.isCedea && (
           <div className="mb-6">
-            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3 border-b border-gray-100 pb-2 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-3 border-b border-border pb-2 flex items-center gap-2">
               <ShieldCheckIcon className="h-4 w-4" />
               Informacion CEDEA
             </h3>
@@ -1518,31 +1467,31 @@ function SucursalesContent() {
             {cedeaInfo && (
               <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
                 <div>
-                  <span className="text-gray-500">Distribuidor:</span>
-                  <p className="font-medium text-gray-900">{cedeaInfo.distributorName}</p>
+                  <span className="text-muted-foreground">Distribuidor:</span>
+                  <p className="font-medium text-foreground">{cedeaInfo.distributorName}</p>
                 </div>
                 <div>
-                  <span className="text-gray-500">No. Distribuidor:</span>
-                  <p className="font-medium text-gray-900">{cedeaInfo.distributorNumber || '-'}</p>
+                  <span className="text-muted-foreground">No. Distribuidor:</span>
+                  <p className="font-medium text-foreground">{cedeaInfo.distributorNumber || '-'}</p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Email:</span>
-                  <p className="font-medium text-gray-900">{cedeaInfo.distributorEmail || '-'}</p>
+                  <span className="text-muted-foreground">Email:</span>
+                  <p className="font-medium text-foreground">{cedeaInfo.distributorEmail || '-'}</p>
                 </div>
                 <div>
-                  <span className="text-gray-500">No. Contrato:</span>
-                  <p className="font-medium text-gray-900">{cedeaInfo.contractNumber || '-'}</p>
+                  <span className="text-muted-foreground">No. Contrato:</span>
+                  <p className="font-medium text-foreground">{cedeaInfo.contractNumber || '-'}</p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Comision:</span>
-                  <p className="font-medium text-gray-900">
+                  <span className="text-muted-foreground">Comision:</span>
+                  <p className="font-medium text-foreground">
                     {cedeaInfo.commissionRate != null ? `${(cedeaInfo.commissionRate * 100).toFixed(0)}%` : '-'}
                   </p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Status:</span>
+                  <span className="text-muted-foreground">Status:</span>
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                    cedeaInfo.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                    cedeaInfo.status === 'active' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-foreground'
                   }`}>
                     {cedeaInfo.status || '-'}
                   </span>
@@ -1551,7 +1500,7 @@ function SucursalesContent() {
             )}
 
             {/* POS Users Table */}
-            <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+            <h4 className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
               <UserGroupIcon className="h-4 w-4" />
               Usuarios POS ({posUsers.length})
             </h4>
@@ -1562,7 +1511,7 @@ function SucursalesContent() {
                   {
                     key: 'name',
                     header: 'Nombre',
-                    cellClassName: 'font-medium text-gray-900',
+                    cellClassName: 'font-medium text-foreground',
                     render: (user) => (
                       <>
                         {user.firstName} {user.lastName}
@@ -1572,14 +1521,14 @@ function SucursalesContent() {
                   {
                     key: 'email',
                     header: 'Email',
-                    cellClassName: 'text-gray-600',
+                    cellClassName: 'text-muted-foreground',
                     render: (user) => <>{user.email}</>,
                   },
                   {
                     key: 'roleCode',
                     header: 'Rol',
                     render: (user) => (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                         {user.roleCode}
                       </span>
                     ),
@@ -1593,7 +1542,7 @@ function SucursalesContent() {
                       user.isActive ? (
                         <CheckCircleIcon className="h-4 w-4 text-green-500 mx-auto" />
                       ) : (
-                        <XCircleIcon className="h-4 w-4 text-gray-400 mx-auto" />
+                        <XCircleIcon className="h-4 w-4 text-muted-foreground mx-auto" />
                       ),
                   },
                   {
@@ -1613,7 +1562,7 @@ function SucursalesContent() {
                               toast.error(err.response?.data?.message || 'Error al desactivar usuario');
                             }
                           }}
-                          className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-600 transition-colors"
                           title="Desactivar usuario"
                         >
                           <XCircleIcon className="h-4 w-4" />
@@ -1638,36 +1587,36 @@ function SucursalesContent() {
                 Crear Usuario POS
               </Button>
             ) : (
-              <div className="border rounded-lg p-4 bg-gray-50 space-y-3">
-                <h5 className="text-sm font-medium text-gray-700">Nuevo Usuario POS</h5>
+              <div className="border rounded-lg p-4 bg-muted/50 space-y-3">
+                <h5 className="text-sm font-medium text-foreground">Nuevo Usuario POS</h5>
                 <div className="grid grid-cols-2 gap-3">
                   <input
                     type="text"
                     placeholder="Nombre"
                     value={posUserForm.firstName}
                     onChange={(e) => setPosUserForm((p) => ({ ...p, firstName: e.target.value }))}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#3E667D] focus:border-[#3E667D]"
+                    className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                   />
                   <input
                     type="text"
                     placeholder="Apellido"
                     value={posUserForm.lastName}
                     onChange={(e) => setPosUserForm((p) => ({ ...p, lastName: e.target.value }))}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#3E667D] focus:border-[#3E667D]"
+                    className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                   />
                   <input
                     type="email"
                     placeholder="Email"
                     value={posUserForm.email}
                     onChange={(e) => setPosUserForm((p) => ({ ...p, email: e.target.value }))}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#3E667D] focus:border-[#3E667D]"
+                    className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                   />
                   <input
                     type="password"
                     placeholder="Contrasena"
                     value={posUserForm.password}
                     onChange={(e) => setPosUserForm((p) => ({ ...p, password: e.target.value }))}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#3E667D] focus:border-[#3E667D]"
+                    className="rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -1712,11 +1661,11 @@ function SucursalesContent() {
         {/* POS Licenses Section (Electron terminals) */}
         {isPosEnabledForLicenses && editingBranch && (
           <div className="mb-6">
-            <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-3 border-b border-gray-100 pb-2 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-3 border-b border-border pb-2 flex items-center gap-2">
               <KeyIcon className="h-4 w-4" />
               Licencias POS (Terminales Electron) ({posLicenses.length})
             </h3>
-            <p className="text-xs text-gray-500 mb-3">
+            <p className="text-xs text-muted-foreground mb-3">
               Cada licencia activa una terminal Electron en un equipo especifico.
               Tras la primera activacion la licencia queda vinculada al hardware y no
               puede usarse en otra maquina hasta liberarla o revocarla.
@@ -1728,15 +1677,15 @@ function SucursalesContent() {
                   {
                     key: 'licenseKey',
                     header: 'Clave',
-                    cellClassName: 'font-mono text-xs text-gray-900',
+                    cellClassName: 'font-mono text-xs text-foreground',
                     render: (license) => <>{license.licenseKey}</>,
                   },
                   {
                     key: 'label',
                     header: 'Etiqueta',
-                    cellClassName: 'text-gray-700',
+                    cellClassName: 'text-foreground',
                     render: (license) =>
-                      license.label || <span className="text-gray-400 italic">sin etiqueta</span>,
+                      license.label || <span className="text-muted-foreground italic">sin etiqueta</span>,
                   },
                   {
                     key: 'status',
@@ -1744,19 +1693,19 @@ function SucursalesContent() {
                     render: (license) => (
                       <>
                         {license.status === 'active' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                             <LockClosedIcon className="h-3 w-3" />
                             Activa
                           </span>
                         )}
                         {license.status === 'inactive' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-600 dark:text-amber-400">
                             <LockOpenIcon className="h-3 w-3" />
                             Sin canjear
                           </span>
                         )}
                         {license.status === 'revoked' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/10 text-destructive">
                             <XCircleIcon className="h-3 w-3" />
                             Revocada
                           </span>
@@ -1767,18 +1716,18 @@ function SucursalesContent() {
                   {
                     key: 'hardware',
                     header: 'Equipo',
-                    cellClassName: 'text-xs text-gray-600',
+                    cellClassName: 'text-xs text-muted-foreground',
                     render: (license) =>
                       license.status === 'active' && license.hardwareFingerprint ? (
                         <div className="flex items-center gap-1">
-                          <ComputerDesktopIcon className="h-3 w-3 text-gray-400 shrink-0" />
+                          <ComputerDesktopIcon className="h-3 w-3 text-muted-foreground shrink-0" />
                           <div>
-                            <div className="font-medium text-gray-800">
+                            <div className="font-medium text-foreground">
                               {(license.hardwareInfo?.hostname as string | undefined) ??
                                 `HW-${license.hardwareFingerprint.slice(0, 12).toUpperCase()}`}
                             </div>
                             {license.hardwareInfo?.osPlatform && (
-                              <div className="text-gray-500">
+                              <div className="text-muted-foreground">
                                 {license.hardwareInfo.osPlatform as string}{' '}
                                 {(license.hardwareInfo.osRelease as string | undefined) ?? ''}
                               </div>
@@ -1786,7 +1735,7 @@ function SucursalesContent() {
                           </div>
                         </div>
                       ) : (
-                        <span className="text-gray-400 italic">no vinculada</span>
+                        <span className="text-muted-foreground italic">no vinculada</span>
                       ),
                   },
                   {
@@ -1805,7 +1754,7 @@ function SucursalesContent() {
                               toast.error('No se pudo copiar la clave');
                             }
                           }}
-                          className="p-1 rounded hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition-colors"
+                          className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-blue-600 transition-colors"
                           title="Copiar clave"
                         >
                           <ClipboardDocumentIcon className="h-4 w-4" />
@@ -1824,7 +1773,7 @@ function SucursalesContent() {
                                 toast.error(e.response?.data?.message || 'Error al liberar licencia');
                               }
                             }}
-                            className="p-1 rounded hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
+                            className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-amber-600 transition-colors"
                             title="Liberar del equipo (sigue siendo valida)"
                           >
                             <LockOpenIcon className="h-4 w-4" />
@@ -1844,7 +1793,7 @@ function SucursalesContent() {
                                 toast.error(e.response?.data?.message || 'Error al revocar licencia');
                               }
                             }}
-                            className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                            className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-600 transition-colors"
                             title="Revocar permanentemente"
                           >
                             <TrashIcon className="h-4 w-4" />
@@ -1861,9 +1810,9 @@ function SucursalesContent() {
             </div>
 
             {/* Inline create form */}
-            <div className="border rounded-lg p-3 bg-gray-50 flex items-end gap-3">
+            <div className="border rounded-lg p-3 bg-muted/50 flex items-end gap-3">
               <div className="flex-1">
-                <label className="block text-xs font-medium text-gray-600 mb-1">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
                   Etiqueta para identificar la terminal (opcional)
                 </label>
                 <input
@@ -1871,7 +1820,7 @@ function SucursalesContent() {
                   placeholder="Ej. Caja 1 mostrador, Call Center turno noche"
                   value={licenseLabelInput}
                   onChange={(e) => setLicenseLabelInput(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                   maxLength={100}
                 />
               </div>
@@ -1915,7 +1864,7 @@ function SucursalesContent() {
               value={formData.ticketName || ''}
               onChange={(e) => handleFormChange('ticketName', e.target.value)}
               placeholder="Nombre que aparece en el ticket de venta"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
             />
           </FormField>
           <FormField label="Encabezado del Ticket" fullWidth>
@@ -1924,7 +1873,7 @@ function SucursalesContent() {
               onChange={(e) => handleFormChange('ticketHeader', e.target.value)}
               placeholder="Texto que aparece en la parte superior del ticket"
               rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm resize-none"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 resize-none"
             />
           </FormField>
           <FormField label="Pie del Ticket" fullWidth>
@@ -1933,7 +1882,7 @@ function SucursalesContent() {
               onChange={(e) => handleFormChange('ticketFooter', e.target.value)}
               placeholder="Texto que aparece en la parte inferior del ticket"
               rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm resize-none"
+              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 resize-none"
             />
           </FormField>
         </FormSection>

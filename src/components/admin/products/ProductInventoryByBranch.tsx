@@ -4,7 +4,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   BuildingStorefrontIcon,
   InformationCircleIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
+import { Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -50,6 +52,10 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
   const [editValues, setEditValues] = useState<Record<string, BranchOverrides>>({});
   const [savingBranchId, setSavingBranchId] = useState<string | null>(null);
   const [togglingBranchId, setTogglingBranchId] = useState<string | null>(null);
+
+  // Filtros de la tabla (127 sucursales: buscar + ocultar deshabilitadas)
+  const [search, setSearch] = useState('');
+  const [onlyEnabled, setOnlyEnabled] = useState(false);
 
   // Track original server values to detect dirty state
   const originalValues = useRef<Record<string, BranchOverrides>>({});
@@ -156,278 +162,264 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
     branchStockMap.set(stock.branchId, stock);
   }
 
-  // Show ALL branches — those with stock and those without
-  const activeBranchesWithStock = branches.filter((b) => branchStockMap.has(b.id));
-  const branchesWithoutStock = branches.filter((b) => !branchStockMap.has(b.id));
+  // Sucursal "habilitada" = tiene fila de stock y no está marcada inactiva
+  const isBranchEnabled = (branchId: string) => {
+    const stock = branchStockMap.get(branchId);
+    return !!stock && stock.isActive !== false;
+  };
 
-  // Count enabled branches
-  const enabledCount = activeBranchesWithStock.filter((b) => {
-    const stock = branchStockMap.get(b.id);
-    return stock?.isActive !== false;
-  }).length;
+  const enabledCount = branches.filter((b) => isBranchEnabled(b.id)).length;
+
+  // Lista unificada filtrada (buscador + solo-habilitadas) y ordenada:
+  // habilitadas primero, luego las que tienen stock, luego alfabético.
+  const q = search.trim().toLowerCase();
+  const visibleBranches = branches
+    .filter((b) => {
+      if (onlyEnabled && !isBranchEnabled(b.id)) return false;
+      if (!q) return true;
+      return (
+        b.name.toLowerCase().includes(q) ||
+        (b.code ?? '').toLowerCase().includes(q)
+      );
+    })
+    .sort((a, bb) => {
+      const ea = isBranchEnabled(a.id) ? 0 : 1;
+      const eb = isBranchEnabled(bb.id) ? 0 : 1;
+      if (ea !== eb) return ea - eb;
+      const sa = branchStockMap.has(a.id) ? 0 : 1;
+      const sb = branchStockMap.has(bb.id) ? 0 : 1;
+      if (sa !== sb) return sa - sb;
+      return a.name.localeCompare(bb.name);
+    });
 
   return (
     <Card className="p-0">
       <CardContent className="p-6">
         {/* Header */}
-        <div className="flex items-center gap-2 mb-2">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
           <BuildingStorefrontIcon className="h-5 w-5 text-[#3E667D]" />
           <h2 className="text-lg font-bold text-gray-900">Inventario por Sucursal</h2>
           {branches.length > 0 && (
-            <span className="text-xs bg-[#C8DDF2] text-[#3E667D] px-2 py-0.5 rounded-full font-medium">
+            <span className="rounded-full bg-[#C8DDF2] px-2 py-0.5 text-xs font-medium text-[#3E667D]">
               {enabledCount} de {branches.length} habilitadas
             </span>
           )}
         </div>
-        <p className="text-xs text-gray-500 mb-5">
+        <p className="mb-4 text-xs text-gray-500">
           Usa el switch para habilitar/deshabilitar el producto en cada sucursal. Los campos vacíos usan los valores por defecto.
         </p>
 
-        {branches.length === 0 && (
-          <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg">
-            <BuildingStorefrontIcon className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-sm text-gray-500 mb-1">
-              No hay sucursales activas
-            </p>
+        {branches.length === 0 ? (
+          <div className="rounded-lg border-2 border-dashed border-gray-200 py-8 text-center">
+            <BuildingStorefrontIcon className="mx-auto mb-3 h-10 w-10 text-gray-300" />
+            <p className="text-sm text-gray-500">No hay sucursales activas</p>
           </div>
-        )}
+        ) : (
+          <>
+            {/* Buscador + filtro */}
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="relative w-full sm:max-w-xs">
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar sucursal por nombre o código..."
+                  className="w-full rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-transparent focus:ring-2 focus:ring-[#3E667D]"
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setOnlyEnabled((v) => !v)}
+                  className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                    onlyEnabled
+                      ? 'border-[#3E667D] bg-[#C8DDF2]/40 text-[#3E667D]'
+                      : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-2 w-2 rounded-full ${
+                      onlyEnabled ? 'bg-[#3E667D]' : 'bg-gray-300'
+                    }`}
+                  />
+                  Solo habilitadas
+                </button>
+                <span className="whitespace-nowrap text-sm text-gray-500">
+                  {visibleBranches.length} de {branches.length}
+                </span>
+              </div>
+            </div>
 
-        {branches.length > 0 && (
-          <div className="border border-gray-200 rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table className="w-full text-sm">
-                <TableHeader>
-                  <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 hover:bg-transparent">
-                    <TableHead className="text-center px-3 py-2.5 text-xs font-medium text-gray-500 uppercase w-[70px]">
-                      Activo
-                    </TableHead>
-                    <TableHead className="text-left px-4 py-2.5 text-xs font-medium text-gray-500 uppercase w-[180px]">
-                      Sucursal
-                    </TableHead>
-                    <TableHead className="text-center px-3 py-2.5 text-xs font-medium text-gray-500 uppercase w-[80px]">
-                      Stock
-                    </TableHead>
-                    {OVERRIDE_FIELDS.map((field) => (
-                      <TableHead key={field.key} className="text-left px-3 py-2.5 text-xs font-medium text-gray-500 uppercase">
-                        <div className="flex items-center gap-1">
-                          {field.label}
-                          <div className="relative group">
-                            <InformationCircleIcon className="h-3.5 w-3.5 text-gray-400 cursor-help" />
-                            <div className="absolute left-5 top-0 z-30 hidden group-hover:block w-52">
-                              <div className="bg-gray-900 text-white text-xs rounded-lg p-2.5 shadow-xl">
-                                <p>{field.tooltip}</p>
-                                <p className="text-gray-400 mt-1">
-                                  Default: {defaults[field.key]}
-                                </p>
-                                <div className="absolute -left-1.5 top-1.5 w-3 h-3 bg-gray-900 rotate-45" />
+            <div className="overflow-hidden rounded-lg border border-gray-200">
+              <div className="max-h-[600px] overflow-auto">
+                <Table className="w-full text-sm">
+                  <TableHeader>
+                    <TableRow className="border-b border-gray-200 hover:bg-transparent">
+                      <TableHead className="sticky top-0 z-10 w-[70px] bg-gray-100 px-3 py-2.5 text-center text-xs font-medium uppercase text-gray-500">
+                        Activo
+                      </TableHead>
+                      <TableHead className="sticky top-0 z-10 min-w-[200px] bg-gray-100 px-4 py-2.5 text-left text-xs font-medium uppercase text-gray-500">
+                        Sucursal
+                      </TableHead>
+                      <TableHead className="sticky top-0 z-10 w-[80px] bg-gray-100 px-3 py-2.5 text-center text-xs font-medium uppercase text-gray-500">
+                        Stock
+                      </TableHead>
+                      {OVERRIDE_FIELDS.map((field) => (
+                        <TableHead
+                          key={field.key}
+                          className="sticky top-0 z-10 min-w-[120px] bg-gray-100 px-3 py-2.5 text-left text-xs font-medium uppercase text-gray-500"
+                        >
+                          <div className="flex items-center gap-1">
+                            {field.label}
+                            <div className="group relative">
+                              <InformationCircleIcon className="h-3.5 w-3.5 cursor-help text-gray-400" />
+                              <div className="absolute left-5 top-0 z-30 hidden w-52 group-hover:block">
+                                <div className="rounded-lg bg-gray-900 p-2.5 text-xs text-white shadow-xl">
+                                  <p>{field.tooltip}</p>
+                                  <p className="mt-1 text-gray-400">Default: {defaults[field.key]}</p>
+                                  <div className="absolute -left-1.5 top-1.5 h-3 w-3 rotate-45 bg-gray-900" />
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
+                        </TableHead>
+                      ))}
+                      <TableHead className="sticky top-0 z-10 w-[60px] bg-gray-100 px-3 py-2.5 text-center text-xs font-medium uppercase text-gray-500">
+                        Acc.
                       </TableHead>
-                    ))}
-                    <TableHead className="text-center px-3 py-2.5 text-xs font-medium text-gray-500 uppercase w-[60px]">
-                      Acc.
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {/* Branches WITH stock data */}
-                  {activeBranchesWithStock.map((branch) => {
-                    const stock = branchStockMap.get(branch.id)!;
-                    const isActive = stock.isActive !== false;
-                    const values = editValues[branch.id] || {
-                      minStockAlert: '',
-                      maxStockLevel: '',
-                      reorderPoint: '',
-                      reorderQuantity: '',
-                    };
-                    const isSaving = savingBranchId === branch.id;
-                    const isToggling = togglingBranchId === branch.id;
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {visibleBranches.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={4 + OVERRIDE_FIELDS.length}
+                          className="px-4 py-10 text-center text-sm text-gray-500"
+                        >
+                          Ninguna sucursal coincide con la búsqueda.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      visibleBranches.map((branch) => {
+                        const stock = branchStockMap.get(branch.id) ?? null;
+                        const hasStock = !!stock;
+                        const isActive = stock ? stock.isActive !== false : false;
+                        const values = editValues[branch.id] || {
+                          minStockAlert: '',
+                          maxStockLevel: '',
+                          reorderPoint: '',
+                          reorderQuantity: '',
+                        };
+                        const isSaving = savingBranchId === branch.id;
+                        const isToggling = togglingBranchId === branch.id;
+                        const dirty = isDirty(branch.id);
 
-                    return (
-                      <TableRow
-                        key={branch.id}
-                        className={`border-b border-gray-50 hover:bg-gray-50/50 ${!isActive ? 'opacity-50' : ''}`}
-                      >
-                        {/* Toggle */}
-                        <TableCell className="px-3 py-3 text-center">
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={isActive}
-                            disabled={isToggling}
-                            onClick={() => handleToggleAvailability(branch.id, isActive)}
-                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#3E667D] focus:ring-offset-2 disabled:opacity-50 ${
-                              isActive ? 'bg-[#3E667D]' : 'bg-gray-200'
-                            }`}
+                        return (
+                          <TableRow
+                            key={branch.id}
+                            className={`border-b border-gray-50 hover:bg-gray-50/50 ${!isActive ? 'opacity-60' : ''}`}
                           >
-                            <span
-                              className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                isActive ? 'translate-x-4' : 'translate-x-0'
-                              }`}
-                            />
-                          </button>
-                        </TableCell>
-
-                        {/* Branch info */}
-                        <TableCell className="px-4 py-3">
-                          <div>
-                            <span className="font-medium text-gray-700 text-sm">
-                              {branch.name}
-                            </span>
-                            <span className="block text-[10px] text-gray-400 mt-0.5">
-                              {branch.code}
-                            </span>
-                          </div>
-                        </TableCell>
-
-                        {/* Current stock */}
-                        <TableCell className="px-3 py-3 text-center">
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              !isActive
-                                ? 'bg-gray-100 text-gray-400'
-                                : stock.isLowStock
-                                ? 'bg-red-50 text-red-700'
-                                : stock.quantityAvailable > 0
-                                ? 'bg-green-50 text-green-700'
-                                : 'bg-gray-100 text-gray-500'
-                            }`}
-                          >
-                            {stock.quantityAvailable}
-                          </span>
-                        </TableCell>
-
-                        {/* Override fields */}
-                        {OVERRIDE_FIELDS.map((field) => {
-                          const hasOverride = values[field.key] !== '';
-
-                          return (
-                            <TableCell key={field.key} className="px-3 py-2">
-                              <div className="relative">
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  min="0"
-                                  value={values[field.key]}
-                                  onChange={(e) =>
-                                    handleChange(branch.id, field.key, e.target.value)
-                                  }
-                                  disabled={!isActive}
-                                  placeholder={String(defaults[field.key])}
-                                  className={`w-full px-2.5 py-1.5 text-sm border rounded-md focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D] outline-none disabled:bg-gray-50 disabled:text-gray-400 ${
-                                    hasOverride
-                                      ? 'border-blue-300 bg-blue-50/30'
-                                      : 'border-gray-200'
+                            {/* Toggle */}
+                            <TableCell className="px-3 py-3 text-center">
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={isActive}
+                                disabled={isToggling}
+                                onClick={() => handleToggleAvailability(branch.id, isActive)}
+                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#3E667D] focus:ring-offset-2 disabled:opacity-50 ${
+                                  isActive ? 'bg-[#3E667D]' : 'bg-gray-200'
+                                }`}
+                              >
+                                <span
+                                  className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                                    isActive ? 'translate-x-4' : 'translate-x-0'
                                   }`}
                                 />
-                                {hasOverride && (
-                                  <span className="absolute -top-1.5 -right-1 text-[8px] bg-blue-500 text-white px-1 rounded">
-                                    custom
-                                  </span>
-                                )}
-                              </div>
+                              </button>
                             </TableCell>
-                          );
-                        })}
 
-                        {/* Save button — enabled only when inputs differ from server values */}
-                        <TableCell className="px-3 py-2 text-center">
-                          {(() => {
-                            const dirty = isDirty(branch.id);
-                            return (
+                            {/* Branch info */}
+                            <TableCell className="px-4 py-3">
+                              <span className="text-sm font-medium text-gray-700">{branch.name}</span>
+                              <span className="mt-0.5 block text-[10px] text-gray-400">{branch.code}</span>
+                            </TableCell>
+
+                            {/* Current stock */}
+                            <TableCell className="px-3 py-3 text-center">
+                              <span
+                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                  !hasStock || !isActive
+                                    ? 'bg-gray-100 text-gray-400'
+                                    : stock!.isLowStock
+                                    ? 'bg-red-50 text-red-700'
+                                    : stock!.quantityAvailable > 0
+                                    ? 'bg-green-50 text-green-700'
+                                    : 'bg-gray-100 text-gray-500'
+                                }`}
+                              >
+                                {hasStock ? stock!.quantityAvailable : '—'}
+                              </span>
+                            </TableCell>
+
+                            {/* Override fields */}
+                            {OVERRIDE_FIELDS.map((field) => {
+                              const hasOverride = values[field.key] !== '';
+                              return (
+                                <TableCell key={field.key} className="px-3 py-2">
+                                  <div className="relative">
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      value={values[field.key]}
+                                      onChange={(e) => handleChange(branch.id, field.key, e.target.value)}
+                                      disabled={!isActive}
+                                      placeholder={String(defaults[field.key])}
+                                      className={`w-full rounded-md border px-2.5 py-1.5 text-sm outline-none focus:border-[#3E667D] focus:ring-1 focus:ring-[#3E667D] disabled:bg-gray-50 disabled:text-gray-400 ${
+                                        hasOverride ? 'border-blue-300 bg-blue-50/30' : 'border-gray-200'
+                                      }`}
+                                    />
+                                    {hasOverride && (
+                                      <span className="absolute -right-1 -top-1.5 rounded bg-blue-500 px-1 text-[8px] text-white">
+                                        custom
+                                      </span>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              );
+                            })}
+
+                            {/* Save */}
+                            <TableCell className="px-3 py-2 text-center">
                               <button
                                 type="button"
                                 onClick={() => handleSave(branch.id)}
                                 disabled={isSaving || !isActive || !dirty}
-                                className={`p-1.5 rounded-md transition-colors disabled:opacity-30 ${
-                                  dirty
-                                    ? 'text-[#3E667D] hover:bg-[#C8DDF2]/40 cursor-pointer'
-                                    : 'text-gray-300 cursor-default'
+                                className={`rounded-md p-1.5 transition-colors disabled:opacity-30 ${
+                                  dirty && isActive
+                                    ? 'cursor-pointer text-[#3E667D] hover:bg-[#C8DDF2]/40'
+                                    : 'cursor-default text-gray-300'
                                 }`}
                                 title={dirty ? 'Guardar cambios' : 'Sin cambios'}
                               >
                                 {isSaving ? (
-                                  <div className="h-4 w-4 border-2 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
+                                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#3E667D] border-t-transparent" />
                                 ) : (
-                                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                                    <path d="M15.988 3.012A2.25 2.25 0 0 0 14.174 2H5.25A2.25 2.25 0 0 0 3 4.25v11.5A2.25 2.25 0 0 0 5.25 18h9.5A2.25 2.25 0 0 0 17 15.75V5.826a2.25 2.25 0 0 0-.512-1.414l-.5-.6ZM5.25 3.5h7.336a.75.75 0 0 1 .574.268l1.414 1.7a.75.75 0 0 1 .176.482v9.8a.75.75 0 0 1-.75.75h-9.5a.75.75 0 0 1-.75-.75V4.25a.75.75 0 0 1 .75-.75h.75v2.5a.75.75 0 0 0 1.5 0V3.5Zm4.75 6a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5Z" />
-                                  </svg>
+                                  <Save className="h-4 w-4" />
                                 )}
                               </button>
-                            );
-                          })()}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-
-                  {/* Branches WITHOUT stock data — shown as disabled by default */}
-                  {branchesWithoutStock.map((branch) => {
-                    const isToggling = togglingBranchId === branch.id;
-
-                    return (
-                      <TableRow
-                        key={branch.id}
-                        className="border-b border-gray-50 hover:bg-gray-50/50 opacity-50"
-                      >
-                        {/* Toggle — will create stock_levels row when enabled */}
-                        <TableCell className="px-3 py-3 text-center">
-                          <button
-                            type="button"
-                            role="switch"
-                            aria-checked={false}
-                            disabled={isToggling}
-                            onClick={() => handleToggleAvailability(branch.id, false)}
-                            className="relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-gray-200 transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-[#3E667D] focus:ring-offset-2 disabled:opacity-50"
-                          >
-                            <span className="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out translate-x-0" />
-                          </button>
-                        </TableCell>
-
-                        {/* Branch info */}
-                        <TableCell className="px-4 py-3">
-                          <div>
-                            <span className="font-medium text-gray-700 text-sm">
-                              {branch.name}
-                            </span>
-                            <span className="block text-[10px] text-gray-400 mt-0.5">
-                              {branch.code}
-                            </span>
-                          </div>
-                        </TableCell>
-
-                        {/* No stock */}
-                        <TableCell className="px-3 py-3 text-center">
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-400">
-                            —
-                          </span>
-                        </TableCell>
-
-                        {/* Empty override fields */}
-                        {OVERRIDE_FIELDS.map((field) => (
-                          <TableCell key={field.key} className="px-3 py-2">
-                            <input
-                              type="number"
-                              disabled
-                              placeholder={String(defaults[field.key])}
-                              className="w-full px-2.5 py-1.5 text-sm border border-gray-200 rounded-md bg-gray-50 text-gray-400"
-                            />
-                          </TableCell>
-                        ))}
-
-                        {/* No save button */}
-                        <TableCell className="px-3 py-2 text-center">
-                          <span className="text-gray-300">—</span>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
-          </div>
+          </>
         )}
       </CardContent>
     </Card>

@@ -1,607 +1,420 @@
 'use client';
 
-import { useState } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import {
   ArrowLeftIcon,
   UserIcon,
   EnvelopeIcon,
   PhoneIcon,
-  MapPinIcon,
-  CalendarIcon,
-  ShoppingBagIcon,
-  CreditCardIcon,
-  HeartIcon,
-  TrophyIcon,
-  BanknotesIcon,
-  UserGroupIcon,
-  PencilIcon,
-  TrashIcon,
-  LockClosedIcon,
+  ShieldCheckIcon,
+  BuildingStorefrontIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ChartBarIcon,
-  ClockIcon,
+  CalendarIcon,
+  KeyIcon,
+  ClipboardDocumentIcon,
+  PencilIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
-import { toast } from 'sonner';
-import { confirmAction } from '@/lib/utils';
-import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { PermissionGuard } from '@/components/auth';
+import { usersService } from '@/services/users.service';
+import { useActivateUser, useDeactivateUser } from '@/hooks/useUsers';
+import { getMlmTypeConfig } from '@/lib/mlmType';
+import type { User } from '@/types/user';
 
-// Mock data - In real app, fetch based on [id]
-const userData = {
-  id: 'USR-789',
-  name: 'María González',
-  email: 'maria.gonzalez@email.com',
-  phone: '+52 55 1234 5678',
-  status: 'active',
-  role: 'customer',
-  dateJoined: '2023-06-15',
-  lastLogin: '2024-01-26 09:15 AM',
-  avatar: '/avatars/maria.jpg',
-  verified: true,
-  address: {
-    street: 'Av. Insurgentes Sur 1602',
-    city: 'Ciudad de México',
-    state: 'CDMX',
-    zip: '03940',
-    country: 'México'
-  },
-  preferences: {
-    newsletter: true,
-    sms: false,
-    pushNotifications: true,
-    language: 'es',
-    currency: 'USD'
-  },
-  stats: {
-    totalOrders: 12,
-    totalSpent: 1245.60,
-    averageOrderValue: 103.80,
-    lifetimeValue: 1245.60,
-    favoriteProducts: 8,
-    rewardPoints: 1246
-  },
-  distributor: {
-    isDistributor: true,
-    distributorId: 'DIST-456',
-    level: 'Oro',
-    enrollmentDate: '2023-08-20',
-    totalSales: 15600.00,
-    teamSize: 23,
-    rank: 'Consultor Senior'
-  },
-  recentOrders: [
-    {
-      id: 'TL-2024-12345',
-      date: '2024-01-26',
-      total: 203.94,
-      status: 'processing',
-      items: 3
-    },
-    {
-      id: 'TL-2024-11234',
-      date: '2024-01-10',
-      total: 156.00,
-      status: 'delivered',
-      items: 2
-    },
-    {
-      id: 'TL-2023-10123',
-      date: '2023-12-15',
-      total: 89.50,
-      status: 'delivered',
-      items: 1
-    }
-  ],
-  activityLog: [
-    {
-      id: 'A1',
-      action: 'Realizó una compra',
-      details: 'Pedido TL-2024-12345 por $203.94',
-      timestamp: '2024-01-26 10:30 AM'
-    },
-    {
-      id: 'A2',
-      action: 'Inició sesión',
-      details: 'Acceso desde Chrome en Windows',
-      timestamp: '2024-01-26 09:15 AM'
-    },
-    {
-      id: 'A3',
-      action: 'Agregó producto a favoritos',
-      details: 'Colágeno Hidrolizado',
-      timestamp: '2024-01-25 03:20 PM'
-    },
-    {
-      id: 'A4',
-      action: 'Completó la evaluación de bienestar',
-      details: 'Puntuación: 85/100',
-      timestamp: '2024-01-22 11:45 AM'
-    }
-  ],
-  notes: [
-    {
-      id: 'N1',
-      author: 'Admin',
-      date: '2024-01-15',
-      text: 'Cliente VIP - Ofrecer descuento especial en próxima compra'
-    },
-    {
-      id: 'N2',
-      author: 'Soporte',
-      date: '2024-01-10',
-      text: 'Solicitó información sobre el programa de distribuidores'
-    }
-  ]
+// ================================
+// HELPERS
+// ================================
+
+const formatDateTime = (value: string | null) => {
+  if (!value) return '-';
+  return new Date(value).toLocaleString('es-MX', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 };
 
-const statusOptions = [
-  { value: 'active', label: 'Activo', color: 'bg-green-100 text-green-800' },
-  { value: 'inactive', label: 'Inactivo', color: 'bg-gray-100 text-gray-800' },
-  { value: 'suspended', label: 'Suspendido', color: 'bg-red-100 text-red-800' },
-  { value: 'pending', label: 'Pendiente', color: 'bg-yellow-100 text-yellow-800' }
-];
+const getInitials = (user: User) =>
+  `${user.firstName?.[0] ?? ''}${user.lastName?.[0] ?? ''}`.toUpperCase() || 'US';
 
-const roleOptions = [
-  { value: 'customer', label: 'Cliente' },
-  { value: 'distributor', label: 'Distribuidor' },
-  { value: 'admin', label: 'Administrador' },
-  { value: 'support', label: 'Soporte' }
-];
+const copy = (text: string, label: string) => {
+  navigator.clipboard.writeText(text);
+  toast.success(`${label} copiado al portapapeles`);
+};
 
-export default function UserDetailAdminPage() {
-  const [status, setStatus] = useState(userData.status);
-  const [role, setRole] = useState(userData.role);
-  const [newNote, setNewNote] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'activity'>('overview');
+const getRoleBadge = (user: User) => {
+  const code = user.role?.code;
+  const name = user.role?.name || 'Usuario';
+  if (code === 'administrador' || code === 'super_admin' || code === 'subadmin') {
+    return (
+      <Badge variant="default">
+        <ShieldCheckIcon className="h-3 w-3" />
+        {name}
+      </Badge>
+    );
+  }
+  if (code === 'distributor') {
+    return (
+      <Badge variant="info">
+        <BuildingStorefrontIcon className="h-3 w-3" />
+        {name}
+      </Badge>
+    );
+  }
+  if (code === 'customer') {
+    return (
+      <Badge variant="success">
+        <UserIcon className="h-3 w-3" />
+        {name}
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="text-muted-foreground">
+      <UserIcon className="h-3 w-3" />
+      {name}
+    </Badge>
+  );
+};
 
-  const handleStatusChange = (newStatus: string) => {
-    setStatus(newStatus);
-    toast.success(`Estado actualizado a: ${statusOptions.find(s => s.value === newStatus)?.label}`);
-  };
+// ================================
+// INFO ROW
+// ================================
 
-  const handleRoleChange = (newRole: string) => {
-    setRole(newRole);
-    toast.success(`Rol actualizado a: ${roleOptions.find(r => r.value === newRole)?.label}`);
-  };
+function InfoRow({
+  icon: Icon,
+  label,
+  value,
+  onCopy,
+  copyLabel,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: React.ReactNode;
+  onCopy?: string;
+  copyLabel?: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 py-3">
+      <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+        <Icon className="h-4 w-4" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+        <div className="mt-0.5 flex items-center gap-2">
+          <div className="min-w-0 break-words text-sm text-foreground">{value}</div>
+          {onCopy && (
+            <button
+              onClick={() => copy(onCopy, copyLabel ?? label)}
+              className="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              title={`Copiar ${copyLabel ?? label}`}
+            >
+              <ClipboardDocumentIcon className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
-  const handleAddNote = () => {
-    if (newNote.trim()) {
-      toast.success('Nota agregada al usuario');
-      setNewNote('');
+// ================================
+// PAGE
+// ================================
+
+export default function UsuarioDetallePage() {
+  return (
+    <PermissionGuard permissions={['users:read', 'users:*']}>
+      <UsuarioDetalleContent />
+    </PermissionGuard>
+  );
+}
+
+function UsuarioDetalleContent() {
+  const params = useParams<{ id: string }>();
+  const id = params?.id;
+
+  const { data: user, isLoading, error } = useQuery({
+    queryKey: ['users', 'detail', id],
+    queryFn: () => usersService.findById(id!),
+    enabled: !!id,
+  });
+
+  const activateUser = useActivateUser();
+  const deactivateUser = useDeactivateUser();
+
+  const toggleActive = async () => {
+    if (!user) return;
+    try {
+      if (user.isActive) {
+        await deactivateUser.mutateAsync(user.id);
+        toast.success('Usuario desactivado correctamente');
+      } else {
+        await activateUser.mutateAsync(user.id);
+        toast.success('Usuario activado correctamente');
+      }
+    } catch (e: any) {
+      toast.error(e.response?.data?.message || 'Error al cambiar el estado del usuario');
     }
   };
 
-  const handleResetPassword = async () => {
-    const ok = await confirmAction('¿Enviar email de restablecimiento de contraseña a este usuario?');
-    if (ok) toast.success('Correo de restablecimiento enviado');
-  };
-
-  const handleDeleteUser = async () => {
-    const ok = await confirmAction('¿Estás seguro de que deseas eliminar este usuario? Esta acción no se puede deshacer.');
-    if (ok) toast.success('Usuario eliminado');
-  };
-
-  const handleSendEmail = () => {
-    toast.success('Abriendo cliente de email...');
-  };
-
-  const currentStatusOption = statusOptions.find(s => s.value === status);
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link
-                href="/admin/usuarios"
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
-              </Link>
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-[#3E667D] to-[#C8DDF2] rounded-full flex items-center justify-center text-white text-2xl font-bold">
-                  {userData.name.split(' ').map(n => n[0]).join('')}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-bold text-gray-900">{userData.name}</h1>
-                    {userData.verified && (
-                      <CheckCircleIcon className="h-6 w-6 text-[#3E667D]" />
-                    )}
-                  </div>
-                  <p className="text-gray-600">{userData.email}</p>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleSendEmail}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2"
-              >
-                <EnvelopeIcon className="h-5 w-5" />
-                Enviar Correo
-              </button>
-              <button
-                onClick={handleResetPassword}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 flex items-center gap-2"
-              >
-                <LockClosedIcon className="h-5 w-5" />
-                Restablecer Contraseña
-              </button>
-              <button
-                onClick={handleDeleteUser}
-                className="px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 flex items-center gap-2"
-              >
-                <TrashIcon className="h-5 w-5" />
-                Eliminar
-              </button>
-            </div>
+    <div className="min-h-screen">
+      {/* Header (banda de marca, slim) */}
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
+        <div className="mx-auto max-w-5xl px-4 py-7 sm:px-6 lg:px-8">
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="mb-3 gap-2 border border-white/25 text-white hover:bg-white/10 hover:text-white"
+          >
+            <Link href="/admin/usuarios">
+              <ArrowLeftIcon className="h-4 w-4" />
+              Volver a Usuarios
+            </Link>
+          </Button>
+          <div className="flex items-center gap-2.5">
+            <UserIcon className="h-7 w-7" />
+            <h1 className="text-2xl font-bold sm:text-3xl">Detalle de Usuario</h1>
           </div>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-white rounded-lg shadow p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <ShoppingBagIcon className="h-5 w-5 text-[#3E667D]" />
-                  <span className="text-sm text-gray-600">Pedidos</span>
-                </div>
-                <p className="text-2xl font-bold text-gray-900">{userData.stats.totalOrders}</p>
-              </div>
-              <div className="bg-white rounded-lg shadow p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <BanknotesIcon className="h-5 w-5 text-[#3E667D]" />
-                  <span className="text-sm text-gray-600">Total Gastado</span>
-                </div>
-                <p className="text-2xl font-bold text-gray-900">${userData.stats.totalSpent.toFixed(0)}</p>
-              </div>
-              <div className="bg-white rounded-lg shadow p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <ChartBarIcon className="h-5 w-5 text-purple-500" />
-                  <span className="text-sm text-gray-600">Promedio</span>
-                </div>
-                <p className="text-2xl font-bold text-gray-900">${userData.stats.averageOrderValue.toFixed(0)}</p>
-              </div>
-              <div className="bg-white rounded-lg shadow p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <TrophyIcon className="h-5 w-5 text-yellow-500" />
-                  <span className="text-sm text-gray-600">Puntos</span>
-                </div>
-                <p className="text-2xl font-bold text-gray-900">{userData.stats.rewardPoints}</p>
-              </div>
-            </div>
-
-            {/* Tabs */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="border-b">
-                <div className="flex gap-4 px-6">
-                  <button
-                    onClick={() => setActiveTab('overview')}
-                    className={`py-4 px-2 border-b-2 font-medium transition-colors ${
-                      activeTab === 'overview'
-                        ? 'border-[#3E667D] text-[#3E667D]'
-                        : 'border-transparent text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Resumen
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('orders')}
-                    className={`py-4 px-2 border-b-2 font-medium transition-colors ${
-                      activeTab === 'orders'
-                        ? 'border-[#3E667D] text-[#3E667D]'
-                        : 'border-transparent text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Pedidos ({userData.stats.totalOrders})
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('activity')}
-                    className={`py-4 px-2 border-b-2 font-medium transition-colors ${
-                      activeTab === 'activity'
-                        ? 'border-[#3E667D] text-[#3E667D]'
-                        : 'border-transparent text-gray-600 hover:text-gray-900'
-                    }`}
-                  >
-                    Actividad
-                  </button>
-                </div>
-              </div>
-
-              <div className="p-6">
-                {/* Overview Tab */}
-                {activeTab === 'overview' && (
-                  <div className="space-y-6">
-                    {/* Personal Information */}
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900 mb-4">Información Personal</h3>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm text-gray-600">Correo electrónico</label>
-                          <p className="font-medium text-gray-900">{userData.email}</p>
-                        </div>
-                        <div>
-                          <label className="text-sm text-gray-600">Teléfono</label>
-                          <p className="font-medium text-gray-900">{userData.phone}</p>
-                        </div>
-                        <div>
-                          <label className="text-sm text-gray-600">Fecha de Registro</label>
-                          <p className="font-medium text-gray-900">{userData.dateJoined}</p>
-                        </div>
-                        <div>
-                          <label className="text-sm text-gray-600">Último Acceso</label>
-                          <p className="font-medium text-gray-900">{userData.lastLogin}</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Address */}
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900 mb-4">Dirección</h3>
-                      <p className="text-gray-700">
-                        {userData.address.street}<br />
-                        {userData.address.city}, {userData.address.state} {userData.address.zip}<br />
-                        {userData.address.country}
-                      </p>
-                    </div>
-
-                    {/* Preferences */}
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900 mb-4">Preferencias</h3>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-700">Boletín de Novedades</span>
-                          <span className={`px-3 py-1 rounded-full text-sm ${
-                            userData.preferences.newsletter
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {userData.preferences.newsletter ? 'Suscrito' : 'No suscrito'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-700">SMS</span>
-                          <span className={`px-3 py-1 rounded-full text-sm ${
-                            userData.preferences.sms
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {userData.preferences.sms ? 'Activo' : 'Inactivo'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-gray-700">Notificaciones Push</span>
-                          <span className={`px-3 py-1 rounded-full text-sm ${
-                            userData.preferences.pushNotifications
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {userData.preferences.pushNotifications ? 'Activo' : 'Inactivo'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Distributor Info */}
-                    {userData.distributor.isDistributor && (
-                      <div>
-                        <h3 className="text-lg font-bold text-gray-900 mb-4">Información de Distribuidor</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <label className="text-sm text-gray-600">ID de Distribuidor</label>
-                            <p className="font-medium text-gray-900">{userData.distributor.distributorId}</p>
-                          </div>
-                          <div>
-                            <label className="text-sm text-gray-600">Nivel</label>
-                            <p className="font-medium text-gray-900">{userData.distributor.level}</p>
-                          </div>
-                          <div>
-                            <label className="text-sm text-gray-600">Rango</label>
-                            <p className="font-medium text-gray-900">{userData.distributor.rank}</p>
-                          </div>
-                          <div>
-                            <label className="text-sm text-gray-600">Tamaño del Equipo</label>
-                            <p className="font-medium text-gray-900">{userData.distributor.teamSize} miembros</p>
-                          </div>
-                          <div>
-                            <label className="text-sm text-gray-600">Ventas Totales</label>
-                            <p className="font-medium text-gray-900">${userData.distributor.totalSales.toFixed(2)}</p>
-                          </div>
-                          <div>
-                            <label className="text-sm text-gray-600">Fecha de Inscripción</label>
-                            <p className="font-medium text-gray-900">{userData.distributor.enrollmentDate}</p>
-                          </div>
-                        </div>
-                        <Link
-                          href={`/admin/distribuidores/${userData.distributor.distributorId}`}
-                          className="inline-block mt-4 text-[#3E667D] font-medium hover:underline"
-                        >
-                          Ver perfil completo de distribuidor →
-                        </Link>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Orders Tab */}
-                {activeTab === 'orders' && (
-                  <div className="space-y-4">
-                    {userData.recentOrders.map((order) => (
-                      <div key={order.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center justify-between mb-2">
-                          <Link
-                            href={`/admin/pedidos/${order.id}`}
-                            className="font-medium text-[#3E667D] hover:underline"
-                          >
-                            #{order.id}
-                          </Link>
-                          <span className={`px-3 py-1 rounded-full text-sm ${
-                            order.status === 'delivered'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-blue-100 text-blue-800'
-                          }`}>
-                            {order.status === 'delivered' ? 'Entregado' : 'Procesando'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm text-gray-600">
-                          <span>{order.date}</span>
-                          <span>{order.items} {order.items === 1 ? 'producto' : 'productos'}</span>
-                          <span className="font-bold text-gray-900">${order.total.toFixed(2)}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Activity Tab */}
-                {activeTab === 'activity' && (
-                  <div className="space-y-4">
-                    {userData.activityLog.map((activity) => (
-                      <div key={activity.id} className="flex gap-4 pb-4 border-b last:border-0">
-                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                          <ClockIcon className="h-5 w-5 text-gray-600" />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900">{activity.action}</h4>
-                          <p className="text-sm text-gray-600">{activity.details}</p>
-                          <p className="text-xs text-gray-500 mt-1">{activity.timestamp}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Notas Internas</h2>
-
-              <div className="space-y-4 mb-6">
-                {userData.notes.map((note) => (
-                  <div key={note.id} className="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-gray-900">{note.author}</span>
-                      <span className="text-sm text-gray-600">{note.date}</span>
-                    </div>
-                    <p className="text-gray-700">{note.text}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                  placeholder="Agregar una nota interna..."
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
-                />
-                <button
-                  onClick={handleAddNote}
-                  className="px-6 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#002855]"
-                >
-                  Agregar
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Sidebar */}
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+        {isLoading ? (
+          <DetailSkeleton />
+        ) : error || !user ? (
+          <Card className="border-destructive/30 bg-destructive/5">
+            <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
+              <ExclamationTriangleIcon className="h-10 w-10 text-destructive" />
+              <p className="text-destructive">
+                No se pudo cargar el usuario. Puede que no exista o que haya un error de conexión.
+              </p>
+              <Button asChild variant="outline">
+                <Link href="/admin/usuarios">Volver a Usuarios</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
           <div className="space-y-6">
-            {/* Status Card */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Estado</h2>
-              <SearchableSelect
-                options={statusOptions.map((option) => ({ value: option.value, label: option.label }))}
-                value={status}
-                onChange={handleStatusChange}
-                showAllOption={false}
-                className="w-full mb-3"
-              />
-              <div className="flex justify-center">
-                <span className={`px-4 py-2 rounded-full text-sm font-medium ${currentStatusOption?.color}`}>
-                  {currentStatusOption?.label}
+            {/* Identity card */}
+            <Card className="overflow-hidden p-0">
+              <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-4">
+                  <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xl font-bold text-primary">
+                    {getInitials(user)}
+                  </span>
+                  <div className="min-w-0">
+                    <h2 className="truncate text-xl font-bold text-foreground">
+                      {user.firstName} {user.lastName}
+                    </h2>
+                    {user.customerNumber && (
+                      <p className="text-sm font-medium text-primary">#{user.customerNumber}</p>
+                    )}
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {getRoleBadge(user)}
+                      {(() => {
+                        const mlm = getMlmTypeConfig(user.customerType);
+                        return mlm ? (
+                          <Badge variant={mlm.variant} title="Tipo en el MLM (cliente enlazado)">
+                            {mlm.label}
+                          </Badge>
+                        ) : null;
+                      })()}
+                      {user.isActive ? (
+                        <Badge variant="success">
+                          <CheckCircleIcon className="h-3 w-3" />
+                          Activo
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground">
+                          <XCircleIcon className="h-3 w-3" />
+                          Inactivo
+                        </Badge>
+                      )}
+                      {user.emailVerifiedAt ? (
+                        <Badge variant="success">
+                          <CheckCircleIcon className="h-3 w-3" />
+                          Email verificado
+                        </Badge>
+                      ) : (
+                        <Badge variant="warning">
+                          <XCircleIcon className="h-3 w-3" />
+                          Sin verificar
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <Button
+                    variant={user.isActive ? 'outline' : 'default'}
+                    size="sm"
+                    onClick={toggleActive}
+                    disabled={activateUser.isPending || deactivateUser.isPending}
+                  >
+                    {user.isActive ? (
+                      <>
+                        <XCircleIcon className="h-4 w-4" />
+                        Desactivar
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircleIcon className="h-4 w-4" />
+                        Activar
+                      </>
+                    )}
+                  </Button>
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={`/admin/usuarios?search=${encodeURIComponent(user.email ?? '')}`}>
+                      <PencilIcon className="h-4 w-4" />
+                      Editar
+                    </Link>
+                  </Button>
+                  {user.customerId && (
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={`/admin/distribuidores/${user.customerId}`}>
+                        <BuildingStorefrontIcon className="h-4 w-4" />
+                        Ver perfil MLM
+                      </Link>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Contact & account */}
+              <Card className="p-0">
+                <div className="border-b border-border px-6 py-4">
+                  <h3 className="font-semibold text-foreground">Cuenta y contacto</h3>
+                </div>
+                <div className="divide-y divide-border px-6">
+                  <InfoRow
+                    icon={EnvelopeIcon}
+                    label="Correo electrónico"
+                    value={user.email || <span className="text-muted-foreground">Sin email vinculado</span>}
+                    onCopy={user.email || undefined}
+                    copyLabel="Email"
+                  />
+                  <InfoRow
+                    icon={PhoneIcon}
+                    label="Teléfono"
+                    value={user.phone || <span className="text-muted-foreground">-</span>}
+                    onCopy={user.phone || undefined}
+                    copyLabel="Teléfono"
+                  />
+                  <InfoRow
+                    icon={UserIcon}
+                    label="Usuario"
+                    value={user.username || <span className="text-muted-foreground">-</span>}
+                  />
+                  <InfoRow
+                    icon={KeyIcon}
+                    label="Estado de contraseña"
+                    value={
+                      user.mustChangePassword ? (
+                        <span className="text-amber-600 dark:text-amber-400">Debe cambiarla en el próximo acceso</span>
+                      ) : (
+                        'Establecida'
+                      )
+                    }
+                  />
+                </div>
+              </Card>
+
+              {/* Role & meta */}
+              <Card className="p-0">
+                <div className="border-b border-border px-6 py-4">
+                  <h3 className="font-semibold text-foreground">Rol y registro</h3>
+                </div>
+                <div className="divide-y divide-border px-6">
+                  <InfoRow icon={ShieldCheckIcon} label="Rol" value={getRoleBadge(user)} />
+                  <InfoRow
+                    icon={EnvelopeIcon}
+                    label="Email verificado el"
+                    value={
+                      user.emailVerifiedAt
+                        ? formatDateTime(user.emailVerifiedAt)
+                        : <span className="text-muted-foreground">No verificado</span>
+                    }
+                  />
+                  <InfoRow icon={CalendarIcon} label="Registrado" value={formatDateTime(user.createdAt)} />
+                  <InfoRow icon={CalendarIcon} label="Última actualización" value={formatDateTime(user.updatedAt)} />
+                </div>
+              </Card>
+            </div>
+
+            {/* Permissions */}
+            <Card className="p-0">
+              <div className="flex items-center justify-between border-b border-border px-6 py-4">
+                <h3 className="font-semibold text-foreground">Permisos efectivos</h3>
+                <span className="text-sm text-muted-foreground">
+                  {user.permissions?.length ?? 0} permiso{(user.permissions?.length ?? 0) === 1 ? '' : 's'}
                 </span>
               </div>
-            </div>
-
-            {/* Role Card */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Rol</h2>
-              <SearchableSelect
-                options={roleOptions}
-                value={role}
-                onChange={handleRoleChange}
-                showAllOption={false}
-                className="w-full"
-              />
-            </div>
-
-            {/* Quick Actions */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Acciones Rápidas</h2>
-              <div className="space-y-2">
-                <button
-                  className="w-full px-4 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 text-left"
-                  onClick={() => toast.success('Ver historial de compras')}
-                >
-                  Ver Historial Completo
-                </button>
-                <button
-                  className="w-full px-4 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 text-left"
-                  onClick={() => toast.success('Ver tickets de soporte')}
-                >
-                  Tickets de Soporte
-                </button>
-                <button
-                  className="w-full px-4 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 text-left"
-                  onClick={() => toast.success('Aplicar cupón descuento')}
-                >
-                  Aplicar Cupón
-                </button>
-                <button
-                  className="w-full px-4 py-2 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 text-left"
-                  onClick={() => toast.success('Exportar datos')}
-                >
-                  Exportar Datos
-                </button>
+              <div className="p-6">
+                {user.permissions && user.permissions.length > 0 ? (
+                  <div className="flex max-h-64 flex-wrap gap-2 overflow-y-auto">
+                    {user.permissions.map((perm) => (
+                      <Badge key={perm} variant="outline" className="font-mono text-[11px] text-muted-foreground">
+                        {perm}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Este usuario no tiene permisos asignados directamente.
+                  </p>
+                )}
               </div>
-            </div>
+            </Card>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
-            {/* Account Info */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4">Información de Cuenta</h2>
-              <div className="space-y-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">ID de Usuario</span>
-                  <span className="font-medium text-gray-900">{userData.id}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Correo Verificado</span>
-                  <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">LTV</span>
-                  <span className="font-bold text-[#3E667D]">${userData.stats.lifetimeValue.toFixed(2)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Favoritos</span>
-                  <span className="font-medium text-gray-900">{userData.stats.favoriteProducts}</span>
-                </div>
-              </div>
-            </div>
+// ================================
+// SKELETON
+// ================================
+
+function DetailSkeleton() {
+  return (
+    <div className="space-y-6">
+      <Card className="p-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-16 w-16 rounded-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-5 w-40" />
           </div>
         </div>
+      </Card>
+      <div className="grid gap-6 lg:grid-cols-2">
+        {[0, 1].map((i) => (
+          <Card key={i} className="p-6">
+            <Skeleton className="mb-4 h-5 w-40" />
+            <div className="space-y-3">
+              {[0, 1, 2, 3].map((j) => (
+                <Skeleton key={j} className="h-10 w-full" />
+              ))}
+            </div>
+          </Card>
+        ))}
       </div>
     </div>
   );

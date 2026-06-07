@@ -65,11 +65,11 @@ export function NotificationBell() {
       {/* Bell button */}
       <button
         onClick={() => setOpen(!open)}
-        className="p-2 text-gray-600 hover:text-gray-900 relative transition-colors"
+        className="relative p-2 text-muted-foreground transition-colors hover:text-foreground"
         aria-label={`Notificaciones${unreadCount > 0 ? ` (${unreadCount} sin leer)` : ''}`}
       >
         {unreadCount > 0 ? (
-          <BellAlertIcon className="h-6 w-6 text-[#3E667D]" />
+          <BellAlertIcon className="h-6 w-6 text-primary" />
         ) : (
           <BellIcon className="h-6 w-6" />
         )}
@@ -82,14 +82,14 @@ export function NotificationBell() {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden">
+        <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-lg">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
-            <h3 className="text-sm font-semibold text-gray-900">Notificaciones</h3>
+          <div className="flex items-center justify-between border-b border-border bg-muted/50 px-4 py-3">
+            <h3 className="text-sm font-semibold text-foreground">Notificaciones</h3>
             {unreadCount > 0 && (
               <button
                 onClick={() => markAllAsRead.mutate()}
-                className="text-xs text-[#3E667D] hover:text-[#3E667D] font-medium transition-colors"
+                className="text-xs font-medium text-primary transition-colors hover:text-primary/80"
                 disabled={markAllAsRead.isPending}
               >
                 Marcar todo como leido
@@ -101,15 +101,15 @@ export function NotificationBell() {
           <div className="max-h-80 overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="py-8 text-center">
-                <BellIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-                <p className="text-sm text-gray-400">No hay notificaciones</p>
+                <BellIcon className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">No hay notificaciones</p>
               </div>
             ) : (
               notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${
-                    !notification.isRead ? 'bg-blue-50/50' : ''
+                  className={`border-b border-border/60 px-4 py-3 transition-colors hover:bg-muted/50 ${
+                    !notification.isRead ? 'bg-accent/40' : ''
                   }`}
                 >
                   <div className="flex items-start gap-3">
@@ -120,20 +120,20 @@ export function NotificationBell() {
                       }`}
                     />
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm leading-tight ${!notification.isRead ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
+                      <p className={`text-sm leading-tight ${!notification.isRead ? 'font-semibold text-foreground' : 'text-foreground/80'}`}>
                         {notification.title}
                       </p>
                       {notification.message && (
-                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
+                        <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
                           {notification.message}
                         </p>
                       )}
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] text-gray-400 uppercase tracking-wide">
+                      <div className="mt-1 flex items-center gap-2">
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
                           {categoryLabels[notification.category] || notification.category}
                         </span>
-                        <span className="text-[10px] text-gray-300">·</span>
-                        <span className="text-[10px] text-gray-400">
+                        <span className="text-[10px] text-muted-foreground/50">·</span>
+                        <span className="text-[10px] text-muted-foreground">
                           {timeAgo(notification.createdAt)}
                         </span>
                       </div>
@@ -145,11 +145,11 @@ export function NotificationBell() {
           </div>
 
           {/* Footer */}
-          <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50">
+          <div className="border-t border-border bg-muted/50 px-4 py-2.5">
             <Link
               href="/admin/notificaciones"
               onClick={() => setOpen(false)}
-              className="block text-center text-xs font-medium text-[#3E667D] hover:text-[#3E667D] transition-colors"
+              className="block text-center text-xs font-medium text-primary transition-colors hover:text-primary/80"
             >
               Ver todas las notificaciones
             </Link>

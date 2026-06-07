@@ -8,7 +8,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useCreateProduct } from '@/hooks/useProducts';
+import { useCreateProduct, useProducts } from '@/hooks/useProducts';
 import { ProductType } from '@/types/product';
 import type { CreateProductDto } from '@/types/product';
 
@@ -32,10 +32,32 @@ export default function NuevaPromocionPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
+  // Validación inline: el código no debe repetirse con otro producto/promoción
+  // ya existente (la columna code es única global en la BD).
+  const trimmedCode = form.code.trim();
+  const { data: codeMatches } = useProducts(
+    trimmedCode.length >= 2 ? { search: trimmedCode, limit: 10 } : { limit: 0 },
+  );
+  const codeConflict =
+    trimmedCode.length >= 2
+      ? (codeMatches?.data ?? []).find(
+          (p) => (p.code ?? '').toUpperCase() === trimmedCode.toUpperCase(),
+        )
+      : undefined;
+  const codeTaken = !!codeConflict;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.code.trim() || !form.name.trim()) {
       toast.error('Código y nombre son requeridos');
+      return;
+    }
+    if (/\s/.test(form.code)) {
+      toast.error('El código no debe contener espacios');
+      return;
+    }
+    if (codeTaken) {
+      toast.error('Ya existe un producto/promoción con ese código');
       return;
     }
 
@@ -101,12 +123,27 @@ export default function NuevaPromocionPage() {
                 <input
                   type="text"
                   value={form.code}
-                  onChange={(e) => handleChange('code', e.target.value)}
+                  onChange={(e) =>
+                    handleChange(
+                      'code',
+                      e.target.value.toUpperCase().replace(/\s+/g, ''),
+                    )
+                  }
                   placeholder="PROMO99"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3E667D] uppercase font-mono"
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 uppercase font-mono ${
+                    codeTaken
+                      ? 'border-red-400 focus:ring-red-400'
+                      : 'border-gray-300 focus:ring-[#3E667D]'
+                  }`}
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">Identificador único (ej. PROMO99, PROMO100)</p>
+                {codeTaken ? (
+                  <p className="text-xs text-red-600 mt-1">
+                    Ya existe {codeConflict?.isActive ? 'una promoción/producto activo' : 'un producto'} con el código “{trimmedCode}”. Usa otro.
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500 mt-1">Identificador único, sin espacios (ej. PROMO99, PROMO100)</p>
+                )}
               </div>
 
               <div>
@@ -208,7 +245,11 @@ export default function NuevaPromocionPage() {
           <Link href="/admin/productos?tab=promociones">
             <Button variant="ghost">Cancelar</Button>
           </Link>
-          <Button type="submit" variant="default" disabled={createProduct.isPending}>
+          <Button
+            type="submit"
+            variant="default"
+            disabled={createProduct.isPending || codeTaken}
+          >
             {createProduct.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
             Crear promoción
           </Button>

@@ -180,6 +180,83 @@ export interface ProductComponent {
 }
 
 // ================================
+// PRODUCT IMAGE TYPES (matches ProductImageDto)
+// ================================
+export interface ProductImage {
+  id: string;
+  productId: string;
+  imageUrl: string;
+  thumbnailUrl?: string;
+  altText?: string;
+  imageType: string;
+  sortOrder: number;
+  isPrimary: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpdateProductImageDto {
+  isPrimary?: boolean;
+  sortOrder?: number;
+  altText?: string;
+}
+
+// ================================
+// PRODUCT DOCUMENT TYPES (matches ProductDocumentDto) — ficha técnica PDF interna
+// ================================
+export interface ProductDocument {
+  id: string;
+  productId: string;
+  documentType: string;
+  fileName: string;
+  mimeType: string;
+  fileSize?: number;
+  uploadedById?: string;
+  uploadedByName?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ================================
+// PRICE SCHEDULE TYPES (cambios de precio programados)
+// ================================
+export interface ProductPriceSchedule {
+  id: string;
+  productId: string;
+  priceTypeId: string;
+  priceTypeName?: string;
+  countryId: string;
+  countryName?: string;
+  currencyCode: string;
+  newPrice: string;
+  newCost?: string;
+  newPoints?: string;
+  newBusinessValue?: string;
+  applyOn: string;
+  status: 'pending' | 'applied' | 'cancelled' | 'failed' | string;
+  note?: string;
+  createdById?: string;
+  createdByName?: string;
+  appliedAt?: string;
+  errorMessage?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePriceScheduleDto {
+  priceTypeId: string;
+  countryId: string;
+  currencyCode: string;
+  applyOn: string; // YYYY-MM-DD
+  price: number;
+  cost?: number;
+  points?: number;
+  businessValue?: number;
+  note?: string;
+}
+
+// ================================
 // QUERY & RESPONSE TYPES (matches ProductQueryDto / ProductListResponseDto)
 // ================================
 export interface ProductQueryParams {

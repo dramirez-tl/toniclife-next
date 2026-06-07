@@ -8,6 +8,16 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.1.17-38bdf8)](https://tailwindcss.com/)
 [![License](https://img.shields.io/badge/License-ISC-green.svg)](LICENSE)
 
+## 📅 Periodos de negocio (26 → 25) — regla clave
+
+Los periodos (comisiones, ventas, MLM, reportes, dashboards) **inician el día 26 y
+terminan el día 25** — NO son meses calendario. Se nombran por su mes de FIN:
+**"Mayo"** = 26-abr → 25-may · **"Enero 2026"** = 26-dic-2025 → 25-ene-2026.
+
+Cualquier UI de "mes/periodo" debe pedir datos por periodo al API (rango
+`[start_date, end_date]` de `tonic.commission_periods`), nunca asumir mes
+calendario ni construir el rango en el cliente. Detalle en `CLAUDE.md`.
+
 ## 📋 Descripción
 
 **My Wellness Hub** es una plataforma integral de e-commerce para **Tonic Life**, empresa MLM especializada en suplementos naturales de alta calidad desde 1996. El sistema combina:

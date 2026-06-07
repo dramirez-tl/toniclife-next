@@ -13,6 +13,8 @@ import {
   clearError,
 } from '@/store/slices/customersSlice';
 import type { UpdateCustomerDto } from '@/types/customer';
+import { useActivePriceTypes } from '@/hooks/useConfig';
+import { findPriceTypeIdForCustomerType } from '@/lib/priceType';
 import { toast } from 'sonner';
 import {
   ArrowLeftIcon,
@@ -21,6 +23,8 @@ import {
   PhoneIcon,
   CalendarIcon,
   IdentificationIcon,
+  UserGroupIcon,
+  StarIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
@@ -32,6 +36,12 @@ const STATUS_OPTIONS = [
   { value: 'suspended', label: 'Suspendido' },
 ];
 
+const CUSTOMER_TYPE_OPTIONS = [
+  { value: 'distributor', label: 'Distribuidor', desc: 'Vende, recluta y genera red', icon: UserGroupIcon, color: 'text-[#3E667D]' },
+  { value: 'preferred_customer', label: 'Preferente', desc: 'Precio preferente, sin red ni puntos', icon: StarIcon, color: 'text-amber-500' },
+  { value: 'final_customer', label: 'Cliente', desc: 'Solo compra a precio público', icon: UserIcon, color: 'text-purple-600' },
+];
+
 export default function EditarDistribuidorPage() {
   const params = useParams();
   const id = params.id as string;
@@ -41,6 +51,7 @@ export default function EditarDistribuidorPage() {
   const customer = useAppSelector(selectSelectedCustomer);
   const isLoading = useAppSelector(selectCustomersLoading);
   const error = useAppSelector(selectCustomersError);
+  const { data: priceTypes } = useActivePriceTypes();
 
   const [loadingCustomer, setLoadingCustomer] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -56,6 +67,7 @@ export default function EditarDistribuidorPage() {
     rfc: '',
     curp: '',
     status: 'active',
+    customerType: 'distributor',
   });
 
   useEffect(() => {
@@ -80,6 +92,7 @@ export default function EditarDistribuidorPage() {
         rfc: customer.rfc ?? '',
         curp: customer.curp ?? '',
         status: (customer.status as UpdateCustomerDto['status']) ?? 'active',
+        customerType: customer.customerType ?? 'distributor',
       });
     }
   }, [customer, id]);
@@ -105,6 +118,17 @@ export default function EditarDistribuidorPage() {
     payload.rfc = formData.rfc?.trim().toUpperCase() || undefined;
     payload.curp = formData.curp?.trim().toUpperCase() || undefined;
     if (formData.status) payload.status = formData.status;
+
+    // Tipo de cliente. Si cambia a preferente/cliente, asignamos su tipo de
+    // precio correspondiente. Para distribuidor no tocamos price_type_id (lo
+    // define el kit/enrollment).
+    if (formData.customerType) {
+      payload.customerType = formData.customerType;
+      if (formData.customerType !== 'distributor') {
+        const ptId = findPriceTypeIdForCustomerType(priceTypes, formData.customerType);
+        if (ptId) payload.priceTypeId = ptId;
+      }
+    }
 
     try {
       await dispatch(updateCustomer({ id, data: payload })).unwrap();
@@ -336,6 +360,42 @@ export default function EditarDistribuidorPage() {
                 </div>
                 <p className="text-xs text-gray-400 mt-1">18 caracteres</p>
               </div>
+            </div>
+          </div>
+
+          {/* Tipo de cliente */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-1">Tipo de Cliente</h2>
+            <p className="text-sm text-gray-500 mb-5">
+              Define cómo participa en el MLM y qué tipo de precio paga.
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {CUSTOMER_TYPE_OPTIONS.map((opt) => {
+                const Icon = opt.icon;
+                const active = formData.customerType === opt.value;
+                return (
+                  <label
+                    key={opt.value}
+                    className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                      active ? 'border-[#3E667D] bg-[#3E667D]/5' : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="customerType"
+                      value={opt.value}
+                      checked={active}
+                      onChange={handleChange}
+                      className="sr-only"
+                    />
+                    <Icon className={`h-6 w-6 shrink-0 ${opt.color}`} />
+                    <div>
+                      <p className="font-medium text-gray-900">{opt.label}</p>
+                      <p className="text-xs text-gray-500">{opt.desc}</p>
+                    </div>
+                  </label>
+                );
+              })}
             </div>
           </div>
 

@@ -7,6 +7,30 @@
 
 ---
 
+## 📅 REGLA INNEGOCIABLE: Periodos de negocio (26 → 25)
+
+Los **periodos** (comisiones, ventas, MLM, dashboards, reportes, cualquier métrica
+"del mes/periodo") **NO son meses calendario**. Cada periodo **inicia el día 26**
+del mes anterior y **termina el día 25** del mes que lo nombra (se nombra por el
+mes de FIN).
+
+- Periodo **"Mayo"** = **26-abr → 25-may**. · Periodo **"Enero 2026"** = **26-dic-2025 → 25-ene-2026**.
+
+**En el frontend:**
+- Cualquier UI de "mes/periodo" (dashboards, reportes, selectores) debe pedir al
+  API datos por **periodo** (rango `[start_date, end_date]`), nunca asumir mes
+  calendario ni construir el rango en el cliente.
+- La fuente de verdad de periodos vive en el API (tabla `tonic.commission_periods`,
+  `periods.service.ts`). El front muestra el `name` del periodo y navega por
+  `period_number ± 1` (o por los ids prev/next que devuelva el endpoint).
+- Para fechas, recuerda que el cliente `postgres` del API ya entrega timestamps en
+  UTC explícito; no re-apliques offsets de TZ en el front.
+
+Antes de mostrar/filtrar por "mes/periodo", **confirma que es el rango 26→25**.
+Ver también el `../CLAUDE.md` raíz.
+
+---
+
 ## 🧱 Stack técnico
 
 - **Framework:** Next.js 16.1.6 (App Router, Turbopack en dev)

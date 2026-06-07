@@ -11,7 +11,6 @@ import {
   SparklesIcon,
   MagnifyingGlassIcon,
   PencilIcon,
-  EyeIcon,
   CheckCircleIcon,
   XCircleIcon,
   ArrowPathIcon,
@@ -156,17 +155,26 @@ export function PromocionesTab() {
       },
     },
     {
-      key: 'pointsValue',
-      header: 'Puntos',
-      sortable: true,
-      sortValue: (p) => parseFloat(p.pointsValue || '0') || 0,
-      render: (promo) => (
-        <span className="text-sm font-semibold text-gray-900">
-          {promo.pointsValue && Number(promo.pointsValue) > 0
-            ? new Intl.NumberFormat('es-MX').format(Number(promo.pointsValue))
-            : '—'}
-        </span>
-      ),
+      key: 'channels',
+      header: 'Canales',
+      render: (promo) => {
+        const channels: string[] = [];
+        if (promo.availableInPos) channels.push('POS');
+        if (promo.isVisibleEcommerce) channels.push('Tienda');
+        if (channels.length === 0) return <span className="text-sm text-gray-400">—</span>;
+        return (
+          <div className="flex flex-wrap gap-1">
+            {channels.map((ch) => (
+              <span
+                key={ch}
+                className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs font-medium"
+              >
+                {ch}
+              </span>
+            ))}
+          </div>
+        );
+      },
     },
     {
       key: 'status',
@@ -202,13 +210,6 @@ export function PromocionesTab() {
       cellClassName: 'text-right',
       render: (promo) => (
         <div className="flex items-center justify-end gap-2">
-          <button
-            onClick={() => router.push(`/admin/promociones/${promo.id}`)}
-            className="rounded-lg p-2 transition-colors hover:bg-blue-50"
-            title="Ver detalles"
-          >
-            <EyeIcon className="h-4 w-4 text-blue-600" />
-          </button>
           <button
             onClick={() => router.push(`/admin/promociones/${promo.id}`)}
             className="rounded-lg p-2 transition-colors hover:bg-green-50"

@@ -3,12 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  ArrowLeftIcon,
-  PhotoIcon,
-  PlusIcon,
-  XMarkIcon,
-} from '@heroicons/react/24/outline';
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -66,17 +61,7 @@ export default function NuevoProductoAdminPage() {
     // Status
     isActive: true,
     sortOrder: '0',
-    // UI-only fields
-    imageUrl: '',
-    videoUrl: '',
-    usageInstructions: '',
-    usageFormat: '',
-    ingredients: '',
-    warnings: '',
   });
-
-  const [healthBenefits, setHealthBenefits] = useState<string[]>(['']);
-  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -102,14 +87,6 @@ export default function NuevoProductoAdminPage() {
         kitDeductsInventory: value === 'kit' ? prev.kitDeductsInventory : false,
       }));
     }
-  };
-
-  const addHealthBenefit = () => setHealthBenefits([...healthBenefits, '']);
-  const removeHealthBenefit = (index: number) => setHealthBenefits(healthBenefits.filter((_, i) => i !== index));
-  const updateHealthBenefit = (index: number, value: string) => {
-    const updated = [...healthBenefits];
-    updated[index] = value;
-    setHealthBenefits(updated);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -257,25 +234,37 @@ export default function NuevoProductoAdminPage() {
                     </div>
                   </div>
                   <div>
-                    <label className={labelClass}>Descripcion Corta</label>
-                    <textarea
+                    <label className={labelClass}>Nombre Corto</label>
+                    <input
+                      type="text"
                       name="shortName"
-                      rows={3}
+                      maxLength={100}
                       value={formData.shortName}
                       onChange={handleChange}
-                      className={`${inputClass} resize-none`}
-                      placeholder="Descripcion breve para listados (max. 160 caracteres)"
+                      className={inputClass}
+                      placeholder="Nombre breve para listados y tickets"
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>Descripcion Completa</label>
+                    <label className={labelClass}>Descripcion</label>
                     <textarea
                       name="description"
-                      rows={6}
+                      rows={4}
                       value={formData.description}
                       onChange={handleChange}
                       className={`${inputClass} resize-none`}
-                      placeholder="Descripcion detallada del producto"
+                      placeholder="Descripcion breve del producto"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Descripcion larga (tienda en linea)</label>
+                    <textarea
+                      name="longDescription"
+                      rows={6}
+                      value={formData.longDescription}
+                      onChange={handleChange}
+                      className={`${inputClass} resize-none`}
+                      placeholder="Descripcion detallada para la ficha de producto en e-commerce"
                     />
                   </div>
                 </div>
@@ -510,98 +499,6 @@ export default function NuevoProductoAdminPage() {
               </CardContent>
             </Card>
 
-            {/* Usage & Health */}
-            <Card className="p-0">
-              <CardContent className="p-6">
-                <h2 className="text-lg font-bold text-gray-900 mb-6">Uso y Salud</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className={labelClass}>Instrucciones de Uso</label>
-                    <textarea
-                      name="usageInstructions"
-                      rows={3}
-                      value={formData.usageInstructions}
-                      onChange={handleChange}
-                      className={`${inputClass} resize-none`}
-                      placeholder="Ej: Tomar 2 capsulas al dia con alimentos"
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Formato de Uso</label>
-                    <input
-                      type="text"
-                      name="usageFormat"
-                      value={formData.usageFormat}
-                      onChange={handleChange}
-                      className={inputClass}
-                      placeholder="Ej: Capsulas, Polvo, Liquido"
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Ingredientes</label>
-                    <textarea
-                      name="ingredients"
-                      rows={3}
-                      value={formData.ingredients}
-                      onChange={handleChange}
-                      className={`${inputClass} resize-none`}
-                      placeholder="Lista de ingredientes del producto"
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Advertencias</label>
-                    <textarea
-                      name="warnings"
-                      rows={3}
-                      value={formData.warnings}
-                      onChange={handleChange}
-                      className={`${inputClass} resize-none`}
-                      placeholder="Advertencias y contraindicaciones"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Health Benefits */}
-            <Card className="p-0">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-bold text-gray-900">Beneficios de Salud</h2>
-                  <button
-                    type="button"
-                    onClick={addHealthBenefit}
-                    className="flex items-center gap-2 px-3 py-1 text-sm bg-[#3E667D] text-white rounded-lg hover:bg-[#6ba625]"
-                  >
-                    <PlusIcon className="h-4 w-4" />
-                    Agregar
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  {healthBenefits.map((benefit, index) => (
-                    <div key={index} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={benefit}
-                        onChange={(e) => updateHealthBenefit(index, e.target.value)}
-                        className={`flex-1 ${inputClass}`}
-                        placeholder="Ej: Aumenta masa muscular magra"
-                      />
-                      {healthBenefits.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeHealthBenefit(index)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                        >
-                          <XMarkIcon className="h-5 w-5" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
             {/* SEO */}
             <Card className="p-0">
               <CardContent className="p-6">
@@ -627,17 +524,6 @@ export default function NuevoProductoAdminPage() {
                       onChange={handleChange}
                       className={`${inputClass} resize-none`}
                       placeholder="Max. 160 caracteres"
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Meta Description</label>
-                    <input
-                      type="text"
-                      name="metaDescription"
-                      value={formData.metaDescription}
-                      onChange={handleChange}
-                      className={inputClass}
-                      placeholder="Descripcion para motores de busqueda"
                     />
                   </div>
                 </div>
@@ -730,62 +616,10 @@ export default function NuevoProductoAdminPage() {
                       Califica para Comisiones
                     </label>
                   </div>
-                  <div>
-                    <label className={labelClass}>Orden de Aparicion</label>
-                    <input
-                      type="number"
-                      name="sortOrder"
-                      value={formData.sortOrder}
-                      onChange={handleChange}
-                      className={inputClass}
-                      placeholder="0"
-                    />
-                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Media */}
-            <Card className="p-0">
-              <CardContent className="p-6">
-                <h2 className="text-lg font-bold text-gray-900 mb-4">Media</h2>
-                <div className="space-y-4">
-                  <div>
-                    <label className={labelClass}>URL de Imagen Principal</label>
-                    <input
-                      type="url"
-                      name="imageUrl"
-                      value={formData.imageUrl}
-                      onChange={handleChange}
-                      className={inputClass}
-                      placeholder="https://..."
-                    />
-                  </div>
-                  <div>
-                    <label className={labelClass}>URL de Video</label>
-                    <input
-                      type="url"
-                      name="videoUrl"
-                      value={formData.videoUrl}
-                      onChange={handleChange}
-                      className={inputClass}
-                      placeholder="https://..."
-                    />
-                  </div>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-                    <PhotoIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                    <p className="text-sm text-gray-600 mb-2">Arrastra imagenes aqui o</p>
-                    <button
-                      type="button"
-                      className="text-sm text-[#3E667D] font-medium hover:underline"
-                    >
-                      Seleccionar archivos
-                    </button>
-                    <p className="text-xs text-gray-500 mt-2">PNG, JPG hasta 5MB</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </form>
       </div>

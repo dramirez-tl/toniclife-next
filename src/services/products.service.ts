@@ -10,6 +10,11 @@ import {
   type ProductPrice,
   type ProductTax,
   type ProductComponent,
+  type ProductImage,
+  type ProductDocument,
+  type UpdateProductImageDto,
+  type ProductPriceSchedule,
+  type CreatePriceScheduleDto,
   type Category,
   type CategoryTree,
   type CategoryQueryParams,
@@ -282,6 +287,116 @@ class ProductsService {
    */
   async deleteProductComponent(productId: string, componentId: string): Promise<void> {
     await api.delete(`/products/${productId}/components/${componentId}`);
+  }
+
+  // ================================
+  // PRODUCT IMAGES (galería del catálogo)
+  // ================================
+
+  /** Lista las imágenes de un producto (principal primero) */
+  async getProductImages(productId: string): Promise<ProductImage[]> {
+    const response = await api.get<ProductImage[]>(`/products/${productId}/images`);
+    return response.data;
+  }
+
+  /** Sube una imagen a la galería (multipart, campo "image") */
+  async uploadProductImage(productId: string, file: File): Promise<ProductImage> {
+    const formData = new FormData();
+    formData.append('image', file);
+    const response = await api.post<ProductImage>(
+      `/products/${productId}/images`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return response.data;
+  }
+
+  /** Actualiza una imagen (principal / orden / alt) */
+  async updateProductImage(
+    productId: string,
+    imageId: string,
+    dto: UpdateProductImageDto,
+  ): Promise<ProductImage> {
+    const response = await api.patch<ProductImage>(
+      `/products/${productId}/images/${imageId}`,
+      dto,
+    );
+    return response.data;
+  }
+
+  /** Elimina (soft) una imagen */
+  async deleteProductImage(productId: string, imageId: string): Promise<void> {
+    await api.delete(`/products/${productId}/images/${imageId}`);
+  }
+
+  // ================================
+  // PRODUCT DOCUMENTS (ficha técnica PDF, uso interno)
+  // ================================
+
+  /** Lista los documentos internos de un producto */
+  async getProductDocuments(productId: string): Promise<ProductDocument[]> {
+    const response = await api.get<ProductDocument[]>(`/products/${productId}/documents`);
+    return response.data;
+  }
+
+  /** Sube un PDF (multipart, campo "document") */
+  async uploadProductDocument(
+    productId: string,
+    file: File,
+    documentType = 'tech_sheet',
+  ): Promise<ProductDocument> {
+    const formData = new FormData();
+    formData.append('document', file);
+    formData.append('documentType', documentType);
+    const response = await api.post<ProductDocument>(
+      `/products/${productId}/documents`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return response.data;
+  }
+
+  /** Obtiene un enlace temporal (signed URL) para ver/descargar el documento */
+  async getProductDocumentDownloadUrl(
+    productId: string,
+    documentId: string,
+  ): Promise<{ url: string; fileName: string; expires?: string }> {
+    const response = await api.get<{ url: string; fileName: string; expires?: string }>(
+      `/products/${productId}/documents/${documentId}/download`,
+    );
+    return response.data;
+  }
+
+  /** Elimina un documento */
+  async deleteProductDocument(productId: string, documentId: string): Promise<void> {
+    await api.delete(`/products/${productId}/documents/${documentId}`);
+  }
+
+  // ================================
+  // PRICE SCHEDULES (cambios de precio programados)
+  // ================================
+
+  /** Lista los cambios de precio programados del producto */
+  async getPriceSchedules(productId: string): Promise<ProductPriceSchedule[]> {
+    const response = await api.get<ProductPriceSchedule[]>(`/products/${productId}/price-schedules`);
+    return response.data;
+  }
+
+  /** Programa un cambio de precio futuro */
+  async createPriceSchedule(
+    productId: string,
+    dto: CreatePriceScheduleDto,
+  ): Promise<ProductPriceSchedule> {
+    const response = await api.post<ProductPriceSchedule>(
+      `/products/${productId}/price-schedules`,
+      dto,
+    );
+    return response.data;
+  }
+
+  /** Cancela un cambio de precio programado (pendiente) */
+  async cancelPriceSchedule(productId: string, scheduleId: string): Promise<void> {
+    await api.delete(`/products/${productId}/price-schedules/${scheduleId}`);
   }
 
   // ================================

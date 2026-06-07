@@ -3,6 +3,7 @@
 import { Suspense, useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import {
@@ -26,9 +27,9 @@ import {
   TrashIcon,
   CheckCircleIcon,
   XCircleIcon,
-  ArrowDownTrayIcon,
   ArrowPathIcon,
   ShieldCheckIcon,
+  ClipboardDocumentIcon,
   UserIcon,
   BuildingStorefrontIcon,
   ChartBarIcon,
@@ -38,9 +39,9 @@ import {
   EyeIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
-import { useQuery } from '@tanstack/react-query';
 import { usersService } from '@/services/users.service';
-import { customersService } from '@/services/customers.service';
+import { DistribuidoresTab } from '@/components/admin/users/DistribuidoresTab';
+import { getMlmTypeConfig } from '@/lib/mlmType';
 import { PermissionGuard } from '@/components/auth';
 import { useAppSelector } from '@/store/hooks';
 import { selectUserRoles } from '@/store/slices/authSlice';
@@ -48,7 +49,10 @@ import { useRoles } from '@/hooks/useRoles';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 
-type TabKey = 'users' | 'verification';
+type TabKey = 'users' | 'verification' | 'distribuidores';
+
+// Forma mínima para el modal de "Ver contraseña" (compatible con User y VerifiedUser).
+type PasswordTarget = { id: string; firstName: string; lastName: string; email: string | null };
 
 type MonthlyVerificationRow = { month: string; verified: number; registered: number };
 
@@ -94,7 +98,7 @@ function UsuariosContent() {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [resetEmailTarget, setResetEmailTarget] = useState<User | null>(null);
-  const [passwordTarget, setPasswordTarget] = useState<User | null>(null);
+  const [passwordTarget, setPasswordTarget] = useState<PasswordTarget | null>(null);
   const [decryptedPassword, setDecryptedPassword] = useState<string | null>(null);
   const [isLoadingPassword, setIsLoadingPassword] = useState(false);
 
@@ -132,12 +136,6 @@ function UsuariosContent() {
     return p;
   }, [searchQuery, customerNumberQuery]);
 
-  const distributorStatsParams = useMemo(() => ({
-    customerType: 'distributor',
-    limit: 1,
-    page: 1,
-  }), []);
-
   const customerStatsQuery: UserQueryParams = useMemo(() => {
     const p: UserQueryParams = { limit: 1, page: 1, sortBy: 'createdAt', sortOrder: 'desc', role: 'customer' };
     if (searchQuery) p.search = searchQuery;
@@ -145,14 +143,10 @@ function UsuariosContent() {
     return p;
   }, [searchQuery, customerNumberQuery]);
 
-  // API Hooks
+  // API Hooks — solo dominio `users` (las métricas de customers viven en su tab)
   const { data: usersData, isLoading, isFetching, error, refetch } = useUsers(queryParams);
   const { data: baseStatsData } = useUsers(baseStatsQuery);
   const { data: activeStatsData } = useUsers(activeStatsQuery);
-  const { data: distributorStatsData } = useQuery({
-    queryKey: ['customers', 'stats', 'distributor', distributorStatsParams],
-    queryFn: () => customersService.getAll(distributorStatsParams),
-  });
   const { data: customerStatsData } = useUsers(customerStatsQuery);
   const { data: rolesData } = useRoles();
   const createUser = useCreateUser();
@@ -162,13 +156,17 @@ function UsuariosContent() {
   const hardDeleteUser = useHardDeleteUser();
   const resetEmailVerification = useResetEmailVerification();
 
-  // Computed stats using server-side totals from lightweight queries
-  const stats = useMemo(() => ({
-    total: baseStatsData?.total ?? 0,
-    active: activeStatsData?.total ?? 0,
-    distributors: distributorStatsData?.total ?? 0,
-    customers: customerStatsData?.total ?? 0,
-  }), [baseStatsData, activeStatsData, distributorStatsData, customerStatsData]);
+  // Computed stats (solo dominio users)
+  const stats = useMemo(() => {
+    const total = baseStatsData?.total ?? 0;
+    const active = activeStatsData?.total ?? 0;
+    return {
+      total,
+      active,
+      inactive: Math.max(total - active, 0),
+      customers: customerStatsData?.total ?? 0,
+    };
+  }, [baseStatsData, activeStatsData, customerStatsData]);
 
   // Handlers
   const handleActivateUser = async (userId: string) => {
@@ -224,7 +222,7 @@ function UsuariosContent() {
     }
   };
 
-  const handleViewPassword = async (user: User) => {
+  const handleViewPassword = async (user: PasswordTarget) => {
     setPasswordTarget(user);
     setDecryptedPassword(null);
     setIsLoadingPassword(true);
@@ -240,21 +238,23 @@ function UsuariosContent() {
     }
   };
 
-  const handleExport = () => {
-    toast.info('Función de exportación próximamente disponible');
-  };
-
   const handleSearch = () => {
-    setParams({ search: searchInput.trim(), customerNumber: customerNumberInput.trim() });
+    setParams({ search: searchInput.trim(), customerNumber: customerNumberInput.trim(), page: null });
   };
 
   const handleFilterRole = (value: string) => {
-    setParams({ role: value });
+    setParams({ role: value, page: null });
   };
 
   const handleFilterStatus = (value: string) => {
-    setParams({ status: value });
+    setParams({ status: value, page: null });
   };
+
+  // Opciones de rol para el filtro — fuente única: roles del API.
+  const roleFilterOptions = useMemo(
+    () => (rolesData?.data ?? []).map((r) => ({ value: r.code, label: r.name })),
+    [rolesData],
+  );
 
   const handlePageSizeChange = (size: number) => {
     setParams({ limit: String(size), page: null });
@@ -274,6 +274,19 @@ function UsuariosContent() {
       setParams({ page: String(backendTotalPages) });
     }
   }, [backendTotalPages, currentPage, setParams]);
+
+  // Cerrar cualquier modal abierto con Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (passwordTarget) setPasswordTarget(null);
+      else if (deleteTarget) setDeleteTarget(null);
+      else if (resetEmailTarget) setResetEmailTarget(null);
+      else if (isModalOpen) closeModal();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [passwordTarget, deleteTarget, resetEmailTarget, isModalOpen]);
 
   // Modal handlers
   const openCreateModal = () => {
@@ -310,6 +323,25 @@ function UsuariosContent() {
   };
 
   const handleSubmit = async () => {
+    // Validación client-side de campos obligatorios
+    if (!formData.firstName?.trim() || !formData.lastName?.trim()) {
+      toast.error('Nombre y apellido son obligatorios');
+      return;
+    }
+    if (!editingUser) {
+      if (!formData.email?.trim()) {
+        toast.error('El correo electrónico es obligatorio');
+        return;
+      }
+      if (!formData.password || formData.password.length < 8) {
+        toast.error('La contraseña debe tener al menos 8 caracteres');
+        return;
+      }
+      if (!formData.roleId) {
+        toast.error('Selecciona un rol para el usuario');
+        return;
+      }
+    }
     try {
       if (editingUser) {
         const dto: UpdateUserDto = {
@@ -351,52 +383,48 @@ function UsuariosContent() {
 
     if (code === 'administrador' || code === 'super_admin' || code === 'subadmin') {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+        <Badge variant="default">
           <ShieldCheckIcon className="h-3 w-3" />
           {name}
-        </span>
+        </Badge>
       );
     }
     if (code === 'customer') {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 bg-teal-100 text-teal-700 rounded-full text-xs font-medium">
+        <Badge variant="success">
           <UserIcon className="h-3 w-3" />
           {name}
-        </span>
+        </Badge>
       );
     }
     if (code === 'distributor') {
       return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+        <Badge variant="info">
           <BuildingStorefrontIcon className="h-3 w-3" />
           {name}
-        </span>
+        </Badge>
       );
     }
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+      <Badge variant="outline" className="text-muted-foreground">
         <UserIcon className="h-3 w-3" />
         {name}
-      </span>
+      </Badge>
     );
   };
 
-  const getStatusBadge = (isActive: boolean) => {
-    if (isActive) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-          <CheckCircleIcon className="h-3 w-3" />
-          Activo
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+  const getStatusBadge = (isActive: boolean) =>
+    isActive ? (
+      <Badge variant="success">
+        <CheckCircleIcon className="h-3 w-3" />
+        Activo
+      </Badge>
+    ) : (
+      <Badge variant="outline" className="text-muted-foreground">
         <XCircleIcon className="h-3 w-3" />
         Inactivo
-      </span>
+      </Badge>
     );
-  };
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-';
@@ -420,27 +448,42 @@ function UsuariosContent() {
       sortValue: (user) => `${user.firstName} ${user.lastName}`,
       render: (user) => (
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 flex-shrink-0 rounded-full bg-[#3E667D]/10 flex items-center justify-center">
-            <UserIcon className="h-5 w-5 text-[#3E667D]" />
+          <div className="h-10 w-10 flex-shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
+            <UserIcon className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <p className="font-semibold text-gray-900">
+            <Link
+              href={`/admin/usuarios/${user.id}`}
+              className="font-semibold text-foreground hover:text-primary hover:underline"
+            >
               {user.firstName} {user.lastName}
-            </p>
+            </Link>
             {user.customerNumber && (
-              <p className="text-xs font-medium text-[#3E667D]">#{user.customerNumber}</p>
+              <p className="text-xs font-medium text-primary">#{user.customerNumber}</p>
             )}
-            <p className="text-sm text-gray-500">{user.email}</p>
+            <p className="text-sm text-muted-foreground">{user.email}</p>
           </div>
         </div>
       ),
     },
     {
       key: 'role',
-      header: 'Rol',
+      header: 'Rol / Tipo MLM',
       sortable: true,
       sortValue: (user) => user.role?.name || '',
-      render: (user) => getRoleBadge(user),
+      render: (user) => {
+        const mlm = getMlmTypeConfig(user.customerType);
+        return (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {getRoleBadge(user)}
+            {mlm && (
+              <Badge variant={mlm.variant} title="Tipo en el MLM (cliente enlazado)">
+                {mlm.label}
+              </Badge>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'status',
@@ -455,7 +498,7 @@ function UsuariosContent() {
       sortable: true,
       sortValue: (user) => user.createdAt,
       render: (user) => (
-        <span className="text-sm text-gray-600">{formatDate(user.createdAt)}</span>
+        <span className="text-sm text-muted-foreground">{formatDate(user.createdAt)}</span>
       ),
     },
     {
@@ -465,15 +508,15 @@ function UsuariosContent() {
       sortValue: (user) => (user.emailVerifiedAt ? 1 : 0),
       render: (user) =>
         user.emailVerifiedAt ? (
-          <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+          <Badge variant="success">
             <CheckCircleIcon className="h-3 w-3" />
             Sí
-          </span>
+          </Badge>
         ) : (
-          <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
+          <Badge variant="warning">
             <XCircleIcon className="h-3 w-3" />
             No
-          </span>
+          </Badge>
         ),
     },
     {
@@ -485,7 +528,7 @@ function UsuariosContent() {
         <div className="flex items-center justify-end gap-2">
           <button
             onClick={() => openEditModal(user)}
-            className="rounded-lg p-2 transition-colors hover:bg-blue-50"
+            className="rounded-lg p-2 transition-colors hover:bg-muted"
             title="Editar usuario"
             aria-label={`Editar ${user.firstName} ${user.lastName}`}
           >
@@ -494,7 +537,7 @@ function UsuariosContent() {
           {user.isActive ? (
             <button
               onClick={() => confirmDeactivateUser(user)}
-              className="rounded-lg p-2 transition-colors hover:bg-yellow-50"
+              className="rounded-lg p-2 transition-colors hover:bg-muted"
               title="Desactivar usuario"
               disabled={deactivateUser.isPending}
               aria-label={`Desactivar ${user.firstName}`}
@@ -504,7 +547,7 @@ function UsuariosContent() {
           ) : (
             <button
               onClick={() => handleActivateUser(user.id)}
-              className="rounded-lg p-2 transition-colors hover:bg-green-50"
+              className="rounded-lg p-2 transition-colors hover:bg-muted"
               title="Activar usuario"
               disabled={activateUser.isPending}
               aria-label={`Activar ${user.firstName}`}
@@ -515,7 +558,7 @@ function UsuariosContent() {
           {isSuperAdmin && (
             <button
               onClick={() => handleViewPassword(user)}
-              className="rounded-lg p-2 transition-colors hover:bg-indigo-50"
+              className="rounded-lg p-2 transition-colors hover:bg-muted"
               title="Ver contraseña"
               aria-label={`Ver contraseña de ${user.firstName}`}
             >
@@ -525,7 +568,7 @@ function UsuariosContent() {
           {isSuperAdmin && (
             <button
               onClick={() => setResetEmailTarget(user)}
-              className="rounded-lg p-2 transition-colors hover:bg-amber-50"
+              className="rounded-lg p-2 transition-colors hover:bg-muted"
               title="Restablecer verificación de email"
               aria-label={`Restablecer email de ${user.firstName}`}
             >
@@ -535,7 +578,7 @@ function UsuariosContent() {
           {isSuperAdmin && (
             <button
               onClick={() => setDeleteTarget(user)}
-              className="rounded-lg p-2 transition-colors hover:bg-red-50"
+              className="rounded-lg p-2 transition-colors hover:bg-muted"
               title="Eliminar permanentemente"
               aria-label={`Eliminar ${user.firstName}`}
             >
@@ -549,28 +592,29 @@ function UsuariosContent() {
 
   return (
     <PermissionGuard permissions={['users:read', 'users:*']}>
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
-      {/* Header */}
+    <div className="min-h-screen">
+      {/* Header (banda de marca, slim) */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="mb-2 flex items-center gap-3">
-                <UserGroupIcon className="h-9 w-9" />
-                <h1 className="text-3xl font-bold sm:text-4xl">Gestión de Usuarios</h1>
+              <div className="mb-1 flex items-center gap-2.5">
+                <UserGroupIcon className="h-7 w-7" />
+                <h1 className="text-2xl font-bold sm:text-3xl">Gestión de Usuarios</h1>
               </div>
-              <p className="text-base text-white/80 sm:text-lg">
+              <p className="text-sm text-white/80 sm:text-base">
                 Administra usuarios, roles y permisos del sistema
               </p>
             </div>
-            <div className="flex flex-wrap gap-3">
-              <Link href="/admin">
-                <Button variant="secondary">Volver al Panel Principal</Button>
-              </Link>
+            <div className="flex flex-wrap gap-2">
               <Button
-                variant="default"
-                onClick={openCreateModal}
+                asChild
+                variant="ghost"
+                className="border border-white/25 text-white hover:bg-white/10 hover:text-white"
               >
+                <Link href="/admin">Volver al Panel</Link>
+              </Button>
+              <Button onClick={openCreateModal} className="bg-card text-primary hover:bg-card/90">
                 <PlusIcon className="h-5 w-5" />
                 Nuevo Usuario
               </Button>
@@ -581,53 +625,36 @@ function UsuariosContent() {
 
       {/* Main Content */}
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Stats Cards */}
-        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {[
-            { label: 'Total Usuarios', value: stats.total, color: 'text-gray-900', bgColor: 'bg-blue-100', icon: <UserGroupIcon className="h-6 w-6 text-blue-600" /> },
-            { label: 'Usuarios Activos', value: stats.active, color: 'text-green-600', bgColor: 'bg-green-100', icon: <CheckCircleIcon className="h-6 w-6 text-green-600" /> },
-            { label: 'Distribuidores', value: stats.distributors, color: 'text-blue-600', bgColor: 'bg-blue-100', icon: <BuildingStorefrontIcon className="h-6 w-6 text-blue-600" /> },
-            { label: 'Clientes', value: stats.customers, color: 'text-gray-900', bgColor: 'bg-gray-100', icon: <UserIcon className="h-6 w-6 text-gray-600" /> },
-          ].map((stat) => (
-            <Card key={stat.label} className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">{stat.label}</p>
-                    {initialLoad ? (
-                      <div className="h-9 w-16 animate-pulse rounded bg-gray-200" />
-                    ) : (
-                      <p className={`text-3xl font-bold ${stat.color}`}>{formatNumber(stat.value)}</p>
-                    )}
-                  </div>
-                  <div className={`w-12 h-12 ${stat.bgColor} rounded-full flex items-center justify-center`}>
-                    {stat.icon}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
         {/* Tabs */}
-        <div className="flex gap-1 mb-6 bg-white rounded-xl border border-gray-200 p-1 w-fit">
+        <div className="mb-6 flex w-fit flex-wrap gap-1 rounded-xl border border-border bg-card p-1">
           <button
             onClick={() => setParams({ tab: 'users' })}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               activeTab === 'users'
-                ? 'bg-[#3E667D] text-white'
-                : 'text-gray-600 hover:bg-gray-100'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-muted'
             }`}
           >
             <UserGroupIcon className="h-4 w-4" />
-            Usuarios
+            Cuentas de sistema
+          </button>
+          <button
+            onClick={() => setParams({ tab: 'distribuidores' })}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'distribuidores'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <BuildingStorefrontIcon className="h-4 w-4" />
+            Distribuidores y clientes
           </button>
           <button
             onClick={() => setParams({ tab: 'verification' })}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               activeTab === 'verification'
-                ? 'bg-[#3E667D] text-white'
-                : 'text-gray-600 hover:bg-gray-100'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-muted'
             }`}
           >
             <EnvelopeIcon className="h-4 w-4" />
@@ -635,19 +662,50 @@ function UsuariosContent() {
           </button>
         </div>
 
-        {/* Tab: Users */}
+        {/* Tab: Distribuidores y clientes (dominio customers) */}
+        {activeTab === 'distribuidores' && <DistribuidoresTab />}
+
+        {/* Tab: Cuentas de sistema (dominio users) */}
         {activeTab === 'users' && (
           <>
+            {/* Stats Cards — solo dominio users */}
+            <div className="mb-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
+              {[
+                { label: 'Total Usuarios', value: stats.total, icon: UserGroupIcon },
+                { label: 'Usuarios Activos', value: stats.active, icon: CheckCircleIcon },
+                { label: 'Inactivos', value: stats.inactive, icon: XCircleIcon },
+                { label: 'Clientes', value: stats.customers, icon: UserIcon },
+              ].map((stat) => (
+                <Card key={stat.label} className="gap-0 p-5 transition-shadow duration-200 hover:shadow-md">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="mb-1 truncate text-sm text-muted-foreground">{stat.label}</p>
+                      {initialLoad ? (
+                        <div className="h-9 w-16 animate-pulse rounded bg-muted" />
+                      ) : (
+                        <p className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                          {formatNumber(stat.value)}
+                        </p>
+                      )}
+                    </div>
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <stat.icon className="h-5 w-5" />
+                    </span>
+                  </div>
+                </Card>
+              ))}
+            </div>
+
             {/* Filters and Search */}
-            <Card className="mb-6 border-gray-100 shadow-sm">
+            <Card className="mb-6 border-border shadow-sm">
               <CardContent className="p-4 sm:p-6">
                 <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm font-medium text-gray-700">Búsqueda y filtros</p>
+                  <p className="text-sm font-medium text-foreground">Búsqueda y filtros</p>
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="gap-2 text-gray-600"
+                      className="gap-2 text-muted-foreground"
                       onClick={() => refetch()}
                       disabled={isFetching}
                     >
@@ -659,21 +717,13 @@ function UsuariosContent() {
                         Limpiar filtros
                       </Button>
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleExport}
-                    >
-                      <ArrowDownTrayIcon className="h-4 w-4" />
-                      Exportar
-                    </Button>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:gap-4">
                   {/* Search */}
                   <div className="lg:col-span-4">
                     <div className="relative">
-                      <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                      <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                       <input
                         type="text"
                         placeholder="Buscar por nombre o email..."
@@ -685,7 +735,7 @@ function UsuariosContent() {
                             handleSearch();
                           }
                         }}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                        className="w-full rounded-lg border border-input bg-background py-2 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                       />
                     </div>
                   </div>
@@ -703,7 +753,7 @@ function UsuariosContent() {
                           handleSearch();
                         }
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                     />
                   </div>
 
@@ -719,21 +769,10 @@ function UsuariosContent() {
                     </Button>
                   </div>
 
-                  {/* Role Filter */}
+                  {/* Role Filter (fuente única: roles del API) */}
                   <div className="lg:col-span-2">
                     <SearchableSelect
-                      options={[
-                        { value: 'administrador', label: 'Administrador' },
-                        { value: 'super_admin', label: 'Super Admin' },
-                        { value: 'customer', label: 'Cliente' },
-                        { value: 'distributor', label: 'Distribuidor' },
-                        { value: 'operaciones', label: 'Operaciones' },
-                        { value: 'sucursales', label: 'Sucursales' },
-                        { value: 'call_center', label: 'Call Center' },
-                        { value: 'contabilidad', label: 'Contabilidad' },
-                        { value: 'soporte', label: 'Sistemas' },
-                        { value: 'viewer', label: 'Solo Lectura' },
-                      ]}
+                      options={roleFilterOptions}
                       value={filterRole}
                       onChange={handleFilterRole}
                       allLabel="Todos los Roles"
@@ -759,26 +798,26 @@ function UsuariosContent() {
                 </div>
                 {hasActiveFilters && (
                   <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-                    <span className="rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-700">
+                    <span className="rounded-full bg-primary/10 px-2.5 py-1 font-medium text-primary">
                       Filtros activos
                     </span>
                     {searchQuery && (
-                      <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
+                      <span className="rounded-full bg-muted px-2.5 py-1 text-foreground">
                         Búsqueda: {searchQuery}
                       </span>
                     )}
                     {customerNumberQuery && (
-                      <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
+                      <span className="rounded-full bg-muted px-2.5 py-1 text-foreground">
                         No. Distribuidor: {customerNumberQuery}
                       </span>
                     )}
                     {filterRole !== 'all' && (
-                      <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
-                        Rol: {ROLE_OPTIONS.find(r => r.value === filterRole)?.label ?? filterRole}
+                      <span className="rounded-full bg-muted px-2.5 py-1 text-foreground">
+                        Rol: {roleFilterOptions.find((r) => r.value === filterRole)?.label ?? filterRole}
                       </span>
                     )}
                     {filterStatus !== 'all' && (
-                      <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
+                      <span className="rounded-full bg-muted px-2.5 py-1 text-foreground">
                         Estado: {filterStatus}
                       </span>
                     )}
@@ -788,24 +827,24 @@ function UsuariosContent() {
             </Card>
 
             {/* Users Table */}
-            <Card className="border-gray-100 shadow-sm">
+            <Card className="border-border shadow-sm">
               <CardContent className="p-6">
                 {error && !usersData ? (
                   <div className="flex flex-col items-center gap-3 py-8 text-center">
                     <ExclamationTriangleIcon className="h-10 w-10 text-red-400" />
-                    <p className="text-red-700">Error al cargar los usuarios. Por favor, intenta de nuevo.</p>
+                    <p className="text-destructive">Error al cargar los usuarios. Por favor, intenta de nuevo.</p>
                     <Button variant="outline" onClick={() => refetch()}>Reintentar</Button>
                   </div>
                 ) : (
                   <>
                     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                      <h2 className="text-base font-semibold text-gray-900">Listado de usuarios</h2>
-                      <p className="text-sm text-gray-600">
+                      <h2 className="text-base font-semibold text-foreground">Listado de usuarios</h2>
+                      <p className="text-sm text-muted-foreground">
                         Mostrando {users.length} de {totalUsers}
                       </p>
                     </div>
                     {isFetching && !initialLoad && (
-                      <div className="mb-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700">
+                      <div className="mb-3 rounded-lg border border-border bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground">
                         Actualizando resultados...
                       </div>
                     )}
@@ -817,11 +856,11 @@ function UsuariosContent() {
                       minWidthClassName="min-w-[920px]"
                       emptyState={
                         <div className="py-2 text-center">
-                          <UserGroupIcon className="mx-auto mb-4 h-16 w-16 text-gray-400" />
-                          <h3 className="mb-2 text-xl font-bold text-gray-900">
+                          <UserGroupIcon className="mx-auto mb-4 h-16 w-16 text-muted-foreground" />
+                          <h3 className="mb-2 text-xl font-bold text-foreground">
                             No se encontraron usuarios
                           </h3>
-                          <p className="text-gray-600">Intenta ajustar los filtros de búsqueda o crear un nuevo usuario.</p>
+                          <p className="text-muted-foreground">Intenta ajustar los filtros de búsqueda o crear un nuevo usuario.</p>
                           <div className="mt-4 flex justify-center gap-2">
                             {hasActiveFilters && (
                               <Button variant="outline" onClick={resetFilters}>
@@ -861,7 +900,7 @@ function UsuariosContent() {
 
         {/* Tab: Email Verification */}
         {activeTab === 'verification' && (
-          <EmailVerificationTab />
+          <EmailVerificationTab isSuperAdmin={isSuperAdmin} onViewPassword={handleViewPassword} />
         )}
       </div>
 
@@ -901,69 +940,65 @@ function UsuariosContent() {
       {passwordTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={() => setPasswordTarget(null)} />
-          <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full mx-4">
-            <div className="flex items-center gap-3 p-6 border-b border-indigo-100 bg-indigo-50 rounded-t-2xl">
-              <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
-                <EyeIcon className="h-5 w-5 text-indigo-600" />
+          <div className="relative bg-card rounded-2xl shadow-xl max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 rounded-t-2xl border-b border-border bg-primary/5 p-6">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <EyeIcon className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-indigo-900">Contraseña del usuario</h2>
-                <p className="text-sm text-indigo-700">{passwordTarget.firstName} {passwordTarget.lastName}</p>
+                <h2 className="text-lg font-bold text-foreground">Contraseña del usuario</h2>
+                <p className="text-sm text-muted-foreground">{passwordTarget.firstName} {passwordTarget.lastName}</p>
               </div>
             </div>
             <div className="p-6 space-y-4">
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <p className="text-sm text-gray-500 mb-1">Email</p>
+              <div className="rounded-lg border border-border bg-muted/50 p-3">
+                <p className="text-sm text-muted-foreground mb-1">Email</p>
                 {passwordTarget.email ? (
                   <div className="flex items-center gap-2">
-                    <p className="font-medium text-gray-900">{passwordTarget.email}</p>
+                    <p className="font-medium text-foreground">{passwordTarget.email}</p>
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(passwordTarget.email!);
                         toast.success('Email copiado al portapapeles');
                       }}
-                      className="rounded-lg p-1.5 hover:bg-gray-200 transition-colors"
+                      className="rounded-lg p-1.5 hover:bg-muted transition-colors"
                       title="Copiar email"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4 text-gray-500">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
-                      </svg>
+                      <ClipboardDocumentIcon className="h-4 w-4 text-muted-foreground" />
                     </button>
                   </div>
                 ) : (
-                  <p className="text-sm text-amber-600 font-medium">
+                  <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
                     El usuario aún no ha vinculado un correo electrónico a su cuenta.
                   </p>
                 )}
               </div>
-              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-                <p className="text-sm text-gray-500 mb-1">Contraseña</p>
+              <div className="rounded-lg border border-border bg-muted/50 p-3">
+                <p className="text-sm text-muted-foreground mb-1">Contraseña</p>
                 {isLoadingPassword ? (
-                  <div className="h-6 w-32 animate-pulse rounded bg-gray-200" />
+                  <div className="h-6 w-32 animate-pulse rounded bg-muted" />
                 ) : decryptedPassword ? (
                   <div className="flex items-center gap-2">
-                    <p className="font-mono text-lg font-bold text-gray-900">{decryptedPassword}</p>
+                    <p className="font-mono text-lg font-bold text-foreground">{decryptedPassword}</p>
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(decryptedPassword);
                         toast.success('Contraseña copiada al portapapeles');
                       }}
-                      className="rounded-lg p-1.5 hover:bg-gray-200 transition-colors"
+                      className="rounded-lg p-1.5 hover:bg-muted transition-colors"
                       title="Copiar contraseña"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4 text-gray-500">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
-                      </svg>
+                      <ClipboardDocumentIcon className="h-4 w-4 text-muted-foreground" />
                     </button>
                   </div>
                 ) : (
-                  <p className="text-sm text-amber-600 font-medium">
+                  <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
                     No disponible — la contraseña se encriptará cuando el usuario la cambie o se cree un nuevo usuario.
                   </p>
                 )}
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+            <div className="flex items-center justify-end gap-3 p-6 border-t border-border">
               <Button variant="default" onClick={() => setPasswordTarget(null)}>
                 Cerrar
               </Button>
@@ -980,7 +1015,13 @@ function UsuariosContent() {
 // EMAIL VERIFICATION TAB COMPONENT
 // ================================
 
-function EmailVerificationTab() {
+function EmailVerificationTab({
+  isSuperAdmin,
+  onViewPassword,
+}: {
+  isSuperAdmin: boolean;
+  onViewPassword: (u: PasswordTarget) => void;
+}) {
   const { data: emailStats, isLoading } = useEmailVerificationStats();
   const [verifiedPage, setVerifiedPage] = useState(1);
   const [verifiedLimit, setVerifiedLimit] = useState(10);
@@ -997,8 +1038,8 @@ function EmailVerificationTab() {
       sortValue: (u) => `${u.firstName} ${u.lastName}`,
       render: (u) => (
         <div>
-          <p className="font-medium text-gray-900">{u.firstName} {u.lastName}</p>
-          {u.username && <p className="text-xs text-gray-500">@{u.username}</p>}
+          <p className="font-medium text-foreground">{u.firstName} {u.lastName}</p>
+          {u.username && <p className="text-xs text-muted-foreground">@{u.username}</p>}
         </div>
       ),
     },
@@ -1007,15 +1048,13 @@ function EmailVerificationTab() {
       header: 'Email',
       sortable: true,
       sortValue: (u) => u.email,
-      render: (u) => <span className="text-sm text-gray-700">{u.email}</span>,
+      render: (u) => <span className="text-sm text-foreground">{u.email}</span>,
     },
     {
       key: 'role',
       header: 'Rol',
       render: (u) => (
-        <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-          {u.role.name}
-        </span>
+        <Badge variant="info">{u.role.name}</Badge>
       ),
     },
     {
@@ -1026,7 +1065,7 @@ function EmailVerificationTab() {
       render: (u) => (
         <div className="flex items-center gap-1.5">
           <CheckCircleIcon className="h-4 w-4 text-emerald-500" />
-          <span className="text-sm text-gray-700">
+          <span className="text-sm text-foreground">
             {new Date(u.emailVerifiedAt).toLocaleDateString('es-MX', {
               day: '2-digit',
               month: 'short',
@@ -1042,17 +1081,21 @@ function EmailVerificationTab() {
       key: 'actions',
       header: 'Acciones',
       render: (u) => (
-        <Link
-          href={`/admin/usuarios?search=${encodeURIComponent(u.email)}`}
-          className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 hover:border-[#3E667D]/30 hover:text-[#3E667D] transition-all"
-          title="Ver en listado de usuarios"
-        >
-          <EyeIcon className="h-3.5 w-3.5" />
-          Ver usuario
-        </Link>
+        isSuperAdmin ? (
+          <button
+            onClick={() => onViewPassword({ id: u.id, firstName: u.firstName, lastName: u.lastName, email: u.email })}
+            className="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground transition-all hover:border-primary/30 hover:bg-muted/50 hover:text-primary"
+            title="Ver contraseña del usuario"
+          >
+            <EyeIcon className="h-3.5 w-3.5" />
+            Ver contraseña
+          </button>
+        ) : (
+          <span className="text-xs text-muted-foreground">-</span>
+        )
       ),
     },
-  ], []);
+  ], [isSuperAdmin, onViewPassword]);
 
   if (isLoading) {
     return (
@@ -1062,8 +1105,8 @@ function EmailVerificationTab() {
             <Card key={i}>
               <CardContent className="p-6">
                 <div className="animate-pulse space-y-4">
-                  <div className="h-5 w-40 bg-gray-200 rounded" />
-                  <div className="h-40 bg-gray-200 rounded" />
+                  <div className="h-5 w-40 bg-muted rounded" />
+                  <div className="h-40 bg-muted rounded" />
                 </div>
               </CardContent>
             </Card>
@@ -1076,7 +1119,7 @@ function EmailVerificationTab() {
   if (!emailStats) {
     return (
       <Card>
-        <CardContent className="p-6 text-center text-gray-500">
+        <CardContent className="p-6 text-center text-muted-foreground">
           No se pudieron cargar las estadísticas.
         </CardContent>
       </Card>
@@ -1088,7 +1131,7 @@ function EmailVerificationTab() {
   // Donut chart values — use a minimum visible angle for very small percentages
   const displayPercent = verifiedPercent > 0 && verifiedPercent < 1 ? 1 : verifiedPercent;
   const donutStyle = {
-    background: `conic-gradient(#10b981 0% ${displayPercent}%, #e5e7eb ${displayPercent}% 100%)`,
+    background: `conic-gradient(#10b981 0% ${displayPercent}%, var(--muted) ${displayPercent}% 100%)`,
   };
 
   const formatMonth = (month: string) => {
@@ -1101,14 +1144,14 @@ function EmailVerificationTab() {
     {
       key: 'month',
       header: 'Mes',
-      cellClassName: 'text-sm text-gray-700 font-medium',
+      cellClassName: 'text-sm text-foreground font-medium',
       render: (row) => formatMonth(row.month),
     },
     {
       key: 'registered',
       header: 'Registros',
       headerClassName: 'text-right',
-      cellClassName: 'text-sm text-gray-600 text-right',
+      cellClassName: 'text-sm text-muted-foreground text-right',
       render: (row) => row.registered.toLocaleString('es-MX'),
     },
     {
@@ -1117,7 +1160,7 @@ function EmailVerificationTab() {
       headerClassName: 'text-right',
       cellClassName: 'text-sm text-right',
       render: (row) => (
-        <span className={row.verified > 0 ? 'text-emerald-600 font-semibold' : 'text-gray-400'}>
+        <span className={row.verified > 0 ? 'text-emerald-600 font-semibold' : 'text-muted-foreground'}>
           {row.verified.toLocaleString('es-MX')}
         </span>
       ),
@@ -1133,13 +1176,13 @@ function EmailVerificationTab() {
           : 0;
         return (
           <div className="flex items-center justify-end gap-2">
-            <div className="w-16 h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
               <div
                 className="h-full bg-emerald-500 rounded-full transition-all"
                 style={{ width: `${Math.min(pct, 100)}%` }}
               />
             </div>
-            <span className="text-xs text-gray-500 w-12 text-right">
+            <span className="text-xs text-muted-foreground w-12 text-right">
               {pct}%
             </span>
           </div>
@@ -1154,8 +1197,8 @@ function EmailVerificationTab() {
         {/* Donut Chart Card */}
         <Card>
           <CardContent className="p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <EnvelopeIcon className="h-5 w-5 text-[#3E667D]" />
+            <h3 className="text-lg font-bold text-foreground mb-6 flex items-center gap-2">
+              <EnvelopeIcon className="h-5 w-5 text-primary" />
               Verificación de Email
             </h3>
 
@@ -1168,11 +1211,11 @@ function EmailVerificationTab() {
                 />
                 {/* Inner circle (donut hole) */}
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-24 h-24 bg-white rounded-full flex flex-col items-center justify-center shadow-inner">
-                    <span className="text-2xl font-bold text-[#3E667D]">
+                  <div className="w-24 h-24 bg-card rounded-full flex flex-col items-center justify-center shadow-inner">
+                    <span className="text-2xl font-bold text-primary">
                       {verifiedPercent}%
                     </span>
-                    <span className="text-[10px] text-gray-500">verificados</span>
+                    <span className="text-[10px] text-muted-foreground">verificados</span>
                   </div>
                 </div>
               </div>
@@ -1180,25 +1223,25 @@ function EmailVerificationTab() {
               {/* Legend */}
               <div className="space-y-4 flex-1">
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Total Usuarios</p>
-                  <p className="text-2xl font-bold text-gray-900">
+                  <p className="text-sm text-muted-foreground mb-1">Total Usuarios</p>
+                  <p className="text-2xl font-bold text-foreground">
                     {total.toLocaleString('es-MX')}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-emerald-500" />
                   <div>
-                    <p className="text-sm text-gray-600">Verificados</p>
+                    <p className="text-sm text-muted-foreground">Verificados</p>
                     <p className="text-lg font-bold text-emerald-600">
                       {verified.toLocaleString('es-MX')}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-gray-300" />
+                  <div className="h-3 w-3 rounded-full bg-muted-foreground/40" />
                   <div>
-                    <p className="text-sm text-gray-600">Sin verificar</p>
-                    <p className="text-lg font-bold text-gray-700">
+                    <p className="text-sm text-muted-foreground">Sin verificar</p>
+                    <p className="text-lg font-bold text-foreground">
                       {notVerified.toLocaleString('es-MX')}
                     </p>
                   </div>
@@ -1211,8 +1254,8 @@ function EmailVerificationTab() {
         {/* Monthly Breakdown Card */}
         <Card>
           <CardContent className="p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <ChartBarIcon className="h-5 w-5 text-[#3E667D]" />
+            <h3 className="text-lg font-bold text-foreground mb-6 flex items-center gap-2">
+              <ChartBarIcon className="h-5 w-5 text-primary" />
               Actividad por Mes
             </h3>
 
@@ -1229,7 +1272,7 @@ function EmailVerificationTab() {
       {/* Verified Users Detail Table */}
       <Card>
         <CardContent className="p-6">
-          <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+          <h3 className="text-lg font-bold text-foreground mb-6 flex items-center gap-2">
             <CheckCircleIcon className="h-5 w-5 text-emerald-500" />
             Detalle de Usuarios Verificados
           </h3>
@@ -1275,21 +1318,6 @@ interface UserFormModalProps {
   roles: { id: string; code: string; name: string }[];
 }
 
-const ROLE_OPTIONS = [
-  { value: 'super_admin', label: 'Super Admin' },
-  { value: 'administrador', label: 'Administrador' },
-  { value: 'subadmin', label: 'Sub-Administrador' },
-  { value: 'operaciones', label: 'Operaciones' },
-  { value: 'sucursales', label: 'Sucursales' },
-  { value: 'call_center', label: 'Call Center' },
-  { value: 'contabilidad', label: 'Contabilidad' },
-  { value: 'soporte', label: 'Sistemas' },
-  { value: 'almacen', label: 'Almacen' },
-  { value: 'ventas_mostrador', label: 'Ventas Mostrador' },
-  { value: 'distributor', label: 'Distribuidor' },
-  { value: 'customer', label: 'Cliente' },
-];
-
 function UserFormModal({
   isOpen,
   onClose,
@@ -1307,7 +1335,7 @@ function UserFormModal({
   };
 
   const inputClassName =
-    'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent';
+    'w-full rounded-lg border border-input bg-background px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -1315,17 +1343,17 @@ function UserFormModal({
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
 
       {/* Modal Content */}
-      <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-card rounded-2xl shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">
+        <div className="flex items-center justify-between p-6 border-b border-border">
+          <h2 className="text-xl font-bold text-foreground">
             {editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}
           </h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-muted rounded-lg transition-colors"
           >
-            <XMarkIcon className="h-5 w-5 text-gray-500" />
+            <XMarkIcon className="h-5 w-5 text-muted-foreground" />
           </button>
         </div>
 
@@ -1333,7 +1361,7 @@ function UserFormModal({
         <div className="p-6 space-y-4">
           {/* First Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-foreground mb-1">
               Nombre
             </label>
             <input
@@ -1347,7 +1375,7 @@ function UserFormModal({
 
           {/* Last Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-foreground mb-1">
               Apellido
             </label>
             <input
@@ -1361,7 +1389,7 @@ function UserFormModal({
 
           {/* Email */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-foreground mb-1">
               Correo electrónico
             </label>
             <input
@@ -1375,7 +1403,7 @@ function UserFormModal({
 
           {/* Phone */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-foreground mb-1">
               Teléfono
             </label>
             <input
@@ -1390,7 +1418,7 @@ function UserFormModal({
           {/* Password - only for create */}
           {!editingUser && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-foreground mb-1">
                 Contraseña
               </label>
               <input
@@ -1405,7 +1433,7 @@ function UserFormModal({
 
           {/* Role */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-foreground mb-1">
               Rol
             </label>
             <SearchableSelect
@@ -1425,16 +1453,16 @@ function UserFormModal({
               id="isActive"
               checked={formData.isActive ?? true}
               onChange={(e) => handleChange('isActive', e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-[#3E667D] focus:ring-[#3E667D]"
+              className="h-4 w-4 rounded border-input text-primary accent-primary focus:ring-ring"
             />
-            <label htmlFor="isActive" className="text-sm font-medium text-gray-700">
+            <label htmlFor="isActive" className="text-sm font-medium text-foreground">
               Usuario activo
             </label>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-border">
           <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancelar
           </Button>
@@ -1474,31 +1502,31 @@ function DeleteConfirmationModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
-      <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full mx-4">
+      <div className="relative bg-card rounded-2xl shadow-xl max-w-md w-full mx-4">
         {/* Header */}
-        <div className="flex items-center gap-3 p-6 border-b border-red-100 bg-red-50 rounded-t-2xl">
-          <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-            <ExclamationTriangleIcon className="h-5 w-5 text-red-600" />
+        <div className="flex items-center gap-3 rounded-t-2xl border-b border-destructive/20 bg-destructive/10 p-6">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/15">
+            <ExclamationTriangleIcon className="h-5 w-5 text-destructive" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-red-900">Eliminar usuario permanentemente</h2>
-            <p className="text-sm text-red-700">Esta acción no se puede deshacer</p>
+            <h2 className="text-lg font-bold text-destructive">Eliminar usuario permanentemente</h2>
+            <p className="text-sm text-destructive/80">Esta acción no se puede deshacer</p>
           </div>
         </div>
 
         {/* Body */}
         <div className="p-6 space-y-4">
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-foreground">
             Estás a punto de eliminar permanentemente al usuario:
           </p>
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-            <p className="font-semibold text-gray-900">{user.firstName} {user.lastName}</p>
-            <p className="text-sm text-gray-500">{user.email}</p>
-            <p className="text-xs text-gray-400 mt-1">ID: {user.id}</p>
+          <div className="rounded-lg border border-border bg-muted/50 p-3">
+            <p className="font-semibold text-foreground">{user.firstName} {user.lastName}</p>
+            <p className="text-sm text-muted-foreground">{user.email}</p>
+            <p className="text-xs text-muted-foreground mt-1">ID: {user.id}</p>
           </div>
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-foreground">
             Todos sus datos serán eliminados de forma irreversible. Para confirmar, escribe{' '}
-            <span className="font-mono font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">CONFIRMAR</span>{' '}
+            <span className="rounded bg-destructive/10 px-1.5 py-0.5 font-mono font-bold text-destructive">CONFIRMAR</span>{' '}
             en el campo de abajo:
           </p>
           <input
@@ -1506,13 +1534,13 @@ function DeleteConfirmationModal({
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
             placeholder="Escribe CONFIRMAR"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-center font-mono tracking-wider"
+            className="w-full rounded-lg border border-input bg-background px-4 py-2 text-center font-mono tracking-wider text-foreground placeholder:text-muted-foreground focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
             autoFocus
           />
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-border">
           <Button variant="outline" onClick={onCancel} disabled={isDeleting}>
             Cancelar
           </Button>
@@ -1522,7 +1550,7 @@ function DeleteConfirmationModal({
             className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               isConfirmed && !isDeleting
                 ? 'bg-red-600 text-white hover:bg-red-700'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-muted text-muted-foreground cursor-not-allowed'
             }`}
           >
             <TrashIcon className="h-4 w-4" />
@@ -1557,39 +1585,39 @@ function ResetEmailConfirmationModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/50" onClick={onCancel} />
-      <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full mx-4">
+      <div className="relative bg-card rounded-2xl shadow-xl max-w-md w-full mx-4">
         {/* Header */}
-        <div className="flex items-center gap-3 p-6 border-b border-amber-100 bg-amber-50 rounded-t-2xl">
-          <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-            <EnvelopeIcon className="h-5 w-5 text-amber-600" />
+        <div className="flex items-center gap-3 rounded-t-2xl border-b border-amber-500/20 bg-amber-500/10 p-6">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/15">
+            <EnvelopeIcon className="h-5 w-5 text-amber-600 dark:text-amber-400" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-amber-900">Restablecer verificación de email</h2>
-            <p className="text-sm text-amber-700">El usuario deberá vincular un nuevo correo</p>
+            <h2 className="text-lg font-bold text-amber-700 dark:text-amber-300">Restablecer verificación de email</h2>
+            <p className="text-sm text-amber-700/80 dark:text-amber-300/80">El usuario deberá vincular un nuevo correo</p>
           </div>
         </div>
 
         {/* Body */}
         <div className="p-6 space-y-4">
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-foreground">
             Estás a punto de restablecer la verificación de email del usuario:
           </p>
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
-            <p className="font-semibold text-gray-900">{user.firstName} {user.lastName}</p>
-            <p className="text-sm text-gray-500">{user.email || 'Sin email registrado'}</p>
-            <p className="text-xs text-gray-400 mt-1">ID: {user.id}</p>
+          <div className="rounded-lg border border-border bg-muted/50 p-3">
+            <p className="font-semibold text-foreground">{user.firstName} {user.lastName}</p>
+            <p className="text-sm text-muted-foreground">{user.email || 'Sin email registrado'}</p>
+            <p className="text-xs text-muted-foreground mt-1">ID: {user.id}</p>
           </div>
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 p-3 text-sm text-amber-700 dark:text-amber-300">
             <p className="font-medium mb-1">Esto hará lo siguiente:</p>
-            <ul className="list-disc list-inside space-y-1 text-amber-700">
+            <ul className="list-disc list-inside space-y-1 text-amber-700/90 dark:text-amber-300/90">
               <li>Se eliminará el email actual del usuario</li>
               <li>Se borrará el estado de verificación</li>
               <li>El usuario deberá vincular y verificar un nuevo correo</li>
             </ul>
           </div>
-          <p className="text-sm text-gray-700">
+          <p className="text-sm text-foreground">
             Para confirmar, escribe{' '}
-            <span className="font-mono font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">RESTABLECER</span>{' '}
+            <span className="rounded bg-amber-500/10 px-1.5 py-0.5 font-mono font-bold text-amber-600 dark:text-amber-400">RESTABLECER</span>{' '}
             en el campo de abajo:
           </p>
           <input
@@ -1597,13 +1625,13 @@ function ResetEmailConfirmationModal({
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
             placeholder="Escribe RESTABLECER"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent text-center font-mono tracking-wider"
+            className="w-full rounded-lg border border-input bg-background px-4 py-2 text-center font-mono tracking-wider text-foreground placeholder:text-muted-foreground focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500"
             autoFocus
           />
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+        <div className="flex items-center justify-end gap-3 p-6 border-t border-border">
           <Button variant="outline" onClick={onCancel} disabled={isResetting}>
             Cancelar
           </Button>
@@ -1613,7 +1641,7 @@ function ResetEmailConfirmationModal({
             className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               isConfirmed && !isResetting
                 ? 'bg-amber-600 text-white hover:bg-amber-700'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                : 'bg-muted text-muted-foreground cursor-not-allowed'
             }`}
           >
             <EnvelopeIcon className="h-4 w-4" />

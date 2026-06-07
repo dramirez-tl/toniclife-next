@@ -291,6 +291,27 @@ export interface RecentActivity {
   timestamp: string;
 }
 
+/** Periodo de negocio (26→25) al que corresponden los KPIs de pedidos/ingresos. */
+export interface DashboardPeriod {
+  id: string;
+  name: string;
+  startDate: string | null;
+  endDate: string | null;
+  periodNumber: number;
+}
+
+/** Ingresos/pedidos del periodo por país (en la moneda del país). */
+export interface CountryRevenue {
+  countryId: string;
+  code: string;
+  name: string;
+  currencyCode: string | null;
+  revenue: number;
+  orders: number;
+  revenueGrowth: number;
+  ordersGrowth: number;
+}
+
 export interface DashboardKPIs {
   totalUsers: number;
   usersGrowth: number;
@@ -303,6 +324,13 @@ export interface DashboardKPIs {
   recentOrders: RecentOrder[];
   topProducts: TopProduct[];
   recentActivity: RecentActivity[];
+  /** Periodo (26→25) de los KPIs de pedidos/ingresos. Null si no hay periodos. */
+  period: DashboardPeriod | null;
+  /** Para navegar entre periodos (o null si no hay). */
+  prevPeriodId: string | null;
+  nextPeriodId: string | null;
+  /** Ingresos/pedidos del periodo por país (dados de alta), México primero. */
+  revenueByCountry: CountryRevenue[];
 }
 
 // ================================

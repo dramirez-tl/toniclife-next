@@ -31,6 +31,14 @@ export interface PromotionRule {
   countryName?: string;
   /** Puntos personales acumulados del periodo requeridos para canjear. */
   minPointsRequired: string;
+  /** Días de vigencia del derecho desde que el distribuidor lo gana (default 90). */
+  validityDays: number;
+  /** 'per_period' = recurrente cada periodo (se acumulan); 'one_time' = una vez. */
+  recurrence: 'per_period' | 'one_time';
+  /** Fecha (YYYY-MM-DD) desde la que se puede ganar; null = sin límite. */
+  availableFrom?: string | null;
+  /** Fecha (YYYY-MM-DD) hasta la que se puede ganar; null = sin límite. */
+  availableTo?: string | null;
   /** Si TRUE, al canjear se descuentan los puntos del periodo del distribuidor. */
   consumesPoints: boolean;
   isActive: boolean;
@@ -41,6 +49,11 @@ export interface PromotionRule {
 export interface UpsertPromotionRuleDto {
   countryId: string;
   minPointsRequired: number;
+  /** Días de vigencia del derecho (default 90 ≈ 3 meses). */
+  validityDays?: number;
+  recurrence?: 'per_period' | 'one_time';
+  availableFrom?: string | null;
+  availableTo?: string | null;
   consumesPoints?: boolean;
   isActive?: boolean;
 }
@@ -71,6 +84,10 @@ export interface AvailablePromotionForCustomer {
   minPointsRequired: number;
   currentPoints: number;
   consumesPoints: boolean;
+  /** Cuántos derechos activos no vencidos tiene de esta promo (≥1). */
+  availableCount?: number;
+  /** Fecha de vencimiento del próximo derecho a vencer (ISO). */
+  expiresAt?: string;
 }
 
 // ================================

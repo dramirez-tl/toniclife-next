@@ -18,11 +18,12 @@ import type {
 // DASHBOARD
 // ================================
 
-export function useDashboardKPIs() {
+export function useDashboardKPIs(periodId?: string) {
   return useQuery({
-    queryKey: ['dashboard', 'kpis'],
-    queryFn: () => reportsService.getDashboardKPIs(),
+    queryKey: ['dashboard', 'kpis', periodId ?? 'current'],
+    queryFn: () => reportsService.getDashboardKPIs(periodId),
     staleTime: 1000 * 60 * 5, // 5 minutes
+    placeholderData: (prev) => prev, // mantiene datos al cambiar de periodo
   });
 }
 
