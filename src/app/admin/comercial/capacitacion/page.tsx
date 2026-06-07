@@ -4,6 +4,10 @@ import { useState, Suspense } from 'react';
 import Image from 'next/image';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { FileUpload } from '@/components/ui/FileUpload';
 import { useCourses, useCreateCourse, useUpdateCourse, useUploadCourseImage, useDeleteCourse } from '@/hooks/useCourses';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
@@ -169,19 +173,19 @@ function CourseModal({
           <h2 className="text-lg font-semibold text-gray-900">
             {course ? 'Editar Curso' : 'Nuevo Curso'}
           </h2>
-          <button type="button" onClick={handleClose} className="text-gray-400 hover:text-gray-600">
+          <Button type="button" variant="ghost" size="icon" onClick={handleClose} className="text-gray-400 hover:text-gray-600">
             <XMarkIcon className="h-5 w-5" />
-          </button>
+          </Button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Título *</label>
-            <input
+            <Input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#3E667D] focus:ring-1 focus:ring-[#3E667D] outline-none"
+              className="w-full"
               placeholder="Ej: Liderazgo, abundancia y prosperidad"
             />
           </div>
@@ -200,51 +204,66 @@ function CourseModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:border-[#3E667D] outline-none">
-                <option value="liderazgo">Liderazgo</option>
-                <option value="ventas">Ventas</option>
-                <option value="marketing">Marketing</option>
-                <option value="productos">Productos</option>
-                <option value="fundamentos">Fundamentos</option>
-              </select>
+              <Select value={category} onValueChange={(v) => setCategory(v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="liderazgo">Liderazgo</SelectItem>
+                  <SelectItem value="ventas">Ventas</SelectItem>
+                  <SelectItem value="marketing">Marketing</SelectItem>
+                  <SelectItem value="productos">Productos</SelectItem>
+                  <SelectItem value="fundamentos">Fundamentos</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nivel</label>
-              <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:border-[#3E667D] outline-none">
-                <option value="principiante">Principiante</option>
-                <option value="intermedio">Intermedio</option>
-                <option value="avanzado">Avanzado</option>
-              </select>
+              <Select value={difficulty} onValueChange={(v) => setDifficulty(v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Nivel" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="principiante">Principiante</SelectItem>
+                  <SelectItem value="intermedio">Intermedio</SelectItem>
+                  <SelectItem value="avanzado">Avanzado</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Instructor</label>
-              <input type="text" value={instructorName} onChange={(e) => setInstructorName(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#3E667D] focus:ring-1 focus:ring-[#3E667D] outline-none" placeholder="Nombre del instructor" />
+              <Input type="text" value={instructorName} onChange={(e) => setInstructorName(e.target.value)} className="w-full" placeholder="Nombre del instructor" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-              <select value={status} onChange={(e) => setStatus(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:border-[#3E667D] outline-none">
-                <option value="draft">Borrador</option>
-                <option value="published">Publicado</option>
-                <option value="archived">Archivado</option>
-              </select>
+              <Select value={status} onValueChange={(v) => setStatus(v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Borrador</SelectItem>
+                  <SelectItem value="published">Publicado</SelectItem>
+                  <SelectItem value="archived">Archivado</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Duración (horas)</label>
-              <input type="number" step="0.5" min="0" value={durationHours} onChange={(e) => setDurationHours(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#3E667D] outline-none" />
+              <Input type="number" step="0.5" min="0" value={durationHours} onChange={(e) => setDurationHours(e.target.value)} className="w-full" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Lecciones</label>
-              <input type="number" min="0" value={lessonCount} onChange={(e) => setLessonCount(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#3E667D] outline-none" />
+              <Input type="number" min="0" value={lessonCount} onChange={(e) => setLessonCount(e.target.value)} className="w-full" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Orden</label>
-              <input type="number" min="0" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#3E667D] outline-none" />
+              <Input type="number" min="0" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="w-full" />
             </div>
           </div>
 
@@ -252,28 +271,30 @@ function CourseModal({
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Acceso al curso</label>
             <div className="grid grid-cols-2 gap-2">
-              <button
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => setAccessType('public')}
-                className={`rounded-lg border px-3 py-2 text-left transition-colors ${accessType === 'public' ? 'border-[#3E667D] bg-[#3E667D]/5 ring-1 ring-[#3E667D]/20' : 'border-gray-300 bg-white hover:border-gray-400'}`}
+                className={`h-auto flex-col items-start gap-0 px-3 py-2 text-left ${accessType === 'public' ? 'border-[#3E667D] bg-[#3E667D]/5 ring-1 ring-[#3E667D]/20' : 'hover:border-gray-400'}`}
               >
                 <div className="flex items-center gap-2">
                   <GlobeAltIcon className="h-4 w-4 text-[#3E667D]" />
                   <span className="text-xs font-semibold text-gray-900">Público</span>
                 </div>
                 <p className="text-[10px] text-gray-500 mt-0.5">Todos los distribuidores</p>
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => setAccessType('restricted')}
-                className={`rounded-lg border px-3 py-2 text-left transition-colors ${accessType === 'restricted' ? 'border-[#3E667D] bg-[#3E667D]/5 ring-1 ring-[#3E667D]/20' : 'border-gray-300 bg-white hover:border-gray-400'}`}
+                className={`h-auto flex-col items-start gap-0 px-3 py-2 text-left ${accessType === 'restricted' ? 'border-[#3E667D] bg-[#3E667D]/5 ring-1 ring-[#3E667D]/20' : 'hover:border-gray-400'}`}
               >
                 <div className="flex items-center gap-2">
                   <LockClosedIcon className="h-4 w-4 text-[#3E667D]" />
                   <span className="text-xs font-semibold text-gray-900">Restringido</span>
                 </div>
                 <p className="text-[10px] text-gray-500 mt-0.5">Solo customers inscritos</p>
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -290,12 +311,12 @@ function CourseModal({
           </div>
 
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={handleClose} className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
               Cancelar
-            </button>
-            <button type="submit" disabled={isPending} className="flex-1 rounded-lg bg-[#3E667D] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#2f5165] disabled:opacity-50 transition-colors">
+            </Button>
+            <Button type="submit" disabled={isPending} className="flex-1">
               {isPending ? 'Guardando...' : course ? 'Guardar Cambios' : 'Crear Curso'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -388,34 +409,35 @@ function CapacitacionContent() {
             </div>
           </div>
 
-          <button
+          <Button
+            variant="ghost"
             onClick={() => { setEditingCourse(null); setIsModalOpen(true); }}
-            className="inline-flex items-center gap-2 rounded-lg bg-white/15 backdrop-blur-sm border border-white/20 px-4 py-2.5 text-sm font-medium text-white hover:bg-white/25 transition-all self-start lg:self-auto flex-shrink-0"
+            className="bg-white/15 backdrop-blur-sm border border-white/20 text-white hover:bg-white/25 hover:text-white self-start lg:self-auto flex-shrink-0"
           >
             <PlusIcon className="h-4 w-4" />
             Nuevo Curso
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <button type="button" onClick={() => setParams({ status: null, page: '1' })} className={`rounded-xl border p-4 text-left transition-colors ${!statusFilter ? 'border-[#3E667D]/40 bg-[#3E667D]/5 ring-1 ring-[#3E667D]/20' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
+        <Button type="button" variant="ghost" onClick={() => setParams({ status: null, page: '1' })} className={`h-auto flex-col items-start gap-0 rounded-xl border p-4 text-left ${!statusFilter ? 'border-[#3E667D]/40 bg-[#3E667D]/5 ring-1 ring-[#3E667D]/20' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
           <p className="text-xs text-gray-500">Total Cursos</p>
           <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-        </button>
-        <button type="button" onClick={() => setParams({ status: 'published', page: '1' })} className={`rounded-xl border p-4 text-left transition-colors ${statusFilter === 'published' ? 'border-emerald-300 bg-emerald-50 ring-1 ring-emerald-200' : 'border-gray-200 bg-white hover:border-emerald-200'}`}>
+        </Button>
+        <Button type="button" variant="ghost" onClick={() => setParams({ status: 'published', page: '1' })} className={`h-auto flex-col items-start gap-0 rounded-xl border p-4 text-left ${statusFilter === 'published' ? 'border-emerald-300 bg-emerald-50 ring-1 ring-emerald-200' : 'border-gray-200 bg-white hover:border-emerald-200'}`}>
           <p className="text-xs text-emerald-600 font-medium">Publicados</p>
           <p className="text-2xl font-bold text-emerald-700">{stats.published}</p>
-        </button>
-        <button type="button" onClick={() => setParams({ status: 'draft', page: '1' })} className={`rounded-xl border p-4 text-left transition-colors ${statusFilter === 'draft' ? 'border-amber-300 bg-amber-50 ring-1 ring-amber-200' : 'border-gray-200 bg-white hover:border-amber-200'}`}>
+        </Button>
+        <Button type="button" variant="ghost" onClick={() => setParams({ status: 'draft', page: '1' })} className={`h-auto flex-col items-start gap-0 rounded-xl border p-4 text-left ${statusFilter === 'draft' ? 'border-amber-300 bg-amber-50 ring-1 ring-amber-200' : 'border-gray-200 bg-white hover:border-amber-200'}`}>
           <p className="text-xs text-amber-600 font-medium">Borrador</p>
           <p className="text-2xl font-bold text-amber-700">{stats.draft}</p>
-        </button>
-        <button type="button" onClick={() => setParams({ status: 'archived', page: '1' })} className={`rounded-xl border p-4 text-left transition-colors ${statusFilter === 'archived' ? 'border-gray-400 bg-gray-50 ring-1 ring-gray-300' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
+        </Button>
+        <Button type="button" variant="ghost" onClick={() => setParams({ status: 'archived', page: '1' })} className={`h-auto flex-col items-start gap-0 rounded-xl border p-4 text-left ${statusFilter === 'archived' ? 'border-gray-400 bg-gray-50 ring-1 ring-gray-300' : 'border-gray-200 bg-white hover:border-gray-300'}`}>
           <p className="text-xs text-gray-500 font-medium">Archivados</p>
           <p className="text-2xl font-bold text-gray-600">{stats.archived}</p>
-        </button>
+        </Button>
       </div>
 
       {/* Filters */}
@@ -424,31 +446,30 @@ function CapacitacionContent() {
           <div className="flex flex-col sm:flex-row gap-3 items-end">
             <form onSubmit={handleSearch} className="flex-1 flex gap-2">
               <div className="relative flex-1">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
+                <Input
                   type="text"
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   placeholder="Buscar por título o instructor..."
-                  className="w-full rounded-lg border border-gray-300 pl-9 pr-3 py-2 text-sm focus:border-[#3E667D] focus:ring-1 focus:ring-[#3E667D] outline-none"
+                  className="w-full pl-9"
                 />
               </div>
-              <button type="submit" className="rounded-lg bg-[#3E667D] px-4 py-2 text-sm font-medium text-white hover:bg-[#2f5165] transition-colors">
+              <Button type="submit">
                 Buscar
-              </button>
+              </Button>
             </form>
             <div className="flex gap-2">
-              <select
+              <SearchableSelect
+                options={Object.entries(categoryLabels).map(([k, v]) => ({ value: k, label: v }))}
                 value={categoryFilter || ''}
-                onChange={(e) => setParams({ category: e.target.value || null, page: '1' })}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:border-[#3E667D] outline-none"
-              >
-                <option value="">Todas las categorías</option>
-                {Object.entries(categoryLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-              </select>
-              <button type="button" onClick={() => refetch()} className="rounded-lg border border-gray-300 px-3 py-2 text-gray-600 hover:bg-gray-50">
+                onChange={(val) => setParams({ category: val || null, page: '1' })}
+                showAllOption
+                allLabel="Todas las categorías"
+              />
+              <Button type="button" variant="outline" size="icon" onClick={() => refetch()} className="text-gray-600">
                 <ArrowPathIcon className="h-4 w-4" />
-              </button>
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -472,13 +493,10 @@ function CapacitacionContent() {
           <AcademicCapIcon className="mx-auto h-12 w-12 text-gray-300 mb-3" />
           <h3 className="text-lg font-semibold text-gray-900 mb-1">No hay cursos</h3>
           <p className="text-sm text-gray-500 mb-4">Crea tu primer curso para la academia de distribuidores.</p>
-          <button
-            onClick={() => { setEditingCourse(null); setIsModalOpen(true); }}
-            className="inline-flex items-center gap-2 rounded-lg bg-[#3E667D] px-4 py-2 text-sm font-medium text-white hover:bg-[#2f5165]"
-          >
+          <Button onClick={() => { setEditingCourse(null); setIsModalOpen(true); }}>
             <PlusIcon className="h-4 w-4" />
             Nuevo Curso
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -541,30 +559,34 @@ function CapacitacionContent() {
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 flex-wrap">
-                    <button
+                    <Button
                       type="button"
+                      size="sm"
                       onClick={(e) => { e.stopPropagation(); setContentCourse(course); }}
-                      className="inline-flex items-center gap-1 rounded-lg bg-[#3E667D] px-2.5 py-1.5 text-xs font-medium text-white hover:bg-[#2f5165] transition-colors"
                     >
                       <VideoCameraIcon className="h-3 w-3" />
                       Editar Contenido
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      variant="outline"
+                      size="sm"
                       onClick={(e) => { e.stopPropagation(); setEditingCourse(course); setIsModalOpen(true); }}
-                      className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
+                      className="text-gray-600"
                     >
                       <PencilIcon className="h-3 w-3" />
                       Editar
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
+                      variant="outline"
+                      size="sm"
                       onClick={(e) => { e.stopPropagation(); setDeleteTarget(course); }}
-                      className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs text-red-600 hover:bg-red-50 transition-colors"
+                      className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-600"
                     >
                       <TrashIcon className="h-3 w-3" />
                       Eliminar
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -603,13 +625,15 @@ function CapacitacionContent() {
                   alt={detailCourse.title}
                   className="w-full max-h-[400px] object-contain bg-gray-100 rounded-t-2xl"
                 />
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setDetailCourse(null)}
-                  className="absolute top-3 right-3 rounded-full bg-black/40 p-1.5 text-white hover:bg-black/60 transition-colors"
+                  className="absolute top-3 right-3 rounded-full bg-black/40 text-white hover:bg-black/60 hover:text-white"
                 >
                   <XMarkIcon className="h-5 w-5" />
-                </button>
+                </Button>
                 {/* Status badge overlay */}
                 <div className="absolute top-3 left-3">
                   {(() => {
@@ -628,9 +652,9 @@ function CapacitacionContent() {
             {!detailCourse.imageUrl && (
               <div className="flex items-center justify-between px-6 pt-5">
                 <div />
-                <button type="button" onClick={() => setDetailCourse(null)} className="text-gray-400 hover:text-gray-600">
+                <Button type="button" variant="ghost" size="icon" onClick={() => setDetailCourse(null)} className="text-gray-400 hover:text-gray-600">
                   <XMarkIcon className="h-5 w-5" />
-                </button>
+                </Button>
               </div>
             )}
 
@@ -681,22 +705,23 @@ function CapacitacionContent() {
 
               {/* Actions */}
               <div className="flex gap-3">
-                <button
+                <Button
                   type="button"
                   onClick={() => { setDetailCourse(null); setEditingCourse(detailCourse); setIsModalOpen(true); }}
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-[#3E667D] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#2f5165] transition-colors"
+                  className="flex-1"
                 >
                   <PencilIcon className="h-4 w-4" />
                   Editar Curso
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={() => { setDetailCourse(null); setDeleteTarget(detailCourse); }}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+                  className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-600"
                 >
                   <TrashIcon className="h-4 w-4" />
                   Eliminar
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -712,12 +737,12 @@ function CapacitacionContent() {
               ¿Estás seguro de eliminar <strong>{deleteTarget.title}</strong>? Esta acción no se puede deshacer.
             </p>
             <div className="flex gap-3">
-              <button onClick={() => setDeleteTarget(null)} className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+              <Button variant="outline" onClick={() => setDeleteTarget(null)} className="flex-1">
                 Cancelar
-              </button>
-              <button onClick={handleDelete} disabled={deleteMutation.isPending} className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">
+              </Button>
+              <Button variant="destructive" onClick={handleDelete} disabled={deleteMutation.isPending} className="flex-1">
                 {deleteMutation.isPending ? 'Eliminando...' : 'Eliminar'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

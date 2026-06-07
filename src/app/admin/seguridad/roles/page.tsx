@@ -17,6 +17,8 @@ import { toast } from 'sonner';
 import { confirmAction } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { PermissionGuard } from '@/components/auth';
@@ -139,9 +141,9 @@ function RoleFormModal({
               </p>
             )}
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <Button variant="ghost" size="icon" onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <XMarkIcon className="h-5 w-5" />
-          </button>
+          </Button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
@@ -154,11 +156,11 @@ function RoleFormModal({
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Codigo <span className="text-red-500">*</span>
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={formData.code}
                     onChange={(e) => handleCodeChange(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent font-mono text-sm"
+                    className="font-mono"
                     placeholder="ventas_regional"
                     required
                   />
@@ -169,11 +171,10 @@ function RoleFormModal({
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Nombre <span className="text-red-500">*</span>
                 </label>
-                <input
+                <Input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   placeholder="Ventas Regional"
                   required
                 />
@@ -197,34 +198,35 @@ function RoleFormModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Modulo por defecto</label>
-                <select
+                <SearchableSelect
                   value={formData.defaultModule || ''}
-                  onChange={(e) => setFormData({ ...formData, defaultModule: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent bg-white"
-                >
-                  {MODULE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                  ))}
-                </select>
+                  onChange={(v) => setFormData({ ...formData, defaultModule: v })}
+                  options={MODULE_OPTIONS.filter((opt) => opt.value !== '')}
+                  showAllOption
+                  allValue=""
+                  allLabel="Ninguno (Panel principal)"
+                  className="w-full"
+                />
                 <p className="text-[11px] text-gray-400 mt-1">Pantalla que se muestra al iniciar sesion</p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
                 {isEditing ? (
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
                     onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
-                    className={`w-full flex items-center justify-between px-3 py-2 border rounded-lg transition-colors ${
+                    className={`w-full justify-between ${
                       formData.isActive
-                        ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
-                        : 'border-red-300 bg-red-50 text-red-700'
+                        ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-700'
+                        : 'border-red-300 bg-red-50 text-red-700 hover:bg-red-50 hover:text-red-700'
                     }`}
                   >
                     <span className="text-sm font-medium">{formData.isActive ? 'Activo' : 'Inactivo'}</span>
                     <div className={`w-8 h-4 rounded-full relative transition-colors ${formData.isActive ? 'bg-emerald-400' : 'bg-red-400'}`}>
                       <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${formData.isActive ? 'right-0.5' : 'left-0.5'}`} />
                     </div>
-                  </button>
+                  </Button>
                 ) : (
                   <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-500">
                     Activo por defecto
@@ -267,20 +269,22 @@ function RoleFormModal({
 
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-2 border-t">
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
             >
               Cancelar
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
+              variant="default"
+              size="sm"
               disabled={isPending}
-              className="px-5 py-2 text-sm text-white bg-[#3E667D] rounded-lg hover:bg-[#2f5165] disabled:opacity-50 font-medium"
             >
               {isPending ? 'Guardando...' : isEditing ? 'Guardar Cambios' : 'Crear Rol'}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -391,20 +395,20 @@ function PermissionsModal({
               {selectedIds.size} permisos seleccionados
             </p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <Button variant="ghost" size="icon" onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <XMarkIcon className="h-5 w-5" />
-          </button>
+          </Button>
         </div>
 
         <div className="px-6 pt-4 shrink-0">
           <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
+            <Input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar modulo o permiso..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
+              className="pl-10"
             />
           </div>
         </div>
@@ -424,9 +428,10 @@ function PermissionsModal({
                 <div key={mod} className="border border-gray-200 rounded-xl overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-3 bg-gray-50">
                     <div className="flex items-center gap-3">
-                      <button
+                      <Button
+                        variant="ghost"
                         onClick={() => toggleModule(mod, !fullySelected)}
-                        className={`h-5 w-5 rounded border-2 flex items-center justify-center transition-colors ${
+                        className={`h-5 w-5 p-0 rounded border-2 hover:bg-transparent ${
                           fullySelected
                             ? 'bg-[#3E667D] border-[#3E667D] text-white'
                             : partiallySelected
@@ -437,26 +442,30 @@ function PermissionsModal({
                         {(fullySelected || partiallySelected) && (
                           <CheckIcon className="h-3 w-3" />
                         )}
-                      </button>
+                      </Button>
                       <span className="font-medium text-gray-900 capitalize">{mod}</span>
                       <span className="text-xs text-gray-500">
                         ({perms.filter((p) => selectedIds.has(p.id)).length}/{perms.length})
                       </span>
                     </div>
                     <div className="flex gap-2">
-                      <button
+                      <Button
+                        variant="link"
+                        size="sm"
                         onClick={() => toggleModule(mod, true)}
-                        className="text-xs text-[#3E667D] hover:underline"
+                        className="h-auto p-0 text-xs text-[#3E667D]"
                       >
                         Todos
-                      </button>
+                      </Button>
                       <span className="text-gray-300">|</span>
-                      <button
+                      <Button
+                        variant="link"
+                        size="sm"
                         onClick={() => toggleModule(mod, false)}
-                        className="text-xs text-gray-500 hover:underline"
+                        className="h-auto p-0 text-xs text-gray-500"
                       >
                         Ninguno
-                      </button>
+                      </Button>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1 p-3">
@@ -487,19 +496,21 @@ function PermissionsModal({
         </div>
 
         <div className="flex justify-end gap-3 p-6 border-t shrink-0">
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
           >
             Cancelar
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
             onClick={handleSave}
             disabled={updateMutation.isPending}
-            className="px-4 py-2 text-sm text-white bg-[#3E667D] rounded-lg hover:bg-[#3E667D]/90 disabled:opacity-50"
           >
             {updateMutation.isPending ? 'Guardando...' : 'Guardar Permisos'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -665,29 +676,35 @@ function RolesContent() {
       header: 'Acciones',
       render: (role) => (
         <div className="flex items-center justify-end gap-0.5">
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={() => { setPermissionsRoleId(role.id); setPermissionsRoleName(role.name); }}
             title="Gestionar permisos"
-            className="p-1.5 text-gray-400 hover:text-[#3E667D] hover:bg-[#3E667D]/5 rounded-lg transition-colors"
+            className="text-gray-400 hover:text-[#3E667D] hover:bg-[#3E667D]/5"
           >
             <KeyIcon className="h-4 w-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={() => setEditingRole(role)}
             title="Editar rol"
             disabled={role.isSystemRole}
-            className="p-1.5 text-gray-400 hover:text-[#3E667D] hover:bg-[#3E667D]/5 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="text-gray-400 hover:text-[#3E667D] hover:bg-[#3E667D]/5 disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <PencilSquareIcon className="h-4 w-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={() => handleDelete(role)}
             title="Eliminar rol"
             disabled={role.isSystemRole || role.userCount > 0}
-            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <TrashIcon className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       ),
     },
@@ -712,13 +729,14 @@ function RolesContent() {
                 Gestiona los roles del sistema y sus permisos de acceso
               </p>
             </div>
-            <button
+            <Button
+              variant="ghost"
               onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center gap-2 rounded-lg bg-white/15 backdrop-blur-sm border border-white/20 px-4 py-2.5 text-sm font-medium text-white hover:bg-white/25 transition-all"
+              className="bg-white/15 backdrop-blur-sm border border-white/20 text-white hover:bg-white/25 hover:text-white"
             >
               <PlusIcon className="h-4 w-4" />
               Nuevo Rol
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -746,13 +764,13 @@ function RolesContent() {
               <div className="flex flex-col sm:flex-row gap-3 items-end">
                 <form onSubmit={handleSearch} className="flex-1 flex gap-2">
                   <div className="relative flex-1">
-                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <input
+                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
+                    <Input
                       type="text"
                       value={searchInput}
                       onChange={(e) => setSearchInput(e.target.value)}
                       placeholder="Buscar por nombre, código o descripción..."
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D] text-sm outline-none"
+                      className="pl-10"
                     />
                   </div>
                   <Button type="submit" variant="default" size="sm">Buscar</Button>
@@ -763,14 +781,15 @@ function RolesContent() {
                       Limpiar filtros
                     </Button>
                   )}
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="icon"
                     onClick={() => refetch()}
-                    className="rounded-lg border border-gray-300 px-3 py-2 text-gray-600 hover:bg-gray-50 transition-colors"
                     title="Actualizar"
                   >
                     <ArrowPathIcon className="h-4 w-4" />
-                  </button>
+                  </Button>
                 </div>
               </div>
               {hasActiveFilters && (

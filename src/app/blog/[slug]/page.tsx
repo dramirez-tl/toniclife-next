@@ -20,6 +20,7 @@ import {
   BookmarkIcon as BookmarkSolidIcon,
 } from '@heroicons/react/24/solid';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 
 interface RelatedPost {
   id: string;
@@ -297,9 +298,10 @@ export default function BlogArticlePage({ params }: { params: { slug: string } }
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <button
+                  <Button
+                    variant="ghost"
                     onClick={handleLike}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="h-auto py-2"
                   >
                     {isLiked ? (
                       <HeartSolidIcon className="h-6 w-6 text-red-500" />
@@ -307,23 +309,25 @@ export default function BlogArticlePage({ params }: { params: { slug: string } }
                       <HeartIcon className="h-6 w-6 text-gray-600" />
                     )}
                     <span className="font-medium text-gray-900">{likes}</span>
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={handleSave}
-                    className="p-2 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     {isSaved ? (
                       <BookmarkSolidIcon className="h-6 w-6 text-[#3E667D]" />
                     ) : (
                       <BookmarkIcon className="h-6 w-6 text-gray-600" />
                     )}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={handleShare}
-                    className="p-2 rounded-lg hover:bg-gray-50 transition-colors"
                   >
                     <ShareIcon className="h-6 w-6 text-gray-600" />
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -401,12 +405,13 @@ export default function BlogArticlePage({ params }: { params: { slug: string } }
                 <h3 className="text-xl font-bold text-gray-900">
                   Comentarios ({comments.length})
                 </h3>
-                <button
+                <Button
+                  variant="link"
                   onClick={() => setShowComments(!showComments)}
-                  className="text-[#3E667D] hover:text-[#002855] font-medium"
+                  className="h-auto p-0 text-[#3E667D] hover:text-[#002855] font-medium no-underline hover:no-underline"
                 >
                   {showComments ? 'Ocultar' : 'Mostrar'}
-                </button>
+                </Button>
               </div>
 
               {showComments && (
@@ -419,9 +424,9 @@ export default function BlogArticlePage({ params }: { params: { slug: string } }
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D] resize-none"
                     />
                     <div className="flex justify-end mt-3">
-                      <button className="px-6 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#002855] transition-colors">
+                      <Button variant="default" className="bg-[#3E667D] hover:bg-[#002855]">
                         Publicar Comentario
-                      </button>
+                      </Button>
                     </div>
                   </div>
 
@@ -444,13 +449,13 @@ export default function BlogArticlePage({ params }: { params: { slug: string } }
                             <p className="text-gray-700 mb-2">{comment.content}</p>
                             <div className="flex items-center gap-4 text-sm text-gray-600">
                               <span>{new Date(comment.date).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' })}</span>
-                              <button className="flex items-center gap-1 hover:text-red-600 transition-colors">
+                              <Button variant="ghost" size="sm" className="h-auto gap-1 p-0 hover:bg-transparent hover:text-red-600">
                                 <HeartIcon className="h-4 w-4" />
                                 <span>{comment.likes}</span>
-                              </button>
-                              <button className="hover:text-[#3E667D] transition-colors">
+                              </Button>
+                              <Button variant="ghost" size="sm" className="h-auto p-0 hover:bg-transparent hover:text-[#3E667D]">
                                 Responder
-                              </button>
+                              </Button>
                             </div>
                           </div>
                         </div>

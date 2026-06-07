@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { useSelector } from 'react-redux';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useProduct, useUpdateProduct, useCategories } from '@/hooks/useProducts';
 import type { UpdateProductDto } from '@/types/product';
 import { ProductType, KitType } from '@/types/product';
@@ -322,12 +323,13 @@ export default function EditarProductoAdminPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => router.back()}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
-              </button>
+              </Button>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">Editar Producto</h1>
                 <p className="text-gray-600">{product?.name}</p>
@@ -340,13 +342,13 @@ export default function EditarProductoAdminPage() {
               >
                 Cancelar
               </Link>
-              <button
+              <Button
+                variant="default"
                 onClick={handleSubmit}
                 disabled={updateProduct.isPending}
-                className="px-6 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#002855] transition-colors disabled:opacity-50"
               >
                 {updateProduct.isPending ? 'Guardando...' : 'Guardar Cambios'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -359,9 +361,10 @@ export default function EditarProductoAdminPage() {
           {(['general', 'precios', 'inventario'] as const).map((tab) => {
             const labels = { general: 'General', precios: 'Precios y Fiscal', inventario: 'Inventario' };
             return (
-              <button
+              <Button
                 key={tab}
                 type="button"
+                variant="ghost"
                 onClick={() => setActiveTab(tab)}
                 className={`px-5 py-2.5 text-sm font-medium rounded-t-lg transition-colors -mb-px ${
                   activeTab === tab
@@ -370,7 +373,7 @@ export default function EditarProductoAdminPage() {
                 }`}
               >
                 {labels[tab]}
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -387,37 +390,34 @@ export default function EditarProductoAdminPage() {
                     <div className="space-y-4">
                       <div>
                         <label className={labelClass}>Nombre del Producto *</label>
-                        <input
+                        <Input
                           type="text"
                           name="name"
                           required
                           value={formData.name}
                           onChange={handleChange}
-                          className={inputClass}
                           placeholder="Ej: Proteina Vegana Chocolate"
                         />
                       </div>
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <label className={labelClass}>Codigo *</label>
-                          <input
+                          <Input
                             type="text"
                             name="code"
                             required
                             value={formData.code}
                             onChange={handleChange}
-                            className={inputClass}
                             placeholder="TL-PROT-001"
                           />
                         </div>
                         <div>
                           <label className={labelClass}>Slug (URL)</label>
-                          <input
+                          <Input
                             type="text"
                             name="slug"
                             value={formData.slug}
                             onChange={handleChange}
-                            className={inputClass}
                             placeholder="proteina-vegana-chocolate"
                           />
                         </div>
@@ -526,12 +526,11 @@ export default function EditarProductoAdminPage() {
                       </div>
                       <div>
                         <label className={labelClass}>Formato de Uso</label>
-                        <input
+                        <Input
                           type="text"
                           name="usageFormat"
                           value={formData.usageFormat}
                           onChange={handleChange}
-                          className={inputClass}
                           placeholder="Ej: Capsulas, Polvo, Liquido"
                         />
                       </div>
@@ -566,33 +565,36 @@ export default function EditarProductoAdminPage() {
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-lg font-bold text-gray-900">Beneficios de Salud</h2>
-                      <button
+                      <Button
                         type="button"
+                        variant="default"
+                        size="sm"
                         onClick={addHealthBenefit}
-                        className="flex items-center gap-2 px-3 py-1 text-sm bg-[#3E667D] text-white rounded-lg hover:bg-[#2f5165]"
                       >
                         <PlusIcon className="h-4 w-4" />
                         Agregar
-                      </button>
+                      </Button>
                     </div>
                     <div className="space-y-3">
                       {healthBenefits.map((benefit, index) => (
                         <div key={index} className="flex gap-2">
-                          <input
+                          <Input
                             type="text"
                             value={benefit}
                             onChange={(e) => updateHealthBenefit(index, e.target.value)}
-                            className={`flex-1 ${inputClass}`}
+                            className="flex-1"
                             placeholder="Ej: Aumenta masa muscular magra"
                           />
                           {healthBenefits.length > 1 && (
-                            <button
+                            <Button
                               type="button"
+                              variant="ghost"
+                              size="icon"
                               onClick={() => removeHealthBenefit(index)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                              className="text-red-600 hover:bg-red-50 hover:text-red-600"
                             >
                               <XMarkIcon className="h-5 w-5" />
-                            </button>
+                            </Button>
                           )}
                         </div>
                       ))}
@@ -607,12 +609,11 @@ export default function EditarProductoAdminPage() {
                     <div className="space-y-4">
                       <div>
                         <label className={labelClass}>Meta Titulo</label>
-                        <input
+                        <Input
                           type="text"
                           name="metaTitle"
                           value={formData.metaTitle}
                           onChange={handleChange}
-                          className={inputClass}
                           placeholder="Max. 60 caracteres"
                         />
                       </div>
@@ -661,7 +662,7 @@ export default function EditarProductoAdminPage() {
                       </div>
                       <div>
                         <label className={labelClass}>Orden de Aparicion</label>
-                        <input type="number" name="sortOrder" value={formData.sortOrder} onChange={handleChange} className={inputClass} placeholder="0" />
+                        <Input type="number" name="sortOrder" value={formData.sortOrder} onChange={handleChange} placeholder="0" />
                       </div>
                     </div>
                   </CardContent>
@@ -674,16 +675,16 @@ export default function EditarProductoAdminPage() {
                     <div className="space-y-4">
                       <div>
                         <label className={labelClass}>URL de Imagen Principal</label>
-                        <input type="url" name="imageUrl" value={formData.imageUrl} onChange={handleChange} className={inputClass} placeholder="https://..." />
+                        <Input type="url" name="imageUrl" value={formData.imageUrl} onChange={handleChange} placeholder="https://..." />
                       </div>
                       <div>
                         <label className={labelClass}>URL de Video</label>
-                        <input type="url" name="videoUrl" value={formData.videoUrl} onChange={handleChange} className={inputClass} placeholder="https://..." />
+                        <Input type="url" name="videoUrl" value={formData.videoUrl} onChange={handleChange} placeholder="https://..." />
                       </div>
                       <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                         <PhotoIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
                         <p className="text-sm text-gray-600 mb-2">Arrastra imagenes aqui o</p>
-                        <button type="button" className="text-sm text-[#3E667D] font-medium hover:underline">Seleccionar archivos</button>
+                        <Button type="button" variant="link" className="h-auto p-0">Seleccionar archivos</Button>
                         <p className="text-xs text-gray-500 mt-2">PNG, JPG hasta 5MB</p>
                       </div>
                     </div>
@@ -726,11 +727,11 @@ export default function EditarProductoAdminPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className={labelClass}>Puntos Personales</label>
-                      <input type="number" name="pointsValue" step="0.01" value={formData.pointsValue} onChange={handleChange} className={inputClass} placeholder="0.00" />
+                      <Input type="number" name="pointsValue" step="0.01" value={formData.pointsValue} onChange={handleChange} placeholder="0.00" />
                     </div>
                     <div>
                       <label className={labelClass}>Volumen de Negocio</label>
-                      <input type="number" name="businessVolume" step="0.01" value={formData.businessVolume} onChange={handleChange} className={inputClass} placeholder="0.00" />
+                      <Input type="number" name="businessVolume" step="0.01" value={formData.businessVolume} onChange={handleChange} placeholder="0.00" />
                     </div>
                     {formData.productType === 'kit' && (
                       <div className="col-span-2 flex items-center">
@@ -765,11 +766,11 @@ export default function EditarProductoAdminPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className={labelClass}>Peso (kg)</label>
-                      <input type="number" name="weightKg" step="0.001" value={formData.weightKg} onChange={handleChange} className={inputClass} placeholder="0.000" />
+                      <Input type="number" name="weightKg" step="0.001" value={formData.weightKg} onChange={handleChange} placeholder="0.000" />
                     </div>
                     <div>
                       <label className={labelClass}>Volumen (cm3)</label>
-                      <input type="number" name="volumeCm3" step="0.01" value={formData.volumeCm3} onChange={handleChange} className={inputClass} placeholder="0.00" />
+                      <Input type="number" name="volumeCm3" step="0.01" value={formData.volumeCm3} onChange={handleChange} placeholder="0.00" />
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-8 mt-4 border-t border-gray-100 pt-4">
@@ -883,24 +884,20 @@ export default function EditarProductoAdminPage() {
 
               {/* Actions */}
               <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end gap-3">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
                   onClick={cancelToggle}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant={pendingToggle.newValue ? 'success' : 'destructive'}
                   onClick={confirmToggle}
-                  className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors ${
-                    pendingToggle.newValue
-                      ? 'bg-emerald-600 hover:bg-emerald-700'
-                      : 'bg-red-600 hover:bg-red-700'
-                  }`}
                 >
                   {pendingToggle.newValue ? 'Sí, activar' : 'Sí, desactivar'}
-                </button>
+                </Button>
               </div>
             </div>
           </div>

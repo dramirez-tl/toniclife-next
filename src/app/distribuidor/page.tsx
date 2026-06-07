@@ -311,14 +311,16 @@ export default function DistribuidorDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-bold text-gray-900">Tu resumen del mes</h1>
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={handleRefresh}
           disabled={isRefreshing}
-          className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+          className="rounded-full"
           title="Actualizar datos"
         >
           <ArrowPathIcon className={`h-5 w-5 text-gray-500 ${isRefreshing ? 'animate-spin' : ''}`} />
-        </button>
+        </Button>
       </div>
 
       {/* ══════════════ HERO — Medalla + Meta del mes ══════════════ */}
@@ -439,13 +441,14 @@ export default function DistribuidorDashboard() {
 
           {points && (
             <>
-              <button
+              <Button
+                variant="ghost"
                 onClick={() => setShowPointsDetail((v) => !v)}
-                className="w-full border-t border-gray-100 py-2 text-xs font-medium text-[#3E667D] flex items-center justify-center gap-1 hover:bg-gray-50 transition-colors"
+                className="w-full h-auto border-t border-gray-100 py-2 text-xs font-medium text-[#3E667D] flex items-center justify-center gap-1 hover:bg-gray-50 rounded-none"
               >
                 {showPointsDetail ? 'Ocultar desglose' : 'Ver desglose de puntos'}
                 {showPointsDetail ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />}
-              </button>
+              </Button>
               {showPointsDetail && (
                 <div className="border-t border-gray-100 p-4 space-y-2 text-sm">
                   <div className="flex justify-between">
@@ -480,12 +483,12 @@ export default function DistribuidorDashboard() {
         </CardHeader>
         <CardContent className="pt-2">
           <div className="grid grid-cols-2 gap-3">
-            <button onClick={handleShareLink} disabled={shareLinkMutation.isPending} className={actionBox}>
+            <Button variant="ghost" onClick={handleShareLink} disabled={shareLinkMutation.isPending} className={`${actionBox} h-auto`}>
               <div className="w-10 h-10 rounded-full bg-[#abc9ba]/20 flex items-center justify-center">
                 <ShareIcon className="h-5 w-5 text-[#3E667D]" />
               </div>
               <span className="text-sm font-medium text-gray-700">Compartir mi enlace</span>
-            </button>
+            </Button>
             <Link href="/distribuidor/ventas" className={actionBox}>
               <div className="w-10 h-10 rounded-full bg-[#C8DDF2]/20 flex items-center justify-center">
                 <ChartBarIcon className="h-5 w-5 text-[#3E667D]" />
@@ -565,15 +568,17 @@ export default function DistribuidorDashboard() {
               <ShareIcon className="h-5 w-5" />
               Comparte y gana
             </h3>
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleDownloadQr}
               disabled={!dynamicPersonalLink}
-              className="flex items-center gap-1 text-xs font-medium text-[#3E667D] border border-[#a7c1e2] rounded-full px-3 py-1.5 hover:bg-[#C8DDF2]/10 transition-colors disabled:opacity-50"
+              className="gap-1 text-xs font-medium text-[#3E667D] border-[#a7c1e2] rounded-full hover:bg-[#C8DDF2]/10"
               title="Descargar código QR"
             >
               <ArrowDownTrayIcon className="h-4 w-4" />
               QR
-            </button>
+            </Button>
           </div>
 
           {/* Enlace de tienda */}

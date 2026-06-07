@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { BellIcon, EllipsisHorizontalIcon } from '@heroicons/react/24/outline';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
@@ -64,10 +65,15 @@ export function DistributorTopNav({ onOpenMore }: DistributorTopNavProps) {
             <span>{item.name}</span>
           </Link>
         ))}
-        <button type="button" onClick={onOpenMore} className={tabClass(moreActive)}>
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onOpenMore}
+          className={cn('h-auto', tabClass(moreActive))}
+        >
           <EllipsisHorizontalIcon className="h-5 w-5" />
           <span>Más</span>
-        </button>
+        </Button>
       </nav>
     </div>
   );

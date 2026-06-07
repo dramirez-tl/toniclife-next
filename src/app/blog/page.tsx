@@ -18,6 +18,8 @@ import {
 import {
   HeartIcon as HeartSolidIcon,
 } from '@heroicons/react/24/solid';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface BlogPost {
   id: string;
@@ -259,13 +261,13 @@ export default function BlogPage() {
           {/* Search Bar */}
           <div className="mt-8 max-w-2xl mx-auto">
             <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-6 w-6 text-gray-400" />
-              <input
+              <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-6 w-6 text-gray-400 z-10" />
+              <Input
                 type="text"
                 placeholder="Buscar artículos, temas, ingredientes..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white"
+                className="h-auto bg-white pl-12 py-4 text-gray-900 placeholder-gray-500 focus-visible:ring-2 focus-visible:ring-white border-transparent"
               />
             </div>
           </div>
@@ -281,18 +283,19 @@ export default function BlogPage() {
             {categories.map((category) => {
               const Icon = category.icon;
               return (
-                <button
+                <Button
                   key={category.value}
+                  variant="ghost"
                   onClick={() => setSelectedCategory(category.value)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+                  className={`border ${
                     selectedCategory === category.value
-                      ? 'bg-[#3E667D] text-white border-[#3E667D]'
-                      : 'bg-white text-gray-700 border-gray-300 hover:border-[#3E667D]'
+                      ? 'bg-[#3E667D] text-white border-[#3E667D] hover:bg-[#3E667D] hover:text-white'
+                      : 'bg-white text-gray-700 border-gray-300 hover:bg-white hover:text-gray-700 hover:border-[#3E667D]'
                   }`}
                 >
                   <Icon className="h-5 w-5" />
                   <span>{category.label}</span>
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -301,26 +304,28 @@ export default function BlogPage() {
         {/* Newsletter Signup */}
         {showNewsletter && (
           <div className="mb-8 bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] rounded-lg shadow-lg p-8 text-white relative">
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setShowNewsletter(false)}
-              className="absolute top-4 right-4 text-white/80 hover:text-white"
+              className="absolute top-4 right-4 text-white/80 hover:bg-transparent hover:text-white"
             >
               ✕
-            </button>
+            </Button>
             <div className="max-w-3xl mx-auto text-center">
               <h2 className="text-2xl font-bold mb-2">Suscríbete a Nuestro Boletín de Novedades</h2>
               <p className="text-blue-100 mb-6">
                 Recibe artículos exclusivos, tips de bienestar y ofertas especiales directamente en tu correo
               </p>
               <div className="flex gap-3 max-w-md mx-auto">
-                <input
+                <Input
                   type="email"
                   placeholder="Tu correo electrónico"
-                  className="flex-1 px-4 py-3 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white"
+                  className="flex-1 h-auto bg-white py-3 text-gray-900 placeholder-gray-500 focus-visible:ring-2 focus-visible:ring-white border-transparent"
                 />
-                <button className="px-6 py-3 bg-white text-[#3E667D] font-medium rounded-lg hover:bg-blue-50 transition-colors">
+                <Button className="h-auto bg-white py-3 text-[#3E667D] font-medium hover:bg-blue-50">
                   Suscribirse
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -479,15 +484,16 @@ export default function BlogPage() {
           <div className="text-center py-12">
             <MagnifyingGlassIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600 text-lg">No se encontraron artículos con estos filtros</p>
-            <button
+            <Button
+              variant="link"
               onClick={() => {
                 setSelectedCategory('all');
                 setSearchQuery('');
               }}
-              className="mt-4 text-[#3E667D] hover:text-[#002855] font-medium"
+              className="mt-4 h-auto p-0 text-[#3E667D] hover:text-[#002855] font-medium no-underline hover:no-underline"
             >
               Limpiar filtros
-            </button>
+            </Button>
           </div>
         )}
       </div>

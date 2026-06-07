@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { MlmRank } from '@/types/commissions';
 import { getRankImage } from '@/constants/ranks';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { CheckIcon, LockClosedIcon, StarIcon } from '@heroicons/react/24/solid';
 import {
   TrophyIcon,
@@ -142,9 +143,10 @@ export function RankProgressStepper({
               return (
                 <div key={rank.id} className="flex items-start">
                   {/* Step */}
-                  <button
+                  <Button
+                    variant="ghost"
                     onClick={() => handleRankClick(rank)}
-                    className="flex flex-col items-center group cursor-pointer"
+                    className="flex flex-col items-center group cursor-pointer h-auto gap-0 p-0 whitespace-normal hover:bg-transparent"
                     style={{ width: '96px' }}
                   >
                     {/* Circle / Rank image */}
@@ -222,7 +224,7 @@ export function RankProgressStepper({
                         {formatPoints(rank.pointsGroupRequired)} pts
                       </p>
                     )}
-                  </button>
+                  </Button>
 
                   {/* Connector line */}
                   {!isLast && (
@@ -295,9 +297,9 @@ export function RankProgressStepper({
                     </p>
                   </div>
                 </div>
-                <button onClick={() => setSelectedRank(null)} className="p-1 hover:bg-gray-200 rounded-full transition-colors">
+                <Button variant="ghost" size="icon-sm" onClick={() => setSelectedRank(null)} className="hover:bg-gray-200 rounded-full">
                   <ChevronUpIcon className="h-5 w-5 text-gray-400" />
-                </button>
+                </Button>
               </div>
 
               <div className="p-5">

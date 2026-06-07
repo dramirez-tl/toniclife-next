@@ -28,6 +28,9 @@ import type { KitEnrollmentResponse } from '@/types/kit';
 import { CorteDiaModal } from '@/components/pos/CorteDiaModal';
 import { PosCustomerSelector } from '@/components/pos/PosCustomerSelector';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { usePosCartStore } from '@/stores/pos-cart.store';
 import { useActiveSession, useCreateSale, useProcessPayment, useSales, useDailySalesSummary } from '@/hooks/usePos';
 import { useActiveBranches } from '@/hooks/useBranches';
@@ -428,12 +431,14 @@ export default function PosPage() {
         {/* Top Bar */}
         <header className="relative z-50 bg-[#3E667D] text-white px-4 py-3 flex items-center justify-between shadow-lg">
           <div className="flex items-center gap-4">
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => setShowSidebar(!showSidebar)}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors lg:hidden"
+              className="text-white hover:bg-white/10 hover:text-white lg:hidden"
             >
               <Bars3Icon className="h-6 w-6" />
-            </button>
+            </Button>
 
             <div>
               <h1 className="text-xl font-bold">Punto de Venta</h1>
@@ -539,29 +544,33 @@ export default function PosPage() {
                   <DocumentTextIcon className="h-5 w-5 text-gray-500" />
                   Ventas Recientes
                 </h2>
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setShowCorte(true)}
                   title="Corte del día"
-                  className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-[#3E667D] border border-[#3E667D] rounded-lg hover:bg-[#3E667D]/5 transition-colors"
+                  className="text-[#3E667D] border-[#3E667D] hover:bg-[#3E667D]/5 hover:text-[#3E667D]"
                 >
                   <ChartBarIcon className="h-3.5 w-3.5" />
                   Corte
-                </button>
+                </Button>
               </div>
               <div className="flex items-center gap-1.5">
-                <input
+                <Input
                   type="date"
                   value={salesDate}
                   onChange={(e) => setSalesDate(e.target.value)}
-                  className="flex-1 min-w-0 px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D] outline-none"
+                  className="flex-1 min-w-0"
                 />
-                <button
+                <Button
+                  variant="default"
+                  size="sm"
                   onClick={() => setAppliedSalesDate(salesDate)}
                   disabled={salesDate === appliedSalesDate}
-                  className="px-3 py-1.5 text-sm font-medium text-white bg-[#3E667D] rounded-lg hover:bg-[#2d4f63] disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                  className="flex-shrink-0"
                 >
                   Buscar
-                </button>
+                </Button>
               </div>
             </div>
             <div className="flex-grow p-4 space-y-3 overflow-y-auto">
@@ -635,7 +644,9 @@ export default function PosPage() {
                           <>
                             {/* Stamp button — only for sales that need invoice and aren't stamped yet */}
                             {sale.requiresInvoice && !sale.invoiceUuid && (
-                              <button
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 onClick={async (e) => {
                                   e.stopPropagation();
                                   if (stampingId) return;
@@ -656,18 +667,20 @@ export default function PosPage() {
                                 }}
                                 disabled={stampingId === sale.id}
                                 title="Timbrar factura"
-                                className="p-2 text-orange-500 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="text-orange-500 hover:text-orange-700 hover:bg-orange-50"
                               >
                                 {stampingId === sale.id ? (
                                   <div className="h-5 w-5 animate-spin rounded-full border-2 border-orange-300 border-t-orange-500" />
                                 ) : (
                                   <DocumentTextIcon className="h-5 w-5" />
                                 )}
-                              </button>
+                              </Button>
                             )}
                             {/* View invoice PDF — only for stamped sales */}
                             {sale.invoiceUuid && (
-                              <button
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 onClick={async (e) => {
                                   e.stopPropagation();
                                   if (loadingPdfId) return;
@@ -683,17 +696,19 @@ export default function PosPage() {
                                 }}
                                 disabled={loadingPdfId === sale.id}
                                 title="Ver factura PDF"
-                                className="p-2 text-purple-500 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="text-purple-500 hover:text-purple-700 hover:bg-purple-50"
                               >
                                 {loadingPdfId === sale.id ? (
                                   <div className="h-5 w-5 animate-spin rounded-full border-2 border-purple-300 border-t-purple-500" />
                                 ) : (
                                   <EyeIcon className="h-5 w-5" />
                                 )}
-                              </button>
+                              </Button>
                             )}
                             {/* Print ticket button */}
-                            <button
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               onClick={async (e) => {
                                 e.stopPropagation();
                                 setIsLoadingTicket(true);
@@ -717,19 +732,21 @@ export default function PosPage() {
                               }}
                               disabled={isLoadingTicket}
                               title="Ver ticket"
-                              className="p-2 text-gray-400 hover:text-[#3E667D] hover:bg-white rounded-lg transition-colors disabled:opacity-50"
+                              className="text-gray-400 hover:text-[#3E667D] hover:bg-white"
                             >
                               {isLoadingTicket ? (
                                 <div className="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-[#3E667D]" />
                               ) : (
                                 <PrinterIcon className="h-5 w-5" />
                               )}
-                            </button>
+                            </Button>
                           </>
                         )}
                         {/* Cancel sale — Super Admin only, for any non-cancelled sale */}
                         {isSuperAdmin && sale.status !== PosSaleStatus.CANCELLED && (
-                          <button
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={(e) => {
                               e.stopPropagation();
                               setCancelReason('');
@@ -738,10 +755,10 @@ export default function PosPage() {
                             }}
                             disabled={cancellingId === sale.id}
                             title="Cancelar venta"
-                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="text-red-400 hover:text-red-600 hover:bg-red-50"
                           >
                             <NoSymbolIcon className="h-5 w-5" />
-                          </button>
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -754,13 +771,14 @@ export default function PosPage() {
               )}
             </div>
             <div className="flex-shrink-0 p-4 border-t bg-white space-y-2">
-              <button
+              <Button
+                variant="ghost"
                 onClick={() => refetchSales()}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
+                className="w-full text-gray-600"
               >
                 <ArrowPathIcon className="h-4 w-4" />
                 Actualizar
-              </button>
+              </Button>
             </div>
           </aside>
 
@@ -822,18 +840,20 @@ export default function PosPage() {
                         </div>
                       </>
                     )}
-                    <button
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => {
                         const store = usePosCartStore.getState();
                         store.clearCart();
                         store.setCustomer(undefined, undefined, undefined, undefined);
                         store.setPublicPrice(false);
                       }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#3E667D] bg-white border border-[#3E667D]/20 rounded-lg hover:bg-[#3E667D]/10 transition-colors"
+                      className="text-[#3E667D] border-[#3E667D]/20 hover:bg-[#3E667D]/10 hover:text-[#3E667D]"
                     >
                       <ArrowsRightLeftIcon className="h-3.5 w-3.5" />
                       Cambiar
-                    </button>
+                    </Button>
                   </div>
 
                   {/* Available promotions strip — solo cuando hay distribuidor y pais */}
@@ -885,13 +905,14 @@ export default function PosPage() {
                       <span className="text-xs text-gray-400 uppercase tracking-wider">o</span>
                       <div className="flex-grow border-t border-gray-200" />
                     </div>
-                    <button
+                    <Button
+                      variant="outline"
                       onClick={() => usePosCartStore.getState().setPublicPrice(true)}
-                      className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-50 border-2 border-amber-200 rounded-xl text-amber-700 font-medium hover:bg-amber-100 hover:border-amber-300 transition-colors"
+                      className="mt-4 w-full py-3 h-auto bg-amber-50 border-2 border-amber-200 rounded-xl text-amber-700 hover:bg-amber-100 hover:border-amber-300 hover:text-amber-700"
                     >
                       <CurrencyDollarIcon className="h-5 w-5" />
                       Vender a Precio Público
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )
@@ -911,10 +932,11 @@ export default function PosPage() {
 
         {/* Mobile Cart Button */}
         <div className="md:hidden fixed bottom-4 right-4 z-30">
-          <button
+          <Button
+            variant="default"
             onClick={handleCheckout}
             disabled={cart.items.length === 0 || (!cart.customerId && !cart.isPublicPrice)}
-            className="flex items-center gap-2 px-6 py-4 bg-[#3E667D] text-white rounded-full shadow-lg hover:bg-[#2d4f63] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-4 h-auto rounded-full shadow-lg"
           >
             <span className="font-bold">{cart.customerId || cart.isPublicPrice ? `Cobrar ${formatCurrency(cart.total)}` : 'Seleccione distribuidor'}</span>
             {cart.items.length > 0 && (
@@ -922,7 +944,7 @@ export default function PosPage() {
                 {cart.items.length}
               </span>
             )}
-          </button>
+          </Button>
         </div>
 
         {/* Payment Modal */}
@@ -1000,12 +1022,14 @@ export default function PosPage() {
             <div className="bg-white rounded-xl shadow-2xl flex flex-col w-[95vw] max-w-md h-[90vh] max-h-[700px]">
               <div className="flex items-center justify-between px-4 py-3 border-b">
                 <h3 className="font-semibold text-gray-900">Vista previa del ticket</h3>
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={() => { URL.revokeObjectURL(ticketUrl); setTicketUrl(null); }}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="text-gray-400 hover:text-gray-600"
                 >
                   <XMarkIcon className="h-5 w-5" />
-                </button>
+                </Button>
               </div>
               <div className="flex-grow overflow-hidden">
                 <iframe
@@ -1015,27 +1039,29 @@ export default function PosPage() {
                 />
               </div>
               <div className="flex items-center gap-2 px-4 py-3 border-t">
-                <button
+                <Button
+                  variant="outline"
                   onClick={() => {
                     const link = document.createElement('a');
                     link.href = ticketUrl;
                     link.download = 'ticket.pdf';
                     link.click();
                   }}
-                  className="flex-1 px-4 py-2 text-sm font-medium text-[#3E667D] border border-[#3E667D] rounded-lg hover:bg-[#3E667D]/5 transition-colors"
+                  className="flex-1 text-[#3E667D] border-[#3E667D] hover:bg-[#3E667D]/5 hover:text-[#3E667D]"
                 >
                   Descargar
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="default"
                   onClick={() => {
                     const win = window.open(ticketUrl, '_blank');
                     win?.print();
                   }}
-                  className="flex-1 px-4 py-2 text-sm font-medium text-white bg-[#3E667D] rounded-lg hover:bg-[#2d4f63] transition-colors flex items-center justify-center gap-2"
+                  className="flex-1"
                 >
                   <PrinterIcon className="h-4 w-4" />
                   Imprimir
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -1051,12 +1077,14 @@ export default function PosPage() {
                   <h3 className="font-semibold text-gray-900">Corregir datos fiscales</h3>
                   <p className="text-xs text-gray-500 mt-0.5">Venta {stampRetrySale.saleNumber}</p>
                 </div>
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
                   onClick={() => setStampRetrySale(null)}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="text-gray-400 hover:text-gray-600"
                 >
                   <XMarkIcon className="h-5 w-5" />
-                </button>
+                </Button>
               </div>
 
               <div className="px-5 py-4 space-y-4">
@@ -1078,10 +1106,10 @@ export default function PosPage() {
                     {/* RFC */}
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">RFC *</label>
-                      <input
+                      <Input
                         value={stampRetryForm.rfc}
                         onChange={(e) => { setStampRetryForm((p) => ({ ...p, rfc: e.target.value.toUpperCase() })); setStampRetryErrors((p) => { const n = { ...p }; delete n.rfc; return n; }); }}
-                        className={`w-full px-3 py-2 border rounded-lg text-sm ${stampRetryErrors.rfc ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
+                        className={stampRetryErrors.rfc ? 'border-red-300 bg-red-50' : ''}
                         placeholder="XAXX010101000"
                         maxLength={13}
                       />
@@ -1091,10 +1119,10 @@ export default function PosPage() {
                     {/* Legal Name */}
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Razón Social *</label>
-                      <input
+                      <Input
                         value={stampRetryForm.legalName}
                         onChange={(e) => { setStampRetryForm((p) => ({ ...p, legalName: e.target.value.toUpperCase() })); setStampRetryErrors((p) => { const n = { ...p }; delete n.legalName; return n; }); }}
-                        className={`w-full px-3 py-2 border rounded-lg text-sm ${stampRetryErrors.legalName ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
+                        className={stampRetryErrors.legalName ? 'border-red-300 bg-red-50' : ''}
                         placeholder="NOMBRE COMPLETO O RAZÓN SOCIAL"
                       />
                       {stampRetryErrors.legalName && <p className="text-xs text-red-500 mt-1">{stampRetryErrors.legalName}</p>}
@@ -1116,10 +1144,10 @@ export default function PosPage() {
                     {/* Postal Code */}
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Código Postal *</label>
-                      <input
+                      <Input
                         value={stampRetryForm.postalCode}
                         onChange={(e) => { setStampRetryForm((p) => ({ ...p, postalCode: e.target.value.replace(/\D/g, '') })); setStampRetryErrors((p) => { const n = { ...p }; delete n.postalCode; return n; }); }}
-                        className={`w-full px-3 py-2 border rounded-lg text-sm ${stampRetryErrors.postalCode ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
+                        className={stampRetryErrors.postalCode ? 'border-red-300 bg-red-50' : ''}
                         placeholder="00000"
                         maxLength={5}
                       />
@@ -1141,10 +1169,9 @@ export default function PosPage() {
                     {/* Email */}
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">Email para factura</label>
-                      <input
+                      <Input
                         value={stampRetryForm.email}
                         onChange={(e) => setStampRetryForm((p) => ({ ...p, email: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                         placeholder="correo@ejemplo.com"
                         type="email"
                       />
@@ -1167,18 +1194,19 @@ export default function PosPage() {
                       <label className="block text-xs font-medium text-gray-600 mb-1">Método de Pago</label>
                       <div className="flex gap-2">
                         {(['PUE', 'PPD'] as const).map((method) => (
-                          <button
+                          <Button
                             key={method}
                             type="button"
+                            variant="ghost"
                             onClick={() => setStampRetryPaymentMethod(method)}
                             className={`flex-1 px-3 py-2 text-sm rounded-lg border-2 font-medium transition-all ${
                               stampRetryPaymentMethod === method
-                                ? 'border-[#3E667D] bg-[#3E667D] text-white'
+                                ? 'border-[#3E667D] bg-[#3E667D] text-white hover:bg-[#3E667D] hover:text-white'
                                 : 'border-gray-200 text-gray-600 hover:border-gray-300'
                             }`}
                           >
                             {method === 'PUE' ? 'PUE · Una exhibición' : 'PPD · Diferido'}
-                          </button>
+                          </Button>
                         ))}
                       </div>
                     </div>
@@ -1193,16 +1221,18 @@ export default function PosPage() {
               {/* Footer */}
               {!stampRetryLoading && (
                 <div className="flex items-center gap-3 px-5 py-4 border-t">
-                  <button
+                  <Button
+                    variant="outline"
                     onClick={() => setStampRetrySale(null)}
-                    className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex-1"
                   >
                     Cancelar
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="default"
                     onClick={handleStampRetrySave}
                     disabled={stampRetrySaving}
-                    className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-[#3E667D] rounded-lg hover:bg-[#2d4f63] disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                    className="flex-1"
                   >
                     {stampRetrySaving ? (
                       <>
@@ -1215,7 +1245,7 @@ export default function PosPage() {
                         Guardar y Timbrar
                       </>
                     )}
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -1244,9 +1274,9 @@ export default function PosPage() {
                   }`}>
                     {detailSale.status === PosSaleStatus.COMPLETED ? 'Completada' : detailSale.status === PosSaleStatus.CANCELLED ? 'Cancelada' : 'Pendiente'}
                   </span>
-                  <button onClick={() => setDetailSale(null)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg">
+                  <Button variant="ghost" size="icon-sm" onClick={() => setDetailSale(null)} className="text-gray-400 hover:text-gray-600">
                     <XMarkIcon className="h-5 w-5" />
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -1363,12 +1393,13 @@ export default function PosPage() {
 
               {/* Footer */}
               <div className="px-5 py-3 border-t flex-shrink-0">
-                <button
+                <Button
+                  variant="outline"
                   onClick={() => setDetailSale(null)}
-                  className="w-full px-4 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="w-full"
                 >
                   Cerrar
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -1401,9 +1432,9 @@ export default function PosPage() {
                     <p className="text-xs text-gray-500">{cancelModalSale.saleNumber}</p>
                   </div>
                 </div>
-                <button onClick={() => setCancelModalSale(null)} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg">
+                <Button variant="ghost" size="icon-sm" onClick={() => setCancelModalSale(null)} className="text-gray-400 hover:text-gray-600">
                   <XMarkIcon className="h-5 w-5" />
-                </button>
+                </Button>
               </div>
 
               <div className="p-5 space-y-4">
@@ -1418,16 +1449,20 @@ export default function PosPage() {
                     <p className="text-xs text-amber-600">Se solicitará la cancelación del CFDI ante el SAT. El receptor deberá aceptarla si aplica.</p>
                     <div>
                       <label className="block text-xs font-medium text-amber-700 mb-1">Motivo SAT de cancelación</label>
-                      <select
+                      <Select
                         value={cancelCfdiMotive}
-                        onChange={(e) => setCancelCfdiMotive(e.target.value as '01' | '02' | '03' | '04')}
-                        className="w-full px-2 py-1.5 text-xs border border-amber-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+                        onValueChange={(v) => setCancelCfdiMotive(v as '01' | '02' | '03' | '04')}
                       >
-                        <option value="03">03 - No se llevó a cabo la operación</option>
-                        <option value="02">02 - Comprobante con errores sin relación</option>
-                        <option value="01">01 - Comprobante con errores con relación</option>
-                        <option value="04">04 - Operación nominativa en factura global</option>
-                      </select>
+                        <SelectTrigger className="w-full text-xs border-amber-300 bg-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="03">03 - No se llevó a cabo la operación</SelectItem>
+                          <SelectItem value="02">02 - Comprobante con errores sin relación</SelectItem>
+                          <SelectItem value="01">01 - Comprobante con errores con relación</SelectItem>
+                          <SelectItem value="04">04 - Operación nominativa en factura global</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                 )}
@@ -1447,13 +1482,15 @@ export default function PosPage() {
               </div>
 
               <div className="flex gap-3 p-5 border-t">
-                <button
+                <Button
+                  variant="outline"
                   onClick={() => setCancelModalSale(null)}
-                  className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex-1"
                 >
                   Volver
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="destructive"
                   disabled={!cancelReason.trim() || cancellingId === cancelModalSale.id}
                   onClick={async () => {
                     if (!cancelReason.trim()) return;
@@ -1479,7 +1516,7 @@ export default function PosPage() {
                       setCancellingId(null);
                     }
                   }}
-                  className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                  className="flex-1"
                 >
                   {cancellingId === cancelModalSale.id ? (
                     <>
@@ -1492,7 +1529,7 @@ export default function PosPage() {
                       Confirmar cancelación
                     </>
                   )}
-                </button>
+                </Button>
               </div>
             </div>
           </div>

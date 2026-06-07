@@ -13,6 +13,7 @@ import {
   ChartBarIcon,
 } from '@heroicons/react/24/outline';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { Button } from '@/components/ui/button';
 import { useCommissionsReport, usePointsReport, useRankUpsReport } from '@/hooks/useReports';
 import { useCommissionPeriods } from '@/hooks/useCommissions';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
@@ -110,10 +111,10 @@ function ComisionesReportesContent() {
             </p>
           </div>
         </div>
-        <button className="inline-flex items-center rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500">
+        <Button variant="success">
           <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
           Exportar Excel
-        </button>
+        </Button>
       </div>
 
       {/* Filters */}
@@ -153,39 +154,45 @@ function ComisionesReportesContent() {
             )}
 
             <div className="flex rounded-lg bg-gray-100 p-1">
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setParams({ viewMode: 'commissions' })}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+                className={
                   viewMode === 'commissions'
-                    ? 'bg-white text-gray-900 shadow'
+                    ? 'bg-white text-gray-900 shadow hover:bg-white'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                }
               >
                 <CurrencyDollarIcon className="mr-1 inline h-4 w-4" />
                 Comisiones
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setParams({ viewMode: 'points' })}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+                className={
                   viewMode === 'points'
-                    ? 'bg-white text-gray-900 shadow'
+                    ? 'bg-white text-gray-900 shadow hover:bg-white'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                }
               >
                 <StarIcon className="mr-1 inline h-4 w-4" />
                 Puntos
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setParams({ viewMode: 'rank-ups' })}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+                className={
                   viewMode === 'rank-ups'
-                    ? 'bg-white text-gray-900 shadow'
+                    ? 'bg-white text-gray-900 shadow hover:bg-white'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                }
               >
                 <TrophyIcon className="mr-1 inline h-4 w-4" />
                 Subidas de Rango
-              </button>
+              </Button>
             </div>
           </div>
         </div>

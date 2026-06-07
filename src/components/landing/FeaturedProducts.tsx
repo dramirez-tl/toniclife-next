@@ -211,9 +211,9 @@ export function FeaturedProducts() {
 
         {/* Categories Pills */}
         <div className="flex flex-wrap justify-center gap-3 mb-12">
-          <button className="px-5 py-2.5 rounded-full bg-[#3E667D] text-white font-medium transition-all">
+          <Button className="px-5 py-2.5 rounded-full">
             Todos
-          </button>
+          </Button>
           {!loadingCategories && categories?.slice(0, 5).map((category) => (
             <Link
               key={category.id}

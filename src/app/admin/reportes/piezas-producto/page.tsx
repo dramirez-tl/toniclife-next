@@ -4,6 +4,8 @@ import { useState, useMemo, useCallback } from 'react';
 import { useSalesByProductPeriod } from '@/hooks/useReports';
 import { usePeriods } from '@/hooks/useMlmPeriods';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import type { MlmPeriod } from '@/types/mlm-periods';
 
 type CurrencyFilter = 'ALL' | 'MXN' | 'USD' | 'COP' | 'GTQ';
@@ -146,16 +148,17 @@ export default function PiezasProductoPage() {
               Unidades vendidas por producto, sucursal y periodo MLM
             </p>
           </div>
-          <button
+          <Button
+            variant="ghost"
             onClick={handleExportCSV}
             disabled={!hasData}
-            className="inline-flex items-center gap-2 rounded-lg bg-white/15 backdrop-blur-sm border border-white/20 px-4 py-2.5 text-sm font-medium text-white hover:bg-white/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            className="gap-2 bg-white/15 backdrop-blur-sm border border-white/20 text-white hover:bg-white/25 hover:text-white disabled:opacity-40"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
             Exportar CSV
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -170,42 +173,40 @@ export default function PiezasProductoPage() {
         <div className="flex flex-col sm:flex-row gap-4 items-end">
           <div className="flex-1 min-w-0">
             <label className="block text-xs font-medium text-gray-500 mb-1.5">Desde periodo</label>
-            <select
+            <SearchableSelect
+              options={sortedPeriods.map((p) => ({
+                value: p.id,
+                label: `${p.name} (${formatDateDisplay(p.startDate)} - ${formatDateDisplay(p.endDate)})${p.isCurrent ? ' — Actual' : ''}`,
+              }))}
               value={fromPeriodId}
-              onChange={(e) => setFromPeriodId(e.target.value)}
+              onChange={(v) => setFromPeriodId(v)}
               disabled={periodsLoading}
-              className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 focus:border-[#3E667D] focus:ring-2 focus:ring-[#3E667D]/20 focus:bg-white focus:outline-none transition-all"
-            >
-              <option value="">Selecciona periodo inicio</option>
-              {sortedPeriods.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({formatDateDisplay(p.startDate)} - {formatDateDisplay(p.endDate)})
-                  {p.isCurrent ? ' — Actual' : ''}
-                </option>
-              ))}
-            </select>
+              showAllOption={false}
+              allLabel="Selecciona periodo inicio"
+              placeholder="Buscar periodo..."
+              className="w-full"
+            />
           </div>
           <div className="flex-1 min-w-0">
             <label className="block text-xs font-medium text-gray-500 mb-1.5">Hasta periodo</label>
-            <select
+            <SearchableSelect
+              options={sortedPeriods.map((p) => ({
+                value: p.id,
+                label: `${p.name} (${formatDateDisplay(p.startDate)} - ${formatDateDisplay(p.endDate)})${p.isCurrent ? ' — Actual' : ''}`,
+              }))}
               value={toPeriodId}
-              onChange={(e) => setToPeriodId(e.target.value)}
+              onChange={(v) => setToPeriodId(v)}
               disabled={periodsLoading}
-              className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 focus:border-[#3E667D] focus:ring-2 focus:ring-[#3E667D]/20 focus:bg-white focus:outline-none transition-all"
-            >
-              <option value="">Selecciona periodo fin</option>
-              {sortedPeriods.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({formatDateDisplay(p.startDate)} - {formatDateDisplay(p.endDate)})
-                  {p.isCurrent ? ' — Actual' : ''}
-                </option>
-              ))}
-            </select>
+              showAllOption={false}
+              allLabel="Selecciona periodo fin"
+              placeholder="Buscar periodo..."
+              className="w-full"
+            />
           </div>
-          <button
+          <Button
             onClick={handleApply}
             disabled={isFetching || !fromPeriodId || !toPeriodId}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#3E667D] px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#2f5165] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all whitespace-nowrap"
+            className="active:scale-[0.98] whitespace-nowrap"
           >
             {isFetching ? (
               <>
@@ -220,7 +221,7 @@ export default function PiezasProductoPage() {
                 Consultar
               </>
             )}
-          </button>
+          </Button>
         </div>
 
         {/* Period count info */}
@@ -235,17 +236,19 @@ export default function PiezasProductoPage() {
       {data && (
         <div className="flex gap-1 rounded-lg bg-gray-100 p-1">
           {CURRENCY_TABS.map((tab) => (
-            <button
+            <Button
               key={tab.key}
+              variant="ghost"
+              size="sm"
               onClick={() => setCurrencyFilter(tab.key)}
-              className={`flex-1 rounded-md px-3 py-2 text-xs font-medium transition-all ${
+              className={`flex-1 ${
                 currencyFilter === tab.key
                   ? 'bg-white text-[#3E667D] shadow-sm'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               {tab.flag ? `${tab.flag} ` : ''}{tab.label}
-            </button>
+            </Button>
           ))}
         </div>
       )}
@@ -287,9 +290,9 @@ export default function PiezasProductoPage() {
               </svg>
             </div>
             <p className="text-sm text-red-500 font-medium">Error al cargar el reporte</p>
-            <button onClick={handleApply} className="text-xs text-[#3E667D] hover:underline">
+            <Button variant="link" size="sm" onClick={handleApply} className="text-xs text-[#3E667D]">
               Reintentar
-            </button>
+            </Button>
           </div>
         ) : !appliedPeriodIds.length ? (
           <div className="flex flex-col items-center justify-center py-24 gap-3">

@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import { XMarkIcon, ArrowDownTrayIcon, PrinterIcon } from '@heroicons/react/24/outline';
+import { Button } from '@/components/ui/button';
 import type { DailySalesSummary, Sale } from '@/types/pos';
 import { PosSaleStatus } from '@/types/pos';
 import { generateCorteDiaPdf } from '@/lib/generate-corte-dia-pdf';
@@ -132,9 +133,9 @@ export function CorteDiaModal({ summary, sales, isLoading, date, branchName, tim
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b bg-[#3E667D] text-white flex-shrink-0">
           <h2 className="font-bold text-sm">Corte del Día</h2>
-          <button onClick={onClose} className="hover:text-white/70 transition-colors">
+          <Button variant="ghost" size="icon" onClick={onClose} className="text-white hover:bg-white/10 hover:text-white/70">
             <XMarkIcon className="h-5 w-5" />
-          </button>
+          </Button>
         </div>
 
         {/* Content */}
@@ -241,17 +242,20 @@ export function CorteDiaModal({ summary, sales, isLoading, date, branchName, tim
         {/* Footer */}
         {!isLoading && summary && (
           <div className="p-3 border-t flex gap-2 flex-shrink-0">
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleDownloadCsv}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-[#3E667D] border border-[#3E667D] rounded-lg hover:bg-[#3E667D]/5 transition-colors"
+              className="flex-1 gap-1.5 text-xs text-[#3E667D] border-[#3E667D] hover:bg-[#3E667D]/5"
             >
               <ArrowDownTrayIcon className="h-3.5 w-3.5" />
               CSV
-            </button>
-            <button
+            </Button>
+            <Button
+              size="sm"
               onClick={handleGeneratePdf}
               disabled={isGenerating}
-              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-white bg-[#3E667D] rounded-lg hover:bg-[#2f5165] disabled:opacity-50 transition-colors"
+              className="flex-1 gap-1.5 text-xs"
             >
               {isGenerating ? (
                 <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
@@ -259,7 +263,7 @@ export function CorteDiaModal({ summary, sales, isLoading, date, branchName, tim
                 <PrinterIcon className="h-3.5 w-3.5" />
               )}
               {isGenerating ? 'Generando...' : 'Imprimir'}
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -270,38 +274,41 @@ export function CorteDiaModal({ summary, sales, isLoading, date, branchName, tim
           <div className="bg-white rounded-xl shadow-2xl flex flex-col w-[95vw] max-w-md h-[90vh] max-h-[700px]">
             <div className="flex items-center justify-between px-4 py-3 border-b">
               <h3 className="font-semibold text-gray-900 text-sm">Vista previa — Corte del Día</h3>
-              <button
+              <Button
+                variant="ghost"
+                size="icon-sm"
                 onClick={closePdfPreview}
-                className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                className="text-gray-400 hover:text-gray-600"
               >
                 <XMarkIcon className="h-5 w-5" />
-              </button>
+              </Button>
             </div>
             <div className="flex-grow overflow-hidden">
               <iframe src={pdfUrl} className="w-full h-full border-0" title="Corte del Día" />
             </div>
             <div className="flex items-center gap-2 px-4 py-3 border-t">
-              <button
+              <Button
+                variant="outline"
                 onClick={() => {
                   const a = document.createElement('a');
                   a.href = pdfUrl;
                   a.download = `corte-${branchName.replace(/\s+/g, '_')}-${date}.pdf`;
                   a.click();
                 }}
-                className="flex-1 px-4 py-2 text-sm font-medium text-[#3E667D] border border-[#3E667D] rounded-lg hover:bg-[#3E667D]/5 transition-colors"
+                className="flex-1 text-[#3E667D] border-[#3E667D] hover:bg-[#3E667D]/5"
               >
                 Descargar
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => {
                   const win = window.open(pdfUrl, '_blank');
                   win?.print();
                 }}
-                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-[#3E667D] rounded-lg hover:bg-[#2f5165] transition-colors flex items-center justify-center gap-2"
+                className="flex-1 gap-2"
               >
                 <PrinterIcon className="h-4 w-4" />
                 Imprimir
-              </button>
+              </Button>
             </div>
           </div>
         </div>

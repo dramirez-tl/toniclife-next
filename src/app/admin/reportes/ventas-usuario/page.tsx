@@ -5,6 +5,8 @@ import { useSalesByUser } from '@/hooks/useReports';
 import { usePeriods, useCurrentPeriod } from '@/hooks/useMlmPeriods';
 import { useUsers } from '@/hooks/useUsers';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import type { User } from '@/types/user';
 
 function toDateOnly(dateStr: string): string {
@@ -152,16 +154,17 @@ export default function VentasUsuarioPage() {
               Detalle de ventas por vendedor (Call Center / Sucursales)
             </p>
           </div>
-          <button
+          <Button
+            variant="ghost"
             onClick={handleExportCSV}
             disabled={!hasData}
-            className="inline-flex items-center gap-2 rounded-lg bg-white/15 backdrop-blur-sm border border-white/20 px-4 py-2.5 text-sm font-medium text-white hover:bg-white/25 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            className="gap-2 bg-white/15 backdrop-blur-sm border border-white/20 text-white hover:bg-white/25 hover:text-white disabled:opacity-40"
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
             Exportar CSV
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -178,20 +181,19 @@ export default function VentasUsuarioPage() {
           {/* Period selector */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">Periodo</label>
-            <select
+            <SearchableSelect
+              options={sortedPeriods.map((p) => ({
+                value: p.id,
+                label: `${p.name} (${formatDateDisplay(p.startDate)} - ${formatDateDisplay(p.endDate)})${p.isCurrent ? ' — Actual' : ''}`,
+              }))}
               value={selectedPeriodId}
-              onChange={(e) => setSelectedPeriodId(e.target.value)}
+              onChange={(v) => setSelectedPeriodId(v)}
               disabled={periodsLoading}
-              className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 focus:border-[#3E667D] focus:ring-2 focus:ring-[#3E667D]/20 focus:bg-white focus:outline-none transition-all"
-            >
-              <option value="">Selecciona un periodo</option>
-              {sortedPeriods.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({formatDateDisplay(p.startDate)} - {formatDateDisplay(p.endDate)})
-                  {p.isCurrent ? ' — Actual' : ''}
-                </option>
-              ))}
-            </select>
+              showAllOption={false}
+              allLabel="Selecciona un periodo"
+              placeholder="Buscar periodo..."
+              className="w-full"
+            />
           </div>
 
           {/* Seller multi-select */}
@@ -202,10 +204,11 @@ export default function VentasUsuarioPage() {
                 <span className="ml-1 text-[#3E667D]">({selectedSellerIds.length})</span>
               )}
             </label>
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={() => setSellerDropdownOpen(!sellerDropdownOpen)}
-              className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 text-left focus:border-[#3E667D] focus:ring-2 focus:ring-[#3E667D]/20 focus:bg-white focus:outline-none transition-all"
+              className="w-full h-auto justify-between px-3 py-2.5 bg-gray-50 text-gray-900 text-left font-normal"
             >
               {selectedSellerIds.length === 0
                 ? 'Todos los usuarios'
@@ -215,25 +218,29 @@ export default function VentasUsuarioPage() {
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 float-right mt-0.5 text-gray-400">
                 <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
               </svg>
-            </button>
+            </Button>
             {sellerDropdownOpen && (
               <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-60 overflow-y-auto">
                 <div className="sticky top-0 bg-white border-b border-gray-100 px-3 py-2 flex gap-2">
-                  <button
+                  <Button
                     type="button"
+                    variant="link"
+                    size="sm"
                     onClick={selectAllSellers}
-                    className="text-xs text-[#3E667D] hover:underline"
+                    className="h-auto p-0 text-xs text-[#3E667D]"
                   >
                     Seleccionar todos
-                  </button>
+                  </Button>
                   <span className="text-gray-300">|</span>
-                  <button
+                  <Button
                     type="button"
+                    variant="link"
+                    size="sm"
                     onClick={clearSellers}
-                    className="text-xs text-gray-500 hover:underline"
+                    className="h-auto p-0 text-xs text-gray-500"
                   >
                     Limpiar
-                  </button>
+                  </Button>
                 </div>
                 {sellerOptions.length === 0 ? (
                   <div className="px-3 py-4 text-xs text-gray-400 text-center">No se encontraron usuarios</div>
@@ -259,10 +266,10 @@ export default function VentasUsuarioPage() {
           </div>
 
           {/* Apply button */}
-          <button
+          <Button
             onClick={() => { handleApply(); setSellerDropdownOpen(false); }}
             disabled={isFetching || !selectedPeriodId}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#3E667D] px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#2f5165] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all whitespace-nowrap"
+            className="active:scale-[0.98] whitespace-nowrap"
           >
             {isFetching ? (
               <>
@@ -277,7 +284,7 @@ export default function VentasUsuarioPage() {
                 Consultar
               </>
             )}
-          </button>
+          </Button>
         </div>
 
         {/* Active filters chips */}
@@ -333,7 +340,7 @@ export default function VentasUsuarioPage() {
               </svg>
             </div>
             <p className="text-sm text-red-500 font-medium">Error al cargar el reporte</p>
-            <button onClick={handleApply} className="text-xs text-[#3E667D] hover:underline">Reintentar</button>
+            <Button variant="link" size="sm" onClick={handleApply} className="text-xs text-[#3E667D]">Reintentar</Button>
           </div>
         ) : !appliedStart ? (
           <div className="flex flex-col items-center justify-center py-24 gap-3">

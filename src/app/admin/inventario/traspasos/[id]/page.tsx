@@ -24,6 +24,7 @@ import {
   ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 import {
   useTransfer,
   useApproveTransfer,
@@ -303,9 +304,9 @@ export default function TransferDetailPage() {
             {(error as any)?.response?.data?.message || 'Traspaso no encontrado'}
           </p>
           <Link href="/admin/inventario/traspasos">
-            <button className="px-6 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#3E667D]/90">
+            <Button>
               Volver a Traspasos
-            </button>
+            </Button>
           </Link>
         </div>
       </div>
@@ -335,25 +336,25 @@ export default function TransferDetailPage() {
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2">
-              <button
+              <Button
+                variant="outline"
                 onClick={handleDownloadPdf}
                 disabled={isGeneratingPdf}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 text-sm font-medium flex items-center gap-2 transition-colors"
+                className="text-gray-700"
               >
                 <ArrowDownTrayIcon className="h-4 w-4" />
                 {isGeneratingPdf ? 'Generando...' : 'Descargar PDF'}
-              </button>
+              </Button>
               {transfer.status === 'pending_approval' && (
                 <>
                   <div className="relative group">
-                    <button
+                    <Button
                       onClick={handleApprove}
                       disabled={isMutating || isSelfRequester}
-                      className="px-4 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#2f5165] disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium flex items-center gap-2 transition-colors"
                     >
                       <CheckIcon className="h-4 w-4" />
                       Aprobar
-                    </button>
+                    </Button>
                     {isSelfRequester && (
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-gray-900 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                         No puedes aprobar tu propio traspaso
@@ -361,43 +362,47 @@ export default function TransferDetailPage() {
                       </div>
                     )}
                   </div>
-                  <button
+                  <Button
+                    variant="outline"
                     onClick={() => setActionModal('reject')}
                     disabled={isMutating}
-                    className="px-4 py-2 border border-orange-300 text-orange-600 rounded-lg hover:bg-orange-50 disabled:opacity-50 text-sm font-medium flex items-center gap-2 transition-colors"
+                    className="border-orange-300 text-orange-600 hover:bg-orange-50 hover:text-orange-600"
                   >
                     <XMarkIcon className="h-4 w-4" />
                     Rechazar
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="outline"
                     onClick={() => setActionModal('cancel')}
                     disabled={isMutating}
-                    className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50 text-sm font-medium flex items-center gap-2 transition-colors"
+                    className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-600"
                   >
                     <NoSymbolIcon className="h-4 w-4" />
                     Cancelar
-                  </button>
+                  </Button>
                 </>
               )}
 
               {transfer.status === 'approved' && (
                 <>
-                  <button
+                  <Button
+                    variant="success"
                     onClick={() => setActionModal('apply')}
                     disabled={isMutating}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium flex items-center gap-2 transition-colors"
+                    className="bg-green-600 hover:bg-green-700"
                   >
                     <PlayIcon className="h-4 w-4" />
                     Aplicar Traspaso
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="outline"
                     onClick={() => setActionModal('cancel')}
                     disabled={isMutating}
-                    className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50 text-sm font-medium flex items-center gap-2 transition-colors"
+                    className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-600"
                   >
                     <NoSymbolIcon className="h-4 w-4" />
                     Cancelar
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
@@ -650,24 +655,25 @@ export default function TransferDetailPage() {
               </div>
 
               <div className="flex gap-3 mt-4">
-                <button
+                <Button
+                  variant="outline"
                   onClick={closeModal}
                   disabled={isMutating}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors disabled:opacity-50"
+                  className="flex-1"
                 >
                   Volver
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={actionModal === 'reject' ? handleReject : handleCancel}
                   disabled={!actionReason.trim() || isMutating}
-                  className={`flex-1 px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+                  className={`flex-1 text-white ${
                     actionModal === 'reject' ? 'bg-orange-600 hover:bg-orange-700' : 'bg-red-600 hover:bg-red-700'
                   }`}
                 >
                   {isMutating
                     ? 'Procesando...'
                     : actionModal === 'reject' ? 'Confirmar Rechazo' : 'Confirmar Cancelacion'}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -701,20 +707,22 @@ export default function TransferDetailPage() {
               </p>
 
               <div className="flex gap-3 mt-6">
-                <button
+                <Button
+                  variant="outline"
                   onClick={closeModal}
                   disabled={isMutating}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors disabled:opacity-50"
+                  className="flex-1"
                 >
                   Volver
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="success"
                   onClick={handleApply}
                   disabled={isMutating}
-                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium transition-colors"
+                  className="flex-1 bg-green-600 hover:bg-green-700"
                 >
                   {isMutating ? 'Aplicando...' : 'Confirmar y Aplicar'}
-                </button>
+                </Button>
               </div>
             </div>
           </div>

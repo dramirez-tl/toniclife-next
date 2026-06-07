@@ -16,6 +16,8 @@ import {
   CurrencyDollarIcon,
 } from '@heroicons/react/24/outline';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useNewCustomersReport, useInactiveCustomersReport } from '@/hooks/useReports';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 
@@ -147,10 +149,10 @@ function ClientesReportesContent() {
             </p>
           </div>
         </div>
-        <button className="inline-flex items-center rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500">
+        <Button variant="success">
           <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
           Exportar Excel
-        </button>
+        </Button>
       </div>
 
       {/* Summary Cards */}
@@ -219,12 +221,12 @@ function ClientesReportesContent() {
             <div className="flex-1 min-w-[200px]">
               <div className="relative">
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                <input
+                <Input
                   type="text"
                   placeholder="Buscar por nombre o email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full rounded-md border-gray-300 pl-10 text-sm focus:border-green-500 focus:ring-green-500"
+                  className="w-full pl-10"
                 />
               </div>
             </div>
@@ -233,18 +235,18 @@ function ClientesReportesContent() {
               <>
                 <div className="flex items-center space-x-2">
                   <CalendarDaysIcon className="h-5 w-5 text-gray-400" />
-                  <input
+                  <Input
                     type="date"
                     value={dateRange.start}
                     onChange={(e) => setParams({ dateFrom: e.target.value })}
-                    className="rounded-md border-gray-300 text-sm focus:border-green-500 focus:ring-green-500"
+                    className="w-auto"
                   />
                   <span className="text-gray-500">a</span>
-                  <input
+                  <Input
                     type="date"
                     value={dateRange.end}
                     onChange={(e) => setParams({ dateTo: e.target.value })}
-                    className="rounded-md border-gray-300 text-sm focus:border-green-500 focus:ring-green-500"
+                    className="w-auto"
                   />
                 </div>
 
@@ -284,28 +286,32 @@ function ClientesReportesContent() {
             )}
 
             <div className="flex rounded-lg bg-gray-100 p-1">
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setParams({ viewMode: 'new' })}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+                className={
                   viewMode === 'new'
-                    ? 'bg-white text-gray-900 shadow'
+                    ? 'bg-white text-gray-900 shadow hover:bg-white'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                }
               >
                 <UserPlusIcon className="mr-1 inline h-4 w-4" />
                 Nuevos
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setParams({ viewMode: 'inactive' })}
-                className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+                className={
                   viewMode === 'inactive'
-                    ? 'bg-white text-gray-900 shadow'
+                    ? 'bg-white text-gray-900 shadow hover:bg-white'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                }
               >
                 <UserMinusIcon className="mr-1 inline h-4 w-4" />
                 Inactivos
-              </button>
+              </Button>
             </div>
           </div>
         </div>

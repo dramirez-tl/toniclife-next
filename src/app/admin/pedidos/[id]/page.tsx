@@ -34,6 +34,7 @@ import { generateOrderTicketPdf } from '@/lib/generate-order-ticket';
 import { CFDI_USES, PAYMENT_FORMS } from '@/types/billing';
 import { OrderStatus } from '@/types/order';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { Button } from '@/components/ui/button';
 
 // ================================
 // Helpers
@@ -240,9 +241,9 @@ export default function OrderDetailAdminPage() {
             {(error as any)?.response?.data?.message || 'Pedido no encontrado'}
           </p>
           <Link href="/admin/pedidos">
-            <button className="px-6 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#3E667D]/90">
+            <Button variant="default">
               Volver a Pedidos
-            </button>
+            </Button>
           </Link>
         </div>
       </div>
@@ -277,40 +278,45 @@ export default function OrderDetailAdminPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <button
+              <Button
+                variant="outline"
+                size="icon"
                 onClick={handlePrintTicket}
-                className="p-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 title="Imprimir Ticket"
               >
                 <PrinterIcon className="h-5 w-5" />
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
                 disabled
                 onClick={() => toast.info('Esta función se habilitará próximamente')}
-                className="p-2 border border-gray-200 text-gray-300 rounded-lg cursor-not-allowed"
                 title="Enviar correo (próximamente)"
               >
                 <EnvelopeIcon className="h-5 w-5" />
-              </button>
+              </Button>
               <div className="relative">
-                <button
+                <Button
+                  variant="outline"
+                  size="icon"
                   onClick={() => setShowActions(!showActions)}
-                  className="p-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
                   <EllipsisVerticalIcon className="h-5 w-5" />
-                </button>
+                </Button>
                 {showActions && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border z-10">
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => {
                         setShowActions(false);
                         setShowCancelModal(true);
                       }}
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 text-red-600 flex items-center gap-2"
+                      className="w-full justify-start text-red-600"
                     >
                       <XCircleIcon className="h-4 w-4" />
                       Cancelar Pedido
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>
@@ -675,18 +681,22 @@ export default function OrderDetailAdminPage() {
 
                   {invoice.provider_status === 'stamped' && (
                     <div className="flex gap-2">
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleDownloadPdf(invoice.id)}
-                        className="flex-1 px-3 py-2 bg-red-50 text-red-700 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors flex items-center justify-center gap-1"
+                        className="flex-1 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-700"
                       >
                         PDF
-                      </button>
-                      <button
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleDownloadXml(invoice.id)}
-                        className="flex-1 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors flex items-center justify-center gap-1"
+                        className="flex-1 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-700"
                       >
                         XML
-                      </button>
+                      </Button>
                     </div>
                   )}
 
@@ -721,14 +731,15 @@ export default function OrderDetailAdminPage() {
                           {(fiscalData as any).rfc}
                         </span>
                       </p>
-                      <button
+                      <Button
+                        variant="default"
                         onClick={() => setShowInvoiceDialog(true)}
                         disabled={createInvoice.isPending}
-                        className="w-full px-4 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#3E667D]/90 disabled:opacity-50 flex items-center justify-center gap-2 text-sm font-medium transition-colors"
+                        className="w-full"
                       >
                         <DocumentTextIcon className="h-4 w-4" />
                         {createInvoice.isPending ? 'Generando...' : 'Generar Factura'}
-                      </button>
+                      </Button>
                     </>
                   ) : (
                     <div className="text-center">
@@ -786,20 +797,22 @@ export default function OrderDetailAdminPage() {
               </div>
 
               <div className="flex gap-3 mt-4">
-                <button
+                <Button
+                  variant="outline"
                   onClick={closeCancelModal}
                   disabled={cancelOrderMutation.isPending}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors disabled:opacity-50"
+                  className="flex-1"
                 >
                   Volver
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="destructive"
                   onClick={handleCancel}
                   disabled={!cancelReason.trim() || cancelOrderMutation.isPending}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm font-medium transition-colors"
+                  className="flex-1"
                 >
                   {cancelOrderMutation.isPending ? 'Cancelando...' : 'Confirmar Cancelación'}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -863,19 +876,21 @@ export default function OrderDetailAdminPage() {
               </div>
 
               <div className="flex gap-3 mt-6">
-                <button
+                <Button
+                  variant="outline"
                   onClick={() => setShowInvoiceDialog(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors"
+                  className="flex-1"
                 >
                   Cancelar
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="default"
                   onClick={handleCreateInvoice}
                   disabled={createInvoice.isPending}
-                  className="flex-1 px-4 py-2 bg-[#3E667D] text-white rounded-lg hover:bg-[#3E667D]/90 disabled:opacity-50 text-sm font-medium transition-colors"
+                  className="flex-1"
                 >
                   {createInvoice.isPending ? 'Generando...' : 'Generar Factura'}
-                </button>
+                </Button>
               </div>
             </div>
           </div>

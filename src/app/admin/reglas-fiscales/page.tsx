@@ -3,6 +3,14 @@
 import { Suspense, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, type DataTableColumn } from '@/components/ui';
 import {
@@ -58,9 +66,9 @@ function TaxRuleModal({ isOpen, onClose, title, children, onSubmit, isSubmitting
       <div className="relative bg-white rounded-2xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-900">{title}</h2>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+          <Button variant="ghost" size="icon" onClick={onClose}>
             <XMarkIcon className="h-5 w-5 text-gray-500" />
-          </button>
+          </Button>
         </div>
         <div className="px-6 py-4">{children}</div>
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
@@ -427,21 +435,25 @@ function ReglasFiscalesContent() {
       header: 'Acciones',
       render: (r) => (
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={() => handleOpenEditModal(r)}
-            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-[#3E667D] transition-colors"
+            className="text-gray-500 hover:text-[#3E667D]"
             title="Editar"
           >
             <PencilIcon className="h-4 w-4" />
-          </button>
+          </Button>
           {r.isActive && (
-            <button
+            <Button
+              variant="ghost"
+              size="icon-sm"
               onClick={() => handleDelete(r)}
-              className="p-1.5 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-600 transition-colors"
+              className="text-gray-500 hover:bg-red-50 hover:text-red-600"
               title="Desactivar"
             >
               <TrashIcon className="h-4 w-4" />
-            </button>
+            </Button>
           )}
         </div>
       ),
@@ -609,13 +621,13 @@ function ReglasFiscalesContent() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Buscar</label>
                   <div className="relative">
                     <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <input
+                    <Input
                       type="text"
                       value={searchInput}
                       onChange={(e) => setSearchInput(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                       placeholder="Buscar por codigo o nombre..."
-                      className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#3E667D] focus:border-[#3E667D]"
+                      className="w-full pl-9"
                     />
                   </div>
                 </div>
@@ -623,44 +635,47 @@ function ReglasFiscalesContent() {
                 {/* Country filter */}
                 <div className="w-40">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Pais</label>
-                  <select
-                    value={filterCountry}
-                    onChange={(e) => setFilterCountry(e.target.value)}
-                    className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:ring-[#3E667D] focus:border-[#3E667D]"
-                  >
-                    <option value="all">Todos</option>
-                    <option value="MX">Mexico</option>
-                    <option value="US">EE.UU.</option>
-                  </select>
+                  <Select value={filterCountry} onValueChange={(v) => setFilterCountry(v)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="MX">Mexico</SelectItem>
+                      <SelectItem value="US">EE.UU.</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Type filter */}
                 <div className="w-40">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                  <select
-                    value={filterType}
-                    onChange={(e) => setFilterType(e.target.value)}
-                    className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:ring-[#3E667D] focus:border-[#3E667D]"
-                  >
-                    <option value="all">Todos</option>
-                    {TAX_TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>{t.label}</option>
-                    ))}
-                  </select>
+                  <Select value={filterType} onValueChange={(v) => setFilterType(v)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      {TAX_TYPES.map((t) => (
+                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Status filter */}
                 <div className="w-36">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm focus:ring-[#3E667D] focus:border-[#3E667D]"
-                  >
-                    <option value="all">Todos</option>
-                    <option value="active">Activas</option>
-                    <option value="inactive">Inactivas</option>
-                  </select>
+                  <Select value={filterStatus} onValueChange={(v) => setFilterStatus(v)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="active">Activas</SelectItem>
+                      <SelectItem value="inactive">Inactivas</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Action buttons */}
@@ -705,49 +720,50 @@ function ReglasFiscalesContent() {
         >
           <FormSection title="Informacion General">
             <FormField label="Codigo" required>
-              <input
+              <Input
                 type="text"
                 value={formData.code}
                 onChange={(e) => handleFormChange('code', e.target.value.toUpperCase())}
                 placeholder="IVA_16, SALES_TAX_CA..."
                 disabled={!!editingRule}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#3E667D] focus:border-[#3E667D] disabled:bg-gray-100"
+                className="w-full disabled:bg-gray-100"
               />
             </FormField>
             <FormField label="Nombre" required>
-              <input
+              <Input
                 type="text"
                 value={formData.name}
                 onChange={(e) => handleFormChange('name', e.target.value)}
                 placeholder="IVA 16%, Sales Tax California..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#3E667D] focus:border-[#3E667D]"
+                className="w-full"
               />
             </FormField>
             <FormField label="Descripcion" fullWidth>
-              <input
+              <Input
                 type="text"
                 value={formData.description || ''}
                 onChange={(e) => handleFormChange('description', e.target.value)}
                 placeholder="Descripcion opcional..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#3E667D] focus:border-[#3E667D]"
+                className="w-full"
               />
             </FormField>
           </FormSection>
 
           <FormSection title="Configuracion Fiscal">
             <FormField label="Tipo de Impuesto" required>
-              <select
-                value={formData.taxType}
-                onChange={(e) => handleFormChange('taxType', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#3E667D] focus:border-[#3E667D]"
-              >
-                {TAX_TYPES.map((t) => (
-                  <option key={t.value} value={t.value}>{t.label}</option>
-                ))}
-              </select>
+              <Select value={formData.taxType} onValueChange={(v) => handleFormChange('taxType', v)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TAX_TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </FormField>
             <FormField label="Tasa (%)" required>
-              <input
+              <Input
                 type="number"
                 value={formData.rate}
                 onChange={(e) => handleFormChange('rate', parseFloat(e.target.value) || 0)}
@@ -755,22 +771,25 @@ function ReglasFiscalesContent() {
                 min="0"
                 max="100"
                 placeholder="16.00"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#3E667D] focus:border-[#3E667D]"
+                className="w-full"
               />
             </FormField>
             <FormField label="Pais" required>
-              <select
+              <Select
                 value={formData.countryCode || ''}
-                onChange={(e) => {
-                  handleFormChange('countryCode', e.target.value);
+                onValueChange={(v) => {
+                  handleFormChange('countryCode', v);
                   handleFormChange('stateCodes', []);
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-[#3E667D] focus:border-[#3E667D]"
               >
-                <option value="">Seleccionar...</option>
-                <option value="MX">Mexico</option>
-                <option value="US">Estados Unidos</option>
-              </select>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Seleccionar..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="MX">Mexico</SelectItem>
+                  <SelectItem value="US">Estados Unidos</SelectItem>
+                </SelectContent>
+              </Select>
             </FormField>
             {states.length > 0 && (
               <FormField label="Estados (opcional)">

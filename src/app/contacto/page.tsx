@@ -13,6 +13,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 export default function ContactoPage() {
   const [formData, setFormData] = useState({
@@ -118,14 +120,14 @@ export default function ContactoPage() {
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
                       Nombre Completo *
                     </label>
-                    <input
+                    <Input
                       type="text"
                       id="name"
                       name="name"
                       required
                       value={formData.name}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
+                      className="w-full"
                       placeholder="Tu nombre"
                     />
                   </div>
@@ -134,14 +136,14 @@ export default function ContactoPage() {
                     <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                       Correo electrónico *
                     </label>
-                    <input
+                    <Input
                       type="email"
                       id="email"
                       name="email"
                       required
                       value={formData.email}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
+                      className="w-full"
                       placeholder="tu@email.com"
                     />
                   </div>
@@ -152,13 +154,13 @@ export default function ContactoPage() {
                     <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
                       Teléfono
                     </label>
-                    <input
+                    <Input
                       type="tel"
                       id="phone"
                       name="phone"
                       value={formData.phone}
                       onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
+                      className="w-full"
                       placeholder="+52 55 1234 5678"
                     />
                   </div>
@@ -194,12 +196,14 @@ export default function ContactoPage() {
                   />
                 </div>
 
-                <button
+                <Button
                   type="submit"
-                  className="w-full px-8 py-4 bg-[#3E667D] text-white font-bold rounded-lg hover:bg-[#002855] transition-colors"
+                  variant="default"
+                  size="xl"
+                  className="w-full bg-[#3E667D] font-bold hover:bg-[#002855]"
                 >
                   Enviar Mensaje
-                </button>
+                </Button>
               </form>
             </div>
           </div>
@@ -234,9 +238,9 @@ export default function ContactoPage() {
                   <div>
                     <p className="font-medium text-gray-900">Chat en Vivo</p>
                     <p className="text-gray-600">Disponible ahora</p>
-                    <button className="text-sm text-[#3E667D] font-medium hover:underline">
+                    <Button variant="link" size="sm" className="text-[#3E667D] px-0 h-auto">
                       Iniciar chat →
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>

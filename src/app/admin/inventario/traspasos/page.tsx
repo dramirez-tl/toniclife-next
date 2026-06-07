@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux';
 import Link from 'next/link';
 import { selectUser } from '@/store/slices/authSlice';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   ArrowsRightLeftIcon,
@@ -319,8 +320,8 @@ function TraspasosContent() {
             <div className="flex flex-col lg:flex-row gap-4">
               <div className="flex-1">
                 <div className="relative">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
+                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 z-10" />
+                  <Input
                     type="text"
                     placeholder="Buscar por número de movimiento..."
                     value={searchInput}
@@ -328,7 +329,7 @@ function TraspasosContent() {
                       setSearchInput(e.target.value);
                       setParams({ search: e.target.value });
                     }}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                    className="w-full pl-10"
                   />
                 </div>
               </div>
@@ -430,55 +431,65 @@ function TraspasosContent() {
                           <td className="py-4 px-4">
                             <div className="flex items-center justify-end gap-1">
                               <Link href={`/admin/inventario/traspasos/${transfer.id}`}>
-                                <button className="p-2 hover:bg-blue-50 rounded-lg transition-colors" title="Ver Detalle">
+                                <Button variant="ghost" size="icon" className="hover:bg-blue-50" title="Ver Detalle">
                                   <EyeIcon className="h-4 w-4 text-blue-600" />
-                                </button>
+                                </Button>
                               </Link>
 
                               {transfer.status === 'pending_approval' && (
                                 <>
-                                  <button
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
                                     onClick={() => handleApprove(transfer)}
-                                    className="p-2 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                    className="hover:bg-green-50 disabled:opacity-40"
                                     title={currentUser?.id === transfer.requestedBy?.id ? 'No puedes aprobar tu propio traspaso' : 'Aprobar'}
                                     disabled={approveTransfer.isPending || currentUser?.id === transfer.requestedBy?.id}
                                   >
                                     <CheckIcon className="h-4 w-4 text-green-600" />
-                                  </button>
-                                  <button
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
                                     onClick={() => setActionModal({ type: 'reject', transfer })}
-                                    className="p-2 hover:bg-orange-50 rounded-lg transition-colors"
+                                    className="hover:bg-orange-50"
                                     title="Rechazar"
                                   >
                                     <XMarkIcon className="h-4 w-4 text-orange-600" />
-                                  </button>
-                                  <button
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
                                     onClick={() => setActionModal({ type: 'cancel', transfer })}
-                                    className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                                    className="hover:bg-red-50"
                                     title="Cancelar"
                                   >
                                     <NoSymbolIcon className="h-4 w-4 text-red-600" />
-                                  </button>
+                                  </Button>
                                 </>
                               )}
 
                               {transfer.status === 'approved' && (
                                 <>
-                                  <button
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
                                     onClick={() => handleApply(transfer)}
-                                    className="p-2 hover:bg-green-50 rounded-lg transition-colors"
+                                    className="hover:bg-green-50"
                                     title="Aplicar Traspaso"
                                     disabled={applyTransfer.isPending}
                                   >
                                     <PlayIcon className="h-4 w-4 text-green-600" />
-                                  </button>
-                                  <button
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
                                     onClick={() => setActionModal({ type: 'cancel', transfer })}
-                                    className="p-2 hover:bg-red-50 rounded-lg transition-colors"
+                                    className="hover:bg-red-50"
                                     title="Cancelar"
                                   >
                                     <NoSymbolIcon className="h-4 w-4 text-red-600" />
-                                  </button>
+                                  </Button>
                                 </>
                               )}
                             </div>
@@ -574,17 +585,18 @@ function TraspasosContent() {
               </div>
 
               <div className="flex gap-3 mt-4">
-                <button
+                <Button
+                  variant="outline"
                   onClick={closeActionModal}
                   disabled={rejectTransfer.isPending || cancelTransfer.isPending}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm font-medium transition-colors disabled:opacity-50"
+                  className="flex-1"
                 >
                   Volver
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={handleActionConfirm}
                   disabled={!actionReason.trim() || rejectTransfer.isPending || cancelTransfer.isPending}
-                  className={`flex-1 px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+                  className={`flex-1 text-white ${
                     actionModal.type === 'reject'
                       ? 'bg-orange-600 hover:bg-orange-700'
                       : 'bg-red-600 hover:bg-red-700'
@@ -595,7 +607,7 @@ function TraspasosContent() {
                     : actionModal.type === 'reject'
                       ? 'Confirmar Rechazo'
                       : 'Confirmar Cancelación'}
-                </button>
+                </Button>
               </div>
             </div>
           </div>
