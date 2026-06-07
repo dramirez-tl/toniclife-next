@@ -2,8 +2,8 @@
 
 import { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, DataTablePagination } from '@/components/ui/DataTable';
 import type { DataTableColumn } from '@/components/ui/DataTable';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -484,10 +484,10 @@ function PedidosContent() {
                   <Button variant="secondary">Volver al Panel Principal</Button>
                 </Link>
                 <Button
-                  variant="primary"
-                  leftIcon={<ArrowDownTrayIcon className="h-5 w-5" />}
+                  variant="default"
                   onClick={handleExport}
                 >
+                  <ArrowDownTrayIcon className="h-5 w-5" />
                   Exportar Pedidos
                 </Button>
               </div>
@@ -594,7 +594,7 @@ function PedidosContent() {
                         className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                       />
                     </div>
-                    <Button variant="primary" onClick={handleSearch}>
+                    <Button variant="default" onClick={handleSearch}>
                       Buscar
                     </Button>
                   </div>

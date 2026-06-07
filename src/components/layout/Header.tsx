@@ -328,7 +328,7 @@ export function Header() {
                 onClick={() => setMobileMenuOpen(false)}
                 className="block"
               >
-                <Button fullWidth size="lg" variant="primary">
+                <Button size="lg" variant="default" className="w-full">
                   {isAuthenticated ? 'Mi Cuenta' : 'Iniciar Sesión'}
                 </Button>
               </Link>

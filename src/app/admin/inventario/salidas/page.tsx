@@ -3,8 +3,8 @@
 import { Suspense, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import {
   ArrowUpTrayIcon,
@@ -178,9 +178,9 @@ function SalidasContent() {
               </Link>
               <Link href="/admin/inventario/salidas/nuevo">
                 <Button
-                  variant="primary"
-                  leftIcon={<PlusIcon className="h-5 w-5" />}
+                  variant="default"
                 >
+                  <PlusIcon className="h-5 w-5" />
                   Nueva Salida
                 </Button>
               </Link>

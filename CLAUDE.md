@@ -14,9 +14,12 @@
 - **React:** 19.2.0
 - **Estilos:** Tailwind CSS 4.1.17 (sintaxis v4 — usa `@tailwindcss/postcss`,
   NO hay `tailwind.config.ts` tradicional)
-- **Componentes base:** Radix UI (primitivos) + DS propio en `src/components/ui/`
+- **Componentes base:** **shadcn/ui** (style new-york) sobre Radix, en
+  `src/components/ui/` (lowercase, canónicos). Migrado del DS propio jun-2026.
 - **Utilidades de UI:** `clsx`, `tailwind-merge` (combinados en helper `cn`),
-  `lucide-react` + `@heroicons/react` (iconos), `sonner` (toasts)
+  `class-variance-authority` (`cva`, variantes de componentes),
+  `lucide-react` (iconos de shadcn) + `@heroicons/react` (legado, aún en uso),
+  `sonner` (toasts), `tw-animate-css` (animaciones de overlays shadcn)
 - **Fetching/server state:** `@tanstack/react-query` 5.90.16 + devtools
 - **Cliente HTTP:** `axios` 1.13.x con interceptores (ver sección abajo)
 - **Estado global UI:** Zustand 5 + Redux Toolkit (coexisten, ver deuda técnica)
@@ -26,29 +29,46 @@
 - **Extras notables:** `@xyflow/react` (visualización de red MLM), `jspdf`
   (exportes), `canvas-confetti`, `date-fns`.
 
-> ⚠️ `class-variance-authority` está en `package.json` pero **NO se usa**
-> actualmente en los componentes del DS. Ver sección DS propio abajo.
+> ✅ `class-variance-authority` (`cva`) **sí se usa** ahora — es el patrón de
+> variantes de shadcn/ui (ej. `buttonVariants`, `badgeVariants`).
 
 ---
 
 ## 🚨 Regla innegociable de UI
 
-### ❌ NO uses `npx shadcn add <componente>`
+### ✅ USA shadcn/ui (migrado jun-2026)
 
-El proyecto usa un **DS propio** en `src/components/ui/`, NO shadcn/ui CLI.
-- No existe `components.json` en la raíz.
-- Los componentes están en **PascalCase** (`Button.tsx`, `Card.tsx`,
-  `Input.tsx`, `Badge.tsx`, `DataTable.tsx`, `SearchableSelect.tsx`,
-  `FileUpload.tsx`).
-- Si ejecutas `npx shadcn add button`, te genera un `button.tsx` en
-  lowercase que convive con `Button.tsx` y rompe imports existentes.
+El proyecto migró del DS propio a **shadcn/ui canónico** (style new-york, iconos
+lucide). Antes había un DS hecho a mano; ya no.
+- Existe **`components.json`** en la raíz (alias `@/components/ui`, `cssVariables`,
+  baseColor slate, rsc:false).
+- Los componentes viven en `src/components/ui/` en **lowercase** (`button.tsx`,
+  `card.tsx`, `input.tsx`, `badge.tsx`, `label.tsx`, `select.tsx`, `dialog.tsx`,
+  `dropdown-menu.tsx`, `table.tsx`, `command.tsx`, `popover.tsx`, `tabs.tsx`,
+  `tooltip.tsx`, `checkbox.tsx`, `switch.tsx`, `skeleton.tsx`, `sonner.tsx`, etc.).
+- El theme usa **CSS variables mapeadas a la marca** en `src/app/globals.css`
+  (`--primary` teal #3E667D, `--secondary`/`--accent` sky #C8DDF2, `--ring`
+  #a7c1e2, `--radius` 0.5rem) + `@theme inline` + `@custom-variant dark` +
+  `@import "tw-animate-css"`.
 
-**Patrón para agregar un componente nuevo al DS:**
-1. Ubica un componente similar existente (ej. `Button.tsx`).
-2. Copia su estructura: `forwardRef` + tipos literales (`'primary' | 'secondary' | ...`)
-   + `Record<Variant, string>` para estilos + `cn(...)` para combinar clases.
-3. Mantén PascalCase en el nombre de archivo y `export const ComponentName`.
-4. Reexporta desde `src/components/ui/index.ts`.
+**Agregar un componente:** `npx shadcn@latest add <componente> --yes`. NO lo
+escribas a mano. Reexpórtalo desde `src/components/ui/index.ts` para el barrel.
+
+**⚠️ Windows (FS case-insensitive):** `Button.tsx` y `button.tsx` son el MISMO
+archivo. Para renombrar PascalCase→lowercase usa `git mv -f` (no `mv`/Write). Los
+4 que colisionaban (button/card/input/badge) ya se renombraron así.
+
+**Componentes compuestos** = composiciones reutilizables sobre primitivos shadcn
+(el patrón oficial de shadcn para Combobox/DataTable), conservando su API previa:
+- `SearchableSelect.tsx` = **Combobox** (Popover + Command/cmdk; buscador).
+- `DataTable.tsx` = render con **`Table` de shadcn** + lógica propia
+  (orden client/server, filtros, selección, paginado). Hay `@tanstack/react-table`
+  instalado pero el motor actual NO lo usa (disponible si se quiere el canónico).
+- `FileUpload.tsx` = dropzone con primitivos/tokens shadcn.
+
+**Variantes de marca añadidas al `cva`:** `button` → `success` + sizes `md`/`xl`;
+`badge` → `success`/`info`/`warning`. shadcn **sí usa `cva`** + `cn()` (ver abajo;
+la nota previa de "no usar cva" quedó obsoleta).
 
 ---
 
@@ -360,42 +380,47 @@ function ProductosContent() {
 
 ---
 
-## 🧩 DS propio — inventario real
+## 🧩 Inventario shadcn/ui
 
-Ubicación: `src/components/ui/`. Archivos en PascalCase.
+Ubicación: `src/components/ui/`. Archivos **lowercase** (canónicos de shadcn).
 
-| Archivo | Tipo | Notas |
-|---------|------|-------|
-| `Badge.tsx` | Tag de estado | variantes de color |
-| `Button.tsx` | Botón | 7 variants (`primary/secondary/outline/ghost/danger/link/success`), 5 sizes (`sm/md/lg/xl/icon`), `isLoading`, `leftIcon`, `rightIcon`, `fullWidth` |
-| `Card.tsx` | Contenedor | Card + CardHeader/Content/Footer |
-| `DataTable.tsx` | Tabla genérica | con sort/filter/pagination; reexporta `DataTablePagination`, `DataTableColumn` |
-| `FileUpload.tsx` | Upload | drag & drop + preview |
-| `Input.tsx` | Input | con label/error/helper |
-| `SearchableSelect.tsx` | Select con búsqueda | sobre Radix Popover |
-| `index.ts` | Barrel | reexporta los anteriores |
+Primitivos instalados: `button`, `card`, `input`, `textarea`, `label`, `badge`,
+`select`, `checkbox`, `switch`, `radio-group`, `dialog`, `dropdown-menu`,
+`popover`, `command`, `tabs`, `tooltip`, `separator`, `accordion`, `avatar`,
+`scroll-area`, `skeleton`, `alert`, `sonner`, `table`. Para más:
+`npx shadcn@latest add <x> --yes`.
 
-**Patrón real (NO usa `cva`):**
+**Compuestos** (composición sobre primitivos shadcn; conservan su API previa para
+no romper sus muchos call-sites):
+
+| Archivo | Qué es |
+|---------|--------|
+| `SearchableSelect.tsx` | **Combobox** (Popover + Command/cmdk) con buscador. Props `{options, value, onChange, placeholder?, allLabel?, showAllOption?, allValue?, disabled?, className?}` |
+| `DataTable.tsx` | Tabla sobre `Table` de shadcn; orden client/server, filtros, selección, loading/paginado. Reexporta `DataTablePagination`, `DataTableColumn<T>`, `DataTableSortState` |
+| `FileUpload.tsx` | Dropzone (drag&drop + preview) con tokens shadcn |
+| `index.ts` | Barrel — reexporta Button/Card/Badge/Input/Textarea/Label/Select + DataTable |
+
+**Variantes de marca** (extendidas en el `cva`): `button` → `success` + sizes
+`md`/`xl`; `badge` → `success`/`info`/`warning`. ⚠️ Nombres canónicos: `primary`
+NO existe (usa `default`), `danger` NO existe (usa `destructive`).
+
+**Patrón shadcn (usa `cva`):**
 ```ts
-// Button.tsx usa tipos literales + Record + cn
-type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'link' | 'success';
-const variantStyles: Record<ButtonVariant, string> = {
-  primary: 'bg-[#3E667D] hover:bg-[#2f5165] text-white shadow-md hover:shadow-lg',
-  secondary: '...',
-  // ...
-};
-// Luego:
-className={cn('base-classes', variantStyles[variant], sizeStyles[size], className)}
+const buttonVariants = cva("clases-base...", {
+  variants: { variant: { default: '...', destructive: '...', /* ... */ }, size: { /* ... */ } },
+  defaultVariants: { variant: 'default', size: 'default' },
+})
+// className={cn(buttonVariants({ variant, size, className }))}
 ```
 
-**NO usar `cva`** en el DS por ahora (aunque esté en `package.json`) —
-mantén la consistencia con el resto de los componentes. Si quieres introducir
-`cva`, hazlo como refactor explícito y coordinado, no en un componente nuevo.
+**Theme/marca:** usa los **tokens** (`bg-primary`, `text-primary-foreground`,
+`bg-secondary`, `text-muted-foreground`, `border-border`, `ring-ring`…) definidos
+en `src/app/globals.css`. Evita hex arbitrario nuevo (`bg-[#3E667D]`); el token
+`--primary` ya ES #3E667D. Soporta dark mode vía la clase `.dark`.
 
-**Componentes Radix usados directamente** (sin wrapper propio en `ui/`):
-Dialog, Dropdown, Popover, Tabs, Tooltip, Scroll-area, Checkbox, Switch,
-Toast, Accordion, Avatar, Label, Separator, Select. Si los necesitas,
-consúmelos desde `@radix-ui/react-*` directamente — NO hay envoltorio en `ui/`.
+**Primitivos Radix:** ya vienen envueltos por los componentes shadcn de `ui/`
+(dialog, dropdown-menu, popover, tabs, tooltip, select, checkbox, switch, etc.).
+Consúmelos desde `@/components/ui/*`, no desde `@radix-ui/react-*` directo.
 
 ---
 
@@ -429,7 +454,7 @@ src/
 │   ├── layout.tsx
 │   └── page.tsx            # ⚠️ En main = landing "coming soon" productiva
 ├── components/
-│   ├── ui/                 # DS propio (PascalCase) — 7 componentes
+│   ├── ui/                 # shadcn/ui (lowercase) — primitivos + compuestos
 │   ├── auth/               # PermissionGuard, AuthProvider, etc.
 │   ├── layout/             # Header, Footer, Sidebar
 │   ├── network/            # UserDetailPanel, NetworkVisualization (xyflow)
@@ -497,9 +522,9 @@ Ver lista global en `../CLAUDE.md`. Puntos específicos del frontend:
 4. **Naming inconsistente en `src/services/`**: 5 archivos legados usan
    sufijo `Api.ts` (`auditApi`, `commissionsApi`, `distributorApi`,
    `networkApi`, `securityApi`) en vez de `.service.ts`. Refactor pendiente.
-5. **`class-variance-authority` en deps pero sin uso real** — el DS usa
-   `Record<Variant, string>` + `cn()`. Decidir: migrar todos a `cva` o
-   eliminar la dep.
+5. **QA visual post-migración shadcn** (jun-2026): el `Card` canónico trae más
+   padding/gap que el viejo y el Combobox ya no muestra "X" para limpiar
+   (se limpia eligiendo "Todos"). Revisar espaciados y, si se activa, dark mode.
 6. **`NEXT_PUBLIC_BASE_URL`** se usa en `app/layout.tsx` pero no está en
    `.env.example`.
 7. **~9 PRs de Dependabot acumulados** en este repo (axios, eslint,

@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Cog6ToothIcon,
   GlobeAltIcon,
@@ -123,10 +123,10 @@ export default function ConfiguracionPage() {
                 </Button>
               </Link>
               <Button
-                variant="primary"
-                leftIcon={<CheckCircleIcon className="h-5 w-5" />}
+                variant="default"
                 onClick={handleSave}
               >
+                <CheckCircleIcon className="h-5 w-5" />
                 Guardar Cambios
               </Button>
             </div>
@@ -708,11 +708,11 @@ export default function ConfiguracionPage() {
             {/* Action Buttons */}
             <div className="flex gap-3 mt-6">
               <Button
-                variant="primary"
+                variant="default"
                 className="flex-1"
-                leftIcon={<CheckCircleIcon className="h-5 w-5" />}
                 onClick={handleSave}
               >
+                <CheckCircleIcon className="h-5 w-5" />
                 Guardar Cambios
               </Button>
               <Button

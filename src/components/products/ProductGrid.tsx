@@ -78,19 +78,17 @@ function ProductCard({ product }: { product: Product }) {
   return (
     <Link href={`/productos/${product.slug}`} className="block h-full">
       <Card
-        hover
-        className="group relative overflow-hidden cursor-pointer h-full flex flex-col"
-        padding="none"
+        className="group relative overflow-hidden cursor-pointer h-full flex flex-col p-0 transition-shadow hover:shadow-md"
       >
         {/* Badges */}
         <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
           {product.compareAtPrice && (
-            <Badge variant="error">
+            <Badge variant="outline" className="border-red-200 bg-red-100 text-red-700">
               -{Math.round((1 - product.price / product.compareAtPrice) * 100)}%
             </Badge>
           )}
           {product.featured && (
-            <Badge variant="success">Destacado</Badge>
+            <Badge variant="outline" className="border-green-200 bg-green-100 text-green-700">Destacado</Badge>
           )}
         </div>
 
@@ -152,12 +150,12 @@ function ProductCard({ product }: { product: Product }) {
             </div>
             <Button
               size="sm"
-              leftIcon={added ? <CheckIcon className="h-4 w-4" /> : <ShoppingCartIcon className="h-4 w-4" />}
               onClick={handleAddToCart}
               disabled={addToCart.isPending}
-              variant={added ? 'success' : 'primary'}
+              variant={added ? 'success' : 'default'}
               className="cursor-pointer"
             >
+              {added ? <CheckIcon className="h-4 w-4" /> : <ShoppingCartIcon className="h-4 w-4" />}
               {addToCart.isPending ? 'Agregando...' : added ? 'Agregado' : 'Agregar'}
             </Button>
           </div>
@@ -189,7 +187,7 @@ function ProductListItem({ product }: { product: Product }) {
 
   return (
     <Link href={`/productos/${product.slug}`} className="block">
-      <Card hover className="overflow-hidden cursor-pointer" padding="none">
+      <Card className="overflow-hidden cursor-pointer p-0 transition-shadow hover:shadow-md">
         <div className="flex flex-col sm:flex-row">
           {/* Product Image */}
           <div className="sm:w-48 aspect-square sm:aspect-auto bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center flex-shrink-0">
@@ -216,10 +214,10 @@ function ProductListItem({ product }: { product: Product }) {
                     {product.category}
                   </span>
                   {product.featured && (
-                    <Badge variant="success" size="sm">Destacado</Badge>
+                    <Badge variant="outline" className="border-green-200 bg-green-100 text-green-700 px-1.5 py-0 text-[10px]">Destacado</Badge>
                   )}
                   {product.compareAtPrice && (
-                    <Badge variant="error" size="sm">
+                    <Badge variant="outline" className="border-red-200 bg-red-100 text-red-700 px-1.5 py-0 text-[10px]">
                       -{Math.round((1 - product.price / product.compareAtPrice) * 100)}%
                     </Badge>
                   )}
@@ -276,12 +274,12 @@ function ProductListItem({ product }: { product: Product }) {
                   </div>
                 </div>
                 <Button
-                  leftIcon={added ? <CheckIcon className="h-4 w-4" /> : <ShoppingCartIcon className="h-4 w-4" />}
                   onClick={handleAddToCart}
                   disabled={addToCart.isPending}
-                  variant={added ? 'success' : 'primary'}
+                  variant={added ? 'success' : 'default'}
                   className="cursor-pointer"
                 >
+                  {added ? <CheckIcon className="h-4 w-4" /> : <ShoppingCartIcon className="h-4 w-4" />}
                   {addToCart.isPending ? 'Agregando...' : added ? 'Agregado' : 'Agregar al Carrito'}
                 </Button>
               </div>

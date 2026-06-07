@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   UserGroupIcon,
   ArrowLeftIcon,
@@ -149,11 +149,11 @@ export default function CompareUsersPage() {
                   </Button>
                 ) : (
                   <Button
-                    variant="primary"
+                    variant="default"
                     onClick={handleCompare}
                     disabled={!userId1 || !userId2 || userId1 === userId2}
-                    leftIcon={<MagnifyingGlassIcon className="h-4 w-4" />}
                   >
+                    <MagnifyingGlassIcon className="h-4 w-4" />
                     Comparar
                   </Button>
                 )}

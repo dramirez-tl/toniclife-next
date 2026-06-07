@@ -3,8 +3,8 @@
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   ChartBarIcon,
   TrophyIcon,
@@ -190,10 +190,10 @@ function MetasContent() {
                 </Button>
               </Link>
               <Button
-                variant="primary"
-                leftIcon={<PlusIcon className="h-5 w-5" />}
+                variant="default"
                 onClick={() => setShowAddGoalModal(true)}
               >
+                <PlusIcon className="h-5 w-5" />
                 Nueva Meta
               </Button>
             </div>
@@ -394,20 +394,20 @@ function MetasContent() {
                     {goal.status === 'in_progress' && (
                       <>
                         <Button
-                          variant="primary"
+                          variant="default"
                           size="sm"
                           className="flex-1"
-                          leftIcon={<CheckCircleIcon className="h-4 w-4" />}
                           onClick={() => handleCompleteGoal(goal.id)}
                         >
+                          <CheckCircleIcon className="h-4 w-4" />
                           Marcar Completada
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          leftIcon={<PencilIcon className="h-4 w-4" />}
                           onClick={() => toast.info('Función próximamente disponible')}
                         >
+                          <PencilIcon className="h-4 w-4" />
                           Editar
                         </Button>
                       </>
@@ -417,18 +417,18 @@ function MetasContent() {
                         variant="outline"
                         size="sm"
                         className="flex-1"
-                        leftIcon={<TrophyIcon className="h-4 w-4" />}
                         disabled
                       >
+                        <TrophyIcon className="h-4 w-4" />
                         ¡Completada!
                       </Button>
                     )}
                     <Button
                       variant="ghost"
                       size="sm"
-                      leftIcon={<TrashIcon className="h-4 w-4" />}
                       onClick={() => handleDeleteGoal(goal.id)}
                     >
+                      <TrashIcon className="h-4 w-4" />
                       Eliminar
                     </Button>
                   </div>
@@ -574,7 +574,7 @@ function MetasContent() {
                     Cancelar
                   </Button>
                   <Button
-                    variant="primary"
+                    variant="default"
                     className="flex-1"
                     onClick={() => {
                       toast.success('Meta creada exitosamente');

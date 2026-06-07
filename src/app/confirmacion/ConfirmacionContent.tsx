@@ -6,8 +6,8 @@ import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/axios';
 import type { Order } from '@/types/order';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   CheckCircleIcon,
   TruckIcon,
@@ -176,23 +176,23 @@ export default function ConfirmacionContent() {
         <div className="flex flex-wrap justify-center gap-3 mb-12">
           <Button
             variant="outline"
-            leftIcon={<PrinterIcon className="h-5 w-5" />}
             onClick={handlePrint}
           >
+            <PrinterIcon className="h-5 w-5" />
             Imprimir Confirmación
           </Button>
           <Button
             variant="outline"
-            leftIcon={<ShareIcon className="h-5 w-5" />}
             onClick={handleShare}
           >
+            <ShareIcon className="h-5 w-5" />
             Compartir
           </Button>
           <Link href={`/distribuidor/pedidos/${order.id}`}>
             <Button
               variant="outline"
-              leftIcon={<TruckIcon className="h-5 w-5" />}
             >
+              <TruckIcon className="h-5 w-5" />
               Rastrear Pedido
             </Button>
           </Link>
@@ -431,9 +431,9 @@ export default function ConfirmacionContent() {
                 <Button
                   variant="secondary"
                   size="sm"
-                  rightIcon={<ArrowRightIcon className="h-4 w-4" />}
                 >
                   Ver Detalles
+                  <ArrowRightIcon className="h-4 w-4" />
                 </Button>
               </Link>
             </CardContent>
@@ -449,9 +449,9 @@ export default function ConfirmacionContent() {
                 <Button
                   variant="secondary"
                   size="sm"
-                  rightIcon={<ArrowRightIcon className="h-4 w-4" />}
                 >
                   Explorar Productos
+                  <ArrowRightIcon className="h-4 w-4" />
                 </Button>
               </Link>
             </CardContent>

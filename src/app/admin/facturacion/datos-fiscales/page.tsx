@@ -4,8 +4,8 @@
 
 import { Suspense, useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import {
   BuildingOfficeIcon,
@@ -331,7 +331,7 @@ function DatosFiscalesContent() {
                     />
                   </div>
                   <Button
-                    variant="primary"
+                    variant="default"
                     size="sm"
                     className="h-10 px-4 sm:min-w-[96px]"
                     onClick={handleSearch}

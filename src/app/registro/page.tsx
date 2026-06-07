@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Loader2 } from 'lucide-react';
 import {
   UserIcon,
   EnvelopeIcon,
@@ -152,67 +154,90 @@ export default function RegistroPage() {
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Name Fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  label="Nombre"
-                  type="text"
-                  placeholder="Juan"
-                  value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                  error={errors.firstName}
-                  leftIcon={<UserIcon className="h-5 w-5" />}
-                  autoComplete="given-name"
-                  disabled={isLoading}
-                />
-                <Input
-                  label="Apellidos"
-                  type="text"
-                  placeholder="Pérez"
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                  error={errors.lastName}
-                  autoComplete="family-name"
-                  disabled={isLoading}
-                />
+                <div className="space-y-1.5">
+                  <Label>Nombre</Label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><UserIcon className="h-5 w-5" /></span>
+                    <Input
+                      type="text"
+                      placeholder="Juan"
+                      value={formData.firstName}
+                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                      autoComplete="given-name"
+                      disabled={isLoading}
+                      className="pl-9"
+                      aria-invalid={errors.firstName ? true : undefined}
+                    />
+                  </div>
+                  {errors.firstName && <p className="text-sm text-destructive">{errors.firstName}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Apellidos</Label>
+                  <Input
+                    type="text"
+                    placeholder="Pérez"
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    autoComplete="family-name"
+                    disabled={isLoading}
+                    aria-invalid={errors.lastName ? true : undefined}
+                  />
+                  {errors.lastName && <p className="text-sm text-destructive">{errors.lastName}</p>}
+                </div>
               </div>
 
               {/* Email */}
-              <Input
-                label="Correo electrónico"
-                type="email"
-                placeholder="tu@email.com"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                error={errors.email}
-                leftIcon={<EnvelopeIcon className="h-5 w-5" />}
-                autoComplete="email"
-                disabled={isLoading}
-              />
+              <div className="space-y-1.5">
+                <Label>Correo electrónico</Label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><EnvelopeIcon className="h-5 w-5" /></span>
+                  <Input
+                    type="email"
+                    placeholder="tu@email.com"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    autoComplete="email"
+                    disabled={isLoading}
+                    className="pl-9"
+                    aria-invalid={errors.email ? true : undefined}
+                  />
+                </div>
+                {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+              </div>
 
               {/* Phone (Optional) */}
-              <Input
-                label="Teléfono (opcional)"
-                type="tel"
-                placeholder="+52 123 456 7890"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                helperText="Te contactaremos sobre tu pedido"
-                autoComplete="tel"
-                disabled={isLoading}
-              />
+              <div className="space-y-1.5">
+                <Label>Teléfono (opcional)</Label>
+                <Input
+                  type="tel"
+                  placeholder="+52 123 456 7890"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  autoComplete="tel"
+                  disabled={isLoading}
+                />
+                <p className="text-sm text-muted-foreground">Te contactaremos sobre tu pedido</p>
+              </div>
 
               {/* Password */}
               <div className="relative">
-                <Input
-                  label="Contraseña"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  error={errors.password}
-                  leftIcon={<LockClosedIcon className="h-5 w-5" />}
-                  autoComplete="new-password"
-                  disabled={isLoading}
-                />
+                <div className="space-y-1.5">
+                  <Label>Contraseña</Label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><LockClosedIcon className="h-5 w-5" /></span>
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      autoComplete="new-password"
+                      disabled={isLoading}
+                      className="pl-9"
+                      aria-invalid={errors.password ? true : undefined}
+                    />
+                  </div>
+                  {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -252,17 +277,23 @@ export default function RegistroPage() {
 
               {/* Confirm Password */}
               <div className="relative">
-                <Input
-                  label="Confirmar contraseña"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  error={errors.confirmPassword}
-                  leftIcon={<LockClosedIcon className="h-5 w-5" />}
-                  autoComplete="new-password"
-                  disabled={isLoading}
-                />
+                <div className="space-y-1.5">
+                  <Label>Confirmar contraseña</Label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><LockClosedIcon className="h-5 w-5" /></span>
+                    <Input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={formData.confirmPassword}
+                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                      autoComplete="new-password"
+                      disabled={isLoading}
+                      className="pl-9"
+                      aria-invalid={errors.confirmPassword ? true : undefined}
+                    />
+                  </div>
+                  {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
+                </div>
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -319,12 +350,12 @@ export default function RegistroPage() {
               {/* Submit Button */}
               <Button
                 type="submit"
-                variant="primary"
+                variant="default"
                 size="lg"
                 className="w-full"
-                isLoading={isLoading}
-                disabled={isLoading}
+                disabled={isLoading || (isLoading)}
               >
+                {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
                 {isLoading ? 'Creando cuenta...' : 'Crear cuenta'}
               </Button>
             </form>

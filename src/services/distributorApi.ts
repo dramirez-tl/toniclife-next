@@ -15,6 +15,45 @@ import type {
   Goal,
 } from '@/types/distributor';
 
+// ===== Alta de miembro en la red (Ruta A: sponsor paga / Ruta B: invitación) =====
+
+export type KitPayerMode = 'sponsor' | 'invite';
+
+export interface RegisterMemberRequest {
+  firstName: string;
+  lastName: string;
+  mothersLastName?: string;
+  email: string;
+  phone: string;
+  rfc?: string;
+  birthDate?: string;
+  /** Nodo bajo el que se coloca (customer_id). Vacío = bajo el propio distribuidor. */
+  uplineCustomerId?: string;
+  kitProductId?: string;
+  payerMode: KitPayerMode;
+}
+
+export interface RegisterMemberResult {
+  customerId: string;
+  customerNumber: string | null;
+  fullName: string;
+  email: string;
+  uplineCustomerId: string;
+  payerMode: KitPayerMode;
+  kitProductId: string | null;
+  /** Ruta B: contraseña temporal para el primer login. */
+  tempPassword?: string;
+  /** Ruta B: si el correo de invitación salió. */
+  invitationSent?: boolean;
+  /** Ruta A: orden del kit + URL de Stripe para que el patrocinador pague. */
+  kitOrderId?: string | null;
+  kitOrderNumber?: string | null;
+  paymentUrl?: string | null;
+  /** Ruta A: si la generación del pago falló (miembro creado, reintentar). */
+  paymentError?: string;
+  nextStep: 'sponsor_pays_kit' | 'invitation' | 'none';
+}
+
 // ===== API SERVICE =====
 
 class DistributorApi {
@@ -100,6 +139,20 @@ class DistributorApi {
    */
   async generateReferralLink(): Promise<{ link: string; qrCodeUrl: string }> {
     const { data } = await api.post<{ link: string; qrCodeUrl: string }>('/distributor/referral-link');
+    return data;
+  }
+
+  /**
+   * Da de alta un nuevo miembro en la red (status pending).
+   * Backend: POST /distributor/network/members
+   */
+  async registerMember(
+    dto: RegisterMemberRequest,
+  ): Promise<RegisterMemberResult> {
+    const { data } = await api.post<RegisterMemberResult>(
+      '/distributor/network/members',
+      dto,
+    );
     return data;
   }
 

@@ -2,8 +2,8 @@
 
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   ArrowDownTrayIcon,
   DocumentTextIcon,
@@ -341,29 +341,29 @@ function MaterialesContent() {
                     {/* Actions */}
                     <div className="space-y-2">
                       <Button
-                        variant="primary"
+                        variant="default"
                         size="sm"
                         className="w-full"
-                        leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
                         onClick={() => handleDownload(material)}
                       >
+                        <ArrowDownTrayIcon className="h-4 w-4" />
                         Descargar
                       </Button>
                       <div className="grid grid-cols-2 gap-2">
                         <Button
                           variant="outline"
                           size="sm"
-                          leftIcon={<EyeIcon className="h-4 w-4" />}
                           onClick={() => handlePreview(material)}
                         >
+                          <EyeIcon className="h-4 w-4" />
                           Vista Previa
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          leftIcon={<ShareIcon className="h-4 w-4" />}
                           onClick={() => handleShare(material)}
                         >
+                          <ShareIcon className="h-4 w-4" />
                           Compartir
                         </Button>
                       </div>

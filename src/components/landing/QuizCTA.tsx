@@ -90,9 +90,9 @@ export function QuizCTA() {
                 <Button
                   size="xl"
                   className="bg-[#3E667D] hover:bg-[#2f5165] text-white shadow-lg shadow-[#3E667D]/30"
-                  rightIcon={<ArrowRightIcon className="h-5 w-5" />}
                 >
                   Comenzar Evaluación de Salud
+                  <ArrowRightIcon className="h-5 w-5" />
                 </Button>
               </Link>
               <p className="mt-4 text-sm text-white/60">

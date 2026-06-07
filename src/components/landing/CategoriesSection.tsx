@@ -90,9 +90,7 @@ export function CategoriesSection() {
                 className="group"
               >
                 <Card
-                  hover
-                  className={`h-full text-center ${colors.bg} ${colors.hover} border-0 shadow-sm transition-all duration-300 hover:shadow-md`}
-                  padding="md"
+                  className={`h-full text-center ${colors.bg} ${colors.hover} border-0 shadow-sm transition-all duration-300 hover:shadow-md transition-shadow hover:shadow-md`}
                 >
                   {/* Icon */}
                   <div className={`w-16 h-16 mx-auto rounded-2xl ${colors.bg} flex items-center justify-center ${colors.text} group-hover:scale-110 transition-transform duration-300`}>

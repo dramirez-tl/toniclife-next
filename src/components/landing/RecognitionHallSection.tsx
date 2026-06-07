@@ -146,7 +146,7 @@ export function RecognitionHallSection() {
     <section id="reconocimientos" className="bg-gradient-to-b from-white to-slate-50 py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-14 text-center">
-          <Badge variant="warning" size="lg" className="mb-4">
+          <Badge variant="outline" className="mb-4 border-amber-300 bg-amber-50 text-amber-700">
             <span className="inline-flex items-center gap-1.5">
               <TrophyIcon className="h-4 w-4" />
               Paseo de la Fama
@@ -234,12 +234,14 @@ export function RecognitionHallSection() {
           </p>
           <div className="mt-4 flex justify-center gap-3">
             <Link href="/distribuidores">
-              <Button size="lg" rightIcon={<FireIcon className="h-5 w-5" />}>
+              <Button size="lg">
                 Ver comunidad de distribuidores
+                <FireIcon className="h-5 w-5" />
               </Button>
             </Link>
-            <Button variant="outline" size="lg" rightIcon={<MegaphoneIcon className="h-5 w-5" />}>
+            <Button variant="outline" size="lg">
               Compartir reconocimientos
+              <MegaphoneIcon className="h-5 w-5" />
             </Button>
           </div>
         </div>

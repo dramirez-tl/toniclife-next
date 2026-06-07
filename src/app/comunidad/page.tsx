@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   UserGroupIcon,
   HeartIcon,
@@ -242,7 +242,7 @@ export default function ComunidadPage() {
                 </Button>
               </Link>
               <Link href="/historias">
-                <Button variant="primary" size="lg">
+                <Button variant="default" size="lg">
                   Historias de Éxito
                 </Button>
               </Link>

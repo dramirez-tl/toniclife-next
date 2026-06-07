@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Loader2 } from 'lucide-react';
 import {
   CalendarDaysIcon,
   PlusIcon,
@@ -178,21 +179,22 @@ export default function PeriodosPage() {
                 <Button variant="secondary">Volver al Panel Principal</Button>
               </Link>
               <Button
-                variant="primary"
-                leftIcon={<BoltIcon className="h-5 w-5" />}
+                variant="default"
                 onClick={handleGenerate}
-                isLoading={generateMutation.isPending}
+                disabled={generateMutation.isPending}
               >
+                {generateMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                <BoltIcon className="h-5 w-5" />
                 Generar Periodos
               </Button>
               <Button
-                variant="primary"
-                leftIcon={<PlusIcon className="h-5 w-5" />}
+                variant="default"
                 onClick={() => {
                   resetForm();
                   setShowForm(true);
                 }}
               >
+                <PlusIcon className="h-5 w-5" />
                 Nuevo Periodo
               </Button>
             </div>
@@ -318,10 +320,11 @@ export default function PeriodosPage() {
                     Cancelar
                   </Button>
                   <Button
-                    variant="primary"
+                    variant="default"
                     type="submit"
-                    isLoading={createMutation.isPending || updateMutation.isPending}
+                    disabled={createMutation.isPending || updateMutation.isPending}
                   >
+                    {(createMutation.isPending || updateMutation.isPending) && <Loader2 className="mr-2 size-4 animate-spin" />}
                     {editingPeriod ? 'Actualizar' : 'Crear Periodo'}
                   </Button>
                 </div>
@@ -373,19 +376,20 @@ export default function PeriodosPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                leftIcon={<PencilSquareIcon className="h-4 w-4" />}
                                 onClick={() => handleEdit(period)}
                               >
+                                <PencilSquareIcon className="h-4 w-4" />
                                 Editar
                               </Button>
                               {!period.isClosed && (
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  leftIcon={<LockClosedIcon className="h-4 w-4" />}
                                   onClick={() => handleClose(period.id)}
-                                  isLoading={closeMutation.isPending}
+                                  disabled={closeMutation.isPending}
                                 >
+                                  {closeMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                                  <LockClosedIcon className="h-4 w-4" />
                                   Cerrar
                                 </Button>
                               )}
@@ -393,10 +397,11 @@ export default function PeriodosPage() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  leftIcon={<LockOpenIcon className="h-4 w-4" />}
                                   onClick={() => handleReopen(period.id)}
-                                  isLoading={reopenMutation.isPending}
+                                  disabled={reopenMutation.isPending}
                                 >
+                                  {reopenMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                                  <LockOpenIcon className="h-4 w-4" />
                                   Reabrir
                                 </Button>
                               )}

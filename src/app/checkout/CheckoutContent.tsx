@@ -16,9 +16,11 @@ import {
   BuildingStorefrontIcon,
   MapPinIcon,
 } from '@heroicons/react/24/outline';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
+import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import {
@@ -394,43 +396,51 @@ export default function CheckoutContent() {
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleInfoSubmit} className="space-y-6">
-                    <Input
-                      label="Email *"
-                      type="email"
-                      value={customerInfo.email}
-                      onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })}
-                      placeholder="tu@email.com"
-                      required
-                    />
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Email *</Label>
                       <Input
-                        label="Nombre completo *"
-                        type="text"
-                        value={customerInfo.name}
-                        onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
-                        placeholder="Juan Pérez"
-                        required
-                      />
-                      <Input
-                        label="Teléfono *"
-                        type="tel"
-                        value={customerInfo.phone}
-                        onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
-                        placeholder="55 1234 5678"
+                        type="email"
+                        value={customerInfo.email}
+                        onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })}
+                        placeholder="tu@email.com"
                         required
                       />
                     </div>
 
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label>Nombre completo *</Label>
+                        <Input
+                          type="text"
+                          value={customerInfo.name}
+                          onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
+                          placeholder="Juan Pérez"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Teléfono *</Label>
+                        <Input
+                          type="tel"
+                          value={customerInfo.phone}
+                          onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
+                          placeholder="55 1234 5678"
+                          required
+                        />
+                      </div>
+                    </div>
+
                     {/* Referral Code */}
                     <div className="pt-4 border-t border-gray-200">
-                      <Input
-                        label="Código de referido (opcional)"
-                        type="text"
-                        value={referralCode}
-                        onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
-                        placeholder="CODIGO123"
-                      />
+                      <div className="space-y-1.5">
+                        <Label>Código de referido (opcional)</Label>
+                        <Input
+                          type="text"
+                          value={referralCode}
+                          onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                          placeholder="CODIGO123"
+                        />
+                      </div>
                       <p className="text-xs text-gray-500 mt-1">
                         Si te refirió un distribuidor, ingresa su código (opcional).
                       </p>
@@ -535,64 +545,76 @@ export default function CheckoutContent() {
                     {deliveryMode === 'delivery' && (
                       <>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Input
-                        label="Nombre del destinatario *"
-                        type="text"
-                        value={shippingAddress.fullName}
-                        onChange={(e) => setShippingAddress({ ...shippingAddress, fullName: e.target.value })}
-                        required
-                      />
-                      <Input
-                        label="Teléfono *"
-                        type="tel"
-                        value={shippingAddress.phone}
-                        onChange={(e) => setShippingAddress({ ...shippingAddress, phone: e.target.value })}
-                        required
-                      />
+                      <div className="space-y-1.5">
+                        <Label>Nombre del destinatario *</Label>
+                        <Input
+                          type="text"
+                          value={shippingAddress.fullName}
+                          onChange={(e) => setShippingAddress({ ...shippingAddress, fullName: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Teléfono *</Label>
+                        <Input
+                          type="tel"
+                          value={shippingAddress.phone}
+                          onChange={(e) => setShippingAddress({ ...shippingAddress, phone: e.target.value })}
+                          required
+                        />
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-4">
-                      <div className="col-span-2">
+                      <div className="col-span-2 space-y-1.5">
+                        <Label>Calle *</Label>
                         <Input
-                          label="Calle *"
                           type="text"
                           value={shippingAddress.street}
                           onChange={(e) => setShippingAddress({ ...shippingAddress, street: e.target.value })}
                           required
                         />
                       </div>
-                      <Input
-                        label="Número ext."
-                        type="text"
-                        value={shippingAddress.exteriorNumber || ''}
-                        onChange={(e) => setShippingAddress({ ...shippingAddress, exteriorNumber: e.target.value })}
-                      />
+                      <div className="space-y-1.5">
+                        <Label>Número ext.</Label>
+                        <Input
+                          type="text"
+                          value={shippingAddress.exteriorNumber || ''}
+                          onChange={(e) => setShippingAddress({ ...shippingAddress, exteriorNumber: e.target.value })}
+                        />
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Input
-                        label="Número interior"
-                        type="text"
-                        value={shippingAddress.interiorNumber || ''}
-                        onChange={(e) => setShippingAddress({ ...shippingAddress, interiorNumber: e.target.value })}
-                        placeholder="Depto, oficina, etc."
-                      />
-                      <Input
-                        label="Colonia"
-                        type="text"
-                        value={shippingAddress.neighborhood || ''}
-                        onChange={(e) => setShippingAddress({ ...shippingAddress, neighborhood: e.target.value })}
-                      />
+                      <div className="space-y-1.5">
+                        <Label>Número interior</Label>
+                        <Input
+                          type="text"
+                          value={shippingAddress.interiorNumber || ''}
+                          onChange={(e) => setShippingAddress({ ...shippingAddress, interiorNumber: e.target.value })}
+                          placeholder="Depto, oficina, etc."
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Colonia</Label>
+                        <Input
+                          type="text"
+                          value={shippingAddress.neighborhood || ''}
+                          onChange={(e) => setShippingAddress({ ...shippingAddress, neighborhood: e.target.value })}
+                        />
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <Input
-                        label="Ciudad *"
-                        type="text"
-                        value={shippingAddress.city}
-                        onChange={(e) => setShippingAddress({ ...shippingAddress, city: e.target.value })}
-                        required
-                      />
+                      <div className="space-y-1.5">
+                        <Label>Ciudad *</Label>
+                        <Input
+                          type="text"
+                          value={shippingAddress.city}
+                          onChange={(e) => setShippingAddress({ ...shippingAddress, city: e.target.value })}
+                          required
+                        />
+                      </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Estado *
@@ -606,23 +628,27 @@ export default function CheckoutContent() {
                           className="w-full"
                         />
                       </div>
-                      <Input
-                        label="Código Postal *"
-                        type="text"
-                        value={shippingAddress.postalCode}
-                        onChange={(e) => setShippingAddress({ ...shippingAddress, postalCode: e.target.value })}
-                        maxLength={5}
-                        required
-                      />
+                      <div className="space-y-1.5">
+                        <Label>Código Postal *</Label>
+                        <Input
+                          type="text"
+                          value={shippingAddress.postalCode}
+                          onChange={(e) => setShippingAddress({ ...shippingAddress, postalCode: e.target.value })}
+                          maxLength={5}
+                          required
+                        />
+                      </div>
                     </div>
 
-                    <Input
-                      label="Referencias de ubicación"
-                      type="text"
-                      value={shippingAddress.references || ''}
-                      onChange={(e) => setShippingAddress({ ...shippingAddress, references: e.target.value })}
-                      placeholder="Entre calles, color de casa, etc."
-                    />
+                    <div className="space-y-1.5">
+                      <Label>Referencias de ubicación</Label>
+                      <Input
+                        type="text"
+                        value={shippingAddress.references || ''}
+                        onChange={(e) => setShippingAddress({ ...shippingAddress, references: e.target.value })}
+                        placeholder="Entre calles, color de casa, etc."
+                      />
+                    </div>
 
                     {/* Shipping Method Selection */}
                     <div className="pt-4 border-t border-gray-200">
@@ -770,24 +796,28 @@ export default function CheckoutContent() {
                       {requiresInvoice && (
                         <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-4">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <Input
-                              label="RFC *"
-                              type="text"
-                              value={invoiceData.rfc}
-                              onChange={(e) =>
-                                setInvoiceData({ ...invoiceData, rfc: e.target.value.toUpperCase() })
-                              }
-                              placeholder="XAXX010101000"
-                              maxLength={13}
-                            />
-                            <Input
-                              label="Razón social *"
-                              type="text"
-                              value={invoiceData.name}
-                              onChange={(e) =>
-                                setInvoiceData({ ...invoiceData, name: e.target.value })
-                              }
-                            />
+                            <div className="space-y-1.5">
+                              <Label>RFC *</Label>
+                              <Input
+                                type="text"
+                                value={invoiceData.rfc}
+                                onChange={(e) =>
+                                  setInvoiceData({ ...invoiceData, rfc: e.target.value.toUpperCase() })
+                                }
+                                placeholder="XAXX010101000"
+                                maxLength={13}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label>Razón social *</Label>
+                              <Input
+                                type="text"
+                                value={invoiceData.name}
+                                onChange={(e) =>
+                                  setInvoiceData({ ...invoiceData, name: e.target.value })
+                                }
+                              />
+                            </div>
                           </div>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -821,15 +851,17 @@ export default function CheckoutContent() {
                               />
                             </div>
                           </div>
-                          <Input
-                            label="Código Postal fiscal *"
-                            type="text"
-                            value={invoiceData.postalCode}
-                            onChange={(e) =>
-                              setInvoiceData({ ...invoiceData, postalCode: e.target.value })
-                            }
-                            maxLength={5}
-                          />
+                          <div className="space-y-1.5">
+                            <Label>Código Postal fiscal *</Label>
+                            <Input
+                              type="text"
+                              value={invoiceData.postalCode}
+                              onChange={(e) =>
+                                setInvoiceData({ ...invoiceData, postalCode: e.target.value })
+                              }
+                              maxLength={5}
+                            />
+                          </div>
                         </div>
                       )}
                     </div>
@@ -861,10 +893,13 @@ export default function CheckoutContent() {
                         type="submit"
                         size="lg"
                         className="flex-1"
-                        isLoading={
+                        disabled={
                           authenticatedCheckout.isPending || guestCheckout.isPending
                         }
                       >
+                        {(authenticatedCheckout.isPending || guestCheckout.isPending) && (
+                          <Loader2 className="mr-2 size-4 animate-spin" />
+                        )}
                         Realizar pedido
                       </Button>
                     </div>

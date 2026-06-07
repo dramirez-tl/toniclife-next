@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   UserIcon,
   LockClosedIcon,
@@ -187,31 +188,43 @@ export default function LoginPage() {
             <CardContent className="p-7 sm:p-8 lg:p-9">
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Identifier (email o usuario) */}
-                <Input
-                  label="Correo electrónico o usuario"
-                  type="text"
-                  placeholder="tu@email.com o tu usuario"
-                  value={formData.identifier}
-                  onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
-                  error={errors.identifier}
-                  leftIcon={<UserIcon className="h-5 w-5" />}
-                  autoComplete="username"
-                  disabled={isLoading}
-                />
+                <div className="space-y-1.5">
+                  <Label>Correo electrónico o usuario</Label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><UserIcon className="h-5 w-5" /></span>
+                    <Input
+                      type="text"
+                      placeholder="tu@email.com o tu usuario"
+                      value={formData.identifier}
+                      onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
+                      autoComplete="username"
+                      disabled={isLoading}
+                      className="pl-9"
+                      aria-invalid={errors.identifier ? true : undefined}
+                    />
+                  </div>
+                  {errors.identifier && <p className="text-sm text-destructive">{errors.identifier}</p>}
+                </div>
 
                 {/* Password */}
                 <div className="relative">
-                  <Input
-                    label="Contraseña"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    error={errors.password}
-                    leftIcon={<LockClosedIcon className="h-5 w-5" />}
-                    autoComplete="current-password"
-                    disabled={isLoading}
-                  />
+                  <div className="space-y-1.5">
+                    <Label>Contraseña</Label>
+                    <div className="relative">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><LockClosedIcon className="h-5 w-5" /></span>
+                      <Input
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        autoComplete="current-password"
+                        disabled={isLoading}
+                        className="pl-9"
+                        aria-invalid={errors.password ? true : undefined}
+                      />
+                    </div>
+                    {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+                  </div>
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
@@ -250,7 +263,7 @@ export default function LoginPage() {
                 {/* Submit Button */}
                 <Button
                   type="submit"
-                  variant="primary"
+                  variant="default"
                   size="lg"
                   className="w-full h-12 text-base font-semibold"
                   disabled={isLoading}

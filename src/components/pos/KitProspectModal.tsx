@@ -17,8 +17,9 @@
 import { useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { XMarkIcon, UserPlusIcon, ClipboardIcon } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { useEnrollKitProspect } from '@/hooks/useKits';
 import { KIT_POSITION_LABEL, type KitPosition } from '@/types/product';
 import type { KitEnrollmentResponse } from '@/types/kit';
@@ -190,7 +191,8 @@ export function KitProspectModal({
                   <code className="flex-1 bg-white border border-amber-300 px-3 py-2 rounded font-mono text-sm">
                     {result.tempPassword}
                   </code>
-                  <Button variant="outline" size="sm" leftIcon={<ClipboardIcon className="h-4 w-4" />} onClick={copyPassword}>
+                  <Button variant="outline" size="sm" onClick={copyPassword}>
+                    <ClipboardIcon className="h-4 w-4" />
                     Copiar
                   </Button>
                 </div>
@@ -222,7 +224,7 @@ export function KitProspectModal({
               </div>
 
               <div className="flex justify-end pt-2">
-                <Button variant="primary" onClick={resetAndClose}>
+                <Button variant="default" onClick={resetAndClose}>
                   Continuar al cobro
                 </Button>
               </div>
@@ -375,10 +377,10 @@ export function KitProspectModal({
                 </Button>
                 <Button
                   type="submit"
-                  variant="primary"
-                  isLoading={enrollMutation.isPending}
-                  disabled={sponsorInvalid || kitInvalid}
+                  variant="default"
+                  disabled={enrollMutation.isPending || (sponsorInvalid || kitInvalid)}
                 >
+                  {enrollMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
                   Inscribir y continuar al cobro
                 </Button>
               </div>

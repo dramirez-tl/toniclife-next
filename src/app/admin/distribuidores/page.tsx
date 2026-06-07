@@ -3,8 +3,8 @@
 import { Suspense, useEffect, useState, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import { PermissionGuard } from '@/components/auth';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -35,6 +35,7 @@ import {
   FunnelIcon,
   ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
@@ -469,10 +470,8 @@ function DistribuidoresContent() {
                   <Button variant="secondary">Volver al Panel Principal</Button>
                 </Link>
                 <Link href="/admin/distribuidores/nuevo">
-                  <Button
-                    variant="primary"
-                    leftIcon={<PlusIcon className="h-5 w-5" />}
-                  >
+                  <Button variant="default">
+                    <PlusIcon className="h-5 w-5" />
                     Nuevo Distribuidor
                   </Button>
                 </Link>
@@ -573,7 +572,7 @@ function DistribuidoresContent() {
                       />
                     </div>
                     <Button
-                      variant="primary"
+                      variant="default"
                       size="sm"
                       className="h-10 px-4 sm:min-w-[96px]"
                       onClick={handleSearch}
@@ -736,10 +735,8 @@ function DistribuidoresContent() {
                         </Button>
                       )}
                       <Link href="/admin/distribuidores/nuevo">
-                        <Button
-                          variant="primary"
-                          leftIcon={<PlusIcon className="h-4 w-4" />}
-                        >
+                        <Button variant="default">
+                          <PlusIcon className="h-4 w-4" />
                           Nuevo Distribuidor
                         </Button>
                       </Link>
@@ -820,11 +817,11 @@ function DistribuidoresContent() {
                   Cancelar
                 </Button>
                 <Button
-                  variant="danger"
+                  variant="destructive"
                   onClick={handleConfirmDelete}
-                  disabled={deleteConfirmText !== 'ELIMINAR' || isDeleting}
-                  isLoading={isDeleting}
+                  disabled={isDeleting || (deleteConfirmText !== 'ELIMINAR' || isDeleting)}
                 >
+                  {isDeleting && <Loader2 className="mr-2 size-4 animate-spin" />}
                   Eliminar cliente
                 </Button>
               </div>

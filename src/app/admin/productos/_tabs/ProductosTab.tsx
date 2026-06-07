@@ -4,8 +4,8 @@ import { useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import { productsService } from '@/services/products.service';
 import {
@@ -25,6 +25,7 @@ import {
   ExclamationTriangleIcon,
   ChartBarIcon,
 } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProducts, useCategories, useDeleteProduct } from '@/hooks/useProducts';
 import type { Product, ProductQueryParams } from '@/types/product';
@@ -534,10 +535,10 @@ export function ProductosTab() {
                   variant="outline"
                   size="sm"
                   className="gap-2"
-                  leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
                   onClick={handleExport}
                   disabled={isExporting}
                 >
+                  <ArrowDownTrayIcon className="h-4 w-4" />
                   {isExporting ? 'Exportando...' : 'Exportar Catálogo'}
                 </Button>
                 {hasActiveFilters && (
@@ -569,7 +570,7 @@ export function ProductosTab() {
                     />
                   </div>
                   <Button
-                    variant="primary"
+                    variant="default"
                     size="sm"
                     className="h-10 px-4 sm:min-w-[96px]"
                     onClick={handleSearch}
@@ -707,7 +708,8 @@ export function ProductosTab() {
                         </Button>
                       )}
                       <Link href="/admin/productos/nuevo">
-                        <Button variant="primary" leftIcon={<PlusIcon className="h-4 w-4" />}>
+                        <Button variant="default">
+                          <PlusIcon className="h-4 w-4" />
                           Nuevo Producto
                         </Button>
                       </Link>
@@ -782,11 +784,11 @@ export function ProductosTab() {
                 Cancelar
               </Button>
               <Button
-                variant="danger"
+                variant="destructive"
                 onClick={handleConfirmDelete}
-                disabled={deleteConfirmText !== 'ELIMINAR' || isDeleting}
-                isLoading={isDeleting}
+                disabled={isDeleting || (deleteConfirmText !== 'ELIMINAR' || isDeleting)}
               >
+                {isDeleting && <Loader2 className="mr-2 size-4 animate-spin" />}
                 Eliminar producto
               </Button>
             </div>

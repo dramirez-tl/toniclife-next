@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   UserIcon,
   EnvelopeIcon,
@@ -390,15 +391,21 @@ function RegistroDistribuidorContent() {
                       Código de Patrocinador
                     </h3>
 
-                    <Input
-                      label="Código de tu patrocinador"
-                      placeholder="Ej: ABC123XY"
-                      value={formData.sponsorCode}
-                      onChange={(e) => setFormData({ ...formData, sponsorCode: e.target.value.toUpperCase() })}
-                      error={errors.sponsorCode || sponsorError || undefined}
-                      helperText="Ingresa el código de referido del distribuidor que te invitó"
-                      leftIcon={<IdentificationIcon className="h-5 w-5" />}
-                    />
+                    <div className="space-y-1.5">
+                      <Label>Código de tu patrocinador</Label>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><IdentificationIcon className="h-5 w-5" /></span>
+                        <Input
+                          placeholder="Ej: ABC123XY"
+                          value={formData.sponsorCode}
+                          onChange={(e) => setFormData({ ...formData, sponsorCode: e.target.value.toUpperCase() })}
+                          className="pl-9"
+                          aria-invalid={(errors.sponsorCode || sponsorError || undefined) ? true : undefined}
+                        />
+                      </div>
+                      {(errors.sponsorCode || sponsorError || undefined) && <p className="text-sm text-destructive">{errors.sponsorCode || sponsorError || undefined}</p>}
+                      <p className="text-sm text-muted-foreground">Ingresa el código de referido del distribuidor que te invitó</p>
+                    </div>
 
                     {sponsorValidating && (
                       <p className="mt-2 text-sm text-gray-500">Validando código...</p>
@@ -439,36 +446,51 @@ function RegistroDistribuidorContent() {
                   </h3>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
-                      label="Nombre(s)"
-                      placeholder="Juan Carlos"
-                      value={formData.firstName}
-                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                      error={errors.firstName}
-                      leftIcon={<UserIcon className="h-5 w-5" />}
-                      autoComplete="given-name"
-                    />
-                    <Input
-                      label="Apellidos"
-                      placeholder="Pérez González"
-                      value={formData.lastName}
-                      onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                      error={errors.lastName}
-                      autoComplete="family-name"
-                    />
+                    <div className="space-y-1.5">
+                      <Label>Nombre(s)</Label>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><UserIcon className="h-5 w-5" /></span>
+                        <Input
+                          placeholder="Juan Carlos"
+                          value={formData.firstName}
+                          onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                          autoComplete="given-name"
+                          className="pl-9"
+                          aria-invalid={errors.firstName ? true : undefined}
+                        />
+                      </div>
+                      {errors.firstName && <p className="text-sm text-destructive">{errors.firstName}</p>}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Apellidos</Label>
+                      <Input
+                        placeholder="Pérez González"
+                        value={formData.lastName}
+                        onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                        autoComplete="family-name"
+                        aria-invalid={errors.lastName ? true : undefined}
+                      />
+                      {errors.lastName && <p className="text-sm text-destructive">{errors.lastName}</p>}
+                    </div>
                   </div>
 
                   <div className="relative">
-                    <Input
-                      label="Correo electrónico"
-                      type="email"
-                      placeholder="tu@email.com"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      error={errors.email}
-                      leftIcon={<EnvelopeIcon className="h-5 w-5" />}
-                      autoComplete="email"
-                    />
+                    <div className="space-y-1.5">
+                      <Label>Correo electrónico</Label>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><EnvelopeIcon className="h-5 w-5" /></span>
+                        <Input
+                          type="email"
+                          placeholder="tu@email.com"
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          autoComplete="email"
+                          className="pl-9"
+                          aria-invalid={errors.email ? true : undefined}
+                        />
+                      </div>
+                      {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+                    </div>
                     {emailChecking && (
                       <span className="absolute right-3 top-9 text-sm text-gray-400">
                         Verificando...
@@ -480,33 +502,44 @@ function RegistroDistribuidorContent() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
-                      label="Teléfono principal"
-                      type="tel"
-                      placeholder="+52 55 1234 5678"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      error={errors.phone}
-                      leftIcon={<PhoneIcon className="h-5 w-5" />}
-                      autoComplete="tel"
-                    />
-                    <Input
-                      label="Teléfono secundario (opcional)"
-                      type="tel"
-                      placeholder="+52 55 8765 4321"
-                      value={formData.secondaryPhone}
-                      onChange={(e) => setFormData({ ...formData, secondaryPhone: e.target.value })}
-                      autoComplete="tel"
-                    />
+                    <div className="space-y-1.5">
+                      <Label>Teléfono principal</Label>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><PhoneIcon className="h-5 w-5" /></span>
+                        <Input
+                          type="tel"
+                          placeholder="+52 55 1234 5678"
+                          value={formData.phone}
+                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                          autoComplete="tel"
+                          className="pl-9"
+                          aria-invalid={errors.phone ? true : undefined}
+                        />
+                      </div>
+                      {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Teléfono secundario (opcional)</Label>
+                      <Input
+                        type="tel"
+                        placeholder="+52 55 8765 4321"
+                        value={formData.secondaryPhone}
+                        onChange={(e) => setFormData({ ...formData, secondaryPhone: e.target.value })}
+                        autoComplete="tel"
+                      />
+                    </div>
                   </div>
 
-                  <Input
-                    label="Fecha de nacimiento (opcional)"
-                    type="date"
-                    value={formData.birthDate}
-                    onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
-                    error={errors.birthDate}
-                  />
+                  <div className="space-y-1.5">
+                    <Label>Fecha de nacimiento (opcional)</Label>
+                    <Input
+                      type="date"
+                      value={formData.birthDate}
+                      onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                      aria-invalid={errors.birthDate ? true : undefined}
+                    />
+                    {errors.birthDate && <p className="text-sm text-destructive">{errors.birthDate}</p>}
+                  </div>
                 </div>
               )}
 
@@ -523,23 +556,29 @@ function RegistroDistribuidorContent() {
                     </p>
                   </div>
 
-                  <Input
-                    label="RFC"
-                    placeholder="PEGJ900515ABC"
-                    value={formData.rfc}
-                    onChange={(e) => setFormData({ ...formData, rfc: e.target.value.toUpperCase() })}
-                    error={errors.rfc}
-                    helperText="13 caracteres para personas físicas"
-                  />
+                  <div className="space-y-1.5">
+                    <Label>RFC</Label>
+                    <Input
+                      placeholder="PEGJ900515ABC"
+                      value={formData.rfc}
+                      onChange={(e) => setFormData({ ...formData, rfc: e.target.value.toUpperCase() })}
+                      aria-invalid={errors.rfc ? true : undefined}
+                    />
+                    {errors.rfc && <p className="text-sm text-destructive">{errors.rfc}</p>}
+                    <p className="text-sm text-muted-foreground">13 caracteres para personas físicas</p>
+                  </div>
 
-                  <Input
-                    label="CURP"
-                    placeholder="PEGJ900515HDFRRL09"
-                    value={formData.curp}
-                    onChange={(e) => setFormData({ ...formData, curp: e.target.value.toUpperCase() })}
-                    error={errors.curp}
-                    helperText="18 caracteres"
-                  />
+                  <div className="space-y-1.5">
+                    <Label>CURP</Label>
+                    <Input
+                      placeholder="PEGJ900515HDFRRL09"
+                      value={formData.curp}
+                      onChange={(e) => setFormData({ ...formData, curp: e.target.value.toUpperCase() })}
+                      aria-invalid={errors.curp ? true : undefined}
+                    />
+                    {errors.curp && <p className="text-sm text-destructive">{errors.curp}</p>}
+                    <p className="text-sm text-muted-foreground">18 caracteres</p>
+                  </div>
 
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                     <p className="text-sm text-yellow-800">
@@ -558,22 +597,28 @@ function RegistroDistribuidorContent() {
                   </h3>
 
                   <div className="relative">
-                    <Input
-                      label="Contraseña"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={formData.password}
-                      onChange={(e) => {
-                        setFormData({ ...formData, password: e.target.value });
-                        // Clear password error when user starts typing
-                        if (errors.password) {
-                          setErrors((prev) => ({ ...prev, password: '' }));
-                        }
-                      }}
-                      error={errors.password}
-                      leftIcon={<LockClosedIcon className="h-5 w-5" />}
-                      autoComplete="new-password"
-                    />
+                    <div className="space-y-1.5">
+                      <Label>Contraseña</Label>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><LockClosedIcon className="h-5 w-5" /></span>
+                        <Input
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="••••••••"
+                          value={formData.password}
+                          onChange={(e) => {
+                            setFormData({ ...formData, password: e.target.value });
+                            // Clear password error when user starts typing
+                            if (errors.password) {
+                              setErrors((prev) => ({ ...prev, password: '' }));
+                            }
+                          }}
+                          autoComplete="new-password"
+                          className="pl-9"
+                          aria-invalid={errors.password ? true : undefined}
+                        />
+                      </div>
+                      {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+                    </div>
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
@@ -610,22 +655,28 @@ function RegistroDistribuidorContent() {
                   )}
 
                   <div className="relative">
-                    <Input
-                      label="Confirmar contraseña"
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={formData.confirmPassword}
-                      onChange={(e) => {
-                        setFormData({ ...formData, confirmPassword: e.target.value });
-                        // Clear confirm password error when user starts typing
-                        if (errors.confirmPassword) {
-                          setErrors((prev) => ({ ...prev, confirmPassword: '' }));
-                        }
-                      }}
-                      error={errors.confirmPassword}
-                      leftIcon={<LockClosedIcon className="h-5 w-5" />}
-                      autoComplete="new-password"
-                    />
+                    <div className="space-y-1.5">
+                      <Label>Confirmar contraseña</Label>
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><LockClosedIcon className="h-5 w-5" /></span>
+                        <Input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          placeholder="••••••••"
+                          value={formData.confirmPassword}
+                          onChange={(e) => {
+                            setFormData({ ...formData, confirmPassword: e.target.value });
+                            // Clear confirm password error when user starts typing
+                            if (errors.confirmPassword) {
+                              setErrors((prev) => ({ ...prev, confirmPassword: '' }));
+                            }
+                          }}
+                          autoComplete="new-password"
+                          className="pl-9"
+                          aria-invalid={errors.confirmPassword ? true : undefined}
+                        />
+                      </div>
+                      {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
+                    </div>
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -720,7 +771,7 @@ function RegistroDistribuidorContent() {
                 {currentStep < 4 ? (
                   <Button
                     type="button"
-                    variant="primary"
+                    variant="default"
                     onClick={handleNextStep}
                     disabled={currentStep === 1}
                   >
@@ -729,7 +780,7 @@ function RegistroDistribuidorContent() {
                 ) : (
                   <Button
                     type="submit"
-                    variant="primary"
+                    variant="default"
                     disabled={isLoading}
                   >
                     {isLoading ? 'Registrando...' : 'Completar Registro'}

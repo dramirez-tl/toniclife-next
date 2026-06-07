@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Loader2 } from 'lucide-react';
 import {
   TrophyIcon,
   PlusIcon,
@@ -143,21 +144,22 @@ export default function RangosPage() {
                 <Button variant="secondary">Volver al Panel Principal</Button>
               </Link>
               <Button
-                variant="primary"
-                leftIcon={<ArrowPathIcon className="h-5 w-5" />}
+                variant="default"
                 onClick={handleCalculate}
-                isLoading={calculateMutation.isPending}
+                disabled={calculateMutation.isPending}
               >
+                {calculateMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                <ArrowPathIcon className="h-5 w-5" />
                 Calcular Rangos
               </Button>
               <Button
-                variant="primary"
-                leftIcon={<PlusIcon className="h-5 w-5" />}
+                variant="default"
                 onClick={() => {
                   resetForm();
                   setShowForm(true);
                 }}
               >
+                <PlusIcon className="h-5 w-5" />
                 Nuevo Rango
               </Button>
             </div>
@@ -299,10 +301,11 @@ export default function RangosPage() {
                     Cancelar
                   </Button>
                   <Button
-                    variant="primary"
+                    variant="default"
                     type="submit"
-                    isLoading={createMutation.isPending || updateMutation.isPending}
+                    disabled={createMutation.isPending || updateMutation.isPending}
                   >
+                    {(createMutation.isPending || updateMutation.isPending) && <Loader2 className="mr-2 size-4 animate-spin" />}
                     {editingRank ? 'Actualizar' : 'Crear Rango'}
                   </Button>
                 </div>
@@ -391,9 +394,9 @@ export default function RangosPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                leftIcon={<PencilSquareIcon className="h-4 w-4" />}
                                 onClick={() => handleEdit(rank)}
                               >
+                                <PencilSquareIcon className="h-4 w-4" />
                                 Editar
                               </Button>
                             </td>

@@ -10,9 +10,10 @@ import {
   CheckIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   usePromotion,
   usePromotionComponents,
@@ -329,12 +330,13 @@ export default function EditarPromocionPage({ params }: { params: Promise<{ id: 
 
               <div className="pt-2">
                 <Button
-                  variant="primary"
-                  fullWidth
+                  variant="default"
+                  className="w-full"
                   onClick={handleSaveDetails}
-                  isLoading={updateProduct.isPending}
-                  leftIcon={<CheckIcon className="h-4 w-4" />}
+                  disabled={updateProduct.isPending}
                 >
+                  {updateProduct.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                  <CheckIcon className="h-4 w-4" />
                   Guardar datos
                 </Button>
               </div>
@@ -347,13 +349,13 @@ export default function EditarPromocionPage({ params }: { params: Promise<{ id: 
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold">Componentes ({rows.length})</h2>
                 <Button
-                  variant="primary"
+                  variant="default"
                   size="sm"
-                  leftIcon={<CheckIcon className="h-4 w-4" />}
                   onClick={handleSaveComponents}
-                  isLoading={replaceComponents.isPending}
-                  disabled={compsLoading}
+                  disabled={replaceComponents.isPending || compsLoading}
                 >
+                  {replaceComponents.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                  <CheckIcon className="h-4 w-4" />
                   Guardar componentes
                 </Button>
               </div>
@@ -524,12 +526,13 @@ export default function EditarPromocionPage({ params }: { params: Promise<{ id: 
                   </div>
                   <div className="flex items-end">
                     <Button
-                      variant="primary"
-                      fullWidth
-                      leftIcon={<PlusIcon className="h-4 w-4" />}
+                      variant="default"
+                      className="w-full"
                       onClick={handleAddRule}
-                      isLoading={upsertRule.isPending}
+                      disabled={upsertRule.isPending}
                     >
+                      {upsertRule.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                      <PlusIcon className="h-4 w-4" />
                       Agregar regla
                     </Button>
                   </div>
@@ -615,22 +618,23 @@ function RuleRow({
       <td className="px-4 py-2 text-right">
         <div className="inline-flex gap-2">
           <Button
-            variant="primary"
+            variant="default"
             size="sm"
-            disabled={!dirty}
-            isLoading={savePending}
-            leftIcon={<CheckIcon className="h-4 w-4" />}
+            disabled={savePending || (!dirty)}
             onClick={() => onSave(min, consumes)}
           >
+            {savePending && <Loader2 className="mr-2 size-4 animate-spin" />}
+            <CheckIcon className="h-4 w-4" />
             Guardar
           </Button>
           <Button
-            variant="danger"
+            variant="destructive"
             size="sm"
-            isLoading={removePending}
-            leftIcon={<TrashIcon className="h-4 w-4" />}
+            disabled={removePending}
             onClick={onRemove}
           >
+            {removePending && <Loader2 className="mr-2 size-4 animate-spin" />}
+            <TrashIcon className="h-4 w-4" />
             Quitar
           </Button>
         </div>

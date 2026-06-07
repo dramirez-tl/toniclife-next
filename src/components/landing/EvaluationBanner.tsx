@@ -14,7 +14,7 @@ export function EvaluationBanner() {
       {/* Imagen de fondo (fallback: teal oscuro) */}
       <div
         className="absolute inset-0 bg-[#2f5165] bg-cover bg-center"
-        style={{ backgroundImage: "url('/images/landing/evaluacion-bg.jpg')" }}
+        style={{ backgroundImage: "url('/images/landing/evaluacion-bg.webp')" }}
       />
       {/* Degradado oscuro para legibilidad del texto a la izquierda */}
       <div className="absolute inset-0 bg-gradient-to-r from-[#1e3a4a]/90 via-[#1e3a4a]/55 to-transparent" />
@@ -30,8 +30,9 @@ export function EvaluationBanner() {
           </p>
           <div className="mt-8">
             <Link href="/quiz">
-              <Button size="lg" rightIcon={<ArrowRightIcon className="h-5 w-5" />}>
+              <Button size="lg">
                 Iniciar mi Evaluación
+                <ArrowRightIcon className="h-5 w-5" />
               </Button>
             </Link>
           </div>

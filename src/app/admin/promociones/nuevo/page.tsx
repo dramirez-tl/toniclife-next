@@ -4,9 +4,10 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeftIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { useCreateProduct } from '@/hooks/useProducts';
 import { ProductType } from '@/types/product';
 import type { CreateProductDto } from '@/types/product';
@@ -207,7 +208,8 @@ export default function NuevaPromocionPage() {
           <Link href="/admin/productos?tab=promociones">
             <Button variant="ghost">Cancelar</Button>
           </Link>
-          <Button type="submit" variant="primary" isLoading={createProduct.isPending}>
+          <Button type="submit" variant="default" disabled={createProduct.isPending}>
+            {createProduct.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
             Crear promoción
           </Button>
         </div>

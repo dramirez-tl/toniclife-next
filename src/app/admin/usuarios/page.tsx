@@ -2,8 +2,8 @@
 
 import { Suspense, useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import {
   useUsers,
@@ -566,10 +566,10 @@ function UsuariosContent() {
                 <Button variant="secondary">Volver al Panel Principal</Button>
               </Link>
               <Button
-                variant="primary"
-                leftIcon={<PlusIcon className="h-5 w-5" />}
+                variant="default"
                 onClick={openCreateModal}
               >
+                <PlusIcon className="h-5 w-5" />
                 Nuevo Usuario
               </Button>
             </div>
@@ -660,9 +660,9 @@ function UsuariosContent() {
                     <Button
                       variant="outline"
                       size="sm"
-                      leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
                       onClick={handleExport}
                     >
+                      <ArrowDownTrayIcon className="h-4 w-4" />
                       Exportar
                     </Button>
                   </div>
@@ -708,7 +708,7 @@ function UsuariosContent() {
                   {/* Search Button */}
                   <div className="lg:col-span-1 flex items-center">
                     <Button
-                      variant="primary"
+                      variant="default"
                       size="sm"
                       className="h-10 w-full"
                       onClick={handleSearch}
@@ -827,10 +827,10 @@ function UsuariosContent() {
                               </Button>
                             )}
                             <Button
-                              variant="primary"
-                              leftIcon={<PlusIcon className="h-4 w-4" />}
+                              variant="default"
                               onClick={openCreateModal}
                             >
+                              <PlusIcon className="h-4 w-4" />
                               Nuevo Usuario
                             </Button>
                           </div>
@@ -962,7 +962,7 @@ function UsuariosContent() {
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
-              <Button variant="primary" onClick={() => setPasswordTarget(null)}>
+              <Button variant="default" onClick={() => setPasswordTarget(null)}>
                 Cerrar
               </Button>
             </div>
@@ -1430,7 +1430,7 @@ function UserFormModal({
           <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancelar
           </Button>
-          <Button variant="primary" onClick={onSubmit} disabled={isSubmitting}>
+          <Button variant="default" onClick={onSubmit} disabled={isSubmitting}>
             {isSubmitting
               ? 'Guardando...'
               : editingUser

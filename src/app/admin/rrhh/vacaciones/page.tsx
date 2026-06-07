@@ -2,8 +2,8 @@
 
 import { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   CalendarDaysIcon,
   MagnifyingGlassIcon,
@@ -251,10 +251,10 @@ function VacacionesContent() {
               </Button>
             </Link>
             <Button
-              variant="primary"
-              leftIcon={<PlusIcon className="h-5 w-5" />}
+              variant="default"
               onClick={openCreateModal}
             >
+              <PlusIcon className="h-5 w-5" />
               Nueva Solicitud
             </Button>
           </div>
@@ -379,9 +379,9 @@ function VacacionesContent() {
               {/* Export */}
               <Button
                 variant="outline"
-                leftIcon={<ArrowDownTrayIcon className="h-5 w-5" />}
                 onClick={handleExport}
               >
+                <ArrowDownTrayIcon className="h-5 w-5" />
                 Exportar
               </Button>
             </div>
@@ -457,7 +457,7 @@ function VacacionesContent() {
                             Rechazar
                           </Button>
                           <Button
-                            variant="primary"
+                            variant="default"
                             size="sm"
                             onClick={() => handleApprove(vacation.id)}
                             disabled={isProcessing}
@@ -635,7 +635,7 @@ function VacationRequestModal({
           <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancelar
           </Button>
-          <Button variant="primary" onClick={onSubmit} disabled={isSubmitting}>
+          <Button variant="default" onClick={onSubmit} disabled={isSubmitting}>
             {isSubmitting ? 'Enviando...' : 'Enviar Solicitud'}
           </Button>
         </div>

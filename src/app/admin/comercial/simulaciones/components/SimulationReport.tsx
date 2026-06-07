@@ -7,7 +7,7 @@ import {
   LightBulbIcon,
   PrinterIcon,
 } from '@heroicons/react/24/outline';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import type { RankProjectionResponse } from '@/types/simulacion';
 import { exportReportPdf } from '../utils/exportPdf';
 import { toast } from 'sonner';
@@ -53,17 +53,17 @@ export function SimulationReport({ report }: Props) {
         <Button
           variant="outline"
           size="sm"
-          leftIcon={<PrinterIcon className="h-4 w-4" />}
           onClick={handlePrint}
         >
+          <PrinterIcon className="h-4 w-4" />
           Imprimir
         </Button>
         <Button
-          variant="primary"
+          variant="default"
           size="sm"
-          leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
           onClick={handlePdf}
         >
+          <ArrowDownTrayIcon className="h-4 w-4" />
           Descargar PDF
         </Button>
       </div>

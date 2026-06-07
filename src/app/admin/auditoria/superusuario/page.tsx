@@ -2,8 +2,8 @@
 
 import { Suspense, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   ShieldCheckIcon,
   UserGroupIcon,
@@ -229,7 +229,7 @@ function SuperUserContent() {
                 ].map(({ value, label }) => (
                   <Button
                     key={value}
-                    variant={quickRange === value && !customDateRange ? 'primary' : 'outline'}
+                    variant={quickRange === value && !customDateRange ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => handleQuickRange(value)}
                   >
@@ -260,19 +260,19 @@ function SuperUserContent() {
               <Button
                 variant="outline"
                 size="sm"
-                leftIcon={<ArrowPathIcon className="h-4 w-4" />}
                 onClick={() => refetch()}
               >
+                <ArrowPathIcon className="h-4 w-4" />
                 Actualizar
               </Button>
 
               <Button
-                variant="primary"
+                variant="default"
                 size="sm"
-                leftIcon={<DocumentArrowDownIcon className="h-4 w-4" />}
                 onClick={handleExport}
                 disabled={exportLogs.isPending}
               >
+                <DocumentArrowDownIcon className="h-4 w-4" />
                 Exportar
               </Button>
             </div>

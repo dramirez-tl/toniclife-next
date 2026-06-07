@@ -2,8 +2,8 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   ChartBarIcon,
   ArrowTrendingUpIcon,
@@ -153,10 +153,10 @@ export default function ReportesPage() {
                 </Button>
               </Link>
               <Button
-                variant="primary"
-                leftIcon={<ArrowDownTrayIcon className="h-5 w-5" />}
+                variant="default"
                 onClick={() => handleExportReport('completo')}
               >
+                <ArrowDownTrayIcon className="h-5 w-5" />
                 Exportar Reporte
               </Button>
             </div>

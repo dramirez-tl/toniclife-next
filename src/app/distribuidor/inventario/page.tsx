@@ -2,8 +2,8 @@
 
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   CubeIcon,
   MagnifyingGlassIcon,
@@ -211,10 +211,10 @@ function InventarioContent() {
                 </Button>
               </Link>
               <Button
-                variant="primary"
-                leftIcon={<ShoppingCartIcon className="h-5 w-5" />}
+                variant="default"
                 onClick={() => toast.info('Función próximamente disponible')}
               >
+                <ShoppingCartIcon className="h-5 w-5" />
                 Hacer Pedido
               </Button>
             </div>
@@ -474,9 +474,9 @@ function InventarioContent() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                leftIcon={<ArrowPathIcon className="h-4 w-4" />}
                                 onClick={() => handleRestock(item.id)}
                               >
+                                <ArrowPathIcon className="h-4 w-4" />
                                 Reabastecer
                               </Button>
                             )}

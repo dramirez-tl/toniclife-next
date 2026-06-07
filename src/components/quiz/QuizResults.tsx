@@ -216,14 +216,14 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
         {/* Main content */}
         <div className="lg:flex-1 min-w-0">
           {/* Primary Goal Card */}
-          <Card className="mb-8 overflow-hidden" padding="none">
+          <Card className="mb-8 overflow-hidden p-0">
             <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white p-8">
               <div className="flex items-start gap-6">
                 <div className="p-4 bg-[#C8DDF2]/20 rounded-2xl text-[#3E667D]">
                   {goalInfo.icon}
                 </div>
                 <div>
-                  <Badge variant="success" className="mb-2">
+                  <Badge variant="outline" className="mb-2 border-green-200 bg-green-100 text-green-700">
                     Tu Meta Principal
                   </Badge>
                   <h2 className="text-2xl sm:text-3xl font-bold">{goalInfo.title}</h2>
@@ -253,10 +253,10 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
           </Card>
 
           {/* Recommended Products Bundle */}
-          <Card className="mb-8" padding="lg">
+          <Card className="mb-8">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <Badge variant="info" className="mb-2">
+                <Badge variant="outline" className="mb-2 border-blue-200 bg-blue-100 text-blue-700">
                   Tu Combo Recomendado
                 </Badge>
                 <h2 className="text-2xl font-bold text-[#3E667D]">
@@ -271,7 +271,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
                   <div className="text-3xl font-bold text-[#3E667D]">
                     ${totalBundlePrice.toFixed(2)}
                   </div>
-                  <Badge variant="error" size="sm">
+                  <Badge variant="outline" className="border-red-200 bg-red-100 text-red-700">
                     Ahorras {discount}%
                   </Badge>
                 </div>
@@ -295,20 +295,20 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
             <div className="flex flex-col sm:flex-row gap-4">
               <Button
                 size="lg"
-                fullWidth
-                leftIcon={<ShoppingCartIcon className="h-5 w-5" />}
+                className="w-full"
                 onClick={handleAddAllToCart}
                 disabled={addToCart.isPending}
               >
+                <ShoppingCartIcon className="h-5 w-5" />
                 Agregar Todo al Carrito
               </Button>
               <Button
                 variant="outline"
                 size="lg"
-                fullWidth
+                className="w-full"
                 onClick={handleShare}
-                leftIcon={<ShareIcon className="h-5 w-5" />}
               >
+                <ShareIcon className="h-5 w-5" />
                 Compartir Resultados
               </Button>
             </div>
@@ -316,7 +316,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
 
           {/* More Recommendations */}
           {result.recommendations.length > 3 && (
-            <Card className="mb-8" padding="lg">
+            <Card className="mb-8">
               <h3 className="text-xl font-bold text-[#3E667D] mb-4">
                 También te pueden interesar
               </h3>
@@ -356,7 +356,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
 
           {/* Save Email Form */}
           {onSaveEmail && !showEmailForm && (
-            <Card className="mb-8" padding="lg">
+            <Card className="mb-8">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-[#C8DDF2]/10 rounded-full">
                   <EnvelopeIcon className="h-6 w-6 text-[#3E667D]" />
@@ -377,7 +377,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
           )}
 
           {showEmailForm && (
-            <Card className="mb-8" padding="lg">
+            <Card className="mb-8">
               <h3 className="font-semibold text-[#3E667D] mb-4">
                 Envía tus resultados a tu correo
               </h3>
@@ -397,7 +397,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#a7c1e2]/50"
                 />
                 <div className="flex gap-2">
-                  <Button onClick={handleSaveEmail} fullWidth>
+                  <Button onClick={handleSaveEmail} className="w-full">
                     Enviar resultados
                   </Button>
                   <Button variant="ghost" onClick={() => setShowEmailForm(false)}>

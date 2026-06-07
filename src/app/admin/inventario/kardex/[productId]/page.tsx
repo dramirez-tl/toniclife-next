@@ -5,8 +5,8 @@
 import { Suspense, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui/DataTable';
 import {
   ChartBarIcon,
@@ -521,15 +521,13 @@ function KardexContent() {
             <Button
               variant="outline"
               className="border-white/30 text-white hover:bg-white/10"
-              leftIcon={
-                isExporting
-                  ? <span className="inline-block w-4 h-4 border-2 border-white/60 border-t-white rounded-full animate-spin" />
-                  : <ArrowDownTrayIcon className="h-4 w-4" />
-              }
               onClick={handleExport}
               disabled={isExporting}
               size="sm"
             >
+              {isExporting
+                ? <span className="inline-block w-4 h-4 border-2 border-white/60 border-t-white rounded-full animate-spin" />
+                : <ArrowDownTrayIcon className="h-4 w-4" />}
               {isExporting ? 'Exportando...' : 'Exportar CSV'}
             </Button>
           </div>
@@ -653,9 +651,9 @@ function KardexContent() {
               <Button
                 variant="outline"
                 size="sm"
-                leftIcon={<ArrowPathIcon className="h-4 w-4" />}
                 onClick={() => refetch()}
               >
+                <ArrowPathIcon className="h-4 w-4" />
                 Actualizar
               </Button>
             </div>

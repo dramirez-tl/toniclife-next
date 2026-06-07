@@ -1,15 +1,9 @@
 'use client';
 
-import { useRef, useState, useCallback } from 'react';
-import {
-  ArrowUpTrayIcon,
-  DocumentIcon,
-  XMarkIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ClockIcon,
-  PhotoIcon,
-} from '@heroicons/react/24/outline';
+import { useRef, useState, useCallback, useEffect } from 'react';
+import { Upload, File as FileIcon, X, Image as ImageIcon, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 
 interface FileUploadProps {
   label: string;
@@ -25,19 +19,19 @@ interface FileUploadProps {
 
 const statusConfig = {
   pending: {
-    icon: ClockIcon,
+    icon: Clock,
     label: 'Pendiente de validación',
     color: 'text-amber-600 bg-amber-50 border-amber-200',
   },
   validated: {
-    icon: CheckCircleIcon,
+    icon: CheckCircle2,
     label: 'Validado',
     color: 'text-emerald-600 bg-emerald-50 border-emerald-200',
   },
   rejected: {
-    icon: XCircleIcon,
+    icon: XCircle,
     label: 'Rechazado',
-    color: 'text-red-600 bg-red-50 border-red-200',
+    color: 'text-destructive bg-destructive/10 border-destructive/20',
   },
 };
 
@@ -54,8 +48,19 @@ export function FileUpload({
 }: FileUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Generate (and clean up) an object URL for image previews
+  useEffect(() => {
+    if (selectedFile && selectedFile.type.startsWith('image/')) {
+      const url = URL.createObjectURL(selectedFile);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    setPreviewUrl(null);
+  }, [selectedFile]);
 
   const handleFile = useCallback(
     (file: File) => {
@@ -105,11 +110,18 @@ export function FileUpload({
 
   return (
     <div className="space-y-2">
-      {label && <label className="block text-sm font-medium text-gray-700">{label}</label>}
+      {label && (
+        <label className="block text-sm font-medium text-foreground">{label}</label>
+      )}
 
       {/* Status badge */}
       {statusInfo && (
-        <div className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${statusInfo.color}`}>
+        <div
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium',
+            statusInfo.color,
+          )}
+        >
           <statusInfo.icon className="h-3.5 w-3.5" />
           {statusInfo.label}
         </div>
@@ -117,24 +129,24 @@ export function FileUpload({
 
       {/* Rejection reason */}
       {status === 'rejected' && rejectionReason && (
-        <p className="text-xs text-red-600 bg-red-50 rounded px-2 py-1">
+        <p className="rounded bg-destructive/10 px-2 py-1 text-xs text-destructive">
           Motivo: {rejectionReason}
         </p>
       )}
 
       {/* Existing file indicator */}
       {existingUrl && !selectedFile && (
-        <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm">
+        <div className="flex items-center gap-2 rounded-lg border border-input bg-muted px-3 py-2 text-sm">
           {isImage(existingUrl) ? (
-            <PhotoIcon className="h-5 w-5 text-gray-400" />
+            <ImageIcon className="h-5 w-5 text-muted-foreground" />
           ) : (
-            <DocumentIcon className="h-5 w-5 text-gray-400" />
+            <FileIcon className="h-5 w-5 text-muted-foreground" />
           )}
           <a
             href={existingUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[#3E667D] hover:underline truncate flex-1"
+            className="flex-1 truncate text-primary hover:underline"
           >
             Ver documento actual
           </a>
@@ -143,20 +155,32 @@ export function FileUpload({
 
       {/* Selected file */}
       {selectedFile && (
-        <div className="flex items-center gap-2 rounded-lg border border-[#3E667D]/20 bg-[#3E667D]/5 px-3 py-2 text-sm">
-          <DocumentIcon className="h-5 w-5 text-[#3E667D]" />
-          <span className="truncate flex-1 text-gray-700">{selectedFile.name}</span>
-          <span className="text-xs text-gray-500">
+        <div className="flex items-center gap-3 rounded-lg border border-input bg-accent/40 px-3 py-2 text-sm">
+          {previewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={previewUrl}
+              alt={selectedFile.name}
+              className="h-10 w-10 shrink-0 rounded border border-input object-cover"
+            />
+          ) : (
+            <FileIcon className="h-5 w-5 shrink-0 text-foreground" />
+          )}
+          <span className="flex-1 truncate text-foreground">{selectedFile.name}</span>
+          <span className="text-xs text-muted-foreground">
             {(selectedFile.size / 1024 / 1024).toFixed(1)}MB
           </span>
           {!disabled && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon-sm"
               onClick={removeFile}
-              className="text-gray-400 hover:text-red-500 transition-colors"
+              className="text-muted-foreground hover:text-destructive"
+              aria-label="Eliminar archivo"
             >
-              <XMarkIcon className="h-4 w-4" />
-            </button>
+              <X className="h-4 w-4" />
+            </Button>
           )}
         </div>
       )}
@@ -170,23 +194,34 @@ export function FileUpload({
           }}
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
-          onClick={() => !disabled && inputRef.current?.click()}
-          className={`
-            flex flex-col items-center justify-center rounded-lg border-2 border-dashed px-4 py-4
-            transition-colors cursor-pointer
-            ${disabled ? 'opacity-50 cursor-not-allowed bg-gray-50' : ''}
-            ${dragOver ? 'border-[#3E667D] bg-[#3E667D]/5' : 'border-gray-300 hover:border-[#3E667D]/40 hover:bg-gray-50'}
-          `}
+          className={cn(
+            'flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors',
+            dragOver
+              ? 'border-ring bg-accent ring-2 ring-ring/30'
+              : 'border-input hover:bg-accent/50',
+            disabled && 'cursor-not-allowed bg-muted opacity-50',
+          )}
         >
-          <ArrowUpTrayIcon className="h-6 w-6 text-gray-400 mb-1" />
-          <p className="text-xs text-gray-500">
-            Arrastra o <span className="text-[#3E667D] font-medium">selecciona</span> un archivo
+          <Upload className="h-6 w-6 text-muted-foreground" />
+          <p className="text-xs text-muted-foreground">
+            Arrastra y suelta tu archivo aquí
           </p>
-          <p className="text-[10px] text-gray-400 mt-0.5">JPG, PNG o PDF (máx. {maxSizeMB}MB)</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            onClick={() => !disabled && inputRef.current?.click()}
+          >
+            Seleccionar archivo
+          </Button>
+          <p className="text-[10px] text-muted-foreground">
+            JPG, PNG o PDF (máx. {maxSizeMB}MB)
+          </p>
         </div>
       )}
 
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-destructive">{error}</p>}
 
       <input
         ref={inputRef}

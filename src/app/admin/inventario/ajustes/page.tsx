@@ -4,8 +4,8 @@
 
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   ClipboardDocumentCheckIcon,
   MagnifyingGlassIcon,
@@ -188,10 +188,8 @@ function AjustesContent() {
                 <Button variant="secondary">Volver a Inventario</Button>
               </Link>
               <Link href="/admin/inventario/ajustes/nuevo">
-                <Button
-                  variant="primary"
-                  leftIcon={<PlusIcon className="h-5 w-5" />}
-                >
+                <Button variant="default">
+                  <PlusIcon className="h-5 w-5" />
                   Nuevo Ajuste
                 </Button>
               </Link>

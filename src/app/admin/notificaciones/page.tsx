@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { PermissionGuard } from '@/components/auth';
 import { useSendNotification, useSendBulkNotification } from '@/hooks/useNotifications';
 import type {
@@ -472,11 +472,11 @@ export default function NotificacionesAdminPage() {
                         Limpiar
                       </Button>
                       <Button
-                        variant="primary"
-                        leftIcon={<PaperAirplaneIcon className="h-5 w-5" />}
+                        variant="default"
                         onClick={handleSend}
                         disabled={isSending}
                       >
+                        <PaperAirplaneIcon className="h-5 w-5" />
                         {isSending ? 'Enviando...' : 'Enviar Notificacion'}
                       </Button>
                     </div>
@@ -623,8 +623,8 @@ export default function NotificacionesAdminPage() {
                 <Button
                   variant="outline"
                   onClick={() => setActiveTab('send')}
-                  leftIcon={<PaperAirplaneIcon className="h-4 w-4" />}
                 >
+                  <PaperAirplaneIcon className="h-4 w-4" />
                   Enviar Primera Notificacion
                 </Button>
               </div>

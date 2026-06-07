@@ -4,9 +4,10 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Loader2 } from 'lucide-react';
 import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
@@ -159,7 +160,7 @@ function VerifyEmailContent() {
               </p>
 
               <Link href="/login">
-                <Button variant="primary" size="lg" className="w-full">
+                <Button variant="default" size="lg" className="w-full">
                   Iniciar sesión
                 </Button>
               </Link>
@@ -209,23 +210,29 @@ function VerifyEmailContent() {
                   Ingresa tu email para recibir un nuevo enlace de verificación:
                 </p>
                 <form onSubmit={handleResend} className="space-y-4">
-                  <Input
-                    type="email"
-                    placeholder="tu@email.com"
-                    value={resendEmail}
-                    onChange={(e) => setResendEmail(e.target.value)}
-                    error={resendError}
-                    leftIcon={<EnvelopeIcon className="h-5 w-5" />}
-                    autoComplete="email"
-                    disabled={isLoading}
-                  />
+                  <div className="space-y-1.5">
+                    <div className="relative">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><EnvelopeIcon className="h-5 w-5" /></span>
+                      <Input
+                        type="email"
+                        placeholder="tu@email.com"
+                        value={resendEmail}
+                        onChange={(e) => setResendEmail(e.target.value)}
+                        autoComplete="email"
+                        disabled={isLoading}
+                        className="pl-9"
+                        aria-invalid={resendError ? true : undefined}
+                      />
+                    </div>
+                    {resendError && <p className="text-sm text-destructive">{resendError}</p>}
+                  </div>
                   <Button
                     type="submit"
-                    variant="primary"
+                    variant="default"
                     className="w-full"
-                    isLoading={isLoading}
-                    disabled={isLoading}
+                    disabled={isLoading || isLoading}
                   >
+                    {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
                     {isLoading ? 'Enviando...' : 'Reenviar verificación'}
                   </Button>
                 </form>

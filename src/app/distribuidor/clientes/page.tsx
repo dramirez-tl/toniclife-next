@@ -2,8 +2,8 @@
 
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   UserGroupIcon,
   MagnifyingGlassIcon,
@@ -191,10 +191,10 @@ function ClientesContent() {
                 </Button>
               </Link>
               <Button
-                variant="primary"
-                leftIcon={<PlusIcon className="h-5 w-5" />}
+                variant="default"
                 onClick={() => toast.info('Función próximamente disponible')}
               >
+                <PlusIcon className="h-5 w-5" />
                 Nuevo Cliente
               </Button>
             </div>
@@ -395,34 +395,34 @@ function ClientesContent() {
                   <Button
                     variant="outline"
                     size="sm"
-                    leftIcon={<PhoneIcon className="h-4 w-4" />}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleContact(customer, 'llamada');
                     }}
                   >
+                    <PhoneIcon className="h-4 w-4" />
                     Llamar
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    leftIcon={<ChatBubbleLeftIcon className="h-4 w-4" />}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleContact(customer, 'WhatsApp');
                     }}
                   >
+                    <ChatBubbleLeftIcon className="h-4 w-4" />
                     WhatsApp
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    leftIcon={<EnvelopeIcon className="h-4 w-4" />}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleContact(customer, 'email');
                     }}
                   >
+                    <EnvelopeIcon className="h-4 w-4" />
                     Correo
                   </Button>
                 </div>
@@ -530,25 +530,25 @@ function ClientesContent() {
 
                 <div className="flex gap-3">
                   <Button
-                    variant="primary"
+                    variant="default"
                     className="flex-1"
-                    leftIcon={<ShoppingBagIcon className="h-5 w-5" />}
                     onClick={() => toast.info('Abriendo nueva venta')}
                   >
+                    <ShoppingBagIcon className="h-5 w-5" />
                     Nueva Venta
                   </Button>
                   <Button
                     variant="outline"
-                    leftIcon={<PencilIcon className="h-5 w-5" />}
                     onClick={() => toast.info('Abriendo edición')}
                   >
+                    <PencilIcon className="h-5 w-5" />
                     Editar
                   </Button>
                   <Button
                     variant="ghost"
-                    leftIcon={<PhoneIcon className="h-5 w-5" />}
                     onClick={() => handleContact(selectedCustomer, 'llamada')}
                   >
+                    <PhoneIcon className="h-5 w-5" />
                     Contactar
                   </Button>
                 </div>

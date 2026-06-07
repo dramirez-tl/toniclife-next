@@ -2,8 +2,8 @@
 
 import { Suspense, useMemo } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import {
   CurrencyDollarIcon,
@@ -380,39 +380,39 @@ function ComisionesContent() {
               <Button
                 variant="outline"
                 className="border-white text-white hover:bg-white/10"
-                leftIcon={<CalculatorIcon className="h-5 w-5" />}
                 onClick={handleCalculateCommissions}
                 disabled={calculateMutation.isPending}
               >
+                <CalculatorIcon className="h-5 w-5" />
                 {calculateMutation.isPending ? 'Calculando...' : 'Calcular Comisiones'}
               </Button>
               {approvedCount > 0 && (
                 <Button
                   variant="outline"
                   className="border-white text-white hover:bg-white/10"
-                  leftIcon={<BanknotesIcon className="h-5 w-5" />}
                   onClick={handleMarkAsPaid}
                   disabled={markPaidMutation.isPending}
                 >
+                  <BanknotesIcon className="h-5 w-5" />
                   {markPaidMutation.isPending ? 'Procesando...' : `Marcar como Pagadas (${approvedCount})`}
                 </Button>
               )}
               <Button
                 variant="outline"
                 className="border-white text-white hover:bg-white/10"
-                leftIcon={<LockClosedIcon className="h-5 w-5" />}
                 onClick={handleClosePeriod}
                 disabled={closePeriodMutation.isPending}
               >
+                <LockClosedIcon className="h-5 w-5" />
                 {closePeriodMutation.isPending ? 'Cerrando...' : 'Cerrar Periodo'}
               </Button>
               {pendingCount > 0 && (
                 <Button
-                  variant="primary"
-                  leftIcon={<CheckCircleIcon className="h-5 w-5" />}
+                  variant="default"
                   onClick={handleApproveAll}
                   disabled={approveMutation.isPending}
                 >
+                  <CheckCircleIcon className="h-5 w-5" />
                   {approveMutation.isPending ? 'Aprobando...' : `Aprobar Todas (${pendingCount})`}
                 </Button>
               )}
@@ -608,11 +608,11 @@ function ComisionesContent() {
               <div className="lg:col-span-1">
                 <Button
                   variant="outline"
-                  leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
                   onClick={handleExport}
                   className="w-full"
                   size="sm"
                 >
+                  <ArrowDownTrayIcon className="h-4 w-4" />
                   Exportar
                 </Button>
               </div>

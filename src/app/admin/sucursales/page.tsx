@@ -2,8 +2,9 @@
 
 import { Suspense, useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Loader2 } from 'lucide-react';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import {
   useBranches,
@@ -153,10 +154,11 @@ function BranchModal({ isOpen, onClose, title, children, onSubmit, isSubmitting,
             Cancelar
           </Button>
           <Button
-            variant="primary"
+            variant="default"
             onClick={onSubmit}
-            isLoading={isSubmitting}
+            disabled={isSubmitting}
           >
+            {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
             {isEdit ? 'Guardar Cambios' : 'Crear Sucursal'}
           </Button>
         </div>
@@ -922,10 +924,10 @@ function SucursalesContent() {
                 <Button variant="secondary">Volver al Panel Principal</Button>
               </Link>
               <Button
-                variant="primary"
-                leftIcon={<PlusIcon className="h-5 w-5" />}
+                variant="default"
                 onClick={handleOpenCreateModal}
               >
+                <PlusIcon className="h-5 w-5" />
                 Nueva Sucursal
               </Button>
             </div>
@@ -1038,7 +1040,7 @@ function SucursalesContent() {
                   />
                   </div>
                   <Button
-                    variant="primary"
+                    variant="default"
                     size="sm"
                     className="h-10 px-4 sm:min-w-[96px]"
                     onClick={handleSearch}
@@ -1160,10 +1162,10 @@ function SucursalesContent() {
                       </Button>
                     )}
                     <Button
-                      variant="primary"
-                      leftIcon={<PlusIcon className="h-4 w-4" />}
+                      variant="default"
                       onClick={handleOpenCreateModal}
                     >
+                      <PlusIcon className="h-4 w-4" />
                       Nueva Sucursal
                     </Button>
                   </div>
@@ -1645,7 +1647,7 @@ function SucursalesContent() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
-                    variant="primary"
+                    variant="default"
                     size="sm"
                     onClick={async () => {
                       if (!posUserForm.email || !posUserForm.password || !posUserForm.firstName || !posUserForm.lastName) {
@@ -1661,8 +1663,9 @@ function SucursalesContent() {
                         toast.error(err.response?.data?.message || 'Error al crear usuario POS');
                       }
                     }}
-                    isLoading={createPosUser.isPending}
+                    disabled={createPosUser.isPending}
                   >
+                    {createPosUser.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
                     Crear
                   </Button>
                   <Button
@@ -1841,7 +1844,7 @@ function SucursalesContent() {
                 />
               </div>
               <Button
-                variant="primary"
+                variant="default"
                 size="sm"
                 onClick={async () => {
                   try {
@@ -1862,9 +1865,10 @@ function SucursalesContent() {
                     toast.error(e.response?.data?.message || 'Error al generar licencia');
                   }
                 }}
-                isLoading={createPosLicense.isPending}
-                leftIcon={<PlusIcon className="h-4 w-4" />}
+                disabled={createPosLicense.isPending}
               >
+                {createPosLicense.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                <PlusIcon className="h-4 w-4" />
                 Generar licencia
               </Button>
             </div>

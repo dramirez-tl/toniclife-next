@@ -4,8 +4,8 @@
 
 import { Suspense, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import {
   DocumentTextIcon,
@@ -315,8 +315,8 @@ function FacturacionContent() {
                 <Button
                   variant="outline"
                   className="border-white text-white hover:bg-white/10"
-                  leftIcon={<BuildingOfficeIcon className="h-5 w-5" />}
                 >
+                  <BuildingOfficeIcon className="h-5 w-5" />
                   Datos Fiscales
                 </Button>
               </Link>
@@ -324,8 +324,8 @@ function FacturacionContent() {
                 <Button
                   variant="outline"
                   className="border-white text-white hover:bg-white/10"
-                  leftIcon={<GlobeAltIcon className="h-5 w-5" />}
                 >
+                  <GlobeAltIcon className="h-5 w-5" />
                   Factura Global
                 </Button>
               </Link>
@@ -333,8 +333,8 @@ function FacturacionContent() {
                 <Button
                   variant="outline"
                   className="border-white text-white hover:bg-white/10"
-                  leftIcon={<DocumentDuplicateIcon className="h-5 w-5" />}
                 >
+                  <DocumentDuplicateIcon className="h-5 w-5" />
                   Complemento de Pago
                 </Button>
               </Link>
@@ -342,8 +342,8 @@ function FacturacionContent() {
                 <Button
                   variant="outline"
                   className="border-white text-white hover:bg-white/10"
-                  leftIcon={<ChartBarIcon className="h-5 w-5" />}
                 >
+                  <ChartBarIcon className="h-5 w-5" />
                   Reporte Folios
                 </Button>
               </Link>
@@ -493,7 +493,7 @@ function FacturacionContent() {
                     />
                   </div>
                   <Button
-                    variant="primary"
+                    variant="default"
                     size="sm"
                     className="h-10 px-4 sm:min-w-[96px]"
                     onClick={handleSearch}

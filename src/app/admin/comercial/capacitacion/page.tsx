@@ -3,7 +3,7 @@
 import { useState, Suspense } from 'react';
 import Image from 'next/image';
 import { toast } from 'sonner';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/card';
 import { FileUpload } from '@/components/ui/FileUpload';
 import { useCourses, useCreateCourse, useUpdateCourse, useUploadCourseImage, useDeleteCourse } from '@/hooks/useCourses';
 import { useQueryFilters } from '@/hooks/useQueryFilters';

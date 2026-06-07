@@ -15,8 +15,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { useSelector } from 'react-redux';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { useProduct, useUpdateProduct, useCategories } from '@/hooks/useProducts';
 import type { UpdateProductDto } from '@/types/product';
 import { ProductType, KitType } from '@/types/product';
@@ -307,7 +307,7 @@ export default function EditarProductoAdminPage() {
               No se pudo encontrar el producto solicitado. Es posible que haya sido eliminado.
             </p>
             <Link href="/admin/productos">
-              <Button variant="primary">Volver a Productos</Button>
+              <Button variant="default">Volver a Productos</Button>
             </Link>
           </CardContent>
         </Card>
@@ -381,7 +381,7 @@ export default function EditarProductoAdminPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-6">
                 {/* Basic Information */}
-                <Card padding="none">
+                <Card className="p-0">
                   <CardContent className="p-6">
                     <h2 className="text-lg font-bold text-gray-900 mb-6">Informacion Basica</h2>
                     <div className="space-y-4">
@@ -449,7 +449,7 @@ export default function EditarProductoAdminPage() {
                 </Card>
 
                 {/* Classification */}
-                <Card padding="none">
+                <Card className="p-0">
                   <CardContent className="p-6">
                     <h2 className="text-lg font-bold text-gray-900 mb-6">Clasificacion</h2>
                     <div className="grid grid-cols-2 gap-4">
@@ -509,7 +509,7 @@ export default function EditarProductoAdminPage() {
                 </Card>
 
                 {/* Usage & Health */}
-                <Card padding="none">
+                <Card className="p-0">
                   <CardContent className="p-6">
                     <h2 className="text-lg font-bold text-gray-900 mb-6">Uso y Salud</h2>
                     <div className="space-y-4">
@@ -562,7 +562,7 @@ export default function EditarProductoAdminPage() {
                 </Card>
 
                 {/* Health Benefits */}
-                <Card padding="none">
+                <Card className="p-0">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between mb-4">
                       <h2 className="text-lg font-bold text-gray-900">Beneficios de Salud</h2>
@@ -601,7 +601,7 @@ export default function EditarProductoAdminPage() {
                 </Card>
 
                 {/* SEO */}
-                <Card padding="none">
+                <Card className="p-0">
                   <CardContent className="p-6">
                     <h2 className="text-lg font-bold text-gray-900 mb-6">SEO</h2>
                     <div className="space-y-4">
@@ -635,7 +635,7 @@ export default function EditarProductoAdminPage() {
               {/* Sidebar */}
               <div className="space-y-6">
                 {/* Status & Visibility */}
-                <Card padding="none">
+                <Card className="p-0">
                   <CardContent className="p-6">
                     <h2 className="text-lg font-bold text-gray-900 mb-4">Estado y Visibilidad</h2>
                     <div className="space-y-4">
@@ -668,7 +668,7 @@ export default function EditarProductoAdminPage() {
                 </Card>
 
                 {/* Media */}
-                <Card padding="none">
+                <Card className="p-0">
                   <CardContent className="p-6">
                     <h2 className="text-lg font-bold text-gray-900 mb-4">Media</h2>
                     <div className="space-y-4">
@@ -692,7 +692,7 @@ export default function EditarProductoAdminPage() {
 
                 {/* Product Info */}
                 {product && (
-                  <Card padding="none">
+                  <Card className="p-0">
                     <CardContent className="p-6">
                       <h2 className="text-lg font-bold text-gray-900 mb-4">Informacion del Registro</h2>
                       <div className="space-y-2 text-sm text-gray-600">
@@ -720,7 +720,7 @@ export default function EditarProductoAdminPage() {
           {activeTab === 'precios' && (
             <div className="space-y-6 max-w-4xl">
               {/* MLM */}
-              <Card padding="none">
+              <Card className="p-0">
                 <CardContent className="p-6">
                   <h2 className="text-lg font-bold text-gray-900 mb-6">MLM</h2>
                   <div className="grid grid-cols-2 gap-4">
@@ -758,7 +758,7 @@ export default function EditarProductoAdminPage() {
           {activeTab === 'inventario' && (
             <div className="space-y-6 max-w-4xl">
               {/* Inventory Defaults & Physical */}
-              <Card padding="none">
+              <Card className="p-0">
                 <CardContent className="p-6">
                   <h2 className="text-lg font-bold text-gray-900 mb-6">Configuracion de Inventario</h2>
                   <h3 className="text-sm font-semibold text-gray-700 mb-3">Propiedades Físicas</h3>

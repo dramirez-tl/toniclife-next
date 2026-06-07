@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   UserGroupIcon,
   ClockIcon,
@@ -339,7 +339,7 @@ export default function RRHHDashboard() {
                             <XCircleIcon className="h-4 w-4 text-red-600" />
                           </Button>
                           <Button
-                            variant="primary"
+                            variant="default"
                             size="sm"
                             onClick={() => handleApprove(item)}
                             disabled={approveVacationMutation.isPending || approveExpenseMutation.isPending}

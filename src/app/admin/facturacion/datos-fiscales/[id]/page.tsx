@@ -5,8 +5,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   BuildingOfficeIcon,
   ArrowLeftIcon,
@@ -14,6 +14,7 @@ import {
   ExclamationTriangleIcon,
   UserIcon,
 } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import {
@@ -258,8 +259,9 @@ export default function EditFiscalDataPage() {
                       type="button"
                       variant="outline"
                       onClick={handleValidateRfc}
-                      isLoading={validateRfc.isPending}
+                      disabled={validateRfc.isPending}
                     >
+                      {validateRfc.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
                       Validar
                     </Button>
                   </div>
@@ -487,10 +489,11 @@ export default function EditFiscalDataPage() {
             </Link>
             <Button
               type="submit"
-              variant="primary"
-              isLoading={updateFiscalData.isPending}
-              leftIcon={<CheckCircleIcon className="h-5 w-5" />}
+              variant="default"
+              disabled={updateFiscalData.isPending}
             >
+              {updateFiscalData.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+              <CheckCircleIcon className="h-5 w-5" />
               Guardar Cambios
             </Button>
           </div>

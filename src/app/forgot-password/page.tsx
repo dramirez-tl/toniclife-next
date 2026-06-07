@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { EnvelopeIcon, ArrowLeftIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
@@ -100,7 +102,7 @@ export default function ForgotPasswordPage() {
 
               <div className="space-y-3">
                 <Link href="/login">
-                  <Button variant="primary" className="w-full">
+                  <Button variant="default" className="w-full">
                     Volver al login
                   </Button>
                 </Link>
@@ -156,27 +158,33 @@ export default function ForgotPasswordPage() {
                 </p>
               </div>
 
-              <Input
-                label="Correo electrónico"
-                type="email"
-                placeholder="tu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                error={error}
-                leftIcon={<EnvelopeIcon className="h-5 w-5" />}
-                autoComplete="email"
-                autoFocus
-                disabled={isLoading}
-              />
+              <div className="space-y-1.5">
+                <Label>Correo electrónico</Label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><EnvelopeIcon className="h-5 w-5" /></span>
+                  <Input
+                    type="email"
+                    placeholder="tu@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
+                    autoFocus
+                    disabled={isLoading}
+                    className="pl-9"
+                    aria-invalid={error ? true : undefined}
+                  />
+                </div>
+                {error && <p className="text-sm text-destructive">{error}</p>}
+              </div>
 
               <Button
                 type="submit"
-                variant="primary"
+                variant="default"
                 size="lg"
                 className="w-full h-12"
-                isLoading={isLoading}
-                disabled={isLoading}
+                disabled={isLoading || (isLoading)}
               >
+                {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
                 {isLoading ? 'Enviando...' : 'Enviar enlace de recuperación'}
               </Button>
 
@@ -186,9 +194,9 @@ export default function ForgotPasswordPage() {
                   variant="outline"
                   size="lg"
                   className="w-full h-12"
-                  leftIcon={<ArrowLeftIcon className="h-5 w-5" />}
                   disabled={isLoading}
                 >
+                  <ArrowLeftIcon className="h-5 w-5" />
                   Volver al login
                 </Button>
               </Link>

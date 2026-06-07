@@ -2,8 +2,8 @@
 
 import { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   UserGroupIcon,
   MagnifyingGlassIcon,
@@ -263,10 +263,10 @@ function EmpleadosContent() {
               </Button>
             </Link>
             <Button
-              variant="primary"
-              leftIcon={<PlusIcon className="h-5 w-5" />}
+              variant="default"
               onClick={openCreateModal}
             >
+              <PlusIcon className="h-5 w-5" />
               Nuevo Empleado
             </Button>
           </div>
@@ -385,9 +385,9 @@ function EmpleadosContent() {
               {/* Export Button */}
               <Button
                 variant="outline"
-                leftIcon={<ArrowDownTrayIcon className="h-5 w-5" />}
                 onClick={handleExport}
               >
+                <ArrowDownTrayIcon className="h-5 w-5" />
                 Exportar
               </Button>
             </div>
@@ -830,7 +830,7 @@ function EmployeeFormModal({
           <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancelar
           </Button>
-          <Button variant="primary" onClick={onSubmit} disabled={isSubmitting}>
+          <Button variant="default" onClick={onSubmit} disabled={isSubmitting}>
             {isSubmitting
               ? 'Guardando...'
               : editingEmployee

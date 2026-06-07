@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useCallback } from 'react';
-import { Button } from '@/components/ui/Button';
+import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -95,11 +96,12 @@ export function CatalogFormModal({
             Cancelar
           </Button>
           <Button
-            variant="primary"
+            variant="default"
             size="sm"
             onClick={onSubmit}
-            isLoading={isSubmitting}
+            disabled={isSubmitting}
           >
+            {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
             {isEdit ? 'Guardar' : 'Crear'}
           </Button>
         </div>

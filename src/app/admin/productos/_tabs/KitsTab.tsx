@@ -3,8 +3,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import {
@@ -382,7 +382,7 @@ export function KitsTab() {
                   />
                 </div>
                 <Button
-                  variant="primary"
+                  variant="default"
                   size="sm"
                   className="h-10 px-4 sm:min-w-[96px]"
                   onClick={handleSearch}
@@ -499,7 +499,8 @@ export function KitsTab() {
                       </Button>
                     )}
                     <Link href="/admin/kits/nuevo">
-                      <Button variant="primary" leftIcon={<PlusIcon className="h-4 w-4" />}>
+                      <Button variant="default">
+                        <PlusIcon className="h-4 w-4" />
                         Nuevo Kit
                       </Button>
                     </Link>

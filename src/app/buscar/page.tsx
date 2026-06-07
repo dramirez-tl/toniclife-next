@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -256,9 +256,9 @@ export default function BuscarPage() {
             <Button
               variant="outline"
               size="sm"
-              leftIcon={<AdjustmentsHorizontalIcon className="h-5 w-5" />}
               onClick={() => setShowFilters(!showFilters)}
             >
+              <AdjustmentsHorizontalIcon className="h-5 w-5" />
               {showFilters ? 'Ocultar' : 'Mostrar'} Filtros
               {activeFiltersCount > 0 && (
                 <span className="ml-2 bg-[#3E667D] text-white rounded-full px-2 py-0.5 text-xs">
@@ -432,7 +432,7 @@ export default function BuscarPage() {
                   <p className="text-gray-600 mb-6">
                     Intenta ajustar los filtros o realizar una búsqueda diferente
                   </p>
-                  <Button variant="primary" onClick={handleClearFilters}>
+                  <Button variant="default" onClick={handleClearFilters}>
                     Limpiar Filtros
                   </Button>
                 </CardContent>
@@ -503,13 +503,13 @@ export default function BuscarPage() {
                       {/* Actions */}
                       <div className="space-y-2">
                         <Button
-                          variant="primary"
+                          variant="default"
                           size="sm"
                           className="w-full"
-                          leftIcon={<ShoppingCartIcon className="h-4 w-4" />}
                           onClick={() => toast.success(`${product.name} agregado al carrito`)}
                           disabled={product.stock === 0}
                         >
+                          <ShoppingCartIcon className="h-4 w-4" />
                           Agregar al Carrito
                         </Button>
                         <div className="grid grid-cols-2 gap-2">
@@ -521,10 +521,9 @@ export default function BuscarPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            leftIcon={<HeartIcon className="h-4 w-4" />}
                             onClick={() => toast.success('Agregado a favoritos')}
                           >
-
+                            <HeartIcon className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>

@@ -4,8 +4,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   DocumentDuplicateIcon,
   ArrowLeftIcon,
@@ -110,8 +110,8 @@ export default function ComplementoPagoPage() {
                 <Button
                   variant="outline"
                   className="border-white text-white hover:bg-white/10"
-                  leftIcon={<ArrowLeftIcon className="h-5 w-5" />}
                 >
+                  <ArrowLeftIcon className="h-5 w-5" />
                   Volver a Facturas
                 </Button>
               </Link>
@@ -244,11 +244,11 @@ export default function ComplementoPagoPage() {
                       <Button variant="outline">Cancelar</Button>
                     </Link>
                     <Button
-                      variant="primary"
-                      leftIcon={<PlusIcon className="h-5 w-5" />}
+                      variant="default"
                       onClick={handleCreate}
                       disabled={createComplement.isPending}
                     >
+                      <PlusIcon className="h-5 w-5" />
                       {createComplement.isPending
                         ? 'Creando...'
                         : 'Crear Complemento'}
@@ -281,7 +281,7 @@ export default function ComplementoPagoPage() {
 
                   <div className="flex justify-center gap-3">
                     <Button
-                      variant="primary"
+                      variant="default"
                       onClick={handleStamp}
                       disabled={stampComplement.isPending}
                     >

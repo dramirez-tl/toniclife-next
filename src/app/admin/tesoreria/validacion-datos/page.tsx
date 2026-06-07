@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { customersService } from '@/services/customers.service';
 import { toast } from 'sonner';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/card';
 import { DataTablePagination } from '@/components/ui';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import type { PaymentReadinessResponse, DocumentValidation } from '@/types/payment-data';

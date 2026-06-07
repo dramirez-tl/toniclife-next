@@ -4,8 +4,8 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   AcademicCapIcon,
   PlayIcon,
@@ -272,12 +272,12 @@ function CapacitacionContent() {
                       </div>
 
                       <Button
-                        variant="primary"
+                        variant="default"
                         size="sm"
                         className="w-full"
-                        leftIcon={<PlayIcon className="h-4 w-4" />}
                         onClick={() => handleStartCourse(course)}
                       >
+                        <PlayIcon className="h-4 w-4" />
                         Ver Curso
                       </Button>
                     </div>

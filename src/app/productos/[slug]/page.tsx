@@ -4,9 +4,9 @@ import { useState, use } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ShoppingCartIcon, StarIcon, CheckCircleIcon, TruckIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { useProductBySlug, useProducts, useProductComponents } from '@/hooks/useProducts';
 import { useAddCartItem } from '@/hooks/useCart';
@@ -194,7 +194,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
           <div>
             <div className="bg-white rounded-2xl p-6 mb-4 relative">
               {product.badge && (
-                <Badge variant={product.badge === 'Nuevo' ? 'success' : 'warning'} className="absolute top-4 left-4 z-10">
+                <Badge variant="outline" className={`absolute top-4 left-4 z-10 ${product.badge === 'Nuevo' ? 'border-green-200 bg-green-100 text-green-700' : 'border-yellow-200 bg-yellow-100 text-yellow-700'}`}>
                   {product.badge}
                 </Badge>
               )}
@@ -321,7 +321,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     <span className="text-2xl text-gray-400 line-through">
                       ${product.originalPrice.toFixed(2)}
                     </span>
-                    <Badge variant="error">
+                    <Badge variant="outline" className="border-red-200 bg-red-100 text-red-700">
                       -{Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}%
                     </Badge>
                   </>
@@ -389,7 +389,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             {/* Action Buttons */}
             <div className="flex gap-3 mb-6">
               <Button
-                variant="primary"
+                variant="default"
                 size="lg"
                 className="flex-1"
                 onClick={handleAddToCart}
@@ -540,7 +540,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     <CardContent className="p-4">
                       <div className="aspect-square relative mb-4 bg-gray-50 rounded-lg overflow-hidden">
                         {relatedProduct.badge && (
-                          <Badge variant={relatedProduct.badge === 'Nuevo' ? 'success' : 'warning'} className="absolute top-2 left-2 z-10">
+                          <Badge variant="outline" className={`absolute top-2 left-2 z-10 ${relatedProduct.badge === 'Nuevo' ? 'border-green-200 bg-green-100 text-green-700' : 'border-yellow-200 bg-yellow-100 text-yellow-700'}`}>
                             {relatedProduct.badge}
                           </Badge>
                         )}

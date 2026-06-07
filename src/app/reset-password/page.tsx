@@ -4,9 +4,11 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Loader2 } from 'lucide-react';
 import {
   LockClosedIcon,
   EyeIcon,
@@ -136,7 +138,7 @@ function ResetPasswordForm() {
 
               <div className="space-y-3">
                 <Link href="/forgot-password">
-                  <Button variant="primary" className="w-full">
+                  <Button variant="default" className="w-full">
                     Solicitar nuevo enlace
                   </Button>
                 </Link>
@@ -178,30 +180,34 @@ function ResetPasswordForm() {
           <CardContent className="p-8">
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* New Password */}
-              <div className="relative">
-                <Input
-                  label="Nueva contraseña"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={formData.newPassword}
-                  onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
-                  error={errors.newPassword}
-                  leftIcon={<LockClosedIcon className="h-5 w-5" />}
-                  autoComplete="new-password"
-                  disabled={isLoading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-9 text-gray-400 hover:text-gray-600"
-                  disabled={isLoading}
-                >
-                  {showPassword ? (
-                    <EyeSlashIcon className="h-5 w-5" />
-                  ) : (
-                    <EyeIcon className="h-5 w-5" />
-                  )}
-                </button>
+              <div className="space-y-1.5">
+                <Label>Nueva contraseña</Label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><LockClosedIcon className="h-5 w-5" /></span>
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={formData.newPassword}
+                    onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
+                    autoComplete="new-password"
+                    disabled={isLoading}
+                    className="pl-9"
+                    aria-invalid={errors.newPassword ? true : undefined}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    disabled={isLoading}
+                  >
+                    {showPassword ? (
+                      <EyeSlashIcon className="h-5 w-5" />
+                    ) : (
+                      <EyeIcon className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+                {errors.newPassword && <p className="text-sm text-destructive">{errors.newPassword}</p>}
               </div>
 
               {/* Password requirements */}
@@ -231,41 +237,45 @@ function ResetPasswordForm() {
               )}
 
               {/* Confirm Password */}
-              <div className="relative">
-                <Input
-                  label="Confirmar nueva contraseña"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  error={errors.confirmPassword}
-                  leftIcon={<LockClosedIcon className="h-5 w-5" />}
-                  autoComplete="new-password"
-                  disabled={isLoading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute right-3 top-9 text-gray-400 hover:text-gray-600"
-                  disabled={isLoading}
-                >
-                  {showConfirmPassword ? (
-                    <EyeSlashIcon className="h-5 w-5" />
-                  ) : (
-                    <EyeIcon className="h-5 w-5" />
-                  )}
-                </button>
+              <div className="space-y-1.5">
+                <Label>Confirmar nueva contraseña</Label>
+                <div className="relative">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><LockClosedIcon className="h-5 w-5" /></span>
+                  <Input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={formData.confirmPassword}
+                    onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
+                    autoComplete="new-password"
+                    disabled={isLoading}
+                    className="pl-9"
+                    aria-invalid={errors.confirmPassword ? true : undefined}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    disabled={isLoading}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeSlashIcon className="h-5 w-5" />
+                    ) : (
+                      <EyeIcon className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+                {errors.confirmPassword && <p className="text-sm text-destructive">{errors.confirmPassword}</p>}
               </div>
 
               {/* Submit Button */}
               <Button
                 type="submit"
-                variant="primary"
+                variant="default"
                 size="lg"
                 className="w-full"
-                isLoading={isLoading}
-                disabled={isLoading}
+                disabled={isLoading || (isLoading)}
               >
+                {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
                 {isLoading ? 'Restableciendo...' : 'Restablecer contraseña'}
               </Button>
             </form>

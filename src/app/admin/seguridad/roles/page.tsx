@@ -15,8 +15,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { confirmAction } from '@/lib/utils';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { PermissionGuard } from '@/components/auth';
@@ -755,7 +755,7 @@ function RolesContent() {
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D] text-sm outline-none"
                     />
                   </div>
-                  <Button type="submit" variant="primary" size="sm">Buscar</Button>
+                  <Button type="submit" variant="default" size="sm">Buscar</Button>
                 </form>
                 <div className="flex gap-2">
                   {hasActiveFilters && (
@@ -810,7 +810,8 @@ function RolesContent() {
                     {hasActiveFilters && (
                       <Button variant="outline" onClick={resetFilters}>Limpiar filtros</Button>
                     )}
-                    <Button variant="primary" leftIcon={<PlusIcon className="h-4 w-4" />} onClick={() => setShowCreateModal(true)}>
+                    <Button variant="default" onClick={() => setShowCreateModal(true)}>
+                      <PlusIcon className="h-4 w-4" />
                       Nuevo Rol
                     </Button>
                   </div>

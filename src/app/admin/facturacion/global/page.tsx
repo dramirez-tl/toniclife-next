@@ -5,8 +5,9 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Loader2 } from 'lucide-react';
 import {
   GlobeAltIcon,
   ArrowLeftIcon,
@@ -280,7 +281,7 @@ export default function GlobalInvoicePage() {
                 <Link href="/admin/facturacion">
                   <Button variant="outline">Ver Lista de Facturas</Button>
                 </Link>
-                <Button variant="primary" onClick={handleNewSearch}>
+                <Button variant="default" onClick={handleNewSearch}>
                   Nueva Búsqueda
                 </Button>
               </div>
@@ -340,12 +341,13 @@ export default function GlobalInvoicePage() {
                   {/* Search Button */}
                   <div>
                     <Button
-                      variant="primary"
+                      variant="default"
                       onClick={handleSearch}
-                      isLoading={ordersQuery.isLoading}
+                      disabled={ordersQuery.isLoading}
                       className="w-full"
-                      leftIcon={<MagnifyingGlassIcon className="h-5 w-5" />}
                     >
+                      {ordersQuery.isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
+                      <MagnifyingGlassIcon className="h-5 w-5" />
                       Buscar
                     </Button>
                   </div>
@@ -500,12 +502,13 @@ export default function GlobalInvoicePage() {
                             {/* Submit */}
                             <div className="sm:flex-shrink-0">
                               <Button
-                                variant="primary"
+                                variant="default"
                                 onClick={handleSubmit}
-                                isLoading={createGlobalInvoice.isPending}
-                                leftIcon={<GlobeAltIcon className="h-5 w-5" />}
+                                disabled={createGlobalInvoice.isPending}
                                 className="w-full sm:w-auto"
                               >
+                                {createGlobalInvoice.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                                <GlobeAltIcon className="h-5 w-5" />
                                 Enviar a Facturama
                               </Button>
                             </div>

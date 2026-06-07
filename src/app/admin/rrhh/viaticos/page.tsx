@@ -2,8 +2,8 @@
 
 import { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   BanknotesIcon,
   MagnifyingGlassIcon,
@@ -233,10 +233,10 @@ function ViaticosContent() {
               </Button>
             </Link>
             <Button
-              variant="primary"
-              leftIcon={<PlusIcon className="h-5 w-5" />}
+              variant="default"
               onClick={() => toast.info('Formulario de viático próximamente')}
             >
+              <PlusIcon className="h-5 w-5" />
               Nuevo Viático
             </Button>
           </div>
@@ -349,9 +349,9 @@ function ViaticosContent() {
               {/* Export */}
               <Button
                 variant="outline"
-                leftIcon={<ArrowDownTrayIcon className="h-5 w-5" />}
                 onClick={handleExport}
               >
+                <ArrowDownTrayIcon className="h-5 w-5" />
                 Exportar
               </Button>
             </div>
@@ -472,7 +472,7 @@ function ViaticosContent() {
                               <XCircleIcon className="h-4 w-4" />
                             </Button>
                             <Button
-                              variant="primary"
+                              variant="default"
                               size="sm"
                               onClick={() => handleApprove(expense.id)}
                               disabled={isProcessing}

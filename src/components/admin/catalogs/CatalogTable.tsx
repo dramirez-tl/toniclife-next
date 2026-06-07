@@ -1,7 +1,7 @@
 'use client';
 
-import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -116,9 +116,12 @@ export function CatalogTable<T extends { id: string; activo?: boolean }>({
                           className="focus:outline-none"
                         >
                           <Badge
-                            variant={(item as Record<string, unknown>).activo ? 'success' : 'error'}
-                            size="sm"
-                            className="cursor-pointer select-none"
+                            variant="outline"
+                            className={`px-1.5 py-0 text-[10px] cursor-pointer select-none ${
+                              (item as Record<string, unknown>).activo
+                                ? 'border-green-300 bg-green-50 text-green-700'
+                                : 'border-red-300 bg-red-50 text-red-700'
+                            }`}
                           >
                             {(item as Record<string, unknown>).activo ? 'Activo' : 'Inactivo'}
                           </Badge>

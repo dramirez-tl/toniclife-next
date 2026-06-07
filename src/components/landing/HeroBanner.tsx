@@ -15,7 +15,7 @@ export function HeroBanner() {
       {/* Imagen de fondo (fallback: teal de marca) */}
       <div
         className="absolute inset-0 bg-[#3E667D] bg-cover bg-center"
-        style={{ backgroundImage: "url('/images/landing/hero-bienestar.jpg')" }}
+        style={{ backgroundImage: "url('/images/landing/hero-bienestar.webp')" }}
       />
       {/* Velo claro hacia la derecha para legibilidad del texto oscuro */}
       <div className="absolute inset-0 bg-gradient-to-l from-white/70 via-white/15 to-transparent" />
@@ -28,8 +28,9 @@ export function HeroBanner() {
           </h1>
           <div className="mt-8 flex justify-end">
             <Link href="/productos">
-              <Button size="xl" rightIcon={<ArrowRightIcon className="h-5 w-5" />}>
+              <Button size="xl">
                 Productos
+                <ArrowRightIcon className="h-5 w-5" />
               </Button>
             </Link>
           </div>

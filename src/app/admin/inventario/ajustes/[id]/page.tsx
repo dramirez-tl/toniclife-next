@@ -3,8 +3,8 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   ArrowLeftIcon,
   ClipboardDocumentCheckIcon,
@@ -222,14 +222,14 @@ export default function CountDetailPage() {
         {/* Workflow actions */}
         <div className="flex flex-wrap gap-2">
           {(status === 'planned' || status === 'in_progress') && (
-            <Button variant="primary" onClick={handleSubmit} disabled={busy}>
+            <Button variant="default" onClick={handleSubmit} disabled={busy}>
               <PaperAirplaneIcon className="h-4 w-4 mr-1" />
               Enviar a revisión
             </Button>
           )}
           {(status === 'completed' || status === 'reviewed') && (
             <>
-              <Button variant="primary" onClick={handleApprove} disabled={busy}>
+              <Button variant="default" onClick={handleApprove} disabled={busy}>
                 <CheckIcon className="h-4 w-4 mr-1" />
                 Aprobar
               </Button>
@@ -240,14 +240,14 @@ export default function CountDetailPage() {
             </>
           )}
           {status === 'approved' && (
-            <Button variant="primary" onClick={handleApply} disabled={busy}>
+            <Button variant="default" onClick={handleApply} disabled={busy}>
               <DocumentCheckIcon className="h-4 w-4 mr-1" />
               Aplicar al inventario
             </Button>
           )}
           {/* Cancelar: exclusivo de Super Administrador, cualquier estado salvo aplicado/cancelado */}
           {isSuperAdmin && status !== 'applied' && status !== 'cancelled' && (
-            <Button variant="danger" onClick={handleCancel} disabled={busy}>
+            <Button variant="destructive" onClick={handleCancel} disabled={busy}>
               <TrashIcon className="h-4 w-4 mr-1" />
               Cancelar conteo
             </Button>

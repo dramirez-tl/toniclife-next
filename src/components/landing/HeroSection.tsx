@@ -69,8 +69,9 @@ export function HeroSection() {
 
             {/* CTA Buttons */}
             <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-              <Button size="xl" rightIcon={<ArrowRightIcon className="h-5 w-5" />}>
+              <Button size="xl">
                 <Link href="/quiz">Iniciar mi Evaluación</Link>
+                <ArrowRightIcon className="h-5 w-5" />
               </Button>
               <Button variant="outline" size="xl">
                 <Link href="/productos">Ver Productos</Link>

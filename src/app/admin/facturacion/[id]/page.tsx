@@ -5,8 +5,8 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   DocumentTextIcon,
   ArrowLeftIcon,
@@ -20,6 +20,7 @@ import {
   EyeIcon,
   ShieldExclamationIcon,
 } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useInvoice, useStampInvoice, useCancelInvoice } from '@/hooks/useBilling';
@@ -213,7 +214,7 @@ export default function InvoiceDetailPage() {
               La factura que buscas no existe o fue eliminada.
             </p>
             <Link href="/admin/facturacion">
-              <Button variant="primary">Volver a Facturación</Button>
+              <Button variant="default">Volver a Facturación</Button>
             </Link>
           </CardContent>
         </Card>
@@ -412,19 +413,19 @@ export default function InvoiceDetailPage() {
                   {invoice.provider_status === 'pending' && (
                     <>
                       <Button
-                        variant="primary"
+                        variant="default"
                         className="w-full"
                         onClick={() => openStampModal(false)}
-                        leftIcon={<CheckCircleIcon className="h-5 w-5" />}
                       >
+                        <CheckCircleIcon className="h-5 w-5" />
                         Timbrar Factura
                       </Button>
                       <Button
                         variant="outline"
                         className="w-full"
                         onClick={() => openStampModal(true)}
-                        leftIcon={<EnvelopeIcon className="h-5 w-5" />}
                       >
+                        <EnvelopeIcon className="h-5 w-5" />
                         Timbrar y Enviar
                       </Button>
                     </>
@@ -445,27 +446,27 @@ export default function InvoiceDetailPage() {
                       {!isLegacyInvoice && (
                         <>
                           <Button
-                            variant="primary"
+                            variant="default"
                             className="w-full"
                             onClick={handleViewPdf}
-                            leftIcon={<EyeIcon className="h-5 w-5" />}
                           >
+                            <EyeIcon className="h-5 w-5" />
                             Visualizar PDF
                           </Button>
                           <Button
                             variant="outline"
                             className="w-full"
                             onClick={handleDownloadPdf}
-                            leftIcon={<ArrowDownTrayIcon className="h-5 w-5" />}
                           >
+                            <ArrowDownTrayIcon className="h-5 w-5" />
                             Descargar PDF
                           </Button>
                           <Button
                             variant="outline"
                             className="w-full"
                             onClick={handleDownloadXml}
-                            leftIcon={<DocumentDuplicateIcon className="h-5 w-5" />}
                           >
+                            <DocumentDuplicateIcon className="h-5 w-5" />
                             Descargar XML
                           </Button>
                         </>
@@ -474,8 +475,8 @@ export default function InvoiceDetailPage() {
                         variant="ghost"
                         className="w-full text-red-600 hover:bg-red-50"
                         onClick={openCancelModal}
-                        leftIcon={<XMarkIcon className="h-5 w-5" />}
                       >
+                        <XMarkIcon className="h-5 w-5" />
                         Cancelar Factura
                       </Button>
                     </>
@@ -483,11 +484,11 @@ export default function InvoiceDetailPage() {
 
                   {invoice.provider_status === 'error' && (
                     <Button
-                      variant="primary"
+                      variant="default"
                       className="w-full"
                       onClick={() => openStampModal(false)}
-                      leftIcon={<CheckCircleIcon className="h-5 w-5" />}
                     >
+                      <CheckCircleIcon className="h-5 w-5" />
                       Reintentar Timbrado
                     </Button>
                   )}
@@ -651,12 +652,13 @@ export default function InvoiceDetailPage() {
                   Volver
                 </Button>
                 <Button
-                  variant="primary"
+                  variant="default"
                   className="flex-1"
                   onClick={handleStamp}
-                  isLoading={stampInvoice.isPending}
-                  leftIcon={stampSendEmail ? <EnvelopeIcon className="h-5 w-5" /> : <CheckCircleIcon className="h-5 w-5" />}
+                  disabled={stampInvoice.isPending}
                 >
+                  {stampInvoice.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                  {stampSendEmail ? <EnvelopeIcon className="h-5 w-5" /> : <CheckCircleIcon className="h-5 w-5" />}
                   {stampSendEmail ? 'Timbrar y Enviar' : 'Confirmar Timbrado'}
                 </Button>
               </div>
@@ -770,12 +772,12 @@ export default function InvoiceDetailPage() {
                   Volver
                 </Button>
                 <Button
-                  variant="primary"
+                  variant="default"
                   className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-300"
                   onClick={handleCancel}
-                  isLoading={cancelInvoice.isPending}
-                  disabled={cancelConfirmText !== 'CANCELAR' || cancelInvoice.isPending}
+                  disabled={cancelInvoice.isPending || (cancelConfirmText !== 'CANCELAR' || cancelInvoice.isPending)}
                 >
+                  {cancelInvoice.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
                   Confirmar Cancelación
                 </Button>
               </div>

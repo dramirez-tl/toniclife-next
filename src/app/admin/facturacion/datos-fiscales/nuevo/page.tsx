@@ -5,8 +5,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Loader2 } from 'lucide-react';
 import {
   BuildingOfficeIcon,
   ArrowLeftIcon,
@@ -219,9 +220,9 @@ export default function NewFiscalDataPage() {
                     type="button"
                     variant="outline"
                     onClick={() => setShowCustomerSearch(true)}
-                    leftIcon={<MagnifyingGlassIcon className="h-5 w-5" />}
                     className="w-full justify-start"
                   >
+                    <MagnifyingGlassIcon className="h-5 w-5" />
                     Buscar cliente...
                   </Button>
                   {errors.customer && (
@@ -342,8 +343,9 @@ export default function NewFiscalDataPage() {
                       type="button"
                       variant="outline"
                       onClick={handleValidateRfc}
-                      isLoading={validateRfc.isPending}
+                      disabled={validateRfc.isPending}
                     >
+                      {validateRfc.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
                       Validar
                     </Button>
                   </div>
@@ -571,10 +573,11 @@ export default function NewFiscalDataPage() {
             </Link>
             <Button
               type="submit"
-              variant="primary"
-              isLoading={createFiscalData.isPending}
-              leftIcon={<CheckCircleIcon className="h-5 w-5" />}
+              variant="default"
+              disabled={createFiscalData.isPending}
             >
+              {createFiscalData.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+              <CheckCircleIcon className="h-5 w-5" />
               Guardar Datos Fiscales
             </Button>
           </div>

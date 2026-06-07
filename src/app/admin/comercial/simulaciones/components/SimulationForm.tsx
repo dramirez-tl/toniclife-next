@@ -1,7 +1,8 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { Button } from '@/components/ui/Button';
+import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useSimulationRanks } from '@/hooks/useSimulaciones';
 import type { RankCode } from '@/types/simulacion';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
@@ -76,11 +77,11 @@ export function SimulationForm({ isLoading, onSubmit }: SimulationFormProps) {
         <div className="flex items-end">
           <Button
             type="submit"
-            isLoading={isLoading}
-            disabled={isLoading || !legacyIdRaw}
-            leftIcon={<MagnifyingGlassIcon className="h-5 w-5" />}
-            fullWidth
+            disabled={isLoading || (isLoading || !legacyIdRaw)}
+            className="w-full"
           >
+            {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
+            <MagnifyingGlassIcon className="h-5 w-5" />
             Generar simulación
           </Button>
         </div>

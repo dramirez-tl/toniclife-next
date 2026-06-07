@@ -21,8 +21,8 @@ import {
   WifiIcon,
   ServerIcon,
 } from '@heroicons/react/24/outline';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RankMedal } from '@/components/distributor/RankMedal';
 import { RANK_ORDER, RANK_LABELS, getRankIndex } from '@/constants/ranks';
 import type { RankType } from '@/types/network';
@@ -234,11 +234,11 @@ export default function DistribuidorDashboard() {
               )}
               <div className="pt-4 space-y-3">
                 <Button
-                  variant="primary"
+                  variant="default"
                   className="w-full bg-[#3E667D] hover:bg-[#002a5c]"
-                  leftIcon={<ArrowPathIcon className="h-5 w-5" />}
                   onClick={() => refetch()}
                 >
+                  <ArrowPathIcon className="h-5 w-5" />
                   Intentar de nuevo
                 </Button>
                 <div className="flex gap-3">
@@ -322,7 +322,7 @@ export default function DistribuidorDashboard() {
       </div>
 
       {/* ══════════════ HERO — Medalla + Meta del mes ══════════════ */}
-      <Card padding="none" className="border-0 shadow-lg overflow-hidden">
+      <Card className="border-0 shadow-lg overflow-hidden p-0">
         <div className="bg-gradient-to-br from-[#3E667D] via-[#2f5165] to-[#3E667D] p-6 text-white">
           {/* Rango actual con medalla */}
           <div className="flex items-center gap-4">
@@ -399,7 +399,7 @@ export default function DistribuidorDashboard() {
           <div className="mt-5">
             <Link href="/distribuidor/ventas">
               <Button
-                variant="primary"
+                variant="default"
                 className="bg-white text-[#3E667D] hover:bg-white/90 font-semibold w-full sm:w-auto"
               >
                 {points?.isPersonalQualified ? 'Seguir vendiendo' : 'Cómo lograrlo'}
@@ -411,7 +411,7 @@ export default function DistribuidorDashboard() {
       </Card>
 
       {/* ══════════════ Tira de 3 números clave ══════════════ */}
-      <Card padding="none">
+      <Card className="p-0">
         <CardContent className="p-0">
           <div className="grid grid-cols-3 divide-x divide-gray-100">
             <div className="p-4 text-center">
@@ -584,23 +584,23 @@ export default function DistribuidorDashboard() {
             </p>
             <div className="flex gap-2">
               <Button
-                variant="primary"
+                variant="default"
                 size="sm"
                 className="flex-1 bg-[#3E667D] hover:bg-[#2f5165]"
-                leftIcon={<ClipboardDocumentIcon className="h-4 w-4" />}
                 onClick={handleCopyStoreLink}
                 disabled={copyLinkMutation.isPending}
               >
+                <ClipboardDocumentIcon className="h-4 w-4" />
                 Copiar
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="flex-1 border-[#a7c1e2] text-[#3E667D] hover:bg-[#C8DDF2]/10"
-                leftIcon={<ShareIcon className="h-4 w-4" />}
                 onClick={handleShareStoreLink}
                 disabled={shareLinkMutation.isPending}
               >
+                <ShareIcon className="h-4 w-4" />
                 Compartir
               </Button>
             </div>
@@ -614,23 +614,23 @@ export default function DistribuidorDashboard() {
             </p>
             <div className="flex gap-2">
               <Button
-                variant="primary"
+                variant="default"
                 size="sm"
                 className="flex-1 bg-[#3E667D] hover:bg-[#2f5165]"
-                leftIcon={<ClipboardDocumentIcon className="h-4 w-4" />}
                 onClick={handleCopyLink}
                 disabled={copyLinkMutation.isPending}
               >
+                <ClipboardDocumentIcon className="h-4 w-4" />
                 Copiar
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className="flex-1 border-[#a7c1e2] text-[#3E667D] hover:bg-[#C8DDF2]/10"
-                leftIcon={<ShareIcon className="h-4 w-4" />}
                 onClick={handleShareLink}
                 disabled={shareLinkMutation.isPending}
               >
+                <ShareIcon className="h-4 w-4" />
                 Compartir
               </Button>
             </div>

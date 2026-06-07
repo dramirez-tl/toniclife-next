@@ -118,7 +118,7 @@ export function QuizQuestion({
 
   return (
     <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-      <Card className="max-w-2xl mx-auto overflow-hidden" padding="none">
+      <Card className="max-w-2xl mx-auto overflow-hidden p-0">
         {/* Question Header */}
         <div className="bg-[#3E667D] text-white p-6 sm:p-8">
           {/* Category Badge */}
@@ -217,7 +217,7 @@ export function QuizQuestion({
           <div className="px-6 sm:px-8 pb-4">
             <Button
               onClick={handleSubmitMultiple}
-              fullWidth
+              className="w-full"
               disabled={isLoading || selectedOptions.length === 0}
             >
               {isLoading ? 'Guardando...' : `Continuar (${selectedOptions.length} seleccionadas)`}

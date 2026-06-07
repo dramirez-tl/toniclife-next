@@ -19,7 +19,7 @@ import {
   PhoneIcon,
   QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/card';
 import { FileUpload } from '@/components/ui/FileUpload';
 import { usePaymentData, useUpdatePaymentData, useCommissionPayments } from '@/hooks/usePaymentData';
 import type { CommissionPayment } from '@/types/payment-data';

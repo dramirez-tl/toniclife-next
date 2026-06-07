@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Cog6ToothIcon,
   BellIcon,
@@ -495,7 +495,7 @@ export default function ConfiguracionPage() {
 
             {/* Save Button */}
             <div className="flex gap-3">
-              <Button variant="primary" className="flex-1" onClick={handleSave}>
+              <Button variant="default" className="flex-1" onClick={handleSave}>
                 Guardar Cambios
               </Button>
               <Button variant="outline" onClick={() => toast.info('Cambios descartados')}>

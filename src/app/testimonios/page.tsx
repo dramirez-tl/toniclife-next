@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   StarIcon,
   MagnifyingGlassIcon,
@@ -446,7 +446,7 @@ export default function TestimoniosPage() {
                   Compartir Mi Testimonio
                 </Button>
                 <Link href="/productos">
-                  <Button variant="primary" size="lg">
+                  <Button variant="default" size="lg">
                     Ver Productos
                   </Button>
                 </Link>

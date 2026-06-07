@@ -2,8 +2,8 @@
 
 import { Suspense, useState, useMemo } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, type DataTableColumn } from '@/components/ui';
 import {
   useTaxRules,
@@ -29,6 +29,7 @@ import {
   FunnelIcon,
   GlobeAltIcon,
 } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { confirmAction } from '@/lib/utils';
 import { PermissionGuard } from '@/components/auth';
@@ -66,7 +67,8 @@ function TaxRuleModal({ isOpen, onClose, title, children, onSubmit, isSubmitting
           <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancelar
           </Button>
-          <Button variant="primary" onClick={onSubmit} isLoading={isSubmitting}>
+          <Button variant="default" onClick={onSubmit} disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
             {isEdit ? 'Guardar Cambios' : 'Crear Regla'}
           </Button>
         </div>
@@ -529,7 +531,7 @@ function ReglasFiscalesContent() {
                   </Button>
                 </Link>
                 <Button
-                  variant="primary"
+                  variant="default"
                   className="bg-white text-[#3E667D] hover:bg-white/90"
                   onClick={handleOpenCreateModal}
                 >
@@ -663,7 +665,7 @@ function ReglasFiscalesContent() {
 
                 {/* Action buttons */}
                 <div className="flex gap-2">
-                  <Button variant="primary" size="sm" onClick={handleSearch}>
+                  <Button variant="default" size="sm" onClick={handleSearch}>
                     <MagnifyingGlassIcon className="h-4 w-4" />
                   </Button>
                   {hasActiveFilters && (

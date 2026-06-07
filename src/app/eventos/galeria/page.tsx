@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   CalendarIcon,
   MagnifyingGlassIcon,
@@ -453,7 +453,7 @@ export default function GaleriaEventosPage() {
                   </Button>
                 </Link>
                 <Link href="/registro">
-                  <Button variant="primary" size="lg">
+                  <Button variant="default" size="lg">
                     Comenzar Ahora
                   </Button>
                 </Link>

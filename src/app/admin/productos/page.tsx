@@ -9,8 +9,8 @@ import {
   GiftIcon,
   SparklesIcon,
 } from '@heroicons/react/24/outline';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { PermissionGuard } from '@/components/auth';
 import { cn } from '@/lib/utils';
 import { ProductosTab } from './_tabs/ProductosTab';
@@ -116,7 +116,8 @@ function PageContent() {
                   <Button variant="secondary">Volver al Panel Principal</Button>
                 </Link>
                 <Link href={config.newHref}>
-                  <Button variant="primary" leftIcon={<PlusIcon className="h-5 w-5" />}>
+                  <Button variant="default">
+                    <PlusIcon className="h-5 w-5" />
                     {config.newLabel}
                   </Button>
                 </Link>

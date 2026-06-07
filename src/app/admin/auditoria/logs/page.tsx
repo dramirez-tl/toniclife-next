@@ -2,8 +2,8 @@
 
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   ShieldCheckIcon,
   MagnifyingGlassIcon,
@@ -99,10 +99,10 @@ function AuditLogsContent() {
                 <Button variant="secondary">Volver al Panel Principal</Button>
               </Link>
               <Button
-                variant="primary"
-                leftIcon={<ArrowDownTrayIcon className="h-5 w-5" />}
+                variant="default"
                 onClick={handleExport}
               >
+                <ArrowDownTrayIcon className="h-5 w-5" />
                 Exportar
               </Button>
             </div>

@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   UserCircleIcon,
   EnvelopeIcon,
@@ -100,9 +101,9 @@ export default function PerfilPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    leftIcon={<CameraIcon className="h-4 w-4" />}
                     onClick={handleUploadPhoto}
                   >
+                    <CameraIcon className="h-4 w-4" />
                     Cambiar Foto
                   </Button>
                   <p className="text-xs text-gray-500 mt-2">
@@ -118,31 +119,48 @@ export default function PerfilPage() {
             <CardContent className="p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4">Información Personal</h3>
               <div className="grid md:grid-cols-2 gap-4">
-                <Input
-                  label="Nombre"
-                  value={formData.firstName}
-                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                  leftIcon={<UserCircleIcon className="h-5 w-5" />}
-                />
-                <Input
-                  label="Apellido"
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                />
-                <Input
-                  label="Correo electrónico"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  leftIcon={<EnvelopeIcon className="h-5 w-5" />}
-                />
-                <Input
-                  label="Teléfono"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  leftIcon={<PhoneIcon className="h-5 w-5" />}
-                />
+                <div className="space-y-1.5">
+                  <Label>Nombre</Label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><UserCircleIcon className="h-5 w-5" /></span>
+                    <Input
+                      value={formData.firstName}
+                      onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Apellido</Label>
+                  <Input
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Correo electrónico</Label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><EnvelopeIcon className="h-5 w-5" /></span>
+                    <Input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Teléfono</Label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><PhoneIcon className="h-5 w-5" /></span>
+                    <Input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="mt-4">
@@ -171,27 +189,35 @@ export default function PerfilPage() {
                 Dirección
               </h3>
               <div className="grid gap-4">
-                <Input
-                  label="Calle y Número"
-                  value={formData.street}
-                  onChange={(e) => setFormData({ ...formData, street: e.target.value })}
-                />
+                <div className="space-y-1.5">
+                  <Label>Calle y Número</Label>
+                  <Input
+                    value={formData.street}
+                    onChange={(e) => setFormData({ ...formData, street: e.target.value })}
+                  />
+                </div>
                 <div className="grid md:grid-cols-3 gap-4">
-                  <Input
-                    label="Ciudad"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  />
-                  <Input
-                    label="Estado"
-                    value={formData.state}
-                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                  />
-                  <Input
-                    label="Código Postal"
-                    value={formData.zipCode}
-                    onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
-                  />
+                  <div className="space-y-1.5">
+                    <Label>Ciudad</Label>
+                    <Input
+                      value={formData.city}
+                      onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Estado</Label>
+                    <Input
+                      value={formData.state}
+                      onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Código Postal</Label>
+                    <Input
+                      value={formData.zipCode}
+                      onChange={(e) => setFormData({ ...formData, zipCode: e.target.value })}
+                    />
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -214,17 +240,17 @@ export default function PerfilPage() {
                 <Button
                   variant="secondary"
                   size="sm"
-                  leftIcon={<ShareIcon className="h-4 w-4" />}
                   onClick={handleCopyLink}
                 >
+                  <ShareIcon className="h-4 w-4" />
                   Copiar Enlace
                 </Button>
                 <Button
                   variant="secondary"
                   size="sm"
-                  leftIcon={<QrCodeIcon className="h-4 w-4" />}
                   onClick={handleDownloadQR}
                 >
+                  <QrCodeIcon className="h-4 w-4" />
                   Descargar QR
                 </Button>
               </div>
@@ -311,7 +337,7 @@ export default function PerfilPage() {
           {/* Actions */}
           <div className="flex gap-3">
             <Button
-              variant="primary"
+              variant="default"
               size="lg"
               className="flex-1"
               onClick={handleSave}

@@ -18,8 +18,9 @@ import {
   XCircleIcon,
   ComputerDesktopIcon,
 } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { confirmAction } from '@/lib/utils';
 import {
   usePosLicensesByBranch,
@@ -279,11 +280,12 @@ export function PosLicensesModal({
               />
             </div>
             <Button
-              variant="primary"
+              variant="default"
               onClick={handleGenerate}
-              isLoading={createLicense.isPending}
-              leftIcon={<PlusIcon className="h-4 w-4" />}
+              disabled={createLicense.isPending}
             >
+              {createLicense.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+              <PlusIcon className="h-4 w-4" />
               Generar licencia
             </Button>
           </div>

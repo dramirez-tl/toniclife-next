@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useMemo, useCallback, Suspense } from 'react';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
-import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { CatalogTable, CatalogFormModal, type Column } from '@/components/admin/catalogs';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -95,7 +96,14 @@ const READ_ONLY_TABS: TabKey[] = ['satCfdiUses', 'satTaxRegimes'];
 
 function StatusBadge({ active }: { active: boolean }) {
   return (
-    <Badge variant={active ? 'success' : 'error'} size="sm">
+    <Badge
+      variant="outline"
+      className={
+        active
+          ? 'border-green-200 bg-green-50 text-green-700'
+          : 'border-red-200 bg-red-50 text-red-700'
+      }
+    >
       {active ? 'Activo' : 'Inactivo'}
     </Badge>
   );
@@ -289,7 +297,7 @@ const priceTypeColumns: Column<PriceType>[] = [
     render: (r) => (
       <div className="flex flex-wrap gap-1">
         {r.appliesTo.map((a) => (
-          <Badge key={a} variant="info" size="sm">
+          <Badge key={a} variant="outline" className="border-blue-200 bg-blue-50 text-blue-700">
             {a}
           </Badge>
         ))}
@@ -1565,36 +1573,41 @@ function CatalogosContent() {
         {/* Search + Create button */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
           <div className="flex-1 w-full sm:max-w-sm">
-            <Input
-              placeholder="Buscar por nombre o codigo..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              leftIcon={
-                <svg
-                  className="h-5 w-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-              }
-            />
+            <div className="space-y-1.5">
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4">
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                </span>
+                <Input
+                  placeholder="Buscar por nombre o codigo..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
           </div>
           {!isReadOnly && (
-            <Button variant="primary" size="sm" onClick={openCreate}>
+            <Button variant="default" size="sm" onClick={openCreate}>
               Nuevo
             </Button>
           )}
         </div>
 
         {/* Table */}
-        <Card padding="none">
+        <Card className="p-0">
           <CardContent className="p-0">
             {tableElement}
           </CardContent>

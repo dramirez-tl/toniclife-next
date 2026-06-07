@@ -3,8 +3,8 @@
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   ChatBubbleLeftRightIcon,
   PaperAirplaneIcon,
@@ -225,11 +225,11 @@ function ComunicacionContent() {
                     />
                   </div>
                   <Button
-                    variant="primary"
+                    variant="default"
                     size="sm"
-                    leftIcon={<PlusIcon className="h-5 w-5" />}
                     onClick={() => toast.info('Función próximamente disponible')}
                   >
+                    <PlusIcon className="h-5 w-5" />
                     Nuevo
                   </Button>
                 </div>
@@ -340,21 +340,24 @@ function ComunicacionContent() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      leftIcon={<PhoneIcon className="h-5 w-5" />}
                       onClick={() => toast.info('Iniciando llamada')}
-                    />
+                    >
+                      <PhoneIcon className="h-5 w-5" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      leftIcon={<VideoCameraIcon className="h-5 w-5" />}
                       onClick={() => toast.info('Iniciando videollamada')}
-                    />
+                    >
+                      <VideoCameraIcon className="h-5 w-5" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      leftIcon={<EllipsisVerticalIcon className="h-5 w-5" />}
                       onClick={() => toast.info('Abriendo opciones')}
-                    />
+                    >
+                      <EllipsisVerticalIcon className="h-5 w-5" />
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -416,15 +419,17 @@ function ComunicacionContent() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    leftIcon={<PaperClipIcon className="h-5 w-5" />}
                     onClick={() => toast.info('Función próximamente disponible')}
-                  />
+                  >
+                    <PaperClipIcon className="h-5 w-5" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
-                    leftIcon={<FaceSmileIcon className="h-5 w-5" />}
                     onClick={() => toast.info('Selector de emojis próximamente')}
-                  />
+                  >
+                    <FaceSmileIcon className="h-5 w-5" />
+                  </Button>
                   <input
                     type="text"
                     placeholder="Escribe un mensaje..."
@@ -434,10 +439,10 @@ function ComunicacionContent() {
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                   />
                   <Button
-                    variant="primary"
-                    leftIcon={<PaperAirplaneIcon className="h-5 w-5" />}
+                    variant="default"
                     onClick={handleSendMessage}
                   >
+                    <PaperAirplaneIcon className="h-5 w-5" />
                     Enviar
                   </Button>
                 </div>

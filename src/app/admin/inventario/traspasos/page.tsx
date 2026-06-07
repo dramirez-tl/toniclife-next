@@ -4,8 +4,8 @@ import { Suspense, useState, useMemo, useCallback, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import Link from 'next/link';
 import { selectUser } from '@/store/slices/authSlice';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   ArrowsRightLeftIcon,
   MagnifyingGlassIcon,
@@ -245,7 +245,8 @@ function TraspasosContent() {
                 <Button variant="secondary">Volver a Inventario</Button>
               </Link>
               <Link href="/admin/inventario/traspasos/nuevo">
-                <Button variant="primary" leftIcon={<PlusIcon className="h-5 w-5" />}>
+                <Button variant="default">
+                  <PlusIcon className="h-5 w-5" />
                   Nuevo Traspaso
                 </Button>
               </Link>

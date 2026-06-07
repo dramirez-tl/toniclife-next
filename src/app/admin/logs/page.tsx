@@ -1,8 +1,8 @@
 'use client';
 
 import { Suspense, useState, useMemo } from 'react';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { PermissionGuard } from '@/components/auth';
 import {
   ClipboardDocumentListIcon,
@@ -216,7 +216,7 @@ function LogsContent() {
             <ExclamationTriangleIcon className="h-16 w-16 text-red-500 mx-auto mb-4" />
             <h3 className="text-xl font-bold text-gray-900 mb-2">Error al cargar logs</h3>
             <p className="text-gray-600 mb-4">No se pudieron cargar los registros del sistema</p>
-            <Button variant="primary" onClick={() => refetch()}>
+            <Button variant="default" onClick={() => refetch()}>
               Reintentar
             </Button>
           </CardContent>
@@ -239,17 +239,17 @@ function LogsContent() {
         <div className="flex gap-3">
           <Button
             variant="outline"
-            leftIcon={<ArrowPathIcon className="h-5 w-5" />}
             onClick={handleRefresh}
           >
+            <ArrowPathIcon className="h-5 w-5" />
             Actualizar
           </Button>
           <Button
-            variant="primary"
-            leftIcon={<ArrowDownTrayIcon className="h-5 w-5" />}
+            variant="default"
             onClick={handleExport}
             disabled={exportLogs.isPending}
           >
+            <ArrowDownTrayIcon className="h-5 w-5" />
             {exportLogs.isPending ? 'Exportando...' : 'Exportar Logs'}
           </Button>
         </div>

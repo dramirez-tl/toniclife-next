@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { distributorApi } from '@/services/distributorApi';
+import type { RegisterMemberRequest } from '@/services/distributorApi';
 import {
   DistributorProfile,
   PeriodPoints,
@@ -125,6 +126,25 @@ export function useGenerateReferralLink() {
     mutationFn: () => distributorApi.generateReferralLink(),
     onSuccess: (data) => {
       queryClient.setQueryData(distributorKeys.referralLink(), data);
+    },
+  });
+}
+
+/**
+ * Hook para dar de alta un nuevo miembro en la red.
+ * Al crearlo, invalida la red (downlines/tree) y el resumen de red.
+ */
+export function useRegisterMember() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (dto: RegisterMemberRequest) =>
+      distributorApi.registerMember(dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['network'] });
+      queryClient.invalidateQueries({
+        queryKey: distributorKeys.networkSummary(),
+      });
     },
   });
 }

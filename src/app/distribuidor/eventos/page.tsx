@@ -3,8 +3,8 @@
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   CalendarIcon,
   ClockIcon,
@@ -398,7 +398,7 @@ function EventosContent() {
 
                     <div className="flex flex-wrap gap-4">
                       <Button
-                        variant="primary"
+                        variant="default"
                         size="lg"
                         className="bg-[#3E667D] hover:bg-[#2f5165] shadow-xl shadow-[#3E667D]/30 text-base px-8"
                         onClick={() => handleRegister(featuredEvent.id, featuredEvent.title)}
@@ -556,9 +556,9 @@ function EventosContent() {
                     variant="outline"
                     size="sm"
                     className="w-full border-dashed border-2 hover:border-[#a7c1e2] hover:text-[#3E667D] hover:bg-[#C8DDF2]/5"
-                    leftIcon={<PlusIcon className="h-4 w-4" />}
                     onClick={() => toast.info('Función próximamente disponible')}
                   >
+                    <PlusIcon className="h-4 w-4" />
                     Crear Evento Personal
                   </Button>
                 </div>
@@ -769,12 +769,12 @@ function EventosContent() {
                                     <>
                                       {event.link && (
                                         <Button
-                                          variant="primary"
+                                          variant="default"
                                           size="sm"
                                           className="bg-[#3E667D] hover:bg-[#2f5165]"
-                                          leftIcon={<VideoCameraIcon className="h-4 w-4" />}
                                           onClick={() => window.open(event.link, '_blank')}
                                         >
+                                          <VideoCameraIcon className="h-4 w-4" />
                                           Unirse
                                         </Button>
                                       )}
@@ -788,7 +788,7 @@ function EventosContent() {
                                     </>
                                   ) : (
                                     <Button
-                                      variant="primary"
+                                      variant="default"
                                       size="sm"
                                       className="bg-[#3E667D] hover:bg-[#2f5165]"
                                       onClick={() => handleRegister(event.id, event.title)}
@@ -799,21 +799,21 @@ function EventosContent() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    leftIcon={<CalendarIcon className="h-4 w-4" />}
                                     onClick={() => handleAddToCalendar(event.title)}
                                   >
+                                    <CalendarIcon className="h-4 w-4" />
                                     Agendar
                                   </Button>
                                 </>
                               )}
                               {event.status === 'past' && event.recordingUrl && (
                                 <Button
-                                  variant="primary"
+                                  variant="default"
                                   size="sm"
                                   className="bg-purple-600 hover:bg-purple-700"
-                                  leftIcon={<PlayCircleIcon className="h-4 w-4" />}
                                   onClick={() => window.open(event.recordingUrl, '_blank')}
                                 >
+                                  <PlayCircleIcon className="h-4 w-4" />
                                   Ver Grabación
                                 </Button>
                               )}

@@ -10,9 +10,10 @@ import {
   CheckIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   useKit,
   useKitComponents,
@@ -262,12 +263,13 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
 
             <div className="pt-2">
               <Button
-                variant="primary"
-                fullWidth
+                variant="default"
+                className="w-full"
                 onClick={handleSaveDetails}
-                isLoading={updateProduct.isPending}
-                leftIcon={<CheckIcon className="h-4 w-4" />}
+                disabled={updateProduct.isPending}
               >
+                {updateProduct.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                <CheckIcon className="h-4 w-4" />
                 Guardar datos
               </Button>
             </div>
@@ -284,13 +286,13 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Componentes del kit ({rows.length})</h2>
               <Button
-                variant="primary"
+                variant="default"
                 size="sm"
-                leftIcon={<CheckIcon className="h-4 w-4" />}
                 onClick={handleSaveComponents}
-                isLoading={replaceComponents.isPending}
-                disabled={compsLoading}
+                disabled={replaceComponents.isPending || (compsLoading)}
               >
+                {replaceComponents.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                <CheckIcon className="h-4 w-4" />
                 Guardar composición
               </Button>
             </div>

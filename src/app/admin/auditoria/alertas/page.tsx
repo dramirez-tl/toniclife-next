@@ -2,8 +2,8 @@
 
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   ShieldCheckIcon,
   BellAlertIcon,
@@ -274,9 +274,9 @@ function AuditAlertsContent() {
               <Button
                 variant="outline"
                 size="sm"
-                leftIcon={<ArrowPathIcon className="h-4 w-4" />}
                 onClick={() => refetch()}
               >
+                <ArrowPathIcon className="h-4 w-4" />
                 Actualizar
               </Button>
             </div>
@@ -391,25 +391,25 @@ function AuditAlertsContent() {
                             <Button
                               size="sm"
                               variant="outline"
-                              leftIcon={<EyeIcon className="h-4 w-4" />}
                               onClick={() => handleStatusUpdate(alert.id, 'acknowledged')}
                             >
+                              <EyeIcon className="h-4 w-4" />
                               Revisar
                             </Button>
                             <Button
                               size="sm"
-                              variant="primary"
-                              leftIcon={<CheckCircleIcon className="h-4 w-4" />}
+                              variant="default"
                               onClick={() => handleStatusUpdate(alert.id, 'resolved')}
                             >
+                              <CheckCircleIcon className="h-4 w-4" />
                               Resolver
                             </Button>
                             <Button
                               size="sm"
                               variant="ghost"
-                              leftIcon={<XMarkIcon className="h-4 w-4" />}
                               onClick={() => handleStatusUpdate(alert.id, 'dismissed')}
                             >
+                              <XMarkIcon className="h-4 w-4" />
                               Descartar
                             </Button>
                           </div>
@@ -419,10 +419,10 @@ function AuditAlertsContent() {
                           <div className="flex-shrink-0">
                             <Button
                               size="sm"
-                              variant="primary"
-                              leftIcon={<CheckCircleIcon className="h-4 w-4" />}
+                              variant="default"
                               onClick={() => handleStatusUpdate(alert.id, 'resolved')}
                             >
+                              <CheckCircleIcon className="h-4 w-4" />
                               Resolver
                             </Button>
                           </div>

@@ -132,7 +132,7 @@ export function QuizWelcome({
 
   // Gender Selection Step
   return (
-    <Card className="max-w-xl mx-auto" padding="lg">
+    <Card className="max-w-xl mx-auto">
       <div className="text-center mb-8">
         <div className="inline-flex items-center gap-2 bg-[#C8DDF2]/10 text-[#3E667D] px-4 py-2 rounded-full text-sm font-medium mb-4">
           <SparklesIcon className="h-4 w-4" />
@@ -185,7 +185,7 @@ export function QuizWelcome({
         <div className="pt-4">
           <Button
             onClick={handleStartQuiz}
-            fullWidth
+            className="w-full"
             size="lg"
             disabled={isLoading || !selectedGender}
           >

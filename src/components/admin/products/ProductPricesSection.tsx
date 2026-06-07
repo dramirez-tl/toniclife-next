@@ -14,8 +14,8 @@ import { Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { useSelector } from 'react-redux';
 import { selectUser } from '@/store/slices/authSlice';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   useProductPrices,
   useCreateProductPrice,
@@ -352,7 +352,7 @@ export function ProductPricesSection({
 
   if (isLoading) {
     return (
-      <Card padding="none">
+      <Card className="p-0">
         <CardContent className="p-6">
           <div className="flex items-center gap-3">
             <CurrencyDollarIcon className="h-5 w-5 text-gray-400 animate-pulse" />
@@ -364,7 +364,7 @@ export function ProductPricesSection({
   }
 
   return (
-    <Card padding="none">
+    <Card className="p-0">
       <CardContent className="p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -958,7 +958,7 @@ export function ProductPricesSection({
                     </Button>
                     <Button
                       type="button"
-                      variant="danger"
+                      variant="destructive"
                       size="sm"
                       disabled={resetConfirmText !== 'CONFIRMAR'}
                       onClick={() => handleResetPrice(rCountryId, rPriceTypeId)}
@@ -1049,7 +1049,7 @@ export function ProductPricesSection({
                     </Button>
                     <Button
                       type="button"
-                      variant={isRemove ? 'danger' : 'primary'}
+                      variant={isRemove ? 'destructive' : 'default'}
                       size="sm"
                       disabled={taxActionReason.trim().length < 5}
                       onClick={() => {
@@ -1159,7 +1159,7 @@ export function ProductPricesSection({
                     </Button>
                     <Button
                       type="button"
-                      variant="danger"
+                      variant="destructive"
                       size="sm"
                       onClick={() => handleRemoveCountry(removeCountryId)}
                       disabled={isRemovingCountry || removeConfirmText !== 'CONFIRMAR' || removeReason.trim().length < 5}

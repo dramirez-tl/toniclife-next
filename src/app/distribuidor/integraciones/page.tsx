@@ -2,8 +2,8 @@
 
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   PuzzlePieceIcon,
   CheckCircleIcon,
@@ -396,36 +396,36 @@ function IntegracionesContent() {
                         variant="outline"
                         size="sm"
                         className="flex-1"
-                        leftIcon={<ArrowPathIcon className="h-4 w-4" />}
                         onClick={() => handleSync(integration.name)}
                       >
+                        <ArrowPathIcon className="h-4 w-4" />
                         Sincronizar
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        leftIcon={<Cog6ToothIcon className="h-4 w-4" />}
                         onClick={() => toast.info('Abriendo configuración')}
                       >
+                        <Cog6ToothIcon className="h-4 w-4" />
                         Configurar
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        leftIcon={<XCircleIcon className="h-4 w-4" />}
                         onClick={() => handleDisconnect(integration.id)}
                       >
+                        <XCircleIcon className="h-4 w-4" />
                         Desconectar
                       </Button>
                     </>
                   ) : (
                     <Button
-                      variant="primary"
+                      variant="default"
                       size="sm"
                       className="w-full"
-                      leftIcon={<CheckCircleIcon className="h-4 w-4" />}
                       onClick={() => handleConnect(integration.id)}
                     >
+                      <CheckCircleIcon className="h-4 w-4" />
                       Conectar
                     </Button>
                   )}

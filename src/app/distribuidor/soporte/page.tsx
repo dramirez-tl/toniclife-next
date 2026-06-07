@@ -3,8 +3,8 @@
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   QuestionMarkCircleIcon,
   ChatBubbleLeftRightIcon,
@@ -631,7 +631,7 @@ function SoporteContent() {
                     Cancelar
                   </Button>
                   <Button
-                    variant="primary"
+                    variant="default"
                     className="flex-1"
                     onClick={handleCreateTicket}
                   >

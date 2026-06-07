@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { useDistributorDashboard } from '@/hooks/useDistributor';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
@@ -102,10 +102,10 @@ export default function VentasPage() {
               )}
               <div className="flex flex-wrap justify-center gap-3">
                 <Button
-                  variant="primary"
-                  leftIcon={<ArrowPathIcon className="h-4 w-4" />}
+                  variant="default"
                   onClick={handleRefresh}
                 >
+                  <ArrowPathIcon className="h-4 w-4" />
                   Reintentar
                 </Button>
                 <Link href="/distribuidor">
@@ -142,7 +142,7 @@ export default function VentasPage() {
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <Link href="/productos">
-                <Button variant="primary" className="bg-[#3E667D] hover:bg-[#2f5165]">
+                <Button variant="default" className="bg-[#3E667D] hover:bg-[#2f5165]">
                   Registrar venta
                 </Button>
               </Link>

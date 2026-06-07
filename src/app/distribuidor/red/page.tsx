@@ -4,9 +4,10 @@ import { useState, useMemo, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useSelector } from 'react-redux';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
+import { Loader2 } from 'lucide-react';
 import { selectUser } from '@/store/slices/authSlice';
 import { useNetworkDownlines } from '@/hooks/useNetwork';
 import { networkApi } from '@/services/networkApi';
@@ -29,6 +30,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
+import { MemberEnrollmentPanel } from './MemberEnrollmentPanel';
 
 export default function RedPage() {
   return <Suspense><RedContent /></Suspense>;
@@ -36,6 +38,7 @@ export default function RedPage() {
 
 function RedContent() {
   const [isInvitePanelOpen, setIsInvitePanelOpen] = useState(false);
+  const [isEnrollOpen, setIsEnrollOpen] = useState(false);
   const user = useSelector(selectUser);
 
   const { profile: distributorProfile } = useDistributorDashboard();
@@ -117,12 +120,20 @@ function RedContent() {
                 </Button>
               </Link>
               <Button
-                variant="primary"
+                variant="secondary"
                 size="sm"
-                leftIcon={<UserPlusIcon className="h-4 w-4" />}
                 onClick={handleInviteMember}
               >
-                Invitar Nuevo
+                <ShareIcon className="h-4 w-4" />
+                Enlace de invitación
+              </Button>
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setIsEnrollOpen(true)}
+              >
+                <UserPlusIcon className="h-4 w-4" />
+                Dar de alta miembro
               </Button>
             </div>
           </div>
@@ -143,10 +154,10 @@ function RedContent() {
             <Button
               variant="secondary"
               size="lg"
-              leftIcon={<UserPlusIcon className="h-5 w-5" />}
-              onClick={handleInviteMember}
+              onClick={() => setIsEnrollOpen(true)}
             >
-              Invitar Nuevo Distribuidor
+              <UserPlusIcon className="h-5 w-5" />
+              Dar de alta nuevo miembro
             </Button>
           </CardContent>
         </Card>
@@ -191,21 +202,21 @@ function RedContent() {
 
             <div className="mt-4 flex gap-2">
               <Button
-                variant="primary"
+                variant="default"
                 className="flex-1"
-                leftIcon={<ClipboardDocumentIcon className="h-4 w-4" />}
                 onClick={handleCopyInviteLink}
                 disabled={!dynamicPersonalLink || copyLinkMutation.isPending}
               >
+                <ClipboardDocumentIcon className="h-4 w-4" />
                 Copiar
               </Button>
               <Button
                 variant="outline"
                 className="flex-1"
-                leftIcon={<ShareIcon className="h-4 w-4" />}
                 onClick={handleShareInviteLink}
                 disabled={!dynamicPersonalLink || shareLinkMutation.isPending}
               >
+                <ShareIcon className="h-4 w-4" />
                 Compartir
               </Button>
             </div>
@@ -220,6 +231,12 @@ function RedContent() {
           aria-hidden="true"
         />
       )}
+
+      {/* Panel de alta estructurada (colocación + kit + modo de pago) */}
+      <MemberEnrollmentPanel
+        isOpen={isEnrollOpen}
+        onClose={() => setIsEnrollOpen(false)}
+      />
     </div>
   );
 }
@@ -473,12 +490,12 @@ function TreeListView() {
               <p className="text-sm text-gray-500">Consulta tu red y descarga la lista completa en Excel</p>
             </div>
             <Button
-              variant="primary"
-              leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
+              variant="default"
               onClick={handleExport}
-              isLoading={isExporting}
-              disabled={isExporting}
+              disabled={isExporting || (isExporting)}
             >
+              {isExporting && <Loader2 className="mr-2 size-4 animate-spin" />}
+              <ArrowDownTrayIcon className="h-4 w-4" />
               Descargar Excel
             </Button>
           </div>
@@ -556,9 +573,9 @@ function TreeListView() {
               variant="outline"
               size="sm"
               className="mt-4"
-              leftIcon={<ArrowPathIcon className="h-4 w-4" />}
               onClick={() => refetch()}
             >
+              <ArrowPathIcon className="h-4 w-4" />
               Reintentar
             </Button>
           </CardContent>

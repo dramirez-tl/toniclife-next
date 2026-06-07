@@ -3,8 +3,8 @@
 import { useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   useMyNotifications,
   useUnreadCount,
@@ -316,8 +316,8 @@ function NotificacionesContent() {
                 variant="outline"
                 className="mt-4"
                 onClick={() => refetch()}
-                leftIcon={<ArrowPathIcon className="h-4 w-4" />}
               >
+                <ArrowPathIcon className="h-4 w-4" />
                 Reintentar
               </Button>
             </CardContent>
@@ -358,10 +358,10 @@ function NotificacionesContent() {
                 <Button variant="secondary">Volver al Panel Principal</Button>
               </Link>
               <Button
-                variant="primary"
-                leftIcon={<Cog6ToothIcon className="h-5 w-5" />}
+                variant="default"
                 onClick={() => toast.info('Funcion proximamente disponible')}
               >
+                <Cog6ToothIcon className="h-5 w-5" />
                 Preferencias
               </Button>
             </div>
@@ -389,10 +389,10 @@ function NotificacionesContent() {
                   <Button
                     variant="outline"
                     size="sm"
-                    leftIcon={<CheckIcon className="h-4 w-4" />}
                     onClick={handleMarkAllAsRead}
                     disabled={markAllAsRead.isPending}
                   >
+                    <CheckIcon className="h-4 w-4" />
                     {markAllAsRead.isPending
                       ? 'Marcando...'
                       : 'Marcar todas como leidas'}

@@ -2,7 +2,7 @@
 'use client';
 
 import { CommissionSummary } from '@/types/commissions';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   BanknotesIcon,
   ArrowTrendingUpIcon,

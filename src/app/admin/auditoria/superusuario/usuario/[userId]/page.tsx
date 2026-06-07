@@ -3,8 +3,8 @@
 import { useState, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   UserIcon,
   ArrowLeftIcon,
@@ -122,9 +122,9 @@ export default function UserAuditPage() {
             <div className="flex gap-3">
               <Button
                 variant="secondary"
-                leftIcon={<ArrowPathIcon className="h-4 w-4" />}
                 onClick={() => refetch()}
               >
+                <ArrowPathIcon className="h-4 w-4" />
                 Actualizar
               </Button>
             </div>

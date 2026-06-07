@@ -3,6 +3,18 @@
 import { useMemo, useState } from 'react';
 import { ArrowsUpDownIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 
 type SortDirection = 'asc' | 'desc';
 type SortingMode = 'client' | 'server';
@@ -231,29 +243,22 @@ export function DataTable<T>({
 
   return (
     <div className="overflow-x-auto">
-      <table className={`w-full ${minWidthClassName}`}>
-        <thead>
-          <tr className="border-b border-gray-200">
+      <Table className={`w-full ${minWidthClassName}`}>
+        <TableHeader>
+          <TableRow className="border-b border-gray-200 hover:bg-transparent">
             {enableRowSelection && (
-              <th className="w-10 px-4 py-3 text-left">
+              <TableHead className="w-10 px-4 py-3 text-left">
                 {rowSelectionMode === 'multiple' && (
-                  <input
-                    type="checkbox"
-                    checked={allVisibleSelected}
-                    ref={(el) => {
-                      if (el) {
-                        el.indeterminate = someVisibleSelected;
-                      }
-                    }}
-                    onChange={toggleSelectAllVisible}
-                    className="h-4 w-4 rounded border-gray-300 text-[#3E667D] focus:ring-[#a7c1e2]"
+                  <Checkbox
+                    checked={allVisibleSelected ? true : someVisibleSelected ? 'indeterminate' : false}
+                    onCheckedChange={toggleSelectAllVisible}
                     aria-label="Seleccionar todas las filas visibles"
                   />
                 )}
-              </th>
+              </TableHead>
             )}
             {columns.map((column) => (
-              <th
+              <TableHead
                 key={column.key}
                 className={`px-4 py-3 text-left text-sm font-semibold text-gray-900 ${column.headerClassName ?? ''}`}
                 aria-sort={
@@ -282,23 +287,23 @@ export function DataTable<T>({
                 ) : (
                   column.header
                 )}
-              </th>
+              </TableHead>
             ))}
-          </tr>
+          </TableRow>
           {enableColumnFilters && (
-            <tr className="border-b border-gray-100 bg-gray-50/60">
-              {enableRowSelection && <th className="px-4 py-2" />}
+            <TableRow className="border-b border-gray-100 bg-gray-50/60 hover:bg-gray-50/60">
+              {enableRowSelection && <TableHead className="px-4 py-2" />}
               {columns.map((column) => {
                 const filterConfig = column.filter;
                 if (!filterConfig) {
-                  return <th key={`filter-${column.key}`} className="px-4 py-2" />;
+                  return <TableHead key={`filter-${column.key}`} className="px-4 py-2" />;
                 }
 
                 const filterType = filterConfig.type ?? 'text';
                 const value = activeFilters[column.key] ?? '';
 
                 return (
-                  <th key={`filter-${column.key}`} className="px-4 py-2">
+                  <TableHead key={`filter-${column.key}`} className="px-4 py-2">
                     {filterType === 'select' ? (
                       <SearchableSelect
                         options={(filterConfig.options ?? []).map((option) => ({ value: option.value, label: option.label }))}
@@ -309,69 +314,67 @@ export function DataTable<T>({
                         className="w-full"
                       />
                     ) : (
-                      <input
+                      <Input
                         type="text"
                         value={value}
                         onChange={(e) => handleFilterChange(column.key, e.target.value)}
                         placeholder={filterConfig.placeholder || 'Filtrar'}
-                        className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 placeholder:text-gray-400 focus:border-[#3E667D] focus:outline-none"
+                        className="h-auto w-full rounded-md border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 shadow-none placeholder:text-gray-400 focus-visible:border-[#3E667D] focus-visible:ring-0"
                       />
                     )}
-                  </th>
+                  </TableHead>
                 );
               })}
-            </tr>
+            </TableRow>
           )}
-        </thead>
-        <tbody>
+        </TableHeader>
+        <TableBody>
           {isLoading ? (
             [...Array(loadingRows)].map((_, rowIndex) => (
-              <tr key={`loading-${rowIndex}`} className="border-b border-gray-100">
+              <TableRow key={`loading-${rowIndex}`} className="border-b border-gray-100 hover:bg-transparent">
                 {enableRowSelection && (
-                  <td className="px-4 py-4">
-                    <div className="h-4 w-4 animate-pulse rounded bg-gray-200" />
-                  </td>
+                  <TableCell className="px-4 py-4">
+                    <Skeleton className="h-4 w-4 rounded bg-gray-200" />
+                  </TableCell>
                 )}
                 {columns.map((column) => (
-                  <td key={`${column.key}-${rowIndex}`} className="px-4 py-4">
-                    <div className="h-4 w-3/4 animate-pulse rounded bg-gray-200" />
-                  </td>
+                  <TableCell key={`${column.key}-${rowIndex}`} className="px-4 py-4">
+                    <Skeleton className="h-4 w-3/4 rounded bg-gray-200" />
+                  </TableCell>
                 ))}
-              </tr>
+              </TableRow>
             ))
           ) : processedData.length === 0 ? (
-            <tr>
-              <td colSpan={columns.length + (enableRowSelection ? 1 : 0)} className="px-4 py-10 text-center">
+            <TableRow className="hover:bg-transparent">
+              <TableCell colSpan={columns.length + (enableRowSelection ? 1 : 0)} className="px-4 py-10 text-center">
                 {emptyState || <p className="text-sm text-gray-500">{emptyMessage}</p>}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ) : (
             processedData.map((item, index) => {
               const rowKey = getRowKey(item, index);
               const isSelected = selectedSet.has(rowKey);
               return (
-              <tr key={getRowKey(item, index)} className={resolveRowClass(item, index)}>
+              <TableRow key={getRowKey(item, index)} className={resolveRowClass(item, index)}>
                 {enableRowSelection && (
-                  <td className="px-4 py-4 align-top">
-                    <input
-                      type="checkbox"
+                  <TableCell className="px-4 py-4 align-top">
+                    <Checkbox
                       checked={isSelected}
-                      onChange={() => toggleRowSelection(rowKey)}
-                      className="h-4 w-4 rounded border-gray-300 text-[#3E667D] focus:ring-[#a7c1e2]"
+                      onCheckedChange={() => toggleRowSelection(rowKey)}
                       aria-label="Seleccionar fila"
                     />
-                  </td>
+                  </TableCell>
                 )}
                 {columns.map((column) => (
-                  <td key={column.key} className={`px-4 py-4 ${column.cellClassName ?? ''}`}>
+                  <TableCell key={column.key} className={`px-4 py-4 whitespace-normal ${column.cellClassName ?? ''}`}>
                     {column.render(item, index)}
-                  </td>
+                  </TableCell>
                 ))}
-              </tr>
+              </TableRow>
             )})
           )}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -430,41 +433,46 @@ export function DataTablePagination({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <button
+        <Button
           type="button"
-          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          variant="outline"
+          size="sm"
+          className="rounded-lg border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
           disabled={currentPage <= 1 || isLoading}
           onClick={() => onPageChange(Math.max(1, currentPage - 1))}
         >
           Anterior
-        </button>
+        </Button>
 
         {pageNumbers.map((page) => (
-          <button
+          <Button
             key={page}
             type="button"
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+            variant={page === currentPage ? 'default' : 'outline'}
+            size="sm"
+            className={
               page === currentPage
-                ? 'bg-[#3E667D] text-white'
-                : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
-            }`}
+                ? 'rounded-lg bg-[#3E667D] text-sm font-medium text-white hover:bg-[#3E667D]'
+                : 'rounded-lg border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50'
+            }
             disabled={isLoading}
             onClick={() => onPageChange(page)}
           >
             {page}
-          </button>
+          </Button>
         ))}
 
-        <button
+        <Button
           type="button"
-          className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+          variant="outline"
+          size="sm"
+          className="rounded-lg border-gray-200 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
           disabled={currentPage >= totalPages || isLoading}
           onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
         >
           Siguiente
-        </button>
+        </Button>
       </div>
     </div>
   );
 }
-

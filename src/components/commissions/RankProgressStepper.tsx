@@ -5,7 +5,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { MlmRank } from '@/types/commissions';
 import { getRankImage } from '@/constants/ranks';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/card';
 import { CheckIcon, LockClosedIcon, StarIcon } from '@heroicons/react/24/solid';
 import {
   TrophyIcon,

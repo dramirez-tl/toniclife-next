@@ -67,14 +67,12 @@ function FeaturedProductCard({ product }: ProductCardProps) {
 
   return (
     <Card
-      hover
-      className="group relative overflow-hidden"
-      padding="none"
+      className="group relative overflow-hidden p-0 transition-shadow hover:shadow-md"
     >
       {/* Discount Badge */}
       {product.isFeatured && (
         <div className="absolute top-4 left-4 z-10">
-          <Badge variant="success">
+          <Badge variant="outline" className="border-transparent bg-[#abc9ba] text-white">
             Más Vendido
           </Badge>
         </div>
@@ -157,10 +155,10 @@ function FeaturedProductCard({ product }: ProductCardProps) {
             size="sm"
             onClick={handleAddToCart}
             disabled={addToCart.isPending}
-            variant={added ? 'success' : 'primary'}
-            leftIcon={added ? <CheckIcon className="h-4 w-4" /> : <ShoppingCartIcon className="h-4 w-4" />}
+            variant={added ? 'success' : 'default'}
             aria-label={`Agregar ${product.name} al carrito`}
           >
+            {added ? <CheckIcon className="h-4 w-4" /> : <ShoppingCartIcon className="h-4 w-4" />}
             {addToCart.isPending ? '...' : added ? 'Listo' : 'Agregar'}
           </Button>
         </div>
@@ -199,7 +197,7 @@ export function FeaturedProducts() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-16">
-          <Badge variant="success" size="lg" className="mb-4">
+          <Badge variant="outline" className="mb-4 border-transparent bg-[#abc9ba] px-3 py-1 text-sm text-white">
             Más Vendidos
           </Badge>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#3E667D]">
@@ -253,9 +251,9 @@ export function FeaturedProducts() {
             <Button
               variant="outline"
               size="lg"
-              rightIcon={<ArrowRightIcon className="h-5 w-5" />}
             >
               Ver Todos los Productos
+              <ArrowRightIcon className="h-5 w-5" />
             </Button>
           </Link>
         </div>

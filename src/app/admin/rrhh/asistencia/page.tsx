@@ -2,8 +2,8 @@
 
 import { useState, useMemo, Suspense } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   ClockIcon,
   MagnifyingGlassIcon,
@@ -218,10 +218,10 @@ function AsistenciaContent() {
               </Button>
             </Link>
             <Button
-              variant="primary"
-              leftIcon={<ChartBarIcon className="h-5 w-5" />}
+              variant="default"
               onClick={() => toast.info('Reportes detallados próximamente')}
             >
+              <ChartBarIcon className="h-5 w-5" />
               Ver Reportes
             </Button>
           </div>
@@ -358,9 +358,9 @@ function AsistenciaContent() {
               {/* Export */}
               <Button
                 variant="outline"
-                leftIcon={<ArrowDownTrayIcon className="h-5 w-5" />}
                 onClick={handleExport}
               >
+                <ArrowDownTrayIcon className="h-5 w-5" />
                 Exportar
               </Button>
             </div>

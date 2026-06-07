@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Loader2 } from 'lucide-react';
 import {
   ChartBarIcon,
   ArrowPathIcon,
@@ -88,11 +89,12 @@ export default function EstadisticasPage() {
                 <Button variant="secondary">Volver al Panel Principal</Button>
               </Link>
               <Button
-                variant="primary"
-                leftIcon={<ArrowPathIcon className="h-5 w-5" />}
+                variant="default"
                 onClick={handleRefresh}
-                isLoading={refreshMutation.isPending}
+                disabled={refreshMutation.isPending}
               >
+                {refreshMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                <ArrowPathIcon className="h-5 w-5" />
                 Actualizar Estadisticas
               </Button>
             </div>
@@ -277,7 +279,7 @@ export default function EstadisticasPage() {
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 />
               </div>
-              <Button variant="primary" type="submit">
+              <Button variant="default" type="submit">
                 Buscar
               </Button>
             </form>

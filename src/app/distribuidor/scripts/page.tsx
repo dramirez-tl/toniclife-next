@@ -2,8 +2,8 @@
 
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   ClipboardDocumentListIcon,
   PhoneIcon,
@@ -333,10 +333,10 @@ function ScriptsContent() {
                 </Button>
               </Link>
               <Button
-                variant="primary"
-                leftIcon={<PlusIcon className="h-5 w-5" />}
+                variant="default"
                 onClick={() => toast.info('Función próximamente disponible')}
               >
+                <PlusIcon className="h-5 w-5" />
                 Crear Script
               </Button>
             </div>
@@ -549,11 +549,11 @@ function ScriptsContent() {
                   {/* Actions */}
                   <div className="grid grid-cols-2 gap-2">
                     <Button
-                      variant="primary"
+                      variant="default"
                       size="sm"
-                      leftIcon={<ClipboardDocumentListIcon className="h-4 w-4" />}
                       onClick={() => handleCopyScript(script)}
                     >
+                      <ClipboardDocumentListIcon className="h-4 w-4" />
                       Copiar Script
                     </Button>
                     <Button
@@ -566,17 +566,17 @@ function ScriptsContent() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      leftIcon={<ShareIcon className="h-4 w-4" />}
                       onClick={() => handleShareScript(script)}
                     >
+                      <ShareIcon className="h-4 w-4" />
                       Compartir
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      leftIcon={<PencilIcon className="h-4 w-4" />}
                       onClick={() => toast.info('Función próximamente disponible')}
                     >
+                      <PencilIcon className="h-4 w-4" />
                       Editar
                     </Button>
                   </div>
@@ -636,21 +636,21 @@ function ScriptsContent() {
 
                 <div className="flex gap-3">
                   <Button
-                    variant="primary"
+                    variant="default"
                     className="flex-1"
-                    leftIcon={<ClipboardDocumentListIcon className="h-5 w-5" />}
                     onClick={() => {
                       handleCopyScript(selectedScript);
                       setSelectedScript(null);
                     }}
                   >
+                    <ClipboardDocumentListIcon className="h-5 w-5" />
                     Copiar Script
                   </Button>
                   <Button
                     variant="outline"
-                    leftIcon={<ShareIcon className="h-5 w-5" />}
                     onClick={() => handleShareScript(selectedScript)}
                   >
+                    <ShareIcon className="h-5 w-5" />
                     Compartir
                   </Button>
                   <Button

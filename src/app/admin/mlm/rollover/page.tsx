@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   ArrowsRightLeftIcon,
   ArrowPathIcon,
@@ -114,12 +115,12 @@ export default function RolloverPage() {
                 <Button variant="secondary">Volver al Panel Principal</Button>
               </Link>
               <Button
-                variant="primary"
-                leftIcon={<ArrowPathIcon className="h-5 w-5" />}
+                variant="default"
                 onClick={handleCalculate}
-                isLoading={calculateMutation.isPending}
-                disabled={!activePeriodId}
+                disabled={calculateMutation.isPending || (!activePeriodId)}
               >
+                {calculateMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                <ArrowPathIcon className="h-5 w-5" />
                 Calcular Puntos Acumulados
               </Button>
             </div>
@@ -262,7 +263,7 @@ export default function RolloverPage() {
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 />
               </div>
-              <Button variant="primary" type="submit">
+              <Button variant="default" type="submit">
                 Buscar
               </Button>
             </form>

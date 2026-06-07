@@ -6,7 +6,7 @@ import {
   InformationCircleIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/card';
 import { useProductStock, useUpdateStockSettings } from '@/hooks/useInventory';
 import { useActiveBranches } from '@/hooks/useBranches';
 import type { ProductStockDto } from '@/types/inventory';
@@ -131,7 +131,7 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
 
   if (isLoading) {
     return (
-      <Card padding="none">
+      <Card className="p-0">
         <CardContent className="p-6">
           <div className="flex items-center gap-3">
             <BuildingStorefrontIcon className="h-5 w-5 text-gray-400 animate-pulse" />
@@ -159,7 +159,7 @@ export function ProductInventoryByBranch({ productId, defaults }: ProductInvento
   }).length;
 
   return (
-    <Card padding="none">
+    <Card className="p-0">
       <CardContent className="p-6">
         {/* Header */}
         <div className="flex items-center gap-2 mb-2">

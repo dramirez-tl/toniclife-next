@@ -3,8 +3,8 @@
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { PermissionGuard } from '@/components/auth';
 import {
   DocumentTextIcon,
@@ -329,10 +329,10 @@ function ContenidoContent() {
                 </Button>
               </Link>
               <Button
-                variant="primary"
-                leftIcon={<PlusIcon className="h-5 w-5" />}
+                variant="default"
                 onClick={() => toast.info('Función próximamente disponible')}
               >
+                <PlusIcon className="h-5 w-5" />
                 Nuevo Contenido
               </Button>
             </div>
@@ -507,23 +507,23 @@ function ContenidoContent() {
                     variant="outline"
                     size="sm"
                     className="flex-1"
-                    leftIcon={<EyeIcon className="h-4 w-4" />}
                     onClick={() => toast.info('Función próximamente disponible')}
                   >
+                    <EyeIcon className="h-4 w-4" />
                     Ver
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     className="flex-1"
-                    leftIcon={<PencilIcon className="h-4 w-4" />}
                     onClick={() => toast.info('Función próximamente disponible')}
                   >
+                    <PencilIcon className="h-4 w-4" />
                     Editar
                   </Button>
                   {item.status === 'draft' && (
                     <Button
-                      variant="primary"
+                      variant="default"
                       size="sm"
                       onClick={() => handlePublish(item.id)}
                     >
@@ -564,10 +564,10 @@ function ContenidoContent() {
                   Intenta ajustar los filtros de búsqueda
                 </p>
                 <Button
-                  variant="primary"
-                  leftIcon={<PlusIcon className="h-5 w-5" />}
+                  variant="default"
                   onClick={() => toast.info('Función próximamente disponible')}
                 >
+                  <PlusIcon className="h-5 w-5" />
                   Crear Nuevo Contenido
                 </Button>
               </div>

@@ -19,31 +19,31 @@ const tiles: CategoryTile[] = [
   {
     label: 'Cuidado Digestivo',
     href: '/productos?categoria=sistema-digestivo',
-    image: '/images/landing/cat-digestivo.jpg',
+    image: '/images/landing/cat-digestivo.webp',
     area: 'lg:col-start-1 lg:row-start-1',
   },
   {
     label: 'Vitaminas y nutrientes',
     href: '/productos?categoria=energia-vitalidad',
-    image: '/images/landing/cat-vitaminas.jpg',
+    image: '/images/landing/cat-vitaminas.webp',
     area: 'lg:col-start-2 lg:row-start-1',
   },
   {
     label: 'Belleza y Cuidado personal',
     href: '/productos?categoria=belleza-cuidado',
-    image: '/images/landing/cat-belleza.jpg',
+    image: '/images/landing/cat-belleza.webp',
     area: 'lg:col-start-3 lg:row-start-1 lg:row-span-2',
   },
   {
     label: 'Cuidado general',
     href: '/productos?categoria=sistema-inmunologico',
-    image: '/images/landing/cat-general.jpg',
+    image: '/images/landing/cat-general.webp',
     area: 'lg:col-start-1 lg:row-start-2',
   },
   {
     label: 'Batidos y malteadas',
     href: '/productos?categoria=control-de-peso',
-    image: '/images/landing/cat-batidos.jpg',
+    image: '/images/landing/cat-batidos.webp',
     area: 'lg:col-start-2 lg:row-start-2',
   },
 ];

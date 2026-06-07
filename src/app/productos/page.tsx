@@ -133,17 +133,30 @@ export default function ProductsPage() {
         <div className="h-28 lg:h-32" />
 
         {/* Hero banner - propuesta 2026 */}
-        <section className="relative w-full overflow-hidden bg-[#C8DDF2]">
-          {/* Tira de productos a la derecha (fallback: azul claro de marca) */}
+        <section className="relative w-full overflow-hidden bg-gradient-to-r from-[#C8DDF2] via-[#dbe8f6] to-white">
+          {/* Blobs decorativos suaves para dar profundidad */}
+          <div className="pointer-events-none absolute -top-24 -left-20 h-72 w-72 rounded-full bg-white/50 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-[#3E667D]/10 blur-3xl" />
+
+          {/* Tira de productos, anclada abajo-derecha (funde con el blanco de la banda) */}
           <div
-            className="pointer-events-none absolute inset-y-0 right-0 left-1/2 hidden bg-contain bg-right bg-no-repeat sm:block lg:left-1/3"
-            style={{ backgroundImage: "url('/images/productos/banner-productos.png')" }}
+            className="pointer-events-none absolute inset-y-0 right-[4%] left-1/2 hidden bg-contain bg-right-bottom bg-no-repeat sm:block lg:left-[44%] lg:right-[19%]"
+            style={{ backgroundImage: "url('/images/productos/banner-productos.webp')" }}
           />
+
           <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="flex min-h-[180px] items-center lg:min-h-[220px]">
-              <h1 className="max-w-[12rem] text-3xl font-bold leading-tight text-[#3E667D] sm:max-w-xs sm:text-4xl lg:text-5xl">
-                Nuestros productos
+            <div className="flex min-h-[240px] flex-col justify-center py-10 lg:min-h-[340px]">
+              <span className="mb-4 inline-flex w-fit items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-xs font-semibold text-[#3E667D] shadow-sm backdrop-blur">
+                <SparklesIcon className="h-3.5 w-3.5" />
+                Bienestar natural desde 2004
+              </span>
+              <h1 className="max-w-md text-4xl font-bold leading-[1.05] text-[#3E667D] sm:text-5xl lg:text-6xl">
+                Nuestros <span className="font-serif italic">productos</span>
               </h1>
+              <p className="mt-4 max-w-sm text-base text-[#3E667D]/80 sm:text-lg">
+                Suplementos, belleza y cuidado personal, formulados para acompañar
+                tu bienestar todos los días.
+              </p>
             </div>
           </div>
         </section>

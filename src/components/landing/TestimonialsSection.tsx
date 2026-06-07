@@ -52,7 +52,7 @@ export function TestimonialsSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
         <div className="text-center mb-16">
-          <Badge variant="info" size="lg" className="mb-4">
+          <Badge variant="info" className="mb-4">
             Historias de Transformación
           </Badge>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-[#3E667D]">
@@ -66,7 +66,7 @@ export function TestimonialsSection() {
 
         {/* Featured Testimonial */}
         <div className="max-w-4xl mx-auto mb-16">
-          <Card className="relative overflow-hidden bg-white" padding="lg">
+          <Card className="relative overflow-hidden bg-white">
             {/* Quote Icon */}
             <div className="absolute top-6 right-6 text-[#3E667D]/20">
               <svg className="h-24 w-24" viewBox="0 0 24 24" fill="currentColor">
@@ -108,7 +108,7 @@ export function TestimonialsSection() {
                 <div className="hidden sm:flex items-center gap-2">
                   <span className="text-sm text-gray-500">Productos usados:</span>
                   {testimonials[activeIndex].products.slice(0, 2).map((productId) => (
-                    <Badge key={productId} variant="outline" size="sm">
+                    <Badge key={productId} variant="outline" className="px-1.5 py-0 text-[10px]">
                       {productId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                     </Badge>
                   ))}
@@ -159,8 +159,7 @@ export function TestimonialsSection() {
           {testimonials.slice(0, 3).map((testimonial, index) => (
             <Card
               key={testimonial.id}
-              hover
-              className={`cursor-pointer transition-all ${index === activeIndex ? 'ring-2 ring-[#C8DDF2]' : ''}`}
+              className={`cursor-pointer transition-all transition-shadow hover:shadow-md ${index === activeIndex ? 'ring-2 ring-[#C8DDF2]' : ''}`}
               onClick={() => setActiveIndex(index)}
               role="button"
               aria-label={`Seleccionar testimonio de ${testimonial.name}`}

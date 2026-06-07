@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   ShieldCheckIcon,
   DocumentChartBarIcon,
@@ -127,24 +127,24 @@ export default function AuditReportsPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => handleExport('csv')}
-                  leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
                 >
+                  <ArrowDownTrayIcon className="h-4 w-4" />
                   CSV
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleExport('pdf')}
-                  leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
                 >
+                  <ArrowDownTrayIcon className="h-4 w-4" />
                   PDF
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handleExport('json')}
-                  leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
                 >
+                  <ArrowDownTrayIcon className="h-4 w-4" />
                   JSON
                 </Button>
               </div>

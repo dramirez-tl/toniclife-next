@@ -3,8 +3,8 @@
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   DocumentChartBarIcon,
   ArrowDownTrayIcon,
@@ -406,18 +406,18 @@ function ReportesContent() {
                 {/* Actions */}
                 <div className="flex gap-3">
                   <Button
-                    variant="primary"
+                    variant="default"
                     className="flex-1"
-                    leftIcon={<DocumentChartBarIcon className="h-5 w-5" />}
                     onClick={handleGenerateReport}
                   >
+                    <DocumentChartBarIcon className="h-5 w-5" />
                     Generar Reporte
                   </Button>
                   <Button
                     variant="outline"
-                    leftIcon={<ClockIcon className="h-5 w-5" />}
                     onClick={handleScheduleReport}
                   >
+                    <ClockIcon className="h-5 w-5" />
                     Programar
                   </Button>
                 </div>
@@ -485,9 +485,9 @@ function ReportesContent() {
                         variant="outline"
                         size="sm"
                         className="w-full"
-                        leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
                         onClick={() => handleDownloadReport(report.name, report.format)}
                       >
+                        <ArrowDownTrayIcon className="h-4 w-4" />
                         Descargar {report.format}
                       </Button>
                     </div>
@@ -520,9 +520,9 @@ function ReportesContent() {
                   variant="secondary"
                   size="sm"
                   className="w-full"
-                  leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
                   onClick={() => toast.info('Preparando exportación completa')}
                 >
+                  <ArrowDownTrayIcon className="h-4 w-4" />
                   Exportar Todo
                 </Button>
               </CardContent>

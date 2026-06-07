@@ -136,7 +136,7 @@ export default function CartPage() {
                   </p>
                 </div>
               </div>
-              <Badge variant="info" className="text-xs sm:text-sm">
+              <Badge variant="outline" className="border-[#3E667D]/30 bg-[#C8DDF2]/30 text-[#3E667D] text-xs sm:text-sm">
                 Compra segura
               </Badge>
             </div>
@@ -145,7 +145,7 @@ export default function CartPage() {
           {isLoading ? (
             <div className="space-y-4 py-4">
               {[...Array(3)].map((_, i) => (
-                <Card key={i} className="border-gray-100 shadow-sm" padding="none">
+                <Card key={i} className="border-gray-100 shadow-sm p-0">
                   <div className="animate-pulse p-5">
                     <div className="mb-4 h-4 w-44 rounded bg-gray-200" />
                     <div className="h-3 w-64 rounded bg-gray-100" />
@@ -182,7 +182,7 @@ export default function CartPage() {
               <div className="lg:col-span-2 space-y-4">
                 {/* Cart Items List */}
                 {cart.items.map((item) => (
-                  <Card key={item.id} className="overflow-hidden border-gray-100 shadow-sm transition-all hover:shadow-md" padding="none">
+                  <Card key={item.id} className="overflow-hidden border-gray-100 shadow-sm transition-all hover:shadow-md p-0">
                     <div className="flex flex-col sm:flex-row">
                       {/* Product Image */}
                       <div className="sm:w-40 h-40 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center flex-shrink-0 overflow-hidden">
@@ -293,12 +293,12 @@ export default function CartPage() {
 
               {/* Order Summary */}
               <div className="lg:col-span-1">
-                <Card className="sticky top-32 border-gray-100 shadow-sm" padding="lg">
+                <Card className="sticky top-32 border-gray-100 shadow-sm">
                   <div className="mb-6 flex items-center justify-between">
                     <h2 className="text-xl font-bold text-[#3E667D]">
                       Resumen del Pedido
                     </h2>
-                    <Badge variant="info" size="sm">
+                    <Badge variant="outline" className="border-[#3E667D]/30 bg-[#C8DDF2]/30 text-[#3E667D]">
                       {itemCount} {itemCount === 1 ? 'item' : 'items'}
                     </Badge>
                   </div>
@@ -343,7 +343,7 @@ export default function CartPage() {
 
                   {/* Checkout Button */}
                   <Link href="/checkout">
-                    <Button fullWidth size="lg" className="mt-6">
+                    <Button size="lg" className="w-full mt-6">
                       Finalizar Compra
                     </Button>
                   </Link>

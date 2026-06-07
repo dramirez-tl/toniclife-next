@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   SparklesIcon,
   MagnifyingGlassIcon,
@@ -224,7 +224,7 @@ export default function HistoriasPage() {
                 </Button>
               </Link>
               <Link href="/comunidad">
-                <Button variant="primary" size="lg">
+                <Button variant="default" size="lg">
                   Unirme a la Comunidad
                 </Button>
               </Link>
@@ -351,10 +351,10 @@ export default function HistoriasPage() {
                     <Button
                       variant="outline"
                       className="w-full"
-                      rightIcon={<ArrowRightIcon className="h-4 w-4" />}
                       onClick={() => toast.info('Historia completa próximamente disponible')}
                     >
                       Leer Historia Completa
+                      <ArrowRightIcon className="h-4 w-4" />
                     </Button>
                   </CardContent>
                 </Card>
@@ -414,10 +414,10 @@ export default function HistoriasPage() {
                       variant="ghost"
                       size="sm"
                       className="w-full"
-                      rightIcon={<ArrowRightIcon className="h-4 w-4" />}
                       onClick={() => toast.info('Historia completa próximamente disponible')}
                     >
                       Leer Más
+                      <ArrowRightIcon className="h-4 w-4" />
                     </Button>
                   </CardContent>
                 </Card>
@@ -457,7 +457,7 @@ export default function HistoriasPage() {
                   </Button>
                 </Link>
                 <Link href="/productos">
-                  <Button variant="primary" size="lg">
+                  <Button variant="default" size="lg">
                     Ver Productos
                   </Button>
                 </Link>

@@ -259,7 +259,7 @@ function QuizPageContent() {
                   onSaveEmail={handleSaveEmail}
                 />
               ) : (
-                <Card className="text-center py-12" padding="lg">
+                <Card className="text-center py-12">
                   <p className="text-gray-600">No se pudieron cargar los resultados.</p>
                   <button
                     onClick={handleRestart}

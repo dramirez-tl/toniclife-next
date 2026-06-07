@@ -4,8 +4,8 @@
 
 import { Suspense, useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import { inventoryService } from '@/services/inventory.service';
 import {
@@ -446,17 +446,17 @@ function InventarioContent() {
                 <Link href="/admin/inventario/traspasos">
                   <Button
                     variant="outline"
-                    leftIcon={<ArrowsRightLeftIcon className="h-5 w-5" />}
                     className="border-white text-white hover:bg-white/10"
                   >
+                    <ArrowsRightLeftIcon className="h-5 w-5" />
                     Traspasos
                   </Button>
                 </Link>
                 <Link href="/admin/inventario/ajustes">
                   <Button
-                    variant="primary"
-                    leftIcon={<ClipboardDocumentCheckIcon className="h-5 w-5" />}
+                    variant="default"
                   >
+                    <ClipboardDocumentCheckIcon className="h-5 w-5" />
                     Ajustes
                   </Button>
                 </Link>
@@ -554,10 +554,10 @@ function InventarioContent() {
                 <div className="flex gap-3">
                   <Button
                     variant="outline"
-                    leftIcon={<ArrowDownTrayIcon className="h-5 w-5" />}
                     onClick={handleExport}
                     disabled={isExporting || !selectedBranch}
                   >
+                    <ArrowDownTrayIcon className="h-5 w-5" />
                     {isExporting ? 'Exportando...' : 'Exportar'}
                   </Button>
                 </div>
@@ -610,7 +610,7 @@ function InventarioContent() {
                       />
                     </div>
                     <Button
-                      variant="primary"
+                      variant="default"
                       size="sm"
                       className="h-10 px-4 sm:min-w-[80px]"
                       onClick={handleSearch}

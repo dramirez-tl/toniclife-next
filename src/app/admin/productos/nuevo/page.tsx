@@ -10,8 +10,8 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { useCreateProduct, useCategories } from '@/hooks/useProducts';
 import type { CreateProductDto } from '@/types/product';
 import { ProductType, KitType } from '@/types/product';
@@ -215,7 +215,7 @@ export default function NuevoProductoAdminPage() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Basic Information */}
-            <Card padding="none">
+            <Card className="p-0">
               <CardContent className="p-6">
                 <h2 className="text-lg font-bold text-gray-900 mb-6">Informacion Basica</h2>
                 <div className="space-y-4">
@@ -283,7 +283,7 @@ export default function NuevoProductoAdminPage() {
             </Card>
 
             {/* Classification */}
-            <Card padding="none">
+            <Card className="p-0">
               <CardContent className="p-6">
                 <h2 className="text-lg font-bold text-gray-900 mb-6">Clasificacion</h2>
                 <div className="grid grid-cols-2 gap-4">
@@ -343,7 +343,7 @@ export default function NuevoProductoAdminPage() {
             </Card>
 
             {/* Pricing & MLM */}
-            <Card padding="none">
+            <Card className="p-0">
               <CardContent className="p-6">
                 <h2 className="text-lg font-bold text-gray-900 mb-6">MLM y Fiscal</h2>
                 <div className="grid grid-cols-2 gap-4">
@@ -430,7 +430,7 @@ export default function NuevoProductoAdminPage() {
             </Card>
 
             {/* Inventory */}
-            <Card padding="none">
+            <Card className="p-0">
               <CardContent className="p-6">
                 <h2 className="text-lg font-bold text-gray-900 mb-6">Inventario y Fisica</h2>
                 <div className="grid grid-cols-2 gap-4">
@@ -511,7 +511,7 @@ export default function NuevoProductoAdminPage() {
             </Card>
 
             {/* Usage & Health */}
-            <Card padding="none">
+            <Card className="p-0">
               <CardContent className="p-6">
                 <h2 className="text-lg font-bold text-gray-900 mb-6">Uso y Salud</h2>
                 <div className="space-y-4">
@@ -564,7 +564,7 @@ export default function NuevoProductoAdminPage() {
             </Card>
 
             {/* Health Benefits */}
-            <Card padding="none">
+            <Card className="p-0">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-bold text-gray-900">Beneficios de Salud</h2>
@@ -603,7 +603,7 @@ export default function NuevoProductoAdminPage() {
             </Card>
 
             {/* SEO */}
-            <Card padding="none">
+            <Card className="p-0">
               <CardContent className="p-6">
                 <h2 className="text-lg font-bold text-gray-900 mb-6">SEO</h2>
                 <div className="space-y-4">
@@ -648,7 +648,7 @@ export default function NuevoProductoAdminPage() {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Status */}
-            <Card padding="none">
+            <Card className="p-0">
               <CardContent className="p-6">
                 <h2 className="text-lg font-bold text-gray-900 mb-4">Estado y Visibilidad</h2>
                 <div className="space-y-4">
@@ -746,7 +746,7 @@ export default function NuevoProductoAdminPage() {
             </Card>
 
             {/* Media */}
-            <Card padding="none">
+            <Card className="p-0">
               <CardContent className="p-6">
                 <h2 className="text-lg font-bold text-gray-900 mb-4">Media</h2>
                 <div className="space-y-4">

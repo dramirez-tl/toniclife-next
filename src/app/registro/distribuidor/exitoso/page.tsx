@@ -4,8 +4,8 @@ import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   CheckCircleIcon,
   ClipboardDocumentIcon,
@@ -150,7 +150,7 @@ function RegistroExitosoContent() {
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-3">
               <Link href="/login" className="flex-1">
-                <Button variant="primary" size="lg" className="w-full">
+                <Button variant="default" size="lg" className="w-full">
                   Ir a Iniciar Sesión
                 </Button>
               </Link>

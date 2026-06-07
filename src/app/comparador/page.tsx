@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   XMarkIcon,
   ShoppingCartIcon,
@@ -216,7 +216,7 @@ export default function ComparadorPage() {
               </p>
               <div className="flex gap-4 justify-center">
                 <Link href="/productos">
-                  <Button variant="primary" size="lg">
+                  <Button variant="default" size="lg">
                     Explorar Productos
                   </Button>
                 </Link>
@@ -240,9 +240,9 @@ export default function ComparadorPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    leftIcon={<PlusIcon className="h-4 w-4" />}
                     onClick={() => setShowAddProduct(!showAddProduct)}
                   >
+                    <PlusIcon className="h-4 w-4" />
                     Agregar Producto
                   </Button>
                 )}
@@ -375,22 +375,22 @@ export default function ComparadorPage() {
                               {/* Actions */}
                               <div className="space-y-2">
                                 <Button
-                                  variant="primary"
+                                  variant="default"
                                   size="sm"
                                   className="w-full"
-                                  leftIcon={<ShoppingCartIcon className="h-4 w-4" />}
                                   onClick={() => handleAddToCart(product.name)}
                                   disabled={product.stock === 0}
                                 >
+                                  <ShoppingCartIcon className="h-4 w-4" />
                                   {product.stock === 0 ? 'Agotado' : 'Agregar al Carrito'}
                                 </Button>
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   className="w-full"
-                                  leftIcon={<HeartIcon className="h-4 w-4" />}
                                   onClick={() => handleAddToWishlist(product.name)}
                                 >
+                                  <HeartIcon className="h-4 w-4" />
                                   Favoritos
                                 </Button>
                               </div>

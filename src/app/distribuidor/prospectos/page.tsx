@@ -2,9 +2,9 @@
 
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { Card, CardContent } from '@/components/ui/Card';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
   UserPlusIcon,
   PhoneIcon,
@@ -188,10 +188,10 @@ function ProspectosContent() {
                 </Button>
               </Link>
               <Button
-                variant="primary"
-                leftIcon={<PlusIcon className="h-5 w-5" />}
+                variant="default"
                 onClick={() => setShowAddModal(true)}
               >
+                <PlusIcon className="h-5 w-5" />
                 Nuevo Prospecto
               </Button>
             </div>
@@ -355,27 +355,27 @@ function ProspectosContent() {
                       {/* Actions */}
                       <div className="flex flex-wrap gap-2">
                         <Button
-                          variant="primary"
+                          variant="default"
                           size="sm"
-                          leftIcon={<PhoneIcon className="h-4 w-4" />}
                           onClick={() => handleContact(prospect, 'llamada')}
                         >
+                          <PhoneIcon className="h-4 w-4" />
                           Llamar
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          leftIcon={<ChatBubbleLeftIcon className="h-4 w-4" />}
                           onClick={() => handleContact(prospect, 'WhatsApp')}
                         >
+                          <ChatBubbleLeftIcon className="h-4 w-4" />
                           WhatsApp
                         </Button>
                         <Button
                           variant="outline"
                           size="sm"
-                          leftIcon={<EnvelopeIcon className="h-4 w-4" />}
                           onClick={() => handleContact(prospect, 'email')}
                         >
+                          <EnvelopeIcon className="h-4 w-4" />
                           Correo
                         </Button>
                         <Button
@@ -427,9 +427,9 @@ function ProspectosContent() {
                       <Button
                         variant="outline"
                         size="sm"
-                        leftIcon={<ClipboardDocumentListIcon className="h-4 w-4" />}
                         onClick={() => handleCopyScript(script)}
                       >
+                        <ClipboardDocumentListIcon className="h-4 w-4" />
                         Copiar Script
                       </Button>
                     </div>
