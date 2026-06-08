@@ -61,6 +61,20 @@ export function useOrders(params: OrderQueryParams = {}, enabled = true) {
   });
 }
 
+export function useOrderStats(params: OrderQueryParams = {}, enabled = true) {
+  return useQuery({
+    queryKey: ['orders', 'admin', 'stats', params],
+    queryFn: () => ordersService.getStats(params),
+    enabled,
+  });
+}
+
+export function useExportOrders() {
+  return useMutation({
+    mutationFn: (params: OrderQueryParams = {}) => ordersService.exportCsv(params),
+  });
+}
+
 export function useOrder(id: string | null) {
   return useQuery({
     queryKey: ['orders', 'admin', id],

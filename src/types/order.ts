@@ -52,6 +52,8 @@ export interface Order {
   customerId?: string;
   branchId?: string;
   status: string;
+  /** Estado de pago derivado en backend: paid | partial | pending | refunded | failed */
+  paymentStatus?: string;
   subtotal: string;
   taxAmount: string;
   discountAmount: string;
@@ -107,9 +109,12 @@ export interface Order {
   };
 }
 
+export type PaymentStatus = 'paid' | 'partial' | 'pending' | 'refunded' | 'failed';
+
 export interface OrderQueryParams {
   customerId?: string;
   status?: OrderStatus;
+  paymentStatus?: PaymentStatus;
   branchId?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -119,6 +124,23 @@ export interface OrderQueryParams {
   limit?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
+}
+
+export interface OrderStats {
+  total: number;
+  byStatus: Record<
+    | 'pending'
+    | 'confirmed'
+    | 'paid'
+    | 'processing'
+    | 'shipped'
+    | 'in_transit'
+    | 'delivered'
+    | 'completed'
+    | 'cancelled',
+    number
+  >;
+  revenue: number;
 }
 
 export interface OrderListResponse {

@@ -6,12 +6,42 @@ import type {
   Order,
   OrderQueryParams,
   OrderListResponse,
+  OrderStats,
   UpdateOrderStatusDto,
   UpdateShippingDto,
   CancelOrderDto,
   TrackingInfo,
   Payment,
 } from '@/types/order';
+
+/** Build URLSearchParams shared by list, stats and export. */
+function buildOrderParams(params: OrderQueryParams): URLSearchParams {
+  const queryParams = new URLSearchParams();
+  const p = params as Record<string, unknown>;
+  const keys = [
+    'customerId',
+    'status',
+    'paymentStatus',
+    'branchId',
+    'dateFrom',
+    'dateTo',
+    'search',
+    'page',
+    'limit',
+    'sortBy',
+    'sortOrder',
+  ];
+  for (const key of keys) {
+    const value = p[key];
+    if (value !== undefined && value !== null && value !== '') {
+      queryParams.append(key, String(value));
+    }
+  }
+  if (p.isInvoiced !== undefined) {
+    queryParams.append('isInvoiced', String(p.isInvoiced));
+  }
+  return queryParams;
+}
 
 class OrdersService {
   // ================================
@@ -58,30 +88,40 @@ class OrdersService {
   // ================================
 
   async findAll(params: OrderQueryParams = {}): Promise<OrderListResponse> {
-    const queryParams = new URLSearchParams();
-    // Cast to any to access backend params not yet in the frontend type
-    const p = params as any;
-
-    if (p.customerId) queryParams.append('customerId', p.customerId);
-    if (p.status) queryParams.append('status', p.status);
-    if (p.paymentStatus) queryParams.append('paymentStatus', p.paymentStatus);
-    if (p.shippingStatus) queryParams.append('shippingStatus', p.shippingStatus);
-    if (p.orderType) queryParams.append('orderType', p.orderType);
-    if (p.branchId) queryParams.append('branchId', p.branchId);
-    if (p.dateFrom) queryParams.append('dateFrom', p.dateFrom);
-    if (p.dateTo) queryParams.append('dateTo', p.dateTo);
-    if (p.isInvoiced !== undefined) queryParams.append('isInvoiced', String(p.isInvoiced));
-    if (p.search) queryParams.append('search', p.search);
-    if (p.page) queryParams.append('page', p.page.toString());
-    if (p.limit) queryParams.append('limit', p.limit.toString());
-    if (p.sortBy) queryParams.append('sortBy', p.sortBy);
-    if (p.sortOrder) queryParams.append('sortOrder', p.sortOrder);
-
-    const queryString = queryParams.toString();
+    const queryString = buildOrderParams(params).toString();
     const response = await api.get<OrderListResponse>(
       `/orders${queryString ? `?${queryString}` : ''}`
     );
     return response.data;
+  }
+
+  /** Aggregated stats (counts by status + real revenue), honoring filters. */
+  async getStats(params: OrderQueryParams = {}): Promise<OrderStats> {
+    const queryString = buildOrderParams(params).toString();
+    const response = await api.get<OrderStats>(
+      `/orders/stats${queryString ? `?${queryString}` : ''}`
+    );
+    return response.data;
+  }
+
+  /** Download CSV of orders matching the given filters. Triggers a browser download. */
+  async exportCsv(params: OrderQueryParams = {}): Promise<void> {
+    const queryString = buildOrderParams(params).toString();
+    const response = await api.get(
+      `/orders/export${queryString ? `?${queryString}` : ''}`,
+      { responseType: 'blob' }
+    );
+
+    const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const stamp = new Date().toISOString().slice(0, 10);
+    link.download = `pedidos-${stamp}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   }
 
   async findById(id: string): Promise<Order> {
