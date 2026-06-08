@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -9,14 +9,17 @@ import {
   ShoppingCartIcon,
   MagnifyingGlassIcon,
   PlusIcon,
+  MinusIcon,
   TrashIcon,
   ClipboardDocumentIcon,
   ShareIcon,
   LinkIcon,
   XMarkIcon,
+  CubeIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
-import { useProductSearch } from '@/hooks/useProducts';
+import { useProducts, useCategories } from '@/hooks/useProducts';
+import { ECOMMERCE_BRANCH_ID } from '@/services/products.service';
 import {
   useSharedCarts,
   useCreateSharedCart,
@@ -38,25 +41,53 @@ export default function CompartirCarritoPage() {
   );
 }
 
+// Miniatura de producto con fallback a iniciales
+function ProductThumb({ src, name }: { src?: string; name: string }) {
+  const [error, setError] = useState(false);
+  if (src && !error) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return (
+      <img
+        src={src}
+        alt={name}
+        className="h-full w-full object-contain p-2"
+        onError={() => setError(true)}
+      />
+    );
+  }
+  return (
+    <div className="flex h-full w-full items-center justify-center text-gray-300">
+      <CubeIcon className="h-8 w-8" />
+    </div>
+  );
+}
+
 function CompartirCarritoContent() {
   const [lines, setLines] = useState<Line[]>([]);
   const [note, setNote] = useState('');
   const [search, setSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [createdToken, setCreatedToken] = useState<string | null>(null);
 
-  const { data: searchResults, isFetching } = useProductSearch(search, {
-    limit: 8,
+  const { data: productsData, isLoading: productsLoading } = useProducts({
+    categoryId: selectedCategory !== 'all' ? selectedCategory : undefined,
+    isActive: true,
+    isVisibleEcommerce: true,
+    branchId: ECOMMERCE_BRANCH_ID,
+    search: search.trim() || undefined,
+    limit: 60,
+    sortBy: 'sortOrder',
+    sortDir: 'asc',
   });
+  const { data: categoriesData = [] } = useCategories({ isActive: true });
+
   const createMutation = useCreateSharedCart();
   const cancelMutation = useCancelSharedCart();
   const { data: sharedCarts = [], isLoading: cartsLoading } = useSharedCarts();
 
-  const results = useMemo(() => {
-    const arr = Array.isArray(searchResults)
-      ? searchResults
-      : (searchResults as any)?.data ?? [];
-    return arr as { id: string; name: string; code: string }[];
-  }, [searchResults]);
+  const products = productsData?.data ?? [];
+  const qtyOf = (productId: string) =>
+    lines.find((l) => l.productId === productId)?.quantity ?? 0;
 
   const addLine = (p: { id: string; name: string; code: string }) => {
     setLines((prev) => {
@@ -66,23 +97,23 @@ function CompartirCarritoContent() {
           l.productId === p.id ? { ...l, quantity: l.quantity + 1 } : l,
         );
       }
-      return [
-        ...prev,
-        { productId: p.id, name: p.name, code: p.code, quantity: 1 },
-      ];
+      return [...prev, { productId: p.id, name: p.name, code: p.code, quantity: 1 }];
     });
-    setSearch('');
   };
 
   const setQty = (productId: string, qty: number) =>
     setLines((prev) =>
-      prev.map((l) =>
-        l.productId === productId ? { ...l, quantity: Math.max(1, qty) } : l,
-      ),
+      qty <= 0
+        ? prev.filter((l) => l.productId !== productId)
+        : prev.map((l) =>
+            l.productId === productId ? { ...l, quantity: qty } : l,
+          ),
     );
 
   const removeLine = (productId: string) =>
     setLines((prev) => prev.filter((l) => l.productId !== productId));
+
+  const totalUnits = lines.reduce((s, l) => s + l.quantity, 0);
 
   const shareUrl = createdToken
     ? `${typeof window !== 'undefined' ? window.location.origin : ''}/carrito-compartido/${createdToken}`
@@ -95,10 +126,7 @@ function CompartirCarritoContent() {
     }
     try {
       const res = await createMutation.mutateAsync({
-        items: lines.map((l) => ({
-          productId: l.productId,
-          quantity: l.quantity,
-        })),
+        items: lines.map((l) => ({ productId: l.productId, quantity: l.quantity })),
         note: note.trim() || undefined,
       });
       setCreatedToken(res.token);
@@ -132,18 +160,16 @@ function CompartirCarritoContent() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-10">
           <div className="flex items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-3 mb-1">
                 <ShoppingCartIcon className="h-8 w-8" />
-                <h1 className="text-2xl lg:text-3xl font-bold">
-                  Compartir carrito
-                </h1>
+                <h1 className="text-2xl lg:text-3xl font-bold">Compartir carrito</h1>
               </div>
               <p className="text-white/80 text-sm lg:text-base">
-                Arma un carrito y compártelo. Tu cliente paga directo a precio
-                público; la venta cuenta para ti.
+                Elige productos del catálogo y comparte el carrito. Tu cliente paga
+                directo a precio público; la venta cuenta para ti.
               </p>
             </div>
             <Link href="/distribuidor/ventas">
@@ -155,7 +181,7 @@ function CompartirCarritoContent() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-6">
         {/* Link recién creado */}
         {createdToken && (
           <Card className="border-green-200 bg-green-50">
@@ -196,115 +222,209 @@ function CompartirCarritoContent() {
           </Card>
         )}
 
-        {/* Armar carrito */}
-        <Card>
-          <CardContent className="p-4 lg:p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-4">
-              Arma el carrito
-            </h2>
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Catálogo */}
+          <Card className="lg:col-span-2">
+            <CardContent className="p-4 lg:p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">
+                Elige productos
+              </h2>
 
-            {/* Buscador */}
-            <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar producto por nombre o código..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-              />
-              {search.length >= 2 && (
-                <div className="absolute z-10 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-72 overflow-y-auto">
-                  {isFetching ? (
-                    <div className="flex items-center justify-center py-4 text-gray-400">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    </div>
-                  ) : results.length === 0 ? (
-                    <p className="px-4 py-3 text-sm text-gray-500">
-                      Sin resultados
-                    </p>
-                  ) : (
-                    results.map((p) => (
-                      <button
+              {/* Búsqueda */}
+              <div className="relative mb-3">
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar por nombre o código..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
+                />
+              </div>
+
+              {/* Filtros de categoría */}
+              <div className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-1">
+                <button
+                  onClick={() => setSelectedCategory('all')}
+                  className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                    selectedCategory === 'all'
+                      ? 'bg-[#3E667D] text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  Todos
+                </button>
+                {categoriesData.map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setSelectedCategory(cat.id)}
+                    className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                      selectedCategory === cat.id
+                        ? 'bg-[#3E667D] text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* Grid de productos */}
+              {productsLoading ? (
+                <div className="flex items-center justify-center py-16 text-gray-400">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : products.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-200 py-12 text-center text-sm text-gray-500">
+                  No se encontraron productos con estos filtros.
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {products.map((p) => {
+                    const q = qtyOf(p.id);
+                    return (
+                      <div
                         key={p.id}
-                        onClick={() => addLine(p)}
-                        className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm hover:bg-gray-50"
+                        className={`flex flex-col overflow-hidden rounded-xl border transition-all ${
+                          q > 0
+                            ? 'border-[#3E667D] ring-1 ring-[#3E667D]/30'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
                       >
-                        <span className="min-w-0">
-                          <span className="block truncate font-medium text-gray-900">
+                        <div className="relative h-28 bg-gray-50">
+                          <ProductThumb src={p.imageUrl} name={p.name} />
+                          {q > 0 && (
+                            <span className="absolute right-1.5 top-1.5 rounded-full bg-[#3E667D] px-1.5 text-[11px] font-bold text-white">
+                              {q}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-1 flex-col p-2.5">
+                          <p className="line-clamp-2 text-xs font-medium text-gray-900">
                             {p.name}
-                          </span>
-                          <span className="block text-xs text-gray-400">
-                            {p.code}
-                          </span>
-                        </span>
-                        <PlusIcon className="h-4 w-4 shrink-0 text-[#3E667D]" />
-                      </button>
-                    ))
-                  )}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-gray-400">{p.code}</p>
+                          <div className="mt-auto pt-2">
+                            {q > 0 ? (
+                              <div className="flex items-center justify-between rounded-lg border border-gray-200">
+                                <button
+                                  onClick={() => setQty(p.id, q - 1)}
+                                  className="p-1.5 text-gray-600 hover:bg-gray-100"
+                                  aria-label="Quitar uno"
+                                >
+                                  <MinusIcon className="h-4 w-4" />
+                                </button>
+                                <span className="text-sm font-semibold text-gray-900">
+                                  {q}
+                                </span>
+                                <button
+                                  onClick={() => setQty(p.id, q + 1)}
+                                  className="p-1.5 text-gray-600 hover:bg-gray-100"
+                                  aria-label="Agregar uno"
+                                >
+                                  <PlusIcon className="h-4 w-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full"
+                                onClick={() =>
+                                  addLine({ id: p.id, name: p.name, code: p.code })
+                                }
+                              >
+                                <PlusIcon className="h-4 w-4" />
+                                Agregar
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
-            </div>
+            </CardContent>
+          </Card>
 
-            {/* Renglones */}
-            {lines.length === 0 ? (
-              <div className="mt-4 rounded-xl border border-dashed border-gray-200 py-8 text-center text-sm text-gray-500">
-                Busca y agrega productos al carrito.
+          {/* Carrito a compartir */}
+          <Card className="lg:sticky lg:top-6 h-fit">
+            <CardContent className="p-4 lg:p-6">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-lg font-bold text-gray-900">Tu carrito</h2>
+                {totalUnits > 0 && (
+                  <span className="rounded-full bg-[#C8DDF2]/40 px-2.5 py-0.5 text-xs font-semibold text-[#3E667D]">
+                    {totalUnits} {totalUnits === 1 ? 'unidad' : 'unidades'}
+                  </span>
+                )}
               </div>
-            ) : (
-              <ul className="mt-4 divide-y divide-gray-100">
-                {lines.map((l) => (
-                  <li
-                    key={l.productId}
-                    className="flex items-center gap-3 py-3"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-gray-900">
-                        {l.name}
-                      </p>
-                      <p className="text-xs text-gray-400">{l.code}</p>
-                    </div>
-                    <input
-                      type="number"
-                      min={1}
-                      value={l.quantity}
-                      onChange={(e) =>
-                        setQty(l.productId, parseInt(e.target.value) || 1)
-                      }
-                      className="w-16 rounded-lg border border-gray-300 px-2 py-1 text-sm text-center focus:ring-2 focus:ring-[#a7c1e2]"
-                    />
-                    <button
-                      onClick={() => removeLine(l.productId)}
-                      className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-red-500"
-                      aria-label="Quitar"
-                    >
-                      <TrashIcon className="h-4 w-4" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
 
-            {/* Nota */}
-            <div className="mt-4">
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Mensaje para el cliente (opcional)
-              </label>
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                rows={2}
-                maxLength={500}
-                placeholder="Ej. Aquí está tu pedido, cualquier duda me avisas."
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-              />
-            </div>
+              {lines.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-gray-200 py-8 text-center text-sm text-gray-500">
+                  Agrega productos del catálogo para armar el carrito que vas a
+                  compartir.
+                </div>
+              ) : (
+                <ul className="divide-y divide-gray-100">
+                  {lines.map((l) => (
+                    <li key={l.productId} className="flex items-center gap-2 py-2.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-gray-900">
+                          {l.name}
+                        </p>
+                        <p className="text-[11px] text-gray-400">{l.code}</p>
+                      </div>
+                      <div className="flex items-center rounded-lg border border-gray-200">
+                        <button
+                          onClick={() => setQty(l.productId, l.quantity - 1)}
+                          className="p-1 text-gray-600 hover:bg-gray-100"
+                          aria-label="Quitar uno"
+                        >
+                          <MinusIcon className="h-3.5 w-3.5" />
+                        </button>
+                        <span className="w-7 text-center text-sm font-semibold text-gray-900">
+                          {l.quantity}
+                        </span>
+                        <button
+                          onClick={() => setQty(l.productId, l.quantity + 1)}
+                          className="p-1 text-gray-600 hover:bg-gray-100"
+                          aria-label="Agregar uno"
+                        >
+                          <PlusIcon className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => removeLine(l.productId)}
+                        className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-500"
+                        aria-label="Quitar"
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
 
-            <div className="mt-4">
+              {/* Nota */}
+              <div className="mt-4">
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Mensaje para el cliente (opcional)
+                </label>
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={2}
+                  maxLength={500}
+                  placeholder="Ej. Aquí está tu pedido, cualquier duda me avisas."
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
+                />
+              </div>
+
               <Button
                 onClick={handleCreate}
                 disabled={!lines.length || createMutation.isPending}
-                className="w-full sm:w-auto"
+                className="mt-4 w-full"
               >
                 {createMutation.isPending && (
                   <Loader2 className="mr-2 size-4 animate-spin" />
@@ -312,9 +432,12 @@ function CompartirCarritoContent() {
                 <LinkIcon className="h-4 w-4" />
                 Crear link para compartir
               </Button>
-            </div>
-          </CardContent>
-        </Card>
+              <p className="mt-2 text-center text-[11px] text-gray-400">
+                El cliente verá los precios al público y elegirá envío o sucursal.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Mis carritos compartidos */}
         <Card>
@@ -381,8 +504,7 @@ function CompartirCarritoContent() {
                               >
                                 <ClipboardDocumentIcon className="h-4 w-4" />
                               </button>
-                              {(c.status === 'open' ||
-                                c.status === 'ordered') && (
+                              {(c.status === 'open' || c.status === 'ordered') && (
                                 <button
                                   onClick={() =>
                                     cancelMutation.mutate(c.token, {
