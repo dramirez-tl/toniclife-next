@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSelector } from 'react-redux';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,23 @@ function RedContent() {
   const [isEnrollOpen, setIsEnrollOpen] = useState(false);
   const [isPreferredOpen, setIsPreferredOpen] = useState(false);
   const user = useSelector(selectUser);
+
+  // Deep-link: /distribuidor/red?alta=socio|preferente abre el panel directo
+  // (usado desde el dashboard para que el alta sea fácil de encontrar).
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const alta = searchParams.get('alta');
+    if (alta !== 'socio' && alta !== 'preferente') return;
+    if (alta === 'socio') setIsEnrollOpen(true);
+    else setIsPreferredOpen(true);
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    params.delete('alta');
+    router.replace(
+      `/distribuidor/red${params.toString() ? `?${params}` : ''}`,
+      { scroll: false },
+    );
+  }, [searchParams, router]);
 
   const { profile: distributorProfile } = useDistributorDashboard();
 
@@ -131,22 +149,6 @@ function RedContent() {
                 <ShareIcon className="h-4 w-4" />
                 Enlace de invitación
               </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setIsPreferredOpen(true)}
-              >
-                <UserPlusIcon className="h-4 w-4" />
-                Cliente preferente
-              </Button>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => setIsEnrollOpen(true)}
-              >
-                <UserPlusIcon className="h-4 w-4" />
-                Dar de alta miembro
-              </Button>
             </div>
           </div>
         </div>
@@ -154,6 +156,35 @@ function RedContent() {
 
       {/* Main Content */}
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
+        {/* Acciones rápidas: dar de alta (prominente, fácil de encontrar) */}
+        <Card className="mb-6 border-0 bg-gradient-to-br from-[#3E667D] to-[#0A4B94] text-white shadow-lg">
+          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-bold">Crece tu red</h2>
+              <p className="text-sm text-white/80">
+                Da de alta un nuevo socio o un cliente preferente en segundos.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => setIsEnrollOpen(true)}
+                className="bg-white text-[#3E667D] hover:bg-white/90 shadow-md shadow-black/10"
+              >
+                <UserPlusIcon className="h-4 w-4" />
+                Dar de alta socio
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setIsPreferredOpen(true)}
+                className="border-white/40 bg-white/10 text-white hover:bg-white/20"
+              >
+                <UserPlusIcon className="h-4 w-4" />
+                Cliente preferente
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <TreeListView />
 
         {/* Clientes preferentes */}

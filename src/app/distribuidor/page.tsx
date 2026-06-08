@@ -10,6 +10,7 @@ import {
   ArrowDownTrayIcon,
   ShareIcon,
   GiftIcon,
+  UserPlusIcon,
   AcademicCapIcon,
   ClipboardDocumentIcon,
   ChevronRightIcon,
@@ -565,6 +566,18 @@ export default function DistribuidorDashboard() {
                 <ChartBarIcon className="h-5 w-5 text-[#3E667D]" />
               </div>
               <span className="text-sm font-medium text-gray-700">Nueva venta</span>
+            </Link>
+            <Link href="/distribuidor/red?alta=socio" className={actionBox}>
+              <div className="w-10 h-10 rounded-full bg-[#3E667D]/10 flex items-center justify-center">
+                <UserPlusIcon className="h-5 w-5 text-[#3E667D]" />
+              </div>
+              <span className="text-sm font-medium text-gray-700">Dar de alta socio</span>
+            </Link>
+            <Link href="/distribuidor/red?alta=preferente" className={actionBox}>
+              <div className="w-10 h-10 rounded-full bg-[#abc9ba]/20 flex items-center justify-center">
+                <UserPlusIcon className="h-5 w-5 text-[#3E667D]" />
+              </div>
+              <span className="text-sm font-medium text-gray-700">Cliente preferente</span>
             </Link>
             <Link href="/distribuidor/red" className={actionBox}>
               <div className="w-10 h-10 rounded-full bg-[#3E667D]/10 flex items-center justify-center">
