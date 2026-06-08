@@ -18,6 +18,7 @@ import {
   usePriceSchedules,
   useCreatePriceSchedule,
   useCancelPriceSchedule,
+  useProductPrices,
 } from '@/hooks/useProducts';
 import { useActiveCountries, useActivePriceTypes } from '@/hooks/useConfig';
 import type { ProductPriceSchedule } from '@/types/product';
@@ -64,6 +65,7 @@ export function PriceSchedulesPanel({ productId }: PriceSchedulesPanelProps) {
   const { data: schedules = [], isLoading } = usePriceSchedules(productId);
   const { data: countries = [] } = useActiveCountries();
   const { data: priceTypes = [] } = useActivePriceTypes();
+  const { data: prices = [] } = useProductPrices(productId);
   const createSchedule = useCreatePriceSchedule();
   const cancelSchedule = useCancelPriceSchedule();
 
@@ -73,6 +75,25 @@ export function PriceSchedulesPanel({ productId }: PriceSchedulesPanelProps) {
 
   const setField = (k: keyof typeof form, v: string) =>
     setForm((prev) => ({ ...prev, [k]: v }));
+
+  // Precio actual de la combinación elegida (referencia dentro del modal)
+  const currentPrice = prices.find(
+    (p) =>
+      p.countryId === form.countryId &&
+      p.priceTypeId === form.priceTypeId &&
+      p.isActive !== false,
+  );
+
+  const useCurrentValues = () => {
+    if (!currentPrice) return;
+    setForm((prev) => ({
+      ...prev,
+      price: currentPrice.price ?? '',
+      cost: currentPrice.cost ?? '',
+      points: currentPrice.points ?? '',
+      businessValue: currentPrice.businessValue ?? '',
+    }));
+  };
 
   const openModal = () => {
     setForm({ ...emptyForm, applyOn: '' });
@@ -292,6 +313,44 @@ export function PriceSchedulesPanel({ productId }: PriceSchedulesPanelProps) {
                   </select>
                 </div>
               </div>
+
+              {/* Referencia: precio actual de la combinación elegida */}
+              {form.countryId && form.priceTypeId && (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm">
+                  {currentPrice ? (
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-gray-600">
+                        <span className="font-medium text-gray-700">Precio actual:</span>{' '}
+                        <span className="font-semibold text-gray-900">
+                          {money(currentPrice.price, currentPrice.currencyCode)}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {currentPrice.cost && Number(currentPrice.cost) > 0
+                            ? ` · Costo ${money(currentPrice.cost)}`
+                            : ''}
+                          {currentPrice.points && Number(currentPrice.points) > 0
+                            ? ` · Puntos ${Number(currentPrice.points).toLocaleString('es-MX')}`
+                            : ''}
+                          {currentPrice.businessValue && Number(currentPrice.businessValue) > 0
+                            ? ` · VN ${Number(currentPrice.businessValue).toLocaleString('es-MX')}`
+                            : ''}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={useCurrentValues}
+                        className="shrink-0 text-xs font-medium text-[#3E667D] hover:underline"
+                      >
+                        Usar actuales
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-gray-500">
+                      Sin precio configurado para esta combinación todavía.
+                    </span>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Fecha de aplicación</label>
