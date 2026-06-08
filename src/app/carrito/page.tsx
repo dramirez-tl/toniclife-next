@@ -14,6 +14,9 @@ import {
   TruckIcon,
   ShieldCheckIcon,
   ArrowLeftIcon,
+  ArrowPathIcon,
+  CreditCardIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 import {
   useCart,
@@ -328,16 +331,19 @@ export default function CartPage() {
                       </span>
                     </div>
 
-                    <div className="flex justify-between text-lg font-bold text-[#3E667D] pt-3 border-t border-gray-200">
-                      <span>Total</span>
-                      <span>{cartService.formatCurrency(total)}</span>
+                    <div className="flex items-baseline justify-between pt-3 border-t border-gray-200">
+                      <span className="text-base font-bold text-gray-900">Total</span>
+                      <span className="text-2xl font-bold text-[#3E667D]">
+                        {cartService.formatCurrency(total)}
+                      </span>
                     </div>
 
                     {/* Points */}
                     {cart.totalPoints > 0 && (
-                      <p className="text-sm text-[#3E667D] text-center pt-2">
-                        +{cart.totalPoints} puntos por esta compra
-                      </p>
+                      <div className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-[#C8DDF2]/30 py-2 text-sm font-medium text-[#3E667D]">
+                        <SparklesIcon className="h-4 w-4" />
+                        Ganas +{cart.totalPoints} puntos con esta compra
+                      </div>
                     )}
                   </div>
 
@@ -351,39 +357,31 @@ export default function CartPage() {
                     Pago protegido y cifrado
                   </p>
 
-                  {/* Trust Badges */}
-                  <div className="mt-6 pt-6 border-t border-gray-100">
-                    <div className="flex items-center gap-2 text-gray-500 text-sm mb-3">
+                  {/* Confianza */}
+                  <div className="mt-6 space-y-2.5 border-t border-gray-100 pt-6 text-sm text-gray-500">
+                    <div className="flex items-center gap-2">
                       <ShieldCheckIcon className="h-5 w-5 text-[#3E667D]" />
-                      <span>Compra 100% segura</span>
+                      <span>Compra 100% segura y cifrada</span>
                     </div>
-                    <div className="flex items-center gap-2 text-gray-500 text-sm mb-3">
+                    <div className="flex items-center gap-2">
                       <TruckIcon className="h-5 w-5 text-[#3E667D]" />
-                      <span>Envíos a todo México</span>
+                      <span>Envío a domicilio o recoge en sucursal</span>
                     </div>
-                    <div className="flex items-center gap-2 text-gray-500 text-sm">
-                      <svg className="h-5 w-5 text-[#3E667D]" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                      </svg>
+                    <div className="flex items-center gap-2">
+                      <ArrowPathIcon className="h-5 w-5 text-[#3E667D]" />
                       <span>30 días de garantía</span>
                     </div>
                   </div>
 
-                  {/* Payment Methods */}
-                  <div className="mt-6 pt-6 border-t border-gray-100">
-                    <p className="text-xs text-gray-400 mb-3 text-center">
-                      Métodos de pago aceptados
-                    </p>
-                    <div className="flex items-center justify-center gap-3">
-                      {['Visa', 'MC', 'Amex', 'PayPal', 'MP'].map((method) => (
-                        <div
-                          key={method}
-                          className="w-12 h-8 bg-gray-100 rounded flex items-center justify-center text-[10px] font-bold text-gray-500"
-                        >
-                          {method}
-                        </div>
-                      ))}
+                  {/* Métodos de pago */}
+                  <div className="mt-6 border-t border-gray-100 pt-6">
+                    <div className="flex items-center justify-center gap-2 text-xs font-medium text-gray-500">
+                      <CreditCardIcon className="h-4 w-4 text-[#3E667D]" />
+                      <span>Visa · Mastercard · American Express</span>
                     </div>
+                    <p className="mt-1.5 text-center text-[11px] text-gray-400">
+                      Pago procesado de forma segura por Stripe
+                    </p>
                   </div>
                 </Card>
               </div>
