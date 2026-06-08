@@ -16,16 +16,14 @@ import {
   useCustomerCommissions,
   useCurrentPeriod,
   useCommissionPeriods,
-  useCommissionProjection,
   useCommissionTrends,
   useCommissionStructure,
   useCommissionLevelBreakdown,
-  useRequestPayment,
-  useDownloadStatement,
 } from '@/hooks/useCommissions';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
-import { Commission, CommissionType, CommissionStatus } from '@/types/commissions';
+import { CommissionType, CommissionStatus } from '@/types/commissions';
+import { generateCommissionStatementPdf } from '@/lib/generate-commission-statement-pdf';
 import {
   CurrencyDollarIcon,
   ArrowDownTrayIcon,
@@ -91,7 +89,6 @@ function ComisionesContent() {
     },
     !!user?.customerId && !!selectedPeriodId,
   );
-  const { data: projection } = useCommissionProjection();
   const { data: trends } = useCommissionTrends(user?.customerId || '', 6);
   const { data: commissionStructure } = useCommissionStructure(
     user?.customerId || '',
@@ -104,35 +101,28 @@ function ComisionesContent() {
     !!user?.customerId && !!selectedPeriodId,
   );
 
-  const requestPaymentMutation = useRequestPayment();
-  const downloadStatementMutation = useDownloadStatement();
-
-  const handleDownloadStatement = async () => {
-    try {
-      await downloadStatementMutation.mutateAsync(selectedPeriodId);
-      toast.success('Estado de cuenta descargado');
-    } catch {
-      toast.error('Error al descargar el estado de cuenta');
-    }
-  };
-
-  const handleRequestPayment = async () => {
-    if (!commissionsData) return;
-
-    const pendingIds = commissionsData.data
-      .filter((c: Commission) => c.status === 'approved' || c.status === 'calculated')
-      .map((c: Commission) => c.id);
-
-    if (pendingIds.length === 0) {
-      toast.info('No hay comisiones pendientes de pago');
+  // Estado de cuenta: PDF generado 100% del lado del cliente desde los datos
+  // del periodo ya cargados (no requiere endpoint de backend).
+  const handleDownloadStatement = () => {
+    if (!commissionsData?.summary) {
+      toast.error('No hay datos de comisiones para este periodo');
       return;
     }
-
     try {
-      const result = await requestPaymentMutation.mutateAsync(pendingIds);
-      toast.success(result.message);
+      generateCommissionStatementPdf({
+        distributorName:
+          [user?.firstName, user?.lastName].filter(Boolean).join(' ') ||
+          'Distribuidor',
+        distributorCode: null,
+        periodName: currentPeriod?.name || 'Periodo',
+        currencyCode,
+        summary: commissionsData.summary,
+        commissions: commissionsData.data || [],
+        generatedAt: new Date(),
+      });
+      toast.success('Estado de cuenta descargado');
     } catch {
-      toast.error('Error al solicitar el pago');
+      toast.error('No se pudo generar el estado de cuenta');
     }
   };
 
@@ -155,6 +145,13 @@ function ComisionesContent() {
   });
   const currentPeriod = periodsArray.find((p: any) => p.id === selectedPeriodId);
   const hasActiveFilters = filterType !== 'all' || filterStatus !== 'all';
+
+  // Porcentajes reales por nivel (panel "Consejo Pro"), no hardcodeados.
+  const fmtPct = (v?: string) => `${Math.round(parseFloat(v || '0') * 100)}%`;
+  const topLevels = [...(commissionStructure?.levels ?? [])]
+    .sort((a, b) => (a.levelNumber ?? 0) - (b.levelNumber ?? 0))
+    .slice(0, 3);
+  const level1 = topLevels.find((l) => l.levelNumber === 1);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
@@ -219,18 +216,18 @@ function ComisionesContent() {
               )}
             </div>
 
-            {/* Actions - Temporalmente deshabilitadas */}
+            {/* Acción: descargar estado de cuenta (PDF, client-side) */}
             <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2" title="Disponible pronto">
-                <ArrowDownTrayIcon className="h-4 w-4 text-white/30" />
-                <span className="text-sm text-white/30 cursor-not-allowed">Estado de cuenta</span>
-              </div>
-              <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2" title="Disponible pronto">
-                <span className="text-sm text-white/30 cursor-not-allowed">Solicitar Pago</span>
-              </div>
-              <p className="text-[11px] text-white/40 max-w-[200px] leading-tight">
-                Estas opciones se habilitarán en breve.
-              </p>
+              <Button
+                variant="secondary"
+                onClick={handleDownloadStatement}
+                disabled={!commissionsData?.summary || isLoadingCommissions}
+                className="bg-white text-[#3E667D] hover:bg-white/90 shadow-lg shadow-black/10 disabled:opacity-60"
+                title="Descargar tu estado de cuenta del periodo en PDF"
+              >
+                <ArrowDownTrayIcon className="h-4 w-4" />
+                Estado de cuenta
+              </Button>
             </div>
           </div>
         </div>
@@ -531,29 +528,44 @@ function ComisionesContent() {
                     </div>
                   </div>
 
-                  {/* Stats highlight */}
+                  {/* Stats highlight — porcentajes reales por nivel */}
                   <div className="lg:w-72">
                     <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                      <p className="text-white/70 text-sm uppercase tracking-wide mb-4">Porcentajes de comisión</p>
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-white/80">Nivel 1 (directos)</span>
-                          <span className="font-bold">15%</span>
+                      <p className="text-white/70 text-sm uppercase tracking-wide mb-4">Tus porcentajes de comisión</p>
+                      {topLevels.length > 0 ? (
+                        <div className="space-y-4">
+                          {topLevels.map((lvl) => (
+                            <div key={lvl.levelNumber} className="flex items-center justify-between">
+                              <span className="text-white/80">
+                                Nivel {lvl.levelNumber}
+                                {lvl.levelNumber === 1 ? ' (directos)' : ''}
+                              </span>
+                              <span className="font-bold">{fmtPct(lvl.basePercentage)}</span>
+                            </div>
+                          ))}
+                          {level1?.upgradedPercentage &&
+                            parseFloat(level1.upgradedPercentage) >
+                              parseFloat(level1.basePercentage) && (
+                              <div className="flex items-center justify-between">
+                                <span className="text-white/80">
+                                  Nivel 1 con {level1.qualifiersRequired ?? 5}+ calificados
+                                </span>
+                                <span className="font-bold text-yellow-300">
+                                  {fmtPct(level1.upgradedPercentage)}
+                                </span>
+                              </div>
+                            )}
+                          <div className="pt-4 border-t border-white/20">
+                            <p className="text-xs text-white/60">
+                              Más comisiones por generación según tu rango. Tus directos cuentan al tener ≥3,300 puntos.
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-white/80">Nivel 1 con 5+ calificados</span>
-                          <span className="font-bold text-yellow-300">20%</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-white/80">Niveles 2 y 3</span>
-                          <span className="font-bold">5%</span>
-                        </div>
-                        <div className="pt-4 border-t border-white/20">
-                          <p className="text-xs text-white/60">
-                            Más comisiones por generación según tu rango. Tus directos cuentan al tener ≥3,300 puntos.
-                          </p>
-                        </div>
-                      </div>
+                      ) : (
+                        <p className="text-sm text-white/70">
+                          Consulta la tabla de porcentajes por nivel más abajo.
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
