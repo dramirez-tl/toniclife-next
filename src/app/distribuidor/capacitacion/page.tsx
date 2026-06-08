@@ -9,15 +9,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import {
   AcademicCapIcon,
   PlayIcon,
-  CheckCircleIcon,
   ClockIcon,
   TrophyIcon,
-  BookOpenIcon,
   VideoCameraIcon,
-  PhotoIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
-import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { useMyCourses } from '@/hooks/useCourses';

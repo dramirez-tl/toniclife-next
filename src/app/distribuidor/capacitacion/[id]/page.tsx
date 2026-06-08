@@ -149,6 +149,11 @@ function CourseDetailContent({ courseId }: { courseId: string }) {
     return <AccessDenied courseTitle={course.title} reason={access?.reason} />;
   }
 
+  const completedCount = progressList.filter((p) => p.completed).length;
+  const coursePct = lessons.length
+    ? (completedCount / lessons.length) * 100
+    : 0;
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
       {/* Header */}
@@ -240,9 +245,22 @@ function CourseDetailContent({ courseId }: { courseId: string }) {
               <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
                 <h3 className="text-sm font-semibold text-gray-900">Contenido del curso</h3>
                 <p className="text-[11px] text-gray-500 mt-0.5">
-                  {lessons.length} lecciones ·{' '}
-                  {progressList.filter((p) => p.completed).length} completadas
+                  {lessons.length} lecciones · {completedCount} completadas
                 </p>
+                {lessons.length > 0 && (
+                  <div className="mt-2">
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
+                      <div
+                        className="h-full rounded-full bg-emerald-500 transition-all"
+                        style={{ width: `${coursePct}%` }}
+                      />
+                    </div>
+                    <p className="mt-1 text-[11px] font-medium text-gray-500">
+                      {Math.round(coursePct)}% completado
+                      {coursePct >= 100 ? ' · ¡Curso terminado!' : ''}
+                    </p>
+                  </div>
+                )}
               </div>
               {loadingLessons ? (
                 <div className="p-4 text-sm text-gray-500">Cargando...</div>
