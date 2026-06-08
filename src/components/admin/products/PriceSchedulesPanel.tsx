@@ -318,31 +318,50 @@ export function PriceSchedulesPanel({ productId }: PriceSchedulesPanelProps) {
               {form.countryId && form.priceTypeId && (
                 <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm">
                   {currentPrice ? (
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="text-gray-600">
-                        <span className="font-medium text-gray-700">Precio actual:</span>{' '}
-                        <span className="font-semibold text-gray-900">
-                          {money(currentPrice.price, currentPrice.currencyCode)}
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                          Valores actuales
                         </span>
-                        <span className="text-xs text-gray-500">
-                          {currentPrice.cost && Number(currentPrice.cost) > 0
-                            ? ` · Costo ${money(currentPrice.cost)}`
-                            : ''}
-                          {currentPrice.points && Number(currentPrice.points) > 0
-                            ? ` · Puntos ${Number(currentPrice.points).toLocaleString('es-MX')}`
-                            : ''}
-                          {currentPrice.businessValue && Number(currentPrice.businessValue) > 0
-                            ? ` · VN ${Number(currentPrice.businessValue).toLocaleString('es-MX')}`
-                            : ''}
-                        </span>
+                        <button
+                          type="button"
+                          onClick={useCurrentValues}
+                          className="shrink-0 text-xs font-medium text-[#3E667D] hover:underline"
+                        >
+                          Usar actuales
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={useCurrentValues}
-                        className="shrink-0 text-xs font-medium text-[#3E667D] hover:underline"
-                      >
-                        Usar actuales
-                      </button>
+                      <div className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
+                        {[
+                          {
+                            label: `Precio (${currentPrice.currencyCode})`,
+                            value: money(currentPrice.price),
+                          },
+                          {
+                            label: 'Costo',
+                            value: currentPrice.cost != null && currentPrice.cost !== ''
+                              ? money(currentPrice.cost)
+                              : '—',
+                          },
+                          {
+                            label: 'Puntos',
+                            value: currentPrice.points != null && currentPrice.points !== ''
+                              ? Number(currentPrice.points).toLocaleString('es-MX')
+                              : '—',
+                          },
+                          {
+                            label: 'Valor de negocio',
+                            value: currentPrice.businessValue != null && currentPrice.businessValue !== ''
+                              ? Number(currentPrice.businessValue).toLocaleString('es-MX')
+                              : '—',
+                          },
+                        ].map((f) => (
+                          <div key={f.label}>
+                            <p className="text-[11px] leading-tight text-gray-500">{f.label}</p>
+                            <p className="text-sm font-semibold text-gray-900">{f.value}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ) : (
                     <span className="text-gray-500">
