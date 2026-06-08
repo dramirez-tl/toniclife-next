@@ -16,7 +16,6 @@ import {
   FunnelIcon,
   EyeIcon,
   LightBulbIcon,
-  CheckIcon,
 } from '@heroicons/react/24/outline';
 import { PlayIcon } from '@heroicons/react/24/solid';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -380,41 +379,6 @@ function MaterialesContent() {
             })}
           </div>
         )}
-
-        {/* Help Section */}
-        <Card className="mt-8 border-0 bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white shadow-lg">
-          <CardContent className="p-8">
-            <div className="grid md:grid-cols-2 gap-8">
-              <div>
-                <h3 className="text-2xl font-bold mb-4">¿Necesitas Material Personalizado?</h3>
-                <p className="text-white/85 mb-4">
-                  Si necesitas materiales con tu información personalizada (nombre, contacto, QR), contáctanos.
-                </p>
-                <ul className="space-y-2 text-sm text-white/90">
-                  <li className="flex items-center gap-2">
-                    <CheckIcon className="h-4 w-4 shrink-0 text-[#C8DDF2]" />
-                    Tarjetas de presentación personalizadas
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckIcon className="h-4 w-4 shrink-0 text-[#C8DDF2]" />
-                    Catálogos con tu enlace de referido
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckIcon className="h-4 w-4 shrink-0 text-[#C8DDF2]" />
-                    Material para eventos especiales
-                  </li>
-                </ul>
-              </div>
-              <div className="flex items-center justify-center">
-                <Link href="/contacto">
-                  <Button variant="secondary" size="lg">
-                    Solicitar Material Personalizado
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Tips */}
         <Card className="mt-6">
