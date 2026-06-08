@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useAnalytics } from '@/hooks/useReports';
 import { PermissionGuard } from '@/components/auth';
+import { exportToCsv, csvDateStamp } from '@/lib/csv-export';
 
 // Helper to calculate date range based on selection
 function getDateRange(rangeKey: string): { startDate: string; endDate: string; months: number } {
@@ -77,7 +78,7 @@ export default function ReportesPage() {
   const dateParams = useMemo(() => getDateRange(dateRange), [dateRange]);
 
   // Fetch analytics data
-  const { data: analyticsData, isLoading } = useAnalytics({
+  const { data: analyticsData, isLoading, isError, refetch } = useAnalytics({
     startDate: dateParams.startDate,
     endDate: dateParams.endDate,
     months: dateParams.months,
@@ -101,7 +102,48 @@ export default function ReportesPage() {
   const averageOrderValue = kpis?.averageOrderValue || 0;
 
   const handleExportReport = (reportType: string) => {
-    toast.success(`Exportando reporte de ${reportType}...`);
+    const stamp = csvDateStamp();
+    const empty = () => toast.error('No hay datos para exportar');
+    switch (reportType) {
+      case 'productos':
+      case 'productos-top': {
+        if (topProducts.length === 0) return empty();
+        exportToCsv(
+          `top_productos_${stamp}.csv`,
+          ['Producto', 'Vendidos', 'Ingresos', 'Crecimiento %'],
+          topProducts.map((p) => [p.name, p.sales, p.revenue, p.growth]),
+        );
+        break;
+      }
+      case 'distribuidores-top': {
+        if (topDistributors.length === 0) return empty();
+        exportToCsv(
+          `top_distribuidores_${stamp}.csv`,
+          ['Distribuidor', 'Ventas', 'Miembros', 'Comisión'],
+          topDistributors.map((d) => [d.name, d.sales, d.teamSize, d.commission]),
+        );
+        break;
+      }
+      case 'categorias': {
+        if (categoryPerformance.length === 0) return empty();
+        exportToCsv(
+          `categorias_${stamp}.csv`,
+          ['Categoría', 'Ventas', '% del total', 'Crecimiento %'],
+          categoryPerformance.map((c) => [c.category, c.sales, c.percentage, c.growth]),
+        );
+        break;
+      }
+      default: {
+        // 'completo' / 'ventas' → tendencia de ventas
+        if (salesTrend.length === 0) return empty();
+        exportToCsv(
+          `tendencia_ventas_${stamp}.csv`,
+          ['Mes', 'Año', 'Ventas', 'Pedidos', 'Clientes'],
+          salesTrend.map((d) => [d.month, d.year, d.sales, d.orders, d.customers]),
+        );
+      }
+    }
+    toast.success('CSV descargado');
   };
 
   const formatCurrency = (amount: number) => {
@@ -181,7 +223,6 @@ export default function ReportesPage() {
                     { value: 'last-6-months', label: 'Últimos 6 meses' },
                     { value: 'last-7-months', label: 'Últimos 7 meses' },
                     { value: 'this-year', label: 'Este año' },
-                    { value: 'custom', label: 'Personalizado' },
                   ]}
                   value={dateRange}
                   onChange={setDateRange}
@@ -199,6 +240,20 @@ export default function ReportesPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Error state */}
+        {isError && (
+          <Card className="mb-6 border-red-100">
+            <CardContent className="p-6 text-center">
+              <ChartBarIcon className="h-10 w-10 text-red-300 mx-auto mb-2" />
+              <p className="text-gray-700 font-medium mb-1">No pudimos cargar el análisis</p>
+              <p className="text-sm text-gray-500 mb-4">Intenta nuevamente.</p>
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                Reintentar
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Key Metrics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
