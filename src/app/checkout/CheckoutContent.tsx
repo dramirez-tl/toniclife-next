@@ -14,7 +14,9 @@ import {
   DocumentTextIcon,
   UserIcon,
   BuildingStorefrontIcon,
+  BuildingLibraryIcon,
   MapPinIcon,
+  LockClosedIcon,
 } from '@heroicons/react/24/outline';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -172,6 +174,20 @@ export default function CheckoutContent() {
     }
   }, [storedReferralCode, referralCode]);
 
+  // Pre-llenar datos de contacto del usuario autenticado (no los reescribe).
+  useEffect(() => {
+    if (!currentUser) return;
+    const fullName = [currentUser.firstName, currentUser.lastName]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    setCustomerInfo((prev) => ({
+      email: prev.email || currentUser.email || '',
+      name: prev.name || fullName,
+      phone: prev.phone || currentUser.phone || '',
+    }));
+  }, [currentUser]);
+
   // Check if cart is empty
   useEffect(() => {
     if (!cartLoading && (!cart || cart.items.length === 0)) {
@@ -316,6 +332,47 @@ export default function CheckoutContent() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3E667D]"></div>
+      </div>
+    );
+  }
+
+  // El checkout requiere sesión (el pago se procesa sobre la cuenta).
+  // Gate amable en vez de dejar fallar el envío del pedido.
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-8 text-center">
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-[#C8DDF2]/40">
+              <LockClosedIcon className="h-8 w-8 text-[#3E667D]" />
+            </div>
+            <h1 className="text-xl font-bold text-gray-900">
+              Inicia sesión para finalizar tu compra
+            </h1>
+            <p className="mt-2 text-sm text-gray-500">
+              Para completar tu pedido y pagar de forma segura necesitas tu
+              cuenta. Tu carrito se conserva.
+            </p>
+            <div className="mt-6 space-y-3">
+              <Link href="/login?redirect=/checkout" className="block">
+                <Button size="lg" className="w-full">
+                  Iniciar sesión
+                </Button>
+              </Link>
+              <Link href="/registro?redirect=/checkout" className="block">
+                <Button variant="outline" size="lg" className="w-full">
+                  Crear cuenta
+                </Button>
+              </Link>
+              <Link
+                href="/carrito"
+                className="inline-block pt-1 text-sm text-gray-500 transition-colors hover:text-[#3E667D]"
+              >
+                Volver al carrito
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -741,13 +798,13 @@ export default function CheckoutContent() {
                         {
                           value: PaymentMethod.STRIPE,
                           label: 'Tarjeta de Crédito/Débito',
-                          icon: '💳',
+                          Icon: CreditCardIcon,
                           desc: 'Pago en línea seguro vía Stripe',
                         },
                         {
                           value: PaymentMethod.TRANSFER,
                           label: 'Transferencia bancaria',
-                          icon: '🏦',
+                          Icon: BuildingLibraryIcon,
                           desc: 'Tu pedido queda pendiente hasta confirmar el pago',
                         },
                       ].map((method) => (
@@ -769,7 +826,7 @@ export default function CheckoutContent() {
                             }
                             className="w-4 h-4 text-[#3E667D] focus:ring-[#a7c1e2]"
                           />
-                          <span className="text-xl">{method.icon}</span>
+                          <method.Icon className="h-6 w-6 text-[#3E667D]" />
                           <div>
                             <p className="font-medium text-gray-900">{method.label}</p>
                             <p className="text-xs text-gray-500">{method.desc}</p>
@@ -912,7 +969,7 @@ export default function CheckoutContent() {
             {currentStep === 'confirmation' && orderResult && (
               <Card>
                 <CardContent className="p-8 text-center">
-                  <div className="w-20 h-20 bg-[#C8DDF2] rounded-full flex items-center justify-center mx-auto mb-6">
+                  <div className="w-20 h-20 bg-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
                     <CheckCircleIcon className="h-12 w-12 text-white" />
                   </div>
 
@@ -965,15 +1022,14 @@ export default function CheckoutContent() {
                     </div>
                   </div>
 
-                  {/* Payment pending notice for online payment methods */}
+                  {/* Pago en línea: redirección a la pasarela segura (Stripe) */}
                   {(selectedPaymentMethod === PaymentMethod.STRIPE ||
                     selectedPaymentMethod === PaymentMethod.PAYPAL ||
                     selectedPaymentMethod === PaymentMethod.MERCADOPAGO) && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
-                      <p className="text-sm text-amber-800">
-                        <strong>Pago pendiente</strong><br />
-                        Tu pedido ha sido registrado. Recibirás un correo con las instrucciones
-                        para completar el pago. Una vez confirmado el pago, procesaremos tu envío.
+                    <div className="bg-[#C8DDF2]/20 border border-[#a7c1e2]/40 rounded-lg p-4 mb-4 flex items-center justify-center gap-2 text-[#3E667D]">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <p className="text-sm font-medium">
+                        Te llevamos a la pasarela de pago segura para completar tu compra…
                       </p>
                     </div>
                   )}
