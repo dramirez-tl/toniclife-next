@@ -60,6 +60,15 @@ export const inventoryKeys = {
     [...inventoryKeys.adjustments(), 'detail', id] as const,
   branchPosLock: (branchId: string) =>
     [...inventoryKeys.all, 'branch-pos-lock', branchId] as const,
+  // Stats
+  branchStockStats: (branchId: string, query?: BranchStockQueryDto) =>
+    [...inventoryKeys.stock(), 'stats', branchId, query] as const,
+  movementStats: (query?: MovementQueryDto) =>
+    [...inventoryKeys.movements(), 'stats', query] as const,
+  transferStats: (query?: TransferQueryDto) =>
+    [...inventoryKeys.transfers(), 'stats', query] as const,
+  adjustmentStats: (query?: AdjustmentQueryDto) =>
+    [...inventoryKeys.adjustments(), 'stats', query] as const,
 };
 
 // ================================
@@ -461,5 +470,90 @@ export function useCancelAdjustment() {
       });
       queryClient.invalidateQueries({ queryKey: inventoryKeys.adjustments() });
     },
+  });
+}
+
+// ================================
+// STATS QUERIES (conteo por estado en 1 llamada agregada)
+// ================================
+
+export function useBranchStockStats(
+  branchId: string | null,
+  query: BranchStockQueryDto = {},
+) {
+  return useQuery({
+    queryKey: inventoryKeys.branchStockStats(branchId || '', query),
+    queryFn: () => inventoryService.getBranchStockStats(branchId!, query),
+    enabled: !!branchId,
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useMovementStats(query: MovementQueryDto = {}, enabled = true) {
+  return useQuery({
+    queryKey: inventoryKeys.movementStats(query),
+    queryFn: () => inventoryService.getMovementStats(query),
+    enabled,
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useTransferStats(query: TransferQueryDto = {}) {
+  return useQuery({
+    queryKey: inventoryKeys.transferStats(query),
+    queryFn: () => inventoryService.getTransferStats(query),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useAdjustmentStats(query: AdjustmentQueryDto = {}) {
+  return useQuery({
+    queryKey: inventoryKeys.adjustmentStats(query),
+    queryFn: () => inventoryService.getAdjustmentStats(query),
+    staleTime: 30 * 1000,
+  });
+}
+
+// ================================
+// EXPORT MUTATIONS (descarga CSV)
+// ================================
+
+export function useExportBranchStock() {
+  return useMutation({
+    mutationFn: ({
+      branchId,
+      query,
+      filename,
+    }: {
+      branchId: string;
+      query?: BranchStockQueryDto;
+      filename?: string;
+    }) => inventoryService.exportBranchStock(branchId, query, filename),
+  });
+}
+
+export function useExportMovements() {
+  return useMutation({
+    mutationFn: ({
+      query,
+      filename,
+    }: {
+      query?: MovementQueryDto;
+      filename?: string;
+    } = {}) => inventoryService.exportMovements(query, filename),
+  });
+}
+
+export function useExportTransfers() {
+  return useMutation({
+    mutationFn: (query: TransferQueryDto = {}) =>
+      inventoryService.exportTransfers(query),
+  });
+}
+
+export function useExportAdjustments() {
+  return useMutation({
+    mutationFn: (query: AdjustmentQueryDto = {}) =>
+      inventoryService.exportAdjustments(query),
   });
 }

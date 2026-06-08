@@ -39,7 +39,22 @@ import type {
   MovementQueryDto,
   CreateMovementDto,
   ProductLotDto,
+  InventoryStats,
+  BranchStockStats,
 } from '@/types/inventory';
+
+/** Triggers a browser download for a CSV blob. */
+function downloadCsv(data: BlobPart, filename: string): void {
+  const blob = new Blob([data], { type: 'text/csv;charset=utf-8;' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
 
 class InventoryService {
   // ================================
@@ -308,6 +323,133 @@ class InventoryService {
   async getInventorySummary(): Promise<any> {
     const response = await api.get('/inventory');
     return response.data;
+  }
+
+  // ================================
+  // STATS & EXPORT
+  // ================================
+
+  async getBranchStockStats(
+    branchId: string,
+    query: BranchStockQueryDto = {},
+  ): Promise<BranchStockStats> {
+    const params = new URLSearchParams();
+    if (query.search) params.append('search', query.search);
+    if (query.code) params.append('code', query.code);
+    if (query.categoryId) params.append('categoryId', query.categoryId);
+    const response = await api.get<BranchStockStats>(
+      `/inventory/branches/${branchId}/stats?${params.toString()}`,
+    );
+    return response.data;
+  }
+
+  async exportBranchStock(
+    branchId: string,
+    query: BranchStockQueryDto = {},
+    filename = `inventario-${new Date().toISOString().slice(0, 10)}.csv`,
+  ): Promise<void> {
+    const params = new URLSearchParams();
+    if (query.search) params.append('search', query.search);
+    if (query.code) params.append('code', query.code);
+    if (query.categoryId) params.append('categoryId', query.categoryId);
+    if (query.lowStock !== undefined) params.append('lowStock', String(query.lowStock));
+    if (query.outOfStock !== undefined) params.append('outOfStock', String(query.outOfStock));
+    const response = await api.get(
+      `/inventory/branches/${branchId}/export?${params.toString()}`,
+      { responseType: 'blob' },
+    );
+    downloadCsv(response.data, filename);
+  }
+
+  async getMovementStats(query: MovementQueryDto = {}): Promise<InventoryStats> {
+    const params = new URLSearchParams();
+    if (query.branchId) params.append('branchId', query.branchId);
+    if (query.movementType) params.append('movementType', query.movementType);
+    if (query.movementCategory) params.append('movementCategory', query.movementCategory);
+    if (query.search) params.append('search', query.search);
+    if (query.fromDate) params.append('fromDate', query.fromDate);
+    if (query.toDate) params.append('toDate', query.toDate);
+    const response = await api.get<InventoryStats>(
+      `/inventory/movements/stats?${params.toString()}`,
+    );
+    return response.data;
+  }
+
+  async exportMovements(
+    query: MovementQueryDto = {},
+    filename?: string,
+  ): Promise<void> {
+    const params = new URLSearchParams();
+    if (query.branchId) params.append('branchId', query.branchId);
+    if (query.movementType) params.append('movementType', query.movementType);
+    if (query.movementCategory) params.append('movementCategory', query.movementCategory);
+    if (query.status) params.append('status', query.status);
+    if (query.search) params.append('search', query.search);
+    if (query.fromDate) params.append('fromDate', query.fromDate);
+    if (query.toDate) params.append('toDate', query.toDate);
+    const response = await api.get(
+      `/inventory/movements/export?${params.toString()}`,
+      { responseType: 'blob' },
+    );
+    const kind = query.movementType === MovementType.EXIT ? 'salidas' : 'entradas';
+    downloadCsv(
+      response.data,
+      filename || `${kind}-${new Date().toISOString().slice(0, 10)}.csv`,
+    );
+  }
+
+  async getTransferStats(query: TransferQueryDto = {}): Promise<InventoryStats> {
+    const params = new URLSearchParams();
+    if (query.sourceBranchId) params.append('sourceBranchId', query.sourceBranchId);
+    if (query.destinationBranchId) params.append('destinationBranchId', query.destinationBranchId);
+    if (query.fromDate) params.append('fromDate', query.fromDate);
+    if (query.toDate) params.append('toDate', query.toDate);
+    if (query.search) params.append('search', query.search);
+    const response = await api.get<InventoryStats>(
+      `/inventory/transfers/stats?${params.toString()}`,
+    );
+    return response.data;
+  }
+
+  async exportTransfers(query: TransferQueryDto = {}): Promise<void> {
+    const params = new URLSearchParams();
+    if (query.sourceBranchId) params.append('sourceBranchId', query.sourceBranchId);
+    if (query.destinationBranchId) params.append('destinationBranchId', query.destinationBranchId);
+    if (query.status) params.append('status', query.status);
+    if (query.fromDate) params.append('fromDate', query.fromDate);
+    if (query.toDate) params.append('toDate', query.toDate);
+    if (query.search) params.append('search', query.search);
+    const response = await api.get(
+      `/inventory/transfers/export?${params.toString()}`,
+      { responseType: 'blob' },
+    );
+    downloadCsv(response.data, `traspasos-${new Date().toISOString().slice(0, 10)}.csv`);
+  }
+
+  async getAdjustmentStats(query: AdjustmentQueryDto = {}): Promise<InventoryStats> {
+    const params = new URLSearchParams();
+    if (query.branchId) params.append('branchId', query.branchId);
+    if (query.adjustmentType) params.append('countType', query.adjustmentType);
+    if (query.fromDate) params.append('fromDate', query.fromDate);
+    if (query.toDate) params.append('toDate', query.toDate);
+    const response = await api.get<InventoryStats>(
+      `/inventory/counts/stats?${params.toString()}`,
+    );
+    return response.data;
+  }
+
+  async exportAdjustments(query: AdjustmentQueryDto = {}): Promise<void> {
+    const params = new URLSearchParams();
+    if (query.branchId) params.append('branchId', query.branchId);
+    if (query.status) params.append('status', query.status);
+    if (query.adjustmentType) params.append('countType', query.adjustmentType);
+    if (query.fromDate) params.append('fromDate', query.fromDate);
+    if (query.toDate) params.append('toDate', query.toDate);
+    const response = await api.get(
+      `/inventory/counts/export?${params.toString()}`,
+      { responseType: 'blob' },
+    );
+    downloadCsv(response.data, `ajustes-${new Date().toISOString().slice(0, 10)}.csv`);
   }
 
   // ================================

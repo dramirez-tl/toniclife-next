@@ -573,3 +573,19 @@ export interface InventoryPagination {
   total: number;
   totalPages: number;
 }
+
+// ================================
+// STATS DTOs (agregados)
+// ================================
+
+export interface InventoryStats {
+  total: number;
+  byStatus: Record<string, number>;
+}
+
+export interface BranchStockStats {
+  totalProducts: number;
+  lowStock: number;
+  outOfStock: number;
+  totalAvailable: number;
+}
