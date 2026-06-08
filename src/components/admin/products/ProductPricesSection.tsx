@@ -367,6 +367,9 @@ export function ProductPricesSection({
 
   return (
     <div className="space-y-6">
+    {/* Cambios de precio programados (arriba para visibilidad) */}
+    <PriceSchedulesPanel productId={productId} />
+
     <Card className="p-0">
       <CardContent className="p-6">
         {/* Header */}
@@ -1218,9 +1221,6 @@ export function ProductPricesSection({
         })()}
       </CardContent>
     </Card>
-
-    {/* Cambios de precio programados */}
-    <PriceSchedulesPanel productId={productId} />
     </div>
   );
 }
