@@ -11,10 +11,8 @@ import {
   CreditCardIcon,
   ShieldCheckIcon,
   ArrowLeftIcon,
-  DocumentTextIcon,
   UserIcon,
   BuildingStorefrontIcon,
-  BuildingLibraryIcon,
   MapPinIcon,
   LockClosedIcon,
 } from '@heroicons/react/24/outline';
@@ -83,22 +81,6 @@ const MEXICAN_STATES = [
   'Guanajuato', 'Guerrero', 'Hidalgo', 'Jalisco', 'Michoacán', 'Morelos', 'Nayarit',
   'Nuevo León', 'Oaxaca', 'Puebla', 'Querétaro', 'Quintana Roo', 'San Luis Potosí',
   'Sinaloa', 'Sonora', 'Tabasco', 'Tamaulipas', 'Tlaxcala', 'Veracruz', 'Yucatán', 'Zacatecas',
-];
-
-// CFDI usage options
-const CFDI_USAGE_OPTIONS = [
-  { value: 'G01', label: 'G01 - Adquisición de mercancías' },
-  { value: 'G03', label: 'G03 - Gastos en general' },
-  { value: 'P01', label: 'P01 - Por definir' },
-];
-
-// Fiscal regime options
-const FISCAL_REGIME_OPTIONS = [
-  { value: '601', label: '601 - General de Ley Personas Morales' },
-  { value: '612', label: '612 - Personas Físicas con Actividades Empresariales' },
-  { value: '616', label: '616 - Sin obligaciones fiscales' },
-  { value: '621', label: '621 - Incorporación Fiscal' },
-  { value: '626', label: '626 - Régimen Simplificado de Confianza' },
 ];
 
 export default function CheckoutContent() {
@@ -261,14 +243,6 @@ export default function CheckoutContent() {
     if (!acceptTerms) {
       toast.error('Debes aceptar los términos y condiciones');
       return;
-    }
-
-    // Validate invoice data if required
-    if (requiresInvoice) {
-      if (!invoiceData.rfc || !invoiceData.name || !invoiceData.regime || !invoiceData.postalCode) {
-        toast.error('Por favor completa todos los datos de facturación');
-        return;
-      }
     }
 
     try {
@@ -792,135 +766,17 @@ export default function CheckoutContent() {
                       </div>
                     </div>
 
-                    {/* Selección de método de pago (solo los soportados) */}
-                    <div className="space-y-3">
-                      {[
-                        {
-                          value: PaymentMethod.STRIPE,
-                          label: 'Tarjeta de Crédito/Débito',
-                          Icon: CreditCardIcon,
-                          desc: 'Pago en línea seguro vía Stripe',
-                        },
-                        {
-                          value: PaymentMethod.TRANSFER,
-                          label: 'Transferencia bancaria',
-                          Icon: BuildingLibraryIcon,
-                          desc: 'Tu pedido queda pendiente hasta confirmar el pago',
-                        },
-                      ].map((method) => (
-                        <label
-                          key={method.value}
-                          className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                            selectedPaymentMethod === method.value
-                              ? 'border-[#a7c1e2] bg-[#C8DDF2]/5'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="paymentMethod"
-                            value={method.value}
-                            checked={selectedPaymentMethod === method.value}
-                            onChange={(e) =>
-                              setSelectedPaymentMethod(e.target.value as PaymentMethod)
-                            }
-                            className="w-4 h-4 text-[#3E667D] focus:ring-[#a7c1e2]"
-                          />
-                          <method.Icon className="h-6 w-6 text-[#3E667D]" />
-                          <div>
-                            <p className="font-medium text-gray-900">{method.label}</p>
-                            <p className="text-xs text-gray-500">{method.desc}</p>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-
-                    {/* Opción de factura */}
-                    <div className="pt-4 border-t border-gray-200">
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={requiresInvoice}
-                          onChange={(e) => setRequiresInvoice(e.target.checked)}
-                          className="w-5 h-5 text-[#3E667D] border-gray-300 rounded focus:ring-[#a7c1e2]"
-                        />
-                        <div className="flex items-center gap-2">
-                          <DocumentTextIcon className="h-5 w-5 text-gray-500" />
-                          <span className="font-medium text-gray-900">Requiero factura</span>
-                        </div>
-                      </label>
-
-                      {requiresInvoice && (
-                        <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                              <Label>RFC *</Label>
-                              <Input
-                                type="text"
-                                value={invoiceData.rfc}
-                                onChange={(e) =>
-                                  setInvoiceData({ ...invoiceData, rfc: e.target.value.toUpperCase() })
-                                }
-                                placeholder="XAXX010101000"
-                                maxLength={13}
-                              />
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label>Razón social *</Label>
-                              <Input
-                                type="text"
-                                value={invoiceData.name}
-                                onChange={(e) =>
-                                  setInvoiceData({ ...invoiceData, name: e.target.value })
-                                }
-                              />
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Régimen fiscal *
-                              </label>
-                              <SearchableSelect
-                                options={FISCAL_REGIME_OPTIONS}
-                                value={invoiceData.regime}
-                                onChange={(val) =>
-                                  setInvoiceData({ ...invoiceData, regime: val })
-                                }
-                                showAllOption={false}
-                                placeholder="Seleccionar..."
-                                className="w-full"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Uso CFDI *
-                              </label>
-                              <SearchableSelect
-                                options={CFDI_USAGE_OPTIONS}
-                                value={invoiceData.useCfdi}
-                                onChange={(val) =>
-                                  setInvoiceData({ ...invoiceData, useCfdi: val })
-                                }
-                                showAllOption={false}
-                                placeholder="Seleccionar..."
-                                className="w-full"
-                              />
-                            </div>
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label>Código Postal fiscal *</Label>
-                            <Input
-                              type="text"
-                              value={invoiceData.postalCode}
-                              onChange={(e) =>
-                                setInvoiceData({ ...invoiceData, postalCode: e.target.value })
-                              }
-                              maxLength={5}
-                            />
-                          </div>
-                        </div>
-                      )}
+                    {/* Único método de pago: tarjeta vía Stripe */}
+                    <div className="flex items-center gap-3 rounded-lg border-2 border-[#a7c1e2] bg-[#C8DDF2]/5 p-4">
+                      <CreditCardIcon className="h-6 w-6 text-[#3E667D]" />
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          Tarjeta de Crédito/Débito
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Pago en línea seguro vía Stripe
+                        </p>
+                      </div>
                     </div>
 
                     {/* Términos */}

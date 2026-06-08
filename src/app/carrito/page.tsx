@@ -188,13 +188,13 @@ export default function CartPage() {
                   <Card key={item.id} className="overflow-hidden border-gray-100 shadow-sm transition-all hover:shadow-md p-0">
                     <div className="flex flex-col sm:flex-row">
                       {/* Product Image */}
-                      <div className="sm:w-40 h-40 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                      <div className="sm:w-40 h-40 bg-gray-50 sm:border-r border-b sm:border-b-0 border-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden p-3">
                         <CartProductImage
                           src={item.productImageUrl}
                           name={item.productName}
                           width={160}
                           height={160}
-                          className="w-full h-full object-cover"
+                          className="max-h-full w-auto object-contain"
                         />
                       </div>
 
