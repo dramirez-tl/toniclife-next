@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { DataTable, type DataTableColumn } from '@/components/ui';
 import {
@@ -205,8 +205,9 @@ export default function PagosPage() {
   const [taxIdFile, setTaxIdFile] = useState<File | null>(null);
   const [bankStatFile, setBankStatFile] = useState<File | null>(null);
 
-  // Initialize form when data loads
-  if (paymentData && !formInitialized) {
+  // Initialize form when data loads (una sola vez; no sobreescribe ediciones)
+  useEffect(() => {
+    if (!paymentData || formInitialized) return;
     setEmail(paymentData.personal.email || '');
     setPhone(paymentData.personal.phone || '');
     setCurp(paymentData.fiscal.curp || '');
@@ -217,7 +218,7 @@ export default function PagosPage() {
     setClabe(paymentData.banking.clabe || '');
     setAccountHolder(paymentData.banking.accountHolder || '');
     setFormInitialized(true);
-  }
+  }, [paymentData, formInitialized]);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -694,15 +695,24 @@ export default function PagosPage() {
               </p>
             </div>
 
-            {/* Submit button */}
+          </div>
+        </div>
+
+        {/* Barra de guardado sticky (siempre visible al final del formulario) */}
+        <div className="sticky bottom-0 z-10 mt-6 -mx-4 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+          <div className="flex items-center justify-between gap-4">
+            <p className="hidden items-center gap-1.5 text-xs text-gray-500 sm:flex">
+              <LockClosedIcon className="h-3.5 w-3.5" />
+              Tus datos están protegidos y solo los usa Tesorería.
+            </p>
             <button
               type="submit"
               disabled={updateMutation.isPending}
-              className="w-full rounded-xl bg-[#3E667D] px-6 py-3.5 text-sm font-semibold text-white shadow-lg hover:bg-[#2f5165] disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:shadow-xl flex items-center justify-center gap-2"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#3E667D] px-8 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:bg-[#2f5165] hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               {updateMutation.isPending ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                   Guardando...
                 </>
               ) : (
