@@ -142,9 +142,10 @@ export default function VentasPage() {
               )}
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <Link href="/productos">
-                <Button variant="default" className="bg-[#3E667D] hover:bg-[#2f5165]">
-                  Registrar venta
+              <Link href="/distribuidor/compartir-carrito">
+                <Button className="bg-white text-[#3E667D] hover:bg-white/90 shadow-md shadow-black/10">
+                  <ShoppingCartIcon className="h-4 w-4" />
+                  Vender ahora
                 </Button>
               </Link>
               <button
@@ -168,9 +169,45 @@ export default function VentasPage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Estado vacío: invita a la primera venta del periodo */}
+        {total === 0 && (
+          <Card className="mb-8">
+            <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#C8DDF2]/40">
+                  <ShoppingCartIcon className="h-6 w-6 text-[#3E667D]" />
+                </div>
+                <div>
+                  <h2 className="text-base font-bold text-gray-900">
+                    Aún no tienes ventas este periodo
+                  </h2>
+                  <p className="text-sm text-gray-500">
+                    Comparte un carrito con tus clientes o tu enlace de tienda
+                    para empezar a sumar ventas y puntos.
+                  </p>
+                </div>
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <Link href="/distribuidor/compartir-carrito">
+                  <Button>
+                    <ShoppingCartIcon className="h-4 w-4" />
+                    Compartir carrito
+                  </Button>
+                </Link>
+                <Link href="/productos">
+                  <Button variant="outline">
+                    <ShoppingBagIcon className="h-4 w-4" />
+                    Ir a la tienda
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Main Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-br from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
+          <Card className="border-0 bg-gradient-to-br from-[#3E667D] to-[#0A4B94] text-white shadow-lg">
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <CurrencyDollarIcon className="h-8 w-8 text-white/80" />
@@ -397,15 +434,15 @@ export default function VentasPage() {
                   </Link>
 
                   <Link
-                    href="/distribuidor/prospectos"
+                    href="/distribuidor/red"
                     className="group flex items-center gap-3 rounded-xl border border-white/15 bg-white/10 px-3.5 py-3 transition-all hover:-translate-y-0.5 hover:bg-white/15"
                   >
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#C8DDF2]/25">
                       <UserGroupIcon className="h-4.5 w-4.5 text-white" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-semibold text-white">Contactar prospectos</p>
-                      <p className="text-[11px] text-white/70">Da seguimiento a oportunidades</p>
+                      <p className="text-sm font-semibold text-white">Mi red</p>
+                      <p className="text-[11px] text-white/70">Revisa y haz crecer tu equipo</p>
                     </div>
                     <ArrowTrendingUpIcon className="h-4 w-4 text-white/60 transition-transform group-hover:translate-x-0.5" />
                   </Link>
