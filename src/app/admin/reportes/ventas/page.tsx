@@ -3,10 +3,17 @@
 import { useMemo, Suspense, useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, DataTablePagination } from '@/components/ui/DataTable';
 import type { DataTableColumn } from '@/components/ui/DataTable';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { useSales, useUpdateSalePaymentMethod } from '@/hooks/usePos';
@@ -280,8 +287,12 @@ function SaleDetailModal({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent
+        showCloseButton={false}
+        className="max-w-2xl max-h-[90vh] p-0 gap-0 flex flex-col overflow-hidden"
+      >
+        <DialogTitle className="sr-only">Detalle de venta {sale.saleNumber}</DialogTitle>
         {/* Header */}
         <div className="flex items-start justify-between p-6 border-b border-gray-100">
           <div>
@@ -422,8 +433,8 @@ function SaleDetailModal({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
             Cerrar
           </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -444,12 +455,12 @@ function EditPaymentModal({ sale, onClose, onConfirm, isPending }: EditPaymentMo
   if (!sale) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6">
-        <h2 className="text-lg font-bold text-gray-900 mb-1">Editar método de pago</h2>
-        <p className="text-sm text-gray-500 mb-5">
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogTitle>Editar método de pago</DialogTitle>
+        <DialogDescription>
           Venta <span className="font-semibold text-[#3E667D]">{sale.saleNumber}</span>
-        </p>
+        </DialogDescription>
 
         <div className="grid grid-cols-3 gap-2 mb-6">
           {PAYMENT_OPTIONS.map((opt) => (
@@ -481,8 +492,8 @@ function EditPaymentModal({ sale, onClose, onConfirm, isPending }: EditPaymentMo
             {isPending ? 'Guardando...' : 'Guardar'}
           </Button>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -532,30 +543,41 @@ function VentasReportesContent() {
   const handleExportCsv = useCallback(async () => {
     setIsExporting(true);
     try {
-      const result = await posService.getSales({
+      const baseParams = {
         branchId: selectedBranch !== 'all' ? selectedBranch : undefined,
         status: selectedStatus !== 'all' ? (selectedStatus as PosSaleStatus) : undefined,
         paymentMethod: selectedPaymentMethod !== 'all' ? (selectedPaymentMethod as PosPaymentMethod) : undefined,
         customerNumber: selectedCustomerNumber || undefined,
         fromDate: dateFrom,
         toDate: dateTo,
-        sortBy: 'createdAt',
-        sortOrder: 'desc',
-        page: 1,
-        limit: 5000,
-      });
-      if (!result.data.length) {
+        sortBy: 'createdAt' as const,
+        sortOrder: 'desc' as const,
+      };
+
+      // Paginar TODAS las ventas que cumplen el filtro (antes truncaba a 5000).
+      const PAGE_SIZE = 500;
+      const MAX_PAGES = 200; // backstop 100k filas
+      const first = await posService.getSales({ ...baseParams, page: 1, limit: PAGE_SIZE });
+      const all: Sale[] = [...first.data];
+      const totalPages = first.totalPages ?? 1;
+      for (let p = 2; p <= Math.min(totalPages, MAX_PAGES); p++) {
+        const res = await posService.getSales({ ...baseParams, page: p, limit: PAGE_SIZE });
+        all.push(...res.data);
+      }
+
+      if (!all.length) {
         toast.info('No hay ventas para exportar con los filtros actuales');
         return;
       }
       const filename = `ventas_${dateFrom}_${dateTo}.csv`;
-      downloadCsv(result.data, filename, (name) => branches.find(b => b.name === name)?.timezone || DEFAULT_TIMEZONE);
-      toast.success(`${result.data.length} ventas exportadas`);
+      downloadCsv(all, filename, (name) => branches.find(b => b.name === name)?.timezone || DEFAULT_TIMEZONE);
+      toast.success(`${all.length} ventas exportadas`);
     } catch {
       toast.error('Error al exportar ventas');
     } finally {
       setIsExporting(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBranch, selectedStatus, selectedPaymentMethod, selectedCustomerNumber, dateFrom, dateTo]);
 
   const handleEditPaymentConfirm = useCallback(
@@ -945,15 +967,10 @@ function VentasReportesContent() {
 
               {/* Export CSV */}
               <div className="lg:ml-auto">
-                <button
-                  type="button"
-                  onClick={handleExportCsv}
-                  disabled={isExporting}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-[#3E667D] text-[#3E667D] text-sm font-medium hover:bg-[#3E667D]/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
+                <Button variant="outline" onClick={handleExportCsv} disabled={isExporting}>
                   <ArrowDownTrayIcon className="h-4 w-4" />
                   {isExporting ? 'Exportando...' : 'Exportar CSV'}
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -961,20 +978,20 @@ function VentasReportesContent() {
             <div className="flex flex-col lg:flex-row gap-4 mt-4">
               <div className="flex items-center gap-2">
                 <label className="text-sm text-gray-500 whitespace-nowrap">Desde</label>
-                <input
+                <Input
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setParams({ dateFrom: e.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                  className="w-auto"
                 />
               </div>
               <div className="flex items-center gap-2">
                 <label className="text-sm text-gray-500 whitespace-nowrap">Hasta</label>
-                <input
+                <Input
                   type="date"
                   value={dateTo}
                   onChange={(e) => setParams({ dateTo: e.target.value })}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                  className="w-auto"
                 />
               </div>
               {(get('dateFrom') || get('dateTo')) && (
@@ -992,7 +1009,7 @@ function VentasReportesContent() {
               <div className="flex items-center gap-2 lg:ml-auto">
                 <UserIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
                 <div className="relative">
-                  <input
+                  <Input
                     type="text"
                     value={customerNumberInput}
                     onChange={(e) => setCustomerNumberInput(e.target.value)}
@@ -1000,7 +1017,7 @@ function VentasReportesContent() {
                       if (e.key === 'Enter') setParams({ customerNumber: customerNumberInput.trim(), page: '1' });
                     }}
                     placeholder="No. distribuidor / cliente"
-                    className="px-3 py-2 pr-8 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#3E667D] focus:border-transparent w-[200px]"
+                    className="w-[200px] pr-8"
                   />
                   {customerNumberInput && (
                     <button
@@ -1012,13 +1029,11 @@ function VentasReportesContent() {
                     </button>
                   )}
                 </div>
-                <button
-                  type="button"
+                <Button
                   onClick={() => setParams({ customerNumber: customerNumberInput.trim(), page: '1' })}
-                  className="px-3 py-2 bg-[#3E667D] text-white text-sm font-medium rounded-lg hover:bg-[#2d4f63] transition-colors"
                 >
                   Buscar
-                </button>
+                </Button>
               </div>
             </div>
           </CardContent>
