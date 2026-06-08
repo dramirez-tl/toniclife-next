@@ -176,6 +176,7 @@ export default function VentasPage() {
                     onChange={setSelectedPeriodId}
                     placeholder="Selecciona un periodo"
                     showAllOption={false}
+                    className="bg-white text-gray-900 hover:bg-white/90 hover:text-gray-900"
                   />
                 </div>
                 {!isCurrentSelected && selectedPeriodId && (
