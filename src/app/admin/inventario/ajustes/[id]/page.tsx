@@ -1,11 +1,21 @@
 // app/admin/inventario/ajustes/[id]/page.tsx - Detalle de un conteo de inventario
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { DataTable, type DataTableColumn } from '@/components/ui';
 import {
   ArrowLeftIcon,
@@ -72,6 +82,8 @@ export default function CountDetailPage() {
   const rejectMut = useRejectAdjustment();
   const applyMut = useApplyAdjustment();
   const cancelMut = useCancelAdjustment();
+  const [showReject, setShowReject] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
   const busy =
     submitMut.isPending ||
     approveMut.isPending ||
@@ -114,13 +126,18 @@ export default function CountDetailPage() {
     }
   };
 
-  const handleReject = async () => {
+  const handleConfirmReject = async () => {
     if (!id) return;
-    const reason = prompt('Ingresa el motivo de rechazo:');
-    if (!reason) return;
+    const reason = rejectReason.trim();
+    if (!reason) {
+      toast.error('Indica el motivo del rechazo');
+      return;
+    }
     try {
       await rejectMut.mutateAsync({ id, data: { reason } });
       toast.success('Conteo rechazado');
+      setShowReject(false);
+      setRejectReason('');
     } catch (err) {
       toast.error(apiError(err, 'No se pudo rechazar el conteo'));
     }
@@ -295,7 +312,14 @@ export default function CountDetailPage() {
                 <CheckIcon className="h-4 w-4 mr-1" />
                 Aprobar
               </Button>
-              <Button variant="secondary" onClick={handleReject} disabled={busy}>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setRejectReason('');
+                  setShowReject(true);
+                }}
+                disabled={busy}
+              >
                 <XMarkIcon className="h-4 w-4 mr-1" />
                 Rechazar
               </Button>
@@ -415,6 +439,54 @@ export default function CountDetailPage() {
         {count.appliedAt && <span>Aplicado: {fmt(count.appliedAt)} {count.appliedBy?.name ? `· ${count.appliedBy.name}` : ''}</span>}
         <span>Última actualización: {fmt(count.updatedAt)}</span>
       </div>
+
+      {/* Reject Dialog */}
+      <Dialog
+        open={showReject}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowReject(false);
+            setRejectReason('');
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rechazar conteo</DialogTitle>
+            <DialogDescription>Indica el motivo del rechazo del conteo.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="reject-reason">Motivo del rechazo</Label>
+            <Textarea
+              id="reject-reason"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Describe por qué se rechaza el conteo..."
+              rows={3}
+              maxLength={500}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowReject(false);
+                setRejectReason('');
+              }}
+              disabled={rejectMut.isPending}
+            >
+              Volver
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmReject}
+              disabled={rejectMut.isPending || !rejectReason.trim()}
+            >
+              {rejectMut.isPending ? 'Rechazando...' : 'Rechazar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

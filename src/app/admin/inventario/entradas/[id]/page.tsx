@@ -5,6 +5,17 @@ import { Suspense, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -298,41 +309,52 @@ function EntradaDetailContent() {
         </Card>
       </div>
 
-      {/* Reject Modal */}
-      {showRejectModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4">
-          <Card className="w-full max-w-md">
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold mb-3">Rechazar Entrada</h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Indica el motivo del rechazo del movimiento <span className="font-mono font-medium">{movement.movementNumber}</span>.
-              </p>
-              <textarea
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Motivo del rechazo..."
-                rows={3}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent resize-none"
-              />
-              <div className="flex gap-2 mt-4 justify-end">
-                <button
-                  onClick={() => { setShowRejectModal(false); setRejectReason(''); }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleReject}
-                  disabled={!rejectReason.trim() || rejectMovement.isPending}
-                  className="px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors disabled:opacity-50"
-                >
-                  Rechazar
-                </button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {/* Reject Dialog */}
+      <Dialog
+        open={showRejectModal}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowRejectModal(false);
+            setRejectReason('');
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rechazar entrada</DialogTitle>
+            <DialogDescription>
+              Indica el motivo del rechazo del movimiento {movement.movementNumber}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="reject-reason">Motivo del rechazo</Label>
+            <Textarea
+              id="reject-reason"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Motivo del rechazo..."
+              rows={3}
+              maxLength={500}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => { setShowRejectModal(false); setRejectReason(''); }}
+              disabled={rejectMovement.isPending}
+            >
+              Volver
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleReject}
+              disabled={!rejectReason.trim() || rejectMovement.isPending}
+            >
+              {rejectMovement.isPending ? 'Rechazando...' : 'Rechazar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
