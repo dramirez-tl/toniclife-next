@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSalesByBranch } from '@/hooks/useReports';
 import { usePeriods, useCurrentPeriod } from '@/hooks/useMlmPeriods';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
 import type { MlmPeriod } from '@/types/mlm-periods';
 import {
@@ -183,20 +184,17 @@ export default function VentasSucursalPage() {
         <div className="flex flex-col sm:flex-row gap-4 items-end">
           <div className="flex-1 min-w-0">
             <label className="block text-xs font-medium text-gray-500 mb-1.5">Periodo</label>
-            <select
+            <SearchableSelect
+              options={(periods ?? []).map((p) => ({
+                value: p.id,
+                label: `${p.name} (${formatDateDisplay(toDateOnly(p.startDate))} - ${formatDateDisplay(toDateOnly(p.endDate))})${p.isCurrent ? ' — Actual' : ''}`,
+              }))}
               value={selectedPeriodId}
-              onChange={(e) => setSelectedPeriodId(e.target.value)}
+              onChange={setSelectedPeriodId}
+              showAllOption={false}
+              placeholder={periodsLoading ? 'Cargando...' : 'Selecciona un periodo'}
               disabled={periodsLoading}
-              className="w-full rounded-lg border border-gray-300 bg-gray-50 px-3 py-2.5 text-sm text-gray-900 focus:border-[#3E667D] focus:ring-2 focus:ring-[#3E667D]/20 focus:bg-white focus:outline-none transition-all"
-            >
-              <option value="">Selecciona un periodo</option>
-              {periods?.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({formatDateDisplay(toDateOnly(p.startDate))} - {formatDateDisplay(toDateOnly(p.endDate))})
-                  {p.isCurrent ? ' — Actual' : ''}
-                </option>
-              ))}
-            </select>
+            />
           </div>
           {selectedPeriod && (
             <div className="flex items-center gap-3 text-xs text-gray-500 pb-1">
