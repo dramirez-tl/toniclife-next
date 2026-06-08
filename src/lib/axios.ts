@@ -106,9 +106,16 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Don't redirect to login for public endpoints - just pass through the error
+    // Endpoints "públicos" (catálogo, carrito, etc.): para invitados (sin sesión)
+    // o errores que no son 401, propagar sin refrescar ni redirigir a login.
+    // PERO si hay sesión activa y es 401, dejar pasar al flujo de refresh de abajo:
+    // las sub-rutas admin bajo /products (precios, imágenes, documentos, cambios
+    // de precio programados) necesitan renovar el token igual que el resto.
     if (isPublicEndpoint(originalRequest?.url)) {
-      return Promise.reject(error);
+      const hasSession = !!getToken(REFRESH_TOKEN_KEY);
+      if (!hasSession || error.response?.status !== 401) {
+        return Promise.reject(error);
+      }
     }
 
     // Handle 401 errors (unauthorized)
