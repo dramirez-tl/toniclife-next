@@ -48,10 +48,6 @@ export const MORE_GROUPS: NavGroup[] = [
     title: 'Mi Negocio',
     items: [
       { name: 'Compartir carrito', href: '/distribuidor/compartir-carrito', icon: ShoppingCartIcon },
-      { name: 'Reportes', href: '/distribuidor/reportes', icon: ChartBarIcon },
-      { name: 'Metas', href: '/distribuidor/metas', icon: FlagIcon },
-      { name: 'Ranking', href: '/distribuidor/ranking', icon: TrophyIcon },
-      { name: 'Actividad', href: '/distribuidor/actividad', icon: ClockIcon },
     ],
   },
   {
@@ -72,7 +68,12 @@ export const MORE_GROUPS: NavGroup[] = [
 ];
 
 // Módulos aún no habilitados (se muestran como "Próximamente", no clickeables).
+// Reportes/Metas/Ranking/Actividad se liberarán poco a poco.
 export const COMING_SOON: { name: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { name: 'Reportes', icon: ChartBarIcon },
+  { name: 'Metas', icon: FlagIcon },
+  { name: 'Ranking', icon: TrophyIcon },
+  { name: 'Actividad', icon: ClockIcon },
   { name: 'Prospectos', icon: UserGroupIcon },
   { name: 'Scripts de Venta', icon: DocumentDuplicateIcon },
   { name: 'Eventos', icon: CalendarIcon },
