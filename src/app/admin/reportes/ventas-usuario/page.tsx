@@ -7,6 +7,12 @@ import { useUsers } from '@/hooks/useUsers';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from '@/components/ui/popover';
 import {
   Table,
   TableHeader,
@@ -206,31 +212,37 @@ export default function VentasUsuarioPage() {
           </div>
 
           {/* Seller multi-select */}
-          <div className="relative">
+          <div>
             <label className="block text-xs font-medium text-gray-500 mb-1.5">
               Usuarios vendedores
               {selectedSellerIds.length > 0 && (
                 <span className="ml-1 text-[#3E667D]">({selectedSellerIds.length})</span>
               )}
             </label>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setSellerDropdownOpen(!sellerDropdownOpen)}
-              className="w-full h-auto justify-between px-3 py-2.5 bg-gray-50 text-gray-900 text-left font-normal"
-            >
-              {selectedSellerIds.length === 0
-                ? 'Todos los usuarios'
-                : selectedSellerIds.length === 1
-                  ? sellerOptions.find((u) => u.id === selectedSellerIds[0])?.firstName || '1 seleccionado'
-                  : `${selectedSellerIds.length} seleccionados`}
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 float-right mt-0.5 text-gray-400">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-              </svg>
-            </Button>
-            {sellerDropdownOpen && (
-              <div className="absolute z-20 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg max-h-60 overflow-y-auto">
-                <div className="sticky top-0 bg-white border-b border-gray-100 px-3 py-2 flex gap-2">
+            <Popover open={sellerDropdownOpen} onOpenChange={setSellerDropdownOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-between bg-gray-50 text-gray-900 text-left font-normal"
+                >
+                  <span className="truncate">
+                    {selectedSellerIds.length === 0
+                      ? 'Todos los usuarios'
+                      : selectedSellerIds.length === 1
+                        ? sellerOptions.find((u) => u.id === selectedSellerIds[0])?.firstName || '1 seleccionado'
+                        : `${selectedSellerIds.length} seleccionados`}
+                  </span>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="ml-2 h-4 w-4 shrink-0 text-gray-400">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                className="w-[--radix-popover-trigger-width] min-w-[240px] p-0 max-h-72 overflow-y-auto"
+              >
+                <div className="sticky top-0 bg-white border-b border-gray-100 px-3 py-2 flex gap-2 z-10">
                   <Button
                     type="button"
                     variant="link"
@@ -259,19 +271,17 @@ export default function VentasUsuarioPage() {
                       key={u.id}
                       className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer text-sm"
                     >
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={selectedSellerIds.includes(u.id)}
-                        onChange={() => toggleSeller(u.id)}
-                        className="h-4 w-4 rounded border-gray-300 text-[#3E667D] focus:ring-[#3E667D]"
+                        onCheckedChange={() => toggleSeller(u.id)}
                       />
                       <span className="text-gray-900">{u.firstName} {u.lastName}</span>
                       <span className="ml-auto text-xs text-gray-400">{u.role.name}</span>
                     </label>
                   ))
                 )}
-              </div>
-            )}
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Apply button */}
