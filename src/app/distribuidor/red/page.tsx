@@ -160,10 +160,10 @@ function RedContent() {
         <PreferredCustomersSection onAdd={() => setIsPreferredOpen(true)} />
 
         {/* Help CTA */}
-        <Card className="mt-8 bg-gradient-to-r from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
+        <Card className="mt-8 border-0 bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white shadow-lg">
           <CardContent className="p-6 lg:p-8">
-            <h3 className="text-xl lg:text-2xl font-bold mb-4">Haz Crecer tu Red</h3>
-            <p className="text-white/90 mb-6 max-w-2xl">
+            <h3 className="text-xl lg:text-2xl font-bold mb-3">Haz Crecer tu Red</h3>
+            <p className="text-white/85 mb-6 max-w-2xl">
               Invita a más distribuidores y aumenta tus comisiones. ¡Cada nuevo miembro activo te acerca a tu siguiente rango!
             </p>
             <Button
@@ -467,6 +467,18 @@ function TreeListView() {
     debouncedSearch || levelFilter || statusFilter || qualifiedStr || rankStr || joinedPeriod,
   );
 
+  const clearFilters = () => {
+    setSearch('');
+    setParams({
+      level: null,
+      status: null,
+      qualified: null,
+      rank: null,
+      joinedPeriod: null,
+      page: null,
+    });
+  };
+
   // Descarga la red COMPLETA (sin filtros), paginando hasta traer todos los registros.
   const handleExport = async () => {
     setIsExporting(true);
@@ -615,7 +627,7 @@ function TreeListView() {
             <Button
               variant="default"
               onClick={handleExport}
-              disabled={isExporting || (isExporting)}
+              disabled={isExporting}
             >
               {isExporting && <Loader2 className="mr-2 size-4 animate-spin" />}
               <ArrowDownTrayIcon className="h-4 w-4" />
@@ -628,18 +640,33 @@ function TreeListView() {
       {/* Filtros */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-3">
-            {/* Búsqueda */}
-            <div className="relative flex-1">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar por nombre o email..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
-              />
+          <div className="space-y-3">
+            {/* Búsqueda + limpiar */}
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1">
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar por nombre o email..."
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
+                />
+              </div>
+              {hasActiveFilters && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="shrink-0 text-gray-500"
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                  Limpiar
+                </Button>
+              )}
             </div>
+            {/* Filtros */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {/* Filtro de nivel */}
             <SearchableSelect
               options={[1, 2, 3, 4, 5].map(n => ({ value: String(n), label: `Nivel ${n}` }))}
@@ -695,6 +722,7 @@ function TreeListView() {
               allLabel="Ingreso: todos los periodos"
               allValue=""
             />
+            </div>
           </div>
         </CardContent>
       </Card>

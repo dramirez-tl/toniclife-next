@@ -9,6 +9,7 @@ import {
   TrophyIcon,
   ArrowDownTrayIcon,
   ShareIcon,
+  GiftIcon,
   AcademicCapIcon,
   ClipboardDocumentIcon,
   ChevronRightIcon,
@@ -145,16 +146,6 @@ export default function DistribuidorDashboard() {
     return `${window.location.origin}/productos?ref=${referralCode}`;
   }, [referralCode]);
 
-  const handleCopyLink = async () => {
-    if (!dynamicPersonalLink) return;
-    try {
-      await copyLinkMutation.mutateAsync(dynamicPersonalLink);
-      toast.success('Enlace copiado al portapapeles');
-    } catch {
-      toast.error('Error al copiar el enlace');
-    }
-  };
-
   const handleShareLink = async () => {
     if (!dynamicPersonalLink) return;
     try {
@@ -183,42 +174,49 @@ export default function DistribuidorDashboard() {
     }
   };
 
-  const handleShareStoreLink = async () => {
-    if (!dynamicStoreLink) return;
-    try {
-      const result = await shareLinkMutation.mutateAsync({
-        link: dynamicStoreLink,
-        title: 'Tienda Tonic Life - Productos de Bienestar',
-        text: `Descubre los mejores productos naturales para tu bienestar en Tonic Life. ¡Usa mi enlace para obtener puntos!`,
-      });
-      if (result.method === 'clipboard') {
-        toast.success('Enlace de tienda copiado al portapapeles');
-      } else {
-        toast.success('Enlace compartido exitosamente');
-      }
-    } catch {
-      toast.error('Error al compartir el enlace');
-    }
-  };
-
   const handleRefresh = () => {
     refetch();
     toast.success('Actualizando datos...');
   };
 
-  const handleDownloadQr = () => {
-    if (!dynamicPersonalLink) {
-      toast.error('No se pudo generar el enlace de referido');
+  const handleDownloadQr = (link?: string) => {
+    const target =
+      typeof link === 'string' && link
+        ? link
+        : dynamicStoreLink || dynamicPersonalLink;
+    if (!target) {
+      toast.error('No se pudo generar el código QR');
       return;
     }
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1024x1024&data=${encodeURIComponent(dynamicPersonalLink)}`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1024x1024&data=${encodeURIComponent(target)}`;
     const downloadLink = document.createElement('a');
     downloadLink.href = qrUrl;
-    downloadLink.download = `qr-referido-${referralCode || 'toniclife'}.png`;
+    downloadLink.download = `qr-toniclife-${referralCode || 'enlace'}.png`;
     document.body.appendChild(downloadLink);
     downloadLink.click();
     document.body.removeChild(downloadLink);
     toast.success('Descargando QR...');
+  };
+
+  const handleCopyCode = async () => {
+    if (!referralCode) return;
+    try {
+      await navigator.clipboard.writeText(referralCode);
+      toast.success('Código copiado');
+    } catch {
+      toast.error('No se pudo copiar el código');
+    }
+  };
+
+  const handleShareWhatsApp = () => {
+    if (!dynamicStoreLink) {
+      toast.error('No se pudo generar el enlace');
+      return;
+    }
+    const text = encodeURIComponent(
+      `¡Descubre los productos de Tonic Life para tu bienestar! Compra con mi enlace: ${dynamicStoreLink}`,
+    );
+    window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener');
   };
 
   // Loading skeleton
@@ -422,10 +420,11 @@ export default function DistribuidorDashboard() {
                     <span className={`w-2 h-2 rounded-full ${progressDot}`} />
                     {progressLabel} — {progressPercent}%
                   </span>
-                  <span>
-                    Te faltan {personalPointsGap.toLocaleString()} pts · {points?.daysRemaining ?? '--'} días
-                  </span>
+                  <span>{points?.daysRemaining ?? '--'} días restantes</span>
                 </div>
+                <p className="mt-3 text-sm font-medium text-white">
+                  Te faltan {personalPointsGap.toLocaleString()} puntos para calificar este mes.
+                </p>
               </>
             )}
           </div>
@@ -472,21 +471,24 @@ export default function DistribuidorDashboard() {
               <p className="text-lg font-bold text-[#3E667D] leading-tight">
                 {formatMoney(commissionsSummary?.totalNet || 0)}
               </p>
-              <p className="text-[11px] text-gray-500">Comisiones · {currencyCode}</p>
+              <p className="text-[11px] font-medium text-gray-600">Comisiones</p>
+              <p className="text-[10px] text-gray-400">este periodo · {currencyCode}</p>
             </div>
             <div className="p-4 text-center">
               <UsersIcon className="h-5 w-5 text-[#3E667D] mx-auto mb-1" />
               <p className="text-lg font-bold text-[#3E667D] leading-tight">
                 {(networkSummary?.totalDistributors || 0).toLocaleString()}
               </p>
-              <p className="text-[11px] text-gray-500">{(networkSummary?.activeDistributors || 0).toLocaleString()} activos</p>
+              <p className="text-[11px] font-medium text-gray-600">En tu red</p>
+              <p className="text-[10px] text-gray-400">{(networkSummary?.activeDistributors || 0).toLocaleString()} activos</p>
             </div>
             <div className="p-4 text-center">
               <ChartBarIcon className="h-5 w-5 text-[#3E667D] mx-auto mb-1" />
               <p className="text-lg font-bold text-[#3E667D] leading-tight">
                 {(points?.totalPoints || 0).toLocaleString()}
               </p>
-              <p className="text-[11px] text-gray-500">Puntos</p>
+              <p className="text-[11px] font-medium text-gray-600">Puntos</p>
+              <p className="text-[10px] text-gray-400">este periodo</p>
             </div>
           </div>
 
@@ -552,12 +554,12 @@ export default function DistribuidorDashboard() {
         </CardHeader>
         <CardContent className="pt-2">
           <div className="grid grid-cols-2 gap-3">
-            <Button variant="ghost" onClick={handleShareLink} disabled={shareLinkMutation.isPending} className={`${actionBox} h-auto`}>
+            <Link href="/distribuidor/compartir-carrito" className={actionBox}>
               <div className="w-10 h-10 rounded-full bg-[#abc9ba]/20 flex items-center justify-center">
-                <ShareIcon className="h-5 w-5 text-[#3E667D]" />
+                <ShoppingBagIcon className="h-5 w-5 text-[#3E667D]" />
               </div>
-              <span className="text-sm font-medium text-gray-700">Compartir mi enlace</span>
-            </Button>
+              <span className="text-sm font-medium text-gray-700">Compartir carrito</span>
+            </Link>
             <Link href="/distribuidor/ventas" className={actionBox}>
               <div className="w-10 h-10 rounded-full bg-[#C8DDF2]/20 flex items-center justify-center">
                 <ChartBarIcon className="h-5 w-5 text-[#3E667D]" />
@@ -630,85 +632,85 @@ export default function DistribuidorDashboard() {
       )}
 
       {/* ══════════════ Comparte y gana ══════════════ */}
-      <Card>
-        <CardContent>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-[#3E667D] flex items-center gap-2">
-              <ShareIcon className="h-5 w-5" />
-              Comparte y gana
-            </h3>
+      <Card className="overflow-hidden border-0 shadow-md p-0">
+        {/* Encabezado cálido + código de referido */}
+        <div className="bg-gradient-to-br from-[#3E667D] to-[#0A4B94] px-5 py-5 text-white">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15">
+              <GiftIcon className="h-6 w-6" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-lg font-bold leading-tight">Comparte y gana puntos</h3>
+              <p className="text-sm text-white/80">
+                Cada compra con tu enlace te suma puntos.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-white/10 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-[11px] uppercase tracking-wide text-white/60">Tu código</p>
+              <p className="text-xl font-bold tracking-wider truncate">
+                {referralCode || '—'}
+              </p>
+            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleCopyCode}
+              disabled={!referralCode}
+              className="shrink-0"
+            >
+              <ClipboardDocumentIcon className="h-4 w-4" />
+              Copiar código
+            </Button>
+          </div>
+        </div>
+
+        <CardContent className="p-5">
+          {/* Acción principal: WhatsApp */}
+          <Button
+            size="lg"
+            onClick={handleShareWhatsApp}
+            disabled={!dynamicStoreLink}
+            className="w-full bg-[#15803d] text-white hover:bg-[#166534]"
+          >
+            <ShareIcon className="h-5 w-5" />
+            Compartir por WhatsApp
+          </Button>
+
+          {/* Secundarias */}
+          <div className="mt-3 grid grid-cols-2 gap-2">
             <Button
               variant="outline"
-              size="sm"
-              onClick={handleDownloadQr}
-              disabled={!dynamicPersonalLink}
-              className="gap-1 text-xs font-medium text-[#3E667D] border-[#a7c1e2] rounded-full hover:bg-[#C8DDF2]/10"
-              title="Descargar código QR"
+              onClick={handleCopyStoreLink}
+              disabled={copyLinkMutation.isPending}
+              className="border-[#a7c1e2] text-[#3E667D] hover:bg-[#C8DDF2]/10"
+            >
+              <ClipboardDocumentIcon className="h-4 w-4" />
+              Copiar enlace
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleDownloadQr(dynamicStoreLink)}
+              disabled={!dynamicStoreLink}
+              className="border-[#a7c1e2] text-[#3E667D] hover:bg-[#C8DDF2]/10"
             >
               <ArrowDownTrayIcon className="h-4 w-4" />
-              QR
+              Código QR
             </Button>
           </div>
 
-          {/* Enlace de tienda */}
-          <div className="mb-4">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Enlace de tienda</p>
-            <p className="font-mono text-xs text-[#3E667D] break-all bg-blue-50 border border-blue-100 rounded-lg p-2 mb-2">
-              {dynamicStoreLink || 'Cargando...'}
-            </p>
-            <div className="flex gap-2">
-              <Button
-                variant="default"
-                size="sm"
-                className="flex-1 bg-[#3E667D] hover:bg-[#2f5165]"
-                onClick={handleCopyStoreLink}
-                disabled={copyLinkMutation.isPending}
-              >
-                <ClipboardDocumentIcon className="h-4 w-4" />
-                Copiar
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 border-[#a7c1e2] text-[#3E667D] hover:bg-[#C8DDF2]/10"
-                onClick={handleShareStoreLink}
-                disabled={shareLinkMutation.isPending}
-              >
-                <ShareIcon className="h-4 w-4" />
-                Compartir
-              </Button>
-            </div>
-          </div>
-
-          {/* Enlace de registro */}
-          <div className="border-t border-gray-100 pt-3">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Enlace de registro</p>
-            <p className="font-mono text-xs text-[#3E667D] break-all bg-gray-50 border border-gray-200 rounded-lg p-2 mb-2">
-              {dynamicPersonalLink || 'Cargando...'}
-            </p>
-            <div className="flex gap-2">
-              <Button
-                variant="default"
-                size="sm"
-                className="flex-1 bg-[#3E667D] hover:bg-[#2f5165]"
-                onClick={handleCopyLink}
-                disabled={copyLinkMutation.isPending}
-              >
-                <ClipboardDocumentIcon className="h-4 w-4" />
-                Copiar
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 border-[#a7c1e2] text-[#3E667D] hover:bg-[#C8DDF2]/10"
-                onClick={handleShareLink}
-                disabled={shareLinkMutation.isPending}
-              >
-                <ShareIcon className="h-4 w-4" />
-                Compartir
-              </Button>
-            </div>
-          </div>
+          {/* Invitar socios (enlace de registro) */}
+          <button
+            type="button"
+            onClick={handleShareLink}
+            disabled={shareLinkMutation.isPending}
+            className="mt-4 flex w-full items-center justify-center gap-1.5 text-sm font-medium text-[#3E667D] hover:underline disabled:opacity-50"
+          >
+            <UsersIcon className="h-4 w-4" />
+            ¿Quieres sumar socios a tu red? Comparte tu invitación
+          </button>
         </CardContent>
       </Card>
 
@@ -753,11 +755,17 @@ export default function DistribuidorDashboard() {
                 );
               })
             ) : (
-              <div className="text-center py-10">
-                <p className="text-gray-400 mb-2">Aún no tienes actividad este mes</p>
-                <Link href="/distribuidor/ventas">
-                  <Button variant="outline" size="sm">
-                    Empieza aquí
+              <div className="text-center py-8">
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#C8DDF2]/30">
+                  <GiftIcon className="h-6 w-6 text-[#3E667D]" />
+                </div>
+                <p className="font-semibold text-gray-900">¡Tu historia empieza aquí!</p>
+                <p className="mx-auto mt-1 mb-4 max-w-xs text-sm text-gray-500">
+                  Comparte tu enlace o haz tu primera venta. Cada paso suma puntos y aparecerá aquí.
+                </p>
+                <Link href="/distribuidor/compartir-carrito">
+                  <Button variant="default" size="sm">
+                    Comparte tu primer carrito
                     <ChevronRightIcon className="h-4 w-4 ml-1" />
                   </Button>
                 </Link>
