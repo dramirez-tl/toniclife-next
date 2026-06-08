@@ -191,7 +191,7 @@ function ResetPasswordForm() {
                     onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
                     autoComplete="new-password"
                     disabled={isLoading}
-                    className="pl-9"
+                    className="pl-9 pr-10"
                     aria-invalid={errors.newPassword ? true : undefined}
                   />
                   <button
@@ -248,7 +248,7 @@ function ResetPasswordForm() {
                     onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                     autoComplete="new-password"
                     disabled={isLoading}
-                    className="pl-9"
+                    className="pl-9 pr-10"
                     aria-invalid={errors.confirmPassword ? true : undefined}
                   />
                   <button
