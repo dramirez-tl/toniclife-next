@@ -225,9 +225,9 @@ function MaterialesContent() {
 
         {/* Filters */}
         <Card className="mb-6">
-          <CardContent className="p-6">
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="flex-1 relative">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+              <div className="relative flex-1">
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
                   type="text"
@@ -241,15 +241,17 @@ function MaterialesContent() {
                 options={categoryOptions}
                 value={filterCategory}
                 onChange={(val) => setParams({ category: val })}
-                allLabel="Todas"
+                allLabel="Todas las categorías"
                 allValue="all"
+                className="lg:w-48"
               />
               <SearchableSelect
                 options={typeOptions}
                 value={filterType}
                 onChange={(val) => setParams({ type: val })}
-                allLabel="Todos"
+                allLabel="Todos los tipos"
                 allValue="all"
+                className="lg:w-40"
               />
               <SearchableSelect
                 options={[
@@ -261,6 +263,7 @@ function MaterialesContent() {
                 value={sortBy}
                 onChange={(val) => setParams({ sortBy: val })}
                 showAllOption={false}
+                className="lg:w-52"
               />
             </div>
           </CardContent>
