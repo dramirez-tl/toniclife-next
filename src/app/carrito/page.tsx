@@ -296,7 +296,7 @@ export default function CartPage() {
 
               {/* Order Summary */}
               <div className="lg:col-span-1">
-                <Card className="sticky top-32 border-gray-100 shadow-sm">
+                <Card className="sticky top-32 border-gray-100 shadow-sm p-6">
                   <div className="mb-6 flex items-center justify-between">
                     <h2 className="text-xl font-bold text-[#3E667D]">
                       Resumen del Pedido
