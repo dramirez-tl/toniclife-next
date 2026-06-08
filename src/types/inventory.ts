@@ -75,9 +75,16 @@ export enum CountType {
   CYCLE = 'cycle',
 }
 
+// Estados de un conteo de inventario (ajuste). Superset: incluye los estados
+// reales del backend (CountStatus) + algunos legacy aún referenciados en UI.
 export enum AdjustmentStatus {
   DRAFT = 'draft',
+  PLANNED = 'planned',
+  IN_PROGRESS = 'in_progress',
   PENDING_APPROVAL = 'pending_approval',
+  PENDING_REVIEW = 'pending_review',
+  COMPLETED = 'completed',
+  REVIEWED = 'reviewed',
   APPROVED = 'approved',
   APPLIED = 'applied',
   REJECTED = 'rejected',
@@ -359,42 +366,51 @@ export interface CancelTransferDto {
 // ADJUSTMENT TYPES
 // ================================
 
+// Espeja CountDetailDto del backend (GET /inventory/counts/:id).
 export interface AdjustmentItemDto {
   id: string;
   productId: string;
   productCode: string;
   productName: string;
-  systemQuantity: number;
-  countedQuantity: number;
-  difference: number;
   lotId?: string;
   lotNumber?: string;
-  unitCost?: string;
-  valueDifference?: string;
+  systemQuantity: number;
+  countedQuantity: number;
+  /** contado - sistema */
+  discrepancy?: number;
+  discrepancyCost?: string;
+  discrepancyReason?: string;
+  adjustmentApproved?: boolean;
   notes?: string;
 }
 
+// Espeja CountDto del backend (GET /inventory/counts). Se mantiene el nombre
+// "AdjustmentDto" (la UI sigue llamándose "Ajustes"), pero los campos son los
+// reales de un conteo de inventario v2.
 export interface AdjustmentDto {
   id: string;
-  adjustmentNumber: string;
+  countNumber: string;
   branch: BranchInfo;
-  adjustmentType: AdjustmentType;
+  countType: CountType;
   status: AdjustmentStatus;
-  totalItems: number;
-  totalDifference: number;
-  totalValueDifference?: string;
+  plannedDate?: string;
+  startedAt?: string;
+  completedAt?: string;
+  totalProductsCounted: number;
+  totalDiscrepancies: number;
+  totalDiscrepancyValue?: string;
   items: AdjustmentItemDto[];
-  reason: string;
   notes?: string;
-  rejectionReason?: string;
-  createdBy?: { id: string; name: string };
+  countedBy?: { id: string; name: string };
+  reviewedBy?: { id: string; name: string };
   approvedBy?: { id: string; name: string };
-  appliedBy?: { id: string; name: string };
   approvedAt?: string;
-  appliedAt?: string;
-  rejectedAt?: string;
+  locationId?: string;
+  isActive?: boolean;
   createdAt: string;
   updatedAt: string;
+  /** El backend de conteos no expone motivo de rechazo; opcional por compat. */
+  rejectionReason?: string;
 }
 
 export interface AdjustmentListResponseDto {
@@ -408,7 +424,8 @@ export interface AdjustmentListResponseDto {
 export interface AdjustmentQueryDto {
   branchId?: string;
   status?: AdjustmentStatus;
-  adjustmentType?: AdjustmentType;
+  /** Tipo de conteo (full/partial/spot_check/cycle). */
+  countType?: CountType;
   fromDate?: string;
   toDate?: string;
   page?: number;

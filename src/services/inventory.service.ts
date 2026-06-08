@@ -226,7 +226,7 @@ class InventoryService {
 
     if (query.branchId) params.append('branchId', query.branchId);
     if (query.status) params.append('status', query.status);
-    if (query.adjustmentType) params.append('adjustmentType', query.adjustmentType);
+    if (query.countType) params.append('countType', query.countType);
     if (query.fromDate) params.append('fromDate', query.fromDate);
     if (query.toDate) params.append('toDate', query.toDate);
     if (query.page) params.append('page', String(query.page));
@@ -429,7 +429,7 @@ class InventoryService {
   async getAdjustmentStats(query: AdjustmentQueryDto = {}): Promise<InventoryStats> {
     const params = new URLSearchParams();
     if (query.branchId) params.append('branchId', query.branchId);
-    if (query.adjustmentType) params.append('countType', query.adjustmentType);
+    if (query.countType) params.append('countType', query.countType);
     if (query.fromDate) params.append('fromDate', query.fromDate);
     if (query.toDate) params.append('toDate', query.toDate);
     const response = await api.get<InventoryStats>(
@@ -442,7 +442,7 @@ class InventoryService {
     const params = new URLSearchParams();
     if (query.branchId) params.append('branchId', query.branchId);
     if (query.status) params.append('status', query.status);
-    if (query.adjustmentType) params.append('countType', query.adjustmentType);
+    if (query.countType) params.append('countType', query.countType);
     if (query.fromDate) params.append('fromDate', query.fromDate);
     if (query.toDate) params.append('toDate', query.toDate);
     const response = await api.get(

@@ -238,24 +238,23 @@ export default function CountDetailPage() {
         render: (item) => item.countedQuantity,
       },
       {
-        key: 'difference',
+        key: 'discrepancy',
         header: 'Diferencia',
         headerClassName: 'text-right',
         cellClassName: 'text-right font-semibold',
-        render: (item) => (
-          <span
-            className={
-              item.difference > 0
-                ? 'text-green-600'
-                : item.difference < 0
-                  ? 'text-red-600'
-                  : 'text-gray-400'
-            }
-          >
-            {item.difference > 0 ? '+' : ''}
-            {item.difference}
-          </span>
-        ),
+        render: (item) => {
+          const d = item.discrepancy ?? 0;
+          return (
+            <span
+              className={
+                d > 0 ? 'text-green-600' : d < 0 ? 'text-red-600' : 'text-gray-400'
+              }
+            >
+              {d > 0 ? '+' : ''}
+              {d}
+            </span>
+          );
+        },
       },
       {
         key: 'notes',
@@ -283,7 +282,7 @@ export default function CountDetailPage() {
             <div className="flex items-center gap-2">
               <ClipboardDocumentCheckIcon className="h-6 w-6 text-[#3E667D]" />
               <h1 className="text-2xl font-bold text-gray-900">
-                {count.adjustmentNumber}
+                {count.countNumber}
               </h1>
               <span
                 className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${badge.bg} ${badge.text}`}
@@ -293,7 +292,7 @@ export default function CountDetailPage() {
             </div>
             <p className="text-sm text-gray-500 mt-1">
               Conteo de inventario ·{' '}
-              {inventoryService.getAdjustmentTypeLabel(count.adjustmentType)}
+              {inventoryService.getCountTypeLabel(count.countType)}
             </p>
           </div>
         </div>
@@ -358,34 +357,29 @@ export default function CountDetailPage() {
           <CardContent className="p-4">
             <p className="text-gray-500 text-xs font-medium">Productos contados</p>
             <p className="text-2xl font-bold text-gray-900 mt-1">
-              {count.totalItems}
+              {count.totalProductsCounted}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-gray-500 text-xs font-medium">Diferencia total</p>
+            <p className="text-gray-500 text-xs font-medium">Discrepancias</p>
             <p
               className={`text-2xl font-bold mt-1 ${
-                count.totalDifference > 0
-                  ? 'text-green-600'
-                  : count.totalDifference < 0
-                    ? 'text-red-600'
-                    : 'text-gray-900'
+                count.totalDiscrepancies > 0 ? 'text-amber-600' : 'text-gray-900'
               }`}
             >
-              {count.totalDifference > 0 ? '+' : ''}
-              {count.totalDifference}
+              {count.totalDiscrepancies}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-gray-500 text-xs font-medium">
-              <UserIcon className="h-4 w-4" /> Creado por
+              <UserIcon className="h-4 w-4" /> Contado por
             </div>
             <p className="text-sm font-semibold text-gray-900 mt-1">
-              {count.createdBy?.name || '—'}
+              {count.countedBy?.name || '—'}
             </p>
             <p className="text-xs text-gray-400">{fmt(count.createdAt)}</p>
           </CardContent>
@@ -436,7 +430,7 @@ export default function CountDetailPage() {
       {/* Timeline footer */}
       <div className="text-xs text-gray-400 flex flex-wrap gap-x-6 gap-y-1">
         {count.approvedAt && <span>Aprobado: {fmt(count.approvedAt)} {count.approvedBy?.name ? `· ${count.approvedBy.name}` : ''}</span>}
-        {count.appliedAt && <span>Aplicado: {fmt(count.appliedAt)} {count.appliedBy?.name ? `· ${count.appliedBy.name}` : ''}</span>}
+        {count.reviewedBy?.name && <span>Revisado por: {count.reviewedBy.name}</span>}
         <span>Última actualización: {fmt(count.updatedAt)}</span>
       </div>
 

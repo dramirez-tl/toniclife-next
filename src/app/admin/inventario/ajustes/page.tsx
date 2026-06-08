@@ -207,22 +207,13 @@ function AjustesContent() {
     );
   };
 
-  // El backend /inventory/counts devuelve CountDto (countNumber/countType/
-  // totalProductsCounted/totalDiscrepancies). Leemos con fallback a los nombres
-  // legacy de AdjustmentDto para no mostrar columnas en blanco.
-  const readNumber = (a: AdjustmentDto) =>
-    (a as any).countNumber ?? a.adjustmentNumber ?? '—';
-  const readTypeLabel = (a: AdjustmentDto) => {
-    const ct = (a as any).countType;
-    if (ct) return inventoryService.getCountTypeLabel(ct);
-    return a.adjustmentType
-      ? inventoryService.getAdjustmentTypeLabel(a.adjustmentType)
-      : '—';
-  };
-  const readItems = (a: AdjustmentDto) =>
-    (a as any).totalProductsCounted ?? a.totalItems ?? 0;
-  const readDiscrepancies = (a: AdjustmentDto) =>
-    (a as any).totalDiscrepancies ?? a.totalDifference ?? 0;
+  // AdjustmentDto espeja CountDto del backend (countNumber/countType/
+  // totalProductsCounted/totalDiscrepancies).
+  const readNumber = (a: AdjustmentDto) => a.countNumber || '—';
+  const readTypeLabel = (a: AdjustmentDto) =>
+    a.countType ? inventoryService.getCountTypeLabel(a.countType) : '—';
+  const readItems = (a: AdjustmentDto) => a.totalProductsCounted ?? 0;
+  const readDiscrepancies = (a: AdjustmentDto) => a.totalDiscrepancies ?? 0;
 
   const columns: DataTableColumn<AdjustmentDto>[] = useMemo(
     () => [
@@ -292,8 +283,8 @@ function AjustesContent() {
                 {inventoryService.formatDateTime(a.createdAt, tz)}
                 <span className="text-gray-400"> · {getTimezoneShortLabel(tz)}</span>
               </p>
-              {a.createdBy && (
-                <p className="text-xs text-gray-500">por {a.createdBy.name}</p>
+              {a.countedBy && (
+                <p className="text-xs text-gray-500">por {a.countedBy.name}</p>
               )}
             </div>
           );
