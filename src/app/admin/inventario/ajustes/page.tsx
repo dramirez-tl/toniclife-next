@@ -48,6 +48,7 @@ import { useActiveBranches } from '@/hooks/useBranches';
 import { inventoryService } from '@/services/inventory.service';
 import {
   AdjustmentStatus,
+  CountType,
   type AdjustmentQueryDto,
   type AdjustmentDto,
 } from '@/types/inventory';
@@ -62,12 +63,14 @@ export default function AjustesPage() {
 function AjustesContent() {
   const { get, getNumber, setParams } = useQueryFilters({
     status: 'all',
+    type: 'all',
     branch: 'all',
     page: '1',
     limit: '20',
   });
 
   const statusFilter = get('status');
+  const typeFilter = get('type');
   const branchFilter = get('branch');
   const page = getNumber('page') || 1;
   const limit = getNumber('limit') || 20;
@@ -81,16 +84,20 @@ function AjustesContent() {
   const query: AdjustmentQueryDto = useMemo(
     () => ({
       status: statusFilter !== 'all' ? (statusFilter as AdjustmentStatus) : undefined,
+      countType: typeFilter !== 'all' ? (typeFilter as CountType) : undefined,
       branchId: branchFilter !== 'all' ? branchFilter : undefined,
       page,
       limit,
     }),
-    [statusFilter, branchFilter, page, limit],
+    [statusFilter, typeFilter, branchFilter, page, limit],
   );
 
   const statsParams: AdjustmentQueryDto = useMemo(
-    () => ({ branchId: branchFilter !== 'all' ? branchFilter : undefined }),
-    [branchFilter],
+    () => ({
+      countType: typeFilter !== 'all' ? (typeFilter as CountType) : undefined,
+      branchId: branchFilter !== 'all' ? branchFilter : undefined,
+    }),
+    [typeFilter, branchFilter],
   );
 
   const { data: adjustmentsData, isLoading, isFetching } = useAdjustments(query);
@@ -578,6 +585,20 @@ function AjustesContent() {
                   className="w-[200px]"
                 />
               </div>
+
+              <SearchableSelect
+                options={[
+                  { value: CountType.FULL, label: 'Completo' },
+                  { value: CountType.PARTIAL, label: 'Parcial' },
+                  { value: CountType.CYCLE, label: 'Cíclico' },
+                  { value: CountType.SPOT_CHECK, label: 'Aleatorio' },
+                ]}
+                value={typeFilter}
+                onChange={(val) => setParams({ type: val, page: null })}
+                allLabel="Todos los Tipos"
+                allValue="all"
+                className="w-[170px]"
+              />
 
               <SearchableSelect
                 options={(branches ?? []).map((branch) => ({
