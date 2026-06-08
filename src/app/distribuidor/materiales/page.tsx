@@ -15,7 +15,10 @@ import {
   MagnifyingGlassIcon,
   FunnelIcon,
   EyeIcon,
+  LightBulbIcon,
+  CheckIcon,
 } from '@heroicons/react/24/outline';
+import { PlayIcon } from '@heroicons/react/24/solid';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { useMyMaterials } from '@/hooks/useMaterials';
@@ -306,8 +309,8 @@ function MaterialesContent() {
                       )}
                       {material.type === 'video' && (
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-12 h-12 bg-white/90 rounded-full flex items-center justify-center">
-                            <div className="w-0 h-0 border-t-6 border-t-transparent border-l-10 border-l-[#3E667D] border-b-6 border-b-transparent ml-1" />
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90">
+                            <PlayIcon className="ml-0.5 h-6 w-6 text-[#3E667D]" />
                           </div>
                         </div>
                       )}
@@ -376,22 +379,31 @@ function MaterialesContent() {
         )}
 
         {/* Help Section */}
-        <Card className="mt-8 bg-gradient-to-r from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
+        <Card className="mt-8 border-0 bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white shadow-lg">
           <CardContent className="p-8">
             <div className="grid md:grid-cols-2 gap-8">
               <div>
                 <h3 className="text-2xl font-bold mb-4">¿Necesitas Material Personalizado?</h3>
-                <p className="text-white/90 mb-4">
+                <p className="text-white/85 mb-4">
                   Si necesitas materiales con tu información personalizada (nombre, contacto, QR), contáctanos.
                 </p>
                 <ul className="space-y-2 text-sm text-white/90">
-                  <li>✓ Tarjetas de presentación personalizadas</li>
-                  <li>✓ Catálogos con tu enlace de referido</li>
-                  <li>✓ Material para eventos especiales</li>
+                  <li className="flex items-center gap-2">
+                    <CheckIcon className="h-4 w-4 shrink-0 text-[#C8DDF2]" />
+                    Tarjetas de presentación personalizadas
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckIcon className="h-4 w-4 shrink-0 text-[#C8DDF2]" />
+                    Catálogos con tu enlace de referido
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckIcon className="h-4 w-4 shrink-0 text-[#C8DDF2]" />
+                    Material para eventos especiales
+                  </li>
                 </ul>
               </div>
               <div className="flex items-center justify-center">
-                <Link href="/distribuidor/soporte">
+                <Link href="/contacto">
                   <Button variant="secondary" size="lg">
                     Solicitar Material Personalizado
                   </Button>
@@ -404,8 +416,9 @@ function MaterialesContent() {
         {/* Tips */}
         <Card className="mt-6">
           <CardContent className="p-8">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">
-              💡 Tips para Usar el Material de Marketing
+            <h3 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
+              <LightBulbIcon className="h-6 w-6 text-amber-500" />
+              Tips para Usar el Material de Marketing
             </h3>
             <div className="grid md:grid-cols-2 gap-6">
               <div>
