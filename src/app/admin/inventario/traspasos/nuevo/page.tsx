@@ -23,6 +23,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { useCreateTransfer, useBranchStock } from '@/hooks/useInventory';
 import api from '@/lib/axios';
 import { useActiveBranches } from '@/hooks/useBranches';
@@ -826,17 +827,21 @@ export default function NuevoTraspasoPage() {
         </form>
       </div>
 
-      {/* Product Search Modal */}
-      {showProductSearch && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => {
-              setShowProductSearch(false);
-              setSearchTerm('');
-            }}
-          />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden">
+      {/* Product Search Dialog */}
+      <Dialog
+        open={showProductSearch}
+        onOpenChange={(o) => {
+          if (!o) {
+            setShowProductSearch(false);
+            setSearchTerm('');
+            setBulkMode(false);
+            setBulkText('');
+          }
+        }}
+      >
+        <DialogContent className="p-0 gap-0 overflow-hidden sm:max-w-lg" showCloseButton={false}>
+          <DialogTitle className="sr-only">Agregar producto</DialogTitle>
+          <div>
             {/* Modal Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
               <div>
@@ -1026,14 +1031,15 @@ export default function NuevoTraspasoPage() {
               </p>
             </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
-      {/* Success Modal with PDF Download */}
-      {createdTransfer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" />
-          <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-8 text-center">
+      {/* Success Dialog with PDF Download */}
+      <Dialog open={!!createdTransfer} onOpenChange={() => {}}>
+        <DialogContent className="max-w-md p-8 text-center" showCloseButton={false}>
+          <DialogTitle className="sr-only">Traspaso creado</DialogTitle>
+          {createdTransfer && (
+          <div className="text-center">
             <CheckCircleIcon className="h-16 w-16 text-green-500 mx-auto mb-4" />
             <h3 className="text-xl font-bold text-gray-900 mb-2">Traspaso Creado</h3>
             <p className="text-gray-600 mb-2">
@@ -1076,8 +1082,9 @@ export default function NuevoTraspasoPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
