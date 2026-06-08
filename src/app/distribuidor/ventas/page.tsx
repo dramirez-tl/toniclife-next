@@ -1,9 +1,12 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useDistributorDashboard } from '@/hooks/useDistributor';
+import { useCurrentPeriod, useCommissionPeriods } from '@/hooks/useCommissions';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
 import {
@@ -15,10 +18,36 @@ import {
   ShoppingBagIcon,
   ShoppingCartIcon,
   ArrowPathIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 
 export default function VentasPage() {
   const user = useAppSelector(selectUser);
+
+  // Periodo seleccionado (default: actual). Permite ver periodos pasados.
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
+  const { data: currentPeriodData } = useCurrentPeriod();
+  const { data: periodsData } = useCommissionPeriods();
+  useEffect(() => {
+    if (currentPeriodData?.id && !selectedPeriodId) {
+      setSelectedPeriodId(currentPeriodData.id);
+    }
+  }, [currentPeriodData, selectedPeriodId]);
+  const periodsArray = Array.isArray(periodsData)
+    ? periodsData
+    : (periodsData as any)?.data ?? [];
+  const sortedPeriods = [...periodsArray].sort((a: any, b: any) => {
+    const ad = String(a?.startDate ?? a?.start_date ?? '');
+    const bd = String(b?.startDate ?? b?.start_date ?? '');
+    if (ad && bd && ad !== bd) return bd.localeCompare(ad);
+    return (
+      Number(b?.periodNumber ?? b?.period_number ?? 0) -
+      Number(a?.periodNumber ?? a?.period_number ?? 0)
+    );
+  });
+  const isCurrentSelected =
+    !!currentPeriodData?.id && selectedPeriodId === currentPeriodData.id;
+
   const {
     salesSummary,
     topPerformers,
@@ -28,7 +57,7 @@ export default function VentasPage() {
     isError,
     error,
     refetch,
-  } = useDistributorDashboard();
+  } = useDistributorDashboard(selectedPeriodId || undefined);
 
   const currencyCode = user?.currencyCode || 'MXN';
   const isUsd = currencyCode === 'USD';
@@ -132,8 +161,29 @@ export default function VentasPage() {
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold">Rendimiento de Ventas</h1>
               </div>
               <p className="text-white/80 text-sm sm:text-base lg:text-lg">
-                {points?.periodName || 'Periodo actual'} &mdash; Analiza tu desempeño y el de tu equipo
+                Analiza tu desempeño y el de tu equipo
               </p>
+              {/* Selector de periodo (default: actual) */}
+              <div className="mt-4 flex items-center gap-2">
+                <CalendarDaysIcon className="h-4 w-4 shrink-0 text-white/80" />
+                <div className="w-full max-w-[260px]">
+                  <SearchableSelect
+                    options={sortedPeriods.map((p: any) => ({
+                      value: p.id,
+                      label: `${p.name}${p.isCurrent ? ' (Actual)' : ''}`,
+                    }))}
+                    value={selectedPeriodId}
+                    onChange={setSelectedPeriodId}
+                    placeholder="Selecciona un periodo"
+                    showAllOption={false}
+                  />
+                </div>
+                {!isCurrentSelected && selectedPeriodId && (
+                  <span className="whitespace-nowrap rounded-full bg-amber-400/20 px-2 py-0.5 text-[11px] font-medium text-amber-100">
+                    Periodo pasado
+                  </span>
+                )}
+              </div>
               {isRefreshing && (
                 <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs text-white/90">
                   <ArrowPathIcon className="h-3.5 w-3.5 animate-spin" />
@@ -468,7 +518,7 @@ export default function VentasPage() {
             {points && (
               <Card>
                 <CardContent className="p-6">
-                  <h3 className="font-bold text-gray-900 mb-3">Periodo Actual</h3>
+                  <h3 className="font-bold text-gray-900 mb-3">Periodo</h3>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Periodo</span>
