@@ -39,7 +39,7 @@ export const CORE_NAV: NavLink[] = [
   { name: 'Inicio', href: '/distribuidor', icon: HomeIcon },
   { name: 'Mi Red', href: '/distribuidor/red', icon: UsersIcon },
   { name: 'Comisiones', href: '/distribuidor/comisiones', icon: CurrencyDollarIcon },
-  { name: 'Vender', href: '/distribuidor/ventas', icon: ShoppingCartIcon },
+  { name: 'Ventas', href: '/distribuidor/ventas', icon: ChartBarIcon },
 ];
 
 // Secundarios, agrupados bajo "Más".
