@@ -255,20 +255,7 @@ export default function PagosPage() {
     }
   }, [email, phone, curp, rfc, ineNumber, taxRegime, bankName, clabe, accountHolder, ineFile, taxIdFile, bankStatFile, updateMutation]);
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6 px-4 sm:px-6 lg:px-8 pb-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-20 bg-gray-200 rounded-xl" />
-          <div className="h-64 bg-gray-200 rounded-xl" />
-          <div className="h-48 bg-gray-200 rounded-xl" />
-        </div>
-      </div>
-    );
-  }
-
-  const payments = paymentsData?.data || [];
-
+  // Definir columnas ANTES de cualquier early return (Rules of Hooks).
   const paymentColumns: DataTableColumn<CommissionPayment>[] = useMemo(() => [
     {
       key: 'period',
@@ -321,6 +308,20 @@ export default function PagosPage() {
       render: (p) => <StatusBadge status={p.status} />,
     },
   ], []);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 px-4 sm:px-6 lg:px-8 pb-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-20 bg-gray-200 rounded-xl" />
+          <div className="h-64 bg-gray-200 rounded-xl" />
+          <div className="h-48 bg-gray-200 rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
+  const payments = paymentsData?.data || [];
 
   return (
     <div className="space-y-6 px-4 sm:px-6 lg:px-8 pb-8">
