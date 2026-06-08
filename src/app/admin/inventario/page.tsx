@@ -5,9 +5,9 @@
 import { Suspense, useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
-import { inventoryService } from '@/services/inventory.service';
 import {
   CubeIcon,
   MagnifyingGlassIcon,
@@ -23,7 +23,11 @@ import {
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
-import { useBranchStock } from '@/hooks/useInventory';
+import {
+  useBranchStock,
+  useBranchStockStats,
+  useExportBranchStock,
+} from '@/hooks/useInventory';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import type { BranchStockQueryDto, ProductStockDto } from '@/types/inventory';
@@ -32,6 +36,62 @@ import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { DEFAULT_TIMEZONE } from '@/lib/timezone-utils';
 
 const formatNumber = (n: number) => new Intl.NumberFormat('es-MX').format(n);
+
+function StockStatCard({
+  label,
+  value,
+  icon: Icon,
+  iconBg,
+  iconColor,
+  valueColor,
+  statusValue,
+  filterStock,
+  statsLoading,
+  onSelect,
+}: {
+  label: string;
+  value: number;
+  icon: React.ComponentType<{ className?: string }>;
+  iconBg: string;
+  iconColor: string;
+  valueColor: string;
+  statusValue?: string;
+  filterStock: string;
+  statsLoading: boolean;
+  onSelect?: (value: string) => void;
+}) {
+  const inner = (
+    <Card className="h-full border-gray-100 shadow-sm">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-gray-600 mb-1">{label}</p>
+            <p className={`text-3xl font-bold ${valueColor}`}>
+              {statsLoading ? '—' : formatNumber(value)}
+            </p>
+          </div>
+          <div className={`w-12 h-12 ${iconBg} rounded-full flex items-center justify-center`}>
+            <Icon className={`h-6 w-6 ${iconColor}`} />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+  if (!statusValue || !onSelect) return inner;
+  const active = filterStock === statusValue;
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(statusValue)}
+      className={`text-left rounded-xl transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3E667D] ${
+        active ? 'ring-2 ring-[#3E667D]' : 'hover:-translate-y-0.5'
+      }`}
+      aria-pressed={active}
+    >
+      {inner}
+    </button>
+  );
+}
 
 export default function InventarioPage() {
   return <Suspense><InventarioContent /></Suspense>;
@@ -74,34 +134,15 @@ function InventarioContent() {
     limit: pageSize,
   }), [searchQuery, skuQuery, filterStock, currentPage, pageSize]);
 
-  // Lightweight stats queries (limit:1 → server returns accurate .total)
-  const baseStatsQuery: BranchStockQueryDto = useMemo(() => ({
+  // Stats: 1 aggregated call (server-side), honoring search/SKU (not stock filter).
+  const statsParams: BranchStockQueryDto = useMemo(() => ({
     search: searchQuery || undefined,
     code: skuQuery || undefined,
-    limit: 1,
-    page: 1,
-  }), [searchQuery, skuQuery]);
-
-  const lowStatsQuery: BranchStockQueryDto = useMemo(() => ({
-    search: searchQuery || undefined,
-    code: skuQuery || undefined,
-    lowStock: true,
-    limit: 1,
-    page: 1,
-  }), [searchQuery, skuQuery]);
-
-  const outStatsQuery: BranchStockQueryDto = useMemo(() => ({
-    search: searchQuery || undefined,
-    code: skuQuery || undefined,
-    outOfStock: true,
-    limit: 1,
-    page: 1,
   }), [searchQuery, skuQuery]);
 
   const { data: stockData, isLoading, isFetching, error, refetch } = useBranchStock(selectedBranch, query);
-  const { data: baseStatsData } = useBranchStock(selectedBranch, baseStatsQuery);
-  const { data: lowStatsData } = useBranchStock(selectedBranch, lowStatsQuery);
-  const { data: outStatsData } = useBranchStock(selectedBranch, outStatsQuery);
+  const { data: statsData, isLoading: statsLoading } = useBranchStockStats(selectedBranch, statsParams);
+  const exportStock = useExportBranchStock();
 
   const stockItems = stockData?.data ?? [];
   const totalItems = stockData?.total ?? 0;
@@ -146,111 +187,43 @@ function InventarioContent() {
     }
   }, [backendTotalPages, currentPage, setParams]);
 
-  const [isExporting, setIsExporting] = useState(false);
-
   const handleExport = useCallback(async () => {
     if (!selectedBranch) {
       toast.error('Selecciona una sucursal primero');
       return;
     }
-
-    setIsExporting(true);
-    const toastId = toast.loading('Preparando exportación de inventario...');
+    const branchName =
+      branches?.find((b) => b.id === selectedBranch)?.name?.replace(/\s+/g, '_') ||
+      'sucursal';
     try {
-      const baseQuery = {
-        search: searchQuery || undefined,
-        code: skuQuery || undefined,
-        lowStock: filterStock === 'low' || undefined,
-        outOfStock: filterStock === 'out' || undefined,
-      };
-
-      // Backend max limit is 100, so paginate through all pages
-      const PAGE_SIZE = 100;
-      const firstPage = await inventoryService.getBranchStock(selectedBranch, {
-        ...baseQuery,
-        limit: PAGE_SIZE,
-        page: 1,
+      await exportStock.mutateAsync({
+        branchId: selectedBranch,
+        query: {
+          search: searchQuery || undefined,
+          code: skuQuery || undefined,
+          lowStock: filterStock === 'low' || undefined,
+          outOfStock: filterStock === 'out' || undefined,
+        },
+        filename: `inventario_${branchName}_${new Date().toISOString().slice(0, 10)}.csv`,
       });
-
-      const allItems = [...firstPage.data];
-      const totalPages = firstPage.totalPages;
-
-      if (totalPages > 1) {
-        const promises = [];
-        for (let p = 2; p <= totalPages; p++) {
-          promises.push(
-            inventoryService.getBranchStock(selectedBranch, { ...baseQuery, limit: PAGE_SIZE, page: p })
-          );
-        }
-        const results = await Promise.all(promises);
-        for (const result of results) {
-          allItems.push(...result.data);
-        }
-      }
-
-      if (allItems.length === 0) {
-        toast.error('No hay datos para exportar', { id: toastId });
-        setIsExporting(false);
-        return;
-      }
-
-      const branchName = firstPage.branch?.name ?? 'sucursal';
-
-      // Build CSV
-      const headers = ['Código', 'Producto', 'Total', 'Reservado', 'En Tránsito', 'Disponible', 'Estado', 'Stock Mínimo', 'Última Actualización'];
-      const rows = allItems.map((item) => {
-        const status = item.quantityAvailable === 0
-          ? 'Sin Existencias'
-          : item.isLowStock
-            ? 'Existencias Bajas'
-            : 'Normal';
-        const itemTz = branches?.find(b => b.name === item.branchName)?.timezone || DEFAULT_TIMEZONE;
-        const lastUpdate = item.lastMovementAt
-          ? new Date(item.lastMovementAt).toLocaleString('es-MX', { timeZone: itemTz })
-          : '';
-        return [
-          item.productCode,
-          `"${(item.productName ?? '').replace(/"/g, '""')}"`,
-          item.quantityOnHand,
-          item.quantityReserved,
-          item.quantityInTransit,
-          item.quantityAvailable,
-          status,
-          item.minStockAlertEffective ?? '',
-          lastUpdate,
-        ].join(',');
-      });
-
-      const bom = '\uFEFF';
-      const csv = bom + [headers.join(','), ...rows].join('\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `inventario_${branchName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-
-      toast.success(`${allItems.length} productos exportados`, { id: toastId });
+      toast.success('Inventario exportado');
     } catch {
-      toast.error('Error al exportar inventario', { id: toastId });
-    } finally {
-      setIsExporting(false);
+      toast.error('Error al exportar inventario');
     }
-  }, [selectedBranch, searchQuery, skuQuery, filterStock]);
+  }, [selectedBranch, searchQuery, skuQuery, filterStock, branches, exportStock]);
 
-  // Stats using server-side totals from lightweight queries (independent of stock filter/pagination)
+  // Stats from the aggregated endpoint (independent of stock filter/pagination)
   const stats = useMemo(() => {
-    const total = baseStatsData?.total ?? 0;
-    const low = lowStatsData?.total ?? 0;
-    const out = outStatsData?.total ?? 0;
+    const total = statsData?.totalProducts ?? 0;
+    const low = statsData?.lowStock ?? 0;
+    const out = statsData?.outOfStock ?? 0;
     return {
       totalProducts: total,
       lowStock: low,
       outOfStock: out,
       normalStock: Math.max(0, total - low - out),
     };
-  }, [baseStatsData, lowStatsData, outStatsData]);
+  }, [statsData]);
 
   const formatDateTime = (date: string | undefined) => {
     if (!date) return '-';
@@ -469,61 +442,52 @@ function InventarioContent() {
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
           {/* Stats Cards */}
           <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Total Productos</p>
-                    <p className="text-3xl font-bold text-gray-900">{formatNumber(stats.totalProducts)}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                    <CubeIcon className="h-6 w-6 text-blue-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Existencias Normales</p>
-                    <p className="text-3xl font-bold text-green-600">{formatNumber(stats.normalStock)}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                    <CheckCircleIcon className="h-6 w-6 text-green-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Existencias Bajas</p>
-                    <p className="text-3xl font-bold text-yellow-600">{formatNumber(stats.lowStock)}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                    <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Sin Existencias</p>
-                    <p className="text-3xl font-bold text-red-600">{formatNumber(stats.outOfStock)}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                    <XCircleIcon className="h-6 w-6 text-red-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <StockStatCard
+              label="Total Productos"
+              value={stats.totalProducts}
+              icon={CubeIcon}
+              iconBg="bg-blue-100"
+              iconColor="text-blue-600"
+              valueColor="text-gray-900"
+              statusValue="all"
+              filterStock={filterStock}
+              statsLoading={statsLoading}
+              onSelect={(v) => setParams({ stock: v, page: null })}
+            />
+            <StockStatCard
+              label="Existencias Normales"
+              value={stats.normalStock}
+              icon={CheckCircleIcon}
+              iconBg="bg-green-100"
+              iconColor="text-green-600"
+              valueColor="text-green-600"
+              filterStock={filterStock}
+              statsLoading={statsLoading}
+            />
+            <StockStatCard
+              label="Existencias Bajas"
+              value={stats.lowStock}
+              icon={ExclamationTriangleIcon}
+              iconBg="bg-yellow-100"
+              iconColor="text-yellow-600"
+              valueColor="text-yellow-600"
+              statusValue="low"
+              filterStock={filterStock}
+              statsLoading={statsLoading}
+              onSelect={(v) => setParams({ stock: v, page: null })}
+            />
+            <StockStatCard
+              label="Sin Existencias"
+              value={stats.outOfStock}
+              icon={XCircleIcon}
+              iconBg="bg-red-100"
+              iconColor="text-red-600"
+              valueColor="text-red-600"
+              statusValue="out"
+              filterStock={filterStock}
+              statsLoading={statsLoading}
+              onSelect={(v) => setParams({ stock: v, page: null })}
+            />
           </div>
 
           {/* Branch Selector */}
@@ -555,10 +519,14 @@ function InventarioContent() {
                   <Button
                     variant="outline"
                     onClick={handleExport}
-                    disabled={isExporting || !selectedBranch}
+                    disabled={exportStock.isPending || !selectedBranch}
                   >
-                    <ArrowDownTrayIcon className="h-5 w-5" />
-                    {isExporting ? 'Exportando...' : 'Exportar'}
+                    {exportStock.isPending ? (
+                      <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <ArrowDownTrayIcon className="h-5 w-5" />
+                    )}
+                    {exportStock.isPending ? 'Exportando...' : 'Exportar'}
                   </Button>
                 </div>
               </div>
@@ -594,8 +562,8 @@ function InventarioContent() {
                   <label className="block text-xs font-medium text-gray-500 mb-1">Buscar por nombre</label>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <div className="relative flex-1">
-                      <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                      <input
+                      <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 z-10" />
+                      <Input
                         type="text"
                         placeholder="Nombre del producto..."
                         value={searchInput}
@@ -606,7 +574,7 @@ function InventarioContent() {
                             handleSearch();
                           }
                         }}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                        className="w-full pl-10"
                       />
                     </div>
                     <Button
@@ -625,8 +593,8 @@ function InventarioContent() {
                   <label className="block text-xs font-medium text-gray-500 mb-1">SKU exacto</label>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     <div className="relative flex-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">#</span>
-                      <input
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 z-10 text-xs font-bold text-gray-400">#</span>
+                      <Input
                         type="text"
                         placeholder="Ej: 9019"
                         value={skuInput}
@@ -637,7 +605,7 @@ function InventarioContent() {
                             handleSkuSearch();
                           }
                         }}
-                        className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent font-mono"
+                        className="w-full pl-8 font-mono"
                       />
                     </div>
                     <Button
