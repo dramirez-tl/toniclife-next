@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
   ChartBarIcon,
@@ -15,6 +15,8 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   ArrowPathIcon,
+  CalendarDaysIcon,
+  ShoppingBagIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
   ExclamationCircleIcon,
@@ -33,6 +35,8 @@ import {
   useShareReferralLink,
 } from '@/hooks/useDistributor';
 import { useMyCourses } from '@/hooks/useCourses';
+import { useCurrentPeriod, useCommissionPeriods } from '@/hooks/useCommissions';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
 import { toast } from 'sonner';
@@ -69,6 +73,31 @@ export default function DistribuidorDashboard() {
 
   const [showPointsDetail, setShowPointsDetail] = useState(false);
 
+  // Periodo seleccionado (default: periodo actual). Permite ver periodos pasados.
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
+  const { data: currentPeriodData } = useCurrentPeriod();
+  const { data: periodsData } = useCommissionPeriods();
+  useEffect(() => {
+    if (currentPeriodData?.id && !selectedPeriodId) {
+      setSelectedPeriodId(currentPeriodData.id);
+    }
+  }, [currentPeriodData, selectedPeriodId]);
+
+  const periodsArray = Array.isArray(periodsData)
+    ? periodsData
+    : (periodsData as any)?.data ?? [];
+  const sortedPeriods = [...periodsArray].sort((a: any, b: any) => {
+    const ad = String(a?.startDate ?? a?.start_date ?? '');
+    const bd = String(b?.startDate ?? b?.start_date ?? '');
+    if (ad && bd && ad !== bd) return bd.localeCompare(ad);
+    return (
+      Number(b?.periodNumber ?? b?.period_number ?? 0) -
+      Number(a?.periodNumber ?? a?.period_number ?? 0)
+    );
+  });
+  const isCurrentSelected =
+    !!currentPeriodData?.id && selectedPeriodId === currentPeriodData.id;
+
   // React Query hooks
   const {
     profile,
@@ -82,7 +111,7 @@ export default function DistribuidorDashboard() {
     isError,
     error,
     refetch,
-  } = useDistributorDashboard();
+  } = useDistributorDashboard(selectedPeriodId || undefined);
 
   const copyLinkMutation = useCopyReferralLink();
   const shareLinkMutation = useShareReferralLink();
@@ -323,6 +352,28 @@ export default function DistribuidorDashboard() {
         </Button>
       </div>
 
+      {/* ══════════════ Selector de periodo (default: actual) ══════════════ */}
+      <div className="flex items-center gap-2">
+        <CalendarDaysIcon className="h-4 w-4 shrink-0 text-[#3E667D]" />
+        <div className="w-full max-w-[260px]">
+          <SearchableSelect
+            options={sortedPeriods.map((period: any) => ({
+              value: period.id,
+              label: `${period.name}${period.isCurrent ? ' (Actual)' : ''}`,
+            }))}
+            value={selectedPeriodId}
+            onChange={setSelectedPeriodId}
+            placeholder="Selecciona un periodo"
+            showAllOption={false}
+          />
+        </div>
+        {!isCurrentSelected && selectedPeriodId && (
+          <span className="text-[11px] font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full whitespace-nowrap">
+            Periodo pasado
+          </span>
+        )}
+      </div>
+
       {/* ══════════════ HERO — Medalla + Meta del mes ══════════════ */}
       <Card className="border-0 shadow-lg overflow-hidden p-0">
         <div className="bg-gradient-to-br from-[#3E667D] via-[#2f5165] to-[#3E667D] p-6 text-white">
@@ -421,7 +472,7 @@ export default function DistribuidorDashboard() {
               <p className="text-lg font-bold text-[#3E667D] leading-tight">
                 {formatMoney(commissionsSummary?.totalNet || 0)}
               </p>
-              <p className="text-[11px] text-gray-500">Ganancias</p>
+              <p className="text-[11px] text-gray-500">Comisiones · {currencyCode}</p>
             </div>
             <div className="p-4 text-center">
               <UsersIcon className="h-5 w-5 text-[#3E667D] mx-auto mb-1" />
@@ -476,6 +527,24 @@ export default function DistribuidorDashboard() {
         </CardContent>
       </Card>
 
+      {/* ══════════════ CTA: comprar a precio de distribuidor ══════════════ */}
+      <Link href="/productos" className="block">
+        <Card className="overflow-hidden border-0 bg-gradient-to-br from-[#3E667D] to-[#0A4B94] text-white shadow-lg transition-transform hover:-translate-y-0.5">
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15">
+              <ShoppingBagIcon className="h-6 w-6 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-bold">Compra a precio de distribuidor</p>
+              <p className="text-sm text-white/80">
+                Pide del almacén a tu precio. Envío a domicilio o recoge en sucursal.
+              </p>
+            </div>
+            <ChevronRightIcon className="h-5 w-5 shrink-0 text-white/70" />
+          </CardContent>
+        </Card>
+      </Link>
+
       {/* ══════════════ Acciones rápidas ══════════════ */}
       <Card>
         <CardHeader className="pb-2">
@@ -505,7 +574,7 @@ export default function DistribuidorDashboard() {
               <div className="w-10 h-10 rounded-full bg-[#a7c1e2]/20 flex items-center justify-center">
                 <CurrencyDollarIcon className="h-5 w-5 text-[#3E667D]" />
               </div>
-              <span className="text-sm font-medium text-gray-700">Mis ganancias</span>
+              <span className="text-sm font-medium text-gray-700">Mis comisiones</span>
             </Link>
           </div>
         </CardContent>

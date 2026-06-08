@@ -2,7 +2,10 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { distributorApi } from '@/services/distributorApi';
-import type { RegisterMemberRequest } from '@/services/distributorApi';
+import type {
+  RegisterMemberRequest,
+  RegisterPreferredRequest,
+} from '@/services/distributorApi';
 import {
   DistributorProfile,
   PeriodPoints,
@@ -17,7 +20,7 @@ import {
 // Query keys
 export const distributorKeys = {
   all: ['distributor'] as const,
-  dashboard: () => [...distributorKeys.all, 'dashboard'] as const,
+  dashboard: (periodId?: string) => [...distributorKeys.all, 'dashboard', periodId ?? 'current'] as const,
   profile: () => [...distributorKeys.all, 'profile'] as const,
   points: () => [...distributorKeys.all, 'points'] as const,
   rankProgress: () => [...distributorKeys.all, 'rankProgress'] as const,
@@ -31,10 +34,10 @@ export const distributorKeys = {
 /**
  * Hook para obtener el dashboard completo del distribuidor
  */
-export function useDashboard() {
+export function useDashboard(periodId?: string) {
   return useQuery<DashboardResponse>({
-    queryKey: distributorKeys.dashboard(),
-    queryFn: () => distributorApi.getDashboard(),
+    queryKey: distributorKeys.dashboard(periodId),
+    queryFn: () => distributorApi.getDashboard(periodId),
     staleTime: 2 * 60 * 1000, // 2 minutos
   });
 }
@@ -149,12 +152,36 @@ export function useRegisterMember() {
   });
 }
 
+/** Lista de clientes preferentes del distribuidor. */
+export function usePreferredCustomers() {
+  return useQuery({
+    queryKey: [...distributorKeys.all, 'preferredCustomers'] as const,
+    queryFn: () => distributorApi.getPreferredCustomers(),
+    staleTime: 60 * 1000,
+  });
+}
+
+/** Alta de un cliente preferente. */
+export function useRegisterPreferred() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (dto: RegisterPreferredRequest) =>
+      distributorApi.registerPreferred(dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [...distributorKeys.all, 'preferredCustomers'],
+      });
+    },
+  });
+}
+
 /**
  * Hook combinado para obtener todos los datos del dashboard de una vez
  * Útil para la página principal del Centro de Negocio
  */
-export function useDistributorDashboard() {
-  const dashboardQuery = useDashboard();
+export function useDistributorDashboard(periodId?: string) {
+  const dashboardQuery = useDashboard(periodId);
   const profileQuery = useDistributorProfile();
   const pointsQuery = usePeriodPoints();
   const rankProgressQuery = useRankProgress();

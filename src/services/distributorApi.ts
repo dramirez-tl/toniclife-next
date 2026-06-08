@@ -54,6 +54,35 @@ export interface RegisterMemberResult {
   nextStep: 'sponsor_pays_kit' | 'invitation' | 'none';
 }
 
+export interface RegisterPreferredRequest {
+  firstName: string;
+  lastName: string;
+  mothersLastName?: string;
+  email: string;
+  phone: string;
+  rfc?: string;
+  birthDate?: string;
+}
+
+export interface RegisterPreferredResult {
+  customerId: string;
+  customerNumber: string | null;
+  fullName: string;
+  email: string;
+  tempPassword: string;
+  invitationSent: boolean;
+}
+
+export interface PreferredCustomerItem {
+  customerId: string;
+  customerNumber: string | null;
+  fullName: string;
+  email: string;
+  phone: string | null;
+  status: string;
+  createdAt: string;
+}
+
 // ===== API SERVICE =====
 
 class DistributorApi {
@@ -61,8 +90,10 @@ class DistributorApi {
    * Obtiene el dashboard completo del distribuidor
    * Backend: GET /distributor/dashboard
    */
-  async getDashboard(): Promise<DashboardResponse> {
-    const { data } = await api.get<DashboardResponse>('/distributor/dashboard');
+  async getDashboard(periodId?: string): Promise<DashboardResponse> {
+    const { data } = await api.get<DashboardResponse>('/distributor/dashboard', {
+      params: periodId ? { periodId } : undefined,
+    });
     return data;
   }
 
@@ -152,6 +183,33 @@ class DistributorApi {
     const { data } = await api.post<RegisterMemberResult>(
       '/distributor/network/members',
       dto,
+    );
+    return data;
+  }
+
+  // ===== Clientes preferentes =====
+
+  /**
+   * Da de alta un cliente preferente (sin kit, status active, precio preferente).
+   * Backend: POST /distributor/preferred-customers
+   */
+  async registerPreferred(
+    dto: RegisterPreferredRequest,
+  ): Promise<RegisterPreferredResult> {
+    const { data } = await api.post<RegisterPreferredResult>(
+      '/distributor/preferred-customers',
+      dto,
+    );
+    return data;
+  }
+
+  /**
+   * Lista los clientes preferentes del distribuidor autenticado.
+   * Backend: GET /distributor/preferred-customers
+   */
+  async getPreferredCustomers(): Promise<PreferredCustomerItem[]> {
+    const { data } = await api.get<PreferredCustomerItem[]>(
+      '/distributor/preferred-customers',
     );
     return data;
   }

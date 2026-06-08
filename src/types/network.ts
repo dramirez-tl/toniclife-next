@@ -99,6 +99,7 @@ export interface NetworkSearchResult {
 // Tipos para vista de lista de downlines
 export interface DownlineItem {
   id: string;
+  customerNumber?: string;
   fullName: string;
   email: string;
   phone?: string;
@@ -125,6 +126,7 @@ export interface DownlineQuery {
   status?: 'active' | 'inactive' | 'suspended';
   qualified?: boolean;
   rankNumber?: number;
+  joinedPeriodId?: string;
   page?: number;
   limit?: number;
   sortBy?: 'name' | 'email' | 'createdAt' | 'level';

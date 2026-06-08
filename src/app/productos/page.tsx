@@ -170,7 +170,8 @@ export default function ProductsPage() {
                 <span className="font-semibold">Precios de distribuidor.</span>{' '}
                 Estás viendo los precios de tu cuenta y los puntos que suma cada
                 producto. Si tu kit aún no está activo, verás precio público
-                hasta completarlo.
+                hasta completarlo. El envío a domicilio se cobra siempre; puedes
+                elegir recoger en sucursal sin costo.
               </p>
             </div>
           )}

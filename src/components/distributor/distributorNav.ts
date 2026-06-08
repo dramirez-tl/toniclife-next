@@ -38,7 +38,7 @@ export interface NavGroup {
 export const CORE_NAV: NavLink[] = [
   { name: 'Inicio', href: '/distribuidor', icon: HomeIcon },
   { name: 'Mi Red', href: '/distribuidor/red', icon: UsersIcon },
-  { name: 'Ganancias', href: '/distribuidor/comisiones', icon: CurrencyDollarIcon },
+  { name: 'Comisiones', href: '/distribuidor/comisiones', icon: CurrencyDollarIcon },
   { name: 'Vender', href: '/distribuidor/ventas', icon: ShoppingCartIcon },
 ];
 
@@ -47,6 +47,7 @@ export const MORE_GROUPS: NavGroup[] = [
   {
     title: 'Mi Negocio',
     items: [
+      { name: 'Compartir carrito', href: '/distribuidor/compartir-carrito', icon: ShoppingCartIcon },
       { name: 'Reportes', href: '/distribuidor/reportes', icon: ChartBarIcon },
       { name: 'Metas', href: '/distribuidor/metas', icon: FlagIcon },
       { name: 'Ranking', href: '/distribuidor/ranking', icon: TrophyIcon },

@@ -10,11 +10,13 @@ import { DataTable, DataTablePagination, type DataTableColumn } from '@/componen
 import { Loader2 } from 'lucide-react';
 import { selectUser } from '@/store/slices/authSlice';
 import { useNetworkDownlines } from '@/hooks/useNetwork';
+import { useCurrentPeriod, useCommissionPeriods } from '@/hooks/useCommissions';
 import { networkApi } from '@/services/networkApi';
 import {
   useDistributorDashboard,
   useCopyReferralLink,
   useShareReferralLink,
+  usePreferredCustomers,
 } from '@/hooks/useDistributor';
 import { DownlineItem, DownlineQuery } from '@/types/network';
 import { RANK_ORDER, RANK_LABELS } from '@/constants/ranks';
@@ -31,6 +33,7 @@ import {
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
 import { MemberEnrollmentPanel } from './MemberEnrollmentPanel';
+import { PreferredEnrollmentPanel } from './PreferredEnrollmentPanel';
 
 export default function RedPage() {
   return <Suspense><RedContent /></Suspense>;
@@ -39,6 +42,7 @@ export default function RedPage() {
 function RedContent() {
   const [isInvitePanelOpen, setIsInvitePanelOpen] = useState(false);
   const [isEnrollOpen, setIsEnrollOpen] = useState(false);
+  const [isPreferredOpen, setIsPreferredOpen] = useState(false);
   const user = useSelector(selectUser);
 
   const { profile: distributorProfile } = useDistributorDashboard();
@@ -128,6 +132,14 @@ function RedContent() {
                 Enlace de invitación
               </Button>
               <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsPreferredOpen(true)}
+              >
+                <UserPlusIcon className="h-4 w-4" />
+                Cliente preferente
+              </Button>
+              <Button
                 variant="default"
                 size="sm"
                 onClick={() => setIsEnrollOpen(true)}
@@ -143,6 +155,9 @@ function RedContent() {
       {/* Main Content */}
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8">
         <TreeListView />
+
+        {/* Clientes preferentes */}
+        <PreferredCustomersSection onAdd={() => setIsPreferredOpen(true)} />
 
         {/* Help CTA */}
         <Card className="mt-8 bg-gradient-to-r from-[#C8DDF2] to-[#C8DDF2]/90 text-white">
@@ -237,7 +252,98 @@ function RedContent() {
         isOpen={isEnrollOpen}
         onClose={() => setIsEnrollOpen(false)}
       />
+
+      {/* Panel de alta de cliente preferente (sin kit) */}
+      <PreferredEnrollmentPanel
+        isOpen={isPreferredOpen}
+        onClose={() => setIsPreferredOpen(false)}
+      />
     </div>
+  );
+}
+
+// Sección: clientes preferentes del distribuidor (no son parte del árbol MLM)
+function PreferredCustomersSection({ onAdd }: { onAdd: () => void }) {
+  const { data: preferred = [], isLoading } = usePreferredCustomers();
+
+  return (
+    <Card className="mt-8">
+      <CardContent className="p-4 lg:p-6">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">
+              Clientes preferentes
+            </h3>
+            <p className="text-sm text-gray-500">
+              Compran a precio preferente con su ID. No forman parte de tu red MLM.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={onAdd}>
+            <UserPlusIcon className="h-4 w-4" />
+            Agregar
+          </Button>
+        </div>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8 text-gray-400">
+            <Loader2 className="h-5 w-5 animate-spin" />
+          </div>
+        ) : preferred.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-gray-200 py-8 text-center">
+            <p className="text-sm text-gray-500">
+              Aún no tienes clientes preferentes.
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-2"
+              onClick={onAdd}
+            >
+              <UserPlusIcon className="h-4 w-4" />
+              Dar de alta el primero
+            </Button>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-400">
+                  <th className="py-2 pr-4 font-medium">ID</th>
+                  <th className="py-2 pr-4 font-medium">Nombre</th>
+                  <th className="py-2 pr-4 font-medium">Correo</th>
+                  <th className="py-2 pr-4 font-medium">Teléfono</th>
+                  <th className="py-2 pr-4 font-medium">Alta</th>
+                </tr>
+              </thead>
+              <tbody>
+                {preferred.map((c) => (
+                  <tr
+                    key={c.customerId}
+                    className="border-b border-gray-50 last:border-0"
+                  >
+                    <td className="py-2.5 pr-4 font-mono text-[#3E667D]">
+                      {c.customerNumber || '—'}
+                    </td>
+                    <td className="py-2.5 pr-4 font-medium text-gray-900">
+                      {c.fullName}
+                    </td>
+                    <td className="py-2.5 pr-4 text-gray-600">{c.email}</td>
+                    <td className="py-2.5 pr-4 text-gray-600">
+                      {c.phone || '—'}
+                    </td>
+                    <td className="py-2.5 pr-4 text-gray-500">
+                      {c.createdAt
+                        ? new Date(c.createdAt).toLocaleDateString('es-MX')
+                        : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -250,15 +356,14 @@ const STATUS_LABELS_EXPORT: Record<string, string> = {
 
 // Genera y descarga un CSV (UTF-8 + BOM, separador ";") que Excel abre en columnas.
 function downloadDownlinesCsv(rows: DownlineItem[]) {
-  const headers = ['Nombre', 'Email', 'Teléfono', 'Nivel', 'Rango', 'Patrocinador', 'ID patrocinador', 'Estado', 'Puntos personales', 'Fecha de ingreso'];
+  const headers = ['ID distribuidor', 'Nombre', 'Nivel', 'Rango', 'Patrocinador', 'ID patrocinador', 'Estado', 'Puntos personales', 'Fecha de ingreso'];
   const esc = (v: string | number | null | undefined) =>
     `"${(v == null ? '' : String(v)).replace(/"/g, '""')}"`;
 
   const body = rows.map((r) =>
     [
+      r.customerNumber || '',
       r.fullName,
-      r.email,
-      r.phone || '',
       r.level,
       r.rankName || 'Distribuidor',
       r.sponsorName || '',
@@ -315,8 +420,25 @@ function TreeListView() {
   const qualified = qualifiedStr === 'true' ? true : qualifiedStr === 'false' ? false : undefined;
   const rankStr = get('rank');
   const rankNumber = rankStr ? parseInt(rankStr) : undefined;
+  const joinedPeriod = get('joinedPeriod') || '';
   const page = getNumber('page') || 1;
   const pageSize = getNumber('limit') || 20;
+
+  // Periodos para el filtro "nuevos socios del periodo" (26→25)
+  const { data: currentPeriodData } = useCurrentPeriod();
+  const { data: periodsData } = useCommissionPeriods();
+  const periodsArray = Array.isArray(periodsData)
+    ? periodsData
+    : (periodsData as any)?.data ?? [];
+  const sortedPeriods = [...periodsArray].sort((a: any, b: any) => {
+    const ad = String(a?.startDate ?? a?.start_date ?? '');
+    const bd = String(b?.startDate ?? b?.start_date ?? '');
+    if (ad && bd && ad !== bd) return bd.localeCompare(ad);
+    return (
+      Number(b?.periodNumber ?? b?.period_number ?? 0) -
+      Number(a?.periodNumber ?? a?.period_number ?? 0)
+    );
+  });
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -332,16 +454,17 @@ function TreeListView() {
     status: statusFilter,
     qualified,
     rankNumber,
+    joinedPeriodId: joinedPeriod || undefined,
     page,
     limit: pageSize,
     sortBy: 'level',
     sortOrder: 'asc',
-  }), [debouncedSearch, levelFilter, statusFilter, qualified, rankNumber, page, pageSize]);
+  }), [debouncedSearch, levelFilter, statusFilter, qualified, rankNumber, joinedPeriod, page, pageSize]);
 
   const { data: response, isLoading, isFetching, error, refetch } = useNetworkDownlines(query);
 
   const hasActiveFilters = Boolean(
-    debouncedSearch || levelFilter || statusFilter || qualifiedStr || rankStr,
+    debouncedSearch || levelFilter || statusFilter || qualifiedStr || rankStr || joinedPeriod,
   );
 
   // Descarga la red COMPLETA (sin filtros), paginando hasta traer todos los registros.
@@ -557,6 +680,19 @@ function TreeListView() {
               value={rankStr}
               onChange={(val) => setParams({ rank: val || null, page: null })}
               allLabel="Todos los rangos"
+              allValue=""
+            />
+            {/* Filtro: nuevos socios del periodo (26→25) */}
+            <SearchableSelect
+              options={sortedPeriods.map((p: any) => ({
+                value: p.id,
+                label: `Nuevos en ${p.name}${
+                  currentPeriodData?.id === p.id ? ' (Actual)' : ''
+                }`,
+              }))}
+              value={joinedPeriod}
+              onChange={(val) => setParams({ joinedPeriod: val || null, page: null })}
+              allLabel="Ingreso: todos los periodos"
               allValue=""
             />
           </div>

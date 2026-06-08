@@ -75,12 +75,15 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
   const cedeaAmount = parseFloat(summary.cedeaBonusesMxn);
   const autoAmount = parseFloat(summary.autoBonusesMxn);
   const personalSales = parseFloat(summary.personalSales || '0');
-  const networkSalesVolume = parseFloat(summary.networkSalesVolume || '0');
+  const networkGroupPoints = parseFloat(summary.networkGroupPoints || '0');
 
   // Calculate percentage of each type
   const mlmPercent = totalNet > 0 ? ((mlmAmount / totalNet) * 100).toFixed(0) : 0;
   const cedeaPercent = totalNet > 0 ? ((cedeaAmount / totalNet) * 100).toFixed(0) : 0;
   const autoPercent = totalNet > 0 ? ((autoAmount / totalNet) * 100).toFixed(0) : 0;
+
+  // CEDEA solo aplica a usuarios CEDEA: mostrar el bono únicamente si hay monto CEDEA.
+  const showCedea = cedeaAmount > 0;
 
   return (
     <div className="space-y-6">
@@ -247,14 +250,15 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                   <UserGroupIcon className="h-6 w-6 text-white" />
                 </div>
               </div>
-              <p className="text-sm text-gray-500 font-medium mb-1">Volumen de Red</p>
+              <p className="text-sm text-gray-500 font-medium mb-1">Puntos de Red</p>
               <p className="text-3xl font-bold text-gray-900 tracking-tight">
-                {formatCurrency(networkSalesVolume)}<Badge />
+                {networkGroupPoints.toLocaleString('es-MX', { maximumFractionDigits: 0 })}
+                <span className="text-base font-semibold text-gray-400 ml-1">pts</span>
               </p>
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <p className="text-xs text-gray-500 flex items-center gap-1">
                   <UserGroupIcon className="h-3.5 w-3.5 text-[#3E667D]" />
-                  Ventas de tu red en el periodo
+                  Puntos de grupo de tu red en el periodo
                 </p>
               </div>
             </div>
@@ -264,7 +268,7 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
       </div>
 
       {/* Commission Types Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className={`grid grid-cols-1 gap-4 ${showCedea ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
         {/* MLM Commissions */}
         <Card className="group hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 border-0 shadow-md overflow-hidden">
           <CardContent className="p-0">
@@ -288,7 +292,8 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
           </CardContent>
         </Card>
 
-        {/* CEDEA Bonuses */}
+        {/* CEDEA Bonuses — solo para usuarios CEDEA */}
+        {showCedea && (
         <Card className="group hover:shadow-lg hover:shadow-yellow-500/10 transition-all duration-300 border-0 shadow-md overflow-hidden">
           <CardContent className="p-0">
             <div className="p-5">
@@ -316,6 +321,7 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
             <div className="h-1 bg-gradient-to-r from-yellow-500 to-amber-500" />
           </CardContent>
         </Card>
+        )}
 
         {/* Auto Bonuses */}
         <Card className="group hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-300 border-0 shadow-md overflow-hidden">

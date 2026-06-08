@@ -235,6 +235,7 @@ class NetworkApi {
     if (query.status) params.status = query.status;
     if (query.qualified !== undefined) params.qualified = query.qualified ? 'true' : 'false';
     if (query.rankNumber !== undefined) params.rankNumber = query.rankNumber.toString();
+    if (query.joinedPeriodId) params.joinedPeriodId = query.joinedPeriodId;
     if (query.page) params.page = query.page.toString();
     if (query.limit) params.limit = query.limit.toString();
     if (query.sortBy) params.sortBy = query.sortBy;

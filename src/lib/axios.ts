@@ -71,6 +71,7 @@ const PUBLIC_ENDPOINTS = [
   '/products',
   '/categories',
   '/quiz',
+  '/shared-carts',
 ];
 
 const isAuthEndpoint = (url?: string): boolean => {

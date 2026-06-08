@@ -218,7 +218,7 @@ export function CommissionTable({ commissions, showTaxDetails = false, currencyC
                           <p className="font-mono text-gray-900">{commission.id}</p>
                         </div>
                         <div>
-                          <p className="text-gray-500 text-xs">Subtotal Ganancias</p>
+                          <p className="text-gray-500 text-xs">Subtotal Comisiones</p>
                           <p className="text-gray-900">{formatCurrency(commission.subtotalEarnings)}<CurrBadge /></p>
                         </div>
                         {commission.autoBonus && (

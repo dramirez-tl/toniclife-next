@@ -59,6 +59,7 @@ export interface CommissionSummary {
   transactionCount: number;
   personalSales?: string;
   networkSalesVolume?: string;
+  networkGroupPoints?: string;
 }
 
 export interface CommissionPercentage {

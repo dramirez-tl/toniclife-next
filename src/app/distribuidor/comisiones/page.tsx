@@ -189,7 +189,7 @@ function ComisionesContent() {
                     Comisiones
                   </h1>
                   <p className="text-white/70 text-sm lg:text-base mt-0.5">
-                    Gestiona y visualiza todas tus ganancias
+                    Gestiona y visualiza todas tus comisiones
                   </p>
                 </div>
               </div>

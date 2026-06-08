@@ -13,6 +13,7 @@ import {
   UserGroupIcon,
   CurrencyDollarIcon,
   ShoppingBagIcon,
+  ShoppingCartIcon,
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
 
@@ -367,6 +368,20 @@ export default function VentasPage() {
                 </div>
 
                 <div className="space-y-2.5">
+                  <Link
+                    href="/distribuidor/compartir-carrito"
+                    className="group flex items-center gap-3 rounded-xl border border-white/15 bg-white/10 px-3.5 py-3 transition-all hover:-translate-y-0.5 hover:bg-white/15"
+                  >
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#C8DDF2]/25">
+                      <ShoppingCartIcon className="h-4.5 w-4.5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-white">Compartir carrito</p>
+                      <p className="text-[11px] text-white/70">Arma un pedido y envía el link de pago</p>
+                    </div>
+                    <ArrowTrendingUpIcon className="h-4 w-4 text-white/60 transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+
                   <Link
                     href="/productos"
                     className="group flex items-center gap-3 rounded-xl border border-white/15 bg-white/10 px-3.5 py-3 transition-all hover:-translate-y-0.5 hover:bg-white/15"
