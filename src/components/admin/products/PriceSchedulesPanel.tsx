@@ -72,6 +72,7 @@ export function PriceSchedulesPanel({ productId }: PriceSchedulesPanelProps) {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [cancelingId, setCancelingId] = useState<string | null>(null);
+  const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
 
   const setField = (k: keyof typeof form, v: string) =>
     setForm((prev) => ({ ...prev, [k]: v }));
@@ -153,6 +154,7 @@ export function PriceSchedulesPanel({ productId }: PriceSchedulesPanelProps) {
       toast.error('No se pudo cancelar la programación');
     } finally {
       setCancelingId(null);
+      setConfirmCancelId(null);
     }
   };
 
@@ -242,23 +244,42 @@ export function PriceSchedulesPanel({ productId }: PriceSchedulesPanelProps) {
                     )}
                   </div>
 
-                  {s.status === 'pending' && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleCancel(s.id)}
-                      disabled={isCanceling}
-                      className="text-red-600 hover:bg-red-50 hover:text-red-600 shrink-0"
-                    >
-                      {isCanceling ? (
-                        <Loader2 className="mr-1 size-4 animate-spin" />
-                      ) : (
+                  {s.status === 'pending' &&
+                    (confirmCancelId === s.id ? (
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="text-xs text-gray-600">¿Cancelar?</span>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleCancel(s.id)}
+                          disabled={isCanceling}
+                        >
+                          {isCanceling && <Loader2 className="mr-1 size-4 animate-spin" />}
+                          Sí, cancelar
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setConfirmCancelId(null)}
+                          disabled={isCanceling}
+                        >
+                          No
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setConfirmCancelId(s.id)}
+                        className="shrink-0 text-red-600 hover:bg-red-50 hover:text-red-600"
+                      >
                         <TrashIcon className="mr-1 h-4 w-4" />
-                      )}
-                      Cancelar
-                    </Button>
-                  )}
+                        Cancelar
+                      </Button>
+                    ))}
                 </div>
               );
             })}
