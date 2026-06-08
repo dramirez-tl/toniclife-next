@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo, Suspense } from 'react';
+import { useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import {
   ArrowLeftIcon,
   CurrencyDollarIcon,
@@ -19,6 +20,7 @@ import type { DistributorCommission, RankUp } from '@/types/reports';
 import { useCommissionsReport, usePointsReport, useRankUpsReport } from '@/hooks/useReports';
 import { useCommissionPeriods } from '@/hooks/useCommissions';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
+import { exportToCsv, csvDateStamp } from '@/lib/csv-export';
 
 type ViewMode = 'commissions' | 'points' | 'rank-ups';
 
@@ -70,10 +72,15 @@ function ComisionesReportesContent() {
   const periods: any[] = Array.isArray(periodsData) ? periodsData : (periodsData as any)?.data ?? [];
   const currentPeriod = periods.find((p: any) => !p.isClosed) ?? periods[0];
 
-  // Set default period when data loads
-  if (!selectedPeriod && currentPeriod?.id) {
-    setParams({ period: currentPeriod.id });
-  }
+  // Set default period once when data loads (useEffect, no en el render → evita loop).
+  useEffect(() => {
+    if (!selectedPeriod && currentPeriod?.id) {
+      setParams({ period: currentPeriod.id });
+    }
+  }, [selectedPeriod, currentPeriod?.id, setParams]);
+
+  const periodName =
+    periods.find((p: any) => p.id === selectedPeriod)?.name || selectedPeriod || '';
 
   // Query params
   const commissionsQuery = {
@@ -156,6 +163,63 @@ function ComisionesReportesContent() {
     },
   ], []);
 
+  const handleExport = () => {
+    const slug = periodName.replace(/\s+/g, '_') || 'periodo';
+    if (viewMode === 'commissions') {
+      if (distributorCommissions.length === 0) {
+        toast.error('No hay comisiones para exportar');
+        return;
+      }
+      exportToCsv(
+        `comisiones_${slug}_${csvDateStamp()}.csv`,
+        ['Distribuidor', 'Email', 'Rango', 'Bruto MXN', 'Bruto USD', 'Retenciones', 'Neto MXN', 'Neto USD'],
+        distributorCommissions.map((d) => [
+          d.customerName,
+          d.email,
+          d.rank,
+          d.grossAmountMxn,
+          d.grossAmountUsd,
+          d.retentions,
+          d.netAmountMxn,
+          d.netAmountUsd,
+        ]),
+      );
+      toast.success('CSV de comisiones descargado');
+    } else if (viewMode === 'rank-ups') {
+      if (rankUps.length === 0) {
+        toast.error('No hay subidas de rango para exportar');
+        return;
+      }
+      exportToCsv(
+        `subidas_rango_${slug}_${csvDateStamp()}.csv`,
+        ['Distribuidor', 'Rango Anterior', 'Nuevo Rango', 'Fecha'],
+        rankUps.map((r) => [
+          r.customerName,
+          r.previousRank,
+          r.newRank,
+          new Date(r.achievedAt).toLocaleDateString('es-MX'),
+        ]),
+      );
+      toast.success('CSV de subidas de rango descargado');
+    } else {
+      if (!pointsSummary) {
+        toast.error('No hay datos de puntos para exportar');
+        return;
+      }
+      exportToCsv(
+        `puntos_${slug}_${csvDateStamp()}.csv`,
+        ['Métrica', 'Valor'],
+        [
+          ['Puntos personales', pointsSummary.totalPersonalPoints ?? 0],
+          ['Puntos de grupo', pointsSummary.totalGroupPoints ?? 0],
+          ['Business Value MXN', pointsSummary.totalBusinessValueMxn ?? 0],
+          ['Distribuidores calificados', pointsSummary.qualifiedDistributors ?? 0],
+        ],
+      );
+      toast.success('CSV de puntos descargado');
+    }
+  };
+
   const rankUpColumns = useMemo<DataTableColumn<RankUp>[]>(() => [
     {
       key: 'distributor',
@@ -217,9 +281,9 @@ function ComisionesReportesContent() {
             </p>
           </div>
         </div>
-        <Button variant="success">
+        <Button variant="success" onClick={handleExport}>
           <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
-          Exportar Excel
+          Exportar CSV
         </Button>
       </div>
 

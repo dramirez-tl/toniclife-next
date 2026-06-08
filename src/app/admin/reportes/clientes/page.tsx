@@ -22,6 +22,8 @@ import { DataTable, type DataTableColumn } from '@/components/ui';
 import { useNewCustomersReport, useInactiveCustomersReport } from '@/hooks/useReports';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import type { NewCustomer, InactiveCustomer } from '@/types/reports';
+import { exportToCsv, csvDateStamp } from '@/lib/csv-export';
+import { toast } from 'sonner';
 
 type ViewMode = 'new' | 'inactive';
 
@@ -135,6 +137,43 @@ function ClientesReportesContent() {
       })
       .sort((a, b) => b.inactiveDays - a.inactiveDays);
   }, [inactiveCustomers, searchTerm]);
+
+  const handleExport = () => {
+    if (viewMode === 'new') {
+      if (filteredNewCustomers.length === 0) {
+        toast.error('No hay clientes para exportar');
+        return;
+      }
+      exportToCsv(
+        `clientes_nuevos_${csvDateStamp()}.csv`,
+        ['Cliente', 'Email', 'Tipo', 'Patrocinador', 'Fecha Registro'],
+        filteredNewCustomers.map((c) => [
+          c.name,
+          c.email,
+          c.type,
+          c.sponsorName || '',
+          new Date(c.createdAt).toLocaleDateString('es-MX'),
+        ]),
+      );
+    } else {
+      if (filteredInactiveCustomers.length === 0) {
+        toast.error('No hay clientes para exportar');
+        return;
+      }
+      exportToCsv(
+        `clientes_inactivos_${csvDateStamp()}.csv`,
+        ['Cliente', 'Email', 'Última Compra', 'Días Inactivo', 'Total Histórico'],
+        filteredInactiveCustomers.map((c) => [
+          c.name,
+          c.email,
+          c.lastOrderDate ? new Date(c.lastOrderDate).toLocaleDateString('es-MX') : 'Nunca',
+          c.inactiveDays,
+          c.totalPurchases,
+        ]),
+      );
+    }
+    toast.success('CSV descargado');
+  };
 
   const newCustomerColumns = useMemo<DataTableColumn<NewCustomer>[]>(
     () => [
@@ -265,9 +304,9 @@ function ClientesReportesContent() {
             </p>
           </div>
         </div>
-        <Button variant="success">
+        <Button variant="success" onClick={handleExport}>
           <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
-          Exportar Excel
+          Exportar CSV
         </Button>
       </div>
 

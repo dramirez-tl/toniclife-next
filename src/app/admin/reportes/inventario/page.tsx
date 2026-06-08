@@ -20,6 +20,8 @@ import { useInventoryReport, useLowStockReport, useExpiringProductsReport } from
 import { useActiveBranches } from '@/hooks/useBranches';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import type { InventoryStock, ExpiringProduct } from '@/types/reports';
+import { exportToCsv, csvDateStamp } from '@/lib/csv-export';
+import { toast } from 'sonner';
 
 type ViewMode = 'stock' | 'low-stock' | 'expiring';
 
@@ -90,6 +92,48 @@ function InventarioReportesContent() {
       return matchesSearch;
     });
   }, [expiringProducts, searchTerm]);
+
+  const handleExport = () => {
+    if (viewMode === 'expiring') {
+      if (filteredExpiring.length === 0) {
+        toast.error('No hay productos para exportar');
+        return;
+      }
+      exportToCsv(
+        `inventario_por_vencer_${csvDateStamp()}.csv`,
+        ['Código', 'Producto', 'Lote', 'Sucursal', 'Cantidad', 'Vence', 'Días para vencer'],
+        filteredExpiring.map((it) => [
+          it.code,
+          it.productName,
+          it.lotNumber,
+          it.branchName || '',
+          it.quantity,
+          new Date(it.expirationDate).toLocaleDateString('es-MX'),
+          it.daysUntilExpiration,
+        ]),
+      );
+    } else {
+      if (filteredItems.length === 0) {
+        toast.error('No hay productos para exportar');
+        return;
+      }
+      const name = viewMode === 'low-stock' ? 'existencias_bajas' : 'inventario';
+      exportToCsv(
+        `${name}_${csvDateStamp()}.csv`,
+        ['Código', 'Producto', 'Sucursal', 'Existencia', 'Mínimo', 'Máximo', 'Estado'],
+        filteredItems.map((it) => [
+          it.code,
+          it.productName,
+          it.branchName || '',
+          it.currentStock,
+          it.minStock,
+          it.maxStock,
+          it.isLowStock ? 'Bajo' : 'Normal',
+        ]),
+      );
+    }
+    toast.success('CSV descargado');
+  };
 
   const getStockStatusColor = (current: number, min: number, max: number) => {
     const percentage = (current / max) * 100;
@@ -241,9 +285,9 @@ function InventarioReportesContent() {
             </p>
           </div>
         </div>
-        <Button variant="success">
+        <Button variant="success" onClick={handleExport}>
           <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
-          Exportar Excel
+          Exportar CSV
         </Button>
       </div>
 
