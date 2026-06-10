@@ -13,7 +13,10 @@ import {
 } from '@/store/slices/customersSlice';
 import type { CreateCustomerDto, Customer } from '@/types/customer';
 import { useActivePriceTypes } from '@/hooks/useConfig';
+import { useActiveBranches } from '@/hooks/useBranches';
 import { findPriceTypeIdForCustomerType } from '@/lib/priceType';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { toast } from 'sonner';
 import {
   ArrowLeftIcon,
   UserIcon,
@@ -34,6 +37,7 @@ export default function NuevoDistribuidorPage() {
   const isLoading = useAppSelector(selectCustomersLoading);
   const error = useAppSelector(selectCustomersError);
   const { data: priceTypes } = useActivePriceTypes();
+  const { data: branches } = useActiveBranches();
 
   const [formData, setFormData] = useState<CreateCustomerDto & { _customerType: string }>({
     _customerType: 'distributor',
@@ -90,13 +94,23 @@ export default function NuevoDistribuidorPage() {
     dispatch(clearError());
 
     const customerType = formData.customerType || formData._customerType;
-    // Clientes (final_customer) y preferentes (preferred_customer) usan
-    // directamente su price_type_id. Para distribuidor se mantiene el flujo
-    // actual (el kit/enrollment define su precio).
+    // El tipo de precio se resuelve del catálogo según el tipo de cliente
+    // (distribuidor incluido — antes el caso distribuidor mandaba '' y el
+    // API rechazaba con "priceTypeId debe ser un UUID válido").
     const resolvedPriceTypeId =
-      customerType === 'distributor'
-        ? formData.priceTypeId
-        : findPriceTypeIdForCustomerType(priceTypes, customerType) ?? formData.priceTypeId;
+      findPriceTypeIdForCustomerType(priceTypes, customerType) ??
+      formData.priceTypeId;
+
+    if (!formData.branchId) {
+      toast.error('Selecciona la sucursal de registro');
+      return;
+    }
+    if (!resolvedPriceTypeId) {
+      toast.error(
+        'No se encontró el tipo de precio para este tipo de cliente; revisa el catálogo de tipos de precio.',
+      );
+      return;
+    }
 
     // Clean up empty optional fields
     const cleanData: CreateCustomerDto = {
@@ -391,6 +405,31 @@ export default function NuevoDistribuidorPage() {
                   />
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Sucursal de registro */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Sucursal</h2>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Sucursal de registro *
+              </label>
+              <SearchableSelect
+                options={(branches ?? []).map((b) => ({
+                  value: b.id,
+                  label: `${b.name} (${b.code})`,
+                }))}
+                value={formData.branchId}
+                onChange={(value) =>
+                  setFormData((prev) => ({ ...prev, branchId: value }))
+                }
+                placeholder="Selecciona la sucursal"
+                showAllOption={false}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                El registro queda asociado a esta sucursal.
+              </p>
             </div>
           </div>
 
