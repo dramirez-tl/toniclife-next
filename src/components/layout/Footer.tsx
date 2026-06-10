@@ -13,17 +13,16 @@ const footerLinks = {
     { name: 'Salud Femenina', href: '/productos/hormonal' },
     { name: 'Salud Masculina', href: '/productos/masculino' }
   ],
+  // Solo rutas que EXISTEN: /distribuidores, /unete, /devoluciones y /ayuda
+  // eran 404 (auditoría jun-2026). Alta de distribuidor = /registro/distribuidor.
   empresa: [
     { name: 'Sobre Nosotros', href: '/nosotros' },
     { name: 'Testimonios', href: '/testimonios' },
     { name: 'Blog', href: '/blog' },
-    { name: 'Distribuidores', href: '/distribuidores' },
-    { name: 'Únete al Equipo', href: '/unete' }
+    { name: 'Únete como Distribuidor', href: '/registro/distribuidor' }
   ],
   soporte: [
-    { name: 'Centro de Ayuda', href: '/ayuda' },
     { name: 'Envíos', href: '/envios' },
-    { name: 'Devoluciones', href: '/devoluciones' },
     { name: 'Contacto', href: '/contacto' },
     { name: 'Preguntas Frecuentes', href: '/faq' }
   ],

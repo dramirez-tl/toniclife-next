@@ -466,7 +466,7 @@ export default function ConfirmacionContent() {
               Nuestro equipo de soporte está disponible para asistirte
             </p>
             <div className="flex gap-3 justify-center">
-              <Link href="/ayuda">
+              <Link href="/faq">
                 <Button variant="outline" size="sm">
                   Centro de Ayuda
                 </Button>

@@ -111,7 +111,7 @@ export function Header() {
               {language === 'es' ? 'ES' : 'EN'}
             </button>
             <span className="text-white/30">|</span>
-            <Link href="/ayuda" className="text-white/90 hover:text-[#C8DDF2] transition-colors">
+            <Link href="/faq" className="text-white/90 hover:text-[#C8DDF2] transition-colors">
               Ayuda
             </Link>
           </div>

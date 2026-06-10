@@ -1,96 +1,54 @@
 'use client';
 
-import { useState } from 'react';
+import Link from 'next/link';
 import {
   EnvelopeIcon,
-  PhoneIcon,
-  MapPinIcon,
   ClockIcon,
   ChatBubbleLeftRightIcon,
   QuestionMarkCircleIcon,
-  ShoppingBagIcon,
-  UserGroupIcon,
 } from '@heroicons/react/24/outline';
-import { toast } from 'sonner';
-import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+
+// Canales REALES de atención (los mismos que usa el Footer y el flujo de
+// registro). La versión anterior tenía un formulario que fingía enviar
+// mensajes (solo mostraba un toast) y oficinas/teléfonos inventados; se
+// retiró para no tirar solicitudes de soporte a la basura (auditoría
+// jun-2026). Si algún día se quiere formulario, debe existir primero un
+// endpoint real que entregue el mensaje (p. ej. vía Resend).
+const WHATSAPP_URL =
+  'https://api.whatsapp.com/send?phone=5214623356500&text=Hola%20me%20podr%C3%ADan%20ayudar';
+const SUPPORT_EMAIL = 'soporte@toniclife.com';
+const INFO_EMAIL = 'Informes@toniclife.com';
+
+const channels = [
+  {
+    icon: ChatBubbleLeftRightIcon,
+    title: 'WhatsApp',
+    description: 'La vía más rápida para dudas de pedidos, productos y soporte.',
+    actionLabel: 'Abrir WhatsApp',
+    href: WHATSAPP_URL,
+    external: true,
+  },
+  {
+    icon: EnvelopeIcon,
+    title: 'Soporte',
+    description: `Problemas con tu cuenta, tu pedido o la plataforma: ${SUPPORT_EMAIL}`,
+    actionLabel: 'Escribir a soporte',
+    href: `mailto:${SUPPORT_EMAIL}`,
+    external: false,
+  },
+  {
+    icon: EnvelopeIcon,
+    title: 'Informes',
+    description: `Ventas, distribución y temas generales: ${INFO_EMAIL}`,
+    actionLabel: 'Escribir a informes',
+    href: `mailto:${INFO_EMAIL}`,
+    external: false,
+  },
+];
 
 export default function ContactoPage() {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    reason: '',
-    message: ''
-  });
-
-  const contactReasons = [
-    { value: '', label: 'Selecciona un motivo' },
-    { value: 'ventas', label: 'Consulta de Ventas', icon: ShoppingBagIcon },
-    { value: 'soporte', label: 'Soporte Técnico', icon: QuestionMarkCircleIcon },
-    { value: 'distribuidor', label: 'Información sobre Distribuidores', icon: UserGroupIcon },
-    { value: 'producto', label: 'Consulta de Productos', icon: ChatBubbleLeftRightIcon },
-    { value: 'otro', label: 'Otro', icon: EnvelopeIcon }
-  ];
-
-  const offices = [
-    {
-      country: 'México',
-      city: 'Ciudad de México',
-      address: 'Av. Insurgentes Sur 1602, Crédito Constructor, Benito Juárez, 03940 CDMX',
-      phone: '+52 55 1234 5678',
-      email: 'mexico@toniclife.com',
-      hours: 'Lun - Vie: 9:00 AM - 6:00 PM'
-    },
-    {
-      country: 'Colombia',
-      city: 'Bogotá',
-      address: 'Cra. 7 #71-21, Torre B, Piso 10, Chapinero, Bogotá',
-      phone: '+57 1 234 5678',
-      email: 'colombia@toniclife.com',
-      hours: 'Lun - Vie: 8:00 AM - 5:00 PM'
-    },
-    {
-      country: 'Argentina',
-      city: 'Buenos Aires',
-      address: 'Av. Corrientes 1234, Piso 5, C1043 CABA',
-      phone: '+54 11 2345 6789',
-      email: 'argentina@toniclife.com',
-      hours: 'Lun - Vie: 9:00 AM - 6:00 PM'
-    },
-    {
-      country: 'Estados Unidos',
-      city: 'Miami',
-      address: '1200 Brickell Ave, Suite 1950, Miami, FL 33131',
-      phone: '+1 305 123 4567',
-      email: 'usa@toniclife.com',
-      hours: 'Mon - Fri: 9:00 AM - 5:00 PM EST'
-    }
-  ];
-
-  const socialLinks = [
-    { name: 'Facebook', url: 'https://facebook.com/toniclife', icon: '📘' },
-    { name: 'Instagram', url: 'https://instagram.com/toniclife', icon: '📷' },
-    { name: 'Twitter', url: 'https://twitter.com/toniclife', icon: '🐦' },
-    { name: 'LinkedIn', url: 'https://linkedin.com/company/toniclife', icon: '💼' },
-    { name: 'YouTube', url: 'https://youtube.com/toniclife', icon: '📺' },
-    { name: 'TikTok', url: 'https://tiktok.com/@toniclife', icon: '🎵' }
-  ];
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    toast.success('¡Mensaje enviado! Te contactaremos pronto.');
-    setFormData({ name: '', email: '', phone: '', reason: '', message: '' });
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero */}
@@ -100,216 +58,76 @@ export default function ContactoPage() {
             <EnvelopeIcon className="h-16 w-16 mx-auto mb-6" />
             <h1 className="text-5xl font-bold mb-6">Contáctanos</h1>
             <p className="text-xl text-blue-100 max-w-3xl mx-auto">
-              Estamos aquí para ayudarte. Envíanos un mensaje y te responderemos lo antes posible.
+              Estamos aquí para ayudarte. Elige el canal que prefieras y te
+              respondemos lo antes posible.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Contact Form */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-lg p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Envíanos un Mensaje</h2>
-
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                      Nombre Completo *
-                    </label>
-                    <Input
-                      type="text"
-                      id="name"
-                      name="name"
-                      required
-                      value={formData.name}
-                      onChange={handleChange}
-                      className="w-full"
-                      placeholder="Tu nombre"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                      Correo electrónico *
-                    </label>
-                    <Input
-                      type="email"
-                      id="email"
-                      name="email"
-                      required
-                      value={formData.email}
-                      onChange={handleChange}
-                      className="w-full"
-                      placeholder="tu@email.com"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                      Teléfono
-                    </label>
-                    <Input
-                      type="tel"
-                      id="phone"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      className="w-full"
-                      placeholder="+52 55 1234 5678"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-2">
-                      Motivo de Contacto *
-                    </label>
-                    <SearchableSelect
-                      options={contactReasons.filter(r => r.value !== '').map(r => ({ value: r.value, label: r.label }))}
-                      value={formData.reason}
-                      onChange={(val) => setFormData({ ...formData, reason: val })}
-                      showAllOption={false}
-                      placeholder="Selecciona un motivo"
-                      className="w-full"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
-                    Mensaje *
-                  </label>
-                  <textarea
-                    id="message"
-                    name="message"
-                    required
-                    rows={6}
-                    value={formData.message}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D] resize-none"
-                    placeholder="Cuéntanos cómo podemos ayudarte..."
-                  />
-                </div>
-
-                <Button
-                  type="submit"
-                  variant="default"
-                  size="xl"
-                  className="w-full bg-[#3E667D] font-bold hover:bg-[#002855]"
-                >
-                  Enviar Mensaje
-                </Button>
-              </form>
-            </div>
-          </div>
-
-          {/* Contact Info Sidebar */}
-          <div className="space-y-6">
-            {/* Quick Contact */}
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Contacto Rápido</h3>
-
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <PhoneIcon className="h-6 w-6 text-[#3E667D] flex-shrink-0 mt-1" />
-                  <div>
-                    <p className="font-medium text-gray-900">Teléfono</p>
-                    <p className="text-gray-600">+52 55 1234 5678</p>
-                    <p className="text-sm text-gray-500">Lun - Vie: 9AM - 6PM</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <EnvelopeIcon className="h-6 w-6 text-[#3E667D] flex-shrink-0 mt-1" />
-                  <div>
-                    <p className="font-medium text-gray-900">Correo electrónico</p>
-                    <p className="text-gray-600">soporte@toniclife.com</p>
-                    <p className="text-sm text-gray-500">Respuesta en 24 hrs</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <ChatBubbleLeftRightIcon className="h-6 w-6 text-[#3E667D] flex-shrink-0 mt-1" />
-                  <div>
-                    <p className="font-medium text-gray-900">Chat en Vivo</p>
-                    <p className="text-gray-600">Disponible ahora</p>
-                    <Button variant="link" size="sm" className="text-[#3E667D] px-0 h-auto">
-                      Iniciar chat →
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Social Media */}
-            <div className="bg-white rounded-lg shadow-lg p-6">
-              <h3 className="text-xl font-bold text-gray-900 mb-4">Síguenos</h3>
-              <div className="grid grid-cols-3 gap-3">
-                {socialLinks.map((social) => (
+      {/* Canales */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {channels.map((channel) => (
+            <Card key={channel.title}>
+              <CardContent className="flex h-full flex-col items-start gap-3 p-6">
+                <channel.icon className="h-8 w-8 text-[#3E667D]" />
+                <h2 className="text-lg font-bold text-gray-900">
+                  {channel.title}
+                </h2>
+                <p className="flex-1 text-sm text-gray-600">
+                  {channel.description}
+                </p>
+                <Button asChild className="w-full">
                   <a
-                    key={social.name}
-                    href={social.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex flex-col items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    href={channel.href}
+                    {...(channel.external
+                      ? { target: '_blank', rel: 'noopener noreferrer' }
+                      : {})}
                   >
-                    <span className="text-2xl mb-1">{social.icon}</span>
-                    <span className="text-xs text-gray-600">{social.name}</span>
+                    {channel.actionLabel}
                   </a>
-                ))}
-              </div>
-            </div>
-
-            {/* FAQ Link */}
-            <div className="bg-gradient-to-br from-[#3E667D] to-[#C8DDF2] rounded-lg p-6 text-white">
-              <QuestionMarkCircleIcon className="h-10 w-10 mb-3" />
-              <h3 className="text-lg font-bold mb-2">¿Tienes una pregunta?</h3>
-              <p className="text-blue-100 text-sm mb-4">
-                Visita nuestra sección de preguntas frecuentes
-              </p>
-              <a
-                href="/faq"
-                className="inline-block px-4 py-2 bg-white text-[#3E667D] font-medium rounded-lg hover:bg-blue-50 transition-colors text-sm"
-              >
-                Ver Preguntas Frecuentes
-              </a>
-            </div>
-          </div>
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
-        {/* Offices */}
-        <div className="mt-12">
-          <h2 className="text-3xl font-bold text-gray-900 text-center mb-8">Nuestras Oficinas</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {offices.map((office, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
-                <h3 className="text-xl font-bold text-[#3E667D] mb-4">{office.country}</h3>
-                <div className="space-y-3 text-sm">
-                  <div className="flex items-start gap-2">
-                    <MapPinIcon className="h-5 w-5 text-[#3E667D] flex-shrink-0 mt-0.5" />
-                    <p className="text-gray-600">{office.address}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <PhoneIcon className="h-5 w-5 text-[#3E667D] flex-shrink-0" />
-                    <p className="text-gray-900 font-medium">{office.phone}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <EnvelopeIcon className="h-5 w-5 text-[#3E667D] flex-shrink-0" />
-                    <p className="text-gray-900">{office.email}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <ClockIcon className="h-5 w-5 text-[#3E667D] flex-shrink-0" />
-                    <p className="text-gray-600">{office.hours}</p>
-                  </div>
-                </div>
+        {/* Horario + FAQ */}
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <CardContent className="flex items-start gap-4 p-6">
+              <ClockIcon className="h-8 w-8 flex-shrink-0 text-[#3E667D]" />
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">
+                  Horario de atención
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Lunes a viernes, 9:00 a 18:00 (hora del centro de México).
+                  Los mensajes fuera de horario se responden el siguiente día
+                  hábil.
+                </p>
               </div>
-            ))}
-          </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="flex items-start gap-4 p-6">
+              <QuestionMarkCircleIcon className="h-8 w-8 flex-shrink-0 text-[#3E667D]" />
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">
+                  Preguntas frecuentes
+                </h2>
+                <p className="text-sm text-gray-600">
+                  Muchas dudas de envíos, pagos y devoluciones ya están
+                  resueltas ahí.
+                </p>
+                <Button variant="link" size="sm" asChild className="px-0">
+                  <Link href="/faq">Ver preguntas frecuentes</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

@@ -277,7 +277,7 @@ export default function LoginPage() {
 
               <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50/70 p-4">
                 <Link
-                  href="/ayuda"
+                  href="/contacto"
                   className="group block transition-colors"
                 >
                   <div className="mb-1 flex items-center gap-2 text-[#3E667D]">
