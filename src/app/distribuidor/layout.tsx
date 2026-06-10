@@ -1,10 +1,30 @@
 'use client';
 
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { DistributorSidebar } from '@/components/distributor/DistributorSidebar';
 import { DistributorTopNav } from '@/components/distributor/DistributorTopNav';
 import { DistributorMoreMenu } from '@/components/distributor/DistributorMoreMenu';
+import { ComingSoon } from '@/components/distributor/ComingSoon';
+
+// Secciones que aún viven sobre datos de demostración (no conectadas al API).
+// Se muestran como "próximamente" para no presentar números ficticios como
+// reales (auditoría jun-2026). Al conectar una sección, quitar su entrada.
+const COMING_SOON_ROUTES: Record<string, string> = {
+  '/distribuidor/actividad': 'Actividad',
+  '/distribuidor/clientes': 'Mis clientes',
+  '/distribuidor/comunicacion': 'Comunicación',
+  '/distribuidor/eventos': 'Eventos',
+  '/distribuidor/integraciones': 'Integraciones',
+  '/distribuidor/inventario': 'Mi inventario',
+  '/distribuidor/metas': 'Metas',
+  '/distribuidor/prospectos': 'Prospectos',
+  '/distribuidor/ranking': 'Ranking',
+  '/distribuidor/reportes': 'Reportes',
+  '/distribuidor/scripts': 'Guiones de venta',
+  '/distribuidor/soporte': 'Soporte',
+};
 
 // Roles que tienen acceso al panel de distribuidor (canonical + legacy-migration + admin)
 // Legacy migration created generic "role1"–"role46" codes for ~170k distributor users,
@@ -28,6 +48,8 @@ export default function DistributorLayout({
   children: React.ReactNode;
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
+  const pathname = usePathname();
+  const comingSoonTitle = pathname ? COMING_SOON_ROUTES[pathname] : undefined;
 
   return (
     <AuthGuard requiredRoles={DISTRIBUTOR_ROLES}>
@@ -58,7 +80,7 @@ export default function DistributorLayout({
         {/* Main content */}
         <div className="lg:pl-64">
           <main className="p-4 lg:p-6">
-            {children}
+            {comingSoonTitle ? <ComingSoon title={comingSoonTitle} /> : children}
           </main>
         </div>
       </div>
