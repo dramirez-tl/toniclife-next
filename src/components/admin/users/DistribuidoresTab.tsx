@@ -77,6 +77,23 @@ export function DistribuidoresTab() {
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [pageSize, setPageSize] = useState(10);
+  const [resendingInviteId, setResendingInviteId] = useState<string | null>(null);
+
+  const handleResendInvite = async (customer: Customer) => {
+    if (resendingInviteId) return;
+    setResendingInviteId(customer.id);
+    try {
+      const result = await customersService.resendInvite(customer.id);
+      toast.success(result.message);
+    } catch (err) {
+      const e = err as { response?: { data?: { message?: string } } };
+      toast.error(
+        e.response?.data?.message || 'No se pudo enviar la invitación',
+      );
+    } finally {
+      setResendingInviteId(null);
+    }
+  };
   const [currentPage, setCurrentPage] = useState(1);
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -308,6 +325,23 @@ export function DistribuidoresTab() {
           >
             <PencilIcon className="h-4 w-4 text-muted-foreground" />
           </Link>
+          <button
+            onClick={() => void handleResendInvite(customer)}
+            className="rounded-lg p-2 transition-colors hover:bg-muted disabled:opacity-40"
+            title={
+              customer.email
+                ? 'Reenviar invitación de acceso (correo para crear contraseña)'
+                : 'El cliente no tiene email registrado'
+            }
+            disabled={!customer.email || resendingInviteId === customer.id}
+            aria-label={`Reenviar invitación a ${customer.firstName}`}
+          >
+            {resendingInviteId === customer.id ? (
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            ) : (
+              <EnvelopeIcon className="h-4 w-4 text-primary" />
+            )}
+          </button>
           {isSuperAdmin && (
             <button
               onClick={() => {

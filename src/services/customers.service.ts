@@ -119,6 +119,14 @@ class CustomersService {
     return response.data;
   }
 
+  /** Envía (o reenvía) el correo de invitación para definir contraseña. */
+  async resendInvite(id: string): Promise<{ message: string }> {
+    const response = await api.post<{ message: string }>(
+      `${this.basePath}/${id}/resend-invite`,
+    );
+    return response.data;
+  }
+
   // Addresses
   async getAddresses(customerId: string): Promise<CustomerAddress[]> {
     const response = await api.get<CustomerAddress[]>(
