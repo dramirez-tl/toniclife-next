@@ -12,16 +12,27 @@ const getToken = (key: string): string | null => {
 };
 
 /**
- * Persist a token. SIEMPRE en localStorage para coincidir con auth.service y
- * compartir la sesión entre pestañas. Antes escribía en sessionStorage cuando
- * "Recordarme" estaba off, pero getToken lee localStorage primero → el token
- * recién refrescado quedaba "sombreado" por el viejo de localStorage, el header
- * seguía mandando el token caducado → 401 → refresh en bucle infinito.
+ * Persist a token según "Recordarme": localStorage (persiste) con ON,
+ * sessionStorage (muere con la pestaña) con OFF. Se borra SIEMPRE la copia
+ * del otro storage para que un token viejo no "sombree" al nuevo (eso causaba
+ * el bucle de refresh que motivó el localStorage-siempre anterior).
+ *
+ * El REFRESH token ya NO se guarda en storage: vive en cookie httpOnly que
+ * pone el API (un XSS ya no puede robar la sesión renovable).
  */
 const setToken = (key: string, value: string): void => {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(key, value);
+  const remembered = localStorage.getItem(REMEMBER_KEY) === '1';
+  const target = remembered ? localStorage : sessionStorage;
+  const other = remembered ? sessionStorage : localStorage;
+  target.setItem(key, value);
+  other.removeItem(key);
 };
+
+/** Flag cookie (no httpOnly) que indica sesión activa para el middleware. */
+const hasSessionCookie = (): boolean =>
+  typeof document !== 'undefined' &&
+  document.cookie.split('; ').some((c) => c.startsWith('accessToken=1'));
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1',
@@ -113,7 +124,7 @@ api.interceptors.response.use(
     // las sub-rutas admin bajo /products (precios, imágenes, documentos, cambios
     // de precio programados) necesitan renovar el token igual que el resto.
     if (isPublicEndpoint(originalRequest?.url)) {
-      const hasSession = !!getToken(REFRESH_TOKEN_KEY);
+      const hasSession = !!getToken(ACCESS_TOKEN_KEY) || hasSessionCookie();
       if (!hasSession || error.response?.status !== 401) {
         return Promise.reject(error);
       }
@@ -139,20 +150,27 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const refreshToken = getToken(REFRESH_TOKEN_KEY);
+        // El refresh token vive en cookie httpOnly (withCredentials la manda).
+        // Migración: si quedó un refresh viejo en storage (sesiones previas al
+        // cambio), se manda por body UNA vez — el API responde seteando la
+        // cookie — y se borra del storage para siempre.
+        const legacyRefresh = getToken(REFRESH_TOKEN_KEY);
+        const remembered =
+          typeof window !== 'undefined' &&
+          localStorage.getItem(REMEMBER_KEY) === '1';
 
-        if (!refreshToken) {
-          throw new Error('No refresh token available');
-        }
-
-        const response = await api.post('/auth/refresh', { refreshToken });
-        const { accessToken, refreshToken: newRefreshToken } = response.data;
+        const response = await api.post(
+          '/auth/refresh',
+          legacyRefresh
+            ? { refreshToken: legacyRefresh, rememberMe: remembered }
+            : {},
+        );
+        const { accessToken } = response.data;
 
         if (typeof window !== 'undefined') {
           setToken(ACCESS_TOKEN_KEY, accessToken);
-          if (newRefreshToken) {
-            setToken(REFRESH_TOKEN_KEY, newRefreshToken);
-          }
+          localStorage.removeItem(REFRESH_TOKEN_KEY);
+          sessionStorage.removeItem(REFRESH_TOKEN_KEY);
           // Renew routing cookies (lifetime matches the storage mode + the new role)
           writeAuthCookies(accessToken);
         }

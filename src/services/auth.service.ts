@@ -99,14 +99,17 @@ const REMEMBER_KEY = 'rememberMe';
 
 class AuthService {
   /**
-   * Token storage. SIEMPRE localStorage para que la sesión se comparta entre
-   * pestañas: sessionStorage es por-pestaña y rompía la sesión al abrir un
-   * enlace en otra pestaña (la pestaña nueva no veía el token → /login).
-   * La diferencia de "Recordarme" se maneja con la cookie (de sesión vs
-   * persistente) + la verificación en initializeAuth (ver hasAuthCookie).
+   * Token storage del ACCESS token según "Recordarme": localStorage con ON,
+   * sessionStorage con OFF. El REFRESH token ya NO se guarda aquí: vive en
+   * cookie httpOnly que pone el API (XSS no puede robarlo).
+   *
+   * Pestañas nuevas sin "Recordarme" (sessionStorage es por-pestaña): no ven
+   * el access token, pero initializeAuth hace un refresh silencioso vía la
+   * cookie httpOnly y restaura la sesión — sin compartir tokens por
+   * localStorage.
    */
   private getStorage(): Storage {
-    return localStorage;
+    return this.isRemembered() ? localStorage : sessionStorage;
   }
 
   setRemember(remember: boolean): void {
@@ -148,17 +151,21 @@ class AuthService {
     return localStorage.getItem(REFRESH_TOKEN_KEY) || sessionStorage.getItem(REFRESH_TOKEN_KEY);
   }
 
-  setTokens(accessToken: string, refreshToken?: string): void {
+  setTokens(accessToken: string, _refreshToken?: string): void {
     if (typeof window === 'undefined') return;
     const storage = this.getStorage();
+    const other = storage === localStorage ? sessionStorage : localStorage;
     storage.setItem(ACCESS_TOKEN_KEY, accessToken);
+    // Evitar que una copia vieja en el otro storage sombree a la nueva.
+    other.removeItem(ACCESS_TOKEN_KEY);
+
+    // El refresh token NO se persiste (vive en cookie httpOnly del API).
+    // Purgar cualquier residuo de sesiones previas al cambio.
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
 
     // Routing cookies for the middleware (lifetime matches the storage mode).
     writeAuthCookies(accessToken);
-
-    if (refreshToken) {
-      storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-    }
   }
 
   clearTokens(): void {
@@ -192,7 +199,12 @@ class AuthService {
     // Set storage strategy BEFORE saving tokens
     this.setRemember(remember ?? false);
 
-    const response = await api.post<LoginResult>('/auth/login', loginData);
+    // rememberMe viaja al API: decide si la cookie httpOnly del refresh es
+    // persistente (7d) o de sesión.
+    const response = await api.post<LoginResult>('/auth/login', {
+      ...loginData,
+      rememberMe: remember ?? false,
+    });
 
     // Si requiere vinculación de email, no guardar tokens
     if (isEmailLinkRequired(response.data)) {
@@ -227,8 +239,13 @@ class AuthService {
 
   async logout(): Promise<void> {
     try {
-      const refreshToken = this.getRefreshToken();
-      await api.post('/auth/logout', { refreshToken });
+      // El API toma el refresh de la cookie httpOnly y la limpia; se manda el
+      // legacy del storage solo si quedó de una sesión previa al cambio.
+      const legacyRefresh = this.getRefreshToken();
+      await api.post(
+        '/auth/logout',
+        legacyRefresh ? { refreshToken: legacyRefresh } : {},
+      );
     } catch {
       // Ignore errors on logout
     } finally {
@@ -243,9 +260,15 @@ class AuthService {
   }
 
   async refreshToken(): Promise<AuthResponse> {
-    const refreshToken = this.getRefreshToken();
-    const response = await api.post<AuthResponse>('/auth/refresh', { refreshToken });
-    this.setTokens(response.data.accessToken, response.data.refreshToken);
+    // Cookie httpOnly primero; el legacy del storage solo como migración.
+    const legacyRefresh = this.getRefreshToken();
+    const response = await api.post<AuthResponse>(
+      '/auth/refresh',
+      legacyRefresh
+        ? { refreshToken: legacyRefresh, rememberMe: this.isRemembered() }
+        : {},
+    );
+    this.setTokens(response.data.accessToken);
     this.setStoredUser(response.data.user);
     return response.data;
   }

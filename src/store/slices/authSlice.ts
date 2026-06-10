@@ -84,14 +84,26 @@ export const initializeAuth = createAsyncThunk(
       const token = authService.getAccessToken();
 
       if (!token || !storedUser) {
+        // Sin access token en este storage pero con la flag cookie viva:
+        // pestaña nueva sin "Recordarme" (sessionStorage es por-pestaña) o
+        // storage limpio con la cookie httpOnly del refresh aún válida.
+        // Refresh silencioso vía cookie para restaurar la sesión.
+        if (authService.hasAuthCookie()) {
+          try {
+            const restored = await authService.refreshToken();
+            return restored.user;
+          } catch {
+            authService.clearTokens();
+            return null;
+          }
+        }
         return null;
       }
 
       // Si la sesión NO es "recordada" y la cookie de sesión ya no existe, el
-      // navegador se cerró y reabrió → limpiar y exigir re-login. Si la cookie
-      // sigue (misma sesión del navegador, incluida una PESTAÑA NUEVA), se
-      // mantiene la sesión: los tokens viven en localStorage y se comparten
-      // entre pestañas.
+      // navegador se cerró y reabrió → limpiar y exigir re-login. (La cookie
+      // httpOnly del refresh también es de sesión en ese modo, así que el
+      // refresh silencioso tampoco funcionaría.)
       if (!authService.isRemembered() && !authService.hasAuthCookie()) {
         authService.clearTokens();
         return null;
