@@ -11,6 +11,12 @@
    primary = teal #3E667D · secondary/accent = sky #C8DDF2 · ring = #a7c1e2
    ========================================== */
 @theme inline {
+  /* Tipografía de marca (self-hosted vía next/font en layout.tsx):
+     font-sans = Satoshi (todo el proyecto), font-serif = Ibarra Real Nova
+     (títulos/acentos), font-mono = Geist Mono. */
+  --font-sans: var(--font-satoshi), system-ui, sans-serif;
+  --font-serif: var(--font-ibarra), Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -166,7 +172,7 @@ html {
 }
 
 body {
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-satoshi), system-ui, sans-serif;
 }
 
 /* Custom Scrollbar */

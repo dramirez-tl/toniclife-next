@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { Analytics } from "@vercel/analytics/next";
 import { Toaster } from "sonner";
 import { ReduxProvider } from "@/store/provider";
@@ -8,9 +9,40 @@ import { ReferralCodeCapture } from "@/components/ReferralCodeCapture";
 import { VersionChecker } from "@/components/VersionChecker";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+// Tipografía de marca (fuentes entregadas por diseño, self-hosted):
+//   - Satoshi: sans principal de TODO el proyecto (variable, pesos 300-900).
+//   - Ibarra Real Nova: serif para títulos/acentos de marca (clase font-serif).
+//   - Geist Mono se conserva para monoespaciado (folios, números, código).
+const satoshi = localFont({
+  src: [
+    {
+      path: "../fonts/Satoshi-Variable.woff2",
+      weight: "300 900",
+      style: "normal",
+    },
+    {
+      path: "../fonts/Satoshi-VariableItalic.woff2",
+      weight: "300 900",
+      style: "italic",
+    },
+  ],
+  variable: "--font-satoshi",
+  display: "swap",
+});
+
+const ibarra = localFont({
+  src: [
+    { path: "../fonts/IbarraRealNova-Regular.ttf", weight: "400", style: "normal" },
+    { path: "../fonts/IbarraRealNova-Italic.ttf", weight: "400", style: "italic" },
+    { path: "../fonts/IbarraRealNova-Medium.ttf", weight: "500", style: "normal" },
+    { path: "../fonts/IbarraRealNova-SemiBold.ttf", weight: "600", style: "normal" },
+    { path: "../fonts/IbarraRealNova-Bold.ttf", weight: "700", style: "normal" },
+  ],
+  variable: "--font-ibarra",
+  display: "swap",
+  // Solo se usa en títulos puntuales: sin preload para no cargar 5 TTF
+  // en cada página (el swap la trae al primer uso).
+  preload: false,
 });
 
 const geistMono = Geist_Mono({
@@ -57,7 +89,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white`}
+        className={`${satoshi.variable} ${ibarra.variable} ${geistMono.variable} antialiased bg-white`}
       >
         <QueryProvider>
           <ReduxProvider>
