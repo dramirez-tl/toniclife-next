@@ -2,9 +2,23 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { confirmAction } from '@/lib/utils';
-import { NetworkGraph } from './NetworkGraph';
 import { UserDetailPanel } from './UserDetailPanel';
+
+// @xyflow/react es pesado: se carga solo cuando se renderiza el grafo, fuera
+// del bundle inicial de las páginas de red (sin cambio de comportamiento).
+const NetworkGraph = dynamic(
+  () => import('./NetworkGraph').then((m) => m.NetworkGraph),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full min-h-[400px] items-center justify-center text-sm text-gray-500">
+        Cargando visualización de red…
+      </div>
+    ),
+  },
+);
 import { NetworkSearch } from './NetworkSearch';
 import { useNetworkTree, useExpandNode, useRefreshNetwork, RootUserData } from '@/hooks/useNetwork';
 import { NetworkNode, NetworkSearchResult } from '@/types/network';

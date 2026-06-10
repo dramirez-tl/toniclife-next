@@ -6,7 +6,9 @@
  * con encabezado repetido por página, y un resumen final.
  */
 
-import { jsPDF } from 'jspdf';
+// jspdf solo como TIPO: el runtime se carga con import() dinámico al exportar
+// para no meter la librería al bundle de la página.
+import type { jsPDF } from 'jspdf';
 
 const TEAL: [number, number, number] = [62, 102, 125]; // #3E667D
 const TEXT: [number, number, number] = [40, 40, 40];
@@ -44,8 +46,11 @@ export interface CountPdfData {
 
 const fmt = (n: number) => n.toLocaleString('es-MX');
 
-export function exportInventoryCountPdf(data: CountPdfData): void {
-  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+export async function exportInventoryCountPdf(
+  data: CountPdfData,
+): Promise<void> {
+  const { jsPDF: JsPDF } = await import('jspdf');
+  const doc = new JsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
 
   let y = drawHeader(doc, data);
   y = drawMeta(doc, data, y);

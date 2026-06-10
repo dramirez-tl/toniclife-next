@@ -239,23 +239,28 @@ export default function NuevoAjustePage() {
     [branches, formData.branchId],
   );
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     if (items.length === 0) {
       toast.error('Selecciona una sucursal con productos para generar el informe');
       return;
     }
-    exportInventoryCountPdf({
-      branchName,
-      adjustmentTypeLabel: inventoryService.getCountTypeLabel(formData.countType),
-      notes: formData.notes || undefined,
-      items: items.map((i) => ({
-        productCode: i.productCode,
-        productName: i.productName,
-        systemQty: i.currentQuantity,
-        countedQty: i.newQuantity,
-      })),
-    });
-    toast.success('Informe PDF generado');
+    try {
+      await exportInventoryCountPdf({
+        branchName,
+        adjustmentTypeLabel: inventoryService.getCountTypeLabel(formData.countType),
+        notes: formData.notes || undefined,
+        items: items.map((i) => ({
+          productCode: i.productCode,
+          productName: i.productName,
+          systemQty: i.currentQuantity,
+          countedQty: i.newQuantity,
+        })),
+      });
+      toast.success('Informe PDF generado');
+    } catch (err) {
+      console.error(err);
+      toast.error('No se pudo generar el PDF');
+    }
   };
 
   const validateForm = (): boolean => {

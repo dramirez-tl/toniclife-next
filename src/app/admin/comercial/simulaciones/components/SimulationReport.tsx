@@ -49,9 +49,9 @@ export function SimulationReport({ report }: Props) {
   } = report;
 
   const handlePrint = () => window.print();
-  const handlePdf = () => {
+  const handlePdf = async () => {
     try {
-      exportReportPdf(report);
+      await exportReportPdf(report);
     } catch (err) {
       console.error(err);
       toast.error('No se pudo exportar el PDF');

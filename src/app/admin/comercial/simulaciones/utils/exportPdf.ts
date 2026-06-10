@@ -8,7 +8,10 @@
  * resumen final destacado.
  */
 
-import { jsPDF } from 'jspdf';
+// jspdf solo como TIPO: el runtime se carga con import() dinámico al exportar
+// para no meter la librería al bundle de la página (mismo patrón que
+// src/lib/generate-*-ticket.ts).
+import type { jsPDF } from 'jspdf';
 import type { RankProjectionResponse } from '@/types/simulacion';
 
 // Brand colors (RGB)
@@ -38,8 +41,11 @@ const fmtCurrency = (n: number) =>
 /**
  * Genera el PDF a partir del objeto `RankProjectionResponse`.
  */
-export function exportReportPdf(report: RankProjectionResponse): void {
-  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+export async function exportReportPdf(
+  report: RankProjectionResponse,
+): Promise<void> {
+  const { jsPDF: JsPDF } = await import('jspdf');
+  const doc = new JsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
 
   let y = drawHeader(doc, report);
   y = ensureSpace(doc, y, 20);
