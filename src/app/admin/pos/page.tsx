@@ -2,7 +2,7 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.3 Módulo POS
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -111,6 +111,16 @@ export default function PosPage() {
   const queryClient = useQueryClient();
   const createSale = useCreateSale();
   const processPayment = useProcessPayment();
+
+  // Intento de cobro en curso: conserva la venta creada y su clave de
+  // idempotencia entre reintentos para no duplicar ventas/cobros si
+  // processPayment falla por timeout o red.
+  const saleAttemptRef = useRef<{
+    clientRequestId: string;
+    saleId?: string;
+    saleNumber?: string;
+    fingerprint: string;
+  } | null>(null);
 
   // Fetch branches (POS-enabled only), currencies, and price types
   const { data: allBranches } = useActiveBranches();
@@ -300,37 +310,64 @@ export default function PosPage() {
       try {
         const sessionId = await ensureSession();
 
-        // Create sale
-        const sale = await createSale.mutateAsync({
-          sessionId,
+        // Intento de cobro idempotente: si processPayment falla por timeout y
+        // el cajero reintenta, se reutiliza la MISMA venta (el API ignora
+        // duplicados por clientRequestId). El fingerprint invalida el intento
+        // si el carrito cambió entre reintentos.
+        const fingerprint = JSON.stringify({
           customerId: cart.customerId,
-          customerName: cart.customerName,
-          customerRfc: cart.customerRfc,
-          items: cart.items.map((item) => ({
-            productId: item.productId,
-            quantity: item.quantity,
-            discountPercent: item.discountPercent,
-            discountAmount: item.discountAmount,
-            notes: item.notes,
-          })),
-          discountPercent: cart.discountPercent,
-          discountAmount: cart.discountAmount,
-          discountReason: cart.discountReason,
-          requiresInvoice,
-          notes: cart.notes,
+          items: cart.items.map((it) => [it.productId, it.quantity, it.discountPercent ?? null, it.discountAmount ?? null]),
+          discountPercent: cart.discountPercent ?? null,
+          discountAmount: cart.discountAmount ?? null,
         });
+        if (!saleAttemptRef.current || saleAttemptRef.current.fingerprint !== fingerprint) {
+          saleAttemptRef.current = { clientRequestId: crypto.randomUUID(), fingerprint };
+        }
+        const attempt = saleAttemptRef.current;
+
+        // Create sale (o reusar la del intento anterior fallido)
+        let saleId = attempt.saleId;
+        let saleNumber = attempt.saleNumber;
+        if (!saleId) {
+          const sale = await createSale.mutateAsync({
+            sessionId,
+            customerId: cart.customerId,
+            customerName: cart.customerName,
+            customerRfc: cart.customerRfc,
+            items: cart.items.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              discountPercent: item.discountPercent,
+              discountAmount: item.discountAmount,
+              notes: item.notes,
+            })),
+            discountPercent: cart.discountPercent,
+            discountAmount: cart.discountAmount,
+            discountReason: cart.discountReason,
+            requiresInvoice,
+            notes: cart.notes,
+            clientRequestId: attempt.clientRequestId,
+          });
+          attempt.saleId = sale.id;
+          attempt.saleNumber = sale.saleNumber;
+          saleId = sale.id;
+          saleNumber = sale.saleNumber;
+        }
 
         // Process payment
         const paymentResult = await processPayment.mutateAsync({
-          saleId: sale.id,
+          saleId,
           payments: payments.map((p) => ({
             ...p,
             paymentMethod: p.paymentMethod as PosPaymentMethod,
           })),
         });
 
+        // Cobro exitoso: liberar el intento
+        saleAttemptRef.current = null;
+
         // Fetch the full sale (with items and payments populated)
-        const fullSale = await posService.getSaleById(sale.id);
+        const fullSale = await posService.getSaleById(saleId);
         if (paymentResult.accumulatedPoints != null) {
           fullSale.accumulatedPoints = paymentResult.accumulatedPoints;
         }
@@ -348,7 +385,7 @@ export default function PosPage() {
           queryClient.invalidateQueries({ queryKey: ['promotions', 'available', cart.customerId] });
         }
 
-        toast.success(`Venta ${sale.saleNumber} completada`);
+        toast.success(`Venta ${saleNumber ?? fullSale.saleNumber} completada`);
         if (requiresInvoice) {
           toast.info('Usa el ícono de timbrar en Ventas Recientes para generar la factura', { duration: 5000 });
         }
