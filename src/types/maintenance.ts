@@ -44,6 +44,8 @@ export interface CleanupResult {
   clearedTables: string[];
   deletedUsers?: number;
   deletedWorkers?: number;
+  deletedCustomers?: number;
+  deletedBranches?: number;
   durationMs: number;
 }
 

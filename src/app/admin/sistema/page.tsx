@@ -164,6 +164,12 @@ function CleanupBlockCard({ block }: { block: CleanupBlockStatus }) {
         result.deletedWorkers !== undefined
           ? `${nf.format(result.deletedWorkers)} workers borrados`
           : null,
+        result.deletedCustomers !== undefined
+          ? `${nf.format(result.deletedCustomers)} clientes borrados`
+          : null,
+        result.deletedBranches !== undefined
+          ? `${nf.format(result.deletedBranches)} sucursales borradas`
+          : null,
       ]
         .filter(Boolean)
         .join(', ');
