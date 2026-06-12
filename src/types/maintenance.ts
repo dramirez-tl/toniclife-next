@@ -13,6 +13,8 @@ export interface CleanupBlockStatus {
   label: string;
   description: string;
   special?: 'users' | 'reset';
+  /** false = re-ejecutable, no participa en la validación secuencial */
+  gating: boolean;
   tables: MaintenanceTableStat[];
   totalRows: number;
   isEmpty: boolean;
