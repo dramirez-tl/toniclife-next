@@ -29,6 +29,7 @@ import {
   RocketLaunchIcon,
   ReceiptPercentIcon,
   AcademicCapIcon,
+  WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutAsync, selectUser, selectUserPermissions } from '@/store/slices/authSlice';
@@ -41,6 +42,8 @@ interface NavItem {
   children?: { name: string; href: string }[];
   // Permisos requeridos para ver este elemento (cualquiera de ellos)
   permissions?: string[];
+  // Visible EXCLUSIVAMENTE para el rol super_admin (ignora permisos)
+  superAdminOnly?: boolean;
 }
 
 // Navegación con permisos requeridos
@@ -183,6 +186,15 @@ const navigation: NavItem[] = [
       { name: 'Catálogos', href: '/admin/configuracion/catalogos' },
     ],
   },
+  {
+    name: 'Sistema',
+    href: '/admin/sistema',
+    icon: WrenchScrewdriverIcon,
+    superAdminOnly: true,
+    children: [
+      { name: 'Limpieza y Carga', href: '/admin/sistema' },
+    ],
+  },
 ];
 
 // Función para verificar si el usuario tiene al menos uno de los permisos requeridos
@@ -247,12 +259,14 @@ export function AdminSidebar({ mobile = false, collapsed = false, onNavigate }: 
       return navigation.filter((item) => item.href === '/admin');
     }
 
-    // Super admin ve todo
+    // Super admin ve todo (incluidos los items superAdminOnly)
     if (user?.roles?.includes('super_admin')) {
       return navigation;
     }
 
-    return navigation.filter((item) => hasAnyPermission(userPermissions, item.permissions));
+    return navigation.filter(
+      (item) => !item.superAdminOnly && hasAnyPermission(userPermissions, item.permissions),
+    );
   }, [user?.roles, userPermissions, isWorkerUser]);
 
   const handleLogout = async () => {
