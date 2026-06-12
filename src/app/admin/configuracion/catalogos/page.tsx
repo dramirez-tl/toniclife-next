@@ -324,7 +324,8 @@ const exchangeRateColumns: Column<ExchangeRate>[] = [
   {
     key: 'rate',
     header: 'Tasa',
-    render: (r) => r.rate.toFixed(4),
+    // numeric de Postgres llega como string por el API: convertir antes de formatear
+    render: (r) => Number(r.rate).toFixed(4),
   },
   { key: 'source', header: 'Fuente', render: (r) => r.source || '-' },
   {
