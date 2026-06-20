@@ -6,6 +6,7 @@ import type {
   MlmPeriod,
   CreatePeriodDto,
   UpdatePeriodDto,
+  PeriodPreview,
 } from '@/types/mlm-periods';
 
 class MlmPeriodsService {
@@ -30,6 +31,17 @@ class MlmPeriodsService {
    */
   async getPeriodById(id: string): Promise<MlmPeriod> {
     const response = await api.get<MlmPeriod>(`/mlm/periods/${id}`);
+    return response.data;
+  }
+
+  /**
+   * Preview the 12 periods of a year with the business-day close rule applied
+   * (does not persist). Shows which closes shift and why.
+   */
+  async previewYear(year: number): Promise<PeriodPreview[]> {
+    const response = await api.get<PeriodPreview[]>('/mlm/periods/preview', {
+      params: { year },
+    });
     return response.data;
   }
 

@@ -7,6 +7,7 @@ import type {
   MlmPeriod,
   CreatePeriodDto,
   UpdatePeriodDto,
+  PeriodPreview,
 } from '@/types/mlm-periods';
 
 // Query keys
@@ -15,6 +16,7 @@ export const mlmPeriodKeys = {
   lists: () => [...mlmPeriodKeys.all, 'list'] as const,
   current: () => [...mlmPeriodKeys.all, 'current'] as const,
   detail: (id: string) => [...mlmPeriodKeys.all, 'detail', id] as const,
+  preview: (year: number) => [...mlmPeriodKeys.all, 'preview', year] as const,
 };
 
 /**
@@ -47,6 +49,18 @@ export function usePeriodById(id: string, enabled = true) {
     queryKey: mlmPeriodKeys.detail(id),
     queryFn: () => mlmPeriodsService.getPeriodById(id),
     enabled: enabled && !!id,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * Hook to preview a year's periods with the business-day close rule applied.
+ */
+export function usePeriodPreview(year: number, enabled = true) {
+  return useQuery<PeriodPreview[]>({
+    queryKey: mlmPeriodKeys.preview(year),
+    queryFn: () => mlmPeriodsService.previewYear(year),
+    enabled,
     staleTime: 5 * 60 * 1000,
   });
 }

@@ -4,6 +4,15 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { DataTable, type DataTableColumn } from '@/components/ui';
 import { Loader2 } from 'lucide-react';
 import {
@@ -16,21 +25,31 @@ import {
   LockClosedIcon,
   LockOpenIcon,
   BoltIcon,
+  EyeIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import {
   usePeriods,
   useCurrentPeriod,
+  usePeriodPreview,
   useCreatePeriod,
   useUpdatePeriod,
   useGeneratePeriods,
   useClosePeriod,
   useReopenPeriod,
 } from '@/hooks/useMlmPeriods';
-import type { MlmPeriod, CreatePeriodDto, UpdatePeriodDto } from '@/types/mlm-periods';
+import type {
+  MlmPeriod,
+  CreatePeriodDto,
+  UpdatePeriodDto,
+  PeriodPreview,
+} from '@/types/mlm-periods';
 
 export default function PeriodosPage() {
   const [showForm, setShowForm] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [editingPeriod, setEditingPeriod] = useState<MlmPeriod | null>(null);
 
   // Form state
@@ -258,6 +277,14 @@ export default function PeriodosPage() {
                 <Button variant="secondary">Volver al Panel Principal</Button>
               </Link>
               <Button
+                variant="secondary"
+                onClick={() => setShowPreview((v) => !v)}
+                aria-expanded={showPreview}
+              >
+                <EyeIcon className="h-5 w-5" />
+                {showPreview ? 'Ocultar previsualización' : 'Previsualizar cierres'}
+              </Button>
+              <Button
                 variant="default"
                 onClick={handleGenerate}
                 disabled={generateMutation.isPending}
@@ -343,6 +370,9 @@ export default function PeriodosPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Previsualización de cierres (regla día hábil) */}
+        {showPreview && <PeriodPreviewSection />}
 
         {/* Create/Edit Form */}
         {showForm && (
@@ -437,5 +467,142 @@ export default function PeriodosPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+/**
+ * Sección sutil de previsualización: proyecta los 12 periodos de un año con la
+ * regla de cierre en día hábil (si el 25 cae domingo/festivo, el corte se
+ * recorre). No persiste nada — solo lee el endpoint /mlm/periods/preview.
+ */
+function PeriodPreviewSection() {
+  const [year, setYear] = useState(() => new Date().getFullYear());
+  const { data, isLoading } = usePeriodPreview(year);
+
+  const monthLabel = (name: string) => name.replace(/\s*\d{4}$/, '');
+  const fmtShort = (dateString: string) => {
+    const [y, m, d] = dateString.split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('es-MX', {
+      day: 'numeric',
+      month: 'short',
+    });
+  };
+
+  const shiftedCount = data?.filter((p) => p.shifted).length ?? 0;
+
+  const renderDbState = (p: PeriodPreview) => {
+    if (!p.existsInDb) {
+      return <span className="text-xs text-gray-400">Sin generar</span>;
+    }
+    if (p.matchesRule) {
+      return <Badge variant="success">OK</Badge>;
+    }
+    if (p.isClosed) {
+      return (
+        <Badge variant="secondary" title="Periodo cerrado: histórico, no se recalcula">
+          Histórico
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="warning" title="Las fechas guardadas no coinciden con la regla">
+        No coincide
+      </Badge>
+    );
+  };
+
+  return (
+    <Card className="mb-6 border-dashed">
+      <CardContent className="p-6">
+        <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">Previsualización de cierres</h3>
+            <p className="max-w-2xl text-sm text-gray-600">
+              Proyección de los 12 periodos del año con la regla de día hábil. Si el día 25
+              cae en domingo o festivo, el cierre se recorre al siguiente día hábil y el
+              periodo siguiente arranca contiguo. No modifica nada.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setYear((y) => y - 1)}
+              aria-label="Año anterior"
+            >
+              <ChevronLeftIcon className="h-4 w-4" />
+            </Button>
+            <span className="min-w-[3.5rem] text-center text-lg font-semibold text-[#3E667D]">
+              {year}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setYear((y) => y + 1)}
+              aria-label="Año siguiente"
+            >
+              <ChevronRightIcon className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        <p className="mb-4 text-xs text-gray-500">
+          {isLoading
+            ? 'Calculando…'
+            : shiftedCount === 0
+              ? 'Ningún cierre se recorre este año.'
+              : `${shiftedCount} cierre${shiftedCount === 1 ? '' : 's'} se ${
+                  shiftedCount === 1 ? 'recorre' : 'recorren'
+                } este año.`}
+        </p>
+
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Periodo</TableHead>
+                <TableHead>Cierre nominal</TableHead>
+                <TableHead>Inicio → Fin efectivo</TableHead>
+                <TableHead>Recorrido</TableHead>
+                <TableHead className="text-right">En BD</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading && (
+                <TableRow>
+                  <TableCell colSpan={5} className="py-8 text-center text-gray-500">
+                    <Loader2 className="mr-2 inline size-4 animate-spin" />
+                    Cargando…
+                  </TableCell>
+                </TableRow>
+              )}
+              {!isLoading &&
+                data?.map((p) => (
+                  <TableRow key={p.code} className={p.shifted ? 'bg-amber-50/60' : undefined}>
+                    <TableCell className="font-medium text-gray-900">
+                      {monthLabel(p.name)}
+                    </TableCell>
+                    <TableCell className="text-gray-600">{fmtShort(p.nominalEndDate)}</TableCell>
+                    <TableCell className="text-gray-700">
+                      {fmtShort(p.startDate)} →{' '}
+                      <span className="font-medium">{fmtShort(p.endDate)}</span>
+                    </TableCell>
+                    <TableCell>
+                      {p.shifted ? (
+                        <Badge variant="warning">
+                          +{p.shiftDays}d · {p.reason}
+                        </Badge>
+                      ) : (
+                        <span className="text-sm text-gray-400">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">{renderDbState(p)}</TableCell>
+                  </TableRow>
+                ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

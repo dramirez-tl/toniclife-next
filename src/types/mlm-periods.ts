@@ -29,6 +29,29 @@ export interface MlmPeriodWithStats extends MlmPeriod {
   stats?: PeriodStats;
 }
 
+// Proyección de los periodos de un año con la regla de cierre en día hábil
+// aplicada (NO persiste). Backend: GET /mlm/periods/preview?year=YYYY.
+export interface PeriodPreview {
+  month: number;
+  code: string;
+  name: string;
+  /** Día 25 nominal (sin recorrer). */
+  nominalEndDate: string;
+  /** Inicio efectivo (contiguo con el periodo anterior). */
+  startDate: string;
+  /** Fin efectivo (día 25 recorrido a día hábil). */
+  endDate: string;
+  shifted: boolean;
+  shiftDays: number;
+  /** Por qué el 25 no fue hábil: "domingo", "Navidad", etc. null si no se recorrió. */
+  reason?: string | null;
+  existsInDb: boolean;
+  /** Si existe en BD: si está cerrado (un mismatch cerrado es histórico esperado). */
+  isClosed?: boolean | null;
+  /** Si existe en BD: si las fechas guardadas coinciden con la regla. */
+  matchesRule?: boolean | null;
+}
+
 export interface CreatePeriodDto {
   code: string;
   name: string;
