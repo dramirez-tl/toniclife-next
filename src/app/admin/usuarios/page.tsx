@@ -342,6 +342,10 @@ function UsuariosContent() {
       toast.error('Nombre y apellido son obligatorios');
       return;
     }
+    if ((formData.userType ?? 'colaborador') === 'colaborador' && !formData.departmentId) {
+      toast.error('El departamento es obligatorio para un colaborador');
+      return;
+    }
     if (!editingUser) {
       if (!formData.email?.trim()) {
         toast.error('El correo electrónico es obligatorio');
@@ -1554,15 +1558,14 @@ function UserFormModal({
               />
               <div className="mt-4">
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  Departamento
+                  Departamento <span className="text-destructive">*</span>
                 </label>
                 <SearchableSelect
                   options={(departmentsCatalog ?? []).map((d) => ({ value: d.id, label: d.name }))}
                   value={formData.departmentId ?? ''}
                   onChange={(val) => handleChange('departmentId', val)}
-                  showAllOption
-                  allValue=""
-                  allLabel="Sin departamento"
+                  showAllOption={false}
+                  placeholder="Seleccionar departamento..."
                   className="w-full"
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
