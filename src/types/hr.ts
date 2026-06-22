@@ -43,6 +43,7 @@ export interface Employee {
   phone?: string;
   position: string;
   department?: string;
+  departmentId?: string;
   branch?: string;
   branchId?: string;
   supervisorId?: string;
@@ -91,11 +92,17 @@ export interface EmployeeListResponse {
   };
 }
 
+// Catálogo de departamentos (tabla departments en el backend).
+export interface Department {
+  id: string;
+  code: string;
+  name: string;
+}
+
 export interface EmployeeQuery {
   branchId?: string;
-  department?: string;
+  departmentId?: string;
   status?: EmployeeStatus;
-  isManager?: boolean;
   search?: string;
   page?: number;
   limit?: number;
@@ -115,13 +122,12 @@ export interface CreateEmployeeDto {
 }
 
 export interface UpdateEmployeeDto {
-  position?: string;
-  department?: string;
+  firstName?: string;
+  lastName?: string;
+  departmentId?: string;
   branchId?: string;
   supervisorId?: string;
   isManager?: boolean;
-  vacationDaysPerYear?: number;
-  salary?: number;
   status?: EmployeeStatus;
 }
 

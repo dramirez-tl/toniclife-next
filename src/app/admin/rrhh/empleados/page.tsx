@@ -22,7 +22,7 @@ import {
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { DataTable, type DataTableColumn } from '@/components/ui';
-import { useEmployees, useCreateEmployee, useUpdateEmployee } from '@/hooks/useHR';
+import { useEmployees, useCreateEmployee, useUpdateEmployee, useDepartments } from '@/hooks/useHR';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import type { Employee, EmployeeStatus, CreateEmployeeDto, UpdateEmployeeDto } from '@/types/hr';
@@ -67,10 +67,17 @@ function EmpleadosContent() {
   const createEmployee = useCreateEmployee();
   const updateEmployee = useUpdateEmployee();
 
+  // Catálogo de departamentos (tabla departments)
+  const { data: departmentsCatalog } = useDepartments();
+  const departmentOptions = useMemo(
+    () => (departmentsCatalog ?? []).map((d) => ({ value: d.id, label: d.name })),
+    [departmentsCatalog],
+  );
+
   // Fetch employees from API
   const { data: employeesData, isLoading, error } = useEmployees({
     search: searchQuery || undefined,
-    department: filterDepartment !== 'all' ? filterDepartment : undefined,
+    departmentId: filterDepartment !== 'all' ? filterDepartment : undefined,
     branchId: filterBranch !== 'all' ? filterBranch : undefined,
     status: filterStatus !== 'all' ? (filterStatus as EmployeeStatus) : undefined,
     page,
@@ -79,12 +86,6 @@ function EmpleadosContent() {
 
   const employees = employeesData?.data ?? [];
   const pagination = employeesData?.pagination;
-
-  // Extract unique departments and branches from data
-  const departments = useMemo(() => {
-    const depts = new Set(employees.map(e => e.department).filter((d): d is string => !!d));
-    return Array.from(depts);
-  }, [employees]);
 
   const branches = useMemo(() => {
     const branchSet = new Set(employees.map(e => e.branch).filter((b): b is string => !!b));
@@ -113,7 +114,7 @@ function EmpleadosContent() {
       email: '',
       phone: '',
       position: '',
-      department: '',
+      departmentId: '',
       branchId: '',
       hireDate: new Date().toISOString().split('T')[0],
       status: 'ACTIVE',
@@ -131,7 +132,7 @@ function EmpleadosContent() {
       email: employee.email,
       phone: employee.phone ?? '',
       position: employee.position,
-      department: employee.department ?? '',
+      departmentId: employee.departmentId ?? '',
       branchId: employee.branchId ?? '',
       hireDate: employee.hireDate ? employee.hireDate.split('T')[0] : '',
       status: employee.status,
@@ -151,11 +152,11 @@ function EmpleadosContent() {
     try {
       if (editingEmployee) {
         const dto: UpdateEmployeeDto = {
-          position: formData.position || undefined,
-          department: formData.department || undefined,
+          firstName: formData.firstName || undefined,
+          lastName: formData.lastName || undefined,
+          departmentId: formData.departmentId || undefined,
           branchId: formData.branchId || undefined,
           isManager: formData.isManager,
-          vacationDaysPerYear: formData.vacationDaysPerYear ? Number(formData.vacationDaysPerYear) : undefined,
           status: formData.status as EmployeeStatus,
         };
         await updateEmployee.mutateAsync({ id: editingEmployee.id, data: dto });
@@ -234,7 +235,7 @@ function EmpleadosContent() {
       key: 'department',
       header: 'Departamento',
       cellClassName: 'text-gray-600',
-      render: (employee) => employee.department,
+      render: (employee) => employee.department || <span className="text-gray-400">Sin asignar</span>,
     },
     {
       key: 'branch',
@@ -473,12 +474,9 @@ function EmpleadosContent() {
                 </div>
               </div>
 
-              {/* Department Filter */}
+              {/* Department Filter (catálogo real) */}
               <SearchableSelect
-                options={departments.map(dept => ({
-                  value: dept,
-                  label: dept,
-                }))}
+                options={departmentOptions}
                 value={filterDepartment}
                 onChange={(val) => setParams({ department: val })}
                 allLabel="Todos los Departamentos"
@@ -617,6 +615,7 @@ function EmployeeFormModal({
 }: EmployeeFormModalProps) {
   const { data: branchesData } = useActiveBranches();
   const activeBranches = branchesData ?? [];
+  const { data: departmentsCatalog } = useDepartments();
 
   if (!isOpen) return null;
 
@@ -758,17 +757,17 @@ function EmployeeFormModal({
             />
           </div>
 
-          {/* Department */}
+          {/* Department (catálogo) */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Departamento
             </label>
-            <input
-              type="text"
-              value={formData.department ?? ''}
-              onChange={(e) => handleChange('department', e.target.value)}
-              placeholder="Ej: Ventas, Operaciones, RRHH"
-              className={inputClassName}
+            <SearchableSelect
+              options={(departmentsCatalog ?? []).map((d) => ({ value: d.id, label: d.name }))}
+              value={formData.departmentId ?? ''}
+              onChange={(val) => handleChange('departmentId', val)}
+              showAllOption={false}
+              placeholder="Seleccionar departamento..."
             />
           </div>
 

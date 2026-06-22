@@ -61,6 +61,14 @@ export function useEmployee(id: string) {
   });
 }
 
+export function useDepartments() {
+  return useQuery({
+    queryKey: [...hrKeys.all, 'departments'] as const,
+    queryFn: () => hrApi.getDepartments(),
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
 export function useMyEmployee() {
   return useQuery({
     queryKey: hrKeys.myEmployee(),

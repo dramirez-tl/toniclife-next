@@ -4,8 +4,10 @@
 import api from '@/lib/api';
 import type {
   Employee,
+  EmployeeStatus,
   EmployeeListResponse,
   EmployeeQuery,
+  Department,
   CreateEmployeeDto,
   UpdateEmployeeDto,
   AttendanceRecord,
@@ -28,18 +30,74 @@ import type {
   ReviewExpenseDto,
 } from '@/types/hr';
 
+// El backend usa status en minúsculas; el front en MAYÚSCULAS.
+const STATUS_TO_API: Record<string, string> = {
+  ACTIVE: 'active',
+  INACTIVE: 'inactive',
+  ON_LEAVE: 'on_leave',
+  TERMINATED: 'terminated',
+};
+const STATUS_FROM_API: Record<string, EmployeeStatus> = {
+  active: 'ACTIVE',
+  inactive: 'INACTIVE',
+  on_leave: 'ON_LEAVE',
+  terminated: 'TERMINATED',
+};
+
+// El backend (mapEmployeeWithRelations) devuelve snake_case + relaciones
+// anidadas; aquí lo normalizamos al tipo Employee (camelCase) del front.
+function mapEmployee(r: any): Employee {
+  return {
+    id: r.id,
+    userId: r.user_id ?? r.user?.id ?? '',
+    employeeNumber: r.employee_number ?? '',
+    firstName: r.first_name ?? r.user?.firstName ?? '',
+    lastName: r.last_name ?? r.user?.lastName ?? '',
+    email: r.email ?? r.user?.email ?? '',
+    phone: r.phone ?? undefined,
+    position: r.job_position?.name ?? '',
+    department: r.department?.name ?? undefined,
+    departmentId: r.department?.id ?? r.department_id ?? undefined,
+    branch: r.branch?.name ?? undefined,
+    branchId: r.branch?.id ?? r.branch_id ?? undefined,
+    supervisorId: r.supervisor_id ?? undefined,
+    isManager: !!r.is_manager,
+    hireDate: r.hire_date ?? '',
+    terminationDate: r.termination_date ?? undefined,
+    status: STATUS_FROM_API[r.status as string] ?? 'ACTIVE',
+    createdAt: r.created_at ?? '',
+    updatedAt: r.updated_at ?? '',
+    user: r.user
+      ? {
+          id: r.user.id,
+          firstName: r.user.firstName,
+          lastName: r.user.lastName,
+          email: r.user.email,
+        }
+      : undefined,
+  };
+}
+
 class HrService {
   // ================================
   // EMPLOYEE METHODS
   // ================================
 
   async createEmployee(data: CreateEmployeeDto): Promise<Employee> {
-    const response = await api.post<Employee>('/hr/employees', data);
-    return response.data;
+    const response = await api.post<any>('/hr/employees', data);
+    return mapEmployee(response.data);
   }
 
   async updateEmployee(id: string, data: UpdateEmployeeDto): Promise<Employee> {
-    const response = await api.patch<Employee>(`/hr/employees/${id}`, data);
+    const payload: Record<string, unknown> = { ...data };
+    if (data.status) payload.status = STATUS_TO_API[data.status] ?? data.status;
+    const response = await api.patch<any>(`/hr/employees/${id}`, payload);
+    return mapEmployee(response.data);
+  }
+
+  /** Catálogo de departamentos activos. */
+  async getDepartments(): Promise<Department[]> {
+    const response = await api.get<Department[]>('/hr/departments');
     return response.data;
   }
 
@@ -67,19 +125,25 @@ class HrService {
 
   async listEmployees(query: EmployeeQuery = {}): Promise<EmployeeListResponse> {
     const params = new URLSearchParams();
+    const limit = query.limit ?? 20;
+    const page = query.page ?? 1;
+    const offset = (page - 1) * limit;
 
     if (query.branchId) params.append('branchId', query.branchId);
-    if (query.department) params.append('department', query.department);
-    if (query.status) params.append('status', query.status);
-    if (query.isManager !== undefined) params.append('isManager', String(query.isManager));
+    if (query.departmentId) params.append('departmentId', query.departmentId);
+    if (query.status) params.append('status', STATUS_TO_API[query.status] ?? query.status);
     if (query.search) params.append('search', query.search);
-    if (query.page) params.append('page', String(query.page));
-    if (query.limit) params.append('limit', String(query.limit));
+    params.append('limit', String(limit));
+    params.append('offset', String(offset));
 
-    const response = await api.get<EmployeeListResponse>(
+    const response = await api.get<{ data: any[]; pagination?: EmployeeListResponse['pagination'] }>(
       `/hr/employees?${params.toString()}`
     );
-    return response.data;
+    const raw = response.data;
+    return {
+      data: (raw.data ?? []).map(mapEmployee),
+      pagination: raw.pagination ?? { total: 0, page, limit, pages: 1 },
+    };
   }
 
   // ================================
