@@ -124,9 +124,11 @@ function SistemaContent() {
 
               <TabsContent value="carga" className="mt-6">
                 <p className="mb-4 text-sm text-muted-foreground">
-                  Pobla el sistema por fases con archivos CSV (UTF-8, separados
-                  por coma o punto y coma). La validación es todo-o-nada: si
-                  una fila es inválida, no se inserta ninguna.
+                  Pobla el sistema por fases con archivos <strong>Excel (.xlsx)</strong> o
+                  CSV. Excel conserva acentos y signos automáticamente; el CSV se
+                  detecta como UTF-8 o Windows-1252 (Excel) y respeta los acentos.
+                  La validación es todo-o-nada: si una fila es inválida, no se
+                  inserta ninguna.
                 </p>
                 <div className="space-y-3">
                   {data.load.map((phase) => (
@@ -370,7 +372,7 @@ function LoadPhaseCard({ phase }: { phase: LoadPhaseStatus }) {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".csv,text/csv"
+              accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               className="hidden"
               onChange={(e) => handleFile(e.target.files?.[0])}
             />
@@ -379,7 +381,7 @@ function LoadPhaseCard({ phase }: { phase: LoadPhaseStatus }) {
               disabled={importCsv.isPending}
               onClick={() => fileInputRef.current?.click()}
             >
-              {importCsv.isPending ? 'Cargando…' : 'Subir CSV'}
+              {importCsv.isPending ? 'Cargando…' : 'Subir archivo'}
             </Button>
           </div>
         )}
