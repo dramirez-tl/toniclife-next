@@ -97,6 +97,20 @@ export interface Department {
   id: string;
   code: string;
   name: string;
+  isActive?: boolean;
+  userCount?: number;
+  employeeCount?: number;
+}
+
+export interface CreateDepartmentDto {
+  code: string;
+  name: string;
+}
+
+export interface UpdateDepartmentDto {
+  code?: string;
+  name?: string;
+  isActive?: boolean;
 }
 
 export interface EmployeeQuery {

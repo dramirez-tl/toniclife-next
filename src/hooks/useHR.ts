@@ -6,6 +6,8 @@ import {
   EmployeeQuery,
   CreateEmployeeDto,
   UpdateEmployeeDto,
+  CreateDepartmentDto,
+  UpdateDepartmentDto,
   AttendanceQuery,
   CheckInOutDto,
   ManualAttendanceDto,
@@ -66,6 +68,46 @@ export function useDepartments() {
     queryKey: [...hrKeys.all, 'departments'] as const,
     queryFn: () => hrApi.getDepartments(),
     staleTime: 10 * 60 * 1000,
+  });
+}
+
+// Lista de gestión (incluye inactivos + conteos de uso).
+export function useManageDepartments(includeInactive = true) {
+  return useQuery({
+    queryKey: [...hrKeys.all, 'departments', 'manage', includeInactive] as const,
+    queryFn: () => hrApi.getDepartments(includeInactive),
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+function useInvalidateDepartments() {
+  const queryClient = useQueryClient();
+  return () =>
+    queryClient.invalidateQueries({ queryKey: [...hrKeys.all, 'departments'] });
+}
+
+export function useCreateDepartment() {
+  const invalidate = useInvalidateDepartments();
+  return useMutation({
+    mutationFn: (data: CreateDepartmentDto) => hrApi.createDepartment(data),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useUpdateDepartment() {
+  const invalidate = useInvalidateDepartments();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateDepartmentDto }) =>
+      hrApi.updateDepartment(id, data),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useDeleteDepartment() {
+  const invalidate = useInvalidateDepartments();
+  return useMutation({
+    mutationFn: (id: string) => hrApi.deleteDepartment(id),
+    onSuccess: () => invalidate(),
   });
 }
 

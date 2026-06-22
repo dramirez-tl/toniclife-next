@@ -121,6 +121,7 @@ const navigation: NavItem[] = [
     children: [
       { name: 'Panel Principal', href: '/admin/rrhh' },
       { name: 'Empleados', href: '/admin/rrhh/empleados' },
+      { name: 'Departamentos', href: '/admin/rrhh/departamentos' },
       { name: 'Asistencia', href: '/admin/rrhh/asistencia' },
       { name: 'Vacaciones', href: '/admin/rrhh/vacaciones' },
       { name: 'Viáticos', href: '/admin/rrhh/viaticos' },

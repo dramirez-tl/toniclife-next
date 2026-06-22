@@ -8,6 +8,8 @@ import type {
   EmployeeListResponse,
   EmployeeQuery,
   Department,
+  CreateDepartmentDto,
+  UpdateDepartmentDto,
   CreateEmployeeDto,
   UpdateEmployeeDto,
   AttendanceRecord,
@@ -95,9 +97,26 @@ class HrService {
     return mapEmployee(response.data);
   }
 
-  /** Catálogo de departamentos activos. */
-  async getDepartments(): Promise<Department[]> {
-    const response = await api.get<Department[]>('/hr/departments');
+  /** Catálogo de departamentos (activos por defecto; includeInactive para todos). */
+  async getDepartments(includeInactive = false): Promise<Department[]> {
+    const response = await api.get<Department[]>(
+      `/hr/departments${includeInactive ? '?includeInactive=true' : ''}`,
+    );
+    return response.data;
+  }
+
+  async createDepartment(data: CreateDepartmentDto): Promise<Department> {
+    const response = await api.post<Department>('/hr/departments', data);
+    return response.data;
+  }
+
+  async updateDepartment(id: string, data: UpdateDepartmentDto): Promise<Department> {
+    const response = await api.patch<Department>(`/hr/departments/${id}`, data);
+    return response.data;
+  }
+
+  async deleteDepartment(id: string): Promise<{ success: boolean }> {
+    const response = await api.delete<{ success: boolean }>(`/hr/departments/${id}`);
     return response.data;
   }
 
