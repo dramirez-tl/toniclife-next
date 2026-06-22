@@ -25,6 +25,8 @@ export interface User {
   customerId?: string | null;
   /** Tipo en el MLM del cliente enlazado: 'distributor' | 'preferred_customer' | 'final_customer'. */
   customerType?: string | null;
+  /** Tipo de cuenta: 'colaborador' | 'distribuidor' | 'cliente' | 'sistema' (derivado por vínculo si no se asignó). */
+  userType?: string | null;
   isActive: boolean;
   emailVerifiedAt: string | null;
   role: RoleDto;
@@ -41,6 +43,7 @@ export interface UserQueryParams {
   search?: string;
   customerNumber?: string;
   role?: string;
+  userType?: string;
   isActive?: boolean;
   page?: number;
   limit?: number;
@@ -64,6 +67,8 @@ export interface UserListResponse {
 // DTO TYPES
 // ================================
 
+export type UserType = 'colaborador' | 'distribuidor' | 'cliente' | 'sistema';
+
 export interface CreateUserDto {
   email: string;
   password: string;
@@ -72,6 +77,7 @@ export interface CreateUserDto {
   phone?: string;
   username?: string;
   roleId: string;
+  userType?: UserType;
   branchId?: string;
   isActive?: boolean;
 }
@@ -84,6 +90,7 @@ export interface UpdateUserDto {
   phone?: string;
   username?: string;
   roleId?: string;
+  userType?: UserType;
   branchId?: string;
   isActive?: boolean;
 }

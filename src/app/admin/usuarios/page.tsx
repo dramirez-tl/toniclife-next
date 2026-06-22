@@ -32,6 +32,7 @@ import {
   ClipboardDocumentIcon,
   UserIcon,
   BuildingStorefrontIcon,
+  BriefcaseIcon,
   ChartBarIcon,
   EnvelopeIcon,
   ExclamationTriangleIcon,
@@ -42,6 +43,7 @@ import { toast } from 'sonner';
 import { usersService } from '@/services/users.service';
 import { DistribuidoresTab } from '@/components/admin/users/DistribuidoresTab';
 import { getMlmTypeConfig } from '@/lib/mlmType';
+import { getUserTypeConfig, SELECTABLE_USER_TYPES } from '@/lib/userType';
 import { PermissionGuard } from '@/components/auth';
 import { useAppSelector } from '@/store/hooks';
 import { selectUserRoles } from '@/store/slices/authSlice';
@@ -49,7 +51,7 @@ import { useRoles } from '@/hooks/useRoles';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 
-type TabKey = 'users' | 'verification' | 'distribuidores';
+type TabKey = 'users' | 'colaboradores' | 'verification' | 'distribuidores';
 
 // Forma mínima para el modal de "Ver contraseña" (compatible con User y VerifiedUser).
 type PasswordTarget = { id: string; firstName: string; lastName: string; email: string | null };
@@ -75,6 +77,9 @@ function UsuariosContent() {
   });
 
   const activeTab = get('tab') as TabKey;
+  // La pestaña "Colaboradores" es la misma vista de usuarios filtrada por tipo.
+  const isColabTab = activeTab === 'colaboradores';
+  const forcedUserType = isColabTab ? 'colaborador' : undefined;
   const searchQuery = get('search');
   const customerNumberQuery = get('customerNumber');
   const filterRole = get('role');
@@ -114,27 +119,30 @@ function UsuariosContent() {
     if (searchQuery) params.search = searchQuery;
     if (customerNumberQuery) params.customerNumber = customerNumberQuery;
     if (filterRole !== 'all') params.role = filterRole;
+    if (forcedUserType) params.userType = forcedUserType;
     if (filterStatus !== 'all') {
       params.isActive = filterStatus === 'active';
     }
 
     return params;
-  }, [searchQuery, customerNumberQuery, filterRole, filterStatus, currentPage, pageSize]);
+  }, [searchQuery, customerNumberQuery, filterRole, forcedUserType, filterStatus, currentPage, pageSize]);
 
   // Lightweight stats queries (limit:1 → server returns accurate .total)
   const baseStatsQuery: UserQueryParams = useMemo(() => {
     const p: UserQueryParams = { limit: 1, page: 1, sortBy: 'createdAt', sortOrder: 'desc' };
     if (searchQuery) p.search = searchQuery;
     if (customerNumberQuery) p.customerNumber = customerNumberQuery;
+    if (forcedUserType) p.userType = forcedUserType;
     return p;
-  }, [searchQuery, customerNumberQuery]);
+  }, [searchQuery, customerNumberQuery, forcedUserType]);
 
   const activeStatsQuery: UserQueryParams = useMemo(() => {
     const p: UserQueryParams = { limit: 1, page: 1, sortBy: 'createdAt', sortOrder: 'desc', isActive: true };
     if (searchQuery) p.search = searchQuery;
     if (customerNumberQuery) p.customerNumber = customerNumberQuery;
+    if (forcedUserType) p.userType = forcedUserType;
     return p;
-  }, [searchQuery, customerNumberQuery]);
+  }, [searchQuery, customerNumberQuery, forcedUserType]);
 
   const customerStatsQuery: UserQueryParams = useMemo(() => {
     const p: UserQueryParams = { limit: 1, page: 1, sortBy: 'createdAt', sortOrder: 'desc', role: 'customer' };
@@ -298,6 +306,7 @@ function UsuariosContent() {
       lastName: '',
       phone: '',
       roleId: '',
+      userType: 'colaborador',
       isActive: true,
     });
     setIsModalOpen(true);
@@ -311,6 +320,7 @@ function UsuariosContent() {
       lastName: user.lastName,
       phone: user.phone ?? '',
       roleId: user.role?.id ?? '',
+      userType: user.userType ?? 'colaborador',
       isActive: user.isActive,
     });
     setIsModalOpen(true);
@@ -350,6 +360,7 @@ function UsuariosContent() {
           lastName: formData.lastName,
           phone: formData.phone || undefined,
           roleId: formData.roleId || undefined,
+          userType: formData.userType || undefined,
           isActive: formData.isActive,
         };
         await updateUser.mutateAsync({ id: editingUser.id, dto });
@@ -362,6 +373,7 @@ function UsuariosContent() {
           lastName: formData.lastName,
           phone: formData.phone || undefined,
           roleId: formData.roleId,
+          userType: formData.userType || 'colaborador',
           isActive: formData.isActive,
         };
         await createUser.mutateAsync(dto);
@@ -473,12 +485,20 @@ function UsuariosContent() {
       sortValue: (user) => user.role?.name || '',
       render: (user) => {
         const mlm = getMlmTypeConfig(user.customerType);
+        // Tipo de cuenta interno (colaborador/sistema): se muestra cuando no hay
+        // badge MLM, para no duplicar con distribuidor/cliente.
+        const tipo = !mlm ? getUserTypeConfig(user.userType) : null;
         return (
           <div className="flex flex-wrap items-center gap-1.5">
             {getRoleBadge(user)}
             {mlm && (
               <Badge variant={mlm.variant} title="Tipo en el MLM (cliente enlazado)">
                 {mlm.label}
+              </Badge>
+            )}
+            {tipo && (
+              <Badge variant={tipo.variant} title="Tipo de cuenta">
+                {tipo.label}
               </Badge>
             )}
           </div>
@@ -639,6 +659,17 @@ function UsuariosContent() {
             Cuentas de sistema
           </button>
           <button
+            onClick={() => setParams({ tab: 'colaboradores' })}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === 'colaboradores'
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground hover:bg-muted'
+            }`}
+          >
+            <BriefcaseIcon className="h-4 w-4" />
+            Colaboradores
+          </button>
+          <button
             onClick={() => setParams({ tab: 'distribuidores' })}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               activeTab === 'distribuidores'
@@ -665,8 +696,8 @@ function UsuariosContent() {
         {/* Tab: Distribuidores y clientes (dominio customers) */}
         {activeTab === 'distribuidores' && <DistribuidoresTab />}
 
-        {/* Tab: Cuentas de sistema (dominio users) */}
-        {activeTab === 'users' && (
+        {/* Tab: Cuentas de sistema / Colaboradores (dominio users) */}
+        {(activeTab === 'users' || activeTab === 'colaboradores') && (
           <>
             {/* Stats Cards — solo dominio users */}
             <div className="mb-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
@@ -838,7 +869,16 @@ function UsuariosContent() {
                 ) : (
                   <>
                     <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                      <h2 className="text-base font-semibold text-foreground">Listado de usuarios</h2>
+                      <div>
+                        <h2 className="text-base font-semibold text-foreground">
+                          {isColabTab ? 'Colaboradores' : 'Listado de usuarios'}
+                        </h2>
+                        {isColabTab && (
+                          <p className="text-xs text-muted-foreground">
+                            Cuentas de tipo colaborador (personal interno).
+                          </p>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground">
                         Mostrando {users.length} de {totalUsers}
                       </p>
@@ -1430,6 +1470,23 @@ function UserFormModal({
               />
             </div>
           )}
+
+          {/* Tipo de cuenta */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">
+              Tipo de cuenta
+            </label>
+            <SearchableSelect
+              options={SELECTABLE_USER_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+              value={formData.userType ?? 'colaborador'}
+              onChange={(val) => handleChange('userType', val)}
+              showAllOption={false}
+              className="w-full"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Colaborador = personal interno. Sistema = cuenta técnica. Luego asigna su rol.
+            </p>
+          </div>
 
           {/* Role */}
           <div>

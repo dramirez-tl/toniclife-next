@@ -22,6 +22,7 @@ class UsersService {
     if (params.search) queryParams.append('search', params.search);
     if (params.customerNumber) queryParams.append('customerNumber', params.customerNumber);
     if (params.role) queryParams.append('role', params.role);
+    if (params.userType) queryParams.append('userType', params.userType);
     if (params.isActive !== undefined) queryParams.append('isActive', String(params.isActive));
     if (params.page) queryParams.append('page', String(params.page));
     if (params.limit) queryParams.append('limit', String(params.limit));
