@@ -100,6 +100,10 @@ export interface Department {
   isActive?: boolean;
   userCount?: number;
   employeeCount?: number;
+  headUserId?: string | null;
+  headName?: string | null;
+  subheadUserId?: string | null;
+  subheadName?: string | null;
 }
 
 export interface CreateDepartmentDto {
@@ -111,6 +115,8 @@ export interface UpdateDepartmentDto {
   code?: string;
   name?: string;
   isActive?: boolean;
+  headUserId?: string | null;
+  subheadUserId?: string | null;
 }
 
 export interface EmployeeQuery {

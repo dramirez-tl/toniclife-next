@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, type DataTableColumn } from '@/components/ui';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useUsers } from '@/hooks/useUsers';
 import {
   BuildingOffice2Icon,
   PlusIcon,
@@ -32,7 +34,23 @@ export default function DepartamentosPage() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Department | null>(null);
-  const [form, setForm] = useState({ code: '', name: '' });
+  const [form, setForm] = useState<{
+    code: string;
+    name: string;
+    headUserId: string;
+    subheadUserId: string;
+  }>({ code: '', name: '', headUserId: '', subheadUserId: '' });
+
+  // Colaboradores para asignar jefe/subjefe.
+  const { data: usersData } = useUsers({ userType: 'colaborador', limit: 100, page: 1 });
+  const colaboradorOptions = useMemo(
+    () =>
+      (usersData?.data ?? []).map((u) => ({
+        value: u.id,
+        label: `${u.firstName} ${u.lastName}`.trim(),
+      })),
+    [usersData],
+  );
 
   const rows = departments ?? [];
   const stats = useMemo(
@@ -46,13 +64,18 @@ export default function DepartamentosPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ code: '', name: '' });
+    setForm({ code: '', name: '', headUserId: '', subheadUserId: '' });
     setModalOpen(true);
   };
 
   const openEdit = (d: Department) => {
     setEditing(d);
-    setForm({ code: d.code, name: d.name });
+    setForm({
+      code: d.code,
+      name: d.name,
+      headUserId: d.headUserId ?? '',
+      subheadUserId: d.subheadUserId ?? '',
+    });
     setModalOpen(true);
   };
 
@@ -63,7 +86,15 @@ export default function DepartamentosPage() {
     }
     try {
       if (editing) {
-        await updateDept.mutateAsync({ id: editing.id, data: { code: form.code, name: form.name } });
+        await updateDept.mutateAsync({
+          id: editing.id,
+          data: {
+            code: form.code,
+            name: form.name,
+            headUserId: form.headUserId || null,
+            subheadUserId: form.subheadUserId || null,
+          },
+        });
         toast.success('Departamento actualizado');
       } else {
         await createDept.mutateAsync({ code: form.code, name: form.name });
@@ -117,6 +148,19 @@ export default function DepartamentosPage() {
           </div>
         </div>
       ),
+    },
+    {
+      key: 'head',
+      header: 'Jefe',
+      render: (d) =>
+        d.headName ? (
+          <div className="text-sm">
+            <p className="text-gray-900">{d.headName}</p>
+            {d.subheadName && <p className="text-xs text-gray-400">Subjefe: {d.subheadName}</p>}
+          </div>
+        ) : (
+          <span className="text-sm text-gray-400">Sin asignar</span>
+        ),
     },
     {
       key: 'userCount',
@@ -277,6 +321,37 @@ export default function DepartamentosPage() {
                   className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-[#3E667D]"
                 />
               </div>
+              {editing && (
+                <>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Jefe</label>
+                    <SearchableSelect
+                      options={colaboradorOptions}
+                      value={form.headUserId}
+                      onChange={(v) => setForm({ ...form, headUserId: v })}
+                      showAllOption
+                      allValue=""
+                      allLabel="Sin jefe"
+                      className="w-full"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Subjefe</label>
+                    <SearchableSelect
+                      options={colaboradorOptions}
+                      value={form.subheadUserId}
+                      onChange={(v) => setForm({ ...form, subheadUserId: v })}
+                      showAllOption
+                      allValue=""
+                      allLabel="Sin subjefe"
+                      className="w-full"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    Un jefe puede encabezar varios departamentos. Crea el departamento y luego asígnale jefe.
+                  </p>
+                </>
+              )}
             </div>
             <div className="flex justify-end gap-3 border-t border-gray-200 p-6">
               <Button variant="outline" onClick={() => setModalOpen(false)}>
