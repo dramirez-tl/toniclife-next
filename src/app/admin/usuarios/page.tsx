@@ -49,6 +49,7 @@ import { PermissionGuard } from '@/components/auth';
 import { useAppSelector } from '@/store/hooks';
 import { selectUserRoles } from '@/store/slices/authSlice';
 import { useRoles } from '@/hooks/useRoles';
+import { useDepartments } from '@/hooks/useHR';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 
@@ -308,6 +309,7 @@ function UsuariosContent() {
       phone: '',
       roleId: '',
       userType: 'colaborador',
+      departmentId: '',
       isActive: true,
     });
     setIsModalOpen(true);
@@ -322,6 +324,7 @@ function UsuariosContent() {
       phone: user.phone ?? '',
       roleId: user.role?.id ?? '',
       userType: user.userType ?? 'colaborador',
+      departmentId: user.departmentId ?? '',
       isActive: user.isActive,
     });
     setIsModalOpen(true);
@@ -362,6 +365,7 @@ function UsuariosContent() {
           phone: formData.phone || undefined,
           roleId: formData.roleId || undefined,
           userType: formData.userType || undefined,
+          departmentId: formData.userType === 'cliente' ? null : (formData.departmentId || null),
           isActive: formData.isActive,
         };
         await updateUser.mutateAsync({ id: editingUser.id, dto });
@@ -375,6 +379,7 @@ function UsuariosContent() {
           phone: formData.phone || undefined,
           roleId: formData.roleId,
           userType: formData.userType || 'colaborador',
+          departmentId: formData.departmentId || null,
           isActive: formData.isActive,
         };
         await createUser.mutateAsync(dto);
@@ -500,6 +505,11 @@ function UsuariosContent() {
             {tipo && (
               <Badge variant={tipo.variant} title="Tipo de cuenta">
                 {tipo.label}
+              </Badge>
+            )}
+            {user.departmentName && (
+              <Badge variant="outline" className="text-muted-foreground" title="Departamento (área)">
+                {user.departmentName}
               </Badge>
             )}
           </div>
@@ -1383,9 +1393,14 @@ function UserFormModal({
   };
 
   const isCliente = (formData.userType ?? 'colaborador') === 'cliente';
-  // Roles de departamento (categoría colaborador) activos.
+  const { data: departmentsCatalog } = useDepartments();
+  // Roles de PERMISOS de colaborador: categoría colaborador, activos, y que NO
+  // sean roles-departamento (esos se asignan vía el campo Departamento).
   const colaboradorRoles = roles.filter(
-    (r) => (r.category ?? 'colaborador') === 'colaborador' && r.isActive !== false,
+    (r) =>
+      (r.category ?? 'colaborador') === 'colaborador' &&
+      r.isActive !== false &&
+      !r.isDepartmentRole,
   );
 
   const inputClassName =
@@ -1537,6 +1552,23 @@ function UserFormModal({
                 allLabel="Seleccionar rol..."
                 className="w-full"
               />
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  Departamento
+                </label>
+                <SearchableSelect
+                  options={(departmentsCatalog ?? []).map((d) => ({ value: d.id, label: d.name }))}
+                  value={formData.departmentId ?? ''}
+                  onChange={(val) => handleChange('departmentId', val)}
+                  showAllOption
+                  allValue=""
+                  allLabel="Sin departamento"
+                  className="w-full"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Área del colaborador. Independiente del rol (permisos).
+                </p>
+              </div>
             </div>
           )}
 

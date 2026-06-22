@@ -86,6 +86,7 @@ function RoleFormModal({
     defaultModule: role?.defaultModule || '',
     requiresCashClose: role?.requiresCashClose || false,
     category: (role?.category as 'colaborador' | 'cliente') || 'colaborador',
+    isDepartmentRole: role?.isDepartmentRole || false,
     isActive: role?.isActive ?? true,
   });
 
@@ -109,6 +110,7 @@ function RoleFormModal({
             defaultModule: formData.defaultModule || undefined,
             requiresCashClose: formData.requiresCashClose,
             category: formData.category,
+            isDepartmentRole: formData.isDepartmentRole,
             isActive: formData.isActive,
           },
         });
@@ -125,6 +127,7 @@ function RoleFormModal({
           defaultModule: formData.defaultModule || undefined,
           requiresCashClose: formData.requiresCashClose,
           category: formData.category,
+          isDepartmentRole: formData.isDepartmentRole,
         });
         toast.success('Rol creado correctamente');
       }
@@ -272,6 +275,18 @@ function RoleFormModal({
                 <div>
                   <p className="text-sm font-medium text-gray-700">Requiere corte de caja</p>
                   <p className="text-[11px] text-gray-400">El usuario debe hacer corte de caja al finalizar su turno</p>
+                </div>
+              </label>
+              <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
+                <input
+                  type="checkbox"
+                  checked={formData.isDepartmentRole || false}
+                  onChange={(e) => setFormData({ ...formData, isDepartmentRole: e.target.checked })}
+                  className="h-4 w-4 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
+                />
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Es departamento (no rol de permisos)</p>
+                  <p className="text-[11px] text-gray-400">Se oculta del selector de rol al crear usuarios; el departamento se asigna aparte.</p>
                 </div>
               </label>
             </div>
@@ -712,6 +727,9 @@ function RolesContent() {
           )}
           {role.requiresCashClose && (
             <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">Corte</span>
+          )}
+          {role.isDepartmentRole && (
+            <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-700" title="Es un departamento, no un rol de permisos">Departamento</span>
           )}
         </div>
       ),

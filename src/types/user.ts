@@ -27,6 +27,9 @@ export interface User {
   customerType?: string | null;
   /** Tipo de cuenta: 'colaborador' | 'distribuidor' | 'cliente' | 'sistema' (derivado por vínculo si no se asignó). */
   userType?: string | null;
+  /** Departamento (área) del colaborador. */
+  departmentId?: string | null;
+  departmentName?: string | null;
   isActive: boolean;
   emailVerifiedAt: string | null;
   role: RoleDto;
@@ -78,6 +81,7 @@ export interface CreateUserDto {
   username?: string;
   roleId: string;
   userType?: UserType;
+  departmentId?: string | null;
   branchId?: string;
   isActive?: boolean;
 }
@@ -91,6 +95,7 @@ export interface UpdateUserDto {
   username?: string;
   roleId?: string;
   userType?: UserType;
+  departmentId?: string | null;
   branchId?: string;
   isActive?: boolean;
 }

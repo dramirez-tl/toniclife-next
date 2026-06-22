@@ -11,6 +11,8 @@ export interface Role {
   isActive: boolean;
   /** 'colaborador' (departamento interno) | 'cliente'. */
   category?: string;
+  /** true = el rol es en realidad un departamento; se oculta del selector de rol. */
+  isDepartmentRole?: boolean;
   userCount: number;
   createdAt: string;
   updatedAt: string;
@@ -56,6 +58,7 @@ export interface CreateRoleDto {
   defaultModule?: string;
   requiresCashClose?: boolean;
   category?: RoleCategory;
+  isDepartmentRole?: boolean;
 }
 
 export interface UpdateRoleDto {
@@ -64,6 +67,7 @@ export interface UpdateRoleDto {
   defaultModule?: string;
   requiresCashClose?: boolean;
   category?: RoleCategory;
+  isDepartmentRole?: boolean;
   isActive?: boolean;
 }
 
