@@ -9,6 +9,8 @@ export interface Role {
   requiresCashClose: boolean;
   isSystemRole: boolean;
   isActive: boolean;
+  /** 'colaborador' (departamento interno) | 'cliente'. */
+  category?: string;
   userCount: number;
   createdAt: string;
   updatedAt: string;

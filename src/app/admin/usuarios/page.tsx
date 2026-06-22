@@ -44,6 +44,7 @@ import { usersService } from '@/services/users.service';
 import { DistribuidoresTab } from '@/components/admin/users/DistribuidoresTab';
 import { getMlmTypeConfig } from '@/lib/mlmType';
 import { getUserTypeConfig, SELECTABLE_USER_TYPES } from '@/lib/userType';
+import type { Role } from '@/types/role';
 import { PermissionGuard } from '@/components/auth';
 import { useAppSelector } from '@/store/hooks';
 import { selectUserRoles } from '@/store/slices/authSlice';
@@ -1355,8 +1356,15 @@ interface UserFormModalProps {
   setFormData: (data: Record<string, any>) => void;
   onSubmit: () => void;
   isSubmitting: boolean;
-  roles: { id: string; code: string; name: string }[];
+  roles: Role[];
 }
+
+// Subtipos de cliente (customer_type) que se muestran cuando el tipo es Cliente.
+// El alta real de clientes/distribuidores NO se hace aquí (ver nota en el form).
+const CLIENT_SUBTYPES = [
+  { value: 'distributor', label: 'Distribuidor' },
+  { value: 'preferred_customer', label: 'Preferente' },
+];
 
 function UserFormModal({
   isOpen,
@@ -1373,6 +1381,12 @@ function UserFormModal({
   const handleChange = (field: string, value: any) => {
     setFormData({ ...formData, [field]: value });
   };
+
+  const isCliente = (formData.userType ?? 'colaborador') === 'cliente';
+  // Roles de departamento (categoría colaborador) activos.
+  const colaboradorRoles = roles.filter(
+    (r) => (r.category ?? 'colaborador') === 'colaborador' && r.isActive !== false,
+  );
 
   const inputClassName =
     'w-full rounded-lg border border-input bg-background px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40';
@@ -1488,20 +1502,43 @@ function UserFormModal({
             </p>
           </div>
 
-          {/* Role */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">
-              Rol
-            </label>
-            <SearchableSelect
-              options={roles.map((role) => ({ value: role.id, label: role.name }))}
-              value={formData.roleId ?? ''}
-              onChange={(val) => handleChange('roleId', val)}
-              showAllOption={true}
-              allLabel="Seleccionar rol..."
-              className="w-full"
-            />
-          </div>
+          {/* Rol (colaborador) / Subtipo (cliente) */}
+          {isCliente ? (
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">
+                Tipo de cliente
+              </label>
+              <SearchableSelect
+                options={CLIENT_SUBTYPES}
+                value={formData.customerSubtype ?? ''}
+                onChange={(val) => handleChange('customerSubtype', val)}
+                showAllOption={false}
+                placeholder="Distribuidor / Preferente"
+                className="w-full"
+              />
+              <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
+                <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>
+                  El alta de clientes y distribuidores no se hace aquí (requiere
+                  patrocinador, número y kit). Usa el módulo de Distribuidores y clientes.
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">
+                Rol
+              </label>
+              <SearchableSelect
+                options={colaboradorRoles.map((role) => ({ value: role.id, label: role.name }))}
+                value={formData.roleId ?? ''}
+                onChange={(val) => handleChange('roleId', val)}
+                showAllOption={true}
+                allLabel="Seleccionar rol..."
+                className="w-full"
+              />
+            </div>
+          )}
 
           {/* Active */}
           <div className="flex items-center gap-3">
@@ -1523,13 +1560,21 @@ function UserFormModal({
           <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
             Cancelar
           </Button>
-          <Button variant="default" onClick={onSubmit} disabled={isSubmitting}>
-            {isSubmitting
-              ? 'Guardando...'
-              : editingUser
-                ? 'Guardar Cambios'
-                : 'Crear Usuario'}
-          </Button>
+          {isCliente ? (
+            <Button asChild variant="default">
+              <Link href="/admin/usuarios?tab=distribuidores" onClick={onClose}>
+                Ir a Distribuidores y clientes
+              </Link>
+            </Button>
+          ) : (
+            <Button variant="default" onClick={onSubmit} disabled={isSubmitting}>
+              {isSubmitting
+                ? 'Guardando...'
+                : editingUser
+                  ? 'Guardar Cambios'
+                  : 'Crear Usuario'}
+            </Button>
+          )}
         </div>
       </div>
     </div>
