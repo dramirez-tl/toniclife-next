@@ -47,12 +47,15 @@ export interface PermissionsByModule {
 
 // ─── DTO TYPES ───
 
+export type RoleCategory = 'colaborador' | 'cliente';
+
 export interface CreateRoleDto {
   code: string;
   name: string;
   description?: string;
   defaultModule?: string;
   requiresCashClose?: boolean;
+  category?: RoleCategory;
 }
 
 export interface UpdateRoleDto {
@@ -60,6 +63,7 @@ export interface UpdateRoleDto {
   description?: string;
   defaultModule?: string;
   requiresCashClose?: boolean;
+  category?: RoleCategory;
   isActive?: boolean;
 }
 

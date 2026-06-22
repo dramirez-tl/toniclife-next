@@ -65,6 +65,12 @@ const MODULE_OPTIONS = [
   { value: 'configuracion', label: 'Configuracion' },
 ];
 
+// Categoría del rol: a qué tipo de cuenta pertenece (alinea con users.user_type).
+const CATEGORY_OPTIONS = [
+  { value: 'colaborador', label: 'Colaborador (departamento interno)' },
+  { value: 'cliente', label: 'Cliente (distribuidor / preferente)' },
+];
+
 function RoleFormModal({
   role,
   onClose,
@@ -79,6 +85,7 @@ function RoleFormModal({
     description: role?.description || '',
     defaultModule: role?.defaultModule || '',
     requiresCashClose: role?.requiresCashClose || false,
+    category: (role?.category as 'colaborador' | 'cliente') || 'colaborador',
     isActive: role?.isActive ?? true,
   });
 
@@ -101,6 +108,7 @@ function RoleFormModal({
             description: formData.description || undefined,
             defaultModule: formData.defaultModule || undefined,
             requiresCashClose: formData.requiresCashClose,
+            category: formData.category,
             isActive: formData.isActive,
           },
         });
@@ -116,6 +124,7 @@ function RoleFormModal({
           description: formData.description || undefined,
           defaultModule: formData.defaultModule || undefined,
           requiresCashClose: formData.requiresCashClose,
+          category: formData.category,
         });
         toast.success('Rol creado correctamente');
       }
@@ -195,6 +204,19 @@ function RoleFormModal({
           {/* Configuracion */}
           <fieldset>
             <legend className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Configuracion</legend>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+              <SearchableSelect
+                value={formData.category || 'colaborador'}
+                onChange={(v) => setFormData({ ...formData, category: v as 'colaborador' | 'cliente' })}
+                options={CATEGORY_OPTIONS}
+                showAllOption={false}
+                className="w-full"
+              />
+              <p className="text-[11px] text-gray-400 mt-1">
+                Define en qué tipo de cuenta aparece este rol al crear usuarios.
+              </p>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Modulo por defecto</label>
@@ -528,10 +550,12 @@ function RolesContent() {
     page: '1',
     limit: '20',
     type: 'all',
+    category: 'all',
   });
 
   const searchQuery = get('search');
   const typeFilter = get('type');
+  const categoryFilter = get('category');
   const currentPage = getNumber('page') || 1;
   const pageSize = getNumber('limit') || 20;
 
@@ -560,8 +584,11 @@ function RolesContent() {
     }
     if (typeFilter === 'system') result = result.filter((r) => r.isSystemRole);
     if (typeFilter === 'custom') result = result.filter((r) => !r.isSystemRole);
+    if (categoryFilter !== 'all') {
+      result = result.filter((r) => (r.category ?? 'colaborador') === categoryFilter);
+    }
     return result;
-  }, [roles, searchQuery, typeFilter]);
+  }, [roles, searchQuery, typeFilter, categoryFilter]);
 
   // Client-side pagination
   const totalItems = filteredRoles.length;
@@ -570,10 +597,10 @@ function RolesContent() {
     return filteredRoles.slice(start, start + pageSize);
   }, [filteredRoles, currentPage, pageSize]);
 
-  const hasActiveFilters = !!searchQuery || typeFilter !== 'all';
+  const hasActiveFilters = !!searchQuery || typeFilter !== 'all' || categoryFilter !== 'all';
 
   const resetFilters = () => {
-    setParams({ search: null, type: 'all', page: '1' });
+    setParams({ search: null, type: 'all', category: 'all', page: '1' });
     setSearchInput('');
   };
 
@@ -629,6 +656,24 @@ function RolesContent() {
       render: (role) => (
         <code className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded font-mono">{role.code}</code>
       ),
+    },
+    {
+      key: 'category',
+      header: 'Categoría',
+      sortable: true,
+      sortValue: (r) => r.category ?? 'colaborador',
+      render: (role) => {
+        const isColab = (role.category ?? 'colaborador') === 'colaborador';
+        return (
+          <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+            isColab
+              ? 'border-[#3E667D]/30 bg-[#3E667D]/10 text-[#3E667D]'
+              : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+          }`}>
+            {isColab ? 'Colaborador' : 'Cliente'}
+          </span>
+        );
+      },
     },
     {
       key: 'userCount',
@@ -776,6 +821,18 @@ function RolesContent() {
                   <Button type="submit" variant="default" size="sm">Buscar</Button>
                 </form>
                 <div className="flex gap-2">
+                  <SearchableSelect
+                    value={categoryFilter}
+                    onChange={(v) => setParams({ category: v, page: '1' })}
+                    options={[
+                      { value: 'colaborador', label: 'Colaborador' },
+                      { value: 'cliente', label: 'Cliente' },
+                    ]}
+                    showAllOption
+                    allValue="all"
+                    allLabel="Todas las categorías"
+                    className="w-52"
+                  />
                   {hasActiveFilters && (
                     <Button variant="outline" size="sm" onClick={resetFilters}>
                       Limpiar filtros
@@ -798,6 +855,7 @@ function RolesContent() {
                   Mostrando {filteredRoles.length} de {roles.length} roles
                   {searchQuery && <span className="bg-gray-100 px-2 py-0.5 rounded">Búsqueda: {searchQuery}</span>}
                   {typeFilter !== 'all' && <span className="bg-gray-100 px-2 py-0.5 rounded capitalize">Tipo: {typeFilter === 'system' ? 'Sistema' : 'Custom'}</span>}
+                  {categoryFilter !== 'all' && <span className="bg-gray-100 px-2 py-0.5 rounded capitalize">Categoría: {categoryFilter}</span>}
                 </div>
               )}
             </div>
@@ -815,7 +873,7 @@ function RolesContent() {
               data={paginatedRoles}
               isLoading={isLoading && !data}
               getRowKey={(role) => role.id}
-              minWidthClassName="min-w-[800px]"
+              minWidthClassName="min-w-[920px]"
               emptyState={
                 <div className="py-8 text-center">
                   <ShieldCheckIcon className="mx-auto mb-4 h-12 w-12 text-gray-300" />
