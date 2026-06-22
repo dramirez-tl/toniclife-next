@@ -1484,7 +1484,7 @@ function UserFormModal({
               className="w-full"
             />
             <p className="mt-1 text-xs text-muted-foreground">
-              Colaborador = personal interno. Sistema = cuenta técnica. Luego asigna su rol.
+              Colaborador = personal interno. Cliente = consumidor. Luego asigna su rol.
             </p>
           </div>
 

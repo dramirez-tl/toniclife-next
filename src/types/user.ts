@@ -67,7 +67,7 @@ export interface UserListResponse {
 // DTO TYPES
 // ================================
 
-export type UserType = 'colaborador' | 'distribuidor' | 'cliente' | 'sistema';
+export type UserType = 'colaborador' | 'cliente';
 
 export interface CreateUserDto {
   email: string;
