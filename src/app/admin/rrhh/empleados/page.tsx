@@ -391,13 +391,12 @@ function EmpleadosContent() {
                 Volver a RRHH
               </Button>
             </Link>
-            <Button
-              variant="default"
-              onClick={openCreateModal}
-            >
-              <PlusIcon className="h-5 w-5" />
-              Nuevo Empleado
-            </Button>
+            <Link href="/admin/usuarios">
+              <Button variant="default">
+                <PlusIcon className="h-5 w-5" />
+                Nuevo Colaborador
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
