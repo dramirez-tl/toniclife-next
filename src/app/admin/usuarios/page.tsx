@@ -51,6 +51,8 @@ import { selectUserRoles } from '@/store/slices/authSlice';
 import { useRoles } from '@/hooks/useRoles';
 import { useDepartments } from '@/hooks/useHR';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { PhoneInput } from '@/components/ui/PhoneInput';
+import { parsePhone, isValidLocalNumber } from '@/lib/phone';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 
 type TabKey = 'users' | 'colaboradores' | 'verification' | 'distribuidores';
@@ -347,6 +349,13 @@ function UsuariosContent() {
     if ((formData.userType ?? 'colaborador') === 'colaborador' && !formData.departmentId) {
       toast.error('El departamento es obligatorio para un colaborador');
       return;
+    }
+    if (formData.phone) {
+      const p = parsePhone(formData.phone);
+      if (!isValidLocalNumber(p.country, p.number)) {
+        toast.error(`Teléfono incompleto: ${p.country.name} requiere ${p.country.digits} dígitos`);
+        return;
+      }
     }
     if (!editingUser) {
       if (!formData.email?.trim()) {
@@ -1497,12 +1506,9 @@ function UserFormModal({
             <label className="block text-sm font-medium text-foreground mb-1">
               Teléfono
             </label>
-            <input
-              type="tel"
+            <PhoneInput
               value={formData.phone ?? ''}
-              onChange={(e) => handleChange('phone', e.target.value)}
-              placeholder="+52 123 456 7890"
-              className={inputClassName}
+              onChange={(v) => handleChange('phone', v)}
             />
           </div>
 

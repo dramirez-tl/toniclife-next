@@ -21,6 +21,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { PhoneInput } from '@/components/ui/PhoneInput';
+import { parsePhone, isValidLocalNumber } from '@/lib/phone';
 import { DataTable, type DataTableColumn } from '@/components/ui';
 import { useEmployees, useCreateEmployee, useUpdateEmployee, useDepartments } from '@/hooks/useHR';
 import { useActiveBranches } from '@/hooks/useBranches';
@@ -151,6 +153,13 @@ function EmpleadosContent() {
   };
 
   const handleSubmit = async () => {
+    if (formData.phone) {
+      const p = parsePhone(formData.phone);
+      if (!isValidLocalNumber(p.country, p.number)) {
+        toast.error(`Teléfono incompleto: ${p.country.name} requiere ${p.country.digits} dígitos`);
+        return;
+      }
+    }
     try {
       if (editingEmployee) {
         const dto: UpdateEmployeeDto = {
@@ -734,14 +743,11 @@ function EmployeeFormModal({
           {/* Phone */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Telefono
+              Teléfono
             </label>
-            <input
-              type="tel"
+            <PhoneInput
               value={formData.phone ?? ''}
-              onChange={(e) => handleChange('phone', e.target.value)}
-              placeholder="+52 123 456 7890"
-              className={inputClassName}
+              onChange={(v) => handleChange('phone', v)}
             />
           </div>
 
