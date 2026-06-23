@@ -64,7 +64,7 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { useActiveCountries } from '@/hooks/useConfig';
 import type { Country } from '@/types/config';
-import { getTimezoneLabel, getTimezoneShortLabel } from '@/lib/timezone-utils';
+import { getTimezoneLabel, getTimezoneShortLabel, resolveTimeZone } from '@/lib/timezone-utils';
 
 // ================================
 // TIMEZONE OPTIONS
@@ -76,6 +76,7 @@ const TIMEZONE_OPTIONS = [
     options: [
       { value: 'America/Mexico_City', label: 'Ciudad de México (CST/CDT)' },
       { value: 'America/Tijuana', label: 'Tijuana / Baja California (PST/PDT)' },
+      { value: 'America/Mazatlan', label: 'Mazatlán / Sinaloa (MST/MDT)' },
       { value: 'America/Cancun', label: 'Cancún (EST fijo)' },
       { value: 'America/Hermosillo', label: 'Hermosillo / Sonora (MST fijo)' },
       { value: 'America/Chihuahua', label: 'Chihuahua (MST/MDT)' },
@@ -250,7 +251,7 @@ function TimezoneSection({ timezone, onChange }: { timezone: string; onChange: (
     const update = () => {
       setLocalTime(
         new Date().toLocaleTimeString('es-MX', {
-          timeZone: timezone,
+          timeZone: resolveTimeZone(timezone),
           hour: '2-digit',
           minute: '2-digit',
           second: '2-digit',

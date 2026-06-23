@@ -46,7 +46,7 @@ import { toast } from 'sonner';
 import { posService } from '@/services/pos.service';
 import { billingService } from '@/services/billing.service';
 import { generatePosTicketPdf } from '@/lib/generate-pos-ticket';
-import { getTimezoneShortLabel, formatDateTimeLocal } from '@/lib/timezone-utils';
+import { getTimezoneShortLabel, formatDateTimeLocal, resolveTimeZone } from '@/lib/timezone-utils';
 import { PermissionGuard } from '@/components/auth';
 import { useSelector } from 'react-redux';
 import { selectUser, selectUserRoles } from '@/store/slices/authSlice';
@@ -203,7 +203,7 @@ export default function PosPage() {
   const currencySymbol = currency?.symbol || '$';
   const currencyId = currency?.id;
   const branchCountryId = selectedBranch?.countryId;
-  const branchTimezone = selectedBranch?.timezone || 'America/Mexico_City';
+  const branchTimezone = resolveTimeZone(selectedBranch?.timezone);
 
   // Live branch clock
   const [branchClock, setBranchClock] = useState('');

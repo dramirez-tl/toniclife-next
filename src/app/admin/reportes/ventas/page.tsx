@@ -21,7 +21,7 @@ import { useAppSelector } from '@/store';
 import { selectUserRoles } from '@/store';
 import type { Sale, SaleItem, SaleQueryParams, PosSaleStatus, PosPaymentMethod } from '@/types/pos';
 import { posService } from '@/services/pos.service';
-import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
+import { DEFAULT_TIMEZONE, getTimezoneShortLabel, resolveTimeZone } from '@/lib/timezone-utils';
 import { toast } from 'sonner';
 import {
   ShoppingCartIcon,
@@ -61,7 +61,7 @@ const formatDate = (dateStr: string, timezone: string = DEFAULT_TIMEZONE) =>
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    timeZone: timezone,
+    timeZone: resolveTimeZone(timezone),
   });
 
 function getDefaultDateFrom(): string {
@@ -169,9 +169,10 @@ function escapeCsv(value: string | number | boolean | null | undefined): string 
 }
 
 function buildCsvRow(sale: Sale, timezone: string = DEFAULT_TIMEZONE): string {
+  const tz = resolveTimeZone(timezone);
   const cols = [
     sale.saleNumber,
-    sale.createdAt ? new Date(sale.createdAt).toLocaleString('es-MX', { timeZone: timezone }) : '',
+    sale.createdAt ? new Date(sale.createdAt).toLocaleString('es-MX', { timeZone: tz }) : '',
     getTimezoneShortLabel(timezone),
     sale.branchName,
     sale.cashRegisterName,
@@ -195,7 +196,7 @@ function buildCsvRow(sale: Sale, timezone: string = DEFAULT_TIMEZONE): string {
     sale.notes ?? '',
     sale.cancellationReason ?? '',
     sale.cancelledByName ?? '',
-    sale.cancelledAt ? new Date(sale.cancelledAt).toLocaleString('es-MX', { timeZone: timezone }) : '',
+    sale.cancelledAt ? new Date(sale.cancelledAt).toLocaleString('es-MX', { timeZone: tz }) : '',
   ];
   return cols.map(escapeCsv).join(',');
 }

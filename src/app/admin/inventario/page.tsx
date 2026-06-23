@@ -33,7 +33,7 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import type { BranchStockQueryDto, ProductStockDto } from '@/types/inventory';
 import { PermissionGuard } from '@/components/auth';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
-import { DEFAULT_TIMEZONE } from '@/lib/timezone-utils';
+import { DEFAULT_TIMEZONE, resolveTimeZone } from '@/lib/timezone-utils';
 
 const formatNumber = (n: number) => new Intl.NumberFormat('es-MX').format(n);
 
@@ -233,7 +233,7 @@ function InventarioContent() {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      timeZone: branchTimezone,
+      timeZone: resolveTimeZone(branchTimezone),
     });
   };
 
@@ -366,7 +366,7 @@ function InventarioContent() {
       sortable: true,
       sortValue: (item) => item.lastMovementAt || '',
       render: (item) => {
-        const tz = branches?.find(b => b.name === item.branchName)?.timezone || DEFAULT_TIMEZONE;
+        const tz = resolveTimeZone(branches?.find(b => b.name === item.branchName)?.timezone);
         return (
           <span className="text-sm text-gray-600">
             {item.lastMovementAt

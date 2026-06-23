@@ -5,6 +5,7 @@ export const DEFAULT_TIMEZONE = 'America/Mexico_City';
 export const TIMEZONE_FULL_LABELS: Record<string, string> = {
   'America/Mexico_City': 'Ciudad de México (CST/CDT)',
   'America/Tijuana': 'Tijuana / Baja California (PST/PDT)',
+  'America/Mazatlan': 'Mazatlán / Sinaloa (MST/MDT)',
   'America/Cancun': 'Cancún (EST fijo)',
   'America/Hermosillo': 'Hermosillo / Sonora (MST fijo)',
   'America/Chihuahua': 'Chihuahua (MST/MDT)',
@@ -28,6 +29,7 @@ export const TIMEZONE_FULL_LABELS: Record<string, string> = {
 export const TIMEZONE_SHORT_LABELS: Record<string, string> = {
   'America/Mexico_City': 'MX Centro',
   'America/Tijuana': 'MX Noroeste',
+  'America/Mazatlan': 'MX Pacífico',
   'America/Cancun': 'MX Sureste',
   'America/Hermosillo': 'MX Sonora',
   'America/Chihuahua': 'MX Norte',
@@ -49,6 +51,42 @@ export const TIMEZONE_SHORT_LABELS: Record<string, string> = {
 };
 
 // ================================
+// TIMEZONE VALIDATION
+// ================================
+
+// Cache de validación (evita recrear Intl.DateTimeFormat por llamada).
+const _tzValidCache = new Map<string, boolean>();
+
+/**
+ * TRUE si `tz` es un identificador IANA válido para Intl/toLocale*.
+ * Datos legacy tienen valores inválidos tipo "America/GMT-7" que hacen
+ * que Intl lance RangeError; esto los detecta sin reventar.
+ */
+export function isValidTimeZone(tz?: string | null): boolean {
+  if (!tz) return false;
+  const cached = _tzValidCache.get(tz);
+  if (cached !== undefined) return cached;
+  let ok = false;
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: tz });
+    ok = true;
+  } catch {
+    ok = false;
+  }
+  _tzValidCache.set(tz, ok);
+  return ok;
+}
+
+/**
+ * Devuelve `tz` si es un IANA válido; si no, cae a DEFAULT_TIMEZONE.
+ * Usar SIEMPRE antes de pasar una zona a Intl/toLocale* para no crashear
+ * con datos inválidos (ej. "America/GMT-7").
+ */
+export function resolveTimeZone(tz?: string | null): string {
+  return isValidTimeZone(tz) ? (tz as string) : DEFAULT_TIMEZONE;
+}
+
+// ================================
 // DATE FORMATTING WITH TIMEZONE
 // ================================
 
@@ -62,7 +100,7 @@ export function formatDateTimeLocal(
   locale = 'es-MX',
 ): string {
   return new Date(date).toLocaleString(locale, {
-    timeZone: timezone,
+    timeZone: resolveTimeZone(timezone),
     day: '2-digit',
     month: 'short',
     hour: '2-digit',
@@ -80,7 +118,7 @@ export function formatDateLocal(
   locale = 'es-MX',
 ): string {
   return new Date(date).toLocaleString(locale, {
-    timeZone: timezone,
+    timeZone: resolveTimeZone(timezone),
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -96,7 +134,7 @@ export function formatTimeLocal(
   locale = 'es-MX',
 ): string {
   return new Date(date).toLocaleTimeString(locale, {
-    timeZone: timezone,
+    timeZone: resolveTimeZone(timezone),
     hour: '2-digit',
     minute: '2-digit',
     hour12: true,
@@ -113,7 +151,7 @@ export function formatDateTimeLong(
   locale = 'es-MX',
 ): string {
   return new Date(date).toLocaleString(locale, {
-    timeZone: timezone,
+    timeZone: resolveTimeZone(timezone),
     weekday: 'long',
     day: 'numeric',
     month: 'long',

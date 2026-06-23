@@ -27,7 +27,7 @@ import { useActiveBranches } from '@/hooks/useBranches';
 import { inventoryService } from '@/services/inventory.service';
 import { MovementType, type KardexQueryDto, type KardexEntryDto } from '@/types/inventory';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
-import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
+import { DEFAULT_TIMEZONE, getTimezoneShortLabel, resolveTimeZone } from '@/lib/timezone-utils';
 
 export default function KardexPage() {
   return <Suspense><KardexContent /></Suspense>;
@@ -86,7 +86,7 @@ function KardexContent() {
       const name = productName || allData.product?.name || 'Producto';
       const code = productCode || allData.product?.code || '';
       const now = new Date();
-      const branchTimezone = branches?.find((b) => b.id === branchFilter)?.timezone || DEFAULT_TIMEZONE;
+      const branchTimezone = resolveTimeZone(branches?.find((b) => b.id === branchFilter)?.timezone);
       const exportDate = now.toLocaleString('es-MX', {
         day: '2-digit', month: '2-digit', year: 'numeric',
         hour: '2-digit', minute: '2-digit',

@@ -2,7 +2,7 @@
 import type { jsPDF } from 'jspdf';
 import type { DailySalesSummary, Sale } from '@/types/pos';
 import { PosSaleStatus } from '@/types/pos';
-import { formatDateLocal, formatTimeLocal, DEFAULT_TIMEZONE } from '@/lib/timezone-utils';
+import { formatDateLocal, formatTimeLocal, DEFAULT_TIMEZONE, resolveTimeZone } from '@/lib/timezone-utils';
 
 const PAGE_W = 72; // mm — printable width of POS-80
 const PAGE_H = 200;
@@ -117,7 +117,7 @@ export async function generateCorteDiaPdf(
 
   const displayDate = new Date(date + 'T12:00:00').toLocaleDateString('es-MX', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-    timeZone: timezone,
+    timeZone: resolveTimeZone(timezone),
   });
 
   const doc = new JsPDF({ orientation: 'portrait', unit: 'mm', format: [PAGE_W, PAGE_H] });

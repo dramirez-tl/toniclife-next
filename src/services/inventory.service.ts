@@ -2,7 +2,7 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.2 Módulo Productos e Inventario
 
 import api from '@/lib/api';
-import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
+import { DEFAULT_TIMEZONE, getTimezoneShortLabel, resolveTimeZone } from '@/lib/timezone-utils';
 import {
   MovementStatus,
   AdjustmentStatus,
@@ -662,7 +662,7 @@ class InventoryService {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      timeZone: timezone,
+      timeZone: resolveTimeZone(timezone),
     });
   }
 

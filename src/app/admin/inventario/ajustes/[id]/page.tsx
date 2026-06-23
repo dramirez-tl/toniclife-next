@@ -42,7 +42,7 @@ import {
 import { useActiveBranches } from '@/hooks/useBranches';
 import { inventoryService } from '@/services/inventory.service';
 import type { AdjustmentItemDto } from '@/types/inventory';
-import { DEFAULT_TIMEZONE } from '@/lib/timezone-utils';
+import { DEFAULT_TIMEZONE, resolveTimeZone } from '@/lib/timezone-utils';
 import { useAppSelector } from '@/store/hooks';
 import { selectUserRoles } from '@/store/slices/authSlice';
 
@@ -91,9 +91,9 @@ export default function CountDetailPage() {
     applyMut.isPending ||
     cancelMut.isPending;
 
-  const tz =
-    branches?.find((b) => b.name === count?.branch.name)?.timezone ||
-    DEFAULT_TIMEZONE;
+  const tz = resolveTimeZone(
+    branches?.find((b) => b.name === count?.branch.name)?.timezone,
+  );
   const fmt = (d?: string) =>
     d
       ? new Date(d).toLocaleString('es-MX', {

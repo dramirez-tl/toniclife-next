@@ -1,7 +1,7 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { toast } from 'sonner';
-import { DEFAULT_TIMEZONE } from '@/lib/timezone-utils';
+import { DEFAULT_TIMEZONE, resolveTimeZone } from '@/lib/timezone-utils';
 
 /**
  * Combina clases de Tailwind de manera inteligente
@@ -29,7 +29,7 @@ export function formatDate(date: Date | string, timezone: string = DEFAULT_TIMEZ
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-    timeZone: timezone,
+    timeZone: resolveTimeZone(timezone),
   });
 }
 
@@ -43,7 +43,7 @@ export function formatDateTime(date: Date | string, timezone: string = DEFAULT_T
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    timeZone: timezone,
+    timeZone: resolveTimeZone(timezone),
   });
 }
 

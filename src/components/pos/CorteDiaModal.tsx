@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import type { DailySalesSummary, Sale } from '@/types/pos';
 import { PosSaleStatus } from '@/types/pos';
 import { generateCorteDiaPdf } from '@/lib/generate-corte-dia-pdf';
-import { formatDateLocal, formatTimeLocal, formatDateTimeLocal } from '@/lib/timezone-utils';
+import { formatDateLocal, formatTimeLocal, formatDateTimeLocal, resolveTimeZone } from '@/lib/timezone-utils';
 
 interface CorteDiaModalProps {
   summary: DailySalesSummary | undefined;
@@ -64,7 +64,7 @@ export function CorteDiaModal({ summary, sales, isLoading, date, branchName, tim
 
   const displayDate = new Date(date + 'T12:00:00').toLocaleDateString('es-MX', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-    timeZone: timezone,
+    timeZone: resolveTimeZone(timezone),
   });
 
   function handleDownloadCsv() {
