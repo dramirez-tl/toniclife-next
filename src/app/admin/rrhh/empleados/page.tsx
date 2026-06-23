@@ -170,6 +170,7 @@ function EmpleadosContent() {
           phone: formData.phone || undefined,
           departmentId: formData.departmentId || undefined,
           branchId: formData.branchId || undefined,
+          hireDate: formData.hireDate || undefined,
           isManager: formData.isManager,
           status: formData.status as EmployeeStatus,
         };
@@ -199,7 +200,11 @@ function EmpleadosContent() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-MX', {
+    // Parsear la parte de fecha como local para evitar el corrimiento de 1 día
+    // por timezone (un DATE serializado a medianoche UTC se mostraba un día antes).
+    const [y, m, d] = (dateString || '').split('T')[0].split('-').map(Number);
+    if (!y || !m || !d) return dateString;
+    return new Date(y, m - 1, d).toLocaleDateString('es-MX', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -260,7 +265,7 @@ function EmpleadosContent() {
       render: (employee) => (
         <div className="flex items-center gap-1 text-gray-600">
           <BuildingOfficeIcon className="h-4 w-4" />
-          <span>{employee.branch || 'Sin asignar'}</span>
+          <span>{employee.branch || 'No aplica'}</span>
         </div>
       ),
     },
@@ -497,6 +502,7 @@ function EmpleadosContent() {
                 onChange={(val) => setParams({ department: val })}
                 allLabel="Todos los Departamentos"
                 allValue="all"
+                className="w-full lg:w-56"
               />
 
               {/* Branch Filter */}
@@ -509,6 +515,7 @@ function EmpleadosContent() {
                 onChange={(val) => setParams({ branch: val })}
                 allLabel="Todas las Sucursales"
                 allValue="all"
+                className="w-full lg:w-52"
               />
 
               {/* Status Filter */}
@@ -522,6 +529,7 @@ function EmpleadosContent() {
                 onChange={(val) => setParams({ status: val })}
                 allLabel="Todos los Estados"
                 allValue="all"
+                className="w-full lg:w-48"
               />
 
               {/* Export Button */}

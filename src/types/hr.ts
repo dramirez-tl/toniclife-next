@@ -153,6 +153,7 @@ export interface UpdateEmployeeDto {
   departmentId?: string;
   branchId?: string;
   supervisorId?: string;
+  hireDate?: string;
   isManager?: boolean;
   status?: EmployeeStatus;
 }
