@@ -88,6 +88,14 @@ class UsersService {
   }
 
   /**
+   * Resend (or send) the set-password invitation email to a user.
+   */
+  async resendInvitation(id: string): Promise<{ message: string }> {
+    const response = await api.post<{ message: string }>(`/users/${id}/invite`);
+    return response.data;
+  }
+
+  /**
    * Get decrypted password for a user (super_admin only)
    */
   async getDecryptedPassword(id: string): Promise<{ password: string | null }> {

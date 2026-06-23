@@ -78,6 +78,11 @@ export interface ResetPasswordData {
   newPassword: string;
 }
 
+export interface AcceptInvitationData {
+  token: string;
+  newPassword: string;
+}
+
 export interface ChangePasswordData {
   currentPassword: string;
   newPassword: string;
@@ -297,6 +302,12 @@ class AuthService {
 
   async resetPassword(data: ResetPasswordData): Promise<MessageResponse> {
     const response = await api.post<MessageResponse>('/auth/reset-password', data);
+    return response.data;
+  }
+
+  /** Definir contraseña desde una invitación (colaborador/distribuidor). */
+  async acceptInvitation(data: AcceptInvitationData): Promise<MessageResponse> {
+    const response = await api.post<MessageResponse>('/auth/accept-invitation', data);
     return response.data;
   }
 

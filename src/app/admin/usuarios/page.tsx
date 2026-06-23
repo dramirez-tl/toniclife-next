@@ -51,6 +51,7 @@ import { selectUserRoles } from '@/store/slices/authSlice';
 import { useRoles } from '@/hooks/useRoles';
 import { useDepartments } from '@/hooks/useHR';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useActiveCountries } from '@/hooks/useConfig';
 import { PhoneInput } from '@/components/ui/PhoneInput';
 import { parsePhone, isValidLocalNumber } from '@/lib/phone';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
@@ -305,7 +306,6 @@ function UsuariosContent() {
     setEditingUser(null);
     setFormData({
       email: '',
-      password: '',
       firstName: '',
       lastName: '',
       secondLastName: '',
@@ -313,6 +313,7 @@ function UsuariosContent() {
       roleId: '',
       userType: 'colaborador',
       departmentId: '',
+      countryId: '',
       isActive: true,
     });
     setIsModalOpen(true);
@@ -329,6 +330,7 @@ function UsuariosContent() {
       roleId: user.role?.id ?? '',
       userType: user.userType ?? 'colaborador',
       departmentId: user.departmentId ?? '',
+      countryId: user.countryId ?? '',
       isActive: user.isActive,
     });
     setIsModalOpen(true);
@@ -362,10 +364,6 @@ function UsuariosContent() {
         toast.error('El correo electrónico es obligatorio');
         return;
       }
-      if (!formData.password || formData.password.length < 8) {
-        toast.error('La contraseña debe tener al menos 8 caracteres');
-        return;
-      }
       if (!formData.roleId) {
         toast.error('Selecciona un rol para el usuario');
         return;
@@ -382,6 +380,7 @@ function UsuariosContent() {
           roleId: formData.roleId || undefined,
           userType: formData.userType || undefined,
           departmentId: formData.userType === 'cliente' ? null : (formData.departmentId || null),
+          countryId: formData.countryId || null,
           isActive: formData.isActive,
         };
         await updateUser.mutateAsync({ id: editingUser.id, dto });
@@ -389,7 +388,6 @@ function UsuariosContent() {
       } else {
         const dto: CreateUserDto = {
           email: formData.email,
-          password: formData.password,
           firstName: formData.firstName,
           lastName: formData.lastName,
           secondLastName: formData.secondLastName || undefined,
@@ -397,10 +395,11 @@ function UsuariosContent() {
           roleId: formData.roleId,
           userType: formData.userType || 'colaborador',
           departmentId: formData.departmentId || null,
+          countryId: formData.countryId || null,
           isActive: formData.isActive,
         };
         await createUser.mutateAsync(dto);
-        toast.success('Usuario creado correctamente');
+        toast.success(`Usuario creado. Invitación enviada a ${formData.email}`);
       }
       closeModal();
     } catch (error: any) {
@@ -581,6 +580,23 @@ function UsuariosContent() {
             aria-label={`Editar ${user.firstName} ${user.lastName}`}
           >
             <PencilIcon className="h-4 w-4 text-blue-600" />
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                const r = await usersService.resendInvitation(user.id);
+                toast.success(r.message);
+              } catch (e: any) {
+                toast.error(
+                  e.response?.data?.message || 'Error al reenviar la invitación',
+                );
+              }
+            }}
+            className="rounded-lg p-2 transition-colors hover:bg-muted"
+            title="Reenviar invitación para definir contraseña"
+            aria-label={`Reenviar invitación a ${user.firstName}`}
+          >
+            <EnvelopeIcon className="h-4 w-4 text-primary" />
           </button>
           {user.isActive ? (
             <button
@@ -1411,6 +1427,7 @@ function UserFormModal({
 
   const isCliente = (formData.userType ?? 'colaborador') === 'cliente';
   const { data: departmentsCatalog } = useDepartments();
+  const { data: activeCountries } = useActiveCountries();
   // Roles de PERMISOS de colaborador: categoría colaborador, activos, y que NO
   // sean roles-departamento (esos se asignan vía el campo Departamento).
   const colaboradorRoles = roles.filter(
@@ -1512,19 +1529,32 @@ function UserFormModal({
             />
           </div>
 
-          {/* Password - only for create */}
+          {/* País de residencia */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">
+              País de residencia
+            </label>
+            <SearchableSelect
+              options={(activeCountries ?? []).map((c) => ({ value: c.id, label: c.name }))}
+              value={formData.countryId ?? ''}
+              onChange={(val) => handleChange('countryId', val)}
+              showAllOption={false}
+              placeholder="Seleccionar país..."
+              className="w-full"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Define la moneda y el catálogo de productos del usuario.
+            </p>
+          </div>
+
+          {/* Sin campo de contraseña: al crear se envía una invitación por correo
+              para que el usuario defina su propia contraseña (seguridad). */}
           {!editingUser && (
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1">
-                Contraseña
-              </label>
-              <input
-                type="password"
-                value={formData.password ?? ''}
-                onChange={(e) => handleChange('password', e.target.value)}
-                placeholder="Mínimo 8 caracteres"
-                className={inputClassName}
-              />
+            <div className="flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+              <EnvelopeIcon className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <span>
+                Se enviará una invitación a su correo para que defina su contraseña.
+              </span>
             </div>
           )}
 

@@ -31,6 +31,11 @@ export interface User {
   /** Departamento (área) del colaborador. */
   departmentId?: string | null;
   departmentName?: string | null;
+  /** País de residencia (FK countries) — define moneda y catálogo. */
+  countryId?: string | null;
+  countryName?: string | null;
+  countryCode?: string | null;
+  currencyCode?: string | null;
   isActive: boolean;
   emailVerifiedAt: string | null;
   role: RoleDto;
@@ -75,7 +80,8 @@ export type UserType = 'colaborador' | 'cliente';
 
 export interface CreateUserDto {
   email: string;
-  password: string;
+  /** Opcional: si se omite, se envía invitación por correo para definir contraseña. */
+  password?: string;
   firstName: string;
   lastName: string;
   secondLastName?: string;
@@ -84,6 +90,8 @@ export interface CreateUserDto {
   roleId: string;
   userType?: UserType;
   departmentId?: string | null;
+  /** País de residencia (FK countries). */
+  countryId?: string | null;
   branchId?: string;
   isActive?: boolean;
 }
@@ -99,6 +107,7 @@ export interface UpdateUserDto {
   roleId?: string;
   userType?: UserType;
   departmentId?: string | null;
+  countryId?: string | null;
   branchId?: string;
   isActive?: boolean;
 }
