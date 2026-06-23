@@ -31,18 +31,26 @@ import type { BulkComponentItem } from '@/types/kit';
 import { ProductPricesSection } from '@/components/admin/products/ProductPricesSection';
 import { ProductInventoryByBranch } from '@/components/admin/products/ProductInventoryByBranch';
 import { ProductMediaSection } from '@/components/admin/products/ProductMediaSection';
+import { KitBonusesSection } from '@/components/admin/products/KitBonusesSection';
 
 type CompRow = BulkComponentItem & {
   productName: string;
   productCode: string;
 };
 
-type Tab = 'general' | 'componentes' | 'precios' | 'inventario' | 'media';
+type Tab =
+  | 'general'
+  | 'componentes'
+  | 'precios'
+  | 'bonos'
+  | 'inventario'
+  | 'media';
 
 const TAB_LABELS: Record<Tab, string> = {
   general: 'General',
   componentes: 'Componentes',
   precios: 'Precios y Fiscal',
+  bonos: 'Bono de inscripción',
   inventario: 'Inventario',
   media: 'Imágenes y ficha',
 };
@@ -590,6 +598,13 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
         {activeTab === 'precios' && (
           <div className="max-w-4xl">
             <ProductPricesSection productId={id} />
+          </div>
+        )}
+
+        {/* ===== BONO DE INSCRIPCIÓN ===== */}
+        {activeTab === 'bonos' && (
+          <div className="max-w-4xl">
+            <KitBonusesSection kitId={id} isEnrollmentKit={isEnrollmentKit} />
           </div>
         )}
 

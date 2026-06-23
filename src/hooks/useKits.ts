@@ -6,6 +6,8 @@ import type {
   BulkReplaceComponentsDto,
   KitEnrollmentRequest,
   KitListQueryParams,
+  CreateKitBonusInput,
+  UpdateKitBonusInput,
 } from '@/types/kit';
 import { productKeys } from './useProducts';
 
@@ -16,6 +18,7 @@ export const kitKeys = {
   details: () => [...kitKeys.all, 'detail'] as const,
   detail: (id: string) => [...kitKeys.details(), id] as const,
   components: (id: string) => [...kitKeys.detail(id), 'components'] as const,
+  bonuses: (id: string) => [...kitKeys.detail(id), 'bonuses'] as const,
 };
 
 /**
@@ -66,6 +69,58 @@ export const useReplaceKitComponents = (kitId: string) => {
       queryClient.invalidateQueries({ queryKey: kitKeys.components(kitId) });
       queryClient.invalidateQueries({ queryKey: kitKeys.detail(kitId) });
       queryClient.invalidateQueries({ queryKey: productKeys.detail(kitId) });
+    },
+  });
+};
+
+// ============================================================================
+// BONOS DE INSCRIPCION DEL KIT
+// ============================================================================
+
+/** Reglas de bono del kit (vigentes e historicas). */
+export const useKitBonuses = (kitId: string | undefined) => {
+  return useQuery({
+    queryKey: kitId ? kitKeys.bonuses(kitId) : kitKeys.bonuses('disabled'),
+    queryFn: () => kitsService.getBonuses(kitId!),
+    enabled: !!kitId,
+    staleTime: 60 * 1000,
+  });
+};
+
+export const useCreateKitBonus = (kitId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (dto: CreateKitBonusInput) =>
+      kitsService.createBonus(kitId, dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: kitKeys.bonuses(kitId) });
+    },
+  });
+};
+
+export const useUpdateKitBonus = (kitId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      bonusId,
+      dto,
+    }: {
+      bonusId: string;
+      dto: UpdateKitBonusInput;
+    }) => kitsService.updateBonus(kitId, bonusId, dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: kitKeys.bonuses(kitId) });
+    },
+  });
+};
+
+export const useDeactivateKitBonus = (kitId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (bonusId: string) =>
+      kitsService.deactivateBonus(kitId, bonusId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: kitKeys.bonuses(kitId) });
     },
   });
 };

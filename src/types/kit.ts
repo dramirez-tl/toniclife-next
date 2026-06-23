@@ -51,6 +51,49 @@ export interface KitEnrollmentRequest {
   sendCredentialsByEmail?: boolean;
 }
 
+// ============================================================================
+// BONO DE INSCRIPCION DEL KIT (kit_enrollment_bonuses)
+// ============================================================================
+
+export type BonusRecipientRole = 'sponsor' | 'upline' | 'company';
+
+/** Una regla de bono de inscripcion (vigente o historica). */
+export interface KitBonus {
+  id: string;
+  kitProductId: string;
+  countryId: string;
+  countryCode: string;
+  countryName: string;
+  currencyCode: string;
+  recipientRole: BonusRecipientRole;
+  /** Monto bruto como string (NUMERIC del backend). */
+  bonusAmount: string;
+  validFrom: string;
+  /** NULL = vigente indefinidamente. */
+  validUntil: string | null;
+  isActive: boolean;
+  /** TRUE si es la regla vigente (is_active && valid_until === null). */
+  isCurrent: boolean;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateKitBonusInput {
+  countryId: string;
+  bonusAmount: number;
+  recipientRole?: BonusRecipientRole;
+  currencyCode?: string;
+  validFrom?: string;
+  notes?: string;
+}
+
+export interface UpdateKitBonusInput {
+  bonusAmount?: number;
+  currencyCode?: string;
+  notes?: string;
+}
+
 export interface KitEnrollmentResponse {
   customerId: string;
   customerNumber: string;

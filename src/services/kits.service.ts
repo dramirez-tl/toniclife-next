@@ -11,6 +11,9 @@ import type {
   BulkReplaceComponentsDto,
   KitEnrollmentRequest,
   KitEnrollmentResponse,
+  KitBonus,
+  CreateKitBonusInput,
+  UpdateKitBonusInput,
 } from '@/types/kit';
 
 class KitsService {
@@ -58,6 +61,50 @@ class KitsService {
     const response = await api.put<KitComponent[]>(
       `/products/${kitId}/components/bulk`,
       dto,
+    );
+    return response.data;
+  }
+
+  // ==========================================================================
+  // BONOS DE INSCRIPCION DEL KIT (kit_enrollment_bonuses)
+  // Backend: /products/:id/bonuses
+  // ==========================================================================
+
+  /** Lista todas las reglas de bono del kit (vigentes e historicas). */
+  async getBonuses(kitId: string): Promise<KitBonus[]> {
+    const response = await api.get<KitBonus[]>(`/products/${kitId}/bonuses`);
+    return response.data;
+  }
+
+  /** Crea la regla de bono vigente (supersede la anterior de esa combinacion). */
+  async createBonus(
+    kitId: string,
+    dto: CreateKitBonusInput,
+  ): Promise<KitBonus> {
+    const response = await api.post<KitBonus>(
+      `/products/${kitId}/bonuses`,
+      dto,
+    );
+    return response.data;
+  }
+
+  /** Actualiza monto / moneda / notas de una regla de bono. */
+  async updateBonus(
+    kitId: string,
+    bonusId: string,
+    dto: UpdateKitBonusInput,
+  ): Promise<KitBonus> {
+    const response = await api.patch<KitBonus>(
+      `/products/${kitId}/bonuses/${bonusId}`,
+      dto,
+    );
+    return response.data;
+  }
+
+  /** Desactiva (cierra) una regla de bono. No borra el historico. */
+  async deactivateBonus(kitId: string, bonusId: string): Promise<KitBonus> {
+    const response = await api.delete<KitBonus>(
+      `/products/${kitId}/bonuses/${bonusId}`,
     );
     return response.data;
   }
