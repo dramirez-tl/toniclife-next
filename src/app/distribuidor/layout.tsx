@@ -7,6 +7,7 @@ import { DistributorSidebar } from '@/components/distributor/DistributorSidebar'
 import { DistributorTopNav } from '@/components/distributor/DistributorTopNav';
 import { DistributorMoreMenu } from '@/components/distributor/DistributorMoreMenu';
 import { ComingSoon } from '@/components/distributor/ComingSoon';
+import { DistributorTour } from '@/components/distributor/DistributorTour';
 
 // Secciones que aún viven sobre datos de demostración (no conectadas al API).
 // Se muestran como "próximamente" para no presentar números ficticios como
@@ -53,6 +54,8 @@ export default function DistributorLayout({
 
   return (
     <AuthGuard requiredRoles={DISTRIBUTOR_ROLES}>
+      {/* Tour guiado de primera vez (omitible + repetible desde "Ver tutorial") */}
+      <DistributorTour />
       <div className="min-h-screen bg-gray-50">
         {/* Desktop sidebar */}
         <div className="hidden lg:block">

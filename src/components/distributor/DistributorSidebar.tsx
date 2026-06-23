@@ -6,14 +6,31 @@ import {
   ShoppingCartIcon,
   ArrowLeftOnRectangleIcon,
   ArrowRightOnRectangleIcon,
+  QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutAsync, selectUser } from '@/store/slices/authSlice';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useDistributorDashboard } from '@/hooks/useDistributor';
+import { startDistributorTour } from '@/lib/distributorTour';
 import { RankMedal } from './RankMedal';
 import { CORE_NAV, MORE_GROUPS, COMING_SOON } from './distributorNav';
+
+// Anclas del tour guiado (ver distributorTour.ts).
+const CORE_TOUR_KEY: Record<string, string> = {
+  '/distribuidor': 'd-core-inicio',
+  '/distribuidor/red': 'd-core-red',
+  '/distribuidor/comisiones': 'd-core-comisiones',
+  '/distribuidor/ventas': 'd-core-ventas',
+};
+const ITEM_TOUR_KEY: Record<string, string> = {
+  '/distribuidor/compartir-carrito': 'd-carrito',
+};
+const GROUP_TOUR_KEY: Record<string, string> = {
+  Herramientas: 'd-herramientas',
+  'Mi cuenta': 'd-cuenta',
+};
 
 // Convierte código de país ISO a emoji de bandera (ej: "MX" → 🇲🇽)
 const countryCodeToFlag = (code: string): string =>
@@ -87,7 +104,7 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
 
       {/* User Card */}
       <div className="px-3 py-4 border-b border-white/10">
-        <div className="bg-white/5 rounded-xl p-3">
+        <div className="bg-white/5 rounded-xl p-3" data-tour="d-profile">
           <div className="flex items-center gap-3">
             <RankMedal rank={profile?.rank} size="md" glow />
             <div className="flex-1 min-w-0">
@@ -162,7 +179,12 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
         <ul className="space-y-1">
           {CORE_NAV.map((item) => (
             <li key={item.href}>
-              <Link href={item.href} onClick={onNavigate} className={linkClass(isCoreActive(item.href))}>
+              <Link
+                href={item.href}
+                onClick={onNavigate}
+                className={linkClass(isCoreActive(item.href))}
+                data-tour={CORE_TOUR_KEY[item.href]}
+              >
                 <item.icon className="h-5 w-5 flex-shrink-0" />
                 <span>{item.name}</span>
               </Link>
@@ -172,14 +194,19 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
 
         {/* Grupos secundarios */}
         {MORE_GROUPS.map((group) => (
-          <div key={group.title} className="mt-5">
+          <div key={group.title} className="mt-5" data-tour={GROUP_TOUR_KEY[group.title]}>
             <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-white/40">
               {group.title}
             </p>
             <ul className="space-y-1">
               {group.items.map((item) => (
                 <li key={item.href}>
-                  <Link href={item.href} onClick={onNavigate} className={linkClass(isMoreActive(item.href))}>
+                  <Link
+                    href={item.href}
+                    onClick={onNavigate}
+                    className={linkClass(isMoreActive(item.href))}
+                    data-tour={ITEM_TOUR_KEY[item.href]}
+                  >
                     <item.icon className="h-5 w-5 flex-shrink-0" />
                     <span>{item.name}</span>
                   </Link>
@@ -217,10 +244,20 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
             href="/productos"
             onClick={onNavigate}
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors"
+            data-tour="d-tienda"
           >
             <ShoppingCartIcon className="h-5 w-5" />
             <span>Ir a la Tienda</span>
           </Link>
+          <button
+            type="button"
+            onClick={() => startDistributorTour()}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors"
+            data-tour="d-help"
+          >
+            <QuestionMarkCircleIcon className="h-5 w-5" />
+            <span>Ver tutorial</span>
+          </button>
           <Link
             href="/"
             onClick={onNavigate}

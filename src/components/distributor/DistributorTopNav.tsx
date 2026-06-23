@@ -2,14 +2,27 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BellIcon, EllipsisHorizontalIcon } from '@heroicons/react/24/outline';
+import {
+  BellIcon,
+  EllipsisHorizontalIcon,
+  QuestionMarkCircleIcon,
+} from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
 import { useDistributorDashboard } from '@/hooks/useDistributor';
+import { startDistributorTour } from '@/lib/distributorTour';
 import { RankMedal } from './RankMedal';
 import { CORE_NAV } from './distributorNav';
+
+// Anclas del tour guiado móvil (ver distributorTour.ts).
+const CORE_TOUR_KEY: Record<string, string> = {
+  '/distribuidor': 'm-core-inicio',
+  '/distribuidor/red': 'm-core-red',
+  '/distribuidor/comisiones': 'm-core-comisiones',
+  '/distribuidor/ventas': 'm-core-ventas',
+};
 
 interface DistributorTopNavProps {
   onOpenMore: () => void;
@@ -39,7 +52,7 @@ export function DistributorTopNav({ onOpenMore }: DistributorTopNavProps) {
     <div className="sticky top-0 z-40 bg-gradient-to-r from-[#3E667D] to-[#2f5165] text-white shadow-md">
       {/* App bar */}
       <div className="flex h-14 items-center justify-between px-4">
-        <div className="flex min-w-0 items-center gap-2.5">
+        <div className="flex min-w-0 items-center gap-2.5" data-tour="m-profile">
           <RankMedal rank={profile?.rank} size="sm" />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold leading-tight">Hola, {firstName}</p>
@@ -48,19 +61,35 @@ export function DistributorTopNav({ onOpenMore }: DistributorTopNavProps) {
             </p>
           </div>
         </div>
-        <Link
-          href="/distribuidor/notificaciones"
-          className="rounded-full p-2 transition-colors hover:bg-white/10"
-          aria-label="Notificaciones"
-        >
-          <BellIcon className="h-5 w-5" />
-        </Link>
+        <div className="flex items-center">
+          <button
+            type="button"
+            onClick={() => startDistributorTour()}
+            className="rounded-full p-2 transition-colors hover:bg-white/10"
+            aria-label="Ver tutorial"
+            data-tour="m-help"
+          >
+            <QuestionMarkCircleIcon className="h-5 w-5" />
+          </button>
+          <Link
+            href="/distribuidor/notificaciones"
+            className="rounded-full p-2 transition-colors hover:bg-white/10"
+            aria-label="Notificaciones"
+          >
+            <BellIcon className="h-5 w-5" />
+          </Link>
+        </div>
       </div>
 
       {/* Pestañas */}
       <nav className="flex items-stretch gap-1 overflow-x-auto px-2">
         {CORE_NAV.map((item) => (
-          <Link key={item.href} href={item.href} className={tabClass(isActive(item.href))}>
+          <Link
+            key={item.href}
+            href={item.href}
+            className={tabClass(isActive(item.href))}
+            data-tour={CORE_TOUR_KEY[item.href]}
+          >
             <item.icon className="h-5 w-5" />
             <span>{item.name}</span>
           </Link>
@@ -70,6 +99,7 @@ export function DistributorTopNav({ onOpenMore }: DistributorTopNavProps) {
           variant="ghost"
           onClick={onOpenMore}
           className={cn('h-auto', tabClass(moreActive))}
+          data-tour="m-more"
         >
           <EllipsisHorizontalIcon className="h-5 w-5" />
           <span>Más</span>
