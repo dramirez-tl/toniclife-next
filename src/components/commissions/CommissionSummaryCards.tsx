@@ -82,7 +82,7 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
   const cedeaPercent = totalNet > 0 ? ((cedeaAmount / totalNet) * 100).toFixed(0) : 0;
   const autoPercent = totalNet > 0 ? ((autoAmount / totalNet) * 100).toFixed(0) : 0;
 
-  // CEDEA solo aplica a usuarios CEDEA: mostrar el bono únicamente si hay monto CEDEA.
+  // Bonos por generación: mostrar la tarjeta únicamente si hay monto (rango Plata+).
   const showCedea = cedeaAmount > 0;
 
   return (
@@ -292,7 +292,7 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
           </CardContent>
         </Card>
 
-        {/* CEDEA Bonuses — solo para usuarios CEDEA */}
+        {/* Bonos por generación — solo si hay monto (rango Plata o superior) */}
         {showCedea && (
         <Card className="group hover:shadow-lg hover:shadow-yellow-500/10 transition-all duration-300 border-0 shadow-md overflow-hidden">
           <CardContent className="p-0">
@@ -306,14 +306,14 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                   {cedeaPercent}%
                 </div>
               </div>
-              <p className="text-sm text-gray-500 font-medium mb-1">Bonos CEDEA</p>
+              <p className="text-sm text-gray-500 font-medium mb-1">Bonos por generación</p>
               <p className="text-3xl font-bold text-gray-900 tracking-tight">
                 {formatCurrency(summary.cedeaBonusesMxn)}<Badge />
               </p>
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <p className="text-xs text-gray-500 flex items-center gap-1">
                   <TrophyIcon className="h-3.5 w-3.5 text-yellow-500" />
-                  Bono por desempeno CEDEA
+                  Bono por generación
                 </p>
               </div>
             </div>

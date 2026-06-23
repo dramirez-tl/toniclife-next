@@ -36,7 +36,7 @@ const typeConfig: Record<CommissionType, { label: string; icon: typeof UserIcon;
     color: 'text-blue-600 bg-blue-50',
   },
   cedea_bonus: {
-    label: 'CEDEA',
+    label: 'Generación',
     icon: TrophyIcon,
     color: 'text-green-600 bg-green-50',
   },

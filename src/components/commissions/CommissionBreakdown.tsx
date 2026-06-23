@@ -56,7 +56,7 @@ export function CommissionBreakdown({
 
   const types = [
     { key: 'mlm', label: 'Comisiones por nivel (MLM)', amount: parseFloat(summary.mlmCommissionsMxn || '0'), color: 'text-blue-600' },
-    { key: 'cedea', label: 'Bonos por generación (CEDEA)', amount: parseFloat(summary.cedeaBonusesMxn || '0'), color: 'text-yellow-600' },
+    { key: 'cedea', label: 'Bonos por generación', amount: parseFloat(summary.cedeaBonusesMxn || '0'), color: 'text-yellow-600' },
     { key: 'auto', label: 'Bonos automáticos', amount: parseFloat(summary.autoBonusesMxn || '0'), color: 'text-purple-600' },
     { key: 'adj', label: 'Ajustes', amount: parseFloat(summary.adjustmentsMxn || '0'), color: 'text-gray-600' },
   ].filter((t) => t.amount !== 0);
@@ -125,9 +125,9 @@ export function CommissionBreakdown({
               Con rango <span className="font-semibold text-gray-900">{userRankName}</span> cobras
               comisión por nivel <span className="font-semibold text-gray-900">hasta el nivel {userLevelMax}</span>
               {userGenerationMax > 0 ? (
-                <> y bonos por generación (CEDEA) <span className="font-semibold text-gray-900">hasta la generación {userGenerationMax}</span>.</>
+                <> y bonos por generación <span className="font-semibold text-gray-900">hasta la generación {userGenerationMax}</span>.</>
               ) : (
-                <>. Las generaciones CEDEA requieren rango Plata o superior.</>
+                <>. Las generaciones requieren rango Plata o superior.</>
               )}
             </p>
           </Step>

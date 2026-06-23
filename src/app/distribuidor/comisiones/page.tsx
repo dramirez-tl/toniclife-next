@@ -333,7 +333,7 @@ function ComisionesContent() {
                     <SearchableSelect
                       options={[
                         { value: 'mlm', label: 'Comisiones MLM' },
-                        { value: 'cedea_bonus', label: 'Bonos CEDEA' },
+                        { value: 'cedea_bonus', label: 'Bonos por generación' },
                         { value: 'auto_bonus', label: 'Bonos Automaticos' },
                         { value: 'adjustment', label: 'Ajustes' },
                       ]}

@@ -266,14 +266,14 @@ export function CommissionPercentagesTable({
         </CardContent>
       </Card>
 
-      {/* Generation Commissions (CEDEA) */}
+      {/* Generation Commissions */}
       {generations.length > 0 && (
         <Card>
           <CardContent className="p-6">
             <div className="flex items-start justify-between mb-6">
               <div>
                 <h3 className="text-xl font-bold text-gray-900">
-                  Comisiones por Generacion (CEDEA)
+                  Comisiones por Generación
                 </h3>
                 <p className="text-sm text-gray-600 mt-1">
                   Bonos sobre las ventas de distribuidores rango Plata o superior en tu red

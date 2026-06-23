@@ -144,7 +144,7 @@ export function CommissionChart({
               className="w-3 h-3 rounded"
               style={{ backgroundColor: COLORS.cedea }}
             />
-            <span className="text-xs text-gray-600">CEDEA</span>
+            <span className="text-xs text-gray-600">Generación</span>
           </div>
           <div className="flex items-center gap-2">
             <div
