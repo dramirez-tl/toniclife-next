@@ -109,10 +109,11 @@ function SistemaContent() {
 
               <TabsContent value="limpieza" className="mt-6">
                 <p className="mb-4 text-sm text-muted-foreground">
-                  Orden estricto 2 → 10 (FK-seguro): cada bloque se habilita
+                  Orden estricto 2 → 11 (FK-seguro): cada bloque se habilita
                   cuando los anteriores quedan vacíos. El bloque 1 (logs) es
                   independiente: se regenera con el uso y puedes re-limpiarlo
-                  cuando quieras. Los catálogos, roles, periodos 26→25 y tu
+                  cuando quieras. El bloque 10 vacía el catálogo de estados
+                  (geo). El resto de catálogos, roles, periodos 26→25 y tu
                   superusuario se conservan.
                 </p>
                 <div className="space-y-3">
