@@ -129,6 +129,8 @@ function EmpleadosContent() {
     setFormData({
       firstName: employee.firstName,
       lastName: employee.lastName,
+      secondLastName: employee.secondLastName ?? '',
+      noiNumber: employee.noiNumber ?? '',
       email: employee.email,
       phone: employee.phone ?? '',
       position: employee.position,
@@ -154,6 +156,9 @@ function EmpleadosContent() {
         const dto: UpdateEmployeeDto = {
           firstName: formData.firstName || undefined,
           lastName: formData.lastName || undefined,
+          secondLastName: formData.secondLastName ?? undefined,
+          noiNumber: formData.noiNumber ?? undefined,
+          phone: formData.phone || undefined,
           departmentId: formData.departmentId || undefined,
           branchId: formData.branchId || undefined,
           isManager: formData.isManager,
@@ -201,7 +206,7 @@ function EmpleadosContent() {
       key: 'employee',
       header: 'Empleado',
       render: (employee) => {
-        const fullName = `${employee.firstName} ${employee.lastName}`;
+        const fullName = `${employee.firstName} ${employee.lastName} ${employee.secondLastName ?? ''}`.trim();
         return (
           <div className="flex items-center gap-3">
             <img
@@ -211,7 +216,10 @@ function EmpleadosContent() {
             />
             <div>
               <p className="font-semibold text-gray-900">{fullName}</p>
-              <p className="text-sm text-gray-500">{employee.employeeNumber}</p>
+              <p className="text-sm text-gray-500">
+                {employee.employeeNumber}
+                {employee.noiNumber ? ` · NOI: ${employee.noiNumber}` : ''}
+              </p>
             </div>
           </div>
         );
@@ -225,7 +233,7 @@ function EmpleadosContent() {
           <p className="text-gray-900">{employee.position}</p>
           {employee.isManager && (
             <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">
-              Gerente
+              Jefe
             </span>
           )}
         </div>
@@ -443,7 +451,7 @@ function EmpleadosContent() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Gerentes</p>
+                  <p className="text-sm text-gray-600">Jefes</p>
                   <p className="text-2xl font-bold text-purple-600">{stats.managers}</p>
                 </div>
                 <BriefcaseIcon className="h-8 w-8 text-purple-500" />
@@ -647,34 +655,65 @@ function EmployeeFormModal({
 
         {/* Form */}
         <div className="p-6 space-y-4">
-          {/* Row: First Name + Last Name */}
+          {/* Nombre(s) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nombre(s) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={formData.firstName ?? ''}
+              onChange={(e) => handleChange('firstName', e.target.value)}
+              placeholder="Nombre(s)"
+              className={inputClassName}
+              required
+            />
+          </div>
+
+          {/* Apellidos */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nombre <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.firstName ?? ''}
-                onChange={(e) => handleChange('firstName', e.target.value)}
-                placeholder="Nombre"
-                className={inputClassName}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Apellido <span className="text-red-500">*</span>
+                Apellido Paterno <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.lastName ?? ''}
                 onChange={(e) => handleChange('lastName', e.target.value)}
-                placeholder="Apellido"
+                placeholder="Apellido Paterno"
                 className={inputClassName}
                 required
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Apellido Materno
+              </label>
+              <input
+                type="text"
+                value={formData.secondLastName ?? ''}
+                onChange={(e) => handleChange('secondLastName', e.target.value)}
+                placeholder="Apellido Materno"
+                className={inputClassName}
+              />
+            </div>
+          </div>
+
+          {/* Número NOI (Aspel) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              N° de empleado Aspel NOI
+            </label>
+            <input
+              type="text"
+              value={formData.noiNumber ?? ''}
+              onChange={(e) => handleChange('noiNumber', e.target.value)}
+              placeholder="Vacío si no está en la nómina de NOI"
+              className={inputClassName}
+            />
+            <p className="mt-1 text-[11px] text-gray-400">
+              Número con el que RRHH lo lleva en Aspel NOI (nómina). Opcional.
+            </p>
           </div>
 
           {/* Email */}
@@ -803,7 +842,7 @@ function EmployeeFormModal({
           {/* Vacation Days Per Year */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Dias de Vacaciones por Ano
+              Dias de Vacaciones por Año
             </label>
             <input
               type="number"
@@ -840,7 +879,7 @@ function EmployeeFormModal({
               className="h-4 w-4 rounded border-gray-300 text-[#3E667D] focus:ring-[#3E667D]"
             />
             <label htmlFor="isManager" className="text-sm font-medium text-gray-700">
-              Es Gerente / Supervisor
+              Es Jefe / Subjefe
             </label>
           </div>
         </div>

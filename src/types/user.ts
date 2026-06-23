@@ -19,6 +19,7 @@ export interface User {
   mustChangePassword: boolean;
   firstName: string;
   lastName: string;
+  secondLastName?: string | null;
   phone: string | null;
   customerNumber: string | null;
   /** ID del registro de cliente MLM enlazado (users.customer_id), si existe. */
@@ -77,6 +78,7 @@ export interface CreateUserDto {
   password: string;
   firstName: string;
   lastName: string;
+  secondLastName?: string;
   phone?: string;
   username?: string;
   roleId: string;
@@ -91,6 +93,7 @@ export interface UpdateUserDto {
   password?: string;
   firstName?: string;
   lastName?: string;
+  secondLastName?: string;
   phone?: string;
   username?: string;
   roleId?: string;

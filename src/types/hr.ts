@@ -37,8 +37,11 @@ export interface Employee {
   id: string;
   userId: string;
   employeeNumber: string;
+  /** Número de empleado en Aspel NOI (nómina). null si no está en NOI. */
+  noiNumber?: string | null;
   firstName: string;
   lastName: string;
+  secondLastName?: string | null;
   email: string;
   phone?: string;
   position: string;
@@ -144,6 +147,9 @@ export interface CreateEmployeeDto {
 export interface UpdateEmployeeDto {
   firstName?: string;
   lastName?: string;
+  secondLastName?: string;
+  noiNumber?: string;
+  phone?: string;
   departmentId?: string;
   branchId?: string;
   supervisorId?: string;

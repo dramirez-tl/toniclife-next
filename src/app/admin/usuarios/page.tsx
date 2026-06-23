@@ -306,6 +306,7 @@ function UsuariosContent() {
       password: '',
       firstName: '',
       lastName: '',
+      secondLastName: '',
       phone: '',
       roleId: '',
       userType: 'colaborador',
@@ -321,6 +322,7 @@ function UsuariosContent() {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      secondLastName: user.secondLastName ?? '',
       phone: user.phone ?? '',
       roleId: user.role?.id ?? '',
       userType: user.userType ?? 'colaborador',
@@ -366,6 +368,7 @@ function UsuariosContent() {
           email: formData.email || undefined,
           firstName: formData.firstName,
           lastName: formData.lastName,
+          secondLastName: formData.secondLastName || undefined,
           phone: formData.phone || undefined,
           roleId: formData.roleId || undefined,
           userType: formData.userType || undefined,
@@ -380,6 +383,7 @@ function UsuariosContent() {
           password: formData.password,
           firstName: formData.firstName,
           lastName: formData.lastName,
+          secondLastName: formData.secondLastName || undefined,
           phone: formData.phone || undefined,
           roleId: formData.roleId,
           userType: formData.userType || 'colaborador',
@@ -478,7 +482,7 @@ function UsuariosContent() {
               href={`/admin/usuarios/${user.id}`}
               className="font-semibold text-foreground hover:text-primary hover:underline"
             >
-              {user.firstName} {user.lastName}
+              {user.firstName} {user.lastName} {user.secondLastName ?? ''}
             </Link>
             {user.customerNumber && (
               <p className="text-xs font-medium text-primary">#{user.customerNumber}</p>
@@ -1432,32 +1436,46 @@ function UserFormModal({
 
         {/* Form */}
         <div className="p-6 space-y-4">
-          {/* First Name */}
+          {/* Nombre(s) */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">
-              Nombre
+              Nombre(s)
             </label>
             <input
               type="text"
               value={formData.firstName ?? ''}
               onChange={(e) => handleChange('firstName', e.target.value)}
-              placeholder="Nombre"
+              placeholder="Nombre(s)"
               className={inputClassName}
             />
           </div>
 
-          {/* Last Name */}
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">
-              Apellido
-            </label>
-            <input
-              type="text"
-              value={formData.lastName ?? ''}
-              onChange={(e) => handleChange('lastName', e.target.value)}
-              placeholder="Apellido"
-              className={inputClassName}
-            />
+          {/* Apellidos */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">
+                Apellido Paterno
+              </label>
+              <input
+                type="text"
+                value={formData.lastName ?? ''}
+                onChange={(e) => handleChange('lastName', e.target.value)}
+                placeholder="Apellido Paterno"
+                className={inputClassName}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">
+                Apellido Materno
+              </label>
+              <input
+                type="text"
+                value={formData.secondLastName ?? ''}
+                onChange={(e) => handleChange('secondLastName', e.target.value)}
+                placeholder="Apellido Materno"
+                className={inputClassName}
+              />
+            </div>
           </div>
 
           {/* Email */}
