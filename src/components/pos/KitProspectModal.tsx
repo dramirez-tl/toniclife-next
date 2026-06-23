@@ -18,6 +18,7 @@ import { useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { XMarkIcon, UserPlusIcon, ClipboardIcon } from '@heroicons/react/24/outline';
 import { Loader2 } from 'lucide-react';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useEnrollKitProspect } from '@/hooks/useKits';
@@ -331,13 +332,9 @@ export function KitProspectModal({
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Teléfono <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="tel"
-                    required
+                  <PhoneInput
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="5215512345678"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
+                    onChange={(v) => setPhone(v)}
                   />
                 </div>
               </div>

@@ -16,6 +16,7 @@ import { useActivePriceTypes } from '@/hooks/useConfig';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { findPriceTypeIdForCustomerType } from '@/lib/priceType';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 import { toast } from 'sonner';
 import {
   ArrowLeftIcon,
@@ -307,17 +308,10 @@ export default function NuevoDistribuidorPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Teléfono Principal
                 </label>
-                <div className="relative">
-                  <PhoneIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
-                    placeholder="+52 55 1234 5678"
-                  />
-                </div>
+                <PhoneInput
+                  value={formData.phone}
+                  onChange={(v) => setFormData((prev) => ({ ...prev, phone: v }))}
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 import { Label } from '@/components/ui/label';
 import {
   UserIcon,
@@ -504,28 +505,17 @@ function RegistroDistribuidorContent() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label>Teléfono principal</Label>
-                      <div className="relative">
-                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><PhoneIcon className="h-5 w-5" /></span>
-                        <Input
-                          type="tel"
-                          placeholder="+52 55 1234 5678"
-                          value={formData.phone}
-                          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                          autoComplete="tel"
-                          className="pl-9"
-                          aria-invalid={errors.phone ? true : undefined}
-                        />
-                      </div>
+                      <PhoneInput
+                        value={formData.phone}
+                        onChange={(v) => setFormData({ ...formData, phone: v })}
+                      />
                       {errors.phone && <p className="text-sm text-destructive">{errors.phone}</p>}
                     </div>
                     <div className="space-y-1.5">
                       <Label>Teléfono secundario (opcional)</Label>
-                      <Input
-                        type="tel"
-                        placeholder="+52 55 8765 4321"
+                      <PhoneInput
                         value={formData.secondaryPhone}
-                        onChange={(e) => setFormData({ ...formData, secondaryPhone: e.target.value })}
-                        autoComplete="tel"
+                        onChange={(v) => setFormData({ ...formData, secondaryPhone: v })}
                       />
                     </div>
                   </div>

@@ -20,6 +20,7 @@ import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -451,12 +452,9 @@ export default function CheckoutContent() {
                       </div>
                       <div className="space-y-1.5">
                         <Label>Teléfono *</Label>
-                        <Input
-                          type="tel"
+                        <PhoneInput
                           value={customerInfo.phone}
-                          onChange={(e) => setCustomerInfo({ ...customerInfo, phone: e.target.value })}
-                          placeholder="55 1234 5678"
-                          required
+                          onChange={(v) => setCustomerInfo({ ...customerInfo, phone: v })}
                         />
                       </div>
                     </div>
@@ -587,11 +585,9 @@ export default function CheckoutContent() {
                       </div>
                       <div className="space-y-1.5">
                         <Label>Teléfono *</Label>
-                        <Input
-                          type="tel"
+                        <PhoneInput
                           value={shippingAddress.phone}
-                          onChange={(e) => setShippingAddress({ ...shippingAddress, phone: e.target.value })}
-                          required
+                          onChange={(v) => setShippingAddress({ ...shippingAddress, phone: v })}
                         />
                       </div>
                     </div>

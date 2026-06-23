@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 import { Loader2 } from 'lucide-react';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import {
@@ -1211,13 +1212,10 @@ function SucursalesContent() {
 
         {/* Contact */}
         <FormSection title="Contacto">
-          <FormField label="Telefono">
-            <input
-              type="tel"
+          <FormField label="Teléfono">
+            <PhoneInput
               value={formData.addressPhone || ''}
-              onChange={(e) => handleFormChange('addressPhone', e.target.value)}
-              placeholder="(81) 1234-5678"
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+              onChange={(v) => handleFormChange('addressPhone', v)}
             />
           </FormField>
           <FormField label="Correo electrónico">

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -151,15 +152,10 @@ export default function PerfilPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>Teléfono</Label>
-                  <div className="relative">
-                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><PhoneIcon className="h-5 w-5" /></span>
-                    <Input
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="pl-9"
-                    />
-                  </div>
+                  <PhoneInput
+                    value={formData.phone}
+                    onChange={(v) => setFormData({ ...formData, phone: v })}
+                  />
                 </div>
               </div>
 

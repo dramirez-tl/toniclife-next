@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -208,12 +209,9 @@ export default function RegistroPage() {
               {/* Phone (Optional) */}
               <div className="space-y-1.5">
                 <Label>Teléfono (opcional)</Label>
-                <Input
-                  type="tel"
-                  placeholder="+52 123 456 7890"
+                <PhoneInput
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  autoComplete="tel"
+                  onChange={(v) => setFormData({ ...formData, phone: v })}
                   disabled={isLoading}
                 />
                 <p className="text-sm text-muted-foreground">Te contactaremos sobre tu pedido</p>
