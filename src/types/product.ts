@@ -13,10 +13,12 @@ export enum ProductType {
   SERVICE = 'service',
 }
 
+// Modo de costeo del kit (NO es el rango). 'fixed' = kit pre-armado con precio
+// propio; 'dynamic' = se arma en venta y descuenta inventario de componentes.
+// Mapea a products.kit_type. El RANGO del kit es KitPosition.
 export enum KitType {
-  BASICO = 'basico',
-  PREMIUM = 'premium',
-  PREFERENTE = 'preferente',
+  FIXED = 'fixed',
+  DYNAMIC = 'dynamic',
 }
 
 /**
@@ -26,13 +28,13 @@ export enum KitType {
 export enum KitPosition {
   BASIC = 'basic',
   PREMIUM = 'premium',
-  PREFERENTE = 'preferente',
+  PREFERRED = 'preferred',
 }
 
 export const KIT_POSITION_LABEL: Record<KitPosition, string> = {
   [KitPosition.BASIC]: 'Básico',
   [KitPosition.PREMIUM]: 'Premium',
-  [KitPosition.PREFERENTE]: 'Preferente',
+  [KitPosition.PREFERRED]: 'Preferente',
 };
 
 // ================================

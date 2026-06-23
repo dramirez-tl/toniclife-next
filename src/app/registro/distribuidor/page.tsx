@@ -25,7 +25,7 @@ import {
 import { toast } from 'sonner';
 import { publicRegistrationService, SponsorInfo } from '@/services';
 
-type KitType = 'basico' | 'premium' | 'preferente';
+type KitType = 'basic' | 'premium' | 'preferred';
 
 interface KitOption {
   id: KitType;
@@ -38,7 +38,7 @@ interface KitOption {
 
 const kitOptions: KitOption[] = [
   {
-    id: 'basico',
+    id: 'basic',
     name: 'Kit Básico',
     price: '$1,500 MXN',
     description: 'Ideal para comenzar tu negocio',
@@ -64,7 +64,7 @@ const kitOptions: KitOption[] = [
     popular: true,
   },
   {
-    id: 'preferente',
+    id: 'preferred',
     name: 'Kit Preferente',
     price: '$6,000 MXN',
     description: 'Para emprendedores serios',

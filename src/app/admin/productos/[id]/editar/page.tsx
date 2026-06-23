@@ -473,9 +473,9 @@ export default function EditarProductoAdminPage() {
                           <label className={labelClass}>Tipo de Kit</label>
                           <SearchableSelect
                             options={[
-                              { value: 'basico', label: 'Basico' },
+                              { value: 'basic', label: 'Basico' },
                               { value: 'premium', label: 'Premium' },
-                              { value: 'preferente', label: 'Preferente' },
+                              { value: 'preferred', label: 'Preferente' },
                             ]}
                             value={formData.kitType}
                             onChange={(val) => setFormData(prev => ({ ...prev, kitType: val }))}

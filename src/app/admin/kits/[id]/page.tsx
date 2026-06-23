@@ -347,7 +347,7 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
                       <option value="">Sin posición</option>
                       <option value={KitPosition.BASIC}>{KIT_POSITION_LABEL.basic}</option>
                       <option value={KitPosition.PREMIUM}>{KIT_POSITION_LABEL.premium}</option>
-                      <option value={KitPosition.PREFERENTE}>{KIT_POSITION_LABEL.preferente}</option>
+                      <option value={KitPosition.PREFERRED}>{KIT_POSITION_LABEL.preferred}</option>
                     </select>
                     {!isEnrollmentKit && (
                       <p className="text-xs text-gray-500 mt-1">Solo aplica para kits de inscripción</p>
@@ -389,11 +389,10 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
                     className={inputClass}
                   >
                     <option value="">Sin definir</option>
-                    <option value={KitType.BASICO}>Básico (costeo)</option>
-                    <option value={KitType.PREMIUM}>Premium (costeo)</option>
-                    <option value={KitType.PREFERENTE}>Preferente (costeo)</option>
+                    <option value={KitType.FIXED}>Fijo (precio propio)</option>
+                    <option value={KitType.DYNAMIC}>Dinámico (suma de componentes)</option>
                   </select>
-                  <p className="text-xs text-gray-500 mt-1">Categoría usada por las reglas de comisiones</p>
+                  <p className="text-xs text-gray-500 mt-1">Modo de costeo del kit: fijo (precio propio) o dinámico (descuenta inventario de componentes)</p>
                 </div>
 
                 {/* Datos fiscales (SAT) */}

@@ -29,7 +29,7 @@ const formatNumber = (n: number) => new Intl.NumberFormat('es-MX').format(n);
 const KIT_POSITION_COLORS: Record<string, string> = {
   basic: 'bg-blue-100 text-blue-800',
   premium: 'bg-purple-100 text-purple-800',
-  preferente: 'bg-amber-100 text-amber-800',
+  preferred: 'bg-amber-100 text-amber-800',
 };
 
 export function KitsTab() {
@@ -385,7 +385,7 @@ export function KitsTab() {
                 options={[
                   { value: KitPosition.BASIC, label: 'Básico' },
                   { value: KitPosition.PREMIUM, label: 'Premium' },
-                  { value: KitPosition.PREFERENTE, label: 'Preferente' },
+                  { value: KitPosition.PREFERRED, label: 'Preferente' },
                 ]}
                 value={filterPosition}
                 onChange={handleFilterPosition}

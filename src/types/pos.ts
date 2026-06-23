@@ -494,7 +494,7 @@ export interface QuickProduct {
   businessVolume?: number;
   /** Tipo de producto. */
   productType?: string;
-  /** Posición del kit (basic/premium/preferente). Solo aplica cuando productType='kit'. */
+  /** Posición del kit (basic/premium/preferred). Solo aplica cuando productType='kit'. */
   kitPosition?: string;
   /**
    * TRUE solo para kits de inscripción reales. Gate autoritativo (mig 037)

@@ -22,7 +22,7 @@ export default function NuevoKitPage() {
     shortName: '',
     description: '',
     kitPosition: '' as KitPosition | '',
-    kitType: KitType.PREMIUM, // 'basico' / 'premium' / 'preferente' (modo costeo)
+    kitType: KitType.FIXED, // 'fixed' / 'dynamic' (modo de costeo)
     isEnrollmentKit: true,
     kitDeductsInventory: true,
     qualifiesForCommission: true,
@@ -126,7 +126,7 @@ export default function NuevoKitPage() {
                   <option value="">Seleccionar...</option>
                   <option value={KitPosition.BASIC}>{KIT_POSITION_LABEL.basic}</option>
                   <option value={KitPosition.PREMIUM}>{KIT_POSITION_LABEL.premium}</option>
-                  <option value={KitPosition.PREFERENTE}>{KIT_POSITION_LABEL.preferente}</option>
+                  <option value={KitPosition.PREFERRED}>{KIT_POSITION_LABEL.preferred}</option>
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
                   {form.isEnrollmentKit
@@ -185,11 +185,10 @@ export default function NuevoKitPage() {
                 onChange={(e) => handleChange('kitType', e.target.value as KitType)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
               >
-                <option value={KitType.BASICO}>Básico (costeo)</option>
-                <option value={KitType.PREMIUM}>Premium (costeo)</option>
-                <option value={KitType.PREFERENTE}>Preferente (costeo)</option>
+                <option value={KitType.FIXED}>Fijo (precio propio)</option>
+                <option value={KitType.DYNAMIC}>Dinámico (suma de componentes)</option>
               </select>
-              <p className="text-xs text-gray-500 mt-1">Categoría usada por reglas de comisiones</p>
+              <p className="text-xs text-gray-500 mt-1">Modo de costeo: fijo (precio propio) o dinámico (descuenta inventario de componentes)</p>
             </div>
 
             <label className="flex items-center gap-3 cursor-pointer">

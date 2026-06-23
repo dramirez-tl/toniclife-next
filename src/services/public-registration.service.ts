@@ -18,7 +18,7 @@ export interface RegisterDistributorDto {
   rfc?: string;
   curp?: string;
   sponsorCode: string;
-  kitType: 'basico' | 'premium' | 'preferente';
+  kitType: 'basic' | 'premium' | 'preferred';
   acceptTerms: boolean;
 }
 
