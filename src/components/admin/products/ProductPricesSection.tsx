@@ -61,7 +61,7 @@ const PRICE_TYPE_HELPERS: Record<string, { description: string; example: string 
     description: 'Precio especial para empleados de Tonic Life con 40% de descuento.',
     example: 'Precio público $500 → Empleado paga $300 (ahorra $200).',
   },
-  promotional: {
+  preferred: {
     description: 'Precio preferente para clientes especiales o compras recurrentes. Aplica a todos los tipos de cliente.',
     example: 'Un cliente frecuente puede acceder a un precio preferente de $399 en lugar del precio público.',
   },
