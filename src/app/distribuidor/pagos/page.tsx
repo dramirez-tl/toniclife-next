@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 import { DataTable, type DataTableColumn } from '@/components/ui';
 import {
   DocumentTextIcon,
@@ -443,16 +444,10 @@ export default function PagosPage() {
                         <FieldLabel label="Teléfono" tooltip="Número de contacto para que Tesorería te ubique en caso de aclaraciones." required />
                         <FieldBadge value={phone} />
                       </div>
-                      <div className="relative">
-                        <PhoneIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input
-                          type="tel"
-                          value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          className="w-full rounded-lg border border-gray-300 pl-9 pr-3 py-2 text-sm focus:border-[#3E667D] focus:ring-1 focus:ring-[#3E667D] outline-none"
-                          placeholder="4621234567"
-                        />
-                      </div>
+                      <PhoneInput
+                        value={phone}
+                        onChange={(v) => setPhone(v)}
+                      />
                     </div>
                   </div>
                 </div>

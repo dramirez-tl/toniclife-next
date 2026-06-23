@@ -8,6 +8,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 import {
   XMarkIcon,
   CheckCircleIcon,
@@ -165,11 +166,9 @@ export function PreferredEnrollmentPanel({ isOpen, onClose }: Props) {
                     />
                   </Field>
                   <Field label="Teléfono" required>
-                    <input
-                      className={inputCls}
+                    <PhoneInput
                       value={form.phone}
-                      onChange={(e) => set('phone', e.target.value)}
-                      required
+                      onChange={(v) => set('phone', v)}
                     />
                   </Field>
                 </div>

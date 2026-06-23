@@ -12,6 +12,7 @@ import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 import { Loader2 } from 'lucide-react';
 import {
   XMarkIcon,
@@ -231,11 +232,9 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
                     />
                   </Field>
                   <Field label="Teléfono" required>
-                    <input
-                      className={inputCls}
+                    <PhoneInput
                       value={form.phone}
-                      onChange={(e) => set('phone', e.target.value)}
-                      required
+                      onChange={(v) => set('phone', v)}
                     />
                   </Field>
                 </div>
