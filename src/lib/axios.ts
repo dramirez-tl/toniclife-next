@@ -17,8 +17,9 @@ const getToken = (key: string): string | null => {
  * del otro storage para que un token viejo no "sombree" al nuevo (eso causaba
  * el bucle de refresh que motivó el localStorage-siempre anterior).
  *
- * El REFRESH token ya NO se guarda en storage: vive en cookie httpOnly que
- * pone el API (un XSS ya no puede robar la sesión renovable).
+ * Se usa tanto para el access como para el REFRESH token: el front y el API
+ * están en sitios distintos, así que la cookie httpOnly de refresh es de tercero
+ * y los navegadores la bloquean; por eso el refresh va en storage + body.
  */
 const setToken = (key: string, value: string): void => {
   if (typeof window === 'undefined') return;
@@ -154,23 +155,25 @@ api.interceptors.response.use(
         // Migración: si quedó un refresh viejo en storage (sesiones previas al
         // cambio), se manda por body UNA vez — el API responde seteando la
         // cookie — y se borra del storage para siempre.
-        const legacyRefresh = getToken(REFRESH_TOKEN_KEY);
+        const storedRefresh = getToken(REFRESH_TOKEN_KEY);
         const remembered =
           typeof window !== 'undefined' &&
           localStorage.getItem(REMEMBER_KEY) === '1';
 
         const response = await api.post(
           '/auth/refresh',
-          legacyRefresh
-            ? { refreshToken: legacyRefresh, rememberMe: remembered }
+          storedRefresh
+            ? { refreshToken: storedRefresh, rememberMe: remembered }
             : {},
         );
-        const { accessToken } = response.data;
+        const { accessToken, refreshToken: newRefresh } = response.data;
 
         if (typeof window !== 'undefined') {
           setToken(ACCESS_TOKEN_KEY, accessToken);
-          localStorage.removeItem(REFRESH_TOKEN_KEY);
-          sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+          // Persistir el refresh token (la cookie cross-site no es confiable).
+          // No rota, pero re-guardarlo mantiene la sesión viva sin depender de
+          // cookies de tercero (incógnito / Chrome / Safari).
+          if (newRefresh) setToken(REFRESH_TOKEN_KEY, newRefresh);
           // Renew routing cookies (lifetime matches the storage mode + the new role)
           writeAuthCookies(accessToken);
         }

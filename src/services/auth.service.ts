@@ -151,7 +151,7 @@ class AuthService {
     return localStorage.getItem(REFRESH_TOKEN_KEY) || sessionStorage.getItem(REFRESH_TOKEN_KEY);
   }
 
-  setTokens(accessToken: string, _refreshToken?: string): void {
+  setTokens(accessToken: string, refreshToken?: string): void {
     if (typeof window === 'undefined') return;
     const storage = this.getStorage();
     const other = storage === localStorage ? sessionStorage : localStorage;
@@ -159,10 +159,15 @@ class AuthService {
     // Evitar que una copia vieja en el otro storage sombree a la nueva.
     other.removeItem(ACCESS_TOKEN_KEY);
 
-    // El refresh token NO se persiste (vive en cookie httpOnly del API).
-    // Purgar cualquier residuo de sesiones previas al cambio.
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-    sessionStorage.removeItem(REFRESH_TOKEN_KEY);
+    // El refresh token SÍ se persiste en storage y se manda en el body de
+    // /auth/refresh: el front (vercel) y el API (railway) son sitios distintos,
+    // así que la cookie httpOnly de refresh es de tercero y los navegadores la
+    // bloquean (incógnito / Chrome / Safari) -> el refresh fallaba y cerraba la
+    // sesión cada 15 min. (La cookie sigue como respaldo si el navegador la deja.)
+    if (refreshToken) {
+      storage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+      other.removeItem(REFRESH_TOKEN_KEY);
+    }
 
     // Routing cookies for the middleware (lifetime matches the storage mode).
     writeAuthCookies(accessToken);
@@ -260,15 +265,16 @@ class AuthService {
   }
 
   async refreshToken(): Promise<AuthResponse> {
-    // Cookie httpOnly primero; el legacy del storage solo como migración.
-    const legacyRefresh = this.getRefreshToken();
+    // Mandamos el refresh token del storage en el body (la cookie cross-site no
+    // es confiable). Cae a la cookie solo si no hay nada en storage.
+    const storedRefresh = this.getRefreshToken();
     const response = await api.post<AuthResponse>(
       '/auth/refresh',
-      legacyRefresh
-        ? { refreshToken: legacyRefresh, rememberMe: this.isRemembered() }
+      storedRefresh
+        ? { refreshToken: storedRefresh, rememberMe: this.isRemembered() }
         : {},
     );
-    this.setTokens(response.data.accessToken);
+    this.setTokens(response.data.accessToken, response.data.refreshToken);
     this.setStoredUser(response.data.user);
     return response.data;
   }
