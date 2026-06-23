@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -17,7 +17,7 @@ import {
   CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
-import { authService } from '@/services/auth.service';
+import { authService, type InvitationStatus } from '@/services/auth.service';
 
 // Reglas de contraseña (mismas que reset-password / backend)
 const passwordRules = [
@@ -31,11 +31,81 @@ const passwordRules = [
   },
 ];
 
+// Envoltura común (logo + card centrada).
+function Shell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full">
+        <div className="text-center mb-8">
+          <Link href="/">
+            <Image
+              src="/images/logo/svg/logo-text-blue-r.svg"
+              alt="Tonic Life"
+              width={200}
+              height={80}
+              className="h-12 w-auto mx-auto mb-6"
+            />
+          </Link>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// Pantalla informativa (estados que NO muestran el formulario).
+function InfoScreen({
+  tone,
+  title,
+  message,
+  ctaHref = '/login',
+  ctaLabel = 'Ir a iniciar sesión',
+}: {
+  tone: 'success' | 'warning' | 'error';
+  title: string;
+  message: string;
+  ctaHref?: string;
+  ctaLabel?: string;
+}) {
+  const toneStyles = {
+    success: { bg: 'bg-emerald-100', fg: 'text-emerald-600', Icon: CheckCircleIcon },
+    warning: { bg: 'bg-amber-100', fg: 'text-amber-600', Icon: ExclamationTriangleIcon },
+    error: { bg: 'bg-red-100', fg: 'text-red-500', Icon: ExclamationTriangleIcon },
+  }[tone];
+  const { Icon } = toneStyles;
+
+  return (
+    <Shell>
+      <Card>
+        <CardContent className="p-8 text-center">
+          <div
+            className={`w-16 h-16 ${toneStyles.bg} rounded-full flex items-center justify-center mx-auto mb-6`}
+          >
+            <Icon className={`h-10 w-10 ${toneStyles.fg}`} />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">{title}</h2>
+          <p className="text-gray-600 mb-6">{message}</p>
+          <Link href={ctaHref}>
+            <Button variant={tone === 'success' ? 'default' : 'outline'} className="w-full">
+              {ctaLabel}
+            </Button>
+          </Link>
+        </CardContent>
+      </Card>
+    </Shell>
+  );
+}
+
 function SetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const token = searchParams.get('token');
+
+  // Estado de la invitación (se consulta al cargar, sin consumir el token).
+  const [status, setStatus] = useState<'checking' | InvitationStatus>(
+    token ? 'checking' : 'invalid',
+  );
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -45,6 +115,23 @@ function SetPasswordForm() {
     confirmPassword: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    authService
+      .getInvitationStatus(token)
+      .then((res) => {
+        if (!cancelled) setStatus(res.status);
+      })
+      .catch(() => {
+        // Error de red: no bloqueamos al usuario; el submit revalida en backend.
+        if (!cancelled) setStatus('valid');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   const validatePassword = (password: string): boolean =>
     passwordRules.every((rule) => rule.test(password));
@@ -77,217 +164,229 @@ function SetPasswordForm() {
         newPassword: formData.newPassword,
       });
       toast.success('¡Cuenta activada! Inicia sesión con tu nueva contraseña.');
+      setStatus('accepted');
       router.push('/login');
     } catch (error: any) {
       toast.error(
         error?.response?.data?.message || 'Invitación inválida o expirada',
       );
-    } finally {
+      // Refleja el estado real (p.ej. ya aceptada/expirada) para no dejar el form.
+      try {
+        const res = await authService.getInvitationStatus(token);
+        if (res.status !== 'valid') setStatus(res.status);
+      } catch {
+        /* sin red: deja el form */
+      }
       setIsLoading(false);
     }
   };
 
-  // Sin token en la URL
-  if (!token) {
+  // ---- Estados que NO muestran el formulario ----
+  if (status === 'checking') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full">
-          <div className="text-center mb-8">
-            <Link href="/">
-              <Image
-                src="/images/logo/svg/logo-text-blue-r.svg"
-                alt="Tonic Life"
-                width={200}
-                height={80}
-                className="h-12 w-auto mx-auto mb-6"
-              />
-            </Link>
-          </div>
-
-          <Card>
-            <CardContent className="p-8 text-center">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <ExclamationTriangleIcon className="h-10 w-10 text-red-500" />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Enlace inválido
-              </h2>
-              <p className="text-gray-600 mb-6">
-                El enlace de invitación es inválido o ha expirado. Pide al
-                administrador que te reenvíe la invitación.
-              </p>
-              <Link href="/login">
-                <Button variant="outline" className="w-full">
-                  Volver al login
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <Shell>
+        <Card>
+          <CardContent className="p-10 text-center">
+            <Loader2 className="mx-auto mb-4 h-10 w-10 animate-spin text-[#a7c1e2]" />
+            <p className="text-gray-600">Verificando tu invitación...</p>
+          </CardContent>
+        </Card>
+      </Shell>
     );
   }
 
+  if (status === 'accepted') {
+    return (
+      <InfoScreen
+        tone="success"
+        title="¡Tu cuenta ya está activada!"
+        message="Este paso ya fue completado. Inicia sesión con tu correo y la contraseña que definiste."
+        ctaLabel="Ir a iniciar sesión"
+      />
+    );
+  }
+
+  if (status === 'expired') {
+    return (
+      <InfoScreen
+        tone="warning"
+        title="El enlace expiró"
+        message="Tu invitación ya venció. Pide al administrador que te reenvíe una nueva invitación."
+        ctaLabel="Volver al login"
+      />
+    );
+  }
+
+  if (status === 'revoked') {
+    return (
+      <InfoScreen
+        tone="warning"
+        title="Invitación cancelada"
+        message="Esta invitación fue cancelada o reemplazada por una más reciente. Revisa tu correo o pide una nueva al administrador."
+        ctaLabel="Volver al login"
+      />
+    );
+  }
+
+  if (status === 'invalid') {
+    return (
+      <InfoScreen
+        tone="error"
+        title="Enlace inválido"
+        message="El enlace de invitación es inválido. Pide al administrador que te reenvíe la invitación."
+        ctaLabel="Volver al login"
+      />
+    );
+  }
+
+  // status === 'valid' → formulario
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <Link href="/">
-            <Image
-              src="/images/logo/svg/logo-text-blue-r.svg"
-              alt="Tonic Life"
-              width={200}
-              height={80}
-              className="h-12 w-auto mx-auto mb-6"
-            />
-          </Link>
-          <h2 className="text-3xl font-bold text-gray-900">
-            Activa tu cuenta
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Define tu contraseña para acceder a tu cuenta de Tonic Life
-          </p>
-        </div>
-
-        <Card>
-          <CardContent className="p-8">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Nueva contraseña */}
-              <div className="space-y-1.5">
-                <Label>Contraseña</Label>
-                <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4">
-                    <LockClosedIcon className="h-5 w-5" />
-                  </span>
-                  <Input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={formData.newPassword}
-                    onChange={(e) =>
-                      setFormData({ ...formData, newPassword: e.target.value })
-                    }
-                    autoComplete="new-password"
-                    disabled={isLoading}
-                    className="pl-9 pr-10"
-                    aria-invalid={errors.newPassword ? true : undefined}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    disabled={isLoading}
-                  >
-                    {showPassword ? (
-                      <EyeSlashIcon className="h-5 w-5" />
-                    ) : (
-                      <EyeIcon className="h-5 w-5" />
-                    )}
-                  </button>
-                </div>
-                {errors.newPassword && (
-                  <p className="text-sm text-destructive">{errors.newPassword}</p>
-                )}
-              </div>
-
-              {/* Requisitos */}
-              {formData.newPassword && (
-                <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-                  <p className="text-sm font-medium text-gray-700">
-                    Requisitos de contraseña:
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {passwordRules.map((rule, index) => {
-                      const passes = rule.test(formData.newPassword);
-                      return (
-                        <div key={index} className="flex items-center gap-2">
-                          <CheckCircleIcon
-                            className={`h-4 w-4 ${
-                              passes ? 'text-[#3E667D]' : 'text-gray-300'
-                            }`}
-                          />
-                          <span
-                            className={`text-xs ${
-                              passes ? 'text-gray-700' : 'text-gray-400'
-                            }`}
-                          >
-                            {rule.label}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Confirmar */}
-              <div className="space-y-1.5">
-                <Label>Confirmar contraseña</Label>
-                <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4">
-                    <LockClosedIcon className="h-5 w-5" />
-                  </span>
-                  <Input
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={formData.confirmPassword}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        confirmPassword: e.target.value,
-                      })
-                    }
-                    autoComplete="new-password"
-                    disabled={isLoading}
-                    className="pl-9 pr-10"
-                    aria-invalid={errors.confirmPassword ? true : undefined}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    disabled={isLoading}
-                  >
-                    {showConfirmPassword ? (
-                      <EyeSlashIcon className="h-5 w-5" />
-                    ) : (
-                      <EyeIcon className="h-5 w-5" />
-                    )}
-                  </button>
-                </div>
-                {errors.confirmPassword && (
-                  <p className="text-sm text-destructive">
-                    {errors.confirmPassword}
-                  </p>
-                )}
-              </div>
-
-              <Button
-                type="submit"
-                variant="default"
-                size="lg"
-                className="w-full"
-                disabled={isLoading}
-              >
-                {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
-                {isLoading ? 'Activando...' : 'Activar cuenta'}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
-            ¿Ya tienes acceso?{' '}
-            <Link
-              href="/login"
-              className="font-medium text-[#3E667D] hover:text-[#3E667D] transition-colors"
-            >
-              Inicia sesión
-            </Link>
-          </p>
-        </div>
+    <Shell>
+      <div className="text-center mb-8 -mt-2">
+        <h2 className="text-3xl font-bold text-gray-900">Activa tu cuenta</h2>
+        <p className="mt-2 text-sm text-gray-600">
+          Define tu contraseña para acceder a tu cuenta de Tonic Life
+        </p>
       </div>
-    </div>
+
+      <Card>
+        <CardContent className="p-8">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Nueva contraseña */}
+            <div className="space-y-1.5">
+              <Label>Contraseña</Label>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4">
+                  <LockClosedIcon className="h-5 w-5" />
+                </span>
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={formData.newPassword}
+                  onChange={(e) =>
+                    setFormData({ ...formData, newPassword: e.target.value })
+                  }
+                  autoComplete="new-password"
+                  disabled={isLoading}
+                  className="pl-9 pr-10"
+                  aria-invalid={errors.newPassword ? true : undefined}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  disabled={isLoading}
+                >
+                  {showPassword ? (
+                    <EyeSlashIcon className="h-5 w-5" />
+                  ) : (
+                    <EyeIcon className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
+              {errors.newPassword && (
+                <p className="text-sm text-destructive">{errors.newPassword}</p>
+              )}
+            </div>
+
+            {/* Requisitos */}
+            {formData.newPassword && (
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                <p className="text-sm font-medium text-gray-700">
+                  Requisitos de contraseña:
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {passwordRules.map((rule, index) => {
+                    const passes = rule.test(formData.newPassword);
+                    return (
+                      <div key={index} className="flex items-center gap-2">
+                        <CheckCircleIcon
+                          className={`h-4 w-4 ${
+                            passes ? 'text-[#3E667D]' : 'text-gray-300'
+                          }`}
+                        />
+                        <span
+                          className={`text-xs ${
+                            passes ? 'text-gray-700' : 'text-gray-400'
+                          }`}
+                        >
+                          {rule.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Confirmar */}
+            <div className="space-y-1.5">
+              <Label>Confirmar contraseña</Label>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4">
+                  <LockClosedIcon className="h-5 w-5" />
+                </span>
+                <Input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  placeholder="••••••••"
+                  value={formData.confirmPassword}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      confirmPassword: e.target.value,
+                    })
+                  }
+                  autoComplete="new-password"
+                  disabled={isLoading}
+                  className="pl-9 pr-10"
+                  aria-invalid={errors.confirmPassword ? true : undefined}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  disabled={isLoading}
+                >
+                  {showConfirmPassword ? (
+                    <EyeSlashIcon className="h-5 w-5" />
+                  ) : (
+                    <EyeIcon className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
+              {errors.confirmPassword && (
+                <p className="text-sm text-destructive">
+                  {errors.confirmPassword}
+                </p>
+              )}
+            </div>
+
+            <Button
+              type="submit"
+              variant="default"
+              size="lg"
+              className="w-full"
+              disabled={isLoading}
+            >
+              {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
+              {isLoading ? 'Activando...' : 'Activar cuenta'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <div className="mt-6 text-center">
+        <p className="text-sm text-gray-600">
+          ¿Ya tienes acceso?{' '}
+          <Link
+            href="/login"
+            className="font-medium text-[#3E667D] hover:text-[#3E667D] transition-colors"
+          >
+            Inicia sesión
+          </Link>
+        </p>
+      </div>
+    </Shell>
   );
 }
 

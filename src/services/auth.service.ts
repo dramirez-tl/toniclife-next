@@ -83,6 +83,13 @@ export interface AcceptInvitationData {
   newPassword: string;
 }
 
+export type InvitationStatus =
+  | 'valid'
+  | 'accepted'
+  | 'expired'
+  | 'revoked'
+  | 'invalid';
+
 export interface ChangePasswordData {
   currentPassword: string;
   newPassword: string;
@@ -308,6 +315,18 @@ class AuthService {
   /** Definir contraseña desde una invitación (colaborador/distribuidor). */
   async acceptInvitation(data: AcceptInvitationData): Promise<MessageResponse> {
     const response = await api.post<MessageResponse>('/auth/accept-invitation', data);
+    return response.data;
+  }
+
+  /**
+   * Estado de una invitación SIN consumirla (read-only). Lo usa /set-password
+   * al cargar para decidir qué mostrar (form, "cuenta ya activada", inválido).
+   */
+  async getInvitationStatus(token: string): Promise<{ status: InvitationStatus }> {
+    const response = await api.get<{ status: InvitationStatus }>(
+      '/auth/invitation-status',
+      { params: { token } },
+    );
     return response.data;
   }
 
