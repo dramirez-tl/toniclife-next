@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import { Loader2 } from 'lucide-react';
 import { selectUser } from '@/store/slices/authSlice';
-import { useNetworkDownlines } from '@/hooks/useNetwork';
+import { useNetworkDownlines, useNetworkDirectLines } from '@/hooks/useNetwork';
 import { useCurrentPeriod, useCommissionPeriods } from '@/hooks/useCommissions';
 import { networkApi } from '@/services/networkApi';
 import {
@@ -19,7 +19,7 @@ import {
   useShareReferralLink,
   usePreferredCustomers,
 } from '@/hooks/useDistributor';
-import { DownlineItem, DownlineQuery } from '@/types/network';
+import { DownlineItem, DownlineQuery, DirectLineVolume } from '@/types/network';
 import { RANK_ORDER, RANK_LABELS } from '@/constants/ranks';
 import {
   UsersIcon,
@@ -30,6 +30,9 @@ import {
   ClipboardDocumentIcon,
   ShareIcon,
   XMarkIcon,
+  CalendarDaysIcon,
+  InformationCircleIcon,
+  ScaleIcon,
 } from '@heroicons/react/24/outline';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
@@ -185,6 +188,9 @@ function RedContent() {
           </CardContent>
         </Card>
 
+        {/* Volumen por línea directa (entender rollover / detectar líneas débiles) */}
+        <DirectLinesVolumeSection />
+
         <TreeListView />
 
         {/* Clientes preferentes */}
@@ -290,6 +296,184 @@ function RedContent() {
         onClose={() => setIsPreferredOpen(false)}
       />
     </div>
+  );
+}
+
+// Sección: Volumen de grupo por LÍNEA DIRECTA (con tope/rollover por rango).
+// Permite ver qué líneas tienen menos volumen y entender el rollover.
+const fmtPts = (n: number) =>
+  Number(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 0 });
+
+function DirectLinesVolumeSection() {
+  const { data: periodsData } = useCommissionPeriods();
+  const periodsArray: any[] = Array.isArray(periodsData)
+    ? periodsData
+    : ((periodsData as unknown as { data?: any[] })?.data ?? []);
+  const sortedPeriods = [...periodsArray].sort((a: any, b: any) => {
+    const ad = String(a?.startDate ?? a?.start_date ?? '');
+    const bd = String(b?.startDate ?? b?.start_date ?? '');
+    return bd.localeCompare(ad);
+  });
+
+  const [periodId, setPeriodId] = useState(''); // '' = periodo actual
+  const { data, isLoading, isFetching } = useNetworkDirectLines(
+    periodId || undefined,
+  );
+
+  const lines: DirectLineVolume[] = data?.lines ?? [];
+  const cap = data?.rollOverLimit ?? 0;
+  const hasCap = data?.hasCap ?? false;
+  const maxBar = Math.max(1, cap, ...lines.map((l) => l.legVolume));
+
+  return (
+    <Card className="mb-6">
+      <CardContent className="p-4 lg:p-6">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="rounded-lg bg-[#3E667D]/10 p-2 text-[#3E667D]">
+              <ScaleIcon className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900">
+                Volumen por línea directa
+              </h3>
+              <p className="text-sm text-gray-500">
+                El volumen de grupo de cada una de tus líneas en el periodo,
+                de la más baja a la más alta.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 rounded-xl border border-[#3E667D]/10 bg-[#3E667D]/5 px-3 py-2">
+            <CalendarDaysIcon className="h-5 w-5 text-[#3E667D]" />
+            <SearchableSelect
+              options={[
+                { value: '', label: 'Periodo actual' },
+                ...sortedPeriods.map((p: any) => ({
+                  value: p.id,
+                  label: `${p.name}${p.isCurrent ? ' (Actual)' : ''}`,
+                })),
+              ]}
+              value={periodId}
+              onChange={setPeriodId}
+              showAllOption={false}
+              className="min-w-[180px]"
+            />
+          </div>
+        </div>
+
+        {/* Explicación del rollover (tope por línea) */}
+        {hasCap && (
+          <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+            <InformationCircleIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+            <span>
+              <strong>Rollover:</strong> cada línea aporta a tu volumen de grupo
+              hasta <strong>{fmtPts(cap)} pts</strong>
+              {data?.viewerRankName ? ` (tu rango ${data.viewerRankName})` : ''}.
+              Lo que una línea genere por encima del tope <strong>“rolla”</strong>{' '}
+              y no te cuenta. Conviene <strong>fortalecer las líneas más bajas</strong>{' '}
+              para aprovechar tu tope en cada una, en vez de concentrar todo en una sola.
+            </span>
+          </div>
+        )}
+
+        {/* Totales */}
+        {data && lines.length > 0 && (
+          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center">
+              <p className="text-xs uppercase tracking-wide text-gray-400">Volumen total de líneas</p>
+              <p className="text-xl font-bold text-gray-900">{fmtPts(data.totalGroupVolume)}</p>
+            </div>
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-center">
+              <p className="text-xs uppercase tracking-wide text-emerald-600">Te cuenta (grupo)</p>
+              <p className="text-xl font-bold text-emerald-700">{fmtPts(data.totalCounted)}</p>
+            </div>
+            <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-center">
+              <p className="text-xs uppercase tracking-wide text-amber-600">Rolla (excedente)</p>
+              <p className="text-xl font-bold text-amber-700">{fmtPts(data.totalRolledOver)}</p>
+            </div>
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-10 text-gray-400">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        ) : lines.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-gray-200 py-10 text-center">
+            <p className="text-sm text-gray-500">
+              Aún no tienes líneas directas con volumen en este periodo.
+            </p>
+          </div>
+        ) : (
+          <div className={`space-y-2 ${isFetching ? 'opacity-60' : ''}`}>
+            {lines.map((l, i) => {
+              const countedPct = (Math.min(l.counted, maxBar) / maxBar) * 100;
+              const rolledPct = (Math.min(l.rolledOver, maxBar) / maxBar) * 100;
+              const capPct = hasCap ? (Math.min(cap, maxBar) / maxBar) * 100 : 0;
+              const toCap = hasCap ? Math.max(0, cap - l.legVolume) : 0;
+              return (
+                <div
+                  key={l.memberId}
+                  className="rounded-xl border border-gray-100 p-3 hover:bg-gray-50/60"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        {i === 0 && lines.length > 1 && (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                            Más baja
+                          </span>
+                        )}
+                        <span className="truncate font-semibold text-gray-900">{l.name}</span>
+                        <span className="text-xs text-gray-400">#{l.customerNumber}</span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        {l.rankName ? `${l.rankName} · ` : ''}
+                        {l.activeCount}/{l.memberCount} activos
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-gray-900">
+                        {fmtPts(l.legVolume)} <span className="text-xs font-normal text-gray-400">pts</span>
+                      </p>
+                      {l.rolledOver > 0 ? (
+                        <span className="text-xs font-medium text-amber-600">
+                          rolla {fmtPts(l.rolledOver)}
+                        </span>
+                      ) : hasCap && toCap > 0 ? (
+                        <span className="text-xs font-medium text-gray-400">
+                          faltan {fmtPts(toCap)} para el tope
+                        </span>
+                      ) : hasCap ? (
+                        <span className="text-xs font-medium text-emerald-600">tope alcanzado</span>
+                      ) : null}
+                    </div>
+                  </div>
+                  {/* Barra: cuenta (teal) + excedente que rolla (ámbar); marcador del tope */}
+                  <div className="relative mt-2 h-2.5 w-full overflow-hidden rounded-full bg-gray-100">
+                    <div
+                      className="absolute left-0 top-0 h-full bg-[#3E667D]"
+                      style={{ width: `${countedPct}%` }}
+                    />
+                    <div
+                      className="absolute top-0 h-full bg-amber-400"
+                      style={{ left: `${countedPct}%`, width: `${rolledPct}%` }}
+                    />
+                    {hasCap && (
+                      <div
+                        className="absolute top-[-2px] h-[14px] w-0.5 bg-gray-700"
+                        style={{ left: `${capPct}%` }}
+                        title={`Tope: ${fmtPts(cap)} pts`}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

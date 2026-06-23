@@ -17,6 +17,7 @@ export const networkKeys = {
   search: (query: string) => [...networkKeys.all, 'search', query] as const,
   downlines: (userId: string) => [...networkKeys.all, 'downlines', userId] as const,
   upline: (userId: string) => [...networkKeys.all, 'upline', userId] as const,
+  directLines: (periodId?: string) => [...networkKeys.all, 'direct-lines', periodId ?? 'current'] as const,
 };
 
 /**
@@ -80,6 +81,18 @@ export const useNetworkDownlines = (query: DownlineQuery = {}, enabled: boolean 
   return useQuery({
     queryKey: [...networkKeys.all, 'downlines', query] as const,
     queryFn: () => networkApi.getDownlines(query),
+    enabled,
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+/**
+ * Hook: volumen de grupo por línea directa (con tope/rollover) del periodo.
+ */
+export const useNetworkDirectLines = (periodId?: string, enabled: boolean = true) => {
+  return useQuery({
+    queryKey: networkKeys.directLines(periodId),
+    queryFn: () => networkApi.getDirectLines(periodId),
     enabled,
     staleTime: 5 * 60 * 1000,
   });

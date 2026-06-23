@@ -11,6 +11,7 @@ import type {
   RankType,
   DownlineListResponse,
   DownlineQuery,
+  DirectLinesVolumeResponse,
 } from '@/types/network';
 
 // Mapeo de codigos de rango del backend a tipos del frontend
@@ -242,6 +243,20 @@ class NetworkApi {
     if (query.sortOrder) params.sortOrder = query.sortOrder;
 
     const { data } = await api.get<DownlineListResponse>(`/distributor/network/downlines`, { params });
+    return data;
+  }
+
+  /**
+   * Volumen de grupo por línea directa (con tope/rollover) del periodo.
+   * Backend: GET /distributor/network/direct-lines
+   */
+  async getDirectLines(periodId?: string): Promise<DirectLinesVolumeResponse> {
+    const params: Record<string, string> = {};
+    if (periodId) params.periodId = periodId;
+    const { data } = await api.get<DirectLinesVolumeResponse>(
+      `/distributor/network/direct-lines`,
+      { params },
+    );
     return data;
   }
 

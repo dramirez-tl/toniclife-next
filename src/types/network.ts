@@ -133,6 +133,42 @@ export interface DownlineQuery {
   sortOrder?: 'asc' | 'desc';
 }
 
+// Volumen de grupo por LÍNEA DIRECTA (frontal + su pata) con tope/rollover.
+export interface DirectLineVolume {
+  memberId: string;
+  customerId: string;
+  customerNumber: string;
+  name: string;
+  rankName?: string | null;
+  status: string;
+  /** Volumen de grupo de la línea = puntos de toda la pata en el periodo. */
+  legVolume: number;
+  /** Cuánto cuenta hacia tu grupo = min(legVolume, tope). */
+  counted: number;
+  /** Excedente que "rolla"/no cuenta = max(0, legVolume - tope). */
+  rolledOver: number;
+  /** TRUE si la línea alcanzó/superó el tope. */
+  atCap: boolean;
+  memberCount: number;
+  activeCount: number;
+}
+
+export interface DirectLinesVolumeResponse {
+  periodId: string;
+  periodName: string;
+  isClosed: boolean;
+  /** Tope de roll-over por línea (mlm_ranks.roll_over_limit). 0 = sin tope. */
+  rollOverLimit: number;
+  hasCap: boolean;
+  viewerRankName?: string | null;
+  totalGroupVolume: number;
+  totalCounted: number;
+  totalRolledOver: number;
+  lineCount: number;
+  /** Ordenadas por volumen ascendente (más débil primero). */
+  lines: DirectLineVolume[];
+}
+
 // Tipos para React Flow
 export interface ReactFlowNodeData {
   id: string;
