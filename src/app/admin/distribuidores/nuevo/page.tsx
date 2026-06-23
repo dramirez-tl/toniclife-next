@@ -12,7 +12,7 @@ import {
   fetchCustomerByReferralCode,
 } from '@/store/slices/customersSlice';
 import type { CreateCustomerDto, Customer } from '@/types/customer';
-import { useActivePriceTypes } from '@/hooks/useConfig';
+import { useActivePriceTypes, useActiveCountries } from '@/hooks/useConfig';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { findPriceTypeIdForCustomerType } from '@/lib/priceType';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -39,6 +39,7 @@ export default function NuevoDistribuidorPage() {
   const error = useAppSelector(selectCustomersError);
   const { data: priceTypes } = useActivePriceTypes();
   const { data: branches } = useActiveBranches();
+  const { data: activeCountries } = useActiveCountries();
 
   const [formData, setFormData] = useState<CreateCustomerDto & { _customerType: string }>({
     _customerType: 'distributor',
@@ -54,6 +55,7 @@ export default function NuevoDistribuidorPage() {
     sponsorId: '',
     kitType: 'basic',
     customerType: 'distributor',
+    countryId: '',
   });
 
   const [sponsorCode, setSponsorCode] = useState('');
@@ -129,6 +131,10 @@ export default function NuevoDistribuidorPage() {
     if (formData.curp) cleanData.curp = formData.curp;
     if (formData.sponsorId) cleanData.sponsorId = formData.sponsorId;
     if (formData.kitType) cleanData.kitType = formData.kitType;
+    if (formData.countryId) cleanData.countryId = formData.countryId;
+    // Régimen fiscal antes capturado pero descartado (la DTO sí lo soporta).
+    if ((formData as any).taxRegime)
+      cleanData.taxRegime = (formData as any).taxRegime;
 
     try {
       await dispatch(createCustomer(cleanData)).unwrap();
@@ -423,6 +429,26 @@ export default function NuevoDistribuidorPage() {
               />
               <p className="text-xs text-gray-500 mt-1">
                 El registro queda asociado a esta sucursal.
+              </p>
+            </div>
+            <div className="mt-6">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                País de residencia
+              </label>
+              <SearchableSelect
+                options={(activeCountries ?? []).map((c) => ({
+                  value: c.id,
+                  label: c.name,
+                }))}
+                value={formData.countryId ?? ''}
+                onChange={(value) =>
+                  setFormData((prev) => ({ ...prev, countryId: value }))
+                }
+                placeholder="Selecciona el país"
+                showAllOption={false}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Define la moneda y el catálogo de productos del cliente.
               </p>
             </div>
           </div>
