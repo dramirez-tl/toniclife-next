@@ -111,6 +111,28 @@ export function useDeleteDepartment() {
   });
 }
 
+// ================================
+// ORGANIGRAMA — DIRECTORES GENERALES POR PAÍS
+// ================================
+
+export function useOrgDirectors() {
+  return useQuery({
+    queryKey: [...hrKeys.all, 'org', 'directors'] as const,
+    queryFn: () => hrApi.getOrgDirectors(),
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+export function useSetOrgDirector() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ countryId, userId }: { countryId: string; userId: string | null }) =>
+      hrApi.setOrgDirector(countryId, userId),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: [...hrKeys.all, 'org', 'directors'] }),
+  });
+}
+
 export function useMyEmployee() {
   return useQuery({
     queryKey: hrKeys.myEmployee(),

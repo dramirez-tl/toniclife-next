@@ -10,6 +10,7 @@ import type {
   Department,
   CreateDepartmentDto,
   UpdateDepartmentDto,
+  OrgDirector,
   CreateEmployeeDto,
   UpdateEmployeeDto,
   AttendanceRecord,
@@ -119,6 +120,25 @@ class HrService {
 
   async deleteDepartment(id: string): Promise<{ success: boolean }> {
     const response = await api.delete<{ success: boolean }>(`/hr/departments/${id}`);
+    return response.data;
+  }
+
+  // ================================
+  // ORGANIGRAMA — DIRECTORES GENERALES POR PAÍS
+  // ================================
+
+  /** Países activos con su Director General. */
+  async getOrgDirectors(): Promise<OrgDirector[]> {
+    const response = await api.get<OrgDirector[]>('/hr/org/directors');
+    return response.data;
+  }
+
+  /** Asigna (o quita con userId=null) el Director General de un país. */
+  async setOrgDirector(countryId: string, userId: string | null): Promise<{ success: boolean }> {
+    const response = await api.put<{ success: boolean }>(
+      `/hr/org/directors/${countryId}`,
+      { userId },
+    );
     return response.data;
   }
 

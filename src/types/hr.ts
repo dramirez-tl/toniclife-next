@@ -107,11 +107,15 @@ export interface Department {
   headName?: string | null;
   subheadUserId?: string | null;
   subheadName?: string | null;
+  /** País al que pertenece el departamento (organigrama agrupa por país). */
+  countryId?: string | null;
+  countryName?: string | null;
 }
 
 export interface CreateDepartmentDto {
   code: string;
   name: string;
+  countryId?: string | null;
 }
 
 export interface UpdateDepartmentDto {
@@ -120,6 +124,16 @@ export interface UpdateDepartmentDto {
   isActive?: boolean;
   headUserId?: string | null;
   subheadUserId?: string | null;
+  countryId?: string | null;
+}
+
+// Director General de un país (countries.director_general_user_id).
+export interface OrgDirector {
+  countryId: string;
+  countryCode: string;
+  countryName: string;
+  directorUserId: string | null;
+  directorName: string | null;
 }
 
 export interface EmployeeQuery {
