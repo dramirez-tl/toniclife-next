@@ -546,19 +546,30 @@ function SucursalesContent() {
       toast.error('El codigo de la sucursal es obligatorio');
       return;
     }
+    if (!formData.countryId) {
+      toast.error('El país de la sucursal es obligatorio');
+      return;
+    }
 
     try {
       if (editingBranch) {
         const { code, ...updateFields } = formData;
-        // Strip empty strings for optional email validation
+        // Normaliza campos UUID opcionales: '' no pasa @IsUUID en el backend.
+        // stateId '' => null (limpia el estado, p.ej. al cambiar a un país sin
+        // estados); addressEmail '' => undefined.
         const dto: UpdateBranchDto = {
           ...updateFields,
           addressEmail: updateFields.addressEmail?.trim() || undefined,
+          stateId: updateFields.stateId ? updateFields.stateId : null,
         };
         await updateBranch.mutateAsync({ id: editingBranch.id, dto });
         toast.success('Sucursal actualizada correctamente');
       } else {
-        await createBranch.mutateAsync(formData);
+        // stateId '' => undefined (el backend lo guarda como NULL).
+        await createBranch.mutateAsync({
+          ...formData,
+          stateId: formData.stateId || undefined,
+        });
         toast.success('Sucursal creada correctamente');
       }
       handleCloseModal();

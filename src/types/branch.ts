@@ -127,7 +127,7 @@ export interface CreateBranchDto {
   name: string;
   parentBranchId?: string;
   countryId?: string;
-  stateId?: string;
+  stateId?: string | null;
   currencyCode?: string;
   roundingMode?: string;
   addressStreet?: string;
@@ -161,7 +161,7 @@ export interface UpdateBranchDto {
   name?: string;
   parentBranchId?: string;
   countryId?: string;
-  stateId?: string;
+  stateId?: string | null;
   currencyCode?: string;
   roundingMode?: string;
   addressStreet?: string;
