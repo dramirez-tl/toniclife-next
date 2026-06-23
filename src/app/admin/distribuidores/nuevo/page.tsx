@@ -511,8 +511,8 @@ export default function NuevoDistribuidorPage() {
                   <div className="grid grid-cols-3 gap-4">
                     {[
                       { value: 'basic', label: 'Básico', price: '$1,500' },
-                      { value: 'advanced', label: 'Avanzado', price: '$3,500' },
-                      { value: 'premium', label: 'Premium', price: '$7,500' },
+                      { value: 'premium', label: 'Premium', price: '$3,500' },
+                      { value: 'preferred', label: 'Preferente', price: '$6,000' },
                     ].map((kit) => (
                       <label
                         key={kit.value}

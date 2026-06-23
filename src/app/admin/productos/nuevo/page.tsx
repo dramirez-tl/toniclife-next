@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useCreateProduct, useCategories } from '@/hooks/useProducts';
 import type { CreateProductDto } from '@/types/product';
-import { ProductType, KitType } from '@/types/product';
+import { ProductType, KitPosition } from '@/types/product';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 export default function NuevoProductoAdminPage() {
@@ -31,7 +31,7 @@ export default function NuevoProductoAdminPage() {
     categoryId: '',
     unitId: '',
     brand: 'Tonic Life',
-    kitType: '',
+    kitPosition: '',
     kitDeductsInventory: false,
     // MLM
     pointsValue: '',
@@ -108,7 +108,9 @@ export default function NuevoProductoAdminPage() {
       unitId: formData.unitId || undefined,
       brand: formData.brand || undefined,
       productType: formData.productType as ProductType || undefined,
-      kitType: formData.kitType ? (formData.kitType as KitType) : undefined,
+      kitPosition: formData.kitPosition
+        ? (formData.kitPosition as KitPosition)
+        : undefined,
       kitDeductsInventory: formData.kitDeductsInventory,
       pointsValue: formData.pointsValue ? parseFloat(formData.pointsValue) : undefined,
       businessVolume: formData.businessVolume ? parseFloat(formData.businessVolume) : undefined,
@@ -312,17 +314,17 @@ export default function NuevoProductoAdminPage() {
                   </div>
                   {formData.productType === 'kit' && (
                     <div>
-                      <label className={labelClass}>Tipo de Kit</label>
+                      <label className={labelClass}>Posición del kit (rango)</label>
                       <SearchableSelect
                         options={[
-                          { value: 'basic', label: 'Basico' },
+                          { value: 'basic', label: 'Básico' },
                           { value: 'premium', label: 'Premium' },
                           { value: 'preferred', label: 'Preferente' },
                         ]}
-                        value={formData.kitType}
-                        onChange={(val) => setFormData(prev => ({ ...prev, kitType: val }))}
+                        value={formData.kitPosition}
+                        onChange={(val) => setFormData(prev => ({ ...prev, kitPosition: val }))}
                         showAllOption={true}
-                        allLabel="Seleccionar tipo de kit"
+                        allLabel="Seleccionar posición"
                         className="w-full"
                       />
                     </div>

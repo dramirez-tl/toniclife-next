@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useProduct, useUpdateProduct, useCategories } from '@/hooks/useProducts';
 import type { UpdateProductDto } from '@/types/product';
-import { ProductType, KitType } from '@/types/product';
+import { ProductType, KitPosition } from '@/types/product';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { ProductPricesSection } from '@/components/admin/products/ProductPricesSection';
 import { ProductInventoryByBranch } from '@/components/admin/products/ProductInventoryByBranch';
@@ -64,7 +64,7 @@ export default function EditarProductoAdminPage() {
     categoryId: '',
     unitId: '',
     brand: 'Tonic Life',
-    kitType: '',
+    kitPosition: '',
     kitDeductsInventory: false,
     // MLM
     pointsValue: '',
@@ -118,7 +118,7 @@ export default function EditarProductoAdminPage() {
         categoryId: product.categoryId || '',
         unitId: product.unitId || '',
         brand: product.brand || 'Tonic Life',
-        kitType: product.kitType || '',
+        kitPosition: product.kitPosition || '',
         kitDeductsInventory: product.kitDeductsInventory ?? false,
         pointsValue: product.pointsValue?.toString() || '',
         businessVolume: product.businessVolume?.toString() || '',
@@ -208,7 +208,9 @@ export default function EditarProductoAdminPage() {
       unitId: formData.unitId || undefined,
       brand: formData.brand || undefined,
       productType: formData.productType as ProductType || undefined,
-      kitType: formData.kitType ? (formData.kitType as KitType) : undefined,
+      kitPosition: formData.kitPosition
+        ? (formData.kitPosition as KitPosition)
+        : undefined,
       kitDeductsInventory: formData.kitDeductsInventory,
       pointsValue: formData.pointsValue ? parseFloat(formData.pointsValue) : undefined,
       businessVolume: formData.businessVolume ? parseFloat(formData.businessVolume) : undefined,
@@ -470,17 +472,17 @@ export default function EditarProductoAdminPage() {
                       </div>
                       {formData.productType === 'kit' && (
                         <div>
-                          <label className={labelClass}>Tipo de Kit</label>
+                          <label className={labelClass}>Posición del kit (rango)</label>
                           <SearchableSelect
                             options={[
-                              { value: 'basic', label: 'Basico' },
+                              { value: 'basic', label: 'Básico' },
                               { value: 'premium', label: 'Premium' },
                               { value: 'preferred', label: 'Preferente' },
                             ]}
-                            value={formData.kitType}
-                            onChange={(val) => setFormData(prev => ({ ...prev, kitType: val }))}
+                            value={formData.kitPosition}
+                            onChange={(val) => setFormData(prev => ({ ...prev, kitPosition: val }))}
                             showAllOption={true}
-                            allLabel="Seleccionar tipo de kit"
+                            allLabel="Seleccionar posición"
                             className="w-full"
                           />
                         </div>
