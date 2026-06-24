@@ -215,6 +215,15 @@ function CleanupBlockCard({ block }: { block: CleanupBlockStatus }) {
                 {remaining > 0 ? ` +${remaining} más` : ''}
               </p>
             )}
+            {!block.canRun &&
+              !block.isEmpty &&
+              block.blockedBy &&
+              block.blockedBy.length > 0 && (
+                <p className="mt-1 text-xs font-medium text-amber-600">
+                  Inactivo: primero vacía estas tablas que referencian customers
+                  — {block.blockedBy.join(', ')}.
+                </p>
+              )}
           </div>
         </div>
         <div className="shrink-0 sm:pl-4">

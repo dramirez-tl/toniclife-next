@@ -12,13 +12,18 @@ export interface CleanupBlockStatus {
   key: string;
   label: string;
   description: string;
-  special?: 'users' | 'reset';
+  special?: 'users' | 'customers' | 'branches' | 'states' | 'reset';
   /** false = re-ejecutable, no participa en la validación secuencial */
   gating: boolean;
   tables: MaintenanceTableStat[];
   totalRows: number;
   isEmpty: boolean;
   canRun: boolean;
+  /**
+   * Solo bloque "Clientes": tablas que aún referencian customers (FK) y por eso
+   * mantienen el botón inactivo. Vacío/undefined = se puede correr.
+   */
+  blockedBy?: string[];
 }
 
 export interface LoadPhaseStatus {
