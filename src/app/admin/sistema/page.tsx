@@ -382,7 +382,7 @@ function LoadPhaseCard({ phase }: { phase: LoadPhaseStatus }) {
               disabled={importCsv.isPending}
               onClick={() => fileInputRef.current?.click()}
             >
-              {importCsv.isPending ? 'Cargando…' : 'Subir archivo'}
+              {importCsv.isPending ? 'Procesando…' : 'Subir archivo'}
             </Button>
           </div>
         )}
