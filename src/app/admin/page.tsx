@@ -128,7 +128,7 @@ export default function AdminDashboard() {
 
   const stats = [
     {
-      title: 'Usuarios Totales',
+      title: 'Colaboradores',
       value: kpis?.totalUsers ?? 0,
       change: kpis?.usersGrowth ?? 0,
       icon: UserGroupIcon,
