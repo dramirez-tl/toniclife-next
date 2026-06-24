@@ -4,7 +4,8 @@
 // Tab Limpieza: vacía la BD por bloques en orden FK-seguro (1→10).
 // Tab Carga masiva: pobla por fases vía CSV con plantillas descargables.
 
-import { Suspense, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   ExclamationTriangleIcon,
   WrenchScrewdriverIcon,
@@ -25,9 +26,11 @@ import {
 } from '@/components/ui/dialog';
 import { PermissionGuard } from '@/components/auth';
 import {
-  useImportCsv,
+  maintenanceKeys,
+  useLoadJobs,
   useMaintenanceOverview,
   useRunCleanupBlock,
+  useStartImport,
 } from '@/hooks/useMaintenance';
 import { maintenanceService } from '@/services/maintenance.service';
 import type { CleanupBlockStatus, LoadPhaseStatus } from '@/types/maintenance';
@@ -299,21 +302,55 @@ function CleanupBlockCard({ block }: { block: CleanupBlockStatus }) {
 
 function LoadPhaseCard({ phase }: { phase: LoadPhaseStatus }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const importCsv = useImportCsv();
+  const startImport = useStartImport();
+  const { data: jobs } = useLoadJobs();
+  const queryClient = useQueryClient();
   const ready = phase.status === 'ready';
 
-  const handleFile = async (file: File | undefined) => {
-    if (!file) return;
-    try {
-      const result = await importCsv.mutateAsync({ key: phase.key, file });
-      const extra = result.extra
+  // Job vivo de ESTA fase (jobs viene del más reciente al más viejo). La carga
+  // corre en el backend: al recargar/navegar, esto la reencuentra y reconecta.
+  const job = jobs?.find((j) => j.key === phase.key);
+  const running = job?.status === 'running';
+  const busy = running || startImport.isPending;
+  const prog = job?.progress;
+
+  // Aviso de fin (éxito/error) UNA sola vez, solo en transiciones observadas en
+  // vivo (no al montar viendo un job que ya había terminado antes).
+  const prevStatus = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const prev = prevStatus.current;
+    const cur = job?.status;
+    if (prev === 'running' && cur === 'done' && job?.result) {
+      const r = job.result;
+      const extra = r.extra
         ? ' — ' +
-          Object.entries(result.extra)
+          Object.entries(r.extra)
             .map(([k, v]) => `${k}: ${nf.format(v)}`)
             .join(', ')
         : '';
       toast.success(
-        `${phase.label}: ${nf.format(result.inserted)} insertadas, ${nf.format(result.skipped)} saltadas (duplicadas)${extra}`,
+        `${phase.label}: ${nf.format(r.inserted)} insertadas, ${nf.format(r.skipped)} saltadas (duplicadas)${extra}`,
+      );
+      queryClient.invalidateQueries({ queryKey: maintenanceKeys.all });
+    } else if (prev === 'running' && cur === 'error') {
+      const errs = job?.error?.errors;
+      const detail = errs?.length
+        ? ` — ${errs.slice(0, 3).join(' · ')}${errs.length > 3 ? ` (+${errs.length - 3} más)` : ''}`
+        : '';
+      toast.error(`${job?.error?.message ?? 'Error en la carga'}${detail}`, {
+        duration: 10000,
+      });
+      queryClient.invalidateQueries({ queryKey: maintenanceKeys.all });
+    }
+    prevStatus.current = cur;
+  }, [job?.status, job?.result, job?.error, phase.label, queryClient]);
+
+  const handleFile = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      await startImport.mutateAsync({ key: phase.key, file });
+      toast.info(
+        `${phase.label}: carga iniciada en segundo plano. Puedes seguir navegando; el avance se actualiza solo.`,
       );
     } catch (error: unknown) {
       const data = (
@@ -325,7 +362,7 @@ function LoadPhaseCard({ phase }: { phase: LoadPhaseStatus }) {
         ? `${data.errors.slice(0, 3).join(' · ')}${data.errors.length > 3 ? ` (+${data.errors.length - 3} más)` : ''}`
         : '';
       toast.error(
-        `${data?.message ?? 'Error en la carga'}${detail ? ` — ${detail}` : ''}`,
+        `${data?.message ?? 'No se pudo iniciar la carga'}${detail ? ` — ${detail}` : ''}`,
         { duration: 10000 },
       );
     } finally {
@@ -364,6 +401,28 @@ function LoadPhaseCard({ phase }: { phase: LoadPhaseStatus }) {
                 .map((t) => `${t.name} (${rowsLabel(t.rows, t.isEmpty)})`)
                 .join(', ')}
             </p>
+            {running && prog && (
+              <div className="mt-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{prog.stage}</span>
+                  <span>
+                    {nf.format(prog.processed)} / {nf.format(prog.total)} (
+                    {prog.percent}%)
+                  </span>
+                </div>
+                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all"
+                    style={{ width: `${prog.percent}%` }}
+                  />
+                </div>
+              </div>
+            )}
+            {running && !prog && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Procesando en segundo plano…
+              </p>
+            )}
           </div>
         </div>
         {ready && (
@@ -388,10 +447,10 @@ function LoadPhaseCard({ phase }: { phase: LoadPhaseStatus }) {
             />
             <Button
               size="sm"
-              disabled={importCsv.isPending}
+              disabled={busy}
               onClick={() => fileInputRef.current?.click()}
             >
-              {importCsv.isPending ? 'Procesando…' : 'Subir archivo'}
+              {busy ? 'Procesando…' : 'Subir archivo'}
             </Button>
           </div>
         )}

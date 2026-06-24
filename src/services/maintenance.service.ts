@@ -5,6 +5,7 @@ import api from '@/lib/axios';
 import type {
   CleanupResult,
   ImportResult,
+  LoadProgress,
   MaintenanceOverview,
 } from '@/types/maintenance';
 
@@ -16,6 +17,7 @@ export interface LoadJob {
   finishedAt?: string;
   result?: ImportResult;
   error?: { message: string; errors?: string[] };
+  progress?: LoadProgress;
 }
 
 class MaintenanceService {
@@ -32,49 +34,30 @@ class MaintenanceService {
   }
 
   /**
-   * Carga masiva en SEGUNDO PLANO: arranca el job en el backend (respuesta
-   * inmediata con jobId) y consulta el estado por polling hasta terminar.
-   * Soporta archivos grandes/lentos sin topar timeouts del request.
-   * Devuelve el ImportResult al terminar, o lanza un error con el mismo shape
-   * que axios ({ response: { data: { message, errors } } }) si falla.
+   * Arranca la carga masiva en SEGUNDO PLANO y responde de inmediato con el
+   * jobId. La carga corre detached en el backend: NO se cancela si el usuario
+   * navega o recarga. El progreso se sigue con getLoadJobs() (polling), de modo
+   * que la UI puede reconectarse al volver. Lanza con el shape de axios si el
+   * POST falla de entrada (fase inválida, archivo faltante/grande).
    */
-  async importCsv(key: string, file: File): Promise<ImportResult> {
+  async startImport(key: string, file: File): Promise<{ jobId: string }> {
     const formData = new FormData();
     formData.append('file', file);
-    const start = await api.post<{ jobId: string; status: string }>(
+    const { data } = await api.post<{ jobId: string; status: string }>(
       `/maintenance/load/${key}`,
       formData,
       { headers: { 'Content-Type': 'multipart/form-data' } },
     );
-    const jobId = start.data.jobId;
+    return { jobId: data.jobId };
+  }
 
-    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-    const maxTries = 600; // ~25 min a 2.5s
-    for (let i = 0; i < maxTries; i++) {
-      await sleep(2500);
-      const { data: job } = await api.get<LoadJob>(
-        `/maintenance/load-job/${jobId}`,
-      );
-      if (job.status === 'done' && job.result) return job.result;
-      if (job.status === 'error') {
-        throw {
-          response: {
-            data: {
-              message: job.error?.message ?? 'Error en la carga',
-              errors: job.error?.errors,
-            },
-          },
-        };
-      }
-    }
-    throw {
-      response: {
-        data: {
-          message:
-            'La carga sigue procesando en el servidor. Revisa los conteos en unos minutos.',
-        },
-      },
-    };
+  /**
+   * Lista los jobs de carga vivos (running + terminados dentro del TTL). La UI
+   * lo consulta por polling para mostrar/reconectar el progreso de la fase.
+   */
+  async getLoadJobs(): Promise<LoadJob[]> {
+    const { data } = await api.get<LoadJob[]>('/maintenance/load-jobs');
+    return data;
   }
 
   async downloadTemplate(key: string): Promise<void> {

@@ -26,6 +26,14 @@ export interface CleanupBlockStatus {
   blockedBy?: string[];
 }
 
+export interface LoadProgress {
+  /** Etapa actual del importador (ej. "Insertando clientes"). */
+  stage: string;
+  processed: number;
+  total: number;
+  percent: number;
+}
+
 export interface LoadPhaseStatus {
   phase: string;
   key: string;

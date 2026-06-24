@@ -9,6 +9,7 @@ import { maintenanceService } from '@/services/maintenance.service';
 export const maintenanceKeys = {
   all: ['maintenance'] as const,
   overview: () => [...maintenanceKeys.all, 'overview'] as const,
+  loadJobs: () => [...maintenanceKeys.all, 'load-jobs'] as const,
 };
 
 export const useMaintenanceOverview = () =>
@@ -31,13 +32,32 @@ export const useRunCleanupBlock = () => {
   });
 };
 
-export const useImportCsv = () => {
+/**
+ * Lista los jobs de carga vivos. Hace polling cada 2.5s SOLO mientras haya un
+ * job corriendo (si no, no consulta). Es la fuente de verdad del progreso: al
+ * recargar/navegar la UI se reconecta a la carga que sigue en el backend.
+ */
+export const useLoadJobs = () =>
+  useQuery({
+    queryKey: maintenanceKeys.loadJobs(),
+    queryFn: () => maintenanceService.getLoadJobs(),
+    refetchInterval: (query) =>
+      query.state.data?.some((j) => j.status === 'running') ? 2500 : false,
+    staleTime: 0,
+    gcTime: 10 * 1000,
+  });
+
+/**
+ * Arranca una carga en segundo plano. Solo dispara el POST; el progreso lo sigue
+ * useLoadJobs. Al arrancar invalida la lista de jobs para que el polling empiece.
+ */
+export const useStartImport = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ key, file }: { key: string; file: File }) =>
-      maintenanceService.importCsv(key, file),
+      maintenanceService.startImport(key, file),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: maintenanceKeys.all });
+      queryClient.invalidateQueries({ queryKey: maintenanceKeys.loadJobs() });
     },
   });
 };
