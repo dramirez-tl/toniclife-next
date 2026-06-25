@@ -642,7 +642,50 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 function TreeListView() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [isExporting, setIsExporting] = useState(false);
+  const [exportJobId, setExportJobId] = useState<string | null>(null);
+  const [exportPct, setExportPct] = useState(0);
+
+  // Reconectar a un job de exportación en curso tras recargar/navegar.
+  useEffect(() => {
+    const saved = localStorage.getItem('tl_red_export_job');
+    if (saved) setExportJobId(saved);
+  }, []);
+
+  // Polling del job de exportación: avanza %, auto-descarga al terminar, limpia
+  // al fallar/expirar. Sobrevive recargas porque el trabajo corre en el servidor.
+  useEffect(() => {
+    if (!exportJobId) return;
+    let active = true;
+    const finish = (msg: string, isError = false) => {
+      if (!active) return;
+      localStorage.removeItem('tl_red_export_job');
+      setExportJobId(null);
+      setExportPct(0);
+      if (isError) toast.error(msg);
+      else toast.success(msg);
+    };
+    const poll = async () => {
+      try {
+        const st = await networkApi.getNetworkExportJob(exportJobId);
+        if (!active) return;
+        setExportPct(st.percent);
+        if (st.status === 'done') {
+          await networkApi.downloadNetworkExportFile(exportJobId, st.filename);
+          finish(`Archivo descargado (${st.total.toLocaleString()} registros)`);
+        } else if (st.status === 'error') {
+          finish(st.error || 'No se pudo generar el archivo', true);
+        }
+      } catch {
+        finish('La exportación expiró o no se encontró; vuelve a generarla', true);
+      }
+    };
+    void poll();
+    const t = window.setInterval(() => void poll(), 1800);
+    return () => {
+      active = false;
+      window.clearInterval(t);
+    };
+  }, [exportJobId]);
   const { get, getNumber, setParams } = useQueryFilters({ page: '1', limit: '20' });
   const levelFilterStr = get('level');
   const levelFilter = levelFilterStr ? parseInt(levelFilterStr) : undefined;
@@ -711,37 +754,21 @@ function TreeListView() {
     });
   };
 
-  // Descarga la red COMPLETA (sin filtros), paginando hasta traer todos los registros.
+  // Arranca la exportación de la red COMPLETA en SEGUNDO PLANO (el servidor genera
+  // el CSV). Se persiste el jobId en localStorage para reconectar tras una recarga;
+  // el polling muestra el % y auto-descarga al terminar.
   const handleExport = async () => {
-    setIsExporting(true);
+    if (exportJobId) return;
     try {
-      const fetchSize = 100; // el backend limita `limit` a 100 (@Max(100))
-      const rows: DownlineItem[] = [];
-      let total = 0;
-      let p = 1;
-      do {
-        const res = await networkApi.getDownlines({
-          page: p,
-          limit: fetchSize,
-          sortBy: 'level',
-          sortOrder: 'asc',
-        });
-        total = res.total;
-        if (!res.data.length) break;
-        rows.push(...res.data);
-        p += 1;
-      } while (rows.length < total && p <= 2000);
-
-      if (!rows.length) {
-        toast('No tienes distribuidores en tu red para exportar');
-        return;
-      }
-      downloadDownlinesCsv(rows);
-      toast.success(`Se descargaron ${rows.length} distribuidores`);
+      const { jobId } = await networkApi.startNetworkExport();
+      localStorage.setItem('tl_red_export_job', jobId);
+      setExportPct(0);
+      setExportJobId(jobId);
+      toast.info(
+        'Generando el archivo en segundo plano… puedes seguir navegando; se descargará al terminar.',
+      );
     } catch {
-      toast.error('No se pudo generar el archivo');
-    } finally {
-      setIsExporting(false);
+      toast.error('No se pudo iniciar la exportación');
     }
   };
 
@@ -869,11 +896,19 @@ function TreeListView() {
             <Button
               variant="default"
               onClick={handleExport}
-              disabled={isExporting}
+              disabled={!!exportJobId}
             >
-              {isExporting && <Loader2 className="mr-2 size-4 animate-spin" />}
-              <ArrowDownTrayIcon className="h-4 w-4" />
-              Descargar Excel
+              {exportJobId ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Generando… {exportPct}%
+                </>
+              ) : (
+                <>
+                  <ArrowDownTrayIcon className="h-4 w-4" />
+                  Descargar Excel
+                </>
+              )}
             </Button>
           </div>
         </CardContent>

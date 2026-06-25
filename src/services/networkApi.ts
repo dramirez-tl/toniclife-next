@@ -14,6 +14,17 @@ import type {
   DirectLinesVolumeResponse,
 } from '@/types/network';
 
+/** Estado de un job de exportación de la red (en segundo plano). */
+export interface NetworkExportJob {
+  jobId: string;
+  status: 'running' | 'done' | 'error';
+  percent: number;
+  processed: number;
+  total: number;
+  filename: string;
+  error?: string;
+}
+
 // Mapeo de codigos de rango del backend a tipos del frontend
 const rankCodeToType: Record<string, RankType> = {
   'DIST': 'distribuidor',
@@ -244,6 +255,41 @@ class NetworkApi {
 
     const { data } = await api.get<DownlineListResponse>(`/distributor/network/downlines`, { params });
     return data;
+  }
+
+  /**
+   * Inicia la exportación de la red COMPLETA en SEGUNDO PLANO (el servidor genera
+   * el CSV). Devuelve el jobId para seguir el avance. Backend: POST /distributor/network/export
+   */
+  async startNetworkExport(): Promise<{ jobId: string }> {
+    const { data } = await api.post<{ jobId: string }>(`/distributor/network/export`);
+    return data;
+  }
+
+  /** Estado/progreso del job de exportación. Backend: GET /distributor/network/export-job/:jobId */
+  async getNetworkExportJob(jobId: string): Promise<NetworkExportJob> {
+    const { data } = await api.get<NetworkExportJob>(
+      `/distributor/network/export-job/${jobId}`,
+    );
+    return data;
+  }
+
+  /** Descarga el CSV ya generado del job y dispara el save-as en el navegador. */
+  async downloadNetworkExportFile(jobId: string, filename: string): Promise<void> {
+    const res = await api.get(`/distributor/network/export-job/${jobId}/file`, {
+      responseType: 'blob',
+    });
+    const blob = new Blob([res.data as BlobPart], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || 'descendencia-red.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   }
 
   /**
