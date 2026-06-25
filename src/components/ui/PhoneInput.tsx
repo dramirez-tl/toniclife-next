@@ -90,7 +90,7 @@ export function PhoneInput({
           onChange={(e) => handleNumber(e.target.value)}
           disabled={disabled}
           placeholder={'0'.repeat(country.digits)}
-          className={`${inputBase} ${borderClass} flex-1`}
+          className={`${inputBase} ${borderClass} min-w-0 flex-1`}
           aria-invalid={invalid}
         />
       </div>
