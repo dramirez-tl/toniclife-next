@@ -121,7 +121,9 @@ function ProductCard({ product }: { product: Product }) {
             {product.name}
           </h3>
           {product.code && (
-            <p className="mt-0.5 text-xs text-gray-400">Cód. {product.code}</p>
+            <Badge variant="outline" className="mt-1 w-fit font-mono text-[11px] text-gray-500">
+              {product.code}
+            </Badge>
           )}
 
           {/* Rating */}
@@ -231,7 +233,9 @@ function ProductListItem({ product }: { product: Product }) {
                   {product.name}
                 </h3>
                 {product.code && (
-                  <p className="mt-0.5 text-xs text-gray-400">Cód. {product.code}</p>
+                  <Badge variant="outline" className="mt-1 w-fit font-mono text-[11px] text-gray-500">
+                    {product.code}
+                  </Badge>
                 )}
 
                 {/* Description */}
