@@ -8,6 +8,7 @@ import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import { selectUser } from '@/store/slices/authSlice';
 import { useNetworkDownlines, useNetworkDirectLines } from '@/hooks/useNetwork';
@@ -188,10 +189,19 @@ function RedContent() {
           </CardContent>
         </Card>
 
-        {/* Volumen por línea directa (entender rollover / detectar líneas débiles) */}
-        <DirectLinesVolumeSection />
-
-        <TreeListView />
+        {/* Pestañas: Descendencia de Red (lista) y Volumen por línea directa */}
+        <Tabs defaultValue="descendencia" className="mb-2">
+          <TabsList>
+            <TabsTrigger value="descendencia">Descendencia de Red</TabsTrigger>
+            <TabsTrigger value="volumen">Volumen por línea directa</TabsTrigger>
+          </TabsList>
+          <TabsContent value="descendencia" className="mt-4">
+            <TreeListView />
+          </TabsContent>
+          <TabsContent value="volumen" className="mt-4">
+            <DirectLinesVolumeSection />
+          </TabsContent>
+        </Tabs>
 
         {/* Clientes preferentes */}
         <PreferredCustomersSection onAdd={() => setIsPreferredOpen(true)} />
