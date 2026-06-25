@@ -17,7 +17,6 @@ import {
   ArrowRightIcon,
   AdjustmentsHorizontalIcon,
 } from '@heroicons/react/24/outline';
-import { CheckCircleIcon as CheckCircleSolidIcon } from '@heroicons/react/24/solid';
 
 interface SummaryCardsProps {
   summary: CommissionSummary | null;
@@ -119,11 +118,16 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                           </p>
                         </div>
                       ) : (
-                        <div className="flex items-baseline gap-2">
-                          <p className="text-4xl lg:text-5xl font-bold tracking-tight">
-                            {formatCurrency(summary.totalNetMxn)}
+                        <div>
+                          <div className="flex items-baseline gap-2">
+                            <p className="text-4xl lg:text-5xl font-bold tracking-tight">
+                              {formatCurrency(summary.totalNetMxn)}
+                            </p>
+                            <span className="text-white/60 text-sm">{currencyCode}</span>
+                          </div>
+                          <p className="text-white/75 text-xs mt-1">
+                            Esto es lo que se te deposita (neto, ya con IVA y retenciones aplicadas)
                           </p>
-                          <span className="text-white/60 text-sm">{currencyCode}</span>
                         </div>
                       )}
                     </div>
@@ -132,7 +136,7 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                   {/* Summary info */}
                   <div className="mt-6">
                     <div className="flex items-center justify-between text-sm mb-2">
-                      <span className="text-white/70">Subtotal bruto</span>
+                      <span className="text-white/70">Comisión bruta (antes de impuestos)</span>
                       <span className="text-white font-medium">
                         {formatCurrency(summary.totalSubtotalMxn)}<Badge light />
                       </span>
@@ -169,6 +173,12 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                         </span>
                       </div>
                     )}
+                    <div className="flex items-center justify-between border-t border-white/20 pt-2.5 mt-2.5">
+                      <span className="text-sm font-semibold text-white">Neto a depositar</span>
+                      <span className="text-lg font-bold text-white">
+                        {formatCurrency(summary.totalNetMxn)}<Badge light />
+                      </span>
+                    </div>
                     <div className="flex items-center justify-between text-xs text-white/60 mt-2">
                       <span>{summary.transactionCount} transacciones</span>
                     </div>
@@ -179,10 +189,11 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                 <div className="flex flex-row lg:flex-col gap-4 lg:gap-3">
                   <div className="flex-1 lg:flex-none bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
                     <div className="flex items-center gap-3">
-                      <CheckCircleSolidIcon className="h-8 w-8 text-white" />
+                      <BanknotesIcon className="h-8 w-8 text-white" />
                       <div>
-                        <p className="text-white/70 text-xs uppercase tracking-wide">Total Neto</p>
-                        <p className="text-xl font-bold">{formatCurrency(summary.totalNetMxn)}<Badge light /></p>
+                        <p className="text-white/70 text-xs uppercase tracking-wide">Comisión bruta</p>
+                        <p className="text-xl font-bold">{formatCurrency(summary.totalSubtotalMxn)}<Badge light /></p>
+                        <p className="text-white/50 text-[10px]">antes de IVA y retenciones</p>
                       </div>
                     </div>
                   </div>
