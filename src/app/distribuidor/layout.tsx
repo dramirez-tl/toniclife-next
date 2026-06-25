@@ -8,6 +8,7 @@ import { DistributorTopNav } from '@/components/distributor/DistributorTopNav';
 import { DistributorMoreMenu } from '@/components/distributor/DistributorMoreMenu';
 import { ComingSoon } from '@/components/distributor/ComingSoon';
 import { DistributorTour } from '@/components/distributor/DistributorTour';
+import { OnboardingGate } from '@/components/distributor/OnboardingGate';
 
 // Secciones que aún viven sobre datos de demostración (no conectadas al API).
 // Se muestran como "próximamente" para no presentar números ficticios como
@@ -83,7 +84,9 @@ export default function DistributorLayout({
         {/* Main content */}
         <div className="lg:pl-64">
           <main className="p-4 lg:p-6">
-            {comingSoonTitle ? <ComingSoon title={comingSoonTitle} /> : children}
+            <OnboardingGate>
+              {comingSoonTitle ? <ComingSoon title={comingSoonTitle} /> : children}
+            </OnboardingGate>
           </main>
         </div>
       </div>

@@ -118,6 +118,57 @@ export interface MyOrdersResponse {
   totalPages: number;
 }
 
+// ===== Inscripción (auto-pago del kit) =====
+
+export interface EnrollmentKit {
+  productId: string;
+  name: string;
+  code: string | null;
+  kitPosition: string | null;
+  imageUrl: string | null;
+  price: number;
+  points: number;
+  businessValue: number;
+  currencyCode: string;
+}
+
+export interface PickupBranch {
+  id: string;
+  code: string | null;
+  name: string;
+  street: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+}
+
+export interface KitShippingAddress {
+  street: string;
+  extNumber?: string;
+  intNumber?: string;
+  neighborhood?: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  phone?: string;
+  reference?: string;
+}
+
+export interface PaySelfKitRequest {
+  kitProductId: string;
+  deliveryMode: 'pickup' | 'shipping';
+  pickupBranchId?: string;
+  shippingAddress?: KitShippingAddress;
+}
+
+export interface PaySelfKitResult {
+  orderId: string;
+  orderNumber: string;
+  total: string;
+  paymentUrl: string | null;
+  shippingAmount: number;
+}
+
 // ===== API SERVICE =====
 
 class DistributorApi {
@@ -287,6 +338,31 @@ class DistributorApi {
    */
   async getMyOrders(params?: { page?: number; limit?: number }): Promise<MyOrdersResponse> {
     const { data } = await api.get<MyOrdersResponse>('/distributor/orders', { params });
+    return data;
+  }
+
+  // ===== Inscripción (auto-pago del kit) =====
+
+  /** Kits de inscripción disponibles con el precio efectivo del miembro. */
+  async getEnrollmentKits(): Promise<EnrollmentKit[]> {
+    const { data } = await api.get<EnrollmentKit[]>('/distributor/enrollment/kits');
+    return data;
+  }
+
+  /** Sucursales para recoger el kit. */
+  async getPickupBranches(): Promise<PickupBranch[]> {
+    const { data } = await api.get<PickupBranch[]>(
+      '/distributor/enrollment/pickup-branches',
+    );
+    return data;
+  }
+
+  /** Inicia el pago del kit (recoger/envío) y devuelve la URL de Stripe. */
+  async paySelfKit(dto: PaySelfKitRequest): Promise<PaySelfKitResult> {
+    const { data } = await api.post<PaySelfKitResult>(
+      '/distributor/enrollment/pay-kit',
+      dto,
+    );
     return data;
   }
 }
