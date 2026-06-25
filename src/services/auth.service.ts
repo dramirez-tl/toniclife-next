@@ -83,6 +83,12 @@ export interface AcceptInvitationData {
   newPassword: string;
 }
 
+/** Respuesta de accept-invitation: incluye el email para el auto-login. */
+export interface AcceptInvitationResult {
+  message: string;
+  email: string;
+}
+
 export type InvitationStatus =
   | 'valid'
   | 'accepted'
@@ -313,8 +319,13 @@ class AuthService {
   }
 
   /** Definir contraseña desde una invitación (colaborador/distribuidor). */
-  async acceptInvitation(data: AcceptInvitationData): Promise<MessageResponse> {
-    const response = await api.post<MessageResponse>('/auth/accept-invitation', data);
+  async acceptInvitation(
+    data: AcceptInvitationData,
+  ): Promise<AcceptInvitationResult> {
+    const response = await api.post<AcceptInvitationResult>(
+      '/auth/accept-invitation',
+      data,
+    );
     return response.data;
   }
 

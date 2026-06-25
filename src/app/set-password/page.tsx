@@ -17,7 +17,28 @@ import {
   CheckCircleIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
-import { authService, type InvitationStatus } from '@/services/auth.service';
+import {
+  authService,
+  isEmailLinkRequired,
+  type InvitationStatus,
+} from '@/services/auth.service';
+
+// Códigos de rol de distribuidor (mismos que el middleware): determinan a qué
+// panel mandar tras el auto-login. Todo lo demás (colaboradores) va a /admin.
+const DISTRIBUTOR_ROLE_CODES = [
+  'distribuidor',
+  'distributor',
+  'customer',
+  'cliente',
+  'dashboard',
+  'cliente-dashboard',
+];
+function homeForRole(roleCode?: string): string {
+  if (!roleCode) return '/distribuidor';
+  const isDistributor =
+    DISTRIBUTOR_ROLE_CODES.includes(roleCode) || /^role\d+$/.test(roleCode);
+  return isDistributor ? '/distribuidor' : '/admin';
+}
 
 // Reglas de contraseña (mismas que reset-password / backend)
 const passwordRules = [
@@ -159,13 +180,44 @@ function SetPasswordForm() {
 
     setIsLoading(true);
     try {
-      await authService.acceptInvitation({
+      // 1) Definir contraseña (activa la cuenta) y obtener el email del miembro.
+      const { email } = await authService.acceptInvitation({
         token,
         newPassword: formData.newPassword,
       });
-      toast.success('¡Cuenta activada! Inicia sesión con tu nueva contraseña.');
-      setStatus('accepted');
-      router.push('/login');
+
+      // 2) Auto-login: iniciamos sesión con la contraseña recién creada usando el
+      //    flujo estándar (tokens + cookies de routing), sin exponer PII en el GET
+      //    de invitation-status ni emitir tokens en el servicio de invitación.
+      try {
+        const loginResult = await authService.login({
+          identifier: email,
+          password: formData.newPassword,
+          remember: false,
+        });
+
+        if (isEmailLinkRequired(loginResult)) {
+          // Caso borde: la cuenta exige vincular correo. Mandamos al login.
+          toast.success('¡Cuenta activada! Inicia sesión para continuar.');
+          setStatus('accepted');
+          router.push('/login');
+          return;
+        }
+
+        // Recarga completa: re-ejecuta el middleware (rutas por rol) y re-hidrata
+        // el estado de auth desde storage. El gating del panel decide si el
+        // distribuidor debe ir a inscripción (comprar kit) o al panel.
+        toast.success('¡Cuenta activada! Bienvenid@ a Tonic Life.');
+        window.location.href = homeForRole(loginResult.user?.roles?.[0]);
+        return;
+      } catch {
+        // El auto-login falló (red/credenciales): la cuenta SÍ quedó activa,
+        // así que mandamos al login para que entre manualmente.
+        toast.success('¡Cuenta activada! Inicia sesión con tu nueva contraseña.');
+        setStatus('accepted');
+        router.push('/login');
+        return;
+      }
     } catch (error: any) {
       toast.error(
         error?.response?.data?.message || 'Invitación inválida o expirada',
