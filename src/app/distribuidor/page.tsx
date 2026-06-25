@@ -668,9 +668,9 @@ export default function DistribuidorDashboard() {
               <GiftIcon className="h-6 w-6" />
             </div>
             <div className="min-w-0">
-              <h3 className="text-lg font-bold leading-tight">Comparte y gana puntos</h3>
+              <h3 className="text-lg font-bold leading-tight">Comparte y gana comisión</h3>
               <p className="text-sm text-white/80">
-                Cada compra con tu enlace te suma puntos.
+                Ganas la diferencia entre el precio público y tu precio de distribuidor. Estas ventas no suman puntos.
               </p>
             </div>
           </div>
