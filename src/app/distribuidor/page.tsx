@@ -6,7 +6,7 @@ import {
   ChartBarIcon,
   UsersIcon,
   CurrencyDollarIcon,
-  TrophyIcon,
+  // TrophyIcon, // solo lo usaba activityIcons (tarjeta "Lo que ha pasado", oculta temporalmente)
   ArrowDownTrayIcon,
   ShareIcon,
   GiftIcon,
@@ -43,7 +43,11 @@ import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
 import { toast } from 'sonner';
 
-// Mapa de íconos para tipos de actividad
+// Mapas de íconos/colores de la actividad reciente. OCULTOS TEMPORALMENTE junto
+// con la tarjeta "Lo que ha pasado" (mostraba montos de comisión). Restaurar
+// descomentando esto, la entrada `recentActivity` del destructuring, el import
+// de TrophyIcon y la tarjeta más abajo.
+/*
 const activityIcons: Record<string, typeof ChartBarIcon> = {
   sale: ChartBarIcon,
   recruit: UsersIcon,
@@ -52,7 +56,6 @@ const activityIcons: Record<string, typeof ChartBarIcon> = {
   rank_change: TrophyIcon,
 };
 
-// Colores para tipos de actividad
 const activityColors: Record<string, string> = {
   sale: 'bg-[#C8DDF2]/10 text-[#3E667D]',
   recruit: 'bg-blue-50 text-blue-600',
@@ -60,6 +63,7 @@ const activityColors: Record<string, string> = {
   qualification: 'bg-yellow-50 text-yellow-600',
   rank_change: 'bg-amber-50 text-amber-600',
 };
+*/
 
 export default function DistribuidorDashboard() {
   const user = useAppSelector(selectUser);
@@ -107,7 +111,7 @@ export default function DistribuidorDashboard() {
     rankProgress,
     networkSummary,
     commissionsSummary,
-    recentActivity,
+    // recentActivity, // oculto temporalmente (tarjeta "Lo que ha pasado")
     isLoading,
     isRefreshing,
     isError,
@@ -752,7 +756,11 @@ export default function DistribuidorDashboard() {
         </CardContent>
       </Card>
 
-      {/* ══════════════ Actividad reciente ══════════════ */}
+      {/* "Lo que ha pasado" (actividad reciente) OCULTA TEMPORALMENTE: mostraba
+          montos de comisión acreditada. Restaurar quitando este envoltorio de
+          comentario y descomentando activityIcons/activityColors, recentActivity
+          y el import de TrophyIcon. */}
+      {/*
       <Card>
         <CardHeader>
           <CardTitle>Lo que ha pasado</CardTitle>
@@ -820,6 +828,7 @@ export default function DistribuidorDashboard() {
           )}
         </CardContent>
       </Card>
+      */}
     </div>
   );
 }
