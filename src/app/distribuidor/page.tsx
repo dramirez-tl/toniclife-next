@@ -338,7 +338,7 @@ export default function DistribuidorDashboard() {
     <div className="max-w-3xl mx-auto space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold text-gray-900">Tu resumen del mes</h1>
+        <h1 className="text-lg font-bold text-gray-900">Tu resumen del periodo</h1>
         <Button
           variant="ghost"
           size="icon"
@@ -385,7 +385,7 @@ export default function DistribuidorDashboard() {
               {points?.isPersonalQualified ? (
                 <span className="inline-flex items-center gap-1 mt-1 text-xs font-medium text-emerald-100 bg-emerald-500/25 px-2 py-0.5 rounded-full">
                   <CheckCircleIcon className="h-3.5 w-3.5" />
-                  Calificado este mes
+                  Calificado este periodo
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 mt-1 text-xs font-medium text-amber-100 bg-amber-400/25 px-2 py-0.5 rounded-full">
@@ -400,12 +400,12 @@ export default function DistribuidorDashboard() {
             {points?.isPersonalQualified ? (
               <p className="text-white/80 text-sm">
                 Ya alcanzaste tus {(points?.personalPointsRequired || 3300).toLocaleString()} puntos
-                este mes. ¡Sigue vendiendo para aumentar tus ganancias!
+                este periodo. ¡Sigue vendiendo para aumentar tus ganancias!
               </p>
             ) : (
               <>
                 <div className="flex justify-between items-baseline mb-2">
-                  <span className="text-sm font-semibold">Tu meta del mes</span>
+                  <span className="text-sm font-semibold">Tu meta del periodo</span>
                   <span className="text-xs text-white/70">
                     {(points?.personalPoints || 0).toLocaleString()} / {(points?.personalPointsRequired || 3300).toLocaleString()} pts
                   </span>
@@ -424,7 +424,7 @@ export default function DistribuidorDashboard() {
                   <span>{points?.daysRemaining ?? '--'} días restantes</span>
                 </div>
                 <p className="mt-3 text-sm font-medium text-white">
-                  Te faltan {personalPointsGap.toLocaleString()} puntos para calificar este mes.
+                  Te faltan {personalPointsGap.toLocaleString()} puntos para calificar este periodo.
                 </p>
               </>
             )}
