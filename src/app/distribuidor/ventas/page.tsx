@@ -161,7 +161,7 @@ export default function VentasPage() {
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold">Rendimiento de Ventas</h1>
               </div>
               <p className="text-white/80 text-sm sm:text-base lg:text-lg">
-                Analiza tu desempeño y el de tu equipo
+                Analiza tu desempeño y el de tu red
               </p>
               {/* Selector de periodo (default: actual) */}
               <div className="mt-4 flex items-center gap-2">
@@ -268,7 +268,7 @@ export default function VentasPage() {
                 {formatCurrency(total)}
                 <span className="text-xs font-semibold bg-white/20 px-1.5 py-0.5 rounded">{currencyCode}</span>
               </p>
-              <p className="text-xs text-white/70 mt-1">Personal + Equipo</p>
+              <p className="text-xs text-white/70 mt-1">Personal + Red</p>
             </CardContent>
           </Card>
 
@@ -290,7 +290,7 @@ export default function VentasPage() {
               <div className="flex items-center justify-between mb-4">
                 <UserGroupIcon className="h-8 w-8 text-purple-500" />
               </div>
-              <p className="text-sm text-gray-600 mb-1">Ventas de Equipo</p>
+              <p className="text-sm text-gray-600 mb-1">Ventas de Red</p>
               <p className="text-3xl font-bold text-gray-900">{formatCurrency(team)}<CurrencyBadge /></p>
               <p className="text-xs text-gray-500 mt-1">
                 {teamPercent}% del total
@@ -381,7 +381,7 @@ export default function VentasPage() {
 
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">Ventas de Equipo</span>
+                      <span className="text-sm font-medium text-gray-700">Ventas de Red</span>
                       <span className="text-sm font-bold text-gray-900">{formatCurrency(team)} <span className="text-[10px] text-gray-400">{currencyCode}</span></span>
                     </div>
                     <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
@@ -399,7 +399,7 @@ export default function VentasPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 bg-purple-500 rounded" />
-                      <span className="text-sm text-gray-600">Equipo ({teamPercent}%)</span>
+                      <span className="text-sm text-gray-600">Red ({teamPercent}%)</span>
                     </div>
                   </div>
                 </div>
@@ -493,7 +493,7 @@ export default function VentasPage() {
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-white">Mi red</p>
-                      <p className="text-[11px] text-white/70">Revisa y haz crecer tu equipo</p>
+                      <p className="text-[11px] text-white/70">Revisa y haz crecer tu red</p>
                     </div>
                     <ArrowTrendingUpIcon className="h-4 w-4 text-white/60 transition-transform group-hover:translate-x-0.5" />
                   </Link>
