@@ -17,6 +17,10 @@
   --font-sans: var(--font-satoshi), system-ui, sans-serif;
   --font-serif: var(--font-ibarra), Georgia, serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  /* Blanco de marca APERLADO: redefine el "white" de Tailwind para que TODOS
+     los utilitarios *-white (bg/text/border/ring/from/to/via, con opacidad)
+     usen este tono en vez del blanco puro. Centraliza "todos los blancos". */
+  --color-white: #F5F7E7;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -57,14 +61,14 @@
 
 :root {
   --radius: 0.5rem;
-  --background: #ffffff;
+  --background: #F5F7E7;
   --foreground: #1f2d36;
-  --card: #ffffff;
+  --card: #F5F7E7;
   --card-foreground: #1f2d36;
-  --popover: #ffffff;
+  --popover: #F5F7E7;
   --popover-foreground: #1f2d36;
   --primary: #3e667d;
-  --primary-foreground: #ffffff;
+  --primary-foreground: #F5F7E7;
   --secondary: #c8ddf2;
   --secondary-foreground: #2f5165;
   --muted: #eef2f6;
@@ -72,7 +76,7 @@
   --accent: #c8ddf2;
   --accent-foreground: #2f5165;
   --destructive: #dc2626;
-  --destructive-foreground: #ffffff;
+  --destructive-foreground: #F5F7E7;
   --border: #e2e8f0;
   --input: #e2e8f0;
   --ring: #a7c1e2;
@@ -81,10 +85,10 @@
   --chart-3: #a7c1e2;
   --chart-4: #abc9ba;
   --chart-5: #c8ddf2;
-  --sidebar: #ffffff;
+  --sidebar: #F5F7E7;
   --sidebar-foreground: #1f2d36;
   --sidebar-primary: #3e667d;
-  --sidebar-primary-foreground: #ffffff;
+  --sidebar-primary-foreground: #F5F7E7;
   --sidebar-accent: #c8ddf2;
   --sidebar-accent-foreground: #2f5165;
   --sidebar-border: #e2e8f0;
@@ -107,7 +111,7 @@
   --accent: #24323b;
   --accent-foreground: #e6eef3;
   --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
+  --destructive-foreground: #F5F7E7;
   --border: #2a3a43;
   --input: #2a3a43;
   --ring: #4d7a8f;
@@ -429,7 +433,7 @@ input[type="range"]::-webkit-slider-runnable-track {
 /* Selection Color */
 ::selection {
   background-color: #C8DDF2;
-  color: white;
+  color: #F5F7E7;
 }
 
 /* ReactFlow - Allow node buttons to overflow */
@@ -473,7 +477,7 @@ input[type="range"]::-webkit-slider-runnable-track {
 
 .driver-popover.tl-tour .driver-popover-next-btn {
   background: linear-gradient(to right, #3e667d, #0a4b94);
-  color: #ffffff;
+  color: #F5F7E7;
   border: none;
   border-radius: 0.5rem;
   padding: 0.4rem 0.9rem;
@@ -505,5 +509,5 @@ input[type="range"]::-webkit-slider-runnable-track {
 
 /* El recuadro resaltado (spotlight) sigue la marca */
 .driver-popover.tl-tour .driver-popover-arrow {
-  border-color: #ffffff;
+  border-color: #F5F7E7;
 }

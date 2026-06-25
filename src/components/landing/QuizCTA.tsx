@@ -42,7 +42,7 @@ export function QuizCTA() {
           <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
             <defs>
               <pattern id="quiz-pattern" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
-                <circle cx="10" cy="10" r="1" fill="white" />
+                <circle cx="10" cy="10" r="1" fill="#F5F7E7" />
               </pattern>
             </defs>
             <rect width="100" height="100" fill="url(#quiz-pattern)" />
