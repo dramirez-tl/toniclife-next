@@ -28,7 +28,6 @@ const navigation: NavItem[] = [
   { name: 'Inicio', href: '/' },
   { name: 'Productos', href: '/productos' },
   { name: 'Evaluación de Salud', href: '/quiz', highlight: true },
-  { name: 'Distribuidores', href: '/#reconocimientos' }
 ];
 
 export function Header() {
