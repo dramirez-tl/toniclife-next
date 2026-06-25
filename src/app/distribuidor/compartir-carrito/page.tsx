@@ -226,6 +226,9 @@ function CompartirCarritoContent() {
           {/* Catálogo */}
           <Card className="lg:col-span-2">
             <CardContent className="p-4 lg:p-6">
+              {/* Encabezado fijo: la búsqueda y las categorías quedan sticky;
+                  solo los productos scrollean debajo. */}
+              <div className="sticky top-0 z-10 -mx-4 -mt-4 rounded-t-xl border-b border-gray-100 bg-white px-4 pt-4 pb-3 lg:-mx-6 lg:-mt-6 lg:px-6 lg:pt-6">
               <h2 className="text-lg font-bold text-gray-900 mb-4">
                 Elige productos
               </h2>
@@ -243,7 +246,7 @@ function CompartirCarritoContent() {
               </div>
 
               {/* Filtros de categoría */}
-              <div className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-1">
+              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
                 <button
                   onClick={() => setSelectedCategory('all')}
                   className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
@@ -268,6 +271,7 @@ function CompartirCarritoContent() {
                   </button>
                 ))}
               </div>
+              </div>{/* /encabezado fijo */}
 
               {/* Grid de productos */}
               {productsLoading ? (
