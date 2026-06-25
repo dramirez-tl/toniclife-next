@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import { selectUser } from '@/store/slices/authSlice';
 import { useNetworkDownlines, useNetworkDirectLines } from '@/hooks/useNetwork';
-import { useCurrentPeriod, useCommissionPeriods } from '@/hooks/useCommissions';
+import { useCurrentPeriod, useCommissionPeriods, periodsUpToCurrent } from '@/hooks/useCommissions';
 import { networkApi } from '@/services/networkApi';
 import {
   useDistributorDashboard,
@@ -324,8 +324,15 @@ function DirectLinesVolumeSection() {
     const bd = String(b?.startDate ?? b?.start_date ?? '');
     return bd.localeCompare(ad);
   });
+  // Solo hasta el periodo actual (oculta los futuros, sin datos).
+  const visiblePeriods = periodsUpToCurrent(sortedPeriods);
+  const currentPeriodId =
+    (visiblePeriods.find((p: any) => p.isCurrent)?.id as string) ?? '';
 
-  const [periodId, setPeriodId] = useState(''); // '' = periodo actual
+  const [periodId, setPeriodId] = useState(''); // se inicializa al periodo actual
+  useEffect(() => {
+    if (currentPeriodId && !periodId) setPeriodId(currentPeriodId);
+  }, [currentPeriodId, periodId]);
   const { data, isLoading, isFetching } = useNetworkDirectLines(
     periodId || undefined,
   );
@@ -356,13 +363,10 @@ function DirectLinesVolumeSection() {
           <div className="flex items-center gap-2 rounded-xl border border-[#3E667D]/10 bg-[#3E667D]/5 px-3 py-2">
             <CalendarDaysIcon className="h-5 w-5 text-[#3E667D]" />
             <SearchableSelect
-              options={[
-                { value: '', label: 'Periodo actual' },
-                ...sortedPeriods.map((p: any) => ({
-                  value: p.id,
-                  label: `${p.name}${p.isCurrent ? ' (Actual)' : ''}`,
-                })),
-              ]}
+              options={visiblePeriods.map((p: any) => ({
+                value: p.id,
+                label: `${p.name}${p.isCurrent ? ' (Actual)' : ''}`,
+              }))}
               value={periodId}
               onChange={setPeriodId}
               showAllOption={false}
