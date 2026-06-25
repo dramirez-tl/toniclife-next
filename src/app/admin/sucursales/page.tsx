@@ -320,8 +320,6 @@ const initialFormState: CreateBranchDto = {
   isPickupPoint: false,
   isPosEnabled: false,
   isEcommerceEnabled: false,
-  shippingFreeThreshold: undefined,
-  shippingCost: undefined,
   ticketName: '',
   ticketHeader: '',
   ticketFooter: '',
@@ -504,8 +502,6 @@ function SucursalesContent() {
       isPickupPoint: branch.isPickupPoint,
       isPosEnabled: branch.isPosEnabled,
       isEcommerceEnabled: branch.isEcommerceEnabled,
-      shippingFreeThreshold: branch.shippingFreeThreshold,
-      shippingCost: branch.shippingCost,
       ticketName: branch.ticketName || '',
       ticketHeader: branch.ticketHeader || '',
       ticketFooter: branch.ticketFooter || '',
@@ -1314,38 +1310,9 @@ function SucursalesContent() {
             />
             <p className="text-xs text-muted-foreground mt-1">Se asigna automaticamente segun el pais</p>
           </FormField>
-          <FormField label="Envio Gratis Desde">
-            <input
-              type="number"
-              value={formData.shippingFreeThreshold ?? ''}
-              onChange={(e) =>
-                handleFormChange(
-                  'shippingFreeThreshold',
-                  e.target.value ? Number(e.target.value) : undefined
-                )
-              }
-              placeholder="Monto minimo para envio gratis"
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-              min={0}
-              step={0.01}
-            />
-          </FormField>
-          <FormField label="Costo de Envio">
-            <input
-              type="number"
-              value={formData.shippingCost ?? ''}
-              onChange={(e) =>
-                handleFormChange(
-                  'shippingCost',
-                  e.target.value ? Number(e.target.value) : undefined
-                )
-              }
-              placeholder="Costo base de envio"
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-              min={0}
-              step={0.01}
-            />
-          </FormField>
+          {/* Costos de envío por sucursal: DEPRECADOS. El envío se configura
+              globalmente en Configuración → Envíos (system_settings). Estos campos
+              se quitaron del formulario porque el checkout nunca los usaba. */}
         </FormSection>
 
         {/* Branch Tax Rules (only when editing) */}

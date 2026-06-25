@@ -25,7 +25,9 @@ export interface Branch {
   addressEmail?: string;
   latitude?: number;
   longitude?: number;
+  /** @deprecated Envío por sucursal sin uso. El costo se configura globalmente en Configuración → Envíos (system_settings). */
   shippingFreeThreshold?: number;
+  /** @deprecated Envío por sucursal sin uso. Ver Configuración → Envíos. */
   shippingCost?: number;
   ticketName?: string;
   ticketAddress?: string;
@@ -138,7 +140,9 @@ export interface CreateBranchDto {
   addressEmail?: string;
   latitude?: number;
   longitude?: number;
+  /** @deprecated Envío por sucursal sin uso. El costo se configura globalmente en Configuración → Envíos (system_settings). */
   shippingFreeThreshold?: number;
+  /** @deprecated Envío por sucursal sin uso. Ver Configuración → Envíos. */
   shippingCost?: number;
   ticketName?: string;
   ticketAddress?: string;
@@ -172,7 +176,9 @@ export interface UpdateBranchDto {
   addressEmail?: string;
   latitude?: number;
   longitude?: number;
+  /** @deprecated Envío por sucursal sin uso. El costo se configura globalmente en Configuración → Envíos (system_settings). */
   shippingFreeThreshold?: number;
+  /** @deprecated Envío por sucursal sin uso. Ver Configuración → Envíos. */
   shippingCost?: number;
   ticketName?: string;
   ticketAddress?: string;
