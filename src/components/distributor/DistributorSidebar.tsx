@@ -155,7 +155,7 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
             {/* Puntos para calificar (mínimo personal del periodo) */}
             <div className="bg-white/5 rounded-lg p-2">
               <p className="text-[10px] text-white/60 uppercase tracking-wide text-center mb-1">
-                {points?.isPersonalQualified ? 'Calificado este mes' : 'Puntos para calificar'}
+                {points?.isPersonalQualified ? 'Calificado este periodo' : 'Puntos para calificar'}
               </p>
               <p className="text-center text-sm font-bold text-white">
                 {(points?.personalPoints || 0).toLocaleString()}{' '}

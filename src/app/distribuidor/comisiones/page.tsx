@@ -518,16 +518,6 @@ function ComisionesContent() {
                           Ver Mi Red
                         </Button>
                       </Link>
-                      <Link href="/distribuidor/metas">
-                        <Button
-                          variant="outline"
-                          size="lg"
-                          className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm"
-                        >
-                          <ChartBarIcon className="h-5 w-5 mr-2" />
-                          Ver Mis Metas
-                        </Button>
-                      </Link>
                     </div>
                   </div>
 
