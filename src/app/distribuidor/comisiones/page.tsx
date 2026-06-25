@@ -16,6 +16,7 @@ import {
   useCustomerCommissions,
   useCurrentPeriod,
   useCommissionPeriods,
+  periodsUpToCurrent,
   useCommissionTrends,
   useCommissionStructure,
   useCommissionLevelBreakdown,
@@ -244,7 +245,7 @@ function ComisionesContent() {
                 <div className="flex items-center gap-3 bg-gradient-to-r from-[#3E667D]/5 to-[#3E667D]/10 rounded-xl px-4 py-2.5 border border-[#3E667D]/10">
                   <CalendarDaysIcon className="h-5 w-5 text-[#3E667D]" />
                   <SearchableSelect
-                    options={sortedPeriods.map((period: any) => ({
+                    options={periodsUpToCurrent(sortedPeriods).map((period: any) => ({
                       value: period.id,
                       label: `${period.name}${period.isCurrent ? ' (Actual)' : ''}`,
                     }))}

@@ -37,7 +37,7 @@ import {
   useShareReferralLink,
 } from '@/hooks/useDistributor';
 import { useMyCourses } from '@/hooks/useCourses';
-import { useCurrentPeriod, useCommissionPeriods } from '@/hooks/useCommissions';
+import { useCurrentPeriod, useCommissionPeriods, periodsUpToCurrent } from '@/hooks/useCommissions';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
@@ -356,7 +356,7 @@ export default function DistribuidorDashboard() {
         <CalendarDaysIcon className="h-4 w-4 shrink-0 text-[#3E667D]" />
         <div className="w-full max-w-[260px]">
           <SearchableSelect
-            options={sortedPeriods.map((period: any) => ({
+            options={periodsUpToCurrent(sortedPeriods).map((period: any) => ({
               value: period.id,
               label: `${period.name}${period.isCurrent ? ' (Actual)' : ''}`,
             }))}

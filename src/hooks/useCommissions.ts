@@ -115,6 +115,30 @@ export function useCommissionPeriods() {
 }
 
 /**
+ * Filtra una lista de periodos para mostrar SOLO hasta el actual (inclusive),
+ * ocultando los periodos FUTUROS que aún no tienen datos. Se basa en el flag
+ * `isCurrent` del propio listado: oculta los que empiezan después del actual.
+ * Si ningún periodo está marcado como actual, devuelve la lista sin filtrar.
+ */
+export function periodsUpToCurrent<T extends Record<string, unknown>>(
+  periods: T[],
+): T[] {
+  const current = periods.find((p) => (p as Record<string, unknown>).isCurrent);
+  if (!current) return periods;
+  const cur = current as Record<string, unknown>;
+  const cs = String(cur.startDate ?? cur.start_date ?? '');
+  const cn = Number(cur.periodNumber ?? cur.period_number ?? 0);
+  return periods.filter((p) => {
+    const row = p as Record<string, unknown>;
+    const ps = String(row.startDate ?? row.start_date ?? '');
+    if (cs && ps) return ps <= cs;
+    const pn = Number(row.periodNumber ?? row.period_number ?? 0);
+    if (cn > 0 && pn > 0) return pn <= cn;
+    return true;
+  });
+}
+
+/**
  * Hook para obtener estructura de porcentajes
  */
 export function useCommissionPercentages() {

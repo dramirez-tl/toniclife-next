@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useDistributorDashboard } from '@/hooks/useDistributor';
-import { useCurrentPeriod, useCommissionPeriods } from '@/hooks/useCommissions';
+import { useCurrentPeriod, useCommissionPeriods, periodsUpToCurrent } from '@/hooks/useCommissions';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
 import {
@@ -168,7 +168,7 @@ export default function VentasPage() {
                 <CalendarDaysIcon className="h-4 w-4 shrink-0 text-white/80" />
                 <div className="w-full max-w-[260px]">
                   <SearchableSelect
-                    options={sortedPeriods.map((p: any) => ({
+                    options={periodsUpToCurrent(sortedPeriods).map((p: any) => ({
                       value: p.id,
                       label: `${p.name}${p.isCurrent ? ' (Actual)' : ''}`,
                     }))}
