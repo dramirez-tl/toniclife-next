@@ -584,6 +584,8 @@ const STATUS_LABELS_EXPORT: Record<string, string> = {
 };
 
 // Genera y descarga un CSV (UTF-8 + BOM, separador ";") que Excel abre en columnas.
+// Se antepone la directiva "sep=;" para que Excel use ";" sin importar el separador
+// de lista del locale (si no, en Excel con "," queda todo en una sola celda).
 function downloadDownlinesCsv(rows: DownlineItem[]) {
   const headers = ['ID distribuidor', 'Nombre', 'Nivel', 'Rango', 'Patrocinador', 'ID patrocinador', 'Estado', 'Puntos personales', 'Fecha de ingreso'];
   const esc = (v: string | number | null | undefined) =>
@@ -605,7 +607,7 @@ function downloadDownlinesCsv(rows: DownlineItem[]) {
       .join(';'),
   );
 
-  const csv = '﻿' + [headers.map(esc).join(';'), ...body].join('\r\n');
+  const csv = '﻿' + 'sep=;\r\n' + [headers.map(esc).join(';'), ...body].join('\r\n');
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

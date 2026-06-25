@@ -27,8 +27,8 @@ import {
   type UpdateCategoryDto,
 } from '@/types/product';
 
-/** Sucursal por defecto para e-commerce público: MX CALL CENTER - VENTAS -TL */
-export const ECOMMERCE_BRANCH_ID = '0815bace-2bf6-4018-ac6e-0124b97dd07f';
+/** Sucursal por defecto para e-commerce público: Irapuato Call Center/Almacen General TL (código 164, tipo E-commerce). */
+export const ECOMMERCE_BRANCH_ID = '02402316-4d60-4f3e-b3c1-9138e1db27ca';
 
 class ProductsService {
   // ================================
