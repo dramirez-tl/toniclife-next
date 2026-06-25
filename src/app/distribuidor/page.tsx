@@ -371,6 +371,21 @@ export default function DistribuidorDashboard() {
             Periodo pasado
           </span>
         )}
+        {user?.customerNumber && (
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard?.writeText(String(user.customerNumber));
+              toast.success('Número de distribuidor copiado');
+            }}
+            className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm transition-colors hover:bg-gray-50 whitespace-nowrap"
+            title="Copiar número de distribuidor"
+          >
+            <span className="text-xs text-gray-500">Distribuidor</span>
+            <span className="font-semibold text-[#3E667D]">#{user.customerNumber}</span>
+            <ClipboardDocumentIcon className="h-4 w-4 text-gray-400" />
+          </button>
+        )}
       </div>
 
       {/* ══════════════ HERO — Medalla + Meta del mes ══════════════ */}

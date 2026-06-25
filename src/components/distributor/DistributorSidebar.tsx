@@ -7,6 +7,7 @@ import {
   ArrowLeftOnRectangleIcon,
   ArrowRightOnRectangleIcon,
   QuestionMarkCircleIcon,
+  ClipboardDocumentIcon,
 } from '@heroicons/react/24/outline';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutAsync, selectUser } from '@/store/slices/authSlice';
@@ -126,6 +127,22 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
               </p>
             </div>
           </div>
+          {/* Número de distribuidor (clic para copiar) */}
+          {user?.customerNumber && (
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard?.writeText(String(user.customerNumber));
+                toast.success('Número de distribuidor copiado');
+              }}
+              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-white/5 px-2 py-1.5 transition-colors hover:bg-white/10"
+              title="Copiar número de distribuidor"
+            >
+              <span className="text-[10px] uppercase tracking-wide text-white/50">Distribuidor</span>
+              <span className="text-xs font-bold text-white">#{user.customerNumber}</span>
+              <ClipboardDocumentIcon className="h-3.5 w-3.5 text-white/50" />
+            </button>
+          )}
           {/* Quick Stats */}
           <div className="space-y-2 mt-3">
             {/* Network breakdown */}
