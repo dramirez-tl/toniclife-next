@@ -28,7 +28,6 @@ import {
   CurrencyDollarIcon,
   ArrowDownTrayIcon,
   ChartBarIcon,
-  TableCellsIcon,
   ArrowPathIcon,
   CalendarDaysIcon,
   FunnelIcon,
@@ -287,6 +286,9 @@ function ComisionesContent() {
                     <ChartBarIcon className="h-4 w-4" />
                     <span className="hidden sm:inline">Resumen</span>
                   </button>
+                  {/* Detalle y Tendencia ocultos temporalmente (a peticion): solo
+                      "Resumen" visible. Para restaurar, descomentar estos dos
+                      botones y reimportar TableCellsIcon de @heroicons.
                   <button
                     onClick={() => setParams({ viewMode: 'table' })}
                     className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -309,6 +311,7 @@ function ComisionesContent() {
                     <ArrowTrendingUpIcon className="h-4 w-4" />
                     <span className="hidden sm:inline">Tendencia</span>
                   </button>
+                  */}
                 </div>
 
                 <button

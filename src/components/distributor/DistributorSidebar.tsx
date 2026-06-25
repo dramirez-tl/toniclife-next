@@ -14,7 +14,6 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useDistributorDashboard } from '@/hooks/useDistributor';
 import { startDistributorTour } from '@/lib/distributorTour';
-import { RankMedal } from './RankMedal';
 import { CORE_NAV, MORE_GROUPS, COMING_SOON } from './distributorNav';
 
 // Anclas del tour guiado (ver distributorTour.ts).
@@ -48,7 +47,15 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
   const dispatch = useAppDispatch();
   const user = useAppSelector(selectUser);
 
-  const { networkSummary, commissionsSummary, profile } = useDistributorDashboard();
+  const { networkSummary, profile, points } = useDistributorDashboard();
+
+  // Progreso hacia el mínimo personal para calificar (3,300 pts por defecto).
+  const qualifyProgress = Math.min(
+    100,
+    points?.personalPointsRequired
+      ? Math.round(((points.personalPoints || 0) / points.personalPointsRequired) * 100)
+      : 0,
+  );
 
   const handleLogout = async () => {
     try {
@@ -106,7 +113,6 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
       <div className="px-3 py-4 border-b border-white/10">
         <div className="bg-white/5 rounded-xl p-3" data-tour="d-profile">
           <div className="flex items-center gap-3">
-            <RankMedal rank={profile?.rank} size="md" glow />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white truncate">
                 {user?.countryCode && <span className="mr-1">{countryCodeToFlag(user.countryCode)}</span>}
@@ -146,28 +152,26 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
                 </div>
               </div>
             </div>
-            {/* Commissions */}
-            <div className="bg-white/5 rounded-lg p-2 text-center">
-              {(commissionsSummary?.totalNet || 0) === 0 ? (
-                <>
-                  <p className="text-sm font-semibold text-white/70">Periodo activo</p>
-                  <p className="text-[10px] text-white/40 uppercase tracking-wide">Comisiones al cierre</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-lg font-bold text-white">
-                    ${(commissionsSummary?.totalNet || 0).toLocaleString(user?.currencyCode === 'USD' ? 'en-US' : 'es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                  </p>
-                  <div className="flex items-center justify-center gap-1">
-                    <p className="text-[10px] text-white/60 uppercase tracking-wide">Comisiones</p>
-                    {user?.currencyCode && (
-                      <span className="text-[9px] bg-white/10 text-white/70 px-1 py-0.5 rounded font-medium">
-                        {user.currencyCode}
-                      </span>
-                    )}
-                  </div>
-                </>
-              )}
+            {/* Puntos para calificar (mínimo personal del periodo) */}
+            <div className="bg-white/5 rounded-lg p-2">
+              <p className="text-[10px] text-white/60 uppercase tracking-wide text-center mb-1">
+                {points?.isPersonalQualified ? 'Calificado este mes' : 'Puntos para calificar'}
+              </p>
+              <p className="text-center text-sm font-bold text-white">
+                {(points?.personalPoints || 0).toLocaleString()}{' '}
+                <span className="font-normal text-white/50">
+                  / {(points?.personalPointsRequired || 3300).toLocaleString()}
+                </span>
+              </p>
+              <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                <div
+                  className={cn(
+                    'h-full rounded-full transition-all',
+                    points?.isPersonalQualified ? 'bg-emerald-400' : 'bg-yellow-400',
+                  )}
+                  style={{ width: `${qualifyProgress}%` }}
+                />
+              </div>
             </div>
           </div>
         </div>
