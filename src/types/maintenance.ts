@@ -70,3 +70,29 @@ export interface ImportResult {
   skipped: number;
   extra?: Record<string, number>;
 }
+
+/** Conteo de ventas de un periodo (previsualización del reset). */
+export interface PeriodSalesPreview {
+  periodId: string;
+  periodName: string;
+  startDate: string;
+  endDate: string;
+  isClosed: boolean;
+  orders: number;
+  ordersTotal: number;
+  posSales: number;
+  posSalesTotal: number;
+  totalSales: number;
+  totalAmount: number;
+}
+
+/** Resultado del reset de ventas de un periodo. */
+export interface PeriodSalesResetResult {
+  periodId: string;
+  periodName: string;
+  startDate: string;
+  endDate: string;
+  deletedOrders: number;
+  deletedPosSales: number;
+  durationMs: number;
+}

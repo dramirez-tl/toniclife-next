@@ -7,6 +7,8 @@ import type {
   ImportResult,
   LoadProgress,
   MaintenanceOverview,
+  PeriodSalesPreview,
+  PeriodSalesResetResult,
 } from '@/types/maintenance';
 
 export interface LoadJob {
@@ -31,6 +33,22 @@ class MaintenanceService {
       `/maintenance/cleanup/${blockId}`,
     );
     return response.data;
+  }
+
+  /** Previsualiza las ventas (orders + pos_sales) de un periodo antes del reset. */
+  async getPeriodSalesPreview(periodId: string): Promise<PeriodSalesPreview> {
+    const { data } = await api.get<PeriodSalesPreview>(
+      `/maintenance/period-sales/${periodId}/preview`,
+    );
+    return data;
+  }
+
+  /** Borra TODAS las ventas (orders + pos_sales) del periodo por rango de fecha. */
+  async resetPeriodSales(periodId: string): Promise<PeriodSalesResetResult> {
+    const { data } = await api.post<PeriodSalesResetResult>(
+      `/maintenance/reset-period-sales/${periodId}`,
+    );
+    return data;
   }
 
   /**

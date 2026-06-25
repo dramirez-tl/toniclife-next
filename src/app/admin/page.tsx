@@ -136,7 +136,7 @@ export default function AdminDashboard() {
       currencyCode: undefined as string | undefined,
     },
     {
-      title: `Pedidos del Periodo${selectedCountry ? ` · ${selectedCountry.name}` : ''}`,
+      title: `Ventas del Periodo${selectedCountry ? ` · ${selectedCountry.name}` : ''}`,
       value: selectedCountry?.orders ?? kpis?.totalOrders ?? 0,
       change: selectedCountry?.ordersGrowth ?? kpis?.ordersGrowth ?? 0,
       icon: ShoppingBagIcon,

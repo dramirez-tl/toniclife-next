@@ -10,6 +10,8 @@ export const maintenanceKeys = {
   all: ['maintenance'] as const,
   overview: () => [...maintenanceKeys.all, 'overview'] as const,
   loadJobs: () => [...maintenanceKeys.all, 'load-jobs'] as const,
+  periodSales: (periodId: string) =>
+    [...maintenanceKeys.all, 'period-sales', periodId] as const,
 };
 
 export const useMaintenanceOverview = () =>
@@ -58,6 +60,28 @@ export const useStartImport = () => {
       maintenanceService.startImport(key, file),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: maintenanceKeys.loadJobs() });
+    },
+  });
+};
+
+/** Previsualiza las ventas de un periodo (solo cuando hay periodId). */
+export const usePeriodSalesPreview = (periodId: string | null) =>
+  useQuery({
+    queryKey: maintenanceKeys.periodSales(periodId ?? ''),
+    queryFn: () => maintenanceService.getPeriodSalesPreview(periodId as string),
+    enabled: !!periodId,
+    staleTime: 10 * 1000,
+    gcTime: 30 * 1000,
+  });
+
+/** Resetea (borra) las ventas de un periodo. Invalida overview + preview. */
+export const useResetPeriodSales = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (periodId: string) =>
+      maintenanceService.resetPeriodSales(periodId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: maintenanceKeys.all });
     },
   });
 };

@@ -29,11 +29,21 @@ import {
   maintenanceKeys,
   useLoadJobs,
   useMaintenanceOverview,
+  usePeriodSalesPreview,
+  useResetPeriodSales,
   useRunCleanupBlock,
   useStartImport,
 } from '@/hooks/useMaintenance';
+import { useCommissionPeriods } from '@/hooks/useCommissions';
 import { maintenanceService } from '@/services/maintenance.service';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import type { CleanupBlockStatus, LoadPhaseStatus } from '@/types/maintenance';
+
+const cf = new Intl.NumberFormat('es-MX', {
+  style: 'currency',
+  currency: 'MXN',
+  maximumFractionDigits: 0,
+});
 
 const nf = new Intl.NumberFormat('es-MX');
 
@@ -108,6 +118,7 @@ function SistemaContent() {
               <TabsList>
                 <TabsTrigger value="limpieza">Limpieza</TabsTrigger>
                 <TabsTrigger value="carga">Carga masiva</TabsTrigger>
+                <TabsTrigger value="reset">Reset por periodo</TabsTrigger>
               </TabsList>
 
               <TabsContent value="limpieza" className="mt-6">
@@ -139,6 +150,16 @@ function SistemaContent() {
                     <LoadPhaseCard key={phase.key} phase={phase} />
                   ))}
                 </div>
+              </TabsContent>
+
+              <TabsContent value="reset" className="mt-6">
+                <p className="mb-4 text-sm text-muted-foreground">
+                  Borra TODAS las ventas (pedidos ecommerce + ventas de sucursal)
+                  de un periodo por rango de fecha 26→25, para poder re-correr la
+                  migración histórica. NO toca comisiones, puntos, rangos ni red
+                  (la re-migración los reescribe).
+                </p>
+                <ResetPeriodSalesCard />
               </TabsContent>
             </Tabs>
           </>
@@ -455,6 +476,196 @@ function LoadPhaseCard({ phase }: { phase: LoadPhaseStatus }) {
           </div>
         )}
       </CardContent>
+    </Card>
+  );
+}
+
+// ----------------------------------------------------------------
+// Reset de ventas por periodo (para re-correr la migración histórica)
+// ----------------------------------------------------------------
+
+function ResetPeriodSalesCard() {
+  const { data: periodsData, isLoading: periodsLoading } = useCommissionPeriods();
+  const [periodId, setPeriodId] = useState('');
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const preview = usePeriodSalesPreview(periodId || null);
+  const reset = useResetPeriodSales();
+
+  const periodsRaw = Array.isArray(periodsData)
+    ? periodsData
+    : ((periodsData as { data?: unknown[] } | undefined)?.data ?? []);
+  const options = (
+    periodsRaw as Array<{ id: string; name: string; isCurrent?: boolean }>
+  ).map((p) => ({
+    value: p.id,
+    label: `${p.name}${p.isCurrent ? ' (Actual)' : ''}`,
+  }));
+
+  const pv = preview.data;
+
+  const handleReset = async () => {
+    if (!periodId) return;
+    try {
+      const r = await reset.mutateAsync(periodId);
+      setConfirmOpen(false);
+      toast.success(
+        `Periodo "${r.periodName}" reseteado: ${nf.format(r.deletedOrders)} pedidos y ` +
+          `${nf.format(r.deletedPosSales)} ventas de sucursal borradas en ${(r.durationMs / 1000).toFixed(1)}s.`,
+      );
+    } catch (error: unknown) {
+      const message =
+        (error as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ?? 'Error al resetear las ventas del periodo';
+      toast.error(message);
+    }
+  };
+
+  return (
+    <Card>
+      <CardContent className="space-y-5 p-6">
+        <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+          <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0" />
+          <p>
+            <strong>Irreversible.</strong> Borra todas las ventas del periodo
+            (pedidos ecommerce y ventas de sucursal, con sus items, pagos y
+            envíos) cuyo registro cae en el rango de fechas 26→25 —{' '}
+            <strong>incluyendo ventas reales</strong>. Úsalo solo para re-correr
+            la migración histórica.
+          </p>
+        </div>
+
+        <div className="max-w-md">
+          <label className="mb-1 block text-sm font-medium text-foreground">
+            Periodo a resetear
+          </label>
+          <SearchableSelect
+            options={options}
+            value={periodId}
+            onChange={setPeriodId}
+            placeholder={
+              periodsLoading ? 'Cargando periodos…' : 'Selecciona un periodo'
+            }
+            showAllOption={false}
+          />
+        </div>
+
+        {periodId && (
+          <div className="rounded-lg border border-border bg-muted/40 p-4">
+            {preview.isLoading && (
+              <p className="text-sm text-muted-foreground">
+                Calculando ventas del periodo…
+              </p>
+            )}
+            {preview.isError && (
+              <p className="text-sm text-destructive">
+                No se pudo calcular el periodo.
+              </p>
+            )}
+            {pv && (
+              <div className="space-y-2 text-sm">
+                <p className="text-muted-foreground">
+                  Rango <strong>{pv.startDate}</strong> →{' '}
+                  <strong>{pv.endDate}</strong>
+                  {pv.isClosed ? ' · cerrado' : ' · abierto'}
+                </p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <div className="rounded bg-background p-3">
+                    <p className="text-xs text-muted-foreground">
+                      Pedidos ecommerce
+                    </p>
+                    <p className="font-semibold text-foreground">
+                      {nf.format(pv.orders)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {cf.format(pv.ordersTotal)}
+                    </p>
+                  </div>
+                  <div className="rounded bg-background p-3">
+                    <p className="text-xs text-muted-foreground">
+                      Ventas de sucursal
+                    </p>
+                    <p className="font-semibold text-foreground">
+                      {nf.format(pv.posSales)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {cf.format(pv.posSalesTotal)}
+                    </p>
+                  </div>
+                  <div className="rounded bg-background p-3">
+                    <p className="text-xs text-muted-foreground">Total a borrar</p>
+                    <p className="font-semibold text-foreground">
+                      {nf.format(pv.totalSales)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {cf.format(pv.totalAmount)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div>
+          <Button
+            variant="destructive"
+            disabled={
+              !periodId || !pv || pv.totalSales === 0 || reset.isPending
+            }
+            onClick={() => setConfirmOpen(true)}
+          >
+            {reset.isPending ? 'Reseteando…' : 'Resetear ventas del periodo'}
+          </Button>
+          {pv && pv.totalSales === 0 && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              El periodo no tiene ventas que borrar.
+            </p>
+          )}
+        </div>
+      </CardContent>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Resetear ventas de {pv?.periodName}</DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>
+                  Se borrarán de forma <strong>irreversible</strong> todas las
+                  ventas del rango <strong>{pv?.startDate}</strong> →{' '}
+                  <strong>{pv?.endDate}</strong>:
+                </p>
+                <p className="rounded bg-muted p-2 text-xs">
+                  {nf.format(pv?.orders ?? 0)} pedidos (
+                  {cf.format(pv?.ordersTotal ?? 0)}) ·{' '}
+                  {nf.format(pv?.posSales ?? 0)} ventas de sucursal (
+                  {cf.format(pv?.posSalesTotal ?? 0)})
+                </p>
+                <p className="text-muted-foreground">
+                  Comisiones, puntos, rangos y red NO se tocan. Después podrás
+                  re-correr la migración del periodo.
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmOpen(false)}
+              disabled={reset.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleReset}
+              disabled={reset.isPending}
+            >
+              {reset.isPending ? 'Reseteando…' : 'Sí, borrar las ventas'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
