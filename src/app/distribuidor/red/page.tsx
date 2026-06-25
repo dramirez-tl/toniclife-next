@@ -587,7 +587,7 @@ const STATUS_LABELS_EXPORT: Record<string, string> = {
 // Se antepone la directiva "sep=;" para que Excel use ";" sin importar el separador
 // de lista del locale (si no, en Excel con "," queda todo en una sola celda).
 function downloadDownlinesCsv(rows: DownlineItem[]) {
-  const headers = ['ID distribuidor', 'Nombre', 'Nivel', 'Rango', 'Patrocinador', 'ID patrocinador', 'Estado', 'Puntos personales', 'Fecha de ingreso'];
+  const headers = ['ID distribuidor', 'Nombre', 'Nivel', 'Profundidad', 'Rango', 'Patrocinador', 'ID patrocinador', 'Estado', 'Puntos personales', 'Fecha de ingreso'];
   const esc = (v: string | number | null | undefined) =>
     `"${(v == null ? '' : String(v)).replace(/"/g, '""')}"`;
 
@@ -596,6 +596,7 @@ function downloadDownlinesCsv(rows: DownlineItem[]) {
       r.customerNumber || '',
       r.fullName,
       r.level,
+      r.level > 0 ? Array(r.level).fill('*').join(' ') : '',
       r.rankName || 'Distribuidor',
       r.sponsorName || '',
       r.sponsorCode || '',
@@ -779,6 +780,16 @@ function TreeListView() {
       sortable: true,
       sortValue: (m) => m.level,
       render: (m) => <span className="text-sm text-gray-600">Nivel {m.level}</span>,
+    },
+    {
+      key: 'depthMarker',
+      header: 'Profundidad',
+      sortable: false,
+      render: (m) => (
+        <span className="font-mono text-sm tracking-widest text-[#3E667D]/70">
+          {m.level > 0 ? Array(m.level).fill('*').join(' ') : '—'}
+        </span>
+      ),
     },
     {
       key: 'rankName',
