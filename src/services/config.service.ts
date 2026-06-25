@@ -350,6 +350,35 @@ class ConfigService {
     const response = await api.get<SatTaxRegime[]>('/config/sat-tax-regimes');
     return response.data;
   }
+
+  // ================================
+  // SHIPPING SETTINGS (system_settings)
+  // ================================
+
+  /** Costos de envío configurables (admin). */
+  async getShippingSettings(): Promise<ShippingSettings> {
+    const response = await api.get<ShippingSettings>('/config/shipping-settings');
+    return response.data;
+  }
+
+  /** Actualiza los costos de envío (solo las claves enviadas). */
+  async updateShippingSettings(
+    dto: Partial<ShippingSettings>,
+  ): Promise<ShippingSettings> {
+    const response = await api.patch<ShippingSettings>(
+      '/config/shipping-settings',
+      dto,
+    );
+    return response.data;
+  }
+}
+
+/** Costos de envío editables desde el admin. */
+export interface ShippingSettings {
+  standardCost: number;
+  expressCost: number;
+  freeThreshold: number;
+  kitCost: number;
 }
 
 export const configService = new ConfigService();

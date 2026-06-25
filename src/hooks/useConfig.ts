@@ -2,7 +2,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { configService } from '@/services/config.service';
+import { configService, type ShippingSettings } from '@/services/config.service';
 import type {
   Country,
   CreateCountryDto,
@@ -56,6 +56,7 @@ export const configKeys = {
   satCfdiUsesActive: () => [...configKeys.satCfdiUses(), 'active'] as const,
   satTaxRegimes: () => [...configKeys.all, 'sat-tax-regimes'] as const,
   satTaxRegimesActive: () => [...configKeys.satTaxRegimes(), 'active'] as const,
+  shippingSettings: () => [...configKeys.all, 'shipping-settings'] as const,
 };
 
 // Stale time para catálogos (cambian raramente)
@@ -599,6 +600,38 @@ export const useActiveSatTaxRegimes = () => {
     queryKey: configKeys.satTaxRegimesActive(),
     queryFn: () => configService.getActiveSatTaxRegimes(),
     staleTime: CATALOG_STALE_TIME,
+  });
+};
+
+// ================================
+// SHIPPING SETTINGS HOOKS
+// ================================
+
+/** Costos de envío configurables (admin). */
+export const useShippingSettings = () => {
+  return useQuery({
+    queryKey: configKeys.shippingSettings(),
+    queryFn: () => configService.getShippingSettings(),
+    staleTime: CATALOG_STALE_TIME,
+  });
+};
+
+/** Actualiza los costos de envío. */
+export const useUpdateShippingSettings = (
+  options?: MutationOptions<ShippingSettings>,
+) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (dto: Partial<ShippingSettings>) =>
+      configService.updateShippingSettings(dto),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: configKeys.shippingSettings() });
+      options?.onSuccess?.(data);
+    },
+    onError: (error: Error) => {
+      options?.onError?.(error);
+    },
   });
 };
 

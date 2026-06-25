@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { useShippingSettings, useUpdateShippingSettings } from '@/hooks/useConfig';
 import {
   Cog6ToothIcon,
   GlobeAltIcon,
@@ -38,11 +39,11 @@ export default function ConfiguracionPage() {
     lowStockThreshold: 10,
     autoReorderEnabled: false,
 
-    // Shipping Settings
-    freeShippingThreshold: 1000,
+    // Shipping Settings (conectados a system_settings vía API)
+    freeShippingThreshold: 1500,
     standardShippingCost: 150,
-    expressShippingCost: 300,
-    shippingProcessingDays: 2,
+    expressShippingCost: 250,
+    kitShippingCost: 150,
 
     // Email Settings
     smtpHost: 'smtp.sendgrid.net',
@@ -81,7 +82,42 @@ export default function ConfiguracionPage() {
 
   const [activeTab, setActiveTab] = useState('general');
 
+  // Costos de envío reales (system_settings). Solo esta pestaña persiste al backend.
+  const { data: shippingData } = useShippingSettings();
+  const updateShipping = useUpdateShippingSettings();
+
+  useEffect(() => {
+    if (!shippingData) return;
+    setSettings((prev) => ({
+      ...prev,
+      freeShippingThreshold: shippingData.freeThreshold,
+      standardShippingCost: shippingData.standardCost,
+      expressShippingCost: shippingData.expressCost,
+      kitShippingCost: shippingData.kitCost,
+    }));
+  }, [shippingData]);
+
+  const handleSaveShipping = () => {
+    updateShipping.mutate(
+      {
+        standardCost: settings.standardShippingCost,
+        expressCost: settings.expressShippingCost,
+        freeThreshold: settings.freeShippingThreshold,
+        kitCost: settings.kitShippingCost,
+      },
+      {
+        onSuccess: () => toast.success('Costos de envío actualizados'),
+        onError: () =>
+          toast.error('No se pudieron guardar los costos de envío'),
+      },
+    );
+  };
+
   const handleSave = () => {
+    if (activeTab === 'shipping') {
+      handleSaveShipping();
+      return;
+    }
     toast.success('Configuración guardada correctamente');
   };
 
@@ -125,9 +161,12 @@ export default function ConfiguracionPage() {
               <Button
                 variant="default"
                 onClick={handleSave}
+                disabled={activeTab === 'shipping' && updateShipping.isPending}
               >
                 <CheckCircleIcon className="h-5 w-5" />
-                Guardar Cambios
+                {activeTab === 'shipping' && updateShipping.isPending
+                  ? 'Guardando…'
+                  : 'Guardar Cambios'}
               </Button>
             </div>
           </div>
@@ -332,28 +371,23 @@ export default function ConfiguracionPage() {
             {activeTab === 'shipping' && (
               <Card>
                 <CardContent className="p-6">
-                  <h2 className="text-xl font-bold text-gray-900 mb-6">Configuración de Envíos</h2>
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">Configuración de Envíos</h2>
+                  <p className="text-sm text-gray-500 mb-6">
+                    Estos costos aplican a la tienda en línea, al carrito compartido
+                    y al kit de inscripción. Recoger en sucursal siempre es gratis.
+                    Los distribuidores siempre pagan envío estándar (sin umbral gratis).
+                  </p>
                   <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Umbral de Envío Gratis (MXN)
-                        </label>
-                        <input
-                          type="number"
-                          value={settings.freeShippingThreshold}
-                          onChange={(e) => setSettings({ ...settings, freeShippingThreshold: parseFloat(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                        />
-                      </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Costo de Envío Estándar (MXN)
                         </label>
                         <input
                           type="number"
+                          min={0}
                           value={settings.standardShippingCost}
-                          onChange={(e) => setSettings({ ...settings, standardShippingCost: parseFloat(e.target.value) })}
+                          onChange={(e) => setSettings({ ...settings, standardShippingCost: parseFloat(e.target.value) || 0 })}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
@@ -363,21 +397,41 @@ export default function ConfiguracionPage() {
                         </label>
                         <input
                           type="number"
+                          min={0}
                           value={settings.expressShippingCost}
-                          onChange={(e) => setSettings({ ...settings, expressShippingCost: parseFloat(e.target.value) })}
+                          onChange={(e) => setSettings({ ...settings, expressShippingCost: parseFloat(e.target.value) || 0 })}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Días de Procesamiento
+                          Umbral de Envío Gratis (MXN)
                         </label>
                         <input
                           type="number"
-                          value={settings.shippingProcessingDays}
-                          onChange={(e) => setSettings({ ...settings, shippingProcessingDays: parseInt(e.target.value) })}
+                          min={0}
+                          value={settings.freeShippingThreshold}
+                          onChange={(e) => setSettings({ ...settings, freeShippingThreshold: parseFloat(e.target.value) || 0 })}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                         />
+                        <p className="mt-1 text-xs text-gray-400">
+                          Compras de clientes no distribuidores por encima de este monto no pagan envío estándar.
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Costo de Envío del Kit de Inscripción (MXN)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={settings.kitShippingCost}
+                          onChange={(e) => setSettings({ ...settings, kitShippingCost: parseFloat(e.target.value) || 0 })}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                        />
+                        <p className="mt-1 text-xs text-gray-400">
+                          Se cobra cuando el miembro elige envío a domicilio para su kit.
+                        </p>
                       </div>
                     </div>
                   </div>
