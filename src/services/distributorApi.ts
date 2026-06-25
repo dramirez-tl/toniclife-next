@@ -83,6 +83,41 @@ export interface PreferredCustomerItem {
   createdAt: string;
 }
 
+// ===== Onboarding (gating del panel) =====
+
+export interface OnboardingStatus {
+  customerId: string;
+  status: string;
+  kitType: string | null;
+  /** true => el miembro debe comprar su kit de inscripción antes de usar el panel. */
+  needsKit: boolean;
+}
+
+// ===== Mis Pedidos =====
+
+export interface MyOrder {
+  id: string;
+  orderNumber: string;
+  status: string;
+  paymentStatus: string | null;
+  total: number;
+  totalPoints: number;
+  source: string | null;
+  itemsCount: number;
+  delivery: 'pickup' | 'shipping';
+  pickupBranchName: string | null;
+  orderDate: string | null;
+  createdAt: string | null;
+}
+
+export interface MyOrdersResponse {
+  data: MyOrder[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 // ===== API SERVICE =====
 
 class DistributorApi {
@@ -232,6 +267,26 @@ class DistributorApi {
     filters?: import('@/types/payment-data').CommissionPaymentFilters,
   ): Promise<import('@/types/payment-data').CommissionPaymentsResponse> {
     const { data } = await api.get('/distributor/commission-payments', { params: filters });
+    return data;
+  }
+
+  // ===== Onboarding & Mis Pedidos =====
+
+  /**
+   * Estado de onboarding del distribuidor (gating del panel).
+   * Backend: GET /distributor/onboarding-status
+   */
+  async getOnboardingStatus(): Promise<OnboardingStatus> {
+    const { data } = await api.get<OnboardingStatus>('/distributor/onboarding-status');
+    return data;
+  }
+
+  /**
+   * Pedidos del distribuidor autenticado (paginado).
+   * Backend: GET /distributor/orders
+   */
+  async getMyOrders(params?: { page?: number; limit?: number }): Promise<MyOrdersResponse> {
+    const { data } = await api.get<MyOrdersResponse>('/distributor/orders', { params });
     return data;
   }
 }

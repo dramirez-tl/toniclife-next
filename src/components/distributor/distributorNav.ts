@@ -21,6 +21,7 @@ import {
   CalendarIcon,
   PhoneIcon,
   DocumentDuplicateIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/24/outline';
 
 export interface NavLink {
@@ -47,6 +48,7 @@ export const MORE_GROUPS: NavGroup[] = [
   {
     title: 'Mi Negocio',
     items: [
+      { name: 'Mis Pedidos', href: '/distribuidor/pedidos', icon: ClipboardDocumentListIcon },
       { name: 'Compartir carrito', href: '/distribuidor/compartir-carrito', icon: ShoppingCartIcon },
     ],
   },
