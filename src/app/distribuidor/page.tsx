@@ -433,7 +433,7 @@ export default function DistribuidorDashboard() {
           {/* Siguiente nivel con medalla bloqueada */}
           {nextRankCode && (
             <Link
-              href="/distribuidor/ranking"
+              href="/distribuidor/comisiones"
               className="mt-6 flex items-center gap-3 bg-white/10 rounded-xl p-3 hover:bg-white/15 transition-colors"
             >
               <RankMedal rank={nextRankCode} size="md" locked />
