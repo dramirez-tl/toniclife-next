@@ -118,7 +118,7 @@ export function Footer() {
             <Link href="/" className="inline-block">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/images/logo/svg/logo-text-dark-r.svg"
+                src="/images/logo/svg/logo-text-white-r.svg"
                 alt="Tonic Life - Tu Centro de Bienestar"
                 className="w-[180px] lg:w-[220px] h-auto"
               />

@@ -383,9 +383,9 @@ export function AdminSidebar({ mobile = false, collapsed = false, onNavigate }: 
         <Link href="/admin" className="flex min-w-0 items-center justify-center" onClick={onNavigate} aria-label="Ir al panel de administración">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/images/logo/svg/logo-text-light.svg"
+            src="/images/logo/svg/logo-text-white-r.svg"
             alt="Tonic Life"
-            className="h-8 w-auto brightness-0 invert"
+            className="h-8 w-auto"
           />
         </Link>
         {mobile && (
