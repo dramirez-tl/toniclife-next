@@ -120,6 +120,9 @@ function ProductCard({ product }: { product: Product }) {
           <h3 className="font-bold text-lg text-[#3E667D] mt-1 line-clamp-2">
             {product.name}
           </h3>
+          {product.code && (
+            <p className="mt-0.5 text-xs text-gray-400">Cód. {product.code}</p>
+          )}
 
           {/* Rating */}
           <div className="flex items-center gap-1 mt-2">
@@ -227,6 +230,9 @@ function ProductListItem({ product }: { product: Product }) {
                 <h3 className="font-bold text-lg text-[#3E667D] transition-colors">
                   {product.name}
                 </h3>
+                {product.code && (
+                  <p className="mt-0.5 text-xs text-gray-400">Cód. {product.code}</p>
+                )}
 
                 {/* Description */}
                 <p className="text-sm text-gray-500 mt-1 line-clamp-2">

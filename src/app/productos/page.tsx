@@ -23,6 +23,7 @@ function adaptAPIProductToMock(apiProduct: APIProduct): MockProduct {
     id: apiProduct.id,
     name: apiProduct.name,
     slug: apiProduct.slug || '',
+    code: apiProduct.code,
     description: apiProduct.description || '',
     shortDescription: apiProduct.shortName || '',
     fullDescription: apiProduct.description,
