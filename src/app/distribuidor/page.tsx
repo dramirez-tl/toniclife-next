@@ -484,11 +484,21 @@ export default function DistribuidorDashboard() {
           <div className="grid grid-cols-3 divide-x divide-gray-100">
             <div className="p-4 text-center">
               <CurrencyDollarIcon className="h-5 w-5 text-[#3E667D] mx-auto mb-1" />
-              <p className="text-lg font-bold text-[#3E667D] leading-tight">
-                {formatMoney(commissionsSummary?.totalNet || 0)}
-              </p>
-              <p className="text-[11px] font-medium text-gray-600">Comisiones</p>
-              <p className="text-[10px] text-gray-400">este periodo · {currencyCode}</p>
+              {isCurrentSelected ? (
+                <>
+                  <p className="text-base font-bold text-gray-400 leading-tight mt-0.5">Al cierre</p>
+                  <p className="text-[11px] font-medium text-gray-600">Comisiones</p>
+                  <p className="text-[10px] text-gray-400">se calcula al cierre del periodo</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-lg font-bold text-[#3E667D] leading-tight">
+                    {formatMoney(commissionsSummary?.totalNet || 0)}
+                  </p>
+                  <p className="text-[11px] font-medium text-gray-600">Comisiones</p>
+                  <p className="text-[10px] text-gray-400">este periodo · {currencyCode}</p>
+                </>
+              )}
             </div>
             <div className="p-4 text-center">
               <UsersIcon className="h-5 w-5 text-[#3E667D] mx-auto mb-1" />

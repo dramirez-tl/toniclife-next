@@ -144,6 +144,9 @@ function ComisionesContent() {
     return Number(b?.periodNumber ?? b?.period_number ?? 0) - Number(a?.periodNumber ?? a?.period_number ?? 0);
   });
   const currentPeriod = periodsArray.find((p: any) => p.id === selectedPeriodId);
+  // Periodo en curso (abierto): las comisiones aún no son finales, así que se
+  // ocultan los montos hasta el cierre; solo se muestran en periodos pasados.
+  const isActivePeriod = currentPeriod?.status === 'open';
   const hasActiveFilters = filterType !== 'all' || filterStatus !== 'all';
 
   // Porcentajes reales por nivel (panel "Consejo Pro"), no hardcodeados.
@@ -191,8 +194,16 @@ function ComisionesContent() {
                 </div>
               </div>
 
-              {/* Quick stats en el header */}
-              {commissionsData?.summary && (
+              {/* Quick stats en el header. En periodo en curso se ocultan los
+                  montos (se calculan al cierre); solo se ven en periodos pasados. */}
+              {isActivePeriod ? (
+                <div className="flex flex-wrap gap-4 mt-6">
+                  <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 border border-white/20">
+                    <CalendarDaysIcon className="h-4 w-4 text-white/80" />
+                    <span className="text-white/80 text-sm">Tus comisiones se calculan al cierre del periodo</span>
+                  </div>
+                </div>
+              ) : commissionsData?.summary && (
                 <div className="flex flex-wrap gap-4 mt-6">
                   <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 border border-white/20">
                     <SparklesIcon className="h-4 w-4 text-[#3E667D]" />
@@ -221,9 +232,9 @@ function ComisionesContent() {
               <Button
                 variant="secondary"
                 onClick={handleDownloadStatement}
-                disabled={!commissionsData?.summary || isLoadingCommissions}
+                disabled={!commissionsData?.summary || isLoadingCommissions || isActivePeriod}
                 className="bg-white text-[#3E667D] hover:bg-white/90 shadow-lg shadow-black/10 disabled:opacity-60"
-                title="Descargar tu estado de cuenta del periodo en PDF"
+                title={isActivePeriod ? 'Disponible al cierre del periodo' : 'Descargar tu estado de cuenta del periodo en PDF'}
               >
                 <ArrowDownTrayIcon className="h-4 w-4" />
                 Estado de cuenta
@@ -398,28 +409,48 @@ function ComisionesContent() {
           </div>
         )}
 
-        {/* Content based on view mode */}
-        {viewMode === 'summary' && (
-          <div className="space-y-6">
-            <CommissionSummaryCards
-              summary={commissionsData?.summary || null}
-              isLoading={isLoadingCommissions}
-              currencyCode={user?.currencyCode}
-              isActivePeriod={currentPeriod?.status === 'open'}
-            />
-            {!isLoadingCommissions && commissionsData?.summary && (
-              <CommissionBreakdown
-                summary={commissionsData.summary}
-                structure={commissionStructure ?? null}
-                levelBreakdown={levelBreakdown ?? null}
-                currencyCode={currencyCode}
-                isActivePeriod={currentPeriod?.status === 'open'}
+        {/* Content based on view mode. En periodo EN CURSO se muestra el mensaje
+            "al cierre" SIN importar el viewMode (table/chart no se renderizan, ni
+            siquiera forzando ?viewMode= por URL), para no filtrar montos. */}
+        {(isActivePeriod || viewMode === 'summary') && (
+          isActivePeriod ? (
+            <Card className="border-0 shadow-md">
+              <CardContent className="flex flex-col items-center gap-3 p-10 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#3E667D]/10">
+                  <CalendarDaysIcon className="h-7 w-7 text-[#3E667D]" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900">
+                  Tus comisiones se calculan al cierre del periodo
+                </h3>
+                <p className="max-w-md text-sm text-gray-500">
+                  El monto de comisiones de {currentPeriod?.name ?? 'este periodo'} se
+                  mostrará cuando cierre el periodo. Mientras tanto sigue sumando puntos
+                  y ventas; aquí podrás consultar el detalle de los periodos ya cerrados.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-6">
+              <CommissionSummaryCards
+                summary={commissionsData?.summary || null}
+                isLoading={isLoadingCommissions}
+                currencyCode={user?.currencyCode}
+                isActivePeriod={false}
               />
-            )}
-          </div>
+              {!isLoadingCommissions && commissionsData?.summary && (
+                <CommissionBreakdown
+                  summary={commissionsData.summary}
+                  structure={commissionStructure ?? null}
+                  levelBreakdown={levelBreakdown ?? null}
+                  currencyCode={currencyCode}
+                  isActivePeriod={false}
+                />
+              )}
+            </div>
+          )
         )}
 
-        {viewMode === 'table' && (
+        {viewMode === 'table' && !isActivePeriod && (
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-6">
@@ -452,7 +483,7 @@ function ComisionesContent() {
           </Card>
         )}
 
-        {viewMode === 'chart' && (
+        {viewMode === 'chart' && !isActivePeriod && (
           <Card>
             <CardContent className="p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-6">
