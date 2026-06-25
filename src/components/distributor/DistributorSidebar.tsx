@@ -113,17 +113,17 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
       <div className="px-3 py-4 border-b border-white/10">
         <div className="bg-white/5 rounded-xl p-3" data-tour="d-profile">
           <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-bold text-xs">{getUserInitials()}</span>
+            </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-white truncate">
-                {user?.countryCode && <span className="mr-1">{countryCodeToFlag(user.countryCode)}</span>}
                 {getUserDisplayName()}
+                {user?.countryCode && <span className="ml-1">{countryCodeToFlag(user.countryCode)}</span>}
               </p>
               <p className="text-xs text-yellow-400 font-medium mt-0.5">
                 {profile?.rankLabel || 'Distribuidor'}
               </p>
-            </div>
-            <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-bold text-xs">{getUserInitials()}</span>
             </div>
           </div>
           {/* Quick Stats */}
