@@ -62,8 +62,11 @@ function ConfirmingPayment() {
   useEffect(() => {
     if (data && !data.needsKit) {
       toast.success('¡Pago confirmado! Tu cuenta de distribuidor está activa.');
-      // Primera visita al panel → el tutorial se muestra automáticamente.
-      window.location.href = '/distribuidor';
+      // Tras activar: si faltan términos, primero a aceptarlos; si no, al panel
+      // (primera visita → el tutorial se muestra automáticamente).
+      window.location.href = data.needsTerms
+        ? '/distribuidor/terminos'
+        : '/distribuidor';
     }
   }, [data]);
 

@@ -91,6 +91,8 @@ export interface OnboardingStatus {
   kitType: string | null;
   /** true => el miembro debe comprar su kit de inscripción antes de usar el panel. */
   needsKit: boolean;
+  /** true => ya pagó el kit pero debe aceptar los términos antes de usar el panel. */
+  needsTerms: boolean;
 }
 
 // ===== Mis Pedidos =====
@@ -362,6 +364,14 @@ class DistributorApi {
     const { data } = await api.post<PaySelfKitResult>(
       '/distributor/enrollment/pay-kit',
       dto,
+    );
+    return data;
+  }
+
+  /** Registra la aceptación de términos del miembro (paso post-kit). */
+  async acceptTerms(): Promise<{ accepted: true; acceptedAt: string }> {
+    const { data } = await api.post<{ accepted: true; acceptedAt: string }>(
+      '/distributor/terms/accept',
     );
     return data;
   }
