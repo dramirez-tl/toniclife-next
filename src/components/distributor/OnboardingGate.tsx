@@ -27,6 +27,13 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
   const onTerminos = pathname === TERMINOS_PATH;
 
   useEffect(() => {
+    // Si no podemos determinar el estado (staff/admin sin perfil, error de red),
+    // no mostramos pantallas de onboarding: a quien esté en /inscripcion o
+    // /terminos lo mandamos al panel (el panel tolera el error y renderiza).
+    if (isError) {
+      if (onInscripcion || onTerminos) router.replace('/distribuidor');
+      return;
+    }
     if (!data) return;
     // 1) Pendiente de kit fuera de la inscripción → mandarlo a inscribirse.
     if (needsKit && !onInscripcion) {
@@ -54,7 +61,7 @@ export function OnboardingGate({ children }: { children: React.ReactNode }) {
         if (!hasOrderParam) router.replace('/distribuidor');
       }
     }
-  }, [data, needsKit, needsTerms, onInscripcion, onTerminos, router]);
+  }, [data, isError, needsKit, needsTerms, onInscripcion, onTerminos, router]);
 
   // Primera carga (sin dato ni error): evitar el flash del panel a un pendiente.
   if (isLoading && !data && !isError) {
