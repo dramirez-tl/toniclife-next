@@ -63,7 +63,10 @@ export const categoryKeys = {
 /**
  * Hook para obtener lista de productos con filtros
  */
-export const useProducts = (params: ProductQueryParams = {}) => {
+export const useProducts = (
+  params: ProductQueryParams = {},
+  options?: { enabled?: boolean },
+) => {
   // El precio que devuelve la API es rol-aware (precio distribuidor si el JWT
   // corresponde a un distribuidor activo con kit). Incluimos el customerId en la
   // key para que React Query refresque los precios al iniciar/cerrar sesión.
@@ -71,6 +74,7 @@ export const useProducts = (params: ProductQueryParams = {}) => {
   return useQuery({
     queryKey: [...productKeys.list(params), 'v', viewerId],
     queryFn: () => productsService.getProducts(params),
+    enabled: options?.enabled ?? true,
     staleTime: 2 * 60 * 1000, // 2 minutos
     gcTime: 5 * 60 * 1000, // 5 minutos
   });

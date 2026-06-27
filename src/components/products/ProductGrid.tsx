@@ -7,6 +7,8 @@ import { StarIcon } from '@heroicons/react/24/solid';
 import { useAddCartItem } from '@/hooks/useCart';
 import { useState } from 'react';
 import type { Product } from '@/types';
+import { formatCurrency } from '@/lib/currency';
+import type { LanguageCode } from '@/i18n/config';
 
 /** Returns 2-letter initials from a product name (first letter of first two words) */
 function getProductInitials(name: string): string {
@@ -33,14 +35,16 @@ function ProductImageFallback({ name, size = 'md' }: { name: string; size?: 'sm'
 interface ProductGridProps {
   products: Product[];
   viewMode?: 'grid' | 'list';
+  /** Idioma para el formato de moneda (separadores). El símbolo lo da currencyCode. */
+  lang?: LanguageCode;
 }
 
-export function ProductGrid({ products, viewMode = 'grid' }: ProductGridProps) {
+export function ProductGrid({ products, viewMode = 'grid', lang = 'es' }: ProductGridProps) {
   if (viewMode === 'list') {
     return (
       <div className="space-y-4">
         {products.map((product) => (
-          <ProductListItem key={product.id} product={product} />
+          <ProductListItem key={product.id} product={product} lang={lang} />
         ))}
       </div>
     );
@@ -49,14 +53,14 @@ export function ProductGrid({ products, viewMode = 'grid' }: ProductGridProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       {products.map((product) => (
-        <ProductCard key={product.id} product={product} />
+        <ProductCard key={product.id} product={product} lang={lang} />
       ))}
     </div>
   );
 }
 
 // Grid Card Component
-function ProductCard({ product }: { product: Product }) {
+function ProductCard({ product, lang = 'es' }: { product: Product; lang?: LanguageCode }) {
   const addToCart = useAddCartItem();
   const [added, setAdded] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -139,13 +143,8 @@ function ProductCard({ product }: { product: Product }) {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xl font-bold text-[#3E667D]">
-                  ${product.price.toFixed(2)}
+                  {formatCurrency(product.price, product.currencyCode || 'MXN', lang)}
                 </span>
-                {product.currencyCode && (
-                  <span className="text-[10px] font-semibold text-[#3E667D]/60 bg-[#C8DDF2]/40 px-1.5 py-0.5 rounded">
-                    {product.currencyCode}
-                  </span>
-                )}
                 {product.compareAtPrice && (
                   <span className="text-sm text-gray-400 line-through">
                     ${product.compareAtPrice.toFixed(2)}
@@ -171,7 +170,7 @@ function ProductCard({ product }: { product: Product }) {
 }
 
 // List Item Component
-function ProductListItem({ product }: { product: Product }) {
+function ProductListItem({ product, lang = 'es' }: { product: Product; lang?: LanguageCode }) {
   const addToCart = useAddCartItem();
   const [added, setAdded] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -274,13 +273,8 @@ function ProductListItem({ product }: { product: Product }) {
                   )}
                   <div className="flex items-center gap-2 justify-end">
                     <span className="text-2xl font-bold text-[#3E667D]">
-                      ${product.price.toFixed(2)}
+                      {formatCurrency(product.price, product.currencyCode || 'MXN', lang)}
                     </span>
-                    {product.currencyCode && (
-                      <span className="text-[10px] font-semibold text-[#3E667D]/60 bg-[#C8DDF2]/40 px-1.5 py-0.5 rounded">
-                        {product.currencyCode}
-                      </span>
-                    )}
                   </div>
                 </div>
                 <Button

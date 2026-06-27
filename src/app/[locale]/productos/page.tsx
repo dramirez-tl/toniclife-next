@@ -7,7 +7,7 @@ import { ProductFilters } from '@/components/products/ProductFilters';
 import { FunnelIcon, Squares2X2Icon, ListBulletIcon } from '@heroicons/react/24/outline';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useProducts, useCategories } from '@/hooks/useProducts';
-import { ECOMMERCE_BRANCH_ID } from '@/services/products.service';
+import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { useAppSelector } from '@/store/hooks';
 import { selectUserRoles } from '@/store/slices/authSlice';
 import { SparklesIcon } from '@heroicons/react/24/solid';
@@ -77,23 +77,32 @@ export default function ProductsPage() {
   const roles = useAppSelector(selectUserRoles);
   const isDistributor = roles.includes('distributor');
 
+  // País de la tienda (del locale): el API filtra stock por el almacén del país
+  // y devuelve el precio en su moneda. Gateamos hasta tener el countryId.
+  const { countryId, lang } = useStoreCountry();
+
   // Obtener datos del API
   const {
     data: productsData,
-    isLoading: productsLoading,
+    isLoading: rawProductsLoading,
     error: productsError,
-  } = useProducts({
-    categoryId: selectedCategory !== 'all' ? selectedCategory : undefined,
-    isActive: true,
-    isVisibleEcommerce: true,
-    branchId: ECOMMERCE_BRANCH_ID,
-    inStock: true,
-    search: searchTerm || undefined,
-    page: currentPage,
-    limit,
-    sortBy: sortBy === 'newest' ? 'createdAt' : sortBy === 'price-asc' || sortBy === 'price-desc' ? 'basePrice' : sortBy === 'name' ? 'name' : 'sortOrder',
-    sortDir: sortBy === 'price-desc' ? 'desc' : sortBy === 'newest' ? 'desc' : 'asc',
-  });
+  } = useProducts(
+    {
+      categoryId: selectedCategory !== 'all' ? selectedCategory : undefined,
+      isActive: true,
+      isVisibleEcommerce: true,
+      countryId,
+      inStock: true,
+      search: searchTerm || undefined,
+      page: currentPage,
+      limit,
+      sortBy: sortBy === 'newest' ? 'createdAt' : sortBy === 'price-asc' || sortBy === 'price-desc' ? 'basePrice' : sortBy === 'name' ? 'name' : 'sortOrder',
+      sortDir: sortBy === 'price-desc' ? 'desc' : sortBy === 'newest' ? 'desc' : 'asc',
+    },
+    { enabled: !!countryId },
+  );
+  // Mientras se resuelve el país (catálogo) tratamos como "cargando".
+  const productsLoading = rawProductsLoading || !countryId;
 
   const {
     data: categoriesData,
@@ -336,7 +345,7 @@ export default function ProductsPage() {
               {/* Products */}
               {!productsLoading && products.length > 0 && (
                 <>
-                  <ProductGrid products={products} viewMode={viewMode} />
+                  <ProductGrid products={products} viewMode={viewMode} lang={lang} />
 
                   {/* Pagination */}
                   {totalPages > 1 && (

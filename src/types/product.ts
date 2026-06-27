@@ -265,6 +265,8 @@ export interface ProductQueryParams {
   search?: string;
   sku?: string;
   categoryId?: string;
+  /** País (UUID) para precio/moneda y para resolver el almacén ecommerce del país. */
+  countryId?: string;
   branchId?: string;
   inStock?: boolean;
   isActive?: boolean;
