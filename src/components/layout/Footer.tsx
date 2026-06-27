@@ -182,10 +182,6 @@ export function Footer() {
             <h4 className="font-bold text-white mb-4">Contacto</h4>
             <ul className="space-y-3 text-sm text-white/70">
               <li>
-                <span className="block text-white font-medium">Teléfono</span>
-                1-800-TONIC-LIFE
-              </li>
-              <li>
                 <span className="block text-white font-medium">Correo electrónico</span>
                 <a
                   href="mailto:informes@toniclife.com"
