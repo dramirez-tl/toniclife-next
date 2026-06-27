@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
 import { Geist_Mono } from "next/font/google";
 import localFont from "next/font/local";
+import { cookies } from "next/headers";
+import { NextIntlClientProvider } from "next-intl";
 import { Analytics } from "@vercel/analytics/next";
 import { Toaster } from "sonner";
 import { ReduxProvider } from "@/store/provider";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { ReferralCodeCapture } from "@/components/ReferralCodeCapture";
 import { VersionChecker } from "@/components/VersionChecker";
+import { DEFAULT_LOCALE, isSupportedLocale, localeLanguage } from "@/i18n/config";
+import esMessages from "@/messages/es.json";
+import enMessages from "@/messages/en.json";
 import "./globals.css";
 
 // Tipografía de marca (fuentes entregadas por diseño, self-hosted):
@@ -81,23 +86,37 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Idioma global desde la cookie NEXT_LOCALE (la escribe el selector). Da
+  // contexto de i18n a TODAS las páginas (incl. las no localizadas como /faq,
+  // /carrito) para que el Header/Footer compartidos puedan traducir. En las
+  // páginas /[locale]/... el provider anidado de ese layout (locale de la URL)
+  // tiene prioridad.
+  const cookieStore = await cookies();
+  const cookieLocale = cookieStore.get('NEXT_LOCALE')?.value;
+  const locale =
+    cookieLocale && isSupportedLocale(cookieLocale) ? cookieLocale : DEFAULT_LOCALE;
+  const lang = localeLanguage(locale);
+  const messages = lang === 'en' ? enMessages : esMessages;
+
   return (
-    <html lang="es">
+    <html lang={lang}>
       <body
         className={`${satoshi.variable} ${ibarra.variable} ${geistMono.variable} antialiased bg-white`}
       >
-        <QueryProvider>
-          <ReduxProvider>
-            <ReferralCodeCapture />
-            <VersionChecker />
-            {children}
-          </ReduxProvider>
-        </QueryProvider>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <QueryProvider>
+            <ReduxProvider>
+              <ReferralCodeCapture />
+              <VersionChecker />
+              {children}
+            </ReduxProvider>
+          </QueryProvider>
+        </NextIntlClientProvider>
         <Toaster richColors position="top-right" />
         <Analytics />
       </body>

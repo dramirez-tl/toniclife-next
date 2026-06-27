@@ -15,6 +15,7 @@ import {
 import { useCartSummary } from '@/hooks/useCart';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated, selectUserRoles, selectUser, selectIsInitialized } from '@/store/slices/authSlice';
+import { useTranslations } from 'next-intl';
 import { CountryLanguageSelector } from '@/components/public/CountryLanguageSelector';
 import { DEFAULT_LOCALE, countryMeta, localeCountry, localeLanguage } from '@/i18n/config';
 import { getStoredLocale, setStoredLocale } from '@/lib/store-locale';
@@ -26,13 +27,15 @@ interface NavItem {
   highlight?: boolean;
 }
 
+// `name` = clave i18n estable (nav.<name>); el texto visible lo resuelve t().
 const navigation: NavItem[] = [
-  { name: 'Inicio', href: '/' },
-  { name: 'Productos', href: '/productos' },
-  { name: 'Evaluación de Salud', href: '/quiz', highlight: true },
+  { name: 'home', href: '/' },
+  { name: 'products', href: '/productos' },
+  { name: 'evaluation', href: '/quiz', highlight: true },
 ];
 
 export function Header() {
+  const t = useTranslations();
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -119,8 +122,8 @@ export function Header() {
       {/* Top bar */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#2f5165] text-white text-sm py-2">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center">
-          <p className="hidden sm:block text-white/90">Bienestar natural desde 2004 — Tonic Life</p>
-          <p className="sm:hidden text-center w-full text-white/90">Bienestar natural — Tonic Life</p>
+          <p className="hidden sm:block text-white/90">{t('common.tagline')}</p>
+          <p className="sm:hidden text-center w-full text-white/90">{t('common.tagline')}</p>
           <div className="hidden sm:flex items-center gap-4">
             <button
               onClick={() => setSelectorOpen(true)}
@@ -133,7 +136,7 @@ export function Header() {
             </button>
             <span className="text-white/30">|</span>
             <Link href="/faq" className="text-white/90 hover:text-[#C8DDF2] transition-colors">
-              Ayuda
+              {t('nav.help')}
             </Link>
           </div>
         </div>
@@ -173,7 +176,7 @@ export function Header() {
                       `}
                       aria-expanded={activeDropdown === item.name}
                     >
-                      {item.name}
+                      {t(`nav.${item.name}`)}
                       <ChevronDownIcon className="h-4 w-4" />
                     </button>
 
@@ -214,7 +217,7 @@ export function Header() {
                     `}
                   >
                     {item.highlight && <SparklesIcon className="h-4 w-4" />}
-                    {item.name}
+                    {t(`nav.${item.name}`)}
                   </Link>
                 )}
               </div>
@@ -259,11 +262,11 @@ export function Header() {
                         {user.firstName?.charAt(0)?.toUpperCase()}{user.lastName?.charAt(0)?.toUpperCase()}
                       </span>
                     )}
-                    Ir a Panel
+                    {t('nav.goToPanel')}
                   </span>
                 ) : (
                   <Button size="md" className="cursor-pointer">
-                    Inicia sesión
+                    {t('nav.login')}
                   </Button>
                 )}
               </Link>
@@ -299,7 +302,7 @@ export function Header() {
                       }
                       className="w-full flex items-center justify-between px-4 py-3 rounded-xl text-[#3E667D] font-medium hover:bg-gray-50"
                     >
-                      {item.name}
+                      {t(`nav.${item.name}`)}
                       <ChevronDownIcon
                         className={`h-5 w-5 transition-transform ${
                           activeDropdown === item.name ? 'rotate-180' : ''
@@ -337,7 +340,7 @@ export function Header() {
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     {item.highlight && <SparklesIcon className="h-5 w-5" />}
-                    {item.name}
+                    {t(`nav.${item.name}`)}
                   </Link>
                 )}
               </div>
