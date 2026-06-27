@@ -153,7 +153,7 @@ export function Footer() {
                 <li key={link.name}>
                   <Link
                     href={link.href}
-                    className="text-white/70 hover:text-[#3E667D] transition-colors text-sm"
+                    className="text-white/70 hover:text-white transition-colors text-sm"
                   >
                     {link.name}
                   </Link>
@@ -169,7 +169,7 @@ export function Footer() {
                 <li key={link.name}>
                   <Link
                     href={link.href}
-                    className="text-white/70 hover:text-[#3E667D] transition-colors text-sm"
+                    className="text-white/70 hover:text-white transition-colors text-sm"
                   >
                     {link.name}
                   </Link>
@@ -187,7 +187,12 @@ export function Footer() {
               </li>
               <li>
                 <span className="block text-white font-medium">Correo electrónico</span>
-                Informes@toniclife.com
+                <a
+                  href="mailto:informes@toniclife.com"
+                  className="hover:text-white transition-colors"
+                >
+                  informes@toniclife.com
+                </a>
               </li>
               <li>
                 <span className="block text-white font-medium">Horario</span>
@@ -205,7 +210,7 @@ export function Footer() {
                   href={social.href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-white/70 hover:text-[#3E667D] transition-colors"
+                  className="text-white/70 hover:text-white transition-colors"
                   aria-label={social.name}
                 >
                   {social.icon}
@@ -228,7 +233,7 @@ export function Footer() {
                 <Link
                   key={link.name}
                   href={link.href}
-                  className="hover:text-[#3E667D] transition-colors"
+                  className="hover:text-white transition-colors"
                 >
                   {link.name}
                 </Link>
