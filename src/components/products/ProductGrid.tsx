@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { Card, Badge, Button } from '@/components/ui';
 import { ShoppingCartIcon, CheckIcon } from '@heroicons/react/24/outline';
 import { StarIcon } from '@heroicons/react/24/solid';
@@ -61,6 +62,7 @@ export function ProductGrid({ products, viewMode = 'grid', lang = 'es' }: Produc
 
 // Grid Card Component
 function ProductCard({ product, lang = 'es' }: { product: Product; lang?: LanguageCode }) {
+  const t = useTranslations('products.card');
   const addToCart = useAddCartItem();
   const [added, setAdded] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -92,7 +94,7 @@ function ProductCard({ product, lang = 'es' }: { product: Product; lang?: Langua
             </Badge>
           )}
           {product.featured && (
-            <Badge variant="outline" className="border-green-200 bg-green-100 text-green-700">Destacado</Badge>
+            <Badge variant="outline" className="border-green-200 bg-green-100 text-green-700">{t('featured')}</Badge>
           )}
         </div>
 
@@ -160,7 +162,7 @@ function ProductCard({ product, lang = 'es' }: { product: Product; lang?: Langua
               className="cursor-pointer"
             >
               {added ? <CheckIcon className="h-4 w-4" /> : <ShoppingCartIcon className="h-4 w-4" />}
-              {addToCart.isPending ? 'Agregando...' : added ? 'Agregado' : 'Agregar'}
+              {addToCart.isPending ? t('adding') : added ? t('added') : t('addShort')}
             </Button>
           </div>
         </div>
@@ -171,6 +173,7 @@ function ProductCard({ product, lang = 'es' }: { product: Product; lang?: Langua
 
 // List Item Component
 function ProductListItem({ product, lang = 'es' }: { product: Product; lang?: LanguageCode }) {
+  const t = useTranslations('products.card');
   const addToCart = useAddCartItem();
   const [added, setAdded] = useState(false);
   const [imgError, setImgError] = useState(false);
@@ -218,7 +221,7 @@ function ProductListItem({ product, lang = 'es' }: { product: Product; lang?: La
                     {product.category}
                   </span>
                   {product.featured && (
-                    <Badge variant="outline" className="border-green-200 bg-green-100 text-green-700 px-1.5 py-0 text-[10px]">Destacado</Badge>
+                    <Badge variant="outline" className="border-green-200 bg-green-100 text-green-700 px-1.5 py-0 text-[10px]">{t('featured')}</Badge>
                   )}
                   {product.compareAtPrice && (
                     <Badge variant="outline" className="border-red-200 bg-red-100 text-red-700 px-1.5 py-0 text-[10px]">
@@ -259,7 +262,7 @@ function ProductListItem({ product, lang = 'es' }: { product: Product; lang?: La
                   {[1, 2, 3, 4, 5].map((star) => (
                     <StarIcon key={star} className="h-4 w-4 text-yellow-400" />
                   ))}
-                  <span className="text-xs text-gray-500 ml-1">(24 reseñas)</span>
+                  <span className="text-xs text-gray-500 ml-1">{t('reviews', { count: 24 })}</span>
                 </div>
               </div>
 
@@ -284,7 +287,7 @@ function ProductListItem({ product, lang = 'es' }: { product: Product; lang?: La
                   className="cursor-pointer"
                 >
                   {added ? <CheckIcon className="h-4 w-4" /> : <ShoppingCartIcon className="h-4 w-4" />}
-                  {addToCart.isPending ? 'Agregando...' : added ? 'Agregado' : 'Agregar al Carrito'}
+                  {addToCart.isPending ? t('adding') : added ? t('added') : t('addToCart')}
                 </Button>
               </div>
             </div>

@@ -41,5 +41,104 @@
       "privacy": "Política de Privacidad",
       "cookies": "Política de Cookies"
     }
+  },
+  "products": {
+    "heroBadge": "Bienestar natural desde 2004",
+    "heroTitlePrefix": "Nuestros",
+    "heroTitleHighlight": "productos",
+    "heroSubtitle": "Suplementos, belleza y cuidado personal, formulados para acompañar tu bienestar todos los días.",
+    "distributorPriceTitle": "Precios de distribuidor.",
+    "distributorPriceBody": "Estás viendo los precios de tu cuenta y los puntos que suma cada producto. Si tu kit aún no está activo, verás precio público hasta completarlo. El envío a domicilio se cobra siempre; puedes elegir recoger en sucursal sin costo.",
+    "searchPlaceholder": "Buscar productos...",
+    "allCategory": "Todos ({count})",
+    "filtersButton": "Filtros",
+    "resultsCount": "{count} productos",
+    "sort": {
+      "featured": "Destacados",
+      "newest": "Más Recientes",
+      "priceAsc": "Precio: Menor a Mayor",
+      "priceDesc": "Precio: Mayor a Menor",
+      "name": "Nombre A-Z"
+    },
+    "loading": "Cargando productos...",
+    "loadError": "Error al cargar los productos. Por favor, verifica tu conexión e intenta de nuevo.",
+    "prev": "Anterior",
+    "next": "Siguiente",
+    "pageOf": "Página {current} de {total}",
+    "empty": "No se encontraron productos con los filtros seleccionados.",
+    "clearFilters": "Limpiar filtros",
+    "filters": {
+      "categories": "Categorías",
+      "allProducts": "Todos los productos",
+      "price": "Precio",
+      "min": "Mínimo",
+      "max": "Máximo",
+      "priceUnder30": "Menos de $30",
+      "price30to50": "$30 - $50",
+      "priceOver50": "Más de $50",
+      "benefits": "Beneficios",
+      "reset": "Limpiar filtros"
+    },
+    "benefits": {
+      "energy": "Energía",
+      "digestion": "Digestión",
+      "immunity": "Inmunidad",
+      "skin": "Piel",
+      "sleep": "Sueño",
+      "weight": "Peso",
+      "hormones": "Hormonas",
+      "circulation": "Circulación"
+    },
+    "card": {
+      "featured": "Destacado",
+      "adding": "Agregando...",
+      "added": "Agregado",
+      "addShort": "Agregar",
+      "addToCart": "Agregar al Carrito",
+      "reviews": "({count} reseñas)"
+    }
+  },
+  "productDetail": {
+    "loading": "Cargando producto...",
+    "notFound": "Producto no encontrado",
+    "viewAll": "Ver todos los productos",
+    "breadcrumbHome": "Inicio",
+    "breadcrumbProducts": "Productos",
+    "badgeFeatured": "Destacado",
+    "trust": {
+      "shipping": "Envíos",
+      "shippingDesc": "Entrega a domicilio",
+      "secure": "100% Seguro",
+      "secureDesc": "Pago protegido",
+      "warranty": "Garantía",
+      "warrantyDesc": "30 días"
+    },
+    "code": "Código",
+    "category": "Categoría",
+    "earnPoints": "Gana {points} puntos con esta compra",
+    "reviews": "({count} reseñas)",
+    "kitIncludes": "Este kit incluye:",
+    "quantity": "Cantidad",
+    "inStock": "En stock",
+    "onlyAvailable": "Solo {count} disponibles",
+    "adding": "Agregando...",
+    "addToCart": "Agregar al carrito",
+    "buyNow": "Comprar ahora",
+    "addedToCart": "{quantity}x {name} agregado al carrito",
+    "addError": "Error al agregar al carrito",
+    "tabs": {
+      "description": "Descripción",
+      "benefits": "Beneficios",
+      "usage": "Modo de uso",
+      "ingredients": "Ingredientes"
+    },
+    "warnings": "Advertencias",
+    "benefitsSoon": "Información de beneficios disponible próximamente.",
+    "recommendedDose": "Dosis recomendada",
+    "instructions": "Instrucciones",
+    "activeIngredients": "Ingredientes activos",
+    "ingredientsSoon": "Información de ingredientes disponible próximamente.",
+    "relatedProducts": "Productos relacionados",
+    "viewDetails": "Ver detalles"
   }
 }

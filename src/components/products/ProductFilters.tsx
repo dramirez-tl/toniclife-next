@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 
 interface Category {
@@ -24,6 +25,8 @@ export function ProductFilters({
   priceRange,
   onPriceRangeChange
 }: ProductFiltersProps) {
+  const t = useTranslations('products.filters');
+  const tb = useTranslations('products.benefits');
   const [expandedSections, setExpandedSections] = useState({
     categories: true,
     price: true,
@@ -37,16 +40,16 @@ export function ProductFilters({
     }));
   };
 
-  const benefits = [
-    'Energía',
-    'Digestión',
-    'Inmunidad',
-    'Piel',
-    'Sueño',
-    'Peso',
-    'Hormonas',
-    'Circulación'
-  ];
+  const benefitKeys = [
+    'energy',
+    'digestion',
+    'immunity',
+    'skin',
+    'sleep',
+    'weight',
+    'hormones',
+    'circulation',
+  ] as const;
 
   return (
     <div className="space-y-6">
@@ -56,7 +59,7 @@ export function ProductFilters({
           onClick={() => toggleSection('categories')}
           className="w-full flex items-center justify-between text-left font-bold text-[#3E667D] mb-3"
         >
-          Categorías
+          {t('categories')}
           <ChevronDownIcon
             className={`h-5 w-5 transition-transform ${expandedSections.categories ? 'rotate-180' : ''}`}
           />
@@ -73,7 +76,7 @@ export function ProductFilters({
                 className="w-4 h-4 text-[#3E667D] border-gray-300 focus:ring-[#a7c1e2]"
               />
               <span className="text-gray-700 group-hover:text-[#3E667D] transition-colors">
-                Todos los productos
+                {t('allProducts')}
               </span>
             </label>
 
@@ -104,7 +107,7 @@ export function ProductFilters({
           onClick={() => toggleSection('price')}
           className="w-full flex items-center justify-between text-left font-bold text-[#3E667D] mb-3"
         >
-          Precio
+          {t('price')}
           <ChevronDownIcon
             className={`h-5 w-5 transition-transform ${expandedSections.price ? 'rotate-180' : ''}`}
           />
@@ -114,7 +117,7 @@ export function ProductFilters({
           <div className="space-y-4">
             <div className="flex items-center gap-4">
               <div className="flex-1">
-                <label className="text-xs text-gray-500 mb-1 block">Mínimo</label>
+                <label className="text-xs text-gray-500 mb-1 block">{t('min')}</label>
                 <input
                   type="number"
                   min={0}
@@ -126,7 +129,7 @@ export function ProductFilters({
               </div>
               <span className="text-gray-400 mt-4">-</span>
               <div className="flex-1">
-                <label className="text-xs text-gray-500 mb-1 block">Máximo</label>
+                <label className="text-xs text-gray-500 mb-1 block">{t('max')}</label>
                 <input
                   type="number"
                   min={priceRange[0]}
@@ -153,9 +156,9 @@ export function ProductFilters({
             {/* Quick Price Buttons */}
             <div className="flex flex-wrap gap-2">
               {[
-                { label: 'Menos de $30', range: [0, 30] as [number, number] },
-                { label: '$30 - $50', range: [30, 50] as [number, number] },
-                { label: 'Más de $50', range: [50, 100] as [number, number] }
+                { label: t('priceUnder30'), range: [0, 30] as [number, number] },
+                { label: t('price30to50'), range: [30, 50] as [number, number] },
+                { label: t('priceOver50'), range: [50, 100] as [number, number] }
               ].map((option) => (
                 <button
                   key={option.label}
@@ -183,7 +186,7 @@ export function ProductFilters({
           onClick={() => toggleSection('benefits')}
           className="w-full flex items-center justify-between text-left font-bold text-[#3E667D] mb-3"
         >
-          Beneficios
+          {t('benefits')}
           <ChevronDownIcon
             className={`h-5 w-5 transition-transform ${expandedSections.benefits ? 'rotate-180' : ''}`}
           />
@@ -191,14 +194,14 @@ export function ProductFilters({
 
         {expandedSections.benefits && (
           <div className="space-y-2">
-            {benefits.map((benefit) => (
+            {benefitKeys.map((benefit) => (
               <label key={benefit} className="flex items-center gap-3 cursor-pointer group">
                 <input
                   type="checkbox"
                   className="w-4 h-4 text-[#3E667D] border-gray-300 rounded focus:ring-[#a7c1e2]"
                 />
                 <span className="text-gray-700 group-hover:text-[#3E667D] transition-colors">
-                  {benefit}
+                  {tb(benefit)}
                 </span>
               </label>
             ))}
@@ -214,7 +217,7 @@ export function ProductFilters({
         }}
         className="w-full py-2 text-sm text-gray-500 hover:text-[#3E667D] transition-colors"
       >
-        Limpiar filtros
+        {t('reset')}
       </button>
     </div>
   );

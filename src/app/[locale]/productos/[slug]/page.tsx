@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, use } from 'react';
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import Link from 'next/link';
 import { ShoppingCartIcon, StarIcon, CheckCircleIcon, TruckIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
@@ -84,6 +85,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   // Unwrap params using React.use()
   const { slug } = use(params);
 
+  const t = useTranslations('productDetail');
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<'description' | 'benefits' | 'usage' | 'ingredients'>('description');
@@ -134,7 +136,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
         <div className="min-h-screen flex items-center justify-center pt-20">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#a7c1e2] mx-auto"></div>
-            <p className="mt-4 text-gray-500">Cargando producto...</p>
+            <p className="mt-4 text-gray-500">{t('loading')}</p>
           </div>
         </div>
         <Footer />
@@ -149,9 +151,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
         <Header />
         <div className="min-h-screen flex items-center justify-center pt-20">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Producto no encontrado</h1>
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">{t('notFound')}</h1>
             <Link href="/productos">
-              <Button>Ver todos los productos</Button>
+              <Button>{t('viewAll')}</Button>
             </Link>
           </div>
         </div>
@@ -167,10 +169,10 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
       { productId: apiProduct.id, quantity },
       {
         onSuccess: () => {
-          toast.success(`${quantity}x ${product?.name} agregado al carrito`);
+          toast.success(t('addedToCart', { quantity, name: product?.name ?? '' }));
         },
         onError: () => {
-          toast.error('Error al agregar al carrito');
+          toast.error(t('addError'));
         },
       }
     );
@@ -185,9 +187,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
         <div className="bg-white border-b">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <nav className="flex items-center space-x-2 text-sm">
-              <Link href="/" className="text-gray-500 hover:text-[#3E667D]">Inicio</Link>
+              <Link href="/" className="text-gray-500 hover:text-[#3E667D]">{t('breadcrumbHome')}</Link>
               <span className="text-gray-400">/</span>
-              <Link href="/productos" className="text-gray-500 hover:text-[#3E667D]">Productos</Link>
+              <Link href="/productos" className="text-gray-500 hover:text-[#3E667D]">{t('breadcrumbProducts')}</Link>
               <span className="text-gray-400">/</span>
               <span className="text-gray-900 font-medium">{product.name}</span>
             </nav>
@@ -201,7 +203,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             <div className="bg-white rounded-2xl p-6 mb-4 relative">
               {product.badge && (
                 <Badge variant="outline" className={`absolute top-4 left-4 z-10 ${product.badge === 'Nuevo' ? 'border-green-200 bg-green-100 text-green-700' : 'border-yellow-200 bg-yellow-100 text-yellow-700'}`}>
-                  {product.badge}
+                  {t('badgeFeatured')}
                 </Badge>
               )}
               <div className="aspect-square relative mb-4">
@@ -243,22 +245,22 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               <Card>
                 <CardContent className="p-4 text-center">
                   <TruckIcon className="h-8 w-8 text-[#3E667D] mx-auto mb-2" />
-                  <p className="text-xs font-medium text-gray-900">Envíos</p>
-                  <p className="text-xs text-gray-500">A todo México</p>
+                  <p className="text-xs font-medium text-gray-900">{t('trust.shipping')}</p>
+                  <p className="text-xs text-gray-500">{t('trust.shippingDesc')}</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-4 text-center">
                   <ShieldCheckIcon className="h-8 w-8 text-[#3E667D] mx-auto mb-2" />
-                  <p className="text-xs font-medium text-gray-900">100% Seguro</p>
-                  <p className="text-xs text-gray-500">Pago protegido</p>
+                  <p className="text-xs font-medium text-gray-900">{t('trust.secure')}</p>
+                  <p className="text-xs text-gray-500">{t('trust.secureDesc')}</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-4 text-center">
                   <CheckCircleIcon className="h-8 w-8 text-[#3E667D] mx-auto mb-2" />
-                  <p className="text-xs font-medium text-gray-900">Garantía</p>
-                  <p className="text-xs text-gray-500">30 días</p>
+                  <p className="text-xs font-medium text-gray-900">{t('trust.warranty')}</p>
+                  <p className="text-xs text-gray-500">{t('trust.warrantyDesc')}</p>
                 </CardContent>
               </Card>
             </div>
@@ -275,9 +277,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               {/* SKU & Category (from API) */}
               {apiProduct && (
                 <div className="flex gap-4 text-sm text-gray-500 mb-4">
-                  <span>Codigo: {apiProduct.code}</span>
+                  <span>{t('code')}: {apiProduct.code}</span>
                   {apiProduct.categoryName && (
-                    <span>Categoría: {apiProduct.categoryName}</span>
+                    <span>{t('category')}: {apiProduct.categoryName}</span>
                   )}
                 </div>
               )}
@@ -286,7 +288,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               {apiProduct && parseFloat(apiProduct.pointsValue || '0') > 0 && (
                 <div className="bg-[#3E667D]/5 rounded-lg p-3 mb-4">
                   <p className="text-sm text-[#3E667D] font-medium">
-                    Gana {apiProduct.pointsValue} puntos con esta compra
+                    {t('earnPoints', { points: apiProduct.pointsValue ?? '0' })}
                   </p>
                 </div>
               )}
@@ -307,7 +309,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     ))}
                   </div>
                   <span className="text-sm text-gray-600">
-                    {product.rating} ({product.reviews} reseñas)
+                    {product.rating} {t('reviews', { count: product.reviews ?? 0 })}
                   </span>
                 </div>
               )}
@@ -344,7 +346,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             {/* Kit Components (if applicable) */}
             {components && components.length > 0 && (
               <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                <h4 className="font-semibold text-gray-900 mb-3">Este kit incluye:</h4>
+                <h4 className="font-semibold text-gray-900 mb-3">{t('kitIncludes')}</h4>
                 <ul className="space-y-2">
                   {components.map((comp) => (
                     <li key={comp.id} className="flex items-center gap-2">
@@ -361,7 +363,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             {/* Quantity Selector */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Cantidad
+                {t('quantity')}
               </label>
               <div className="flex items-center gap-3">
                 <div className="flex items-center border border-gray-300 rounded-lg">
@@ -382,7 +384,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   </button>
                 </div>
                 <span className="text-sm text-gray-500">
-                  {product.stock && product.stock > 10 ? 'En stock' : product.stock ? `Solo ${product.stock} disponibles` : 'En stock'}
+                  {product.stock && product.stock > 10 ? t('inStock') : product.stock ? t('onlyAvailable', { count: product.stock }) : t('inStock')}
                 </span>
               </div>
             </div>
@@ -397,13 +399,13 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 disabled={addToCart.isPending}
               >
                 <ShoppingCartIcon className="h-5 w-5 mr-2" />
-                {addToCart.isPending ? 'Agregando...' : 'Agregar al carrito'}
+                {addToCart.isPending ? t('adding') : t('addToCart')}
               </Button>
             </div>
 
             <Link href="/carrito">
               <Button variant="secondary" size="lg" className="w-full">
-                Comprar ahora
+                {t('buyNow')}
               </Button>
             </Link>
           </div>
@@ -422,7 +424,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  Descripción
+                  {t('tabs.description')}
                 </button>
                 <button
                   onClick={() => setActiveTab('benefits')}
@@ -432,7 +434,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  Beneficios
+                  {t('tabs.benefits')}
                 </button>
                 <button
                   onClick={() => setActiveTab('usage')}
@@ -442,7 +444,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  Modo de uso
+                  {t('tabs.usage')}
                 </button>
                 <button
                   onClick={() => setActiveTab('ingredients')}
@@ -452,7 +454,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
                 >
-                  Ingredientes
+                  {t('tabs.ingredients')}
                 </button>
               </nav>
             </div>
@@ -465,7 +467,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                   </p>
                   {apiProduct?.warnings && (
                     <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-yellow-800 mb-2">Advertencias</h4>
+                      <h4 className="font-semibold text-yellow-800 mb-2">{t('warnings')}</h4>
                       <p className="text-yellow-700 text-sm">{apiProduct.warnings}</p>
                     </div>
                   )}
@@ -484,7 +486,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                       </div>
                     ))
                   ) : (
-                    <p className="text-gray-600">Información de beneficios disponible próximamente.</p>
+                    <p className="text-gray-600">{t('benefitsSoon')}</p>
                   )}
                 </div>
               )}
@@ -493,12 +495,12 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 <div className="space-y-4">
                   {product.dosage && (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-[#3E667D] mb-2">Dosis recomendada</h4>
+                      <h4 className="font-semibold text-[#3E667D] mb-2">{t('recommendedDose')}</h4>
                       <p className="text-gray-700">{product.dosage}</p>
                     </div>
                   )}
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">Instrucciones</h4>
+                    <h4 className="font-semibold text-gray-900 mb-2">{t('instructions')}</h4>
                     <p className="text-gray-700 mb-2">{product.usage.ideal}</p>
                     {product.usage.regular && (
                       <p className="text-gray-700 mb-2">{product.usage.regular}</p>
@@ -512,7 +514,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
 
               {activeTab === 'ingredients' && (
                 <div>
-                  <h4 className="font-semibold text-gray-900 mb-4">Ingredientes activos</h4>
+                  <h4 className="font-semibold text-gray-900 mb-4">{t('activeIngredients')}</h4>
                   {product.ingredients && product.ingredients.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {product.ingredients.map((ingredient, index) => (
@@ -522,7 +524,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-gray-600">Información de ingredientes disponible próximamente.</p>
+                    <p className="text-gray-600">{t('ingredientsSoon')}</p>
                   )}
                 </div>
               )}
@@ -533,7 +535,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
         {/* Related Products */}
         {relatedProducts.length > 0 && (
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">Productos relacionados</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">{t('relatedProducts')}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {relatedProducts.map((relatedProduct) => (
                 <Link key={relatedProduct.id} href={`/productos/${relatedProduct.slug}`}>
@@ -542,7 +544,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                       <div className="aspect-square relative mb-4 bg-gray-50 rounded-lg overflow-hidden">
                         {relatedProduct.badge && (
                           <Badge variant="outline" className={`absolute top-2 left-2 z-10 ${relatedProduct.badge === 'Nuevo' ? 'border-green-200 bg-green-100 text-green-700' : 'border-yellow-200 bg-yellow-100 text-yellow-700'}`}>
-                            {relatedProduct.badge}
+                            {t('badgeFeatured')}
                           </Badge>
                         )}
                         <ProductImageWithFallback
@@ -567,7 +569,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                         )}
                       </div>
                       <Button variant="outline" size="sm" className="w-full">
-                        Ver detalles
+                        {t('viewDetails')}
                       </Button>
                     </CardContent>
                   </Card>

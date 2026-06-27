@@ -41,5 +41,104 @@
       "privacy": "Privacy Policy",
       "cookies": "Cookie Policy"
     }
+  },
+  "products": {
+    "heroBadge": "Natural wellness since 2004",
+    "heroTitlePrefix": "Our",
+    "heroTitleHighlight": "products",
+    "heroSubtitle": "Supplements, beauty and personal care, formulated to support your wellness every day.",
+    "distributorPriceTitle": "Distributor pricing.",
+    "distributorPriceBody": "You're seeing your account's prices and the points each product earns. If your kit isn't active yet, you'll see public pricing until you complete it. Home delivery is always charged; you can choose free in-store pickup.",
+    "searchPlaceholder": "Search products...",
+    "allCategory": "All ({count})",
+    "filtersButton": "Filters",
+    "resultsCount": "{count} products",
+    "sort": {
+      "featured": "Featured",
+      "newest": "Newest",
+      "priceAsc": "Price: Low to High",
+      "priceDesc": "Price: High to Low",
+      "name": "Name A-Z"
+    },
+    "loading": "Loading products...",
+    "loadError": "Failed to load products. Please check your connection and try again.",
+    "prev": "Previous",
+    "next": "Next",
+    "pageOf": "Page {current} of {total}",
+    "empty": "No products found with the selected filters.",
+    "clearFilters": "Clear filters",
+    "filters": {
+      "categories": "Categories",
+      "allProducts": "All products",
+      "price": "Price",
+      "min": "Minimum",
+      "max": "Maximum",
+      "priceUnder30": "Under $30",
+      "price30to50": "$30 - $50",
+      "priceOver50": "Over $50",
+      "benefits": "Benefits",
+      "reset": "Clear filters"
+    },
+    "benefits": {
+      "energy": "Energy",
+      "digestion": "Digestion",
+      "immunity": "Immunity",
+      "skin": "Skin",
+      "sleep": "Sleep",
+      "weight": "Weight",
+      "hormones": "Hormones",
+      "circulation": "Circulation"
+    },
+    "card": {
+      "featured": "Featured",
+      "adding": "Adding...",
+      "added": "Added",
+      "addShort": "Add",
+      "addToCart": "Add to Cart",
+      "reviews": "({count} reviews)"
+    }
+  },
+  "productDetail": {
+    "loading": "Loading product...",
+    "notFound": "Product not found",
+    "viewAll": "View all products",
+    "breadcrumbHome": "Home",
+    "breadcrumbProducts": "Products",
+    "badgeFeatured": "Featured",
+    "trust": {
+      "shipping": "Shipping",
+      "shippingDesc": "Home delivery",
+      "secure": "100% Secure",
+      "secureDesc": "Protected payment",
+      "warranty": "Warranty",
+      "warrantyDesc": "30 days"
+    },
+    "code": "Code",
+    "category": "Category",
+    "earnPoints": "Earn {points} points with this purchase",
+    "reviews": "({count} reviews)",
+    "kitIncludes": "This kit includes:",
+    "quantity": "Quantity",
+    "inStock": "In stock",
+    "onlyAvailable": "Only {count} available",
+    "adding": "Adding...",
+    "addToCart": "Add to cart",
+    "buyNow": "Buy now",
+    "addedToCart": "{quantity}x {name} added to cart",
+    "addError": "Failed to add to cart",
+    "tabs": {
+      "description": "Description",
+      "benefits": "Benefits",
+      "usage": "How to use",
+      "ingredients": "Ingredients"
+    },
+    "warnings": "Warnings",
+    "benefitsSoon": "Benefit information coming soon.",
+    "recommendedDose": "Recommended dose",
+    "instructions": "Instructions",
+    "activeIngredients": "Active ingredients",
+    "ingredientsSoon": "Ingredient information coming soon.",
+    "relatedProducts": "Related products",
+    "viewDetails": "View details"
   }
 }

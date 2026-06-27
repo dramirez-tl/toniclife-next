@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { Header, Footer } from '@/components/layout';
 import { ProductGrid } from '@/components/products/ProductGrid';
 import { ProductFilters } from '@/components/products/ProductFilters';
@@ -63,6 +64,7 @@ function adaptAPICategory(apiCategory: Category) {
 }
 
 export default function ProductsPage() {
+  const t = useTranslations('products');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [sortBy, setSortBy] = useState<SortOption>('featured');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -158,14 +160,14 @@ export default function ProductsPage() {
             <div className="flex min-h-[240px] flex-col justify-center py-10 lg:min-h-[340px]">
               <span className="mb-4 inline-flex w-fit items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-xs font-semibold text-[#3E667D] shadow-sm backdrop-blur">
                 <SparklesIcon className="h-3.5 w-3.5" />
-                Bienestar natural desde 2004
+                {t('heroBadge')}
               </span>
               <h1 className="max-w-md text-4xl font-bold leading-[1.05] text-[#3E667D] sm:text-5xl lg:text-6xl">
-                Nuestros <span className="font-serif italic">productos</span>
+                {t('heroTitlePrefix')}{' '}
+                <span className="font-serif italic">{t('heroTitleHighlight')}</span>
               </h1>
               <p className="mt-4 max-w-sm text-base text-[#3E667D]/80 sm:text-lg">
-                Suplementos, belleza y cuidado personal, formulados para acompañar
-                tu bienestar todos los días.
+                {t('heroSubtitle')}
               </p>
             </div>
           </div>
@@ -177,11 +179,8 @@ export default function ProductsPage() {
             <div className="mb-6 flex items-center gap-3 rounded-xl border border-[#a7c1e2]/40 bg-[#C8DDF2]/20 px-4 py-3">
               <SparklesIcon className="h-5 w-5 flex-shrink-0 text-[#3E667D]" />
               <p className="text-sm text-[#3E667D]">
-                <span className="font-semibold">Precios de distribuidor.</span>{' '}
-                Estás viendo los precios de tu cuenta y los puntos que suma cada
-                producto. Si tu kit aún no está activo, verás precio público
-                hasta completarlo. El envío a domicilio se cobra siempre; puedes
-                elegir recoger en sucursal sin costo.
+                <span className="font-semibold">{t('distributorPriceTitle')}</span>{' '}
+                {t('distributorPriceBody')}
               </p>
             </div>
           )}
@@ -191,7 +190,7 @@ export default function ProductsPage() {
             <div className="relative max-w-xl mx-auto">
               <input
                 type="text"
-                placeholder="Buscar productos..."
+                placeholder={t('searchPlaceholder')}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full px-4 py-3 pl-12 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
@@ -225,7 +224,7 @@ export default function ProductsPage() {
                       : 'bg-gray-100 text-gray-700 hover:bg-[#C8DDF2]/10 hover:text-[#3E667D]'
                   }`}
                 >
-                  Todos ({totalProducts})
+                  {t('allCategory', { count: totalProducts })}
                 </button>
                 {categories.slice(0, 6).map((category) => (
                   <button
@@ -248,7 +247,7 @@ export default function ProductsPage() {
                 className="lg:hidden flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full"
               >
                 <FunnelIcon className="h-5 w-5" />
-                Filtros
+                {t('filtersButton')}
               </button>
 
               {/* Right side controls */}
@@ -256,11 +255,11 @@ export default function ProductsPage() {
                 {/* Sort */}
                 <SearchableSelect
                   options={[
-                    { value: 'featured', label: 'Destacados' },
-                    { value: 'newest', label: 'Más Recientes' },
-                    { value: 'price-asc', label: 'Precio: Menor a Mayor' },
-                    { value: 'price-desc', label: 'Precio: Mayor a Menor' },
-                    { value: 'name', label: 'Nombre A-Z' },
+                    { value: 'featured', label: t('sort.featured') },
+                    { value: 'newest', label: t('sort.newest') },
+                    { value: 'price-asc', label: t('sort.priceAsc') },
+                    { value: 'price-desc', label: t('sort.priceDesc') },
+                    { value: 'name', label: t('sort.name') },
                   ]}
                   value={sortBy}
                   onChange={(val) => setSortBy(val as SortOption)}
@@ -289,7 +288,7 @@ export default function ProductsPage() {
 
                 {/* Results count */}
                 <span className="text-sm text-gray-500">
-                  {products.length} productos
+                  {t('resultsCount', { count: products.length })}
                 </span>
               </div>
             </div>
@@ -329,7 +328,7 @@ export default function ProductsPage() {
               {productsLoading && (
                 <div className="text-center py-16">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#a7c1e2] mx-auto"></div>
-                  <p className="mt-4 text-gray-500">Cargando productos...</p>
+                  <p className="mt-4 text-gray-500">{t('loading')}</p>
                 </div>
               )}
 
@@ -337,7 +336,7 @@ export default function ProductsPage() {
               {productsError && (
                 <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
                   <p className="text-sm text-red-700">
-                    Error al cargar los productos. Por favor, verifica tu conexión e intenta de nuevo.
+                    {t('loadError')}
                   </p>
                 </div>
               )}
@@ -355,17 +354,17 @@ export default function ProductsPage() {
                         disabled={currentPage === 1}
                         className="px-4 py-2 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                       >
-                        Anterior
+                        {t('prev')}
                       </button>
                       <span className="px-4 py-2 text-sm text-gray-600">
-                        Página {currentPage} de {totalPages}
+                        {t('pageOf', { current: currentPage, total: totalPages })}
                       </span>
                       <button
                         onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                         disabled={currentPage === totalPages}
                         className="px-4 py-2 rounded-lg border border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
                       >
-                        Siguiente
+                        {t('next')}
                       </button>
                     </div>
                   )}
@@ -376,7 +375,7 @@ export default function ProductsPage() {
               {!productsLoading && products.length === 0 && (
                 <div className="text-center py-16">
                   <p className="text-gray-500 text-lg">
-                    No se encontraron productos con los filtros seleccionados.
+                    {t('empty')}
                   </p>
                   <button
                     onClick={() => {
@@ -386,7 +385,7 @@ export default function ProductsPage() {
                     }}
                     className="mt-4 text-[#3E667D] hover:underline"
                   >
-                    Limpiar filtros
+                    {t('clearFilters')}
                   </button>
                 </div>
               )}
