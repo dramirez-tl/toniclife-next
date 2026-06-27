@@ -2,34 +2,28 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import { Input, Button } from '@/components/ui';
 
+// `key` = clave i18n (footer.links.<key>); el texto visible lo resuelve t().
 const footerLinks = {
   productos: [
-    { name: 'Energía', href: '/productos/energia' },
-    { name: 'Detox', href: '/productos/detox' },
-    { name: 'Belleza', href: '/productos/belleza' },
-    { name: 'Estrés & Sueño', href: '/productos/estres' },
-    { name: 'Salud Femenina', href: '/productos/hormonal' },
-    { name: 'Salud Masculina', href: '/productos/masculino' }
-  ],
-  // Solo rutas que EXISTEN: /distribuidores, /unete, /devoluciones y /ayuda
-  // eran 404 (auditoría jun-2026). Alta de distribuidor = /registro/distribuidor.
-  empresa: [
-    { name: 'Sobre Nosotros', href: '/nosotros' },
-    { name: 'Testimonios', href: '/testimonios' },
-    { name: 'Blog', href: '/blog' },
-    { name: 'Únete como Distribuidor', href: '/registro/distribuidor' }
+    { key: 'energy', href: '/productos/energia' },
+    { key: 'detox', href: '/productos/detox' },
+    { key: 'beauty', href: '/productos/belleza' },
+    { key: 'stress', href: '/productos/estres' },
+    { key: 'womensHealth', href: '/productos/hormonal' },
+    { key: 'mensHealth', href: '/productos/masculino' }
   ],
   soporte: [
-    { name: 'Envíos', href: '/envios' },
-    { name: 'Contacto', href: '/contacto' },
-    { name: 'Preguntas Frecuentes', href: '/faq' }
+    { key: 'shipping', href: '/envios' },
+    { key: 'contact', href: '/contacto' },
+    { key: 'faq', href: '/faq' }
   ],
   legal: [
-    { name: 'Términos y Condiciones', href: '/terminos' },
-    { name: 'Política de Privacidad', href: '/privacidad' },
-    { name: 'Política de Cookies', href: '/cookies' }
+    { key: 'terms', href: '/terminos' },
+    { key: 'privacy', href: '/privacidad' },
+    { key: 'cookies', href: '/cookies' }
   ]
 };
 
@@ -82,6 +76,7 @@ const socialLinks = [
 ];
 
 export function Footer() {
+  const t = useTranslations('footer');
   return (
     <footer className="bg-[#3E667D] text-white">
       {/* Newsletter Section */}
@@ -90,20 +85,20 @@ export function Footer() {
           <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
             <div className="text-center lg:text-left">
               <h3 className="text-2xl font-bold text-[#3C677C]">
-                Únete a nuestra comunidad de bienestar
+                {t('newsletterTitle')}
               </h3>
               <p className="text-[#3C677C]/80 mt-1">
-                Recibe tips de salud, ofertas exclusivas y novedades directamente en tu correo.
+                {t('newsletterSubtitle')}
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
               <Input
                 type="email"
-                placeholder="Tu correo electrónico"
+                placeholder={t('newsletterPlaceholder')}
                 className="sm:w-72 bg-white border-0 text-[#3C677C] placeholder:text-[#3C677C]/60"
               />
               <Button variant="secondary" size="lg">
-                Suscribirse
+                {t('newsletterButton')}
               </Button>
             </div>
           </div>
@@ -124,38 +119,37 @@ export function Footer() {
               />
             </Link>
             <p className="mt-4 text-white/70 text-sm leading-relaxed">
-              Transformando vidas a través de productos naturales de alta calidad.
-              Tu bienestar es nuestra misión desde 2004.
+              {t('brandDescription')}
             </p>
 
             {/* Certifications */}
             <div className="flex items-center gap-4 mt-6">
               <div className="bg-white/10 rounded-lg px-3 py-2 text-xs">
                 <span className="block font-bold">BBB</span>
-                <span className="text-white/70">Acreditado</span>
+                <span className="text-white/70">{t('certAccredited')}</span>
               </div>
               <div className="bg-white/10 rounded-lg px-3 py-2 text-xs">
                 <span className="block font-bold">DSA</span>
-                <span className="text-white/70">Miembro</span>
+                <span className="text-white/70">{t('certMember')}</span>
               </div>
               <div className="bg-white/10 rounded-lg px-3 py-2 text-xs">
                 <span className="block font-bold">FDA</span>
-                <span className="text-white/70">Registrado</span>
+                <span className="text-white/70">{t('certRegistered')}</span>
               </div>
             </div>
           </div>
 
           {/* Links Columns */}
           <div>
-            <h4 className="font-bold text-white mb-4">Productos</h4>
+            <h4 className="font-bold text-white mb-4">{t('colProducts')}</h4>
             <ul className="space-y-2">
               {footerLinks.productos.map((link) => (
-                <li key={link.name}>
+                <li key={link.key}>
                   <Link
                     href={link.href}
                     className="text-white/70 hover:text-white transition-colors text-sm"
                   >
-                    {link.name}
+                    {t(`links.${link.key}`)}
                   </Link>
                 </li>
               ))}
@@ -163,15 +157,15 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="font-bold text-white mb-4">Soporte</h4>
+            <h4 className="font-bold text-white mb-4">{t('colSupport')}</h4>
             <ul className="space-y-2">
               {footerLinks.soporte.map((link) => (
-                <li key={link.name}>
+                <li key={link.key}>
                   <Link
                     href={link.href}
                     className="text-white/70 hover:text-white transition-colors text-sm"
                   >
-                    {link.name}
+                    {t(`links.${link.key}`)}
                   </Link>
                 </li>
               ))}
@@ -179,10 +173,10 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="font-bold text-white mb-4">Contacto</h4>
+            <h4 className="font-bold text-white mb-4">{t('colContact')}</h4>
             <ul className="space-y-3 text-sm text-white/70">
               <li>
-                <span className="block text-white font-medium">Correo electrónico</span>
+                <span className="block text-white font-medium">{t('emailLabel')}</span>
                 <a
                   href="mailto:informes@toniclife.com"
                   className="hover:text-white transition-colors"
@@ -191,10 +185,10 @@ export function Footer() {
                 </a>
               </li>
               <li>
-                <span className="block text-white font-medium">Horario</span>
-                Dom: Cerrado
+                <span className="block text-white font-medium">{t('scheduleLabel')}</span>
+                {t('scheduleSunday')}
                 <br />
-                Lun - Sab: 9 a.m. - 7 p.m.
+                {t('scheduleWeek')}
               </li>
             </ul>
 
@@ -222,16 +216,16 @@ export function Footer() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-sm text-white/60">
-              © {new Date().getFullYear()} Tonic Life. Todos los derechos reservados.
+              © {new Date().getFullYear()} Tonic Life. {t('rights')}
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-white/60">
               {footerLinks.legal.map((link) => (
                 <Link
-                  key={link.name}
+                  key={link.key}
                   href={link.href}
                   className="hover:text-white transition-colors"
                 >
-                  {link.name}
+                  {t(`links.${link.key}`)}
                 </Link>
               ))}
             </div>

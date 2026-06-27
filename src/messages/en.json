@@ -9,5 +9,37 @@
   },
   "common": {
     "tagline": "Natural wellness since 2004 — Tonic Life"
+  },
+  "footer": {
+    "brandDescription": "Transforming lives through high-quality natural products. Your wellness has been our mission since 2004.",
+    "newsletterTitle": "Join our wellness community",
+    "newsletterSubtitle": "Get health tips, exclusive offers and news straight to your inbox.",
+    "newsletterPlaceholder": "Your email address",
+    "newsletterButton": "Subscribe",
+    "certAccredited": "Accredited",
+    "certMember": "Member",
+    "certRegistered": "Registered",
+    "colProducts": "Products",
+    "colSupport": "Support",
+    "colContact": "Contact",
+    "emailLabel": "Email",
+    "scheduleLabel": "Hours",
+    "scheduleSunday": "Sun: Closed",
+    "scheduleWeek": "Mon - Sat: 9 a.m. - 7 p.m.",
+    "rights": "All rights reserved.",
+    "links": {
+      "energy": "Energy",
+      "detox": "Detox",
+      "beauty": "Beauty",
+      "stress": "Stress & Sleep",
+      "womensHealth": "Women's Health",
+      "mensHealth": "Men's Health",
+      "shipping": "Shipping",
+      "contact": "Contact",
+      "faq": "FAQ",
+      "terms": "Terms & Conditions",
+      "privacy": "Privacy Policy",
+      "cookies": "Cookie Policy"
+    }
   }
 }

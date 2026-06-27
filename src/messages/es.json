@@ -9,5 +9,37 @@
   },
   "common": {
     "tagline": "Bienestar natural desde 2004 — Tonic Life"
+  },
+  "footer": {
+    "brandDescription": "Transformando vidas a través de productos naturales de alta calidad. Tu bienestar es nuestra misión desde 2004.",
+    "newsletterTitle": "Únete a nuestra comunidad de bienestar",
+    "newsletterSubtitle": "Recibe tips de salud, ofertas exclusivas y novedades directamente en tu correo.",
+    "newsletterPlaceholder": "Tu correo electrónico",
+    "newsletterButton": "Suscribirse",
+    "certAccredited": "Acreditado",
+    "certMember": "Miembro",
+    "certRegistered": "Registrado",
+    "colProducts": "Productos",
+    "colSupport": "Soporte",
+    "colContact": "Contacto",
+    "emailLabel": "Correo electrónico",
+    "scheduleLabel": "Horario",
+    "scheduleSunday": "Dom: Cerrado",
+    "scheduleWeek": "Lun - Sáb: 9 a.m. - 7 p.m.",
+    "rights": "Todos los derechos reservados.",
+    "links": {
+      "energy": "Energía",
+      "detox": "Detox",
+      "beauty": "Belleza",
+      "stress": "Estrés & Sueño",
+      "womensHealth": "Salud Femenina",
+      "mensHealth": "Salud Masculina",
+      "shipping": "Envíos",
+      "contact": "Contacto",
+      "faq": "Preguntas Frecuentes",
+      "terms": "Términos y Condiciones",
+      "privacy": "Política de Privacidad",
+      "cookies": "Política de Cookies"
+    }
   }
 }
