@@ -1,9 +1,5 @@
 'use client';
 
-import Link from 'next/link';
-import { Button } from '@/components/ui';
-import { ArrowRightIcon } from '@heroicons/react/24/outline';
-
 /**
  * Hero 2026: video de marca a SANGRE COMPLETA como fondo (estilo partner.co).
  * Vimeo en modo "background" (autoplay + loop + silenciado + sin controles) llena
@@ -39,19 +35,6 @@ export function HeroBanner() {
           allow="autoplay; fullscreen; picture-in-picture; clipboard-write; encrypted-media; web-share"
           referrerPolicy="strict-origin-when-cross-origin"
         />
-
-        {/* Velo inferior para legibilidad del CTA sobre el video */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-black/45 to-transparent" />
-
-        {/* CTA a productos sobre el video */}
-        <div className="absolute inset-x-0 bottom-8 flex justify-center sm:bottom-12">
-          <Link href="/productos">
-            <Button size="xl">
-              Productos
-              <ArrowRightIcon className="h-5 w-5" />
-            </Button>
-          </Link>
-        </div>
       </div>
     </section>
   );
