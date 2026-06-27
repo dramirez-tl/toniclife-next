@@ -134,6 +134,12 @@ export interface EnrollmentKit {
   currencyCode: string;
 }
 
+export interface EnrollmentKitsResponse {
+  kits: EnrollmentKit[];
+  /** Costo de envío del kit a domicilio (recoger = gratis). */
+  shippingCost: number;
+}
+
 export interface PickupBranch {
   id: string;
   code: string | null;
@@ -345,9 +351,11 @@ class DistributorApi {
 
   // ===== Inscripción (auto-pago del kit) =====
 
-  /** Kits de inscripción disponibles con el precio efectivo del miembro. */
-  async getEnrollmentKits(): Promise<EnrollmentKit[]> {
-    const { data } = await api.get<EnrollmentKit[]>('/distributor/enrollment/kits');
+  /** Kits de inscripción disponibles + costo de envío del kit (config). */
+  async getEnrollmentKits(): Promise<EnrollmentKitsResponse> {
+    const { data } = await api.get<EnrollmentKitsResponse>(
+      '/distributor/enrollment/kits',
+    );
     return data;
   }
 

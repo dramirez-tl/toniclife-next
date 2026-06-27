@@ -200,7 +200,7 @@ function SetPasswordForm() {
           // Caso borde: la cuenta exige vincular correo. Mandamos al login.
           toast.success('¡Cuenta activada! Inicia sesión para continuar.');
           setStatus('accepted');
-          router.push('/login');
+          router.replace('/login');
           return;
         }
 
@@ -215,7 +215,7 @@ function SetPasswordForm() {
         // así que mandamos al login para que entre manualmente.
         toast.success('¡Cuenta activada! Inicia sesión con tu nueva contraseña.');
         setStatus('accepted');
-        router.push('/login');
+        router.replace('/login');
         return;
       }
     } catch (error: any) {
@@ -347,14 +347,14 @@ function SetPasswordForm() {
                 <p className="text-sm font-medium text-gray-700">
                   Requisitos de contraseña:
                 </p>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {passwordRules.map((rule, index) => {
                     const passes = rule.test(formData.newPassword);
                     return (
                       <div key={index} className="flex items-center gap-2">
                         <CheckCircleIcon
                           className={`h-4 w-4 ${
-                            passes ? 'text-[#3E667D]' : 'text-gray-300'
+                            passes ? 'text-[#3E667D]' : 'text-gray-400'
                           }`}
                         />
                         <span
@@ -430,12 +430,21 @@ function SetPasswordForm() {
       <div className="mt-6 text-center">
         <p className="text-sm text-gray-600">
           ¿Ya tienes acceso?{' '}
-          <Link
-            href="/login"
-            className="font-medium text-[#3E667D] hover:text-[#3E667D] transition-colors"
-          >
-            Inicia sesión
-          </Link>
+          {isLoading ? (
+            <span
+              aria-disabled
+              className="font-medium text-gray-400"
+            >
+              Inicia sesión
+            </span>
+          ) : (
+            <Link
+              href="/login"
+              className="font-medium text-[#3E667D] hover:text-[#3E667D] transition-colors"
+            >
+              Inicia sesión
+            </Link>
+          )}
         </p>
       </div>
     </Shell>

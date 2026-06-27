@@ -1,7 +1,8 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   CheckCircleIcon,
@@ -24,6 +25,7 @@ import {
   useEnrollmentKits,
   usePickupBranches,
   useOnboardingStatus,
+  myOrdersKeys,
 } from '@/hooks/useMyOrders';
 import { distributorApi } from '@/services/distributorApi';
 import type {
@@ -54,10 +56,21 @@ function InscripcionContent() {
 
 // ===== Confirmación de pago (post-Stripe) =====
 
+// Tras este tiempo sin confirmación, mostramos salida (no dejamos al usuario
+// atrapado en el spinner si el webhook tarda o no llega).
+const CONFIRM_TIMEOUT_S = 150;
+
 function ConfirmingPayment() {
-  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [elapsed, setElapsed] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   // Poll del estado de onboarding hasta que el webhook active la cuenta.
   const { data } = useOnboardingStatus(true, 3000);
+
+  useEffect(() => {
+    const id = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (data && !data.needsKit) {
@@ -70,26 +83,67 @@ function ConfirmingPayment() {
     }
   }, [data]);
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: myOrdersKeys.onboarding });
+    setTimeout(() => setRefreshing(false), 800);
+  };
+
+  const tookTooLong = elapsed >= CONFIRM_TIMEOUT_S;
+
   return (
     <div className="mx-auto max-w-lg py-10">
       <Card className="border border-gray-200">
         <CardContent className="flex flex-col items-center px-6 py-14 text-center">
-          <Loader2 className="mb-5 h-12 w-12 animate-spin text-[#3E667D]" />
-          <h2 className="text-xl font-bold text-gray-900">
-            Confirmando tu pago…
-          </h2>
-          <p className="mt-2 max-w-sm text-sm text-gray-600">
-            Estamos validando tu pago con el banco. En cuanto se confirme,
-            activaremos tu cuenta y te llevaremos a tu panel. No cierres esta
-            ventana.
-          </p>
-          <button
-            type="button"
-            onClick={() => router.refresh()}
-            className="mt-6 text-sm font-medium text-[#3E667D] hover:underline"
-          >
-            ¿Tarda demasiado? Actualizar
-          </button>
+          {!tookTooLong ? (
+            <>
+              <Loader2 className="mb-5 h-12 w-12 animate-spin text-[#3E667D]" />
+              <h2 className="text-xl font-bold text-gray-900">
+                Confirmando tu pago…
+              </h2>
+              <p className="mt-2 max-w-sm text-sm text-gray-600">
+                Estamos validando tu pago con el banco. En cuanto se confirme,
+                activaremos tu cuenta y te llevaremos a tu panel.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-6"
+                onClick={handleRefresh}
+                disabled={refreshing}
+              >
+                {refreshing && <Loader2 className="h-4 w-4 animate-spin" />}
+                {refreshing ? 'Verificando…' : 'Verificar ahora'}
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100">
+                <ShieldCheckIcon className="h-7 w-7 text-amber-500" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900">
+                Tu pago está tardando un poco
+              </h2>
+              <p className="mt-2 max-w-sm text-sm text-gray-600">
+                Si ya pagaste, tu cuenta se activará automáticamente en cuanto el
+                banco confirme (puede tardar unos minutos). Deja esta ventana
+                abierta o vuelve a verificar en un momento.
+              </p>
+              <Button
+                variant="default"
+                size="sm"
+                className="mt-6"
+                onClick={handleRefresh}
+                disabled={refreshing}
+              >
+                {refreshing && <Loader2 className="h-4 w-4 animate-spin" />}
+                {refreshing ? 'Verificando…' : 'Verificar de nuevo'}
+              </Button>
+              <p className="mt-4 text-xs text-gray-400">
+                ¿El cobro no aparece? Contacta a tu patrocinador o a soporte.
+              </p>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -120,8 +174,19 @@ function EnrollmentWizard() {
   const [address, setAddress] = useState<KitShippingAddress>(EMPTY_ADDRESS);
   const [paying, setPaying] = useState(false);
 
-  const { data: kits, isLoading: kitsLoading } = useEnrollmentKits();
+  const searchParams = useSearchParams();
+  const { data: enrollment, isLoading: kitsLoading } = useEnrollmentKits();
   const { data: branches } = usePickupBranches(delivery === 'pickup');
+
+  // Regreso desde Stripe tras CANCELAR el pago: avisamos y dejamos reintentar.
+  useEffect(() => {
+    if (searchParams.get('cancelled') === '1') {
+      toast('Cancelaste el pago. Cuando quieras, elige tu kit y vuelve a intentar.');
+    }
+  }, [searchParams]);
+
+  const kits = enrollment?.kits;
+  const shippingCost = enrollment?.shippingCost ?? 0;
 
   const selectedKit = useMemo(
     () => kits?.find((k) => k.productId === kitId) ?? null,
@@ -158,7 +223,7 @@ function EnrollmentWizard() {
       (delivery === 'shipping' && !!addressComplete));
 
   const handlePay = async () => {
-    if (!selectedKit || !delivery) return;
+    if (!selectedKit || !delivery || paying) return;
     setPaying(true);
     try {
       const result = await distributorApi.paySelfKit({
@@ -385,18 +450,29 @@ function EnrollmentWizard() {
                 </span>
               </div>
               <div className="flex items-center justify-between py-2">
-                <span className="text-gray-700">Kit</span>
+                <span className="text-gray-700">Precio del kit</span>
                 <span className="text-gray-900">{fmt.format(selectedKit.price)}</span>
               </div>
-              {delivery === 'shipping' && (
-                <div className="flex items-center justify-between py-1 text-sm text-gray-500">
-                  <span>Envío</span>
-                  <span>Se calcula al pagar</span>
-                </div>
-              )}
+              <div className="flex items-center justify-between py-2">
+                <span className="text-gray-700">Envío</span>
+                <span className="text-gray-900">
+                  {delivery === 'pickup'
+                    ? 'Gratis (recoger en sucursal)'
+                    : fmt.format(shippingCost)}
+                </span>
+              </div>
+              <div className="mt-1 flex items-center justify-between border-t border-gray-200 pt-3">
+                <span className="font-semibold text-gray-900">Total</span>
+                <span className="text-lg font-bold text-[#3E667D]">
+                  {fmt.format(
+                    selectedKit.price +
+                      (delivery === 'shipping' ? shippingCost : 0),
+                  )}
+                </span>
+              </div>
               {selectedKit.points > 0 && (
                 <p className="mt-2 text-xs font-medium text-[#3E667D]">
-                  {selectedKit.points.toLocaleString('es-MX')} puntos
+                  Acumulas {selectedKit.points.toLocaleString('es-MX')} puntos
                 </p>
               )}
             </CardContent>
@@ -447,8 +523,10 @@ function Stepper({ step }: { step: 1 | 2 | 3 }) {
               {done ? <CheckCircleIcon className="h-5 w-5" /> : n}
             </span>
             <span
-              className={`hidden text-sm sm:inline ${
-                active ? 'font-semibold text-gray-900' : 'text-gray-500'
+              className={`text-sm ${
+                active
+                  ? 'inline font-semibold text-gray-900'
+                  : 'hidden text-gray-500 sm:inline'
               }`}
             >
               {label}
