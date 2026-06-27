@@ -1,0 +1,13 @@
+{
+  "nav": {
+    "home": "Inicio",
+    "products": "Productos",
+    "evaluation": "Evaluación de Salud",
+    "help": "Ayuda",
+    "goToPanel": "Ir a Panel",
+    "login": "Iniciar sesión"
+  },
+  "common": {
+    "tagline": "Bienestar natural desde 2004 — Tonic Life"
+  }
+}

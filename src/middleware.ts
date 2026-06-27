@@ -1,5 +1,17 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import createMiddleware from 'next-intl/middleware';
+import { routing } from './i18n/routing';
+import { LOCALES } from './i18n/config';
+
+// next-intl middleware para las rutas públicas localizadas.
+const intlMiddleware = createMiddleware(routing);
+
+// ¿La ruta ya viene con prefijo de locale? (/es-mx, /en-us/productos, …)
+const LOCALE_PREFIX_RE = new RegExp(`^/(${LOCALES.join('|')})(/|$)`);
+// Bases públicas que SÍ se localizan (home, productos, quiz). El resto
+// (faq, carrito, admin, distribuidor, etc.) NO pasa por i18n.
+const LOCALIZABLE_BASE_RE = /^\/(productos|quiz)(\/|$)/;
 
 // ── Maintenance / Countdown gate ───────────────────────────────────────────
 // Set LAUNCH_DATE in .env to enable the maintenance gate.
@@ -94,6 +106,18 @@ export function middleware(request: NextRequest) {
   // If launch date has passed but user is still on /mantenimiento, send them home
   if (pathname === '/mantenimiento' && !isBeforeLaunch()) {
     return NextResponse.redirect(new URL('/', request.url));
+  }
+
+  // ── Localización (tienda pública: home, productos, quiz) ──────────────
+  // Rutas ya prefijadas (/es-mx/…) o bases localizables (/, /productos, /quiz)
+  // las maneja next-intl: redirige al locale (cookie NEXT_LOCALE) y sirve
+  // app/[locale]/…. Lo demás sigue con la lógica de auth/roles de abajo.
+  if (
+    LOCALE_PREFIX_RE.test(pathname) ||
+    pathname === '/' ||
+    LOCALIZABLE_BASE_RE.test(pathname)
+  ) {
+    return intlMiddleware(request);
   }
 
   // The client stores two small cookies for the middleware:

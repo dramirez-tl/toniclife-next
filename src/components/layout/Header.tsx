@@ -49,9 +49,10 @@ export function Header() {
 
   const handleSelectLocale = (loc: string) => {
     setStoredLocale(loc);
-    setLocale(loc);
     setSelectorOpen(false);
-    // TODO (slice de ruteo /[locale]): navegar a la ruta con el locale elegido.
+    // Navega a la home del locale elegido (recarga completa: re-lee la cookie y
+    // re-hidrata). El middleware sirve /{loc} y deja los precios/UI de ese país.
+    window.location.href = `/${loc}`;
   };
 
   const currentCountry = countryMeta(localeCountry(locale));
