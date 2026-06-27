@@ -89,10 +89,10 @@ export function Footer() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
             <div className="text-center lg:text-left">
-              <h3 className="text-2xl font-bold text-white">
+              <h3 className="text-2xl font-bold text-[#3C677C]">
                 Únete a nuestra comunidad de bienestar
               </h3>
-              <p className="text-white/90 mt-1">
+              <p className="text-[#3C677C]/80 mt-1">
                 Recibe tips de salud, ofertas exclusivas y novedades directamente en tu correo.
               </p>
             </div>
