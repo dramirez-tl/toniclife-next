@@ -119,11 +119,15 @@ export const useProduct = (id: string, enabled = true) => {
 /**
  * Hook para obtener producto por slug
  */
-export const useProductBySlug = (slug: string, enabled = true) => {
+export const useProductBySlug = (
+  slug: string,
+  enabled = true,
+  countryId?: string,
+) => {
   const viewerId = useAppSelector(selectUser)?.customerId ?? 'guest';
   return useQuery({
-    queryKey: [...productKeys.bySlug(slug), 'v', viewerId],
-    queryFn: () => productsService.getProductBySlug(slug),
+    queryKey: [...productKeys.bySlug(slug), 'v', viewerId, 'c', countryId ?? ''],
+    queryFn: () => productsService.getProductBySlug(slug, countryId),
     enabled: enabled && !!slug,
     staleTime: 5 * 60 * 1000,
   });

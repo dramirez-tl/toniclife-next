@@ -62,8 +62,10 @@ class ProductsService {
   /**
    * Get product by slug
    */
-  async getProductBySlug(slug: string): Promise<Product> {
-    const response = await api.get<Product>(`/products/slug/${slug}`);
+  async getProductBySlug(slug: string, countryId?: string): Promise<Product> {
+    const response = await api.get<Product>(`/products/slug/${slug}`, {
+      params: countryId ? { countryId } : undefined,
+    });
     return response.data;
   }
 

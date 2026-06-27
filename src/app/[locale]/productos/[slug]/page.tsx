@@ -10,6 +10,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { useProductBySlug, useProducts, useProductComponents } from '@/hooks/useProducts';
 import { useAddCartItem } from '@/hooks/useCart';
+import { useStoreCountry } from '@/hooks/useStoreCountry';
+import { formatCurrency } from '@/lib/currency';
 import { Header, Footer } from '@/components/layout';
 import type { Product as APIProduct } from '@/types/product';
 import type { Product as MockProduct } from '@/types';
@@ -89,12 +91,15 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   // Cart mutation
   const addToCart = useAddCartItem();
 
+  // País de la tienda (del locale): precio/moneda del producto por país.
+  const { countryId, lang } = useStoreCountry();
+
   // Obtener datos del API
   const {
     data: apiProduct,
     isLoading,
     error,
-  } = useProductBySlug(slug);
+  } = useProductBySlug(slug, true, countryId);
 
   // Obtener componentes si es kit
   const { data: components } = useProductComponents(
@@ -110,6 +115,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     categoryId: apiProduct?.categoryId,
     isActive: true,
     isVisibleEcommerce: true,
+    countryId,
     limit: 5,
   });
 
@@ -309,17 +315,12 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               {/* Price */}
               <div className="flex items-baseline gap-3 mb-6">
                 <span className="text-4xl font-bold text-[#3E667D]">
-                  ${product.price.toFixed(2)}
+                  {formatCurrency(product.price, product.currencyCode || 'MXN', lang)}
                 </span>
-                {product.currencyCode && (
-                  <span className="text-xs font-semibold text-[#3E667D]/60 bg-[#C8DDF2]/40 px-2 py-1 rounded">
-                    {product.currencyCode}
-                  </span>
-                )}
                 {product.originalPrice && (
                   <>
                     <span className="text-2xl text-gray-400 line-through">
-                      ${product.originalPrice.toFixed(2)}
+                      {formatCurrency(product.originalPrice, product.currencyCode || 'MXN', lang)}
                     </span>
                     <Badge variant="outline" className="border-red-200 bg-red-100 text-red-700">
                       -{Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}%
@@ -557,11 +558,11 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                       </h3>
                       <div className="flex items-baseline gap-2 mb-3">
                         <span className="text-xl font-bold text-[#3E667D]">
-                          ${relatedProduct.price.toFixed(2)}
+                          {formatCurrency(relatedProduct.price, relatedProduct.currencyCode || 'MXN', lang)}
                         </span>
                         {relatedProduct.originalPrice && (
                           <span className="text-sm text-gray-400 line-through">
-                            ${relatedProduct.originalPrice.toFixed(2)}
+                            {formatCurrency(relatedProduct.originalPrice, relatedProduct.currencyCode || 'MXN', lang)}
                           </span>
                         )}
                       </div>
