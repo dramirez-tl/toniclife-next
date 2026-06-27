@@ -100,7 +100,7 @@ export function Footer() {
               <Input
                 type="email"
                 placeholder="Tu correo electrónico"
-                className="sm:w-72 bg-white border-0"
+                className="sm:w-72 bg-white border-0 text-[#3C677C] placeholder:text-[#3C677C]/60"
               />
               <Button variant="secondary" size="lg">
                 Suscribirse
