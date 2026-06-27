@@ -112,7 +112,7 @@ export default function CartPage() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50 pb-20 pt-32">
+      <main className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50 pb-20 pt-40 sm:pt-44">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Breadcrumb */}
           <div className="mb-8">
@@ -189,13 +189,29 @@ export default function CartPage() {
                     <div className="flex flex-col sm:flex-row">
                       {/* Product Image */}
                       <div className="sm:w-40 h-40 bg-gray-50 sm:border-r border-b sm:border-b-0 border-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden p-3">
-                        <CartProductImage
-                          src={item.productImageUrl}
-                          name={item.productName}
-                          width={160}
-                          height={160}
-                          className="max-h-full w-auto object-contain"
-                        />
+                        {item.productSlug ? (
+                          <Link
+                            href={`/productos/${item.productSlug}`}
+                            className="flex h-full w-full items-center justify-center"
+                            aria-label={`Ver ${item.productName}`}
+                          >
+                            <CartProductImage
+                              src={item.productImageUrl}
+                              name={item.productName}
+                              width={160}
+                              height={160}
+                              className="max-h-full w-auto object-contain transition-transform hover:scale-105"
+                            />
+                          </Link>
+                        ) : (
+                          <CartProductImage
+                            src={item.productImageUrl}
+                            name={item.productName}
+                            width={160}
+                            height={160}
+                            className="max-h-full w-auto object-contain"
+                          />
+                        )}
                       </div>
 
                       {/* Product Info */}
@@ -206,7 +222,16 @@ export default function CartPage() {
                               SKU: {item.productCode}
                             </p>
                             <h3 className="font-bold text-lg text-[#3E667D]">
-                              {item.productName}
+                              {item.productSlug ? (
+                                <Link
+                                  href={`/productos/${item.productSlug}`}
+                                  className="hover:underline"
+                                >
+                                  {item.productName}
+                                </Link>
+                              ) : (
+                                item.productName
+                              )}
                             </h3>
 
                             {/* Unit Price */}

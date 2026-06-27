@@ -44,6 +44,7 @@ export interface CartItem {
   businessValue: string;
   productName: string;
   productCode: string;
+  productSlug?: string;
   productImageUrl?: string;
   lotNumber?: string;
   createdAt: string;
