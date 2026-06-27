@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useTranslations } from 'next-intl';
 import { PlayIcon, PauseIcon } from '@heroicons/react/24/solid';
 
 /**
@@ -67,6 +68,7 @@ const coverStyle = (heightVw: string): CSSProperties => ({
 });
 
 export function HeroBanner() {
+  const t = useTranslations('home');
   const mobileRef = useRef<HTMLIFrameElement>(null);
   const desktopRef = useRef<HTMLIFrameElement>(null);
   const playersRef = useRef<VimeoPlayer[]>([]);
@@ -148,7 +150,7 @@ export function HeroBanner() {
           <button
             type="button"
             onClick={toggle}
-            aria-label={paused ? 'Reproducir video' : 'Pausar video'}
+            aria-label={paused ? t('playVideo') : t('pauseVideo')}
             className="absolute bottom-5 right-5 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-white/40 bg-black/20 text-white backdrop-blur-sm transition hover:bg-black/40 sm:bottom-6 sm:right-6"
           >
             {paused ? (

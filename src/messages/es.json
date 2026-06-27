@@ -10,6 +10,23 @@
   "common": {
     "tagline": "Bienestar natural desde 2004 — Tonic Life"
   },
+  "home": {
+    "playVideo": "Reproducir video",
+    "pauseVideo": "Pausar video",
+    "categoriesTitle": "Nuestros productos",
+    "categories": {
+      "digestive": "Cuidado Digestivo",
+      "vitamins": "Vitaminas y nutrientes",
+      "beauty": "Belleza y Cuidado personal",
+      "general": "Cuidado general",
+      "shakes": "Batidos y malteadas"
+    },
+    "evaluation": {
+      "title": "¿No sabes por dónde empezar?",
+      "subtitle": "Nuestra evaluación de salud te ayudará a identificar qué productos son ideales para ti basándose en tus necesidades específicas de salud y bienestar.",
+      "cta": "Iniciar mi Evaluación"
+    }
+  },
   "footer": {
     "brandDescription": "Transformando vidas a través de productos naturales de alta calidad. Tu bienestar es nuestra misión desde 2004.",
     "newsletterTitle": "Únete a nuestra comunidad de bienestar",

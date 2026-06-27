@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui';
 import { ArrowRightIcon } from '@heroicons/react/24/outline';
 
@@ -9,6 +10,7 @@ import { ArrowRightIcon } from '@heroicons/react/24/outline';
  * Foto de naturaleza/persona con degradado oscuro a la izquierda y CTA al quiz.
  */
 export function EvaluationBanner() {
+  const t = useTranslations('home.evaluation');
   return (
     <section className="relative w-full overflow-hidden">
       {/* Imagen de fondo (fallback: teal oscuro) */}
@@ -22,16 +24,15 @@ export function EvaluationBanner() {
       <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
         <div className="max-w-xl text-white">
           <h2 className="text-3xl font-bold leading-tight sm:text-4xl">
-            ¿No sabes por dónde empezar?
+            {t('title')}
           </h2>
           <p className="mt-4 text-base text-white/85 sm:text-lg">
-            Nuestra evaluación de salud te ayudará a identificar qué productos son ideales
-            para ti basándose en tus necesidades específicas de salud y bienestar.
+            {t('subtitle')}
           </p>
           <div className="mt-8">
             <Link href="/quiz">
               <Button size="lg">
-                Iniciar mi Evaluación
+                {t('cta')}
                 <ArrowRightIcon className="h-5 w-5" />
               </Button>
             </Link>

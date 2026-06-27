@@ -10,6 +10,23 @@
   "common": {
     "tagline": "Natural wellness since 2004 — Tonic Life"
   },
+  "home": {
+    "playVideo": "Play video",
+    "pauseVideo": "Pause video",
+    "categoriesTitle": "Our products",
+    "categories": {
+      "digestive": "Digestive Care",
+      "vitamins": "Vitamins & nutrients",
+      "beauty": "Beauty & Personal Care",
+      "general": "General Care",
+      "shakes": "Shakes & smoothies"
+    },
+    "evaluation": {
+      "title": "Not sure where to start?",
+      "subtitle": "Our health assessment will help you identify which products are ideal for you based on your specific health and wellness needs.",
+      "cta": "Start my Assessment"
+    }
+  },
   "footer": {
     "brandDescription": "Transforming lives through high-quality natural products. Your wellness has been our mission since 2004.",
     "newsletterTitle": "Join our wellness community",
