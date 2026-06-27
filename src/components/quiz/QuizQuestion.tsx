@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import { Card, Button } from '@/components/ui';
 import { ChevronLeftIcon, CheckIcon } from '@heroicons/react/24/outline';
 import type { QuizQuestion as QuizQuestionType, QuestionType } from '@/types/quiz';
@@ -70,6 +71,7 @@ export function QuizQuestion({
   selectedAnswer,
   isLoading = false,
 }: QuizQuestionProps) {
+  const t = useTranslations('quiz.question');
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const isMultiple = question.questionType === 'multiple';
 
@@ -140,7 +142,7 @@ export function QuizQuestion({
           {/* Multiple choice hint */}
           {isMultiple && (
             <p className="mt-3 text-white/60 text-sm italic">
-              Puedes seleccionar más de una opción
+              {t('multiSelectHint')}
             </p>
           )}
         </div>
@@ -220,7 +222,9 @@ export function QuizQuestion({
               className="w-full"
               disabled={isLoading || selectedOptions.length === 0}
             >
-              {isLoading ? 'Guardando...' : `Continuar (${selectedOptions.length} seleccionadas)`}
+              {isLoading
+                ? t('saving')
+                : t('continueCount', { count: selectedOptions.length })}
             </Button>
           </div>
         )}
@@ -234,7 +238,7 @@ export function QuizQuestion({
               className="flex items-center gap-2 text-gray-500 hover:text-[#3E667D] transition-colors disabled:opacity-50"
             >
               <ChevronLeftIcon className="h-5 w-5" />
-              <span>Pregunta anterior</span>
+              <span>{t('previousQuestion')}</span>
             </button>
           )}
         </div>
@@ -242,7 +246,7 @@ export function QuizQuestion({
         {/* Footer note */}
         <div className="bg-gray-50 px-6 sm:px-8 py-4 border-t border-gray-100">
           <p className="text-xs text-gray-500 text-center">
-            Tu información no será compartida
+            {t('privacyNote')}
           </p>
         </div>
       </Card>

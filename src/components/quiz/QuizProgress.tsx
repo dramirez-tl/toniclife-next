@@ -1,11 +1,14 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 interface QuizProgressProps {
   current: number;
   total: number;
 }
 
 export function QuizProgress({ current, total }: QuizProgressProps) {
+  const t = useTranslations('quiz.progress');
   const percentage = (current / total) * 100;
 
   return (
@@ -13,10 +16,10 @@ export function QuizProgress({ current, total }: QuizProgressProps) {
       {/* Progress text */}
       <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-medium text-gray-600">
-          Pregunta {current} de {total}
+          {t('questionOf', { current, total })}
         </span>
         <span className="text-sm font-medium text-[#3E667D]">
-          {Math.round(percentage)}% completado
+          {t('percentComplete', { percent: Math.round(percentage) })}
         </span>
       </div>
 

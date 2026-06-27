@@ -93,6 +93,8 @@ export interface ProductRecommendation {
   productImage?: string;
   price: number;
   originalPrice?: number;
+  /** Moneda del precio (del país de la sesión). Default MXN. */
+  currencyCode?: string;
   score: number;
   matchedRules: number;
   priority: number;
@@ -113,6 +115,8 @@ export interface QuizResult {
   status: QuizStatus;
   completedAt?: string;
   recommendations: ProductRecommendation[];
+  /** Resumen del perfil de salud redactado por la IA (idioma de la sesión). */
+  aiSummary?: string;
   summary?: QuizResultSummary;
   referralCode?: string;
 }
@@ -125,6 +129,8 @@ export interface StartQuizInput {
   referralCode?: string;
   source?: QuizSource;
   language?: QuizLanguage;
+  /** País de la tienda (locale) — filtra candidatos por almacén/stock/precio del país. */
+  countryId?: string;
   utmSource?: string;
   utmMedium?: string;
   utmCampaign?: string;

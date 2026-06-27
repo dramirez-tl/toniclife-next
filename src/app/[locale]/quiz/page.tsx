@@ -4,9 +4,12 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Header, Footer } from '@/components/layout';
 import { QuizWelcome, QuizQuestion, QuizResults, QuizProgress } from '@/components/quiz';
 import { Card } from '@/components/ui';
+import { useStoreCountry } from '@/hooks/useStoreCountry';
+import { QuizLanguage } from '@/types/quiz';
 import {
   useStartQuiz,
   useResumeQuiz,
@@ -29,8 +32,13 @@ import { toast } from 'sonner';
 type QuizStage = 'welcome' | 'questions' | 'results' | 'loading';
 
 function QuizPageContent() {
+  const t = useTranslations('quiz.page');
   const searchParams = useSearchParams();
   const referralCode = searchParams.get('ref') || searchParams.get('referral');
+
+  // País + idioma de la tienda (del locale): el quiz recomienda respetando el
+  // almacén/stock/precio del país y la IA redacta en este idioma.
+  const { countryId, lang } = useStoreCountry();
 
   const [stage, setStage] = useState<QuizStage>('welcome');
   const [sessionToken, setSessionToken] = useState<string | null>(null);
@@ -64,10 +72,12 @@ function QuizPageContent() {
       setStage('loading');
 
       try {
-        // Include referral code if present
+        // Include referral code + país/idioma del locale
         const startData: StartQuizInput = {
           ...data,
           referralCode: referralCode || data.referralCode,
+          countryId: countryId || data.countryId,
+          language: (lang === 'en' ? QuizLanguage.EN : QuizLanguage.ES),
         };
 
         const result = await startQuiz.mutateAsync(startData);
@@ -85,11 +95,11 @@ function QuizPageContent() {
         setCurrentQuestion(result.firstQuestion);
         setStage('questions');
       } catch (error: any) {
-        toast.error(error.response?.data?.message || 'Error al iniciar la evaluación');
+        toast.error(error.response?.data?.message || t('startError'));
         setStage('welcome');
       }
     },
-    [startQuiz, setGender, referralCode]
+    [startQuiz, setGender, referralCode, countryId, lang, t]
   );
 
   const handleResumeQuiz = useCallback(async () => {
@@ -107,13 +117,13 @@ function QuizPageContent() {
       setCurrentQuestion(result.firstQuestion);
       setStage('questions');
 
-      toast.success('Evaluación reanudada');
+      toast.success(t('resumed'));
     } catch (error: any) {
-      toast.error('No se pudo reanudar la evaluación');
+      toast.error(t('resumeError'));
       clearSession();
       setStage('welcome');
     }
-  }, [resumeQuiz, clearSession]);
+  }, [resumeQuiz, clearSession, t]);
 
   const handleAnswer = useCallback(
     async (questionKey: string, answerValue: string, answerLabel?: string) => {
@@ -138,10 +148,10 @@ function QuizPageContent() {
           setCurrentQuestion(result.nextQuestion);
         }
       } catch (error: any) {
-        toast.error(error.response?.data?.message || 'Error al guardar respuesta');
+        toast.error(error.response?.data?.message || t('answerError'));
       }
     },
-    [sessionToken, submitAnswer]
+    [sessionToken, submitAnswer, t]
   );
 
   const handleMultipleAnswer = useCallback(
@@ -166,10 +176,10 @@ function QuizPageContent() {
           setCurrentQuestion(result.nextQuestion);
         }
       } catch (error: any) {
-        toast.error(error.response?.data?.message || 'Error al guardar respuesta');
+        toast.error(error.response?.data?.message || t('answerError'));
       }
     },
-    [sessionToken, submitMultipleAnswer]
+    [sessionToken, submitMultipleAnswer, t]
   );
 
   const handleSaveEmail = useCallback(
@@ -183,12 +193,12 @@ function QuizPageContent() {
           name,
           phone,
         });
-        toast.success('Información guardada correctamente');
+        toast.success(t('infoSaved'));
       } catch (error: any) {
-        toast.error('Error al guardar información');
+        toast.error(t('infoError'));
       }
     },
-    [sessionToken, setGuestInfo]
+    [sessionToken, setGuestInfo, t]
   );
 
   const handleRestart = useCallback(() => {
@@ -226,7 +236,7 @@ function QuizPageContent() {
           {stage === 'loading' && (
             <div className="text-center py-20">
               <div className="inline-block w-12 h-12 border-4 border-[#a7c1e2] border-t-transparent rounded-full animate-spin" />
-              <p className="mt-4 text-gray-600">Preparando tu evaluación personalizada...</p>
+              <p className="mt-4 text-gray-600">{t('preparing')}</p>
             </div>
           )}
 
@@ -250,7 +260,7 @@ function QuizPageContent() {
               {isLoadingResults ? (
                 <div className="text-center py-20">
                   <div className="inline-block w-12 h-12 border-4 border-[#a7c1e2] border-t-transparent rounded-full animate-spin" />
-                  <p className="mt-4 text-gray-600">Generando tus recomendaciones...</p>
+                  <p className="mt-4 text-gray-600">{t('generating')}</p>
                 </div>
               ) : quizResults ? (
                 <QuizResults
@@ -260,12 +270,12 @@ function QuizPageContent() {
                 />
               ) : (
                 <Card className="text-center py-12">
-                  <p className="text-gray-600">No se pudieron cargar los resultados.</p>
+                  <p className="text-gray-600">{t('resultsError')}</p>
                   <button
                     onClick={handleRestart}
                     className="mt-4 text-[#3E667D] hover:underline"
                   >
-                    Intentar de nuevo
+                    {t('retry')}
                   </button>
                 </Card>
               )}
@@ -279,6 +289,7 @@ function QuizPageContent() {
 }
 
 function QuizLoadingFallback() {
+  const t = useTranslations('quiz.page');
   return (
     <>
       <Header />
@@ -286,7 +297,7 @@ function QuizLoadingFallback() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center py-20">
             <div className="inline-block w-12 h-12 border-4 border-[#a7c1e2] border-t-transparent rounded-full animate-spin" />
-            <p className="mt-4 text-gray-600">Cargando...</p>
+            <p className="mt-4 text-gray-600">{t('loading')}</p>
           </div>
         </div>
       </main>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { Button, Card, Input } from '@/components/ui';
 import { SparklesIcon, ClockIcon, ShieldCheckIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
@@ -22,6 +23,7 @@ export function QuizWelcome({
   isLoading,
   referralCode
 }: QuizWelcomeProps) {
+  const t = useTranslations('quiz.welcome');
   const [step, setStep] = useState<'intro' | 'gender'>('intro');
   const [selectedGender, setSelectedGender] = useState<QuizGender | ''>('');
   const [error, setError] = useState('');
@@ -33,7 +35,7 @@ export function QuizWelcome({
 
   const handleStartQuiz = () => {
     if (!selectedGender) {
-      setError('Por favor selecciona tu género');
+      setError(t('genderError'));
       return;
     }
 
@@ -52,7 +54,7 @@ export function QuizWelcome({
         <div className="flex justify-center mb-8">
           <Image
             src="/images/logo/svg/logo-text-blue-r.svg"
-            alt="Tonic Life - Tu Centro de Bienestar"
+            alt={t('logoAlt')}
             width={200}
             height={80}
             priority
@@ -62,31 +64,33 @@ export function QuizWelcome({
 
         {/* Title */}
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-[#3E667D] leading-tight">
-          <span className="font-serif italic">Encuentra tu fórmula ideal</span>
+          <span className="font-serif italic">{t('titleLine1')}</span>
           <br />
-          <span className="text-[#3E667D]">de bienestar</span>
+          <span className="text-[#3E667D]">{t('titleLine2')}</span>
         </h1>
 
         {/* Subtitle */}
         <p className="mt-6 text-xl text-gray-600 max-w-2xl mx-auto">
-          Tu bienestar empieza con <strong className="text-[#3E667D]">conocerte</strong>.
-          <br />
-          Responde unas simples preguntas y descubre qué fórmula natural es ideal para ti.
+          {t.rich('subtitle', {
+            b: (chunks) => (
+              <strong className="text-[#3E667D]">{chunks}</strong>
+            ),
+          })}
         </p>
 
         {/* Features */}
         <div className="mt-10 flex flex-wrap justify-center gap-6">
           <div className="flex items-center gap-2 text-gray-600">
             <ClockIcon className="h-5 w-5 text-[#3E667D]" />
-            <span>Solo 2 minutos</span>
+            <span>{t('feat2min')}</span>
           </div>
           <div className="flex items-center gap-2 text-gray-600">
             <SparklesIcon className="h-5 w-5 text-[#3E667D]" />
-            <span>10 preguntas</span>
+            <span>{t('feat10q')}</span>
           </div>
           <div className="flex items-center gap-2 text-gray-600">
             <ShieldCheckIcon className="h-5 w-5 text-[#3E667D]" />
-            <span>100% personalizado</span>
+            <span>{t('featPersonalized')}</span>
           </div>
         </div>
 
@@ -97,7 +101,7 @@ export function QuizWelcome({
             onClick={() => setStep('gender')}
             className="shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
           >
-            COMENZAR AHORA
+            {t('startNow')}
           </Button>
 
           {hasStoredSession && onResume && (
@@ -108,7 +112,7 @@ export function QuizWelcome({
                 className="inline-flex items-center gap-2 text-[#3E667D] hover:text-[#3E667D] transition-colors"
               >
                 <ArrowPathIcon className="h-5 w-5" />
-                <span>Continuar evaluación anterior</span>
+                <span>{t('resumePrevious')}</span>
               </button>
             </div>
           )}
@@ -118,13 +122,13 @@ export function QuizWelcome({
         {referralCode && (
           <div className="mt-6 inline-flex items-center gap-2 bg-[#C8DDF2]/10 text-[#3E667D] px-4 py-2 rounded-full text-sm">
             <SparklesIcon className="h-4 w-4" />
-            <span>Referido por: {referralCode}</span>
+            <span>{t('referredBy', { code: referralCode })}</span>
           </div>
         )}
 
         {/* Trust Text */}
         <p className="mt-6 text-sm text-gray-500">
-          Tu información es privada y nunca será compartida.
+          {t('privacy')}
         </p>
       </div>
     );
@@ -136,13 +140,13 @@ export function QuizWelcome({
       <div className="text-center mb-8">
         <div className="inline-flex items-center gap-2 bg-[#C8DDF2]/10 text-[#3E667D] px-4 py-2 rounded-full text-sm font-medium mb-4">
           <SparklesIcon className="h-4 w-4" />
-          Paso 1
+          {t('step1')}
         </div>
         <h2 className="text-2xl font-bold text-[#3E667D]">
-          Selecciona tu género
+          {t('selectGender')}
         </h2>
         <p className="text-gray-500 mt-2">
-          Esto nos ayuda a personalizar las preguntas para ti
+          {t('genderHelp')}
         </p>
       </div>
 
@@ -160,7 +164,7 @@ export function QuizWelcome({
             `}
           >
             <span className="text-4xl mb-3 block">👩</span>
-            <span className="font-medium text-lg">Mujer</span>
+            <span className="font-medium text-lg">{t('female')}</span>
           </button>
           <button
             type="button"
@@ -174,7 +178,7 @@ export function QuizWelcome({
             `}
           >
             <span className="text-4xl mb-3 block">👨</span>
-            <span className="font-medium text-lg">Hombre</span>
+            <span className="font-medium text-lg">{t('male')}</span>
           </button>
         </div>
 
@@ -189,7 +193,7 @@ export function QuizWelcome({
             size="lg"
             disabled={isLoading || !selectedGender}
           >
-            {isLoading ? 'Iniciando...' : 'Continuar'}
+            {isLoading ? t('starting') : t('continue')}
           </Button>
         </div>
 
@@ -197,7 +201,7 @@ export function QuizWelcome({
           onClick={() => setStep('intro')}
           className="w-full text-center text-sm text-gray-500 hover:text-[#3E667D] transition-colors"
         >
-          ← Volver al inicio
+          {t('backToStart')}
         </button>
       </div>
     </Card>

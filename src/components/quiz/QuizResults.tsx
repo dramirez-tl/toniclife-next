@@ -1,9 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button, Card, Badge } from '@/components/ui';
+import { formatCurrency } from '@/lib/currency';
+import { useStoreCountry } from '@/hooks/useStoreCountry';
 import {
   CheckCircleIcon,
   ShoppingCartIcon,
@@ -93,12 +96,18 @@ const goalLabels: Record<string, { title: string; description: string; icon: Rea
 };
 
 export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps) {
+  const t = useTranslations('quiz.results');
+  const { lang } = useStoreCountry();
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
 
   const addToCart = useAddCartItem();
   const trackCartAdd = useTrackCartAdd();
+
+  // Moneda del país de la sesión (todas las recomendaciones comparten país).
+  const currency = result.recommendations[0]?.currencyCode || 'MXN';
+  const fmt = (amount: number) => formatCurrency(amount, currency, lang);
 
   // Determine primary goal from summary or first category
   const primaryGoal = result.summary?.mainGoals?.[0] ||
@@ -109,12 +118,12 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
 
   const handleShare = async () => {
     const shareUrl = window.location.origin + '/quiz';
-    const shareText = `Descubrí mi fórmula ideal de bienestar: ${goalInfo.title}. ¡Haz tu evaluación!`;
+    const shareText = t('shareText', { goal: goalInfo.title });
 
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Mi Resultado de la Evaluación de Salud - Tonic Life',
+          title: t('shareTitle'),
           text: shareText,
           url: shareUrl,
         });
@@ -128,9 +137,9 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
       // Fallback: copy to clipboard
       try {
         await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
-        toast.success('Enlace copiado al portapapeles');
+        toast.success(t('linkCopied'));
       } catch {
-        toast.error('No se pudo copiar al portapapeles');
+        toast.error(t('copyError'));
       }
     }
   };
@@ -150,9 +159,9 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
         });
       }
 
-      toast.success(`${product.productName} agregado al carrito`);
+      toast.success(t('addedToCart', { name: product.productName }));
     } catch (error) {
-      toast.error('Error al agregar al carrito');
+      toast.error(t('addError'));
     }
   };
 
@@ -171,19 +180,19 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
           });
         }
       }
-      toast.success('Productos recomendados agregados al carrito');
+      toast.success(t('bundleAdded'));
     } catch (error) {
-      toast.error('Error al agregar productos');
+      toast.error(t('bundleAddError'));
     }
   };
 
   const handleSaveEmail = () => {
     if (!email) {
-      toast.error('Ingresa tu correo electrónico');
+      toast.error(t('emailRequired'));
       return;
     }
     onSaveEmail?.(email, name);
-    toast.success('Te enviaremos tus resultados por correo');
+    toast.success(t('emailSaved'));
     setShowEmailForm(false);
   };
 
@@ -204,10 +213,10 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
           <CheckCircleIcon className="h-10 w-10 text-[#3E667D]" />
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-[#3E667D]">
-          ¡Evaluación completada!
+          {t('completedTitle')}
         </h1>
         <p className="mt-3 text-lg text-gray-600">
-          Aquí están tus recomendaciones personalizadas
+          {t('completedSubtitle')}
         </p>
       </div>
 
@@ -224,10 +233,13 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
                 </div>
                 <div>
                   <Badge variant="outline" className="mb-2 border-green-200 bg-green-100 text-green-700">
-                    Tu Meta Principal
+                    {t('mainGoalBadge')}
                   </Badge>
                   <h2 className="text-2xl sm:text-3xl font-bold">{goalInfo.title}</h2>
-                  <p className="mt-2 text-white/80">{goalInfo.description}</p>
+                  {/* Resumen IA del perfil de salud si existe; si no, el texto por reglas. */}
+                  <p className="mt-2 text-white/80">
+                    {result.aiSummary || goalInfo.description}
+                  </p>
                 </div>
               </div>
             </div>
@@ -236,7 +248,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
             {result.summary?.healthCategories && result.summary.healthCategories.length > 0 && (
               <div className="p-6 bg-gray-50">
                 <h3 className="text-sm font-semibold text-gray-600 mb-4">
-                  Áreas de enfoque identificadas
+                  {t('focusAreas')}
                 </h3>
                 <div className="flex flex-wrap gap-2">
                   {result.summary.healthCategories.map((category, index) => (
@@ -257,22 +269,22 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
             <div className="flex items-center justify-between mb-6">
               <div>
                 <Badge variant="outline" className="mb-2 border-blue-200 bg-blue-100 text-blue-700">
-                  Tu Combo Recomendado
+                  {t('bundleBadge')}
                 </Badge>
                 <h2 className="text-2xl font-bold text-[#3E667D]">
-                  Top {topRecommendations.length} Productos para Ti
+                  {t('topProducts', { count: topRecommendations.length })}
                 </h2>
               </div>
               {discount > 0 && (
                 <div className="text-right">
                   <div className="text-sm text-gray-500 line-through">
-                    ${totalOriginalPrice.toFixed(2)}
+                    {fmt(totalOriginalPrice)}
                   </div>
                   <div className="text-3xl font-bold text-[#3E667D]">
-                    ${totalBundlePrice.toFixed(2)}
+                    {fmt(totalBundlePrice)}
                   </div>
                   <Badge variant="outline" className="border-red-200 bg-red-100 text-red-700">
-                    Ahorras {discount}%
+                    {t('save', { discount })}
                   </Badge>
                 </div>
               )}
@@ -287,6 +299,8 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
                   rank={index + 1}
                   onAddToCart={() => handleAddToCart(product)}
                   isLoading={addToCart.isPending}
+                  formatPrice={fmt}
+                  compatibilityLabel={t('compatibility', { score: product.score })}
                 />
               ))}
             </div>
@@ -300,7 +314,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
                 disabled={addToCart.isPending}
               >
                 <ShoppingCartIcon className="h-5 w-5" />
-                Agregar Todo al Carrito
+                {t('addAll')}
               </Button>
               <Button
                 variant="outline"
@@ -309,7 +323,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
                 onClick={handleShare}
               >
                 <ShareIcon className="h-5 w-5" />
-                Compartir Resultados
+                {t('share')}
               </Button>
             </div>
           </Card>
@@ -318,7 +332,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
           {result.recommendations.length > 3 && (
             <Card className="mb-8">
               <h3 className="text-xl font-bold text-[#3E667D] mb-4">
-                También te pueden interesar
+                {t('alsoInterest')}
               </h3>
               <div className="grid sm:grid-cols-2 gap-4">
                 {result.recommendations.slice(3, 9).map((product) => (
@@ -333,11 +347,11 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
                       {product.productName}
                     </h4>
                     <p className="text-sm text-gray-500 mt-1">
-                      ${product.price.toFixed(2)}
+                      {fmt(product.price)}
                     </p>
                     <div className="flex items-center justify-center gap-1 mt-2">
                       <span className="text-xs text-[#3E667D] font-medium">
-                        Compatibilidad: {product.score}%
+                        {t('compatibility', { score: product.score })}
                       </span>
                     </div>
                     <Button
@@ -346,7 +360,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
                       className="mt-2"
                       onClick={() => handleAddToCart(product)}
                     >
-                      Agregar
+                      {t('add')}
                     </Button>
                   </div>
                 ))}
@@ -363,14 +377,14 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
                 </div>
                 <div className="flex-1">
                   <h3 className="font-semibold text-[#3E667D]">
-                    Guarda tus resultados
+                    {t('saveResultsTitle')}
                   </h3>
                   <p className="text-sm text-gray-500">
-                    Te enviaremos tus recomendaciones por correo
+                    {t('saveResultsSubtitle')}
                   </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => setShowEmailForm(true)}>
-                  Guardar
+                  {t('saveBtn')}
                 </Button>
               </div>
             </Card>
@@ -379,29 +393,29 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
           {showEmailForm && (
             <Card className="mb-8">
               <h3 className="font-semibold text-[#3E667D] mb-4">
-                Envía tus resultados a tu correo
+                {t('emailFormTitle')}
               </h3>
               <div className="space-y-4">
                 <input
                   type="text"
-                  placeholder="Tu nombre (opcional)"
+                  placeholder={t('namePlaceholder')}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#a7c1e2]/50"
                 />
                 <input
                   type="email"
-                  placeholder="tu@correo.com"
+                  placeholder={t('emailPlaceholder')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#a7c1e2]/50"
                 />
                 <div className="flex gap-2">
                   <Button onClick={handleSaveEmail} className="w-full">
-                    Enviar resultados
+                    {t('sendResults')}
                   </Button>
                   <Button variant="ghost" onClick={() => setShowEmailForm(false)}>
-                    Cancelar
+                    {t('cancel')}
                   </Button>
                 </div>
               </div>
@@ -415,7 +429,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
               className="inline-flex items-center gap-2 text-gray-500 hover:text-[#3E667D] transition-colors"
             >
               <ArrowPathIcon className="h-5 w-5" />
-              Volver a hacer la evaluación
+              {t('restart')}
             </button>
 
             <div className="pt-4">
@@ -423,7 +437,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
                 href="/productos"
                 className="text-[#3E667D] hover:underline font-medium"
               >
-                Explorar todos los productos →
+                {t('exploreProducts')}
               </Link>
             </div>
           </div>
@@ -485,11 +499,15 @@ function ProductRecommendationCard({
   rank,
   onAddToCart,
   isLoading,
+  formatPrice,
+  compatibilityLabel,
 }: {
   product: ProductRecommendation;
   rank: number;
   onAddToCart: () => void;
   isLoading: boolean;
+  formatPrice: (amount: number) => string;
+  compatibilityLabel: string;
 }) {
   return (
     <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
@@ -511,7 +529,7 @@ function ProductRecommendationCard({
         {/* Score and Category */}
         <div className="flex flex-wrap items-center gap-2 mt-2">
           <span className="text-xs bg-[#C8DDF2]/10 text-[#3E667D] px-2 py-0.5 rounded-full font-medium">
-            Compatibilidad: {product.score}%
+            {compatibilityLabel}
           </span>
           {product.categoryName && (
             <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
@@ -525,11 +543,11 @@ function ProductRecommendationCard({
       <div className="text-right flex-shrink-0">
         {product.originalPrice && product.originalPrice > product.price && (
           <div className="text-sm text-gray-400 line-through">
-            ${product.originalPrice.toFixed(2)}
+            {formatPrice(product.originalPrice)}
           </div>
         )}
         <div className="font-bold text-[#3E667D] text-lg">
-          ${product.price.toFixed(2)}
+          {formatPrice(product.price)}
         </div>
         <div className="flex items-center gap-0.5 mt-1 justify-end">
           {[1, 2, 3, 4, 5].map((star) => (
