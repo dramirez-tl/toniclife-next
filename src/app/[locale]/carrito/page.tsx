@@ -24,7 +24,8 @@ import {
   useUpdateCartItem,
   useRemoveCartItem,
 } from '@/hooks/useCart';
-import { cartService } from '@/services/cart.service';
+import { formatCurrency } from '@/lib/currency';
+import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { toast } from 'sonner';
 
 /** Renders a product image with initials fallback on error */
@@ -59,6 +60,9 @@ function CartProductImage({ src, name, width, height, className }: { src?: strin
 
 
 export default function CartPage() {
+  const { currency, lang, countryCode } = useStoreCountry();
+  const fmt = (n: number | string) => formatCurrency(n, currency, lang);
+  const taxIncluded = countryCode === 'MX';
   const { data: cart, isLoading } = useCart();
   const clearCart = useClearCart();
   const updateItem = useUpdateCartItem();
@@ -237,11 +241,11 @@ export default function CartPage() {
                             {/* Unit Price */}
                             <div className="flex items-center gap-2 mt-2">
                               <span className="text-sm text-gray-500">
-                                {cartService.formatCurrency(item.unitPrice)} c/u
+                                {fmt(item.unitPrice)} c/u
                               </span>
                               {item.originalPrice && (
                                 <span className="text-xs text-gray-400 line-through">
-                                  {cartService.formatCurrency(item.originalPrice)}
+                                  {fmt(item.originalPrice)}
                                 </span>
                               )}
                             </div>
@@ -298,7 +302,7 @@ export default function CartPage() {
                           {/* Line Total */}
                           <div className="text-right">
                             <span className="text-xl font-bold text-[#3E667D]">
-                              {cartService.formatCurrency(item.lineTotal)}
+                              {fmt(item.lineTotal)}
                             </span>
                           </div>
                         </div>
@@ -335,19 +339,21 @@ export default function CartPage() {
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Subtotal ({itemCount} productos)</span>
-                      <span className="font-medium">{cartService.formatCurrency(subtotal)}</span>
+                      <span className="font-medium">{fmt(subtotal)}</span>
                     </div>
 
                     {discount > 0 && (
                       <div className="flex justify-between text-green-600">
                         <span>Descuento</span>
-                        <span>-{cartService.formatCurrency(discount)}</span>
+                        <span>-{fmt(discount)}</span>
                       </div>
                     )}
 
-                    <div className="flex justify-between text-gray-500 text-sm">
-                      <span>IVA incluido en precios</span>
-                    </div>
+                    {taxIncluded && (
+                      <div className="flex justify-between text-gray-500 text-sm">
+                        <span>IVA incluido en precios</span>
+                      </div>
+                    )}
 
                     <div className="flex justify-between">
                       <span className="text-gray-600">Envío</span>
@@ -359,7 +365,7 @@ export default function CartPage() {
                     <div className="flex items-baseline justify-between pt-3 border-t border-gray-200">
                       <span className="text-base font-bold text-gray-900">Total</span>
                       <span className="text-2xl font-bold text-[#3E667D]">
-                        {cartService.formatCurrency(total)}
+                        {fmt(total)}
                       </span>
                     </div>
 

@@ -14,7 +14,8 @@ import {
   ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import { useCart, useClearCart, useUpdateCartItem, useRemoveCartItem } from '@/hooks/useCart';
-import { cartService } from '@/services/cart.service';
+import { formatCurrency } from '@/lib/currency';
+import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { toast } from 'sonner';
 
 function DrawerProductImage({ src, name }: { src?: string; name: string }) {
@@ -49,6 +50,8 @@ interface CartDrawerProps {
 
 
 export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
+  const { currency, lang } = useStoreCountry();
+  const fmt = (n: number | string) => formatCurrency(n, currency, lang);
   const { data: cart, isLoading } = useCart();
   const clearCart = useClearCart();
   const updateItem = useUpdateCartItem();
@@ -166,7 +169,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                       SKU: {item.productCode}
                     </p>
                     <p className="text-sm text-[#3E667D] font-medium">
-                      {cartService.formatCurrency(item.unitPrice)} c/u
+                      {fmt(item.unitPrice)} c/u
                     </p>
 
                     {/* Points */}
@@ -198,7 +201,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
 
                       <div className="flex items-center gap-3">
                         <span className="font-bold text-[#3E667D]">
-                          {cartService.formatCurrency(item.lineTotal)}
+                          {fmt(item.lineTotal)}
                         </span>
                         <button
                           onClick={() => handleRemoveItem(item.id)}
@@ -232,12 +235,12 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-gray-600">
                 <span>Subtotal ({cart.itemCount} productos)</span>
-                <span>{cartService.formatCurrency(subtotal)}</span>
+                <span>{fmt(subtotal)}</span>
               </div>
               {discount > 0 && (
                 <div className="flex justify-between text-green-600">
                   <span>Descuento</span>
-                  <span>-{cartService.formatCurrency(discount)}</span>
+                  <span>-{fmt(discount)}</span>
                 </div>
               )}
               <div className="flex justify-between text-gray-600">
@@ -246,7 +249,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
               </div>
               <div className="flex justify-between text-lg font-bold text-[#3E667D] pt-2 border-t border-gray-100">
                 <span>Total</span>
-                <span>{cartService.formatCurrency(total)}</span>
+                <span>{fmt(total)}</span>
               </div>
 
               {/* Points */}

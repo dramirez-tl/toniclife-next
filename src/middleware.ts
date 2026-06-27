@@ -9,9 +9,9 @@ const intlMiddleware = createMiddleware(routing);
 
 // ¿La ruta ya viene con prefijo de locale? (/es-mx, /en-us/productos, …)
 const LOCALE_PREFIX_RE = new RegExp(`^/(${LOCALES.join('|')})(/|$)`);
-// Bases públicas que SÍ se localizan (home, productos, quiz). El resto
-// (faq, carrito, admin, distribuidor, etc.) NO pasa por i18n.
-const LOCALIZABLE_BASE_RE = /^\/(productos|quiz)(\/|$)/;
+// Bases públicas que SÍ se localizan (home, productos, quiz, carrito, checkout).
+// El resto (faq, admin, distribuidor, etc.) NO pasa por i18n.
+const LOCALIZABLE_BASE_RE = /^\/(productos|quiz|carrito|checkout)(\/|$)/;
 
 // ── Maintenance / Countdown gate ───────────────────────────────────────────
 // Set LAUNCH_DATE in .env to enable the maintenance gate.

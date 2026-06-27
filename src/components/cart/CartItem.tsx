@@ -5,7 +5,8 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { TrashIcon, MinusIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { useUpdateCartItem, useRemoveCartItem } from '@/hooks/useCart';
-import { cartService } from '@/services/cart.service';
+import { formatCurrency } from '@/lib/currency';
+import { useStoreCountry } from '@/hooks/useStoreCountry';
 import type { CartItem as CartItemType } from '@/types/cart';
 
 interface CartItemProps {
@@ -13,6 +14,8 @@ interface CartItemProps {
 }
 
 export function CartItem({ item }: CartItemProps) {
+  const { currency, lang } = useStoreCountry();
+  const fmt = (n: number | string) => formatCurrency(n, currency, lang);
   const [isUpdating, setIsUpdating] = useState(false);
   const [imgError, setImgError] = useState(false);
   const updateItem = useUpdateCartItem();
@@ -79,11 +82,11 @@ export function CartItem({ item }: CartItemProps) {
         {/* Price */}
         <div className="mt-1 flex items-center gap-2">
           <span className="font-bold text-[#3E667D]">
-            {cartService.formatCurrency(item.unitPrice)}
+            {fmt(item.unitPrice)}
           </span>
           {item.originalPrice && (
             <span className="text-sm text-gray-400 line-through">
-              {cartService.formatCurrency(item.originalPrice)}
+              {fmt(item.originalPrice)}
             </span>
           )}
         </div>
@@ -125,7 +128,7 @@ export function CartItem({ item }: CartItemProps) {
 
         {/* Line Total */}
         <span className="font-bold text-gray-900">
-          {cartService.formatCurrency(item.lineTotal)}
+          {fmt(item.lineTotal)}
         </span>
       </div>
     </div>

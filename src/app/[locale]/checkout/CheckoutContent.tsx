@@ -33,7 +33,8 @@ import {
   usePickupBranches,
 } from '@/hooks/useCart';
 import { useReferralCode } from '@/hooks/useReferralCode';
-import { cartService } from '@/services/cart.service';
+import { formatCurrency } from '@/lib/currency';
+import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
 import {
@@ -84,8 +85,33 @@ const MEXICAN_STATES = [
   'Sinaloa', 'Sonora', 'Tabasco', 'Tamaulipas', 'Tlaxcala', 'Veracruz', 'Yucatán', 'Zacatecas',
 ];
 
+// US states + DC (códigos de 2 letras = state_codes en tax_rules para sales tax).
+const US_STATES = [
+  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'DC', 'FL', 'GA', 'HI', 'ID',
+  'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO',
+  'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA',
+  'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
+];
+
+const STATES_BY_COUNTRY: Record<string, string[]> = {
+  MX: MEXICAN_STATES,
+  US: US_STATES,
+};
+
+const COUNTRY_NAMES: Record<string, string> = {
+  MX: 'México',
+  US: 'United States',
+  CO: 'Colombia',
+  GT: 'Guatemala',
+};
+
 export default function CheckoutContent() {
   const router = useRouter();
+  // País + idioma de la tienda (locale): moneda, impuesto, envío y estados.
+  const { countryId, countryCode, currency, lang } = useStoreCountry();
+  const fmt = (n: number | string) => formatCurrency(n, currency, lang);
+  const statesForCountry = STATES_BY_COUNTRY[countryCode] ?? MEXICAN_STATES;
+  const taxIncluded = countryCode === 'MX';
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('info');
   const currentUser = useAppSelector(selectUser);
   const isAuthenticated = !!currentUser;
@@ -141,6 +167,8 @@ export default function CheckoutContent() {
   const { data: checkoutSummary, isLoading: summaryLoading } = useCheckoutSummary(
     selectedShippingMethod,
     shippingAddress.postalCode,
+    countryId,
+    shippingAddress.state,
   );
   const guestCheckout = useGuestCheckout();
   const authenticatedCheckout = useAuthenticatedCheckout();
@@ -177,6 +205,15 @@ export default function CheckoutContent() {
       router.push('/carrito');
     }
   }, [cart, cartLoading, router]);
+
+  // País del store (locale) → país de la dirección; si cambia el país, limpia el
+  // estado seleccionado (un estado MX no aplica a US y viceversa).
+  useEffect(() => {
+    const name = COUNTRY_NAMES[countryCode] || 'México';
+    setShippingAddress((prev) =>
+      prev.country === name ? prev : { ...prev, country: name, state: '' },
+    );
+  }, [countryCode]);
 
   const steps = [
     { id: 'info', name: 'Datos', icon: UserIcon },
@@ -255,6 +292,7 @@ export default function CheckoutContent() {
       let result: CheckoutResponse;
       if (isAuthenticated) {
         const authData: AuthenticatedCheckoutInput = {
+          countryId,
           shippingAddress: isPickup ? undefined : shippingAddress,
           pickupBranchId: isPickup ? pickupBranchId : undefined,
           paymentMethod: selectedPaymentMethod,
@@ -647,7 +685,7 @@ export default function CheckoutContent() {
                           Estado *
                         </label>
                         <SearchableSelect
-                          options={MEXICAN_STATES.map(state => ({ value: state, label: state }))}
+                          options={statesForCountry.map(state => ({ value: state, label: state }))}
                           value={shippingAddress.state}
                           onChange={(val) => setShippingAddress({ ...shippingAddress, state: val })}
                           showAllOption={false}
@@ -661,7 +699,7 @@ export default function CheckoutContent() {
                           type="text"
                           value={shippingAddress.postalCode}
                           onChange={(e) => setShippingAddress({ ...shippingAddress, postalCode: e.target.value })}
-                          maxLength={5}
+                          maxLength={countryCode === 'US' ? 10 : 5}
                           required
                         />
                       </div>
@@ -712,7 +750,7 @@ export default function CheckoutContent() {
                               </div>
                             </div>
                             <span className="font-bold text-[#3E667D]">
-                              {parseFloat(option.cost) === 0 ? 'Gratis' : cartService.formatCurrency(option.cost)}
+                              {parseFloat(option.cost) === 0 ? 'Gratis' : fmt(option.cost)}
                             </span>
                           </label>
                         ))}
@@ -868,7 +906,7 @@ export default function CheckoutContent() {
                       <div className="flex justify-between">
                         <span className="text-gray-600">Total del pedido:</span>
                         <span className="font-bold text-[#3E667D] text-lg">
-                          {cartService.formatCurrency(orderResult.total)}
+                          {fmt(orderResult.total)}
                         </span>
                       </div>
                     </div>
@@ -949,7 +987,7 @@ export default function CheckoutContent() {
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-gray-900">
-                          {cartService.formatCurrency(item.lineTotal)}
+                          {fmt(item.lineTotal)}
                         </p>
                       </div>
                     </div>
@@ -960,14 +998,14 @@ export default function CheckoutContent() {
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Subtotal</span>
                     <span className="font-medium text-gray-900">
-                      {cart ? cartService.formatCurrency(cart.subtotal) : '-'}
+                      {cart ? fmt(cart.subtotal) : '-'}
                     </span>
                   </div>
 
                   {checkoutSummary && parseFloat(checkoutSummary.discountAmount) > 0 && (
                     <div className="flex justify-between text-sm text-green-600">
                       <span>Descuento</span>
-                      <span>-{cartService.formatCurrency(checkoutSummary.discountAmount)}</span>
+                      <span>-{fmt(checkoutSummary.discountAmount)}</span>
                     </div>
                   )}
 
@@ -984,15 +1022,27 @@ export default function CheckoutContent() {
                       {checkoutSummary
                         ? parseFloat(checkoutSummary.shippingAmount) === 0
                           ? <span className="text-[#3E667D]">¡Gratis!</span>
-                          : cartService.formatCurrency(checkoutSummary.shippingAmount)
+                          : fmt(checkoutSummary.shippingAmount)
                         : 'Calculando...'
                       }
                     </span>
                   </div>
 
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>IVA incluido en precios</span>
-                  </div>
+                  {taxIncluded ? (
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>IVA incluido en precios</span>
+                    </div>
+                  ) : (
+                    checkoutSummary &&
+                    parseFloat(checkoutSummary.taxAmount) > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Impuestos</span>
+                        <span className="font-medium text-gray-900">
+                          {fmt(checkoutSummary.taxAmount)}
+                        </span>
+                      </div>
+                    )
+                  )}
                 </div>
 
                 <div className="border-t border-gray-200 pt-4">
@@ -1000,8 +1050,8 @@ export default function CheckoutContent() {
                     <span className="text-lg font-bold text-gray-900">Total</span>
                     <span className="text-2xl font-bold text-[#3E667D]">
                       {checkoutSummary
-                        ? cartService.formatCurrency(checkoutSummary.total)
-                        : cartService.formatCurrency(cart?.total || '0')
+                        ? fmt(checkoutSummary.total)
+                        : fmt(cart?.total || '0')
                       }
                     </span>
                   </div>

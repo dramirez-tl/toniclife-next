@@ -136,11 +136,15 @@ class CartService {
   async getCheckoutSummary(
     shippingMethod?: ShippingMethod,
     postalCode?: string,
+    countryId?: string,
+    state?: string,
   ): Promise<CheckoutSummary> {
     const sessionId = getSessionId();
     const params = new URLSearchParams();
     if (shippingMethod) params.append('shippingMethod', shippingMethod);
     if (postalCode) params.append('postalCode', postalCode);
+    if (countryId) params.append('countryId', countryId);
+    if (state) params.append('state', state);
 
     const response = await api.get<CheckoutSummary>(`/checkout/summary?${params.toString()}`, {
       headers: { 'x-session-id': sessionId },

@@ -1,7 +1,8 @@
 // components/cart/CartSummary.tsx - Cart summary with totals
 'use client';
 
-import { cartService } from '@/services/cart.service';
+import { formatCurrency } from '@/lib/currency';
+import { useStoreCountry } from '@/hooks/useStoreCountry';
 import type { Cart } from '@/types/cart';
 
 interface CartSummaryProps {
@@ -9,9 +10,13 @@ interface CartSummaryProps {
 }
 
 export function CartSummary({ cart }: CartSummaryProps) {
+  const { currency, lang, countryCode } = useStoreCountry();
+  const fmt = (n: number) => formatCurrency(n, currency, lang);
   const subtotal = parseFloat(cart.subtotal);
   const discount = parseFloat(cart.discountAmount);
   const total = parseFloat(cart.total);
+  // MX: precios con IVA incluido. US y demás: el impuesto se suma en checkout.
+  const taxIncluded = countryCode === 'MX';
 
   return (
     <div className="bg-gray-50 rounded-xl p-6">
@@ -21,19 +26,21 @@ export function CartSummary({ cart }: CartSummaryProps) {
       <div className="space-y-3 border-t border-gray-200 pt-4">
         <div className="flex justify-between text-gray-600">
           <span>Subtotal ({cart.itemCount} productos)</span>
-          <span>{cartService.formatCurrency(subtotal)}</span>
+          <span>{fmt(subtotal)}</span>
         </div>
 
         {discount > 0 && (
           <div className="flex justify-between text-green-600">
             <span>Descuento</span>
-            <span>-{cartService.formatCurrency(discount)}</span>
+            <span>-{fmt(discount)}</span>
           </div>
         )}
 
-        <div className="flex justify-between text-gray-500 text-sm">
-          <span>IVA incluido en precios</span>
-        </div>
+        {taxIncluded && (
+          <div className="flex justify-between text-gray-500 text-sm">
+            <span>IVA incluido en precios</span>
+          </div>
+        )}
 
         <div className="flex justify-between text-gray-500 text-sm">
           <span>Envío</span>
@@ -46,7 +53,7 @@ export function CartSummary({ cart }: CartSummaryProps) {
         <div className="flex justify-between items-center">
           <span className="text-lg font-bold text-gray-900">Total</span>
           <span className="text-2xl font-bold text-[#3E667D]">
-            {cartService.formatCurrency(total)}
+            {fmt(total)}
           </span>
         </div>
 

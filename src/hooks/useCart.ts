@@ -27,8 +27,17 @@ export const cartKeys = {
   cart: () => [...cartKeys.all, 'detail'] as const,
   summary: () => [...cartKeys.all, 'summary'] as const,
   checkout: () => [...cartKeys.all, 'checkout'] as const,
-  checkoutSummary: (shippingMethod?: ShippingMethod, postalCode?: string) =>
-    [...cartKeys.checkout(), 'summary', { shippingMethod, postalCode }] as const,
+  checkoutSummary: (
+    shippingMethod?: ShippingMethod,
+    postalCode?: string,
+    countryId?: string,
+    state?: string,
+  ) =>
+    [
+      ...cartKeys.checkout(),
+      'summary',
+      { shippingMethod, postalCode, countryId, state },
+    ] as const,
   addresses: () => [...cartKeys.checkout(), 'addresses'] as const,
 };
 
@@ -163,10 +172,16 @@ export const useMergeCarts = () => {
 // CHECKOUT QUERIES
 // ================================
 
-export const useCheckoutSummary = (shippingMethod?: ShippingMethod, postalCode?: string) => {
+export const useCheckoutSummary = (
+  shippingMethod?: ShippingMethod,
+  postalCode?: string,
+  countryId?: string,
+  state?: string,
+) => {
   return useQuery({
-    queryKey: cartKeys.checkoutSummary(shippingMethod, postalCode),
-    queryFn: () => cartService.getCheckoutSummary(shippingMethod, postalCode),
+    queryKey: cartKeys.checkoutSummary(shippingMethod, postalCode, countryId, state),
+    queryFn: () =>
+      cartService.getCheckoutSummary(shippingMethod, postalCode, countryId, state),
     staleTime: 60 * 1000, // 1 minute
   });
 };

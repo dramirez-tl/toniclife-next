@@ -174,6 +174,8 @@ export interface GuestCheckoutInput {
 }
 
 export interface AuthenticatedCheckoutInput {
+  /** País de la tienda (locale): define moneda, impuesto y envío del pedido. */
+  countryId?: string;
   shippingAddressId?: string;
   shippingAddress?: CheckoutAddress;
   billingAddressId?: string;
