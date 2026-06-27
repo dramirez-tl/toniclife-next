@@ -24,6 +24,7 @@ import {
   useUpdateCartItem,
   useRemoveCartItem,
 } from '@/hooks/useCart';
+import { useTranslations } from 'next-intl';
 import { formatCurrency } from '@/lib/currency';
 import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { toast } from 'sonner';
@@ -60,6 +61,7 @@ function CartProductImage({ src, name, width, height, className }: { src?: strin
 
 
 export default function CartPage() {
+  const t = useTranslations('cart');
   const { currency, lang, countryCode } = useStoreCountry();
   const fmt = (n: number | string) => formatCurrency(n, currency, lang);
   const taxIncluded = countryCode === 'MX';
@@ -73,35 +75,35 @@ export default function CartPage() {
     try {
       await updateItem.mutateAsync({ itemId, data: { quantity: newQuantity } });
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Error al actualizar cantidad');
+      toast.error(error.response?.data?.message || t('updateError'));
     }
   };
 
   const handleRemoveItem = async (itemId: string) => {
     try {
       await removeItem.mutateAsync(itemId);
-      toast.success('Producto eliminado del carrito');
+      toast.success(t('removed'));
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Error al eliminar producto');
+      toast.error(error.response?.data?.message || t('removeError'));
     }
   };
 
   const handleClearCart = () => {
-    toast('¿Vaciar el carrito?', {
-      description: 'Se eliminarán todos los productos.',
+    toast(t('confirmEmptyTitle'), {
+      description: t('confirmEmptyDesc'),
       action: {
-        label: 'Vaciar',
+        label: t('emptyAction'),
         onClick: async () => {
           try {
             await clearCart.mutateAsync();
-            toast.success('Carrito vaciado');
+            toast.success(t('emptied'));
           } catch (error: any) {
-            toast.error(error.response?.data?.message || 'Error al vaciar carrito');
+            toast.error(error.response?.data?.message || t('emptyError'));
           }
         },
       },
       cancel: {
-        label: 'Cancelar',
+        label: t('cancel'),
         onClick: () => {},
       },
     });
@@ -125,7 +127,7 @@ export default function CartPage() {
               className="inline-flex items-center gap-2 text-gray-500 hover:text-[#3E667D] transition-colors"
             >
               <ArrowLeftIcon className="h-4 w-4" />
-              Seguir comprando
+              {t('keepShopping')}
             </Link>
           </div>
 
@@ -137,14 +139,14 @@ export default function CartPage() {
                   <ShoppingBagIcon className="h-8 w-8 text-[#3E667D]" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-[#3E667D]">Tu Carrito</h1>
+                  <h1 className="text-3xl font-bold text-[#3E667D]">{t('title')}</h1>
                   <p className="text-gray-500">
-                    {itemCount} {itemCount === 1 ? 'producto' : 'productos'}
+                    {t('items', { count: itemCount })}
                   </p>
                 </div>
               </div>
               <Badge variant="outline" className="border-[#3E667D]/30 bg-[#C8DDF2]/30 text-[#3E667D] text-xs sm:text-sm">
-                Compra segura
+                {t('secureBadge')}
               </Badge>
             </div>
           </div>
@@ -168,18 +170,17 @@ export default function CartPage() {
                 <ShoppingBagIcon className="h-10 w-10 text-[#3E667D]/60" />
               </div>
               <h2 className="mb-2 text-2xl font-bold text-[#3E667D]">
-                Tu carrito está vacío
+                {t('empty')}
               </h2>
               <p className="mb-8 max-w-md mx-auto text-gray-500">
-                Parece que aún no has agregado productos. Explora nuestro catálogo
-                y encuentra los productos ideales para ti.
+                {t('emptyDesc')}
               </p>
               <div className="flex flex-col justify-center gap-4 sm:flex-row">
                 <Link href="/productos">
-                  <Button size="lg">Ver Productos</Button>
+                  <Button size="lg">{t('viewProducts')}</Button>
                 </Link>
                 <Link href="/quiz">
-                  <Button variant="outline" size="lg">Iniciar mi Evaluación</Button>
+                  <Button variant="outline" size="lg">{t('startQuiz')}</Button>
                 </Link>
               </div>
             </Card>
@@ -241,7 +242,7 @@ export default function CartPage() {
                             {/* Unit Price */}
                             <div className="flex items-center gap-2 mt-2">
                               <span className="text-sm text-gray-500">
-                                {fmt(item.unitPrice)} c/u
+                                {fmt(item.unitPrice)} {t('perUnit')}
                               </span>
                               {item.originalPrice && (
                                 <span className="text-xs text-gray-400 line-through">
@@ -253,7 +254,7 @@ export default function CartPage() {
                             {/* Points */}
                             {item.points > 0 && (
                               <p className="text-xs text-[#3E667D] mt-1">
-                                +{item.points} puntos por unidad
+                                {t('pointsUnit', { points: item.points })}
                               </p>
                             )}
                           </div>
@@ -273,7 +274,7 @@ export default function CartPage() {
                         <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
                           {/* Quantity Controls */}
                           <div className="flex items-center gap-3">
-                            <span className="text-sm text-gray-500">Cantidad:</span>
+                            <span className="text-sm text-gray-500">{t('quantity')}</span>
                             <div className="flex items-center rounded-lg border border-gray-200 bg-white">
                               <button
                                 onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
@@ -318,7 +319,7 @@ export default function CartPage() {
                     disabled={clearCart.isPending}
                     className="rounded-lg px-3 py-1.5 text-sm text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
                   >
-                    Vaciar carrito
+                    {t('clearCart')}
                   </button>
                 </div>
               </div>
@@ -328,42 +329,42 @@ export default function CartPage() {
                 <Card className="sticky top-32 border-gray-100 shadow-sm p-6">
                   <div className="mb-6 flex items-center justify-between">
                     <h2 className="text-xl font-bold text-[#3E667D]">
-                      Resumen del Pedido
+                      {t('summaryTitle')}
                     </h2>
                     <Badge variant="outline" className="border-[#3E667D]/30 bg-[#C8DDF2]/30 text-[#3E667D]">
-                      {itemCount} {itemCount === 1 ? 'item' : 'items'}
+                      {t('itemsShort', { count: itemCount })}
                     </Badge>
                   </div>
 
                   {/* Order Details */}
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Subtotal ({itemCount} productos)</span>
+                      <span className="text-gray-600">{t('subtotal', { count: itemCount })}</span>
                       <span className="font-medium">{fmt(subtotal)}</span>
                     </div>
 
                     {discount > 0 && (
                       <div className="flex justify-between text-green-600">
-                        <span>Descuento</span>
+                        <span>{t('discount')}</span>
                         <span>-{fmt(discount)}</span>
                       </div>
                     )}
 
                     {taxIncluded && (
                       <div className="flex justify-between text-gray-500 text-sm">
-                        <span>IVA incluido en precios</span>
+                        <span>{t('taxIncluded')}</span>
                       </div>
                     )}
 
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Envío</span>
+                      <span className="text-gray-600">{t('shipping')}</span>
                       <span className="text-[#3E667D] font-medium">
-                        Calculado en checkout
+                        {t('shippingAtCheckout')}
                       </span>
                     </div>
 
                     <div className="flex items-baseline justify-between pt-3 border-t border-gray-200">
-                      <span className="text-base font-bold text-gray-900">Total</span>
+                      <span className="text-base font-bold text-gray-900">{t('total')}</span>
                       <span className="text-2xl font-bold text-[#3E667D]">
                         {fmt(total)}
                       </span>
@@ -373,7 +374,7 @@ export default function CartPage() {
                     {cart.totalPoints > 0 && (
                       <div className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-[#C8DDF2]/30 py-2 text-sm font-medium text-[#3E667D]">
                         <SparklesIcon className="h-4 w-4" />
-                        Ganas +{cart.totalPoints} puntos con esta compra
+                        {t('earnPoints', { points: cart.totalPoints })}
                       </div>
                     )}
                   </div>
@@ -381,26 +382,26 @@ export default function CartPage() {
                   {/* Checkout Button */}
                   <Link href="/checkout">
                     <Button size="lg" className="w-full mt-6">
-                      Finalizar Compra
+                      {t('checkout')}
                     </Button>
                   </Link>
                   <p className="mt-2 text-center text-xs text-gray-400">
-                    Pago protegido y cifrado
+                    {t('protectedPayment')}
                   </p>
 
                   {/* Confianza */}
                   <div className="mt-6 space-y-2.5 border-t border-gray-100 pt-6 text-sm text-gray-500">
                     <div className="flex items-center gap-2">
                       <ShieldCheckIcon className="h-5 w-5 text-[#3E667D]" />
-                      <span>Compra 100% segura y cifrada</span>
+                      <span>{t('trustSecure')}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <TruckIcon className="h-5 w-5 text-[#3E667D]" />
-                      <span>Envío a domicilio o recoge en sucursal</span>
+                      <span>{t('trustShipping')}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <ArrowPathIcon className="h-5 w-5 text-[#3E667D]" />
-                      <span>30 días de garantía</span>
+                      <span>{t('trustWarranty')}</span>
                     </div>
                   </div>
 
@@ -408,10 +409,10 @@ export default function CartPage() {
                   <div className="mt-6 border-t border-gray-100 pt-6">
                     <div className="flex items-center justify-center gap-2 text-xs font-medium text-gray-500">
                       <CreditCardIcon className="h-4 w-4 text-[#3E667D]" />
-                      <span>Visa · Mastercard · American Express</span>
+                      <span>{t('cardsAccepted')}</span>
                     </div>
                     <p className="mt-1.5 text-center text-[11px] text-gray-400">
-                      Pago procesado de forma segura por Stripe
+                      {t('stripeProcessed')}
                     </p>
                   </div>
                 </Card>

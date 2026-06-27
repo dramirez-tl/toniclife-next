@@ -14,6 +14,7 @@ import {
   ArrowRightIcon,
 } from '@heroicons/react/24/outline';
 import { useCart, useClearCart, useUpdateCartItem, useRemoveCartItem } from '@/hooks/useCart';
+import { useTranslations } from 'next-intl';
 import { formatCurrency } from '@/lib/currency';
 import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { toast } from 'sonner';
@@ -50,6 +51,7 @@ interface CartDrawerProps {
 
 
 export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
+  const t = useTranslations('cart');
   const { currency, lang } = useStoreCountry();
   const fmt = (n: number | string) => formatCurrency(n, currency, lang);
   const { data: cart, isLoading } = useCart();
@@ -62,35 +64,35 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
     try {
       await updateItem.mutateAsync({ itemId, data: { quantity: newQuantity } });
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Error al actualizar cantidad');
+      toast.error(error.response?.data?.message || t('updateError'));
     }
   };
 
   const handleRemoveItem = async (itemId: string) => {
     try {
       await removeItem.mutateAsync(itemId);
-      toast.success('Producto eliminado');
+      toast.success(t('removedShort'));
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Error al eliminar producto');
+      toast.error(error.response?.data?.message || t('removeError'));
     }
   };
 
   const handleClearCart = () => {
-    toast('¿Vaciar el carrito?', {
-      description: 'Se eliminarán todos los productos.',
+    toast(t('confirmEmptyTitle'), {
+      description: t('confirmEmptyDesc'),
       action: {
-        label: 'Vaciar',
+        label: t('emptyAction'),
         onClick: async () => {
           try {
             await clearCart.mutateAsync();
-            toast.success('Carrito vaciado');
+            toast.success(t('emptied'));
           } catch (error: any) {
-            toast.error(error.response?.data?.message || 'Error al vaciar carrito');
+            toast.error(error.response?.data?.message || t('emptyError'));
           }
         },
       },
       cancel: {
-        label: 'Cancelar',
+        label: t('cancel'),
         onClick: () => {},
       },
     });
@@ -117,9 +119,9 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <ShoppingBagIcon className="h-6 w-6 text-[#3E667D]" />
-            <h2 className="text-lg font-bold text-[#3E667D]">Tu Carrito</h2>
+            <h2 className="text-lg font-bold text-[#3E667D]">{t('title')}</h2>
             {cart && cart.itemCount > 0 && (
-              <Badge variant="success">{cart.itemCount} items</Badge>
+              <Badge variant="success">{t('itemsShort', { count: cart.itemCount })}</Badge>
             )}
           </div>
           <button
@@ -139,13 +141,13 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
           ) : !cart || cart.items.length === 0 ? (
             <div className="text-center py-12">
               <ShoppingBagIcon className="h-16 w-16 mx-auto text-gray-300 mb-4" />
-              <p className="text-gray-500">Tu carrito está vacío</p>
+              <p className="text-gray-500">{t('emptyDrawer')}</p>
               <Button
                 variant="outline"
                 className="mt-4"
                 onClick={onClose}
               >
-                Explorar Productos
+                {t('exploreProducts')}
               </Button>
             </div>
           ) : (
@@ -169,12 +171,12 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                       SKU: {item.productCode}
                     </p>
                     <p className="text-sm text-[#3E667D] font-medium">
-                      {fmt(item.unitPrice)} c/u
+                      {fmt(item.unitPrice)} {t('perUnit')}
                     </p>
 
                     {/* Points */}
                     {item.points > 0 && (
-                      <p className="text-xs text-[#3E667D]">+{item.points} puntos</p>
+                      <p className="text-xs text-[#3E667D]">{t('points', { points: item.points })}</p>
                     )}
 
                     {/* Quantity Controls */}
@@ -222,7 +224,7 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 disabled={clearCart.isPending}
                 className="w-full text-sm text-red-500 hover:text-red-600 py-2 disabled:opacity-50"
               >
-                Vaciar carrito
+                {t('clearCart')}
               </button>
             </>
           )}
@@ -234,28 +236,28 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             {/* Order Summary */}
             <div className="space-y-2 text-sm">
               <div className="flex justify-between text-gray-600">
-                <span>Subtotal ({cart.itemCount} productos)</span>
+                <span>{t('subtotal', { count: cart.itemCount })}</span>
                 <span>{fmt(subtotal)}</span>
               </div>
               {discount > 0 && (
                 <div className="flex justify-between text-green-600">
-                  <span>Descuento</span>
+                  <span>{t('discount')}</span>
                   <span>-{fmt(discount)}</span>
                 </div>
               )}
               <div className="flex justify-between text-gray-600">
-                <span>Envío</span>
-                <span>Calculado en checkout</span>
+                <span>{t('shipping')}</span>
+                <span>{t('shippingAtCheckout')}</span>
               </div>
               <div className="flex justify-between text-lg font-bold text-[#3E667D] pt-2 border-t border-gray-100">
-                <span>Total</span>
+                <span>{t('total')}</span>
                 <span>{fmt(total)}</span>
               </div>
 
               {/* Points */}
               {cart.totalPoints > 0 && (
                 <p className="text-xs text-[#3E667D] text-center">
-                  +{cart.totalPoints} puntos por esta compra
+                  {t('pointsForPurchase', { points: cart.totalPoints })}
                 </p>
               )}
             </div>
@@ -267,14 +269,14 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                 onClick={onClose}
                 className="block w-full py-3 text-center border-2 border-[#3E667D] text-[#3E667D] rounded-xl font-bold hover:bg-[#3E667D]/5 transition-colors"
               >
-                Ver Carrito Completo
+                {t('viewFullCart')}
               </Link>
               <Link
                 href="/checkout"
                 onClick={onClose}
                 className="flex items-center justify-center gap-2 w-full py-3 bg-[#3E667D] text-white rounded-xl font-bold hover:bg-[#6aa526] transition-colors"
               >
-                Proceder al Checkout
+                {t('proceedCheckout')}
                 <ArrowRightIcon className="h-5 w-5" />
               </Link>
             </div>
@@ -284,12 +286,12 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
               onClick={onClose}
               className="w-full text-center text-sm text-gray-500 hover:text-[#3E667D] transition-colors"
             >
-              Continuar comprando
+              {t('keepShopping')}
             </button>
 
             {/* Payment Methods */}
             <div className="flex items-center justify-center gap-4 pt-2 border-t border-gray-100">
-              <span className="text-xs text-gray-400">Pago seguro con:</span>
+              <span className="text-xs text-gray-400">{t('securePaymentWith')}</span>
               <div className="flex items-center gap-2">
                 {['Visa', 'MC', 'Amex', 'PayPal'].map((method) => (
                   <div

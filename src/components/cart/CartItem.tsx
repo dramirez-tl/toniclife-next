@@ -5,6 +5,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { TrashIcon, MinusIcon, PlusIcon } from '@heroicons/react/24/outline';
 import { useUpdateCartItem, useRemoveCartItem } from '@/hooks/useCart';
+import { useTranslations } from 'next-intl';
 import { formatCurrency } from '@/lib/currency';
 import { useStoreCountry } from '@/hooks/useStoreCountry';
 import type { CartItem as CartItemType } from '@/types/cart';
@@ -14,6 +15,7 @@ interface CartItemProps {
 }
 
 export function CartItem({ item }: CartItemProps) {
+  const t = useTranslations('cart');
   const { currency, lang } = useStoreCountry();
   const fmt = (n: number | string) => formatCurrency(n, currency, lang);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -93,7 +95,7 @@ export function CartItem({ item }: CartItemProps) {
 
         {/* Points */}
         {item.points > 0 && (
-          <p className="text-xs text-[#3E667D]">+{item.points} puntos</p>
+          <p className="text-xs text-[#3E667D]">{t('points', { points: item.points })}</p>
         )}
       </div>
 
@@ -103,7 +105,7 @@ export function CartItem({ item }: CartItemProps) {
           onClick={handleRemove}
           disabled={isUpdating}
           className="p-1 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50"
-          aria-label="Eliminar"
+          aria-label={t('emptyAction')}
         >
           <TrashIcon className="h-5 w-5" />
         </button>

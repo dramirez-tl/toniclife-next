@@ -3,8 +3,10 @@
 import { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
+import { useTranslations } from 'next-intl';
 
 function SuccessContent() {
+  const t = useTranslations('checkout');
   const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get('session_id');
@@ -29,8 +31,8 @@ function SuccessContent() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="text-center">
         <div className="w-16 h-16 border-4 border-[#a7c1e2] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-gray-600 text-lg">Procesando pago exitoso...</p>
-        <p className="text-gray-400 text-sm mt-2">Redirigiendo a la confirmacion de tu pedido</p>
+        <p className="text-gray-600 text-lg">{t('successProcessing')}</p>
+        <p className="text-gray-400 text-sm mt-2">{t('successRedirecting')}</p>
       </div>
     </div>
   );

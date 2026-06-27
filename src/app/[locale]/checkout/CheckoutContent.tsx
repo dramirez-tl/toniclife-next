@@ -17,6 +17,7 @@ import {
   LockClosedIcon,
 } from '@heroicons/react/24/outline';
 import { Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -107,6 +108,7 @@ const COUNTRY_NAMES: Record<string, string> = {
 
 export default function CheckoutContent() {
   const router = useRouter();
+  const t = useTranslations('checkout');
   // País + idioma de la tienda (locale): moneda, impuesto, envío y estados.
   const { countryId, countryCode, currency, lang } = useStoreCountry();
   const fmt = (n: number | string) => formatCurrency(n, currency, lang);
@@ -216,10 +218,10 @@ export default function CheckoutContent() {
   }, [countryCode]);
 
   const steps = [
-    { id: 'info', name: 'Datos', icon: UserIcon },
-    { id: 'shipping', name: 'Envío', icon: TruckIcon },
-    { id: 'payment', name: 'Pago', icon: CreditCardIcon },
-    { id: 'confirmation', name: 'Confirmar', icon: CheckCircleIcon },
+    { id: 'info', name: t('steps.info'), icon: UserIcon },
+    { id: 'shipping', name: t('steps.shipping'), icon: TruckIcon },
+    { id: 'payment', name: t('steps.payment'), icon: CreditCardIcon },
+    { id: 'confirmation', name: t('steps.confirm'), icon: CheckCircleIcon },
   ];
 
   const getStepIndex = (step: CheckoutStep) => {
@@ -230,7 +232,7 @@ export default function CheckoutContent() {
     e.preventDefault();
 
     if (!customerInfo.email || !customerInfo.name || !customerInfo.phone) {
-      toast.error('Por favor completa todos los campos requeridos');
+      toast.error(t('toasts.fillRequired'));
       return;
     }
 
@@ -253,11 +255,11 @@ export default function CheckoutContent() {
 
     if (deliveryMode === 'pickup') {
       if (!pickupBranchId) {
-        toast.error('Selecciona una sucursal para recoger tu pedido');
+        toast.error(t('toasts.selectPickup'));
         return;
       }
       setCurrentStep('payment');
-      toast.success('Sucursal de recolección seleccionada');
+      toast.success(t('toasts.pickupSelected'));
       return;
     }
 
@@ -267,19 +269,19 @@ export default function CheckoutContent() {
     const missingFields = requiredFields.filter(field => !shippingAddress[field]);
 
     if (missingFields.length > 0) {
-      toast.error('Por favor completa todos los campos requeridos');
+      toast.error(t('toasts.fillRequired'));
       return;
     }
 
     setCurrentStep('payment');
-    toast.success('Información de envío guardada');
+    toast.success(t('toasts.shippingSaved'));
   };
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!acceptTerms) {
-      toast.error('Debes aceptar los términos y condiciones');
+      toast.error(t('toasts.mustAcceptTerms'));
       return;
     }
 
@@ -327,7 +329,7 @@ export default function CheckoutContent() {
           total: result.total,
         });
         setCurrentStep('confirmation');
-        toast.success('¡Pedido creado exitosamente!');
+        toast.success(t('toasts.orderCreated'));
 
         // If there's a real payment URL (not a placeholder), redirect
         // Placeholder URLs contain "placeholder" and won't work
@@ -336,7 +338,7 @@ export default function CheckoutContent() {
         }
       }
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Error al procesar el pedido');
+      toast.error(error.response?.data?.message || t('toasts.orderError'));
     }
   };
 
@@ -360,28 +362,27 @@ export default function CheckoutContent() {
               <LockClosedIcon className="h-8 w-8 text-[#3E667D]" />
             </div>
             <h1 className="text-xl font-bold text-gray-900">
-              Inicia sesión para finalizar tu compra
+              {t('authTitle')}
             </h1>
             <p className="mt-2 text-sm text-gray-500">
-              Para completar tu pedido y pagar de forma segura necesitas tu
-              cuenta. Tu carrito se conserva.
+              {t('authBody')}
             </p>
             <div className="mt-6 space-y-3">
               <Link href="/login?redirect=/checkout" className="block">
                 <Button size="lg" className="w-full">
-                  Iniciar sesión
+                  {t('signIn')}
                 </Button>
               </Link>
               <Link href="/registro?redirect=/checkout" className="block">
                 <Button variant="outline" size="lg" className="w-full">
-                  Crear cuenta
+                  {t('createAccount')}
                 </Button>
               </Link>
               <Link
                 href="/carrito"
                 className="inline-block pt-1 text-sm text-gray-500 transition-colors hover:text-[#3E667D]"
               >
-                Volver al carrito
+                {t('backToCart')}
               </Link>
             </div>
           </CardContent>
@@ -400,9 +401,9 @@ export default function CheckoutContent() {
             className="inline-flex items-center gap-2 text-gray-500 hover:text-[#3E667D] transition-colors mb-4"
           >
             <ArrowLeftIcon className="h-4 w-4" />
-            Volver al carrito
+            {t('backToCart')}
           </Link>
-          <h1 className="text-3xl font-bold text-[#3E667D]">Finalizar Compra</h1>
+          <h1 className="text-3xl font-bold text-[#3E667D]">{t('title')}</h1>
         </div>
 
         {/* Progress Steps */}
@@ -461,35 +462,35 @@ export default function CheckoutContent() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <UserIcon className="h-6 w-6 text-[#3E667D]" />
-                    Información de contacto
+                    {t('contactTitle')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleInfoSubmit} className="space-y-6">
                     <div className="space-y-1.5">
-                      <Label>Email *</Label>
+                      <Label>{t('email')}</Label>
                       <Input
                         type="email"
                         value={customerInfo.email}
                         onChange={(e) => setCustomerInfo({ ...customerInfo, email: e.target.value })}
-                        placeholder="tu@email.com"
+                        placeholder={t('emailPlaceholder')}
                         required
                       />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <Label>Nombre completo *</Label>
+                        <Label>{t('fullName')}</Label>
                         <Input
                           type="text"
                           value={customerInfo.name}
                           onChange={(e) => setCustomerInfo({ ...customerInfo, name: e.target.value })}
-                          placeholder="Juan Pérez"
+                          placeholder={t('fullNamePlaceholder')}
                           required
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label>Teléfono *</Label>
+                        <Label>{t('phone')}</Label>
                         <PhoneInput
                           value={customerInfo.phone}
                           onChange={(v) => setCustomerInfo({ ...customerInfo, phone: v })}
@@ -500,21 +501,21 @@ export default function CheckoutContent() {
                     {/* Referral Code */}
                     <div className="pt-4 border-t border-gray-200">
                       <div className="space-y-1.5">
-                        <Label>Código de referido (opcional)</Label>
+                        <Label>{t('referralCode')}</Label>
                         <Input
                           type="text"
                           value={referralCode}
                           onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
-                          placeholder="CODIGO123"
+                          placeholder={t('referralPlaceholder')}
                         />
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
-                        Si te refirió un distribuidor, ingresa su código (opcional).
+                        {t('referralHint')}
                       </p>
                     </div>
 
                     <Button type="submit" size="lg" className="w-full">
-                      Continuar al envío
+                      {t('continueToShipping')}
                     </Button>
                   </form>
                 </CardContent>
@@ -527,7 +528,7 @@ export default function CheckoutContent() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <TruckIcon className="h-6 w-6 text-[#3E667D]" />
-                    Dirección de envío
+                    {t('shippingTitle')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -548,8 +549,8 @@ export default function CheckoutContent() {
                       >
                         <TruckIcon className="h-5 w-5 flex-shrink-0 text-[#3E667D]" />
                         <div>
-                          <p className="font-medium text-gray-900">Envío a domicilio</p>
-                          <p className="text-xs text-gray-500">Lo enviamos a tu dirección</p>
+                          <p className="font-medium text-gray-900">{t('deliveryHome')}</p>
+                          <p className="text-xs text-gray-500">{t('deliveryHomeDesc')}</p>
                         </div>
                       </button>
                       <button
@@ -566,8 +567,8 @@ export default function CheckoutContent() {
                       >
                         <BuildingStorefrontIcon className="h-5 w-5 flex-shrink-0 text-[#3E667D]" />
                         <div>
-                          <p className="font-medium text-gray-900">Recoger en sucursal</p>
-                          <p className="text-xs text-gray-500">En cualquier sucursal disponible</p>
+                          <p className="font-medium text-gray-900">{t('deliveryPickup')}</p>
+                          <p className="text-xs text-gray-500">{t('deliveryPickupDesc')}</p>
                         </div>
                       </button>
                     </div>
@@ -575,7 +576,7 @@ export default function CheckoutContent() {
                     {deliveryMode === 'pickup' && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Sucursal de recolección *
+                          {t('pickupBranch')}
                         </label>
                         <SearchableSelect
                           options={(pickupBranches ?? []).map((b) => ({
@@ -585,7 +586,7 @@ export default function CheckoutContent() {
                           value={pickupBranchId}
                           onChange={setPickupBranchId}
                           showAllOption={false}
-                          placeholder="Selecciona una sucursal..."
+                          placeholder={t('pickupPlaceholder')}
                           className="w-full"
                         />
                         {pickupBranchId &&
@@ -613,7 +614,7 @@ export default function CheckoutContent() {
                       <>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <Label>Nombre del destinatario *</Label>
+                        <Label>{t('recipientName')}</Label>
                         <Input
                           type="text"
                           value={shippingAddress.fullName}
@@ -622,7 +623,7 @@ export default function CheckoutContent() {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label>Teléfono *</Label>
+                        <Label>{t('phone')}</Label>
                         <PhoneInput
                           value={shippingAddress.phone}
                           onChange={(v) => setShippingAddress({ ...shippingAddress, phone: v })}
@@ -632,7 +633,7 @@ export default function CheckoutContent() {
 
                     <div className="grid grid-cols-3 gap-4">
                       <div className="col-span-2 space-y-1.5">
-                        <Label>Calle *</Label>
+                        <Label>{t('street')}</Label>
                         <Input
                           type="text"
                           value={shippingAddress.street}
@@ -641,7 +642,7 @@ export default function CheckoutContent() {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label>Número ext.</Label>
+                        <Label>{t('extNumber')}</Label>
                         <Input
                           type="text"
                           value={shippingAddress.exteriorNumber || ''}
@@ -652,16 +653,16 @@ export default function CheckoutContent() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <Label>Número interior</Label>
+                        <Label>{t('intNumber')}</Label>
                         <Input
                           type="text"
                           value={shippingAddress.interiorNumber || ''}
                           onChange={(e) => setShippingAddress({ ...shippingAddress, interiorNumber: e.target.value })}
-                          placeholder="Depto, oficina, etc."
+                          placeholder={t('intNumberPlaceholder')}
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label>Colonia</Label>
+                        <Label>{t('neighborhood')}</Label>
                         <Input
                           type="text"
                           value={shippingAddress.neighborhood || ''}
@@ -672,7 +673,7 @@ export default function CheckoutContent() {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-1.5">
-                        <Label>Ciudad *</Label>
+                        <Label>{t('city')}</Label>
                         <Input
                           type="text"
                           value={shippingAddress.city}
@@ -682,19 +683,19 @@ export default function CheckoutContent() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Estado *
+                          {t('state')}
                         </label>
                         <SearchableSelect
                           options={statesForCountry.map(state => ({ value: state, label: state }))}
                           value={shippingAddress.state}
                           onChange={(val) => setShippingAddress({ ...shippingAddress, state: val })}
                           showAllOption={false}
-                          placeholder="Seleccionar..."
+                          placeholder={t('statePlaceholder')}
                           className="w-full"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label>Código Postal *</Label>
+                        <Label>{t('postalCode')}</Label>
                         <Input
                           type="text"
                           value={shippingAddress.postalCode}
@@ -706,19 +707,19 @@ export default function CheckoutContent() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label>Referencias de ubicación</Label>
+                      <Label>{t('references')}</Label>
                       <Input
                         type="text"
                         value={shippingAddress.references || ''}
                         onChange={(e) => setShippingAddress({ ...shippingAddress, references: e.target.value })}
-                        placeholder="Entre calles, color de casa, etc."
+                        placeholder={t('referencesPlaceholder')}
                       />
                     </div>
 
                     {/* Shipping Method Selection */}
                     <div className="pt-4 border-t border-gray-200">
                       <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Método de envío
+                        {t('shippingMethod')}
                       </label>
                       <div className="space-y-3">
                         {checkoutSummary?.shippingOptions?.map((option) => (
@@ -744,13 +745,13 @@ export default function CheckoutContent() {
                                 <p className="text-sm text-gray-500">{option.description}</p>
                                 {option.estimatedDays > 0 && (
                                   <p className="text-xs text-gray-400">
-                                    {option.estimatedDays} días hábiles
+                                    {t('businessDays', { days: option.estimatedDays })}
                                   </p>
                                 )}
                               </div>
                             </div>
                             <span className="font-bold text-[#3E667D]">
-                              {parseFloat(option.cost) === 0 ? 'Gratis' : fmt(option.cost)}
+                              {parseFloat(option.cost) === 0 ? t('free') : fmt(option.cost)}
                             </span>
                           </label>
                         ))}
@@ -767,10 +768,10 @@ export default function CheckoutContent() {
                         onClick={() => setCurrentStep('info')}
                         className="flex-1"
                       >
-                        Regresar
+                        {t('back')}
                       </Button>
                       <Button type="submit" size="lg" className="flex-1">
-                        Continuar al pago
+                        {t('continueToPayment')}
                       </Button>
                     </div>
                   </form>
@@ -784,7 +785,7 @@ export default function CheckoutContent() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <CreditCardIcon className="h-6 w-6 text-[#3E667D]" />
-                    Método de pago
+                    {t('paymentTitle')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -792,10 +793,9 @@ export default function CheckoutContent() {
                     <div className="bg-[#C8DDF2]/10 border border-[#a7c1e2]/30 rounded-lg p-4 flex items-start gap-3">
                       <ShieldCheckIcon className="h-6 w-6 text-[#3E667D] flex-shrink-0" />
                       <div className="text-sm">
-                        <p className="font-semibold text-[#3E667D]">Pago 100% seguro</p>
+                        <p className="font-semibold text-[#3E667D]">{t('securePayment')}</p>
                         <p className="text-gray-600">
-                          El pago con tarjeta se procesa en la pasarela segura de Stripe; tus datos
-                          de tarjeta nunca pasan por nuestro sitio.
+                          {t('stripeNote')}
                         </p>
                       </div>
                     </div>
@@ -805,10 +805,10 @@ export default function CheckoutContent() {
                       <CreditCardIcon className="h-6 w-6 text-[#3E667D]" />
                       <div>
                         <p className="font-medium text-gray-900">
-                          Tarjeta de Crédito/Débito
+                          {t('card')}
                         </p>
                         <p className="text-xs text-gray-500">
-                          Pago en línea seguro vía Stripe
+                          {t('cardDesc')}
                         </p>
                       </div>
                     </div>
@@ -822,7 +822,7 @@ export default function CheckoutContent() {
                         className="w-5 h-5 mt-0.5 text-[#3E667D] border-gray-300 rounded focus:ring-[#a7c1e2]"
                       />
                       <span className="text-sm text-gray-600">
-                        Acepto los términos y condiciones y la política de privacidad.
+                        {t('acceptTerms')}
                       </span>
                     </label>
 
@@ -834,7 +834,7 @@ export default function CheckoutContent() {
                         onClick={() => setCurrentStep('shipping')}
                         className="flex-1"
                       >
-                        Regresar
+                        {t('back')}
                       </Button>
                       <Button
                         type="submit"
@@ -847,7 +847,7 @@ export default function CheckoutContent() {
                         {(authenticatedCheckout.isPending || guestCheckout.isPending) && (
                           <Loader2 className="mr-2 size-4 animate-spin" />
                         )}
-                        Realizar pedido
+                        {t('placeOrder')}
                       </Button>
                     </div>
                   </form>
@@ -863,13 +863,13 @@ export default function CheckoutContent() {
                     <CheckCircleIcon className="h-12 w-12 text-white" />
                   </div>
 
-                  <h2 className="text-3xl font-bold text-gray-900 mb-2">¡Pedido Confirmado!</h2>
+                  <h2 className="text-3xl font-bold text-gray-900 mb-2">{t('confirmedTitle')}</h2>
                   <p className="text-lg text-gray-600 mb-6">
-                    Gracias por tu compra. Tu pedido ha sido procesado exitosamente.
+                    {t('confirmedBody')}
                   </p>
 
                   <div className="bg-gray-50 rounded-lg p-6 mb-6">
-                    <p className="text-sm text-gray-600 mb-1">Número de pedido</p>
+                    <p className="text-sm text-gray-600 mb-1">{t('orderNumber')}</p>
                     <p className="text-2xl font-bold text-[#3E667D]">{orderResult.orderNumber}</p>
                   </div>
 
@@ -877,22 +877,22 @@ export default function CheckoutContent() {
                     <div className="text-left space-y-3">
                       {deliveryMode === 'pickup' ? (
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Recoger en:</span>
+                          <span className="text-gray-600">{t('pickupAt')}</span>
                           <span className="font-medium text-gray-900 text-right max-w-xs">
                             {(pickupBranches ?? []).find((b) => b.id === pickupBranchId)
-                              ?.name ?? 'Sucursal seleccionada'}
+                              ?.name ?? t('selectedBranch')}
                           </span>
                         </div>
                       ) : (
                         <>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Envío a:</span>
+                            <span className="text-gray-600">{t('shipTo')}</span>
                             <span className="font-medium text-gray-900">
                               {shippingAddress.fullName}
                             </span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Dirección:</span>
+                            <span className="text-gray-600">{t('address')}</span>
                             <span className="font-medium text-gray-900 text-right max-w-xs">
                               {shippingAddress.street} {shippingAddress.exteriorNumber}, {shippingAddress.neighborhood && `${shippingAddress.neighborhood},`} {shippingAddress.city}, {shippingAddress.state} {shippingAddress.postalCode}
                             </span>
@@ -900,11 +900,11 @@ export default function CheckoutContent() {
                         </>
                       )}
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Email:</span>
+                        <span className="text-gray-600">{t('email')}</span>
                         <span className="font-medium text-gray-900">{customerInfo.email}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Total del pedido:</span>
+                        <span className="text-gray-600">{t('orderTotal')}</span>
                         <span className="font-bold text-[#3E667D] text-lg">
                           {fmt(orderResult.total)}
                         </span>
@@ -919,7 +919,7 @@ export default function CheckoutContent() {
                     <div className="bg-[#C8DDF2]/20 border border-[#a7c1e2]/40 rounded-lg p-4 mb-4 flex items-center justify-center gap-2 text-[#3E667D]">
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <p className="text-sm font-medium">
-                        Te llevamos a la pasarela de pago segura para completar tu compra…
+                        {t('redirecting')}
                       </p>
                     </div>
                   )}
@@ -928,18 +928,16 @@ export default function CheckoutContent() {
                   {selectedPaymentMethod === PaymentMethod.TRANSFER && (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                       <p className="text-sm text-gray-700">
-                        <strong>Instrucciones de pago por transferencia:</strong><br />
-                        Recibirás un correo con los datos bancarios para realizar tu transferencia.
-                        Una vez confirmado el pago, procesaremos tu envío.
+                        <strong>{t('transferTitle')}</strong><br />
+                        {t('transferBody')}
                       </p>
                     </div>
                   )}
 
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
                     <p className="text-sm text-gray-700">
-                      <strong>¿Qué sigue?</strong><br />
-                      Recibirás un email de confirmación con los detalles de tu pedido.
-                      El tiempo estimado de entrega depende del método de envío seleccionado.
+                      <strong>{t('whatsNext')}</strong><br />
+                      {t('whatsNextBody')}
                     </p>
                   </div>
 
@@ -950,14 +948,14 @@ export default function CheckoutContent() {
                       onClick={() => router.push('/')}
                       className="flex-1"
                     >
-                      Volver al inicio
+                      {t('backHome')}
                     </Button>
                     <Button
                       size="lg"
                       onClick={() => router.push('/productos')}
                       className="flex-1"
                     >
-                      Seguir comprando
+                      {t('keepShopping')}
                     </Button>
                   </div>
                 </CardContent>
@@ -969,7 +967,7 @@ export default function CheckoutContent() {
           <div className="lg:col-span-1">
             <Card className="sticky top-8">
               <CardHeader>
-                <CardTitle>Resumen del pedido</CardTitle>
+                <CardTitle>{t('summaryTitle')}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Cart Items */}
@@ -983,7 +981,7 @@ export default function CheckoutContent() {
                         <p className="font-medium text-gray-900 text-sm truncate">
                           {item.productName}
                         </p>
-                        <p className="text-sm text-gray-500">Cantidad: {item.quantity}</p>
+                        <p className="text-sm text-gray-500">{t('qty', { count: item.quantity })}</p>
                       </div>
                       <div className="text-right">
                         <p className="font-semibold text-gray-900">
@@ -996,7 +994,7 @@ export default function CheckoutContent() {
 
                 <div className="border-t border-gray-200 pt-4 space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Subtotal</span>
+                    <span className="text-gray-600">{t('subtotal')}</span>
                     <span className="font-medium text-gray-900">
                       {cart ? fmt(cart.subtotal) : '-'}
                     </span>
@@ -1004,39 +1002,39 @@ export default function CheckoutContent() {
 
                   {checkoutSummary && parseFloat(checkoutSummary.discountAmount) > 0 && (
                     <div className="flex justify-between text-sm text-green-600">
-                      <span>Descuento</span>
+                      <span>{t('discount')}</span>
                       <span>-{fmt(checkoutSummary.discountAmount)}</span>
                     </div>
                   )}
 
                   {checkoutSummary?.coupon && (
                     <div className="flex justify-between text-sm text-green-600">
-                      <span>Cupón ({checkoutSummary.coupon.code})</span>
+                      <span>{t('coupon', { code: checkoutSummary.coupon.code })}</span>
                       <span>-{checkoutSummary.coupon.discount}</span>
                     </div>
                   )}
 
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Envío</span>
+                    <span className="text-gray-600">{t('shipping')}</span>
                     <span className="font-medium text-gray-900">
                       {checkoutSummary
                         ? parseFloat(checkoutSummary.shippingAmount) === 0
-                          ? <span className="text-[#3E667D]">¡Gratis!</span>
+                          ? <span className="text-[#3E667D]">{t('freeExcl')}</span>
                           : fmt(checkoutSummary.shippingAmount)
-                        : 'Calculando...'
+                        : t('calculating')
                       }
                     </span>
                   </div>
 
                   {taxIncluded ? (
                     <div className="flex justify-between text-xs text-gray-500">
-                      <span>IVA incluido en precios</span>
+                      <span>{t('taxIncluded')}</span>
                     </div>
                   ) : (
                     checkoutSummary &&
                     parseFloat(checkoutSummary.taxAmount) > 0 && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Impuestos</span>
+                        <span className="text-gray-600">{t('tax')}</span>
                         <span className="font-medium text-gray-900">
                           {fmt(checkoutSummary.taxAmount)}
                         </span>
@@ -1047,7 +1045,7 @@ export default function CheckoutContent() {
 
                 <div className="border-t border-gray-200 pt-4">
                   <div className="flex justify-between">
-                    <span className="text-lg font-bold text-gray-900">Total</span>
+                    <span className="text-lg font-bold text-gray-900">{t('total')}</span>
                     <span className="text-2xl font-bold text-[#3E667D]">
                       {checkoutSummary
                         ? fmt(checkoutSummary.total)
@@ -1059,7 +1057,7 @@ export default function CheckoutContent() {
                   {/* Points */}
                   {checkoutSummary && checkoutSummary.totalPoints > 0 && (
                     <p className="text-sm text-[#3E667D] mt-2 text-center">
-                      +{checkoutSummary.totalPoints} puntos por esta compra
+                      {t('earnPoints', { points: checkoutSummary.totalPoints })}
                     </p>
                   )}
                 </div>
