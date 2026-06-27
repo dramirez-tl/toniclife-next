@@ -9,13 +9,15 @@ import {
   Bars3Icon,
   XMarkIcon,
   ShoppingCartIcon,
-  GlobeAltIcon,
   ChevronDownIcon,
   SparklesIcon
 } from '@heroicons/react/24/outline';
 import { useCartSummary } from '@/hooks/useCart';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated, selectUserRoles, selectUser, selectIsInitialized } from '@/store/slices/authSlice';
+import { CountryLanguageSelector } from '@/components/public/CountryLanguageSelector';
+import { DEFAULT_LOCALE, countryMeta, localeCountry, localeLanguage } from '@/i18n/config';
+import { getStoredLocale, setStoredLocale } from '@/lib/store-locale';
 
 interface NavItem {
   name: string;
@@ -34,8 +36,25 @@ export function Header() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
-  const [language, setLanguage] = useState<'es' | 'en'>('es');
+  // País + idioma de la tienda (locale 'es-mx', 'en-us', …). Arranca en el
+  // default (igual en SSR y 1er render) y se ajusta desde la cookie al montar.
+  const [locale, setLocale] = useState<string>(DEFAULT_LOCALE);
+  const [selectorOpen, setSelectorOpen] = useState(false);
   const closeDropdownTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const stored = getStoredLocale();
+    if (stored) setLocale(stored);
+  }, []);
+
+  const handleSelectLocale = (loc: string) => {
+    setStoredLocale(loc);
+    setLocale(loc);
+    setSelectorOpen(false);
+    // TODO (slice de ruteo /[locale]): navegar a la ruta con el locale elegido.
+  };
+
+  const currentCountry = countryMeta(localeCountry(locale));
 
   // Get cart item count from API
   const { data: cartSummary } = useCartSummary();
@@ -103,11 +122,13 @@ export function Header() {
           <p className="sm:hidden text-center w-full text-white/90">Bienestar natural — Tonic Life</p>
           <div className="hidden sm:flex items-center gap-4">
             <button
-              onClick={() => setLanguage(language === 'es' ? 'en' : 'es')}
-              className="flex items-center gap-1 text-white/90 hover:text-[#C8DDF2] transition-colors"
+              onClick={() => setSelectorOpen(true)}
+              className="flex items-center gap-1.5 text-white/90 hover:text-[#C8DDF2] transition-colors"
+              aria-label="Cambiar país e idioma"
             >
-              <GlobeAltIcon className="h-4 w-4" />
-              {language === 'es' ? 'ES' : 'EN'}
+              <span className="text-base leading-none">{currentCountry.flag}</span>
+              <span>{localeLanguage(locale).toUpperCase()}</span>
+              <ChevronDownIcon className="h-3.5 w-3.5" />
             </button>
             <span className="text-white/30">|</span>
             <Link href="/faq" className="text-white/90 hover:text-[#C8DDF2] transition-colors">
@@ -346,6 +367,14 @@ export function Header() {
           className="lg:hidden fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200"
         />
       )}
+
+      {/* Selector de país + idioma */}
+      <CountryLanguageSelector
+        open={selectorOpen}
+        onOpenChange={setSelectorOpen}
+        currentLocale={locale}
+        onSelect={handleSelectLocale}
+      />
     </>
   );
 }
