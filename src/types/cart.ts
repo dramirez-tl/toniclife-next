@@ -47,6 +47,10 @@ export interface CartItem {
   productSlug?: string;
   productImageUrl?: string;
   lotNumber?: string;
+  /** Stock disponible en el almacén del país; undefined = desconocido. */
+  availableStock?: number;
+  /** false = agotado en el almacén del país. */
+  inStock?: boolean;
   createdAt: string;
   updatedAt: string;
 }

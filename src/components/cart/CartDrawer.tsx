@@ -174,6 +174,15 @@ export function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
                       {fmt(item.unitPrice)} {t('perUnit')}
                     </p>
 
+                    {item.inStock === false && (
+                      <Badge
+                        variant="outline"
+                        className="mt-1 border-amber-300 bg-amber-50 text-amber-700"
+                      >
+                        {t('soldOut')}
+                      </Badge>
+                    )}
+
                     {/* Points */}
                     {item.points > 0 && (
                       <p className="text-xs text-[#3E667D]">{t('points', { points: item.points })}</p>

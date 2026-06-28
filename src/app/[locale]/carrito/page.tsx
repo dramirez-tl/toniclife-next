@@ -114,6 +114,19 @@ export default function CartPage() {
   const discount = cart ? parseFloat(cart.discountAmount) : 0;
   const total = cart ? parseFloat(cart.total) : 0;
   const itemCount = cart?.itemCount || 0;
+  // Ítems agotados en el almacén del país (backend marca inStock=false).
+  const outOfStockItems = (cart?.items ?? []).filter((i) => i.inStock === false);
+
+  const handleRemoveOutOfStock = async () => {
+    try {
+      for (const it of outOfStockItems) {
+        await removeItem.mutateAsync(it.id);
+      }
+      toast.success(t('soldOutRemoved'));
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || t('removeError'));
+    }
+  };
 
   return (
     <>
@@ -188,6 +201,27 @@ export default function CartPage() {
             <div className="grid lg:grid-cols-3 gap-8">
               {/* Cart Items */}
               <div className="lg:col-span-2 space-y-4">
+                {/* Aviso de productos agotados (con opción de continuar con el resto) */}
+                {outOfStockItems.length > 0 && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="font-semibold text-amber-800">
+                      {t('soldOutBannerTitle')}
+                    </p>
+                    <p className="mt-1 text-sm text-amber-700">
+                      {t('soldOutBannerBody')}
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 border-amber-300 text-amber-800 hover:bg-amber-100"
+                      onClick={handleRemoveOutOfStock}
+                      disabled={removeItem.isPending}
+                    >
+                      {t('removeSoldOut')}
+                    </Button>
+                  </div>
+                )}
+
                 {/* Cart Items List */}
                 {cart.items.map((item) => (
                   <Card key={item.id} className="overflow-hidden border-gray-100 shadow-sm transition-all hover:shadow-md p-0">
@@ -238,6 +272,21 @@ export default function CartPage() {
                                 item.productName
                               )}
                             </h3>
+
+                            {/* Aviso de agotado en el país */}
+                            {item.inStock === false && (
+                              <div className="mt-1">
+                                <Badge
+                                  variant="outline"
+                                  className="border-amber-300 bg-amber-50 text-amber-700"
+                                >
+                                  {t('soldOut')}
+                                </Badge>
+                                <span className="ml-2 text-xs text-amber-700">
+                                  {t('soldOutNote')}
+                                </span>
+                              </div>
+                            )}
 
                             {/* Unit Price */}
                             <div className="flex items-center gap-2 mt-2">
