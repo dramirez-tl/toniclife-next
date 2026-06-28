@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, Suspense } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -76,16 +77,17 @@ interface Tab {
   label: string;
 }
 
+// Orden lógico: producto · geografía/moneda · comercial · fiscal.
 const TABS: Tab[] = [
   { key: 'categories', label: 'Categorías' },
-  { key: 'countries', label: 'Paises' },
+  { key: 'countries', label: 'Países' },
   { key: 'currencies', label: 'Monedas' },
-  { key: 'priceTypes', label: 'Tipos de Precio' },
   { key: 'exchangeRates', label: 'Tipos de Cambio' },
-  { key: 'paymentMethods', label: 'Metodos de Pago' },
+  { key: 'priceTypes', label: 'Tipos de Precio' },
+  { key: 'paymentMethods', label: 'Métodos de Pago' },
   { key: 'taxRules', label: 'Reglas Fiscales' },
   { key: 'satCfdiUses', label: 'Usos CFDI' },
-  { key: 'satTaxRegimes', label: 'Regimenes Fiscales' },
+  { key: 'satTaxRegimes', label: 'Regímenes Fiscales' },
 ];
 
 const READ_ONLY_TABS: TabKey[] = ['satCfdiUses', 'satTaxRegimes'];
@@ -260,10 +262,15 @@ const categoryColumns: Column<Category>[] = [
 ];
 
 const countryColumns: Column<Country>[] = [
-  { key: 'code', header: 'Codigo' },
+  { key: 'code', header: 'Código' },
   { key: 'name', header: 'Nombre' },
-  { key: 'nameEn', header: 'Nombre (EN)', render: (r) => r.nameEn || '-' },
-  { key: 'phoneCode', header: 'Tel. Codigo', render: (r) => r.phoneCode || '-' },
+  { key: 'currencyCode', header: 'Moneda', render: (r) => r.currencyCode || '-' },
+  {
+    key: 'defaultShippingBranchName',
+    header: 'Almacén e-commerce',
+    render: (r) => r.defaultShippingBranchName || '—',
+  },
+  { key: 'phoneCode', header: 'Tel.', render: (r) => r.phoneCode || '-' },
   {
     key: 'isActive',
     header: 'Estado',
@@ -272,9 +279,9 @@ const countryColumns: Column<Country>[] = [
 ];
 
 const currencyColumns: Column<Currency>[] = [
-  { key: 'code', header: 'Codigo' },
+  { key: 'code', header: 'Código' },
   { key: 'name', header: 'Nombre' },
-  { key: 'symbol', header: 'Simbolo' },
+  { key: 'symbol', header: 'Símbolo' },
   { key: 'decimalPlaces', header: 'Decimales' },
   {
     key: 'isActive',
@@ -284,7 +291,7 @@ const currencyColumns: Column<Currency>[] = [
 ];
 
 const priceTypeColumns: Column<PriceType>[] = [
-  { key: 'code', header: 'Codigo' },
+  { key: 'code', header: 'Código' },
   { key: 'name', header: 'Nombre' },
   {
     key: 'discountPercentage',
@@ -341,7 +348,7 @@ const exchangeRateColumns: Column<ExchangeRate>[] = [
 ];
 
 const paymentMethodColumns: Column<PaymentMethod>[] = [
-  { key: 'code', header: 'Codigo' },
+  { key: 'code', header: 'Código' },
   { key: 'name', header: 'Nombre' },
   { key: 'paymentType', header: 'Tipo' },
   {
@@ -364,13 +371,27 @@ const paymentMethodColumns: Column<PaymentMethod>[] = [
 ];
 
 const taxRuleColumns: Column<TaxRule>[] = [
-  { key: 'code', header: 'Codigo' },
+  { key: 'code', header: 'Código' },
   { key: 'name', header: 'Nombre' },
-  { key: 'taxType', header: 'Tipo' },
+  { key: 'taxType', header: 'Tipo', render: (r) => (r.taxType || '').toUpperCase() },
   {
     key: 'rate',
     header: 'Tasa',
     render: (r) => `${r.rate}%`,
+  },
+  {
+    key: 'countryCode',
+    header: 'País',
+    render: (r) =>
+      r.countryCode
+        ? `${r.countryCode}${r.stateCodes && r.stateCodes.length ? ` (${r.stateCodes.join(', ')})` : ''}`
+        : '—',
+  },
+  {
+    key: 'isIncludedInPrice',
+    header: 'En precio',
+    render: (r) => <BoolIcon value={r.isIncludedInPrice} />,
+    className: 'text-center',
   },
   {
     key: 'isActive',
@@ -380,7 +401,7 @@ const taxRuleColumns: Column<TaxRule>[] = [
 ];
 
 const satCfdiUseColumns: Column<SatCfdiUse>[] = [
-  { key: 'code', header: 'Codigo' },
+  { key: 'code', header: 'Código' },
   { key: 'name', header: 'Nombre' },
   {
     key: 'isActive',
@@ -390,7 +411,7 @@ const satCfdiUseColumns: Column<SatCfdiUse>[] = [
 ];
 
 const satTaxRegimeColumns: Column<SatTaxRegime>[] = [
-  { key: 'code', header: 'Codigo' },
+  { key: 'code', header: 'Código' },
   { key: 'name', header: 'Nombre' },
   { key: 'appliesTo', header: 'Aplica a', render: (r) => r.appliesTo || '-' },
   {
@@ -468,12 +489,13 @@ const emptyPaymentMethodForm = (): Record<string, string | number | boolean> => 
 const emptyTaxRuleForm = (): Record<string, string | number | boolean> => ({
   code: '',
   name: '',
-  taxType: '',
+  taxType: 'iva',
   rate: 0,
   isPercentage: true,
   isIncludedInPrice: false,
   satTaxCode: '',
   countryCode: '',
+  stateCodes: '',
   effectiveFrom: '',
   effectiveTo: '',
 });
@@ -746,12 +768,13 @@ function CatalogosContent() {
           setFormData({
             code: t.code,
             name: t.name,
-            taxType: t.taxType,
+            taxType: (t.taxType || 'iva').toLowerCase(),
             rate: t.rate,
             isPercentage: t.isPercentage,
             isIncludedInPrice: t.isIncludedInPrice,
             satTaxCode: t.satTaxCode || '',
             countryCode: t.countryCode || '',
+            stateCodes: (t.stateCodes || []).join(', '),
             effectiveFrom: t.effectiveFrom ? t.effectiveFrom.substring(0, 10) : '',
             effectiveTo: t.effectiveTo ? t.effectiveTo.substring(0, 10) : '',
           });
@@ -892,6 +915,7 @@ function CatalogosContent() {
         break;
       }
       case 'taxRules': {
+        const stateCodesStr = (formData.stateCodes as string) || '';
         const dto: CreateTaxRuleDto = {
           code: formData.code as string,
           name: formData.name as string,
@@ -901,6 +925,9 @@ function CatalogosContent() {
           isIncludedInPrice: formData.isIncludedInPrice as boolean,
           satTaxCode: (formData.satTaxCode as string) || undefined,
           countryCode: (formData.countryCode as string) || undefined,
+          stateCodes: stateCodesStr
+            ? stateCodesStr.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean)
+            : undefined,
           effectiveFrom: (formData.effectiveFrom as string) || undefined,
           effectiveTo: (formData.effectiveTo as string) || undefined,
         };
@@ -1005,11 +1032,11 @@ function CatalogosContent() {
     const prefix = editingItem ? 'Editar' : 'Nuevo';
     const labels: Record<TabKey, string> = {
       categories: 'Categoría',
-      countries: 'Pais',
+      countries: 'País',
       currencies: 'Moneda',
       priceTypes: 'Tipo de Precio',
       exchangeRates: 'Tipo de Cambio',
-      paymentMethods: 'Metodo de Pago',
+      paymentMethods: 'Método de Pago',
       taxRules: 'Regla Fiscal',
       satCfdiUses: '',
       satTaxRegimes: '',
@@ -1075,7 +1102,7 @@ function CatalogosContent() {
                 onChange={(v) => updateField('name', v)}
               />
               <FormInput
-                label="Codigo (2 chars)"
+                label="Código (2 letras)"
                 required
                 value={formData.code || ''}
                 onChange={(v) => updateField('code', v.toUpperCase())}
@@ -1085,7 +1112,7 @@ function CatalogosContent() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <FormInput
-                label="Codigo Alpha-3"
+                label="Código Alpha-3"
                 required
                 value={formData.codeAlpha3 || ''}
                 onChange={(v) => updateField('codeAlpha3', v.toUpperCase())}
@@ -1100,13 +1127,13 @@ function CatalogosContent() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <FormInput
-                label="Codigo Telefono"
+                label="Código Teléfono"
                 value={formData.phoneCode || ''}
                 onChange={(v) => updateField('phoneCode', v)}
                 placeholder="+52"
               />
               <FormInput
-                label="Codigo Moneda"
+                label="Código Moneda"
                 value={formData.currencyCode || ''}
                 onChange={(v) => updateField('currencyCode', v.toUpperCase())}
                 placeholder="MXN"
@@ -1118,6 +1145,14 @@ function CatalogosContent() {
               onChange={(v) => updateField('displayOrder', v)}
               type="number"
             />
+            <p className="text-xs text-gray-500">
+              El <strong>almacén de e-commerce</strong> que surte los pedidos de
+              cada país se configura en{' '}
+              <Link href="/admin/configuracion" className="underline">
+                Configuración → Tienda por país
+              </Link>
+              .
+            </p>
           </>
         );
 
@@ -1387,16 +1422,18 @@ function CatalogosContent() {
               <FormSelect
                 label="Tipo de Impuesto"
                 required
-                value={formData.taxType || ''}
+                value={formData.taxType || 'iva'}
                 onChange={(v) => updateField('taxType', v)}
                 options={[
-                  { value: 'IVA', label: 'IVA' },
-                  { value: 'ISR', label: 'ISR' },
-                  { value: 'IEPS', label: 'IEPS' },
+                  { value: 'iva', label: 'IVA' },
+                  { value: 'isr', label: 'ISR' },
+                  { value: 'ieps', label: 'IEPS' },
+                  { value: 'local', label: 'Local / Sales tax' },
+                  { value: 'other', label: 'Otro' },
                 ]}
               />
               <FormInput
-                label="Tasa"
+                label="Tasa (%)"
                 required
                 value={formData.rate ?? 0}
                 onChange={(v) => updateField('rate', v)}
@@ -1410,24 +1447,34 @@ function CatalogosContent() {
                 onChange={(v) => updateField('isPercentage', v)}
               />
               <FormCheckbox
-                label="Incluido en precio"
+                label="Incluido en precio (IVA en el precio mostrado)"
                 checked={!!formData.isIncludedInPrice}
                 onChange={(v) => updateField('isIncludedInPrice', v)}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <FormInput
-                label="Codigo SAT Impuesto"
-                value={formData.satTaxCode || ''}
-                onChange={(v) => updateField('satTaxCode', v)}
+              <FormSelect
+                label="País"
+                value={formData.countryCode || ''}
+                onChange={(v) => updateField('countryCode', v)}
+                options={(countries ?? []).map((c) => ({
+                  value: c.code,
+                  label: `${c.code} — ${c.name}`,
+                }))}
               />
               <FormInput
-                label="Codigo Pais"
-                value={formData.countryCode || ''}
-                onChange={(v) => updateField('countryCode', v.toUpperCase())}
-                placeholder="MX"
+                label="Estados (códigos, separados por coma)"
+                value={formData.stateCodes || ''}
+                onChange={(v) => updateField('stateCodes', v)}
+                placeholder="CA, TX, NY (US sales tax por estado)"
               />
             </div>
+            <FormInput
+              label="Código SAT del impuesto (solo MX/CFDI)"
+              value={formData.satTaxCode || ''}
+              onChange={(v) => updateField('satTaxCode', v)}
+              placeholder="002"
+            />
             <div className="grid grid-cols-2 gap-4">
               <FormInput
                 label="Vigencia Desde"
@@ -1442,6 +1489,11 @@ function CatalogosContent() {
                 type="date"
               />
             </div>
+            <p className="text-xs text-gray-500">
+              Para EE.UU. el impuesto se SUMA al checkout por estado de envío
+              (deja &ldquo;Incluido en precio&rdquo; sin marcar y captura los estados).
+              Para México/LatAm el IVA va incluido en el precio (marca la casilla).
+            </p>
           </>
         );
 
@@ -1481,7 +1533,7 @@ function CatalogosContent() {
             isLoading={loadingCountries}
             onEdit={openEdit}
             showActions={true}
-            emptyMessage="No se encontraron paises."
+            emptyMessage="No se encontraron países."
           />
         );
         break;
@@ -1529,7 +1581,7 @@ function CatalogosContent() {
             isLoading={loadingPaymentMethods}
             onEdit={openEdit}
             showActions={true}
-            emptyMessage="No se encontraron metodos de pago."
+            emptyMessage="No se encontraron métodos de pago."
           />
         );
         break;
@@ -1563,7 +1615,7 @@ function CatalogosContent() {
             data={filteredSatTaxRegimes}
             isLoading={loadingSatTaxRegimes}
             showActions={false}
-            emptyMessage="No se encontraron regimenes fiscales."
+            emptyMessage="No se encontraron regímenes fiscales."
           />
         );
         break;
@@ -1592,7 +1644,7 @@ function CatalogosContent() {
                   </svg>
                 </span>
                 <Input
-                  placeholder="Buscar por nombre o codigo..."
+                  placeholder="Buscar por nombre o código..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-9"
@@ -1640,10 +1692,10 @@ function CatalogosContent() {
                 d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z"
               />
             </svg>
-            <h1 className="text-3xl font-bold">Catalogos del Sistema</h1>
+            <h1 className="text-3xl font-bold">Catálogos del Sistema</h1>
           </div>
           <p className="text-white/70 text-base">
-            Administra los catalogos base de la plataforma: paises, monedas, tipos de precio, metodos de pago y mas.
+            Administra los catálogos base de la plataforma: países, monedas, tipos de precio, métodos de pago y más.
           </p>
         </div>
       </div>
