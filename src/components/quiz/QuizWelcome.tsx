@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import Image from 'next/image';
 import { Button, Card, Input } from '@/components/ui';
 import { SparklesIcon, ClockIcon, ShieldCheckIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import { QuizGender, QuizSource } from '@/types/quiz';
@@ -50,19 +49,7 @@ export function QuizWelcome({
   if (step === 'intro') {
     return (
       <div className="text-center">
-        {/* Logo */}
-        <div className="flex justify-center mb-8">
-          <Image
-            src="/images/logo/svg/logo-text-blue-r.svg"
-            alt={t('logoAlt')}
-            width={200}
-            height={80}
-            priority
-            className="h-16 w-auto"
-          />
-        </div>
-
-        {/* Title */}
+        {/* Title (el logo ya lo muestra el Header; no se duplica aquí) */}
         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-[#3E667D] leading-tight">
           <span className="font-serif italic">{t('titleLine1')}</span>
           <br />

@@ -219,7 +219,7 @@ function QuizPageContent() {
   return (
     <>
       <Header />
-      <main className="min-h-screen pt-32 pb-20 bg-gradient-to-b from-gray-50 to-white">
+      <main className="min-h-screen pt-40 sm:pt-44 pb-20 bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-4xl lg:max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Welcome Stage */}
           {stage === 'welcome' && (
@@ -293,7 +293,7 @@ function QuizLoadingFallback() {
   return (
     <>
       <Header />
-      <main className="min-h-screen pt-32 pb-20 bg-gradient-to-b from-gray-50 to-white">
+      <main className="min-h-screen pt-40 sm:pt-44 pb-20 bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center py-20">
             <div className="inline-block w-12 h-12 border-4 border-[#a7c1e2] border-t-transparent rounded-full animate-spin" />
