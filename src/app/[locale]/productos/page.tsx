@@ -18,16 +18,21 @@ import type { Product as MockProduct } from '@/types';
 type SortOption = 'featured' | 'price-asc' | 'price-desc' | 'name' | 'newest';
 type ViewMode = 'grid' | 'list';
 
-// Adapter para convertir productos del API al formato del componente ProductGrid
-function adaptAPIProductToMock(apiProduct: APIProduct): MockProduct {
+// Adapter para convertir productos del API al formato del componente ProductGrid.
+// En inglés usa los campos *_en con fallback al español si están vacíos.
+function adaptAPIProductToMock(apiProduct: APIProduct, lang: string): MockProduct {
+  const en = lang === 'en';
+  const name = (en && apiProduct.nameEn) || apiProduct.name;
+  const shortDesc = (en && apiProduct.shortNameEn) || apiProduct.shortName || '';
+  const desc = (en && apiProduct.descriptionEn) || apiProduct.description || '';
   return {
     id: apiProduct.id,
-    name: apiProduct.name,
+    name,
     slug: apiProduct.slug || '',
     code: apiProduct.code,
-    description: apiProduct.description || '',
-    shortDescription: apiProduct.shortName || '',
-    fullDescription: apiProduct.description,
+    description: desc,
+    shortDescription: shortDesc,
+    fullDescription: desc,
     benefits: apiProduct.healthBenefits || [],
     usage: {
       ideal: apiProduct.usageInstructions || '',
@@ -53,10 +58,10 @@ function adaptAPIProductToMock(apiProduct: APIProduct): MockProduct {
 }
 
 // Adapter para convertir categorías del API al formato mock
-function adaptAPICategory(apiCategory: Category) {
+function adaptAPICategory(apiCategory: Category, lang: string) {
   return {
     id: apiCategory.id, // Usar UUID para filtrar en el API
-    name: apiCategory.name,
+    name: (lang === 'en' && apiCategory.nameEn) || apiCategory.name,
     slug: apiCategory.slug,
     icon: '🌿',
     count: apiCategory.productCount || 0,
@@ -115,18 +120,18 @@ export default function ProductsPage() {
   // Productos adaptados del API
   const products = useMemo(() => {
     if (productsData?.data) {
-      return productsData.data.map(adaptAPIProductToMock);
+      return productsData.data.map((p) => adaptAPIProductToMock(p, lang));
     }
     return [];
-  }, [productsData]);
+  }, [productsData, lang]);
 
   // Categorías adaptadas del API
   const categories = useMemo(() => {
     if (categoriesData) {
-      return categoriesData.map(adaptAPICategory);
+      return categoriesData.map((c) => adaptAPICategory(c, lang));
     }
     return [];
-  }, [categoriesData]);
+  }, [categoriesData, lang]);
 
   // Pagination info
   const totalProducts = productsData?.total || 0;

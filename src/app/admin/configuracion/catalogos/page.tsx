@@ -429,6 +429,8 @@ const emptyCategoryForm = (): Record<string, string | number> => ({
   name: '',
   code: '',
   description: '',
+  nameEn: '',
+  descriptionEn: '',
   slug: '',
   sortOrder: 0,
 });
@@ -690,6 +692,8 @@ function CatalogosContent() {
             name: c.name,
             code: c.code,
             description: c.description || '',
+            nameEn: c.nameEn || '',
+            descriptionEn: c.descriptionEn || '',
             slug: c.slug || '',
             sortOrder: c.sortOrder ?? 0,
           });
@@ -807,6 +811,8 @@ function CatalogosContent() {
           name: formData.name as string,
           code: formData.code as string,
           description: (formData.description as string) || undefined,
+          nameEn: (formData.nameEn as string) || undefined,
+          descriptionEn: (formData.descriptionEn as string) || undefined,
           slug: (formData.slug as string) || undefined,
           sortOrder: Number(formData.sortOrder) || 0,
         };
@@ -1075,6 +1081,20 @@ function CatalogosContent() {
               onChange={(v) => updateField('description', v)}
               placeholder="Descripción de la categoría"
             />
+            <div className="grid grid-cols-2 gap-4">
+              <FormInput
+                label="Nombre (EN)"
+                value={formData.nameEn || ''}
+                onChange={(v) => updateField('nameEn', v)}
+                placeholder="Ej: Capsules"
+              />
+              <FormInput
+                label="Descripción (EN)"
+                value={formData.descriptionEn || ''}
+                onChange={(v) => updateField('descriptionEn', v)}
+                placeholder="English description"
+              />
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <FormInput
                 label="Slug (URL)"

@@ -45,6 +45,9 @@ export interface Category {
   code: string;
   name: string;
   description?: string;
+  /** Nombre en inglés (tienda EN); fallback a name. */
+  nameEn?: string;
+  descriptionEn?: string;
   parentId?: string;
   parentName?: string;
   level: number;
@@ -73,6 +76,10 @@ export interface Product {
   shortName?: string;
   description?: string;
   longDescription?: string;
+  nameEn?: string;
+  shortNameEn?: string;
+  descriptionEn?: string;
+  longDescriptionEn?: string;
   categoryId?: string;
   categoryName?: string;
   unitId?: string;
@@ -330,6 +337,10 @@ export interface CreateProductDto {
   shortName?: string;
   description?: string;
   longDescription?: string;
+  nameEn?: string;
+  shortNameEn?: string;
+  descriptionEn?: string;
+  longDescriptionEn?: string;
   categoryId?: string;
   unitId?: string;
   brand?: string;
@@ -382,6 +393,8 @@ export interface CreateCategoryDto {
   code: string;
   name: string;
   description?: string;
+  nameEn?: string;
+  descriptionEn?: string;
   parentId?: string;
   slug?: string;
   imageUrl?: string;
@@ -393,6 +406,8 @@ export interface UpdateCategoryDto {
   code?: string;
   name?: string;
   description?: string;
+  nameEn?: string;
+  descriptionEn?: string;
   parentId?: string;
   slug?: string;
   imageUrl?: string;

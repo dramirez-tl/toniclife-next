@@ -26,6 +26,11 @@ export default function NuevoProductoAdminPage() {
     slug: '',
     description: '',
     longDescription: '',
+    // English (tienda EN; vacío usa el español)
+    nameEn: '',
+    shortNameEn: '',
+    descriptionEn: '',
+    longDescriptionEn: '',
     // Classification
     productType: 'finished_good' as string,
     categoryId: '',
@@ -104,6 +109,10 @@ export default function NuevoProductoAdminPage() {
       shortName: formData.shortName || undefined,
       description: formData.description || undefined,
       longDescription: formData.longDescription || undefined,
+      nameEn: formData.nameEn || undefined,
+      shortNameEn: formData.shortNameEn || undefined,
+      descriptionEn: formData.descriptionEn || undefined,
+      longDescriptionEn: formData.longDescriptionEn || undefined,
       categoryId: formData.categoryId || undefined,
       unitId: formData.unitId || undefined,
       brand: formData.brand || undefined,
@@ -267,6 +276,65 @@ export default function NuevoProductoAdminPage() {
                       onChange={handleChange}
                       className={`${inputClass} resize-none`}
                       placeholder="Descripcion detallada para la ficha de producto en e-commerce"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Traducciones (inglés) — tienda EN; vacío usa el español */}
+            <Card className="p-0">
+              <CardContent className="p-6">
+                <h2 className="text-lg font-bold text-gray-900 mb-1">Traducciones (inglés)</h2>
+                <p className="text-sm text-gray-500 mb-6">
+                  Para la tienda en inglés. Si lo dejas vacío, se muestra el texto en español.
+                </p>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelClass}>Nombre (EN)</label>
+                      <input
+                        type="text"
+                        name="nameEn"
+                        value={formData.nameEn}
+                        onChange={handleChange}
+                        className={inputClass}
+                        placeholder="Product name in English"
+                      />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Nombre corto (EN)</label>
+                      <input
+                        type="text"
+                        name="shortNameEn"
+                        maxLength={100}
+                        value={formData.shortNameEn}
+                        onChange={handleChange}
+                        className={inputClass}
+                        placeholder="Short name in English"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Descripción (EN)</label>
+                    <textarea
+                      name="descriptionEn"
+                      rows={3}
+                      value={formData.descriptionEn}
+                      onChange={handleChange}
+                      className={`${inputClass} resize-none`}
+                      placeholder="Short description in English"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Descripción larga (EN)</label>
+                    <textarea
+                      name="longDescriptionEn"
+                      rows={6}
+                      value={formData.longDescriptionEn}
+                      onChange={handleChange}
+                      className={`${inputClass} resize-none`}
+                      placeholder="Detailed product description in English"
                     />
                   </div>
                 </div>

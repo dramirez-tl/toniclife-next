@@ -45,14 +45,20 @@ function ProductImageWithFallback({ src, name, fill, width, height, className, t
 }
 
 // Adapter para convertir productos del API al formato mock para compatibilidad
-function adaptAPIProductToMock(apiProduct: APIProduct): MockProduct {
+function adaptAPIProductToMock(apiProduct: APIProduct, lang: string): MockProduct {
+  const en = lang === 'en';
+  const name = (en && apiProduct.nameEn) || apiProduct.name;
+  const shortDesc = (en && apiProduct.shortNameEn) || apiProduct.shortName || '';
+  const desc = (en && apiProduct.descriptionEn) || apiProduct.description || '';
+  const longDesc =
+    (en && apiProduct.longDescriptionEn) || apiProduct.longDescription || desc;
   return {
     id: apiProduct.id,
-    name: apiProduct.name,
+    name,
     slug: apiProduct.slug || '',
-    description: apiProduct.description || '',
-    shortDescription: apiProduct.shortName || '',
-    fullDescription: apiProduct.longDescription || apiProduct.description,
+    description: desc,
+    shortDescription: shortDesc,
+    fullDescription: longDesc,
     benefits: apiProduct.healthBenefits || [],
     usage: {
       ideal: apiProduct.usageInstructions || 'Tomar segun las indicaciones del producto.',
@@ -110,7 +116,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   );
 
   // Producto del API
-  const product = apiProduct ? adaptAPIProductToMock(apiProduct) : null;
+  const product = apiProduct ? adaptAPIProductToMock(apiProduct, lang) : null;
 
   // Obtener productos relacionados
   const { data: relatedProductsData } = useProducts({
@@ -125,7 +131,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     ? relatedProductsData.data
         .filter((p) => p.id !== apiProduct?.id)
         .slice(0, 4)
-        .map(adaptAPIProductToMock)
+        .map((p) => adaptAPIProductToMock(p, lang))
     : [];
 
   // Loading state
