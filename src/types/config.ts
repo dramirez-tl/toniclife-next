@@ -39,6 +39,10 @@ export interface Country {
   currencyCode?: string;
   isActive: boolean;
   displayOrder?: number;
+  /** Almacén ecommerce que surte los pedidos de este país. */
+  defaultShippingBranchId?: string;
+  /** Nombre del almacén ecommerce (solo lectura, para mostrar). */
+  defaultShippingBranchName?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -53,6 +57,8 @@ export interface CreateCountryDto {
   currencyCode?: string;
   isActive?: boolean;
   displayOrder?: number;
+  /** Almacén ecommerce que surte los pedidos de este país. */
+  defaultShippingBranchId?: string;
 }
 
 export interface UpdateCountryDto extends Partial<CreateCountryDto> {}
