@@ -128,6 +128,16 @@ export default function CartPage() {
     }
   };
 
+  // Ajusta la cantidad de un ítem al stock disponible (cuando pediste de más).
+  const handleAdjustToStock = async (itemId: string, available: number) => {
+    try {
+      await updateItem.mutateAsync({ itemId, data: { quantity: available } });
+      toast.success(t('quantityAdjusted'));
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || t('updateError'));
+    }
+  };
+
   return (
     <>
       <Header />
@@ -287,6 +297,39 @@ export default function CartPage() {
                                 </span>
                               </div>
                             )}
+
+                            {/* Pediste más de lo disponible → ofrecer ajustar */}
+                            {item.inStock !== false &&
+                              item.availableStock != null &&
+                              item.availableStock < item.quantity && (
+                                <div className="mt-1 flex flex-wrap items-center gap-2">
+                                  <span className="text-xs text-amber-700">
+                                    {t('exceedsStock', {
+                                      requested: item.quantity,
+                                      available: item.availableStock,
+                                    })}
+                                  </span>
+                                  <button
+                                    onClick={() =>
+                                      handleAdjustToStock(item.id, item.availableStock!)
+                                    }
+                                    disabled={updateItem.isPending}
+                                    className="text-xs font-medium text-[#3E667D] underline hover:no-underline disabled:opacity-50"
+                                  >
+                                    {t('adjustToStock', { count: item.availableStock })}
+                                  </button>
+                                </div>
+                              )}
+
+                            {/* Stock bajo (suficiente pero pocas piezas) */}
+                            {item.inStock !== false &&
+                              item.availableStock != null &&
+                              item.availableStock >= item.quantity &&
+                              item.availableStock <= 5 && (
+                                <p className="mt-1 text-xs text-amber-600">
+                                  {t('lowStockLeft', { count: item.availableStock })}
+                                </p>
+                              )}
 
                             {/* Unit Price */}
                             <div className="flex items-center gap-2 mt-2">
