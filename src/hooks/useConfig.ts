@@ -56,7 +56,9 @@ export const configKeys = {
   satCfdiUsesActive: () => [...configKeys.satCfdiUses(), 'active'] as const,
   satTaxRegimes: () => [...configKeys.all, 'sat-tax-regimes'] as const,
   satTaxRegimesActive: () => [...configKeys.satTaxRegimes(), 'active'] as const,
-  shippingSettings: () => [...configKeys.all, 'shipping-settings'] as const,
+  shippingSettings: (country?: string) =>
+    [...configKeys.all, 'shipping-settings', country ?? 'MX'] as const,
+  platformSettings: () => [...configKeys.all, 'platform-settings'] as const,
 };
 
 // Stale time para catálogos (cambian raramente)
@@ -607,26 +609,61 @@ export const useActiveSatTaxRegimes = () => {
 // SHIPPING SETTINGS HOOKS
 // ================================
 
-/** Costos de envío configurables (admin). */
-export const useShippingSettings = () => {
+/** Costos de envío configurables (admin), por país (default MX). */
+export const useShippingSettings = (country?: string) => {
   return useQuery({
-    queryKey: configKeys.shippingSettings(),
-    queryFn: () => configService.getShippingSettings(),
+    queryKey: configKeys.shippingSettings(country),
+    queryFn: () => configService.getShippingSettings(country),
     staleTime: CATALOG_STALE_TIME,
   });
 };
 
-/** Actualiza los costos de envío. */
+/** Actualiza los costos de envío de un país (default MX). */
 export const useUpdateShippingSettings = (
+  country?: string,
   options?: MutationOptions<ShippingSettings>,
 ) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (dto: Partial<ShippingSettings>) =>
-      configService.updateShippingSettings(dto),
+      configService.updateShippingSettings(dto, country),
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: configKeys.shippingSettings() });
+      queryClient.invalidateQueries({
+        queryKey: configKeys.shippingSettings(country),
+      });
+      options?.onSuccess?.(data);
+    },
+    onError: (error: Error) => {
+      options?.onError?.(error);
+    },
+  });
+};
+
+// ================================
+// PLATFORM SETTINGS HOOKS
+// ================================
+
+/** Ajustes generales de la plataforma (admin → Configuración). */
+export const usePlatformSettings = () => {
+  return useQuery({
+    queryKey: configKeys.platformSettings(),
+    queryFn: () => configService.getPlatformSettings(),
+    staleTime: CATALOG_STALE_TIME,
+  });
+};
+
+/** Guarda (merge) los ajustes generales de la plataforma. */
+export const useUpdatePlatformSettings = (
+  options?: MutationOptions<Record<string, unknown>>,
+) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (patch: Record<string, unknown>) =>
+      configService.updatePlatformSettings(patch),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: configKeys.platformSettings() });
       options?.onSuccess?.(data);
     },
     onError: (error: Error) => {

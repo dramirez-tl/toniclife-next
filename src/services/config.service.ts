@@ -355,19 +355,46 @@ class ConfigService {
   // SHIPPING SETTINGS (system_settings)
   // ================================
 
-  /** Costos de envío configurables (admin). */
-  async getShippingSettings(): Promise<ShippingSettings> {
-    const response = await api.get<ShippingSettings>('/config/shipping-settings');
+  /** Costos de envío configurables (admin), por país (default MX). */
+  async getShippingSettings(country?: string): Promise<ShippingSettings> {
+    const response = await api.get<ShippingSettings>('/config/shipping-settings', {
+      params: country ? { country } : undefined,
+    });
     return response.data;
   }
 
-  /** Actualiza los costos de envío (solo las claves enviadas). */
+  /** Actualiza los costos de envío (solo las claves enviadas), por país. */
   async updateShippingSettings(
     dto: Partial<ShippingSettings>,
+    country?: string,
   ): Promise<ShippingSettings> {
     const response = await api.patch<ShippingSettings>(
       '/config/shipping-settings',
       dto,
+      { params: country ? { country } : undefined },
+    );
+    return response.data;
+  }
+
+  // ================================
+  // PLATFORM SETTINGS (system_settings category='platform')
+  // ================================
+
+  /** Ajustes generales de la plataforma (general/negocio/notif/pagos/seguridad). */
+  async getPlatformSettings(): Promise<Record<string, unknown>> {
+    const response = await api.get<Record<string, unknown>>(
+      '/config/platform-settings',
+    );
+    return response.data;
+  }
+
+  /** Merge + guarda los ajustes de plataforma. */
+  async updatePlatformSettings(
+    patch: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    const response = await api.patch<Record<string, unknown>>(
+      '/config/platform-settings',
+      patch,
     );
     return response.data;
   }

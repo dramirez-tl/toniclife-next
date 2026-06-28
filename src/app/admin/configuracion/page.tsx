@@ -9,6 +9,8 @@ import {
   useUpdateShippingSettings,
   useCountries,
   useUpdateCountry,
+  usePlatformSettings,
+  useUpdatePlatformSettings,
 } from '@/hooks/useConfig';
 import { useActiveBranches } from '@/hooks/useBranches';
 import {
@@ -88,9 +90,51 @@ export default function ConfiguracionPage() {
 
   const [activeTab, setActiveTab] = useState('general');
 
-  // Costos de envío reales (system_settings). Solo esta pestaña persiste al backend.
-  const { data: shippingData } = useShippingSettings();
-  const updateShipping = useUpdateShippingSettings();
+  // ── Ajustes de plataforma reales (system_settings category='platform') ──
+  // Persisten de verdad las pestañas: General, Negocio, Notificaciones, Pagos,
+  // Seguridad. (MLM y Correo se gestionan en sus propios módulos / env.)
+  const PLATFORM_KEYS = [
+    'siteName', 'siteUrl', 'supportEmail', 'supportPhone', 'timezone', 'language',
+    'enableInventoryTracking', 'lowStockThreshold', 'autoReorderEnabled',
+    'emailNotificationsEnabled', 'orderNotifications', 'lowStockNotifications', 'newUserNotifications',
+    'stripeEnabled', 'paypalEnabled', 'oxxoEnabled', 'transferEnabled',
+    'enableTwoFactor', 'sessionTimeout', 'maxLoginAttempts', 'passwordMinLength', 'requireStrongPassword',
+  ] as const;
+  const PLATFORM_TABS = ['general', 'business', 'notifications', 'payments', 'security'];
+
+  const { data: platformData } = usePlatformSettings();
+  const updatePlatform = useUpdatePlatformSettings();
+
+  useEffect(() => {
+    if (!platformData) return;
+    setSettings((prev) => {
+      const next = { ...prev } as Record<string, unknown>;
+      for (const k of PLATFORM_KEYS) {
+        if (platformData[k] !== undefined) next[k] = platformData[k];
+      }
+      return next as typeof prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [platformData]);
+
+  const pickPlatform = (): Record<string, unknown> => {
+    const out: Record<string, unknown> = {};
+    const s = settings as Record<string, unknown>;
+    for (const k of PLATFORM_KEYS) out[k] = s[k];
+    return out;
+  };
+
+  const handleSavePlatform = () => {
+    updatePlatform.mutate(pickPlatform(), {
+      onSuccess: () => toast.success('Configuración guardada'),
+      onError: () => toast.error('No se pudo guardar la configuración'),
+    });
+  };
+
+  // ── Costos de envío reales (system_settings), POR PAÍS ──
+  const [shippingCountry, setShippingCountry] = useState('MX');
+  const { data: shippingData } = useShippingSettings(shippingCountry);
+  const updateShipping = useUpdateShippingSettings(shippingCountry);
 
   useEffect(() => {
     if (!shippingData) return;
@@ -107,6 +151,11 @@ export default function ConfiguracionPage() {
   const { data: countries } = useCountries();
   const { data: branches } = useActiveBranches();
   const updateCountry = useUpdateCountry();
+
+  // Moneda del país de envío seleccionado (para etiquetas de costos).
+  const shippingCurrency =
+    (countries ?? []).find((c) => c.code === shippingCountry)?.currencyCode ||
+    'MXN';
   // Selección local por país (se inicializa con lo guardado y se edita antes de guardar).
   const [warehouseByCountry, setWarehouseByCountry] = useState<
     Record<string, string>
@@ -155,16 +204,48 @@ export default function ConfiguracionPage() {
     );
   };
 
+  // Pestañas que tienen su propio guardado por fila/botón (no usan el botón global).
+  const SELF_MANAGED_TABS = ['store-countries', 'mlm', 'email'];
+  const canSaveActiveTab =
+    activeTab === 'shipping' || PLATFORM_TABS.includes(activeTab);
+  const savingActiveTab =
+    (activeTab === 'shipping' && updateShipping.isPending) ||
+    (PLATFORM_TABS.includes(activeTab) && updatePlatform.isPending);
+
   const handleSave = () => {
     if (activeTab === 'shipping') {
       handleSaveShipping();
       return;
     }
-    toast.success('Configuración guardada correctamente');
+    if (PLATFORM_TABS.includes(activeTab)) {
+      handleSavePlatform();
+      return;
+    }
+    // store-countries / mlm / email se administran en su propia sección.
+    toast.info('Esta sección se administra desde sus propios controles.');
   };
 
   const handleReset = () => {
-    toast.info('Configuración restablecida a valores predeterminados');
+    // Descarta cambios locales y recarga lo último guardado del servidor.
+    if (platformData) {
+      setSettings((prev) => {
+        const next = { ...prev } as Record<string, unknown>;
+        for (const k of PLATFORM_KEYS) {
+          if (platformData[k] !== undefined) next[k] = platformData[k];
+        }
+        return next as typeof prev;
+      });
+    }
+    if (shippingData) {
+      setSettings((prev) => ({
+        ...prev,
+        freeShippingThreshold: shippingData.freeThreshold,
+        standardShippingCost: shippingData.standardCost,
+        expressShippingCost: shippingData.expressCost,
+        kitShippingCost: shippingData.kitCost,
+      }));
+    }
+    toast.info('Cambios descartados (se recargó lo guardado).');
   };
 
   const tabs = [
@@ -201,16 +282,16 @@ export default function ConfiguracionPage() {
                   Volver al Panel Principal
                 </Button>
               </Link>
-              <Button
-                variant="default"
-                onClick={handleSave}
-                disabled={activeTab === 'shipping' && updateShipping.isPending}
-              >
-                <CheckCircleIcon className="h-5 w-5" />
-                {activeTab === 'shipping' && updateShipping.isPending
-                  ? 'Guardando…'
-                  : 'Guardar Cambios'}
-              </Button>
+              {canSaveActiveTab && (
+                <Button
+                  variant="default"
+                  onClick={handleSave}
+                  disabled={savingActiveTab}
+                >
+                  <CheckCircleIcon className="h-5 w-5" />
+                  {savingActiveTab ? 'Guardando…' : 'Guardar Cambios'}
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -357,18 +438,14 @@ export default function ConfiguracionPage() {
                 <CardContent className="p-6">
                   <h2 className="text-xl font-bold text-gray-900 mb-6">Configuración de Negocio</h2>
                   <div className="space-y-6">
+                    <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+                      Los impuestos (IVA México, sales tax US) se administran en{' '}
+                      <Link href="/admin/configuracion/catalogos" className="font-semibold underline">
+                        Catálogos → Reglas fiscales
+                      </Link>{' '}
+                      (por país y estado), no aquí.
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Tasa de IVA (%)
-                        </label>
-                        <input
-                          type="number"
-                          value={settings.taxRate}
-                          onChange={(e) => setSettings({ ...settings, taxRate: parseFloat(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                        />
-                      </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Umbral de Existencias Bajas
@@ -522,12 +599,33 @@ export default function ConfiguracionPage() {
                     Estos costos aplican a la tienda en línea, al carrito compartido
                     y al kit de inscripción. Recoger en sucursal siempre es gratis.
                     Los distribuidores siempre pagan envío estándar (sin umbral gratis).
+                    Los costos se configuran <strong>por país</strong>, en su moneda.
                   </p>
+
+                  {/* Selector de país: los costos son por país, en su moneda */}
+                  <div className="mb-6 max-w-xs">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      País
+                    </label>
+                    <SearchableSelect
+                      options={(countries ?? [])
+                        .filter((c) => c.isActive)
+                        .map((c) => ({
+                          value: c.code,
+                          label: `${c.name} (${c.currencyCode ?? '—'})`,
+                        }))}
+                      value={shippingCountry}
+                      onChange={(val) => setShippingCountry(val)}
+                      showAllOption={false}
+                      className="w-full"
+                    />
+                  </div>
+
                   <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Costo de Envío Estándar (MXN)
+                          Costo de Envío Estándar ({shippingCurrency})
                         </label>
                         <input
                           type="number"
@@ -539,7 +637,7 @@ export default function ConfiguracionPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Costo de Envío Express (MXN)
+                          Costo de Envío Express ({shippingCurrency})
                         </label>
                         <input
                           type="number"
@@ -551,7 +649,7 @@ export default function ConfiguracionPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Umbral de Envío Gratis (MXN)
+                          Umbral de Envío Gratis ({shippingCurrency})
                         </label>
                         <input
                           type="number"
@@ -566,7 +664,7 @@ export default function ConfiguracionPage() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Costo de Envío del Kit de Inscripción (MXN)
+                          Costo de Envío del Kit de Inscripción ({shippingCurrency})
                         </label>
                         <input
                           type="number"
@@ -589,67 +687,14 @@ export default function ConfiguracionPage() {
             {activeTab === 'email' && (
               <Card>
                 <CardContent className="p-6">
-                  <h2 className="text-xl font-bold text-gray-900 mb-6">Configuración de Correo Electrónico</h2>
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          SMTP Host
-                        </label>
-                        <input
-                          type="text"
-                          value={settings.smtpHost}
-                          onChange={(e) => setSettings({ ...settings, smtpHost: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          SMTP Port
-                        </label>
-                        <input
-                          type="number"
-                          value={settings.smtpPort}
-                          onChange={(e) => setSettings({ ...settings, smtpPort: parseInt(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Remitente del Correo
-                        </label>
-                        <input
-                          type="email"
-                          value={settings.emailFrom}
-                          onChange={(e) => setSettings({ ...settings, emailFrom: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          From Name
-                        </label>
-                        <input
-                          type="text"
-                          value={settings.emailFromName}
-                          onChange={(e) => setSettings({ ...settings, emailFromName: e.target.value })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={settings.smtpSecure}
-                          onChange={(e) => setSettings({ ...settings, smtpSecure: e.target.checked })}
-                          className="w-5 h-5 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
-                        />
-                        <span className="text-sm font-medium text-gray-700">
-                          Usar conexión segura (TLS)
-                        </span>
-                      </label>
-                    </div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">Configuración de Correo Electrónico</h2>
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+                    El envío de correos transaccionales usa <strong>Resend</strong> y
+                    se configura con variables de entorno del servidor
+                    (<code className="font-mono">RESEND_API_KEY</code>,{' '}
+                    <code className="font-mono">RESEND_FROM_EMAIL</code>) — no por
+                    SMTP ni desde esta pantalla. Cambiarlas requiere actualizar el
+                    entorno (Railway) y reiniciar el servicio.
                   </div>
                 </CardContent>
               </Card>
@@ -769,66 +814,24 @@ export default function ConfiguracionPage() {
             {activeTab === 'mlm' && (
               <Card>
                 <CardContent className="p-6">
-                  <h2 className="text-xl font-bold text-gray-900 mb-6">Configuración MLM</h2>
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Comisión Personal (%)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={settings.commissionRate}
-                          onChange={(e) => setSettings({ ...settings, commissionRate: parseFloat(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Comisión de Equipo (%)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={settings.teamCommissionRate}
-                          onChange={(e) => setSettings({ ...settings, teamCommissionRate: parseFloat(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Umbral de Bono (MXN)
-                        </label>
-                        <input
-                          type="number"
-                          value={settings.bonusThreshold}
-                          onChange={(e) => setSettings({ ...settings, bonusThreshold: parseFloat(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Cantidad de Bono (MXN)
-                        </label>
-                        <input
-                          type="number"
-                          value={settings.bonusAmount}
-                          onChange={(e) => setSettings({ ...settings, bonusAmount: parseFloat(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Niveles Máximos de Red
-                        </label>
-                        <input
-                          type="number"
-                          value={settings.maxLevels}
-                          onChange={(e) => setSettings({ ...settings, maxLevels: parseInt(e.target.value) })}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                        />
-                      </div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">Configuración MLM</h2>
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                    El plan de compensación (comisiones, bonos, rangos, periodos y
+                    rollover) se calcula con el motor MLM y <strong>no</strong> se
+                    edita aquí — son cálculos que pagan dinero real. Adminístralo en
+                    los módulos dedicados:
+                    <div className="mt-3 flex flex-wrap gap-3">
+                      <Link href="/admin/comisiones">
+                        <Button variant="outline" size="sm">
+                          <CurrencyDollarIcon className="h-4 w-4" />
+                          Comisiones
+                        </Button>
+                      </Link>
+                      <Link href="/admin/mlm">
+                        <Button variant="outline" size="sm">
+                          Red / MLM
+                        </Button>
+                      </Link>
                     </div>
                   </div>
                 </CardContent>
@@ -905,23 +908,23 @@ export default function ConfiguracionPage() {
               </Card>
             )}
 
-            {/* Action Buttons */}
-            <div className="flex gap-3 mt-6">
-              <Button
-                variant="default"
-                className="flex-1"
-                onClick={handleSave}
-              >
-                <CheckCircleIcon className="h-5 w-5" />
-                Guardar Cambios
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleReset}
-              >
-                Restablecer
-              </Button>
-            </div>
+            {/* Action Buttons — solo en pestañas con guardado global */}
+            {canSaveActiveTab && (
+              <div className="flex gap-3 mt-6">
+                <Button
+                  variant="default"
+                  className="flex-1"
+                  onClick={handleSave}
+                  disabled={savingActiveTab}
+                >
+                  <CheckCircleIcon className="h-5 w-5" />
+                  {savingActiveTab ? 'Guardando…' : 'Guardar Cambios'}
+                </Button>
+                <Button variant="outline" onClick={handleReset}>
+                  Restablecer
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>
