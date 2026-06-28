@@ -209,7 +209,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Success Header */}
       <div className="text-center mb-10">
-        <div className="inline-flex items-center justify-center w-20 h-20 bg-[#C8DDF2]/10 rounded-full mb-6">
+        <div className="inline-flex items-center justify-center w-20 h-20 bg-[#C8DDF2]/40 ring-4 ring-[#C8DDF2]/30 rounded-full mb-6">
           <CheckCircleIcon className="h-10 w-10 text-[#3E667D]" />
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold text-[#3E667D]">
@@ -225,14 +225,14 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
         {/* Main content */}
         <div className="lg:flex-1 min-w-0">
           {/* Primary Goal Card */}
-          <Card className="mb-8 overflow-hidden p-0">
-            <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white p-8">
+          <Card className="mb-8 overflow-hidden p-0 rounded-2xl border-gray-100 shadow-sm">
+            <div className="bg-gradient-to-br from-[#3E667D] to-[#2f5165] text-white p-8">
               <div className="flex items-start gap-6">
-                <div className="p-4 bg-[#C8DDF2]/20 rounded-2xl text-[#3E667D]">
+                <div className="p-4 bg-white/15 ring-1 ring-white/20 rounded-2xl text-white">
                   {goalInfo.icon}
                 </div>
                 <div>
-                  <Badge variant="outline" className="mb-2 border-green-200 bg-green-100 text-green-700">
+                  <Badge variant="outline" className="mb-2 border-white/30 bg-white/15 text-white">
                     {t('mainGoalBadge')}
                   </Badge>
                   <h2 className="text-2xl sm:text-3xl font-bold">{goalInfo.title}</h2>
@@ -265,10 +265,10 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
           </Card>
 
           {/* Recommended Products Bundle */}
-          <Card className="mb-8">
+          <Card className="mb-8 rounded-2xl border-gray-100 shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <Badge variant="outline" className="mb-2 border-blue-200 bg-blue-100 text-blue-700">
+                <Badge variant="outline" className="mb-2 border-[#a7c1e2] bg-[#C8DDF2]/40 text-[#3E667D]">
                   {t('bundleBadge')}
                 </Badge>
                 <h2 className="text-2xl font-bold text-[#3E667D]">
@@ -330,7 +330,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
 
           {/* More Recommendations */}
           {result.recommendations.length > 3 && (
-            <Card className="mb-8">
+            <Card className="mb-8 rounded-2xl border-gray-100 shadow-sm">
               <h3 className="text-xl font-bold text-[#3E667D] mb-4">
                 {t('alsoInterest')}
               </h3>
@@ -338,7 +338,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
                 {result.recommendations.slice(3, 9).map((product) => (
                   <div
                     key={product.productId}
-                    className="bg-gray-50 rounded-xl p-4 text-center hover:bg-gray-100 transition-colors"
+                    className="rounded-2xl border border-gray-100 bg-white p-4 text-center transition-all hover:-translate-y-0.5 hover:shadow-md"
                   >
                     <div className="w-16 h-16 mx-auto bg-white rounded-xl shadow-sm flex items-center justify-center mb-3 overflow-hidden">
                       <QuizProductImage src={product.productImage} name={product.productName} width={64} height={64} size="sm" />
@@ -370,9 +370,9 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
 
           {/* Save Email Form */}
           {onSaveEmail && !showEmailForm && (
-            <Card className="mb-8">
+            <Card className="mb-8 rounded-2xl border-gray-100 shadow-sm">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-[#C8DDF2]/10 rounded-full">
+                <div className="p-3 bg-[#C8DDF2]/40 rounded-full">
                   <EnvelopeIcon className="h-6 w-6 text-[#3E667D]" />
                 </div>
                 <div className="flex-1">
@@ -391,7 +391,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
           )}
 
           {showEmailForm && (
-            <Card className="mb-8">
+            <Card className="mb-8 rounded-2xl border-gray-100 shadow-sm">
               <h3 className="font-semibold text-[#3E667D] mb-4">
                 {t('emailFormTitle')}
               </h3>
@@ -510,14 +510,14 @@ function ProductRecommendationCard({
   compatibilityLabel: string;
 }) {
   return (
-    <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+    <div className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 bg-white transition-all hover:-translate-y-0.5 hover:shadow-md">
       {/* Rank Badge */}
-      <div className="w-10 h-10 flex-shrink-0 bg-[#3E667D] text-white rounded-full flex items-center justify-center font-bold">
+      <div className="w-10 h-10 flex-shrink-0 bg-gradient-to-br from-[#3E667D] to-[#2f5165] text-white rounded-full flex items-center justify-center font-bold shadow-sm">
         #{rank}
       </div>
 
       {/* Product Image */}
-      <div className="w-20 h-20 bg-white rounded-xl shadow-sm flex-shrink-0 flex items-center justify-center overflow-hidden">
+      <div className="w-20 h-20 bg-gray-50 rounded-xl ring-1 ring-gray-100 flex-shrink-0 flex items-center justify-center overflow-hidden">
         <QuizProductImage src={product.productImage} name={product.productName} width={80} height={80} />
       </div>
 
@@ -528,7 +528,7 @@ function ProductRecommendationCard({
 
         {/* Score and Category */}
         <div className="flex flex-wrap items-center gap-2 mt-2">
-          <span className="text-xs bg-[#C8DDF2]/10 text-[#3E667D] px-2 py-0.5 rounded-full font-medium">
+          <span className="text-xs bg-[#C8DDF2]/40 text-[#3E667D] px-2 py-0.5 rounded-full font-medium">
             {compatibilityLabel}
           </span>
           {product.categoryName && (
