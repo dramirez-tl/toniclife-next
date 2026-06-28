@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button, Card, Input } from '@/components/ui';
 import { SparklesIcon, ClockIcon, ShieldCheckIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon } from '@heroicons/react/24/solid';
 import { QuizGender, QuizSource } from '@/types/quiz';
 import type { StartQuizInput } from '@/types/quiz';
 
@@ -65,20 +66,20 @@ export function QuizWelcome({
           })}
         </p>
 
-        {/* Features */}
-        <div className="mt-10 flex flex-wrap justify-center gap-6">
-          <div className="flex items-center gap-2 text-gray-600">
-            <ClockIcon className="h-5 w-5 text-[#3E667D]" />
-            <span>{t('feat2min')}</span>
-          </div>
-          <div className="flex items-center gap-2 text-gray-600">
-            <SparklesIcon className="h-5 w-5 text-[#3E667D]" />
-            <span>{t('feat10q')}</span>
-          </div>
-          <div className="flex items-center gap-2 text-gray-600">
-            <ShieldCheckIcon className="h-5 w-5 text-[#3E667D]" />
-            <span>{t('featPersonalized')}</span>
-          </div>
+        {/* Features (chips) */}
+        <div className="mt-10 flex flex-wrap justify-center gap-3">
+          <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-gray-100">
+            <ClockIcon className="h-4 w-4 text-[#3E667D]" />
+            {t('feat2min')}
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-gray-100">
+            <SparklesIcon className="h-4 w-4 text-[#3E667D]" />
+            {t('feat10q')}
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm ring-1 ring-gray-100">
+            <ShieldCheckIcon className="h-4 w-4 text-[#3E667D]" />
+            {t('featPersonalized')}
+          </span>
         </div>
 
         {/* CTA Buttons */}
@@ -123,7 +124,7 @@ export function QuizWelcome({
 
   // Gender Selection Step
   return (
-    <Card className="max-w-xl mx-auto">
+    <Card className="max-w-xl mx-auto rounded-2xl border-gray-100 shadow-sm">
       <div className="text-center mb-8">
         <div className="inline-flex items-center gap-2 bg-[#C8DDF2]/10 text-[#3E667D] px-4 py-2 rounded-full text-sm font-medium mb-4">
           <SparklesIcon className="h-4 w-4" />
@@ -139,34 +140,39 @@ export function QuizWelcome({
 
       <div className="space-y-5">
         <div className="grid grid-cols-2 gap-4">
-          <button
-            type="button"
-            onClick={() => handleSelectGender(QuizGender.FEMALE)}
-            className={`
-              p-6 rounded-xl border-2 transition-all
-              ${selectedGender === QuizGender.FEMALE
-                ? 'border-[#a7c1e2] bg-[#C8DDF2]/10 text-[#3E667D]'
-                : 'border-gray-200 hover:border-[#a7c1e2]/50'
-              }
-            `}
-          >
-            <span className="text-4xl mb-3 block">👩</span>
-            <span className="font-medium text-lg">{t('female')}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSelectGender(QuizGender.MALE)}
-            className={`
-              p-6 rounded-xl border-2 transition-all
-              ${selectedGender === QuizGender.MALE
-                ? 'border-[#a7c1e2] bg-[#C8DDF2]/10 text-[#3E667D]'
-                : 'border-gray-200 hover:border-[#a7c1e2]/50'
-              }
-            `}
-          >
-            <span className="text-4xl mb-3 block">👨</span>
-            <span className="font-medium text-lg">{t('male')}</span>
-          </button>
+          {[
+            { value: QuizGender.FEMALE, emoji: '👩', label: t('female') },
+            { value: QuizGender.MALE, emoji: '👨', label: t('male') },
+          ].map((opt) => {
+            const active = selectedGender === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => handleSelectGender(opt.value)}
+                aria-pressed={active}
+                className={`group relative flex flex-col items-center gap-3 rounded-2xl border-2 p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${
+                  active
+                    ? 'border-[#3E667D] bg-[#C8DDF2]/20 ring-2 ring-[#a7c1e2]/40 shadow-sm'
+                    : 'border-gray-200 hover:border-[#a7c1e2]'
+                }`}
+              >
+                {active && (
+                  <CheckCircleIcon className="absolute right-3 top-3 h-5 w-5 text-[#3E667D]" />
+                )}
+                <span
+                  className={`flex h-16 w-16 items-center justify-center rounded-full text-3xl transition-colors ${
+                    active ? 'bg-[#3E667D]/10' : 'bg-[#C8DDF2]/30 group-hover:bg-[#C8DDF2]/50'
+                  }`}
+                >
+                  {opt.emoji}
+                </span>
+                <span className="text-lg font-semibold text-[#3E667D]">
+                  {opt.label}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {error && (

@@ -120,11 +120,11 @@ export function QuizQuestion({
 
   return (
     <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-      <Card className="max-w-2xl mx-auto overflow-hidden p-0">
+      <Card className="max-w-2xl mx-auto overflow-hidden p-0 rounded-2xl border-gray-100 shadow-sm">
         {/* Question Header */}
-        <div className="bg-[#3E667D] text-white p-6 sm:p-8">
+        <div className="bg-gradient-to-br from-[#3E667D] to-[#2f5165] text-white p-6 sm:p-8">
           {/* Category Badge */}
-          <div className="inline-flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full text-sm mb-4">
+          <div className="inline-flex items-center gap-2 bg-white/15 ring-1 ring-white/20 px-3 py-1 rounded-full text-sm mb-4">
             <span>{emoji}</span>
             <span>{categoryTitle}</span>
           </div>
@@ -155,12 +155,12 @@ export function QuizQuestion({
               onClick={() => handleOptionClick(option.value, option.label)}
               disabled={isLoading}
               className={`
-                w-full text-left p-4 sm:p-5 rounded-xl border-2 transition-all duration-200
-                hover:border-[#a7c1e2] hover:bg-[#C8DDF2]/5
+                w-full text-left p-4 sm:p-5 rounded-2xl border-2 transition-all duration-200
+                hover:border-[#a7c1e2] hover:bg-[#C8DDF2]/5 hover:-translate-y-0.5 hover:shadow-sm
                 disabled:opacity-50 disabled:cursor-not-allowed
                 ${isOptionSelected(option.value)
-                  ? 'border-[#a7c1e2] bg-[#C8DDF2]/10 ring-2 ring-[#C8DDF2]/30'
-                  : 'border-gray-200 bg-gray-50'
+                  ? 'border-[#3E667D] bg-[#C8DDF2]/15 ring-2 ring-[#a7c1e2]/40 shadow-sm'
+                  : 'border-gray-200 bg-white'
                 }
               `}
             >
