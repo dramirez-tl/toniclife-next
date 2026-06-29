@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,8 +16,13 @@ import {
   ShieldCheckIcon,
   SparklesIcon,
   LifebuoyIcon,
+  GlobeAltIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { CountryLanguageSelector } from '@/components/public/CountryLanguageSelector';
+import { DEFAULT_LOCALE, countryMeta, localeCountry, localeLanguage } from '@/i18n/config';
+import { getStoredLocale, setStoredLocale } from '@/lib/store-locale';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { isEmailLinkRequired } from '@/services/auth.service';
 import {
@@ -30,6 +36,7 @@ import {
 
 export default function LoginPage() {
   const dispatch = useAppDispatch();
+  const t = useTranslations('auth');
 
   const isLoading = useAppSelector(selectIsLoading);
   const authError = useAppSelector(selectAuthError);
@@ -42,6 +49,28 @@ export default function LoginPage() {
     remember: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // País + idioma seleccionados en la tienda (cookie NEXT_LOCALE). El login no
+  // vive bajo /[locale], pero el provider de i18n del layout raíz lee esa misma
+  // cookie, así que el login respeta lo elegido en la página principal. Aquí solo
+  // permitimos verlo/cambiarlo y recargar para re-aplicar el idioma.
+  const [locale, setLocale] = useState<string>(DEFAULT_LOCALE);
+  const [selectorOpen, setSelectorOpen] = useState(false);
+
+  useEffect(() => {
+    const stored = getStoredLocale();
+    if (stored) setLocale(stored);
+  }, []);
+
+  const handleSelectLocale = (loc: string) => {
+    setStoredLocale(loc);
+    setSelectorOpen(false);
+    // Recarga completa: el layout raíz re-lee la cookie y rehidrata el idioma.
+    // Se conservan los query params (p. ej. ?redirect=...).
+    window.location.reload();
+  };
+
+  const currentCountry = countryMeta(localeCountry(locale));
 
   // Show auth error as toast
   useEffect(() => {
@@ -112,10 +141,10 @@ export default function LoginPage() {
     const newErrors: Record<string, string> = {};
     const trimmedId = formData.identifier.trim();
     if (!trimmedId) {
-      newErrors.identifier = 'El correo, usuario o número de distribuidor es requerido';
+      newErrors.identifier = t('errors.identifierRequired');
     }
     if (!formData.password) {
-      newErrors.password = 'La contraseña es requerida';
+      newErrors.password = t('errors.passwordRequired');
     }
 
     if (Object.keys(newErrors).length > 0) {
@@ -143,15 +172,12 @@ export default function LoginPage() {
       if (!usedEmail && result.user.emailVerifiedAt && result.user.email) {
         // Cerrar la sesión recién creada
         dispatch(logoutAsync());
-        toast.error(
-          'Tu cuenta ya tiene un correo vinculado. Por favor inicia sesión con tu correo electrónico.',
-          { duration: 8000 },
-        );
+        toast.error(t('toast.emailLinked'), { duration: 8000 });
         setFormData({ identifier: '', password: '', remember: false });
         return;
       }
 
-      toast.success('¡Bienvenid@ de nuevo!');
+      toast.success(t('toast.welcome'));
       navigateAfterLogin(result.user.roles?.[0]);
     } catch {
       // Error is handled via authError state
@@ -159,7 +185,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-[#3E667D]/10 px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+    <div className="relative min-h-screen bg-gradient-to-br from-slate-50 via-white to-[#3E667D]/10 px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+      {/* Selector país + idioma (respeta lo elegido en la tienda; permite cambiarlo) */}
+      <button
+        type="button"
+        onClick={() => setSelectorOpen(true)}
+        className="absolute right-4 top-4 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white/90 px-3 py-1.5 text-sm font-medium text-gray-700 shadow-sm backdrop-blur transition hover:border-[#3E667D] hover:text-[#3E667D] sm:right-6 lg:right-8"
+        aria-label={t('regionLabel')}
+      >
+        <GlobeAltIcon className="h-4 w-4" />
+        <span className="text-base leading-none">{currentCountry.flag}</span>
+        <span className="hidden sm:inline">{localeLanguage(locale).toUpperCase()}</span>
+        <ChevronDownIcon className="h-3.5 w-3.5 text-gray-400" />
+      </button>
+
       <div className="mx-auto flex w-full max-w-5xl items-center justify-center">
         <div className="w-full max-w-md space-y-6">
           <div className="text-center">
@@ -174,13 +213,13 @@ export default function LoginPage() {
             </Link>
             <div className="inline-flex items-center gap-2 rounded-full bg-[#3E667D]/8 px-3 py-1 text-xs font-medium text-[#3E667D]">
               <ShieldCheckIcon className="h-3.5 w-3.5" />
-              Acceso seguro
+              {t('secureAccess')}
             </div>
             <h2 className="mt-3 text-3xl font-bold tracking-tight text-gray-900 sm:text-[2rem] lg:text-[2.2rem]">
-              Iniciar sesión
+              {t('title')}
             </h2>
             <p className="mt-2 max-w-md text-sm text-gray-600 lg:max-w-none">
-              Ingresa con tus credenciales autorizadas para acceder a la plataforma.
+              {t('subtitle')}
             </p>
           </div>
 
@@ -189,12 +228,12 @@ export default function LoginPage() {
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Identifier (email o usuario) */}
                 <div className="space-y-1.5">
-                  <Label>Correo electrónico o usuario</Label>
+                  <Label>{t('identifierLabel')}</Label>
                   <div className="relative">
                     <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><UserIcon className="h-5 w-5" /></span>
                     <Input
                       type="text"
-                      placeholder="tu@email.com o tu usuario"
+                      placeholder={t('identifierPlaceholder')}
                       value={formData.identifier}
                       onChange={(e) => setFormData({ ...formData, identifier: e.target.value })}
                       autoComplete="username"
@@ -208,7 +247,7 @@ export default function LoginPage() {
 
                 {/* Password */}
                 <div className="space-y-1.5">
-                  <Label>Contraseña</Label>
+                  <Label>{t('passwordLabel')}</Label>
                   <div className="relative">
                     <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground [&_svg]:size-4"><LockClosedIcon className="h-5 w-5" /></span>
                     <Input
@@ -226,7 +265,7 @@ export default function LoginPage() {
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:pointer-events-none"
                       disabled={isLoading}
-                      aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                      aria-label={showPassword ? t('hidePassword') : t('showPassword')}
                     >
                       {showPassword ? (
                         <EyeSlashIcon className="h-5 w-5" />
@@ -248,13 +287,13 @@ export default function LoginPage() {
                       className="h-4 w-4 rounded border-gray-300 text-[#3E667D] focus:ring-[#a7c1e2]"
                       disabled={isLoading}
                     />
-                    <span className="ml-2 text-sm text-gray-600">Recordarme</span>
+                    <span className="ml-2 text-sm text-gray-600">{t('remember')}</span>
                   </label>
                   <Link
                     href="/forgot-password"
                     className="text-sm font-medium text-[#3E667D] transition-colors hover:text-[#3E667D]"
                   >
-                    ¿Olvidaste tu contraseña?
+                    {t('forgot')}
                   </Link>
                 </div>
 
@@ -266,12 +305,12 @@ export default function LoginPage() {
                   className="w-full h-12 text-base font-semibold"
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+                  {isLoading ? t('submitting') : t('submit')}
                 </Button>
 
                 <div className="flex items-center justify-center gap-2 text-xs text-gray-500">
                   <SparklesIcon className="h-4 w-4 text-[#3E667D]" />
-                  Tu destino se asigna automáticamente según tu rol
+                  {t('roleHint')}
                 </div>
               </form>
 
@@ -282,10 +321,10 @@ export default function LoginPage() {
                 >
                   <div className="mb-1 flex items-center gap-2 text-[#3E667D]">
                     <LifebuoyIcon className="h-4 w-4" />
-                    <span className="text-sm font-semibold">Soporte de acceso</span>
+                    <span className="text-sm font-semibold">{t('supportTitle')}</span>
                   </div>
                   <p className="text-xs text-gray-500 group-hover:text-gray-600">
-                    Si no puedes ingresar, contacta a mesa de ayuda interna.
+                    {t('supportText')}
                   </p>
                 </Link>
               </div>
@@ -293,6 +332,13 @@ export default function LoginPage() {
           </Card>
         </div>
       </div>
+
+      <CountryLanguageSelector
+        open={selectorOpen}
+        onOpenChange={setSelectorOpen}
+        currentLocale={locale}
+        onSelect={handleSelectLocale}
+      />
     </div>
   );
 }

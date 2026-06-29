@@ -391,5 +391,31 @@
       "emailRequired": "Enter your email address",
       "emailSaved": "We'll email you your results"
     }
+  },
+  "auth": {
+    "secureAccess": "Secure access",
+    "title": "Sign in",
+    "subtitle": "Sign in with your authorized credentials to access the platform.",
+    "identifierLabel": "Email or username",
+    "identifierPlaceholder": "you@email.com or your username",
+    "passwordLabel": "Password",
+    "remember": "Remember me",
+    "forgot": "Forgot your password?",
+    "submit": "Sign in",
+    "submitting": "Signing in...",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "roleHint": "Your destination is assigned automatically based on your role",
+    "supportTitle": "Access support",
+    "supportText": "If you can't sign in, contact the internal help desk.",
+    "regionLabel": "Country and language",
+    "errors": {
+      "identifierRequired": "Email, username or distributor number is required",
+      "passwordRequired": "Password is required"
+    },
+    "toast": {
+      "welcome": "Welcome back!",
+      "emailLinked": "Your account already has a linked email. Please sign in with your email address."
+    }
   }
 }

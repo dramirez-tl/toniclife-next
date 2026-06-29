@@ -391,5 +391,31 @@
       "emailRequired": "Ingresa tu correo electrónico",
       "emailSaved": "Te enviaremos tus resultados por correo"
     }
+  },
+  "auth": {
+    "secureAccess": "Acceso seguro",
+    "title": "Iniciar sesión",
+    "subtitle": "Ingresa con tus credenciales autorizadas para acceder a la plataforma.",
+    "identifierLabel": "Correo electrónico o usuario",
+    "identifierPlaceholder": "tu@email.com o tu usuario",
+    "passwordLabel": "Contraseña",
+    "remember": "Recordarme",
+    "forgot": "¿Olvidaste tu contraseña?",
+    "submit": "Iniciar sesión",
+    "submitting": "Iniciando sesión...",
+    "showPassword": "Mostrar contraseña",
+    "hidePassword": "Ocultar contraseña",
+    "roleHint": "Tu destino se asigna automáticamente según tu rol",
+    "supportTitle": "Soporte de acceso",
+    "supportText": "Si no puedes ingresar, contacta a mesa de ayuda interna.",
+    "regionLabel": "País e idioma",
+    "errors": {
+      "identifierRequired": "El correo, usuario o número de distribuidor es requerido",
+      "passwordRequired": "La contraseña es requerida"
+    },
+    "toast": {
+      "welcome": "¡Bienvenid@ de nuevo!",
+      "emailLinked": "Tu cuenta ya tiene un correo vinculado. Por favor inicia sesión con tu correo electrónico."
+    }
   }
 }
