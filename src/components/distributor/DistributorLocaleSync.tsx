@@ -1,13 +1,18 @@
 'use client';
 
-// Sincroniza el idioma de la CUENTA (users.language, fuente de verdad) con la
-// cookie NEXT_LOCALE que lee el provider next-intl del layout raíz. El panel del
-// distribuidor NO vive bajo /[locale]; usa el provider global. Así, al entrar al
-// panel, si el idioma guardado en la cuenta difiere del de la cookie, ajustamos
-// la cookie y recargamos UNA vez (tras recargar coinciden → sin bucle).
+// Sincroniza el locale del panel con la CUENTA del distribuidor:
+//  - idioma  = users.language (preferencia de cuenta, fuente de verdad)
+//  - país    = país de la cuenta (user.countryCode) si su tienda está lista (ready)
+// El panel NO vive bajo /[locale]; usa el provider next-intl global del layout raíz
+// que lee la cookie NEXT_LOCALE. Por eso, al entrar al panel ajustamos esa cookie
+// al locale de la cuenta y recargamos UNA vez si difiere (tras recargar coinciden →
+// sin bucle). Así, al ir a la tienda, el distribuidor ve su país (solo cambia idioma).
 
 import { useEffect, useRef } from 'react';
 import { useDistributorPreferences } from '@/hooks/useDistributor';
+import { readyAccountCountry } from '@/hooks/useStoreCountry';
+import { useAppSelector } from '@/store/hooks';
+import { selectUser } from '@/store/slices/authSlice';
 import {
   DEFAULT_LOCALE,
   buildLocale,
@@ -18,21 +23,23 @@ import { getStoredLocale, setStoredLocale } from '@/lib/store-locale';
 
 export function DistributorLocaleSync() {
   const { data } = useDistributorPreferences();
+  const user = useAppSelector(selectUser);
   const didSync = useRef(false);
 
   useEffect(() => {
     if (!data?.language || didSync.current) return;
     const stored = getStoredLocale() || DEFAULT_LOCALE;
-    const currentLang = localeLanguage(stored);
-    if (data.language === currentLang) {
-      didSync.current = true;
-      return;
-    }
-    // Conserva el país del locale actual y solo cambia el idioma.
+    // Idioma = preferencia de cuenta; país = país de la cuenta (si tiene tienda lista),
+    // si no, se conserva el de la cookie.
+    const country = readyAccountCountry(user?.countryCode) ?? localeCountry(stored);
+    const desired = buildLocale(data.language, country);
+
     didSync.current = true;
-    setStoredLocale(buildLocale(data.language, localeCountry(stored)));
-    window.location.reload();
-  }, [data?.language]);
+    if (desired !== stored) {
+      setStoredLocale(desired);
+      window.location.reload();
+    }
+  }, [data?.language, user?.countryCode]);
 
   return null;
 }

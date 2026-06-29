@@ -11,6 +11,9 @@ import {
   useDistributorPreferences,
   useUpdateDistributorPreferences,
 } from '@/hooks/useDistributor';
+import { readyAccountCountry } from '@/hooks/useStoreCountry';
+import { useAppSelector } from '@/store/hooks';
+import { selectUser } from '@/store/slices/authSlice';
 import {
   DEFAULT_LOCALE,
   buildLocale,
@@ -33,6 +36,7 @@ interface Props {
 export function DistributorLanguageToggle({ tone = 'dark', className }: Props) {
   const { data: prefs } = useDistributorPreferences();
   const updatePrefs = useUpdateDistributorPreferences();
+  const user = useAppSelector(selectUser);
 
   // Idioma actual: preferencia de la cuenta; si aún no carga, el de la cookie.
   const current =
@@ -43,7 +47,10 @@ export function DistributorLanguageToggle({ tone = 'dark', className }: Props) {
     updatePrefs.mutate(lang, {
       onSuccess: () => {
         const stored = getStoredLocale() || DEFAULT_LOCALE;
-        setStoredLocale(buildLocale(lang, localeCountry(stored)));
+        // El país lo fija la cuenta (si tiene tienda lista); solo cambia el idioma.
+        const country =
+          readyAccountCountry(user?.countryCode) ?? localeCountry(stored);
+        setStoredLocale(buildLocale(lang, country));
         window.location.reload();
       },
     });

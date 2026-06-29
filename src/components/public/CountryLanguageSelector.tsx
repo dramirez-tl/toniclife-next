@@ -17,6 +17,7 @@ import {
   LANGUAGES,
   buildLocale,
   parseLocale,
+  type CountryCode,
   type LanguageCode,
 } from '@/i18n/config';
 
@@ -27,6 +28,11 @@ interface Props {
   currentLocale?: string;
   /** Se llama con el locale elegido, p.ej. 'en-us'. */
   onSelect: (locale: string) => void;
+  /**
+   * Si se pasa, el país queda FIJO a ese código y solo se ofrece cambiar idioma
+   * (caso distribuidor logueado: su país lo fija la cuenta). Oculta los demás países.
+   */
+  lockedCountry?: CountryCode;
 }
 
 export function CountryLanguageSelector({
@@ -34,29 +40,41 @@ export function CountryLanguageSelector({
   onOpenChange,
   currentLocale,
   onSelect,
+  lockedCountry,
 }: Props) {
   const uiLang: LanguageCode = currentLocale
     ? parseLocale(currentLocale).lang
     : 'es';
   const t = (es: string, en: string) => (uiLang === 'en' ? en : es);
 
+  const visibleCountries = lockedCountry
+    ? COUNTRIES.filter((c) => c.code === lockedCountry)
+    : COUNTRIES;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-[#3E667D]">
-            {t('Elige tu país e idioma', 'Choose your country and language')}
+            {lockedCountry
+              ? t('Elige tu idioma', 'Choose your language')
+              : t('Elige tu país e idioma', 'Choose your country and language')}
           </DialogTitle>
           <DialogDescription>
-            {t(
-              'Verás los productos, precios y disponibilidad de tu país.',
-              'You will see products, prices and availability for your country.',
-            )}
+            {lockedCountry
+              ? t(
+                  'Tu país está definido por tu cuenta. Puedes cambiar el idioma.',
+                  'Your country is set by your account. You can change the language.',
+                )
+              : t(
+                  'Verás los productos, precios y disponibilidad de tu país.',
+                  'You will see products, prices and availability for your country.',
+                )}
           </DialogDescription>
         </DialogHeader>
 
         <div className="mt-2 space-y-3">
-          {COUNTRIES.map((c) => {
+          {visibleCountries.map((c) => {
             const countryName = uiLang === 'en' ? c.nameEn : c.name;
             return (
               <div

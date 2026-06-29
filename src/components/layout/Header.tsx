@@ -17,8 +17,9 @@ import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated, selectUserRoles, selectUser, selectIsInitialized } from '@/store/slices/authSlice';
 import { useTranslations } from 'next-intl';
 import { CountryLanguageSelector } from '@/components/public/CountryLanguageSelector';
-import { DEFAULT_LOCALE, countryMeta, localeCountry, localeLanguage } from '@/i18n/config';
+import { DEFAULT_LOCALE, buildLocale, countryMeta, localeCountry, localeLanguage } from '@/i18n/config';
 import { getStoredLocale, setStoredLocale } from '@/lib/store-locale';
+import { readyAccountCountry } from '@/hooks/useStoreCountry';
 
 interface NavItem {
   name: string;
@@ -58,8 +59,6 @@ export function Header() {
     window.location.href = `/${loc}`;
   };
 
-  const currentCountry = countryMeta(localeCountry(locale));
-
   // Get cart item count from API
   const { data: cartSummary } = useCartSummary();
   const cartItemCount = cartSummary?.itemCount || 0;
@@ -69,6 +68,16 @@ export function Header() {
   const isInitialized = useAppSelector(selectIsInitialized);
   const userRoles = useAppSelector(selectUserRoles);
   const user = useAppSelector(selectUser);
+
+  // Si el usuario está logueado y su país tiene tienda lista, el país lo fija su
+  // cuenta (solo puede cambiar idioma). El locale efectivo usa ese país.
+  const accountCountry = isAuthenticated
+    ? readyAccountCountry(user?.countryCode)
+    : undefined;
+  const effectiveLocale = accountCountry
+    ? buildLocale(localeLanguage(locale), accountCountry)
+    : locale;
+  const currentCountry = countryMeta(localeCountry(effectiveLocale));
 
   // Determine the correct dashboard URL based on user roles
   const dashboardUrl = useMemo(() => {
@@ -131,7 +140,7 @@ export function Header() {
               aria-label="Cambiar país e idioma"
             >
               <span className="text-base leading-none">{currentCountry.flag}</span>
-              <span>{localeLanguage(locale).toUpperCase()}</span>
+              <span>{localeLanguage(effectiveLocale).toUpperCase()}</span>
               <ChevronDownIcon className="h-3.5 w-3.5" />
             </button>
             <span className="text-white/30">|</span>
@@ -376,8 +385,9 @@ export function Header() {
       <CountryLanguageSelector
         open={selectorOpen}
         onOpenChange={setSelectorOpen}
-        currentLocale={locale}
+        currentLocale={effectiveLocale}
         onSelect={handleSelectLocale}
+        lockedCountry={accountCountry}
       />
     </>
   );

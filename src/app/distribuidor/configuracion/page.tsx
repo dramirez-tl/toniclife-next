@@ -8,6 +8,9 @@ import {
   useDistributorPreferences,
   useUpdateDistributorPreferences,
 } from '@/hooks/useDistributor';
+import { readyAccountCountry } from '@/hooks/useStoreCountry';
+import { useAppSelector } from '@/store/hooks';
+import { selectUser } from '@/store/slices/authSlice';
 import {
   DEFAULT_LOCALE,
   buildLocale,
@@ -64,6 +67,7 @@ export default function ConfiguracionPage() {
   // de esta pantalla aún son demostrativos (no persisten).
   const { data: prefs } = useDistributorPreferences();
   const updatePrefs = useUpdateDistributorPreferences();
+  const currentUser = useAppSelector(selectUser);
 
   useEffect(() => {
     if (prefs?.language) {
@@ -88,7 +92,10 @@ export default function ConfiguracionPage() {
     updatePrefs.mutate(language, {
       onSuccess: () => {
         const stored = getStoredLocale() || DEFAULT_LOCALE;
-        setStoredLocale(buildLocale(language, localeCountry(stored)));
+        // El país lo fija la cuenta (si tiene tienda lista); solo cambia el idioma.
+        const country =
+          readyAccountCountry(currentUser?.countryCode) ?? localeCountry(stored);
+        setStoredLocale(buildLocale(language, country));
         window.location.reload();
       },
       onError: () => toast.error(t('toast.languageError')),
