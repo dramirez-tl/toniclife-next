@@ -1505,6 +1505,182 @@
         "deleted": "Notification deleted",
         "deleteError": "Error deleting the notification"
       }
+    },
+    "settings": {
+      "title": "Advanced Settings",
+      "subtitle": "Customize your experience in the portal",
+      "backToPanel": "Back to Main Panel",
+      "categories": "Categories",
+      "nav": {
+        "notifications": "Notifications",
+        "privacy": "Privacy",
+        "language": "Language & Region",
+        "security": "Security"
+      },
+      "notifications": {
+        "title": "Notifications",
+        "email": {
+          "label": "Email Notifications",
+          "desc": "Receive updates in your inbox"
+        },
+        "sms": {
+          "label": "SMS Notifications",
+          "desc": "Receive alerts by text message"
+        },
+        "push": {
+          "label": "Push Notifications",
+          "desc": "Real-time notifications in the browser"
+        },
+        "specificAlerts": "Specific Alerts",
+        "salesAlerts": {
+          "label": "Sales Alerts",
+          "desc": "Notify when sales are made"
+        },
+        "commissionAlerts": {
+          "label": "Commission Alerts",
+          "desc": "Notify when you earn commissions"
+        },
+        "teamAlerts": {
+          "label": "Team Activity",
+          "desc": "Notify about your network's activity"
+        },
+        "weeklyReport": {
+          "label": "Weekly Report",
+          "desc": "Activity summary every week"
+        },
+        "monthlyReport": {
+          "label": "Monthly Report",
+          "desc": "Full summary every month"
+        }
+      },
+      "privacy": {
+        "title": "Privacy",
+        "profileVisibility": "Profile visibility",
+        "visibility": {
+          "public": "Public - Visible to everyone",
+          "team": "Team - Only my network can see it",
+          "private": "Private - Only I can see it"
+        },
+        "showEmail": {
+          "label": "Show Email Address",
+          "desc": "Others can see your email address"
+        },
+        "showPhone": {
+          "label": "Show Phone",
+          "desc": "Others can see your phone number"
+        },
+        "allowMessages": {
+          "label": "Allow Messages",
+          "desc": "Other distributors can send you messages"
+        }
+      },
+      "language": {
+        "title": "Language & Region",
+        "languageLabel": "Language",
+        "timezoneLabel": "Time zone",
+        "timezone": {
+          "mexicoCity": "Mexico City (GMT-6)",
+          "monterrey": "Monterrey (GMT-6)",
+          "cancun": "Cancun (GMT-5)"
+        },
+        "currencyLabel": "Currency",
+        "currency": {
+          "mxn": "MXN - Mexican Peso",
+          "usd": "USD - US Dollar"
+        },
+        "dateFormatLabel": "Date format"
+      },
+      "security": {
+        "title": "Security",
+        "twoFactor": {
+          "label": "Two-Factor Authentication",
+          "desc": "Add an extra layer of security"
+        },
+        "sessionTimeoutLabel": "Session Timeout (minutes)",
+        "sessionTimeout": {
+          "min15": "15 minutes",
+          "min30": "30 minutes",
+          "hour1": "1 hour",
+          "hour2": "2 hours"
+        },
+        "loginAlerts": {
+          "label": "Login Alerts",
+          "desc": "Notify about new logins"
+        },
+        "changePassword": "Change password"
+      },
+      "save": "Save changes",
+      "cancel": "Cancel",
+      "toast": {
+        "updated": "Settings updated",
+        "saved": "Settings saved successfully",
+        "languageError": "Could not change the language",
+        "openChangePassword": "Opening password change",
+        "discarded": "Changes discarded"
+      }
+    },
+    "profile": {
+      "title": "My Profile",
+      "subtitle": "Manage your personal information",
+      "backToPanel": "Back to Main Panel",
+      "photo": {
+        "title": "Profile Photo",
+        "change": "Upload photo",
+        "hint": "JPG, PNG or GIF. Maximum 2MB."
+      },
+      "personalInfo": {
+        "title": "Personal Information",
+        "firstName": "First name",
+        "lastName": "Last name",
+        "email": "Email address",
+        "phone": "Phone",
+        "bio": "Bio",
+        "bioPlaceholder": "Tell us about yourself...",
+        "bioHint": "This information will appear on your public profile"
+      },
+      "address": {
+        "title": "Address",
+        "street": "Street and Number",
+        "city": "City",
+        "state": "State",
+        "zipCode": "Zip Code"
+      },
+      "referral": {
+        "title": "Your Referral Link",
+        "personalLink": "Personal link",
+        "copyLink": "Copy Link",
+        "downloadQR": "Download QR"
+      },
+      "notifications": {
+        "title": "Notifications",
+        "emailHeading": "Email",
+        "email": {
+          "sales": "New sales",
+          "commissions": "Commissions credited",
+          "team": "Team activity",
+          "marketing": "Promotions and news"
+        },
+        "smsHeading": "SMS",
+        "sms": {
+          "important": "Important alerts",
+          "sales": "Sales notification"
+        }
+      },
+      "security": {
+        "title": "Security",
+        "password": "Password",
+        "lastUpdated": "Last updated: 3 months ago",
+        "changePassword": "Change password"
+      },
+      "save": "Save changes",
+      "cancel": "Cancel",
+      "toast": {
+        "updated": "Profile updated successfully",
+        "openChangePassword": "Opening password change form",
+        "openImagePicker": "Opening image picker",
+        "downloadingQR": "Downloading QR code...",
+        "linkCopied": "Link copied to clipboard"
+      }
     }
   }
 }

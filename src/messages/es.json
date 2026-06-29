@@ -1505,6 +1505,182 @@
         "deleted": "Notificación eliminada",
         "deleteError": "Error al eliminar la notificación"
       }
+    },
+    "settings": {
+      "title": "Configuración Avanzada",
+      "subtitle": "Personaliza tu experiencia en el portal",
+      "backToPanel": "Volver al Panel Principal",
+      "categories": "Categorías",
+      "nav": {
+        "notifications": "Notificaciones",
+        "privacy": "Privacidad",
+        "language": "Idioma y Región",
+        "security": "Seguridad"
+      },
+      "notifications": {
+        "title": "Notificaciones",
+        "email": {
+          "label": "Notificaciones por Correo",
+          "desc": "Recibe actualizaciones en tu correo"
+        },
+        "sms": {
+          "label": "Notificaciones SMS",
+          "desc": "Recibe alertas por mensaje de texto"
+        },
+        "push": {
+          "label": "Notificaciones Push",
+          "desc": "Notificaciones en tiempo real en el navegador"
+        },
+        "specificAlerts": "Alertas Específicas",
+        "salesAlerts": {
+          "label": "Alertas de Ventas",
+          "desc": "Notificar cuando se realicen ventas"
+        },
+        "commissionAlerts": {
+          "label": "Alertas de Comisiones",
+          "desc": "Notificar cuando generes comisiones"
+        },
+        "teamAlerts": {
+          "label": "Actividad del Equipo",
+          "desc": "Notificar sobre actividad de tu red"
+        },
+        "weeklyReport": {
+          "label": "Reporte Semanal",
+          "desc": "Resumen de actividad cada semana"
+        },
+        "monthlyReport": {
+          "label": "Reporte Mensual",
+          "desc": "Resumen completo cada mes"
+        }
+      },
+      "privacy": {
+        "title": "Privacidad",
+        "profileVisibility": "Visibilidad del Perfil",
+        "visibility": {
+          "public": "Público - Visible para todos",
+          "team": "Equipo - Solo mi red puede verlo",
+          "private": "Privado - Solo yo puedo verlo"
+        },
+        "showEmail": {
+          "label": "Mostrar Correo Electrónico",
+          "desc": "Otros pueden ver tu correo electrónico"
+        },
+        "showPhone": {
+          "label": "Mostrar Teléfono",
+          "desc": "Otros pueden ver tu número de teléfono"
+        },
+        "allowMessages": {
+          "label": "Permitir Mensajes",
+          "desc": "Otros distribuidores pueden enviarte mensajes"
+        }
+      },
+      "language": {
+        "title": "Idioma y Región",
+        "languageLabel": "Idioma",
+        "timezoneLabel": "Zona Horaria",
+        "timezone": {
+          "mexicoCity": "Ciudad de México (GMT-6)",
+          "monterrey": "Monterrey (GMT-6)",
+          "cancun": "Cancún (GMT-5)"
+        },
+        "currencyLabel": "Moneda",
+        "currency": {
+          "mxn": "MXN - Peso Mexicano",
+          "usd": "USD - Dólar Americano"
+        },
+        "dateFormatLabel": "Formato de Fecha"
+      },
+      "security": {
+        "title": "Seguridad",
+        "twoFactor": {
+          "label": "Autenticación de Dos Factores",
+          "desc": "Agrega una capa extra de seguridad"
+        },
+        "sessionTimeoutLabel": "Tiempo de Sesión (minutos)",
+        "sessionTimeout": {
+          "min15": "15 minutos",
+          "min30": "30 minutos",
+          "hour1": "1 hora",
+          "hour2": "2 horas"
+        },
+        "loginAlerts": {
+          "label": "Alertas de Inicio de Sesión",
+          "desc": "Notificar sobre inicios de sesión nuevos"
+        },
+        "changePassword": "Cambiar Contraseña"
+      },
+      "save": "Guardar Cambios",
+      "cancel": "Cancelar",
+      "toast": {
+        "updated": "Configuración actualizada",
+        "saved": "Configuración guardada exitosamente",
+        "languageError": "No se pudo cambiar el idioma",
+        "openChangePassword": "Abriendo cambio de contraseña",
+        "discarded": "Cambios descartados"
+      }
+    },
+    "profile": {
+      "title": "Mi Perfil",
+      "subtitle": "Administra tu información personal",
+      "backToPanel": "Volver al Panel Principal",
+      "photo": {
+        "title": "Foto de Perfil",
+        "change": "Cambiar Foto",
+        "hint": "JPG, PNG o GIF. Máximo 2MB."
+      },
+      "personalInfo": {
+        "title": "Información Personal",
+        "firstName": "Nombre",
+        "lastName": "Apellido",
+        "email": "Correo electrónico",
+        "phone": "Teléfono",
+        "bio": "Biografía",
+        "bioPlaceholder": "Cuéntanos sobre ti...",
+        "bioHint": "Esta información aparecerá en tu perfil público"
+      },
+      "address": {
+        "title": "Dirección",
+        "street": "Calle y Número",
+        "city": "Ciudad",
+        "state": "Estado",
+        "zipCode": "Código Postal"
+      },
+      "referral": {
+        "title": "Tu Enlace de Referidos",
+        "personalLink": "Enlace personal",
+        "copyLink": "Copiar Enlace",
+        "downloadQR": "Descargar QR"
+      },
+      "notifications": {
+        "title": "Notificaciones",
+        "emailHeading": "Correo electrónico",
+        "email": {
+          "sales": "Nuevas ventas",
+          "commissions": "Comisiones acreditadas",
+          "team": "Actividad del equipo",
+          "marketing": "Promociones y novedades"
+        },
+        "smsHeading": "SMS",
+        "sms": {
+          "important": "Alertas importantes",
+          "sales": "Notificación de ventas"
+        }
+      },
+      "security": {
+        "title": "Seguridad",
+        "password": "Contraseña",
+        "lastUpdated": "Última actualización: hace 3 meses",
+        "changePassword": "Cambiar Contraseña"
+      },
+      "save": "Guardar Cambios",
+      "cancel": "Cancelar",
+      "toast": {
+        "updated": "Perfil actualizado exitosamente",
+        "openChangePassword": "Abriendo formulario de cambio de contraseña",
+        "openImagePicker": "Abriendo selector de imagen",
+        "downloadingQR": "Descargando código QR...",
+        "linkCopied": "Enlace copiado al portapapeles"
+      }
     }
   }
 }

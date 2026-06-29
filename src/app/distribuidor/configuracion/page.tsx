@@ -27,8 +27,10 @@ import {
 } from '@heroicons/react/24/outline';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 export default function ConfiguracionPage() {
+  const t = useTranslations('distributor.settings');
   const [settings, setSettings] = useState({
     // Notifications
     emailNotifications: true,
@@ -71,7 +73,7 @@ export default function ConfiguracionPage() {
 
   const handleToggle = (key: string) => {
     setSettings({ ...settings, [key]: !settings[key as keyof typeof settings] });
-    toast.success('Configuración actualizada');
+    toast.success(t('toast.updated'));
   };
 
   const handleChange = (key: string, value: string) => {
@@ -89,12 +91,12 @@ export default function ConfiguracionPage() {
         setStoredLocale(buildLocale(language, localeCountry(stored)));
         window.location.reload();
       },
-      onError: () => toast.error('No se pudo cambiar el idioma'),
+      onError: () => toast.error(t('toast.languageError')),
     });
   };
 
   const handleSave = () => {
-    toast.success('Configuración guardada exitosamente');
+    toast.success(t('toast.saved'));
   };
 
   return (
@@ -106,15 +108,15 @@ export default function ConfiguracionPage() {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <Cog6ToothIcon className="h-10 w-10" />
-                <h1 className="text-4xl font-bold">Configuración Avanzada</h1>
+                <h1 className="text-4xl font-bold">{t('title')}</h1>
               </div>
               <p className="text-white/80 text-lg">
-                Personaliza tu experiencia en el portal
+                {t('subtitle')}
               </p>
             </div>
             <Link href="/distribuidor">
               <Button variant="secondary">
-                Volver al Panel Principal
+                {t('backToPanel')}
               </Button>
             </Link>
           </div>
@@ -128,30 +130,30 @@ export default function ConfiguracionPage() {
           <div className="lg:col-span-1">
             <Card className="sticky top-8">
               <CardContent className="p-6">
-                <h3 className="font-bold text-gray-900 mb-4">Categorías</h3>
+                <h3 className="font-bold text-gray-900 mb-4">{t('categories')}</h3>
                 <nav className="space-y-1">
                   <a href="#notifications" className="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors">
                     <div className="flex items-center gap-3">
                       <BellIcon className="h-5 w-5" />
-                      <span className="text-sm font-medium">Notificaciones</span>
+                      <span className="text-sm font-medium">{t('nav.notifications')}</span>
                     </div>
                   </a>
                   <a href="#privacy" className="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors">
                     <div className="flex items-center gap-3">
                       <ShieldCheckIcon className="h-5 w-5" />
-                      <span className="text-sm font-medium">Privacidad</span>
+                      <span className="text-sm font-medium">{t('nav.privacy')}</span>
                     </div>
                   </a>
                   <a href="#language" className="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors">
                     <div className="flex items-center gap-3">
                       <GlobeAltIcon className="h-5 w-5" />
-                      <span className="text-sm font-medium">Idioma y Región</span>
+                      <span className="text-sm font-medium">{t('nav.language')}</span>
                     </div>
                   </a>
                   <a href="#security" className="block px-3 py-2 rounded-lg hover:bg-gray-100 text-gray-700 transition-colors">
                     <div className="flex items-center gap-3">
                       <LockClosedIcon className="h-5 w-5" />
-                      <span className="text-sm font-medium">Seguridad</span>
+                      <span className="text-sm font-medium">{t('nav.security')}</span>
                     </div>
                   </a>
                 </nav>
@@ -166,7 +168,7 @@ export default function ConfiguracionPage() {
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-6">
                   <BellIcon className="h-6 w-6 text-[#3E667D]" />
-                  <h2 className="text-2xl font-bold text-gray-900">Notificaciones</h2>
+                  <h2 className="text-2xl font-bold text-gray-900">{t('notifications.title')}</h2>
                 </div>
 
                 <div className="space-y-4">
@@ -174,8 +176,8 @@ export default function ConfiguracionPage() {
                     <div className="flex items-start gap-3">
                       <EnvelopeIcon className="h-5 w-5 text-gray-600 mt-1" />
                       <div>
-                        <p className="font-medium text-gray-900">Notificaciones por Correo</p>
-                        <p className="text-sm text-gray-600">Recibe actualizaciones en tu correo</p>
+                        <p className="font-medium text-gray-900">{t('notifications.email.label')}</p>
+                        <p className="text-sm text-gray-600">{t('notifications.email.desc')}</p>
                       </div>
                     </div>
                     <button
@@ -196,8 +198,8 @@ export default function ConfiguracionPage() {
                     <div className="flex items-start gap-3">
                       <DevicePhoneMobileIcon className="h-5 w-5 text-gray-600 mt-1" />
                       <div>
-                        <p className="font-medium text-gray-900">Notificaciones SMS</p>
-                        <p className="text-sm text-gray-600">Recibe alertas por mensaje de texto</p>
+                        <p className="font-medium text-gray-900">{t('notifications.sms.label')}</p>
+                        <p className="text-sm text-gray-600">{t('notifications.sms.desc')}</p>
                       </div>
                     </div>
                     <button
@@ -218,8 +220,8 @@ export default function ConfiguracionPage() {
                     <div className="flex items-start gap-3">
                       <BellIcon className="h-5 w-5 text-gray-600 mt-1" />
                       <div>
-                        <p className="font-medium text-gray-900">Notificaciones Push</p>
-                        <p className="text-sm text-gray-600">Notificaciones en tiempo real en el navegador</p>
+                        <p className="font-medium text-gray-900">{t('notifications.push.label')}</p>
+                        <p className="text-sm text-gray-600">{t('notifications.push.desc')}</p>
                       </div>
                     </div>
                     <button
@@ -238,15 +240,15 @@ export default function ConfiguracionPage() {
 
                   <hr className="my-4" />
 
-                  <h3 className="font-semibold text-gray-900 mb-3">Alertas Específicas</h3>
+                  <h3 className="font-semibold text-gray-900 mb-3">{t('notifications.specificAlerts')}</h3>
 
                   <div className="space-y-3">
                     {[
-                      { key: 'salesAlerts', label: 'Alertas de Ventas', desc: 'Notificar cuando se realicen ventas' },
-                      { key: 'commissionAlerts', label: 'Alertas de Comisiones', desc: 'Notificar cuando generes comisiones' },
-                      { key: 'teamAlerts', label: 'Actividad del Equipo', desc: 'Notificar sobre actividad de tu red' },
-                      { key: 'weeklyReport', label: 'Reporte Semanal', desc: 'Resumen de actividad cada semana' },
-                      { key: 'monthlyReport', label: 'Reporte Mensual', desc: 'Resumen completo cada mes' },
+                      { key: 'salesAlerts', label: t('notifications.salesAlerts.label'), desc: t('notifications.salesAlerts.desc') },
+                      { key: 'commissionAlerts', label: t('notifications.commissionAlerts.label'), desc: t('notifications.commissionAlerts.desc') },
+                      { key: 'teamAlerts', label: t('notifications.teamAlerts.label'), desc: t('notifications.teamAlerts.desc') },
+                      { key: 'weeklyReport', label: t('notifications.weeklyReport.label'), desc: t('notifications.weeklyReport.desc') },
+                      { key: 'monthlyReport', label: t('notifications.monthlyReport.label'), desc: t('notifications.monthlyReport.desc') },
                     ].map((item) => (
                       <div key={item.key} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg">
                         <div>
@@ -277,19 +279,19 @@ export default function ConfiguracionPage() {
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-6">
                   <ShieldCheckIcon className="h-6 w-6 text-[#3E667D]" />
-                  <h2 className="text-2xl font-bold text-gray-900">Privacidad</h2>
+                  <h2 className="text-2xl font-bold text-gray-900">{t('privacy.title')}</h2>
                 </div>
 
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Visibilidad del Perfil
+                      {t('privacy.profileVisibility')}
                     </label>
                     <SearchableSelect
                       options={[
-                        { value: 'public', label: 'Público - Visible para todos' },
-                        { value: 'team', label: 'Equipo - Solo mi red puede verlo' },
-                        { value: 'private', label: 'Privado - Solo yo puedo verlo' },
+                        { value: 'public', label: t('privacy.visibility.public') },
+                        { value: 'team', label: t('privacy.visibility.team') },
+                        { value: 'private', label: t('privacy.visibility.private') },
                       ]}
                       value={settings.profileVisibility}
                       onChange={(val) => handleChange('profileVisibility', val)}
@@ -302,8 +304,8 @@ export default function ConfiguracionPage() {
                     <div className="flex items-start gap-3">
                       <EyeIcon className="h-5 w-5 text-gray-600 mt-1" />
                       <div>
-                        <p className="font-medium text-gray-900">Mostrar Correo Electrónico</p>
-                        <p className="text-sm text-gray-600">Otros pueden ver tu correo electrónico</p>
+                        <p className="font-medium text-gray-900">{t('privacy.showEmail.label')}</p>
+                        <p className="text-sm text-gray-600">{t('privacy.showEmail.desc')}</p>
                       </div>
                     </div>
                     <button
@@ -324,8 +326,8 @@ export default function ConfiguracionPage() {
                     <div className="flex items-start gap-3">
                       <EyeIcon className="h-5 w-5 text-gray-600 mt-1" />
                       <div>
-                        <p className="font-medium text-gray-900">Mostrar Teléfono</p>
-                        <p className="text-sm text-gray-600">Otros pueden ver tu número de teléfono</p>
+                        <p className="font-medium text-gray-900">{t('privacy.showPhone.label')}</p>
+                        <p className="text-sm text-gray-600">{t('privacy.showPhone.desc')}</p>
                       </div>
                     </div>
                     <button
@@ -346,8 +348,8 @@ export default function ConfiguracionPage() {
                     <div className="flex items-start gap-3">
                       <EnvelopeIcon className="h-5 w-5 text-gray-600 mt-1" />
                       <div>
-                        <p className="font-medium text-gray-900">Permitir Mensajes</p>
-                        <p className="text-sm text-gray-600">Otros distribuidores pueden enviarte mensajes</p>
+                        <p className="font-medium text-gray-900">{t('privacy.allowMessages.label')}</p>
+                        <p className="text-sm text-gray-600">{t('privacy.allowMessages.desc')}</p>
                       </div>
                     </div>
                     <button
@@ -372,13 +374,13 @@ export default function ConfiguracionPage() {
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-6">
                   <GlobeAltIcon className="h-6 w-6 text-[#3E667D]" />
-                  <h2 className="text-2xl font-bold text-gray-900">Idioma y Región</h2>
+                  <h2 className="text-2xl font-bold text-gray-900">{t('language.title')}</h2>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Idioma
+                      {t('language.languageLabel')}
                     </label>
                     <SearchableSelect
                       options={[
@@ -394,13 +396,13 @@ export default function ConfiguracionPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Zona Horaria
+                      {t('language.timezoneLabel')}
                     </label>
                     <SearchableSelect
                       options={[
-                        { value: 'America/Mexico_City', label: 'Ciudad de México (GMT-6)' },
-                        { value: 'America/Monterrey', label: 'Monterrey (GMT-6)' },
-                        { value: 'America/Cancun', label: 'Cancún (GMT-5)' },
+                        { value: 'America/Mexico_City', label: t('language.timezone.mexicoCity') },
+                        { value: 'America/Monterrey', label: t('language.timezone.monterrey') },
+                        { value: 'America/Cancun', label: t('language.timezone.cancun') },
                       ]}
                       value={settings.timezone}
                       onChange={(val) => handleChange('timezone', val)}
@@ -411,12 +413,12 @@ export default function ConfiguracionPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Moneda
+                      {t('language.currencyLabel')}
                     </label>
                     <SearchableSelect
                       options={[
-                        { value: 'MXN', label: 'MXN - Peso Mexicano' },
-                        { value: 'USD', label: 'USD - Dólar Americano' },
+                        { value: 'MXN', label: t('language.currency.mxn') },
+                        { value: 'USD', label: t('language.currency.usd') },
                       ]}
                       value={settings.currency}
                       onChange={(val) => handleChange('currency', val)}
@@ -427,7 +429,7 @@ export default function ConfiguracionPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Formato de Fecha
+                      {t('language.dateFormatLabel')}
                     </label>
                     <SearchableSelect
                       options={[
@@ -450,7 +452,7 @@ export default function ConfiguracionPage() {
               <CardContent className="p-6">
                 <div className="flex items-center gap-3 mb-6">
                   <LockClosedIcon className="h-6 w-6 text-[#3E667D]" />
-                  <h2 className="text-2xl font-bold text-gray-900">Seguridad</h2>
+                  <h2 className="text-2xl font-bold text-gray-900">{t('security.title')}</h2>
                 </div>
 
                 <div className="space-y-4">
@@ -458,8 +460,8 @@ export default function ConfiguracionPage() {
                     <div className="flex items-start gap-3">
                       <ShieldCheckIcon className="h-5 w-5 text-gray-600 mt-1" />
                       <div>
-                        <p className="font-medium text-gray-900">Autenticación de Dos Factores</p>
-                        <p className="text-sm text-gray-600">Agrega una capa extra de seguridad</p>
+                        <p className="font-medium text-gray-900">{t('security.twoFactor.label')}</p>
+                        <p className="text-sm text-gray-600">{t('security.twoFactor.desc')}</p>
                       </div>
                     </div>
                     <button
@@ -478,14 +480,14 @@ export default function ConfiguracionPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tiempo de Sesión (minutos)
+                      {t('security.sessionTimeoutLabel')}
                     </label>
                     <SearchableSelect
                       options={[
-                        { value: '15', label: '15 minutos' },
-                        { value: '30', label: '30 minutos' },
-                        { value: '60', label: '1 hora' },
-                        { value: '120', label: '2 horas' },
+                        { value: '15', label: t('security.sessionTimeout.min15') },
+                        { value: '30', label: t('security.sessionTimeout.min30') },
+                        { value: '60', label: t('security.sessionTimeout.hour1') },
+                        { value: '120', label: t('security.sessionTimeout.hour2') },
                       ]}
                       value={settings.sessionTimeout}
                       onChange={(val) => handleChange('sessionTimeout', val)}
@@ -498,8 +500,8 @@ export default function ConfiguracionPage() {
                     <div className="flex items-start gap-3">
                       <BellIcon className="h-5 w-5 text-gray-600 mt-1" />
                       <div>
-                        <p className="font-medium text-gray-900">Alertas de Inicio de Sesión</p>
-                        <p className="text-sm text-gray-600">Notificar sobre inicios de sesión nuevos</p>
+                        <p className="font-medium text-gray-900">{t('security.loginAlerts.label')}</p>
+                        <p className="text-sm text-gray-600">{t('security.loginAlerts.desc')}</p>
                       </div>
                     </div>
                     <button
@@ -520,9 +522,9 @@ export default function ConfiguracionPage() {
                     <Button
                       variant="outline"
                       className="w-full"
-                      onClick={() => toast.info('Abriendo cambio de contraseña')}
+                      onClick={() => toast.info(t('toast.openChangePassword'))}
                     >
-                      Cambiar Contraseña
+                      {t('security.changePassword')}
                     </Button>
                   </div>
                 </div>
@@ -532,10 +534,10 @@ export default function ConfiguracionPage() {
             {/* Save Button */}
             <div className="flex gap-3">
               <Button variant="default" className="flex-1" onClick={handleSave}>
-                Guardar Cambios
+                {t('save')}
               </Button>
-              <Button variant="outline" onClick={() => toast.info('Cambios descartados')}>
-                Cancelar
+              <Button variant="outline" onClick={() => toast.info(t('toast.discarded'))}>
+                {t('cancel')}
               </Button>
             </div>
           </div>
