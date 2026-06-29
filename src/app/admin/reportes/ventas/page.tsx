@@ -416,19 +416,33 @@ function SaleDetailModal({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
 
           {/* Puntos generados por la venta (MLM) */}
           {view.accumulatedPoints != null && (
-            <div className="flex items-center justify-between rounded-xl border border-[#a7c1e2] bg-[#C8DDF2]/20 p-4">
-              <div className="flex items-center gap-2">
-                <SparklesIcon className="h-5 w-5 text-[#3E667D]" />
-                <div>
-                  <p className="text-sm font-semibold text-[#2f5165]">Puntos de la venta</p>
-                  <p className="text-xs text-gray-500">
-                    Se acreditan al periodo del distribuidor{sale.customerName ? '' : ' (solo ventas con cliente distribuidor)'}.
-                  </p>
+            <div className="rounded-xl border border-[#a7c1e2] bg-[#C8DDF2]/20 p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <SparklesIcon className="h-5 w-5 text-[#3E667D]" />
+                  <div>
+                    <p className="text-sm font-semibold text-[#2f5165]">Puntos de la venta</p>
+                    <p className="text-xs text-gray-500">
+                      Se acreditan al periodo del distribuidor{sale.customerName ? '' : ' (solo ventas con cliente distribuidor)'}.
+                    </p>
+                  </div>
                 </div>
+                <span className="text-lg font-bold text-[#3E667D]">
+                  +{Number(view.accumulatedPoints).toLocaleString('es-MX')}
+                </span>
               </div>
-              <span className="text-lg font-bold text-[#3E667D]">
-                +{Number(view.accumulatedPoints).toLocaleString('es-MX')}
-              </span>
+              {view.pointsBalanceAfter != null && (
+                <div className="mt-3 flex items-center justify-between border-t border-[#a7c1e2]/60 pt-3 text-sm">
+                  <span className="text-gray-600">Saldo del periodo</span>
+                  <span className="font-medium text-gray-900">
+                    {Number(view.pointsBalanceBefore ?? 0).toLocaleString('es-MX')}
+                    <span className="mx-1.5 text-gray-400">→</span>
+                    <span className="text-[#3E667D] font-bold">
+                      {Number(view.pointsBalanceAfter).toLocaleString('es-MX')}
+                    </span>
+                  </span>
+                </div>
+              )}
             </div>
           )}
 

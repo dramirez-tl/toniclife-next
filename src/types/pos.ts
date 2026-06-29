@@ -247,6 +247,10 @@ export interface Sale {
   payments: SalePayment[];
   createdAt: string;
   accumulatedPoints?: number;
+  /** Saldo de puntos del periodo del cliente ANTES de esta venta. */
+  pointsBalanceBefore?: number;
+  /** Saldo de puntos del periodo del cliente DESPUÉS de esta venta. */
+  pointsBalanceAfter?: number;
 }
 
 export interface CreateSaleItemInput {
