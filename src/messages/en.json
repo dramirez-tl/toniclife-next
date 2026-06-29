@@ -417,5 +417,88 @@
       "welcome": "Welcome back!",
       "emailLinked": "Your account already has a linked email. Please sign in with your email address."
     }
+  },
+  "distributor": {
+    "nav": {
+      "home": "Home",
+      "network": "My Network",
+      "commissions": "Commissions",
+      "sales": "Sales",
+      "orders": "My Orders",
+      "shareCart": "Share cart",
+      "materials": "Materials",
+      "training": "Training",
+      "payments": "Payments",
+      "notifications": "Notifications",
+      "settings": "Settings"
+    },
+    "groups": {
+      "business": "My Business",
+      "tools": "Tools",
+      "account": "My account",
+      "comingSoon": "Coming soon",
+      "soon": "Available soon",
+      "more": "More"
+    },
+    "comingSoonItems": {
+      "reports": "Reports",
+      "goals": "Goals",
+      "ranking": "Ranking",
+      "activity": "Activity",
+      "prospects": "Prospects",
+      "salesScripts": "Sales Scripts",
+      "events": "Events",
+      "communication": "Communication",
+      "support": "Support"
+    },
+    "comingSoonRoutes": {
+      "actividad": "Activity",
+      "clientes": "My customers",
+      "comunicacion": "Communication",
+      "eventos": "Events",
+      "integraciones": "Integrations",
+      "inventario": "My inventory",
+      "metas": "Goals",
+      "prospectos": "Prospects",
+      "ranking": "Ranking",
+      "reportes": "Reports",
+      "scripts": "Sales scripts",
+      "soporte": "Support"
+    },
+    "sidebar": {
+      "distributor": "Distributor",
+      "myNetwork": "My Network",
+      "total": "Total",
+      "active": "Active",
+      "inactive": "Inactive",
+      "qualified": "Qualified this period",
+      "pointsToQualify": "Points to qualify",
+      "copied": "Distributor number copied",
+      "copyTitle": "Copy distributor number",
+      "goToPanel": "Go to distributor panel"
+    },
+    "footer": {
+      "goToStore": "Go to Store",
+      "viewTutorial": "View tutorial",
+      "backToSite": "Back to site",
+      "logout": "Log out",
+      "loggedOut": "Signed out successfully",
+      "logoutError": "Error signing out"
+    },
+    "topnav": {
+      "hello": "Hi, {name}",
+      "id": "ID {code}",
+      "notifications": "Notifications",
+      "viewTutorial": "View tutorial"
+    },
+    "moremenu": {
+      "title": "More options",
+      "soon": "Soon",
+      "close": "Close"
+    },
+    "comingSoonPage": {
+      "body": "We're finishing this section. Very soon you'll be able to use it with your real information.",
+      "back": "Back to my panel"
+    }
   }
 }

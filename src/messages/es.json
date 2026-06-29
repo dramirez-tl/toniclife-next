@@ -417,5 +417,88 @@
       "welcome": "¡Bienvenid@ de nuevo!",
       "emailLinked": "Tu cuenta ya tiene un correo vinculado. Por favor inicia sesión con tu correo electrónico."
     }
+  },
+  "distributor": {
+    "nav": {
+      "home": "Inicio",
+      "network": "Mi Red",
+      "commissions": "Comisiones",
+      "sales": "Ventas",
+      "orders": "Mis Pedidos",
+      "shareCart": "Compartir carrito",
+      "materials": "Materiales",
+      "training": "Capacitación",
+      "payments": "Pagos",
+      "notifications": "Notificaciones",
+      "settings": "Configuración"
+    },
+    "groups": {
+      "business": "Mi Negocio",
+      "tools": "Herramientas",
+      "account": "Mi cuenta",
+      "comingSoon": "Próximamente",
+      "soon": "Disponible pronto",
+      "more": "Más"
+    },
+    "comingSoonItems": {
+      "reports": "Reportes",
+      "goals": "Metas",
+      "ranking": "Ranking",
+      "activity": "Actividad",
+      "prospects": "Prospectos",
+      "salesScripts": "Scripts de Venta",
+      "events": "Eventos",
+      "communication": "Comunicación",
+      "support": "Soporte"
+    },
+    "comingSoonRoutes": {
+      "actividad": "Actividad",
+      "clientes": "Mis clientes",
+      "comunicacion": "Comunicación",
+      "eventos": "Eventos",
+      "integraciones": "Integraciones",
+      "inventario": "Mi inventario",
+      "metas": "Metas",
+      "prospectos": "Prospectos",
+      "ranking": "Ranking",
+      "reportes": "Reportes",
+      "scripts": "Guiones de venta",
+      "soporte": "Soporte"
+    },
+    "sidebar": {
+      "distributor": "Distribuidor",
+      "myNetwork": "Mi Red",
+      "total": "Total",
+      "active": "Activos",
+      "inactive": "Inactivos",
+      "qualified": "Calificado este periodo",
+      "pointsToQualify": "Puntos para calificar",
+      "copied": "Número de distribuidor copiado",
+      "copyTitle": "Copiar número de distribuidor",
+      "goToPanel": "Ir al panel de distribuidor"
+    },
+    "footer": {
+      "goToStore": "Ir a la Tienda",
+      "viewTutorial": "Ver tutorial",
+      "backToSite": "Volver al sitio",
+      "logout": "Cerrar sesión",
+      "loggedOut": "Sesión cerrada correctamente",
+      "logoutError": "Error al cerrar sesión"
+    },
+    "topnav": {
+      "hello": "Hola, {name}",
+      "id": "ID {code}",
+      "notifications": "Notificaciones",
+      "viewTutorial": "Ver tutorial"
+    },
+    "moremenu": {
+      "title": "Más opciones",
+      "soon": "Pronto",
+      "close": "Cerrar"
+    },
+    "comingSoonPage": {
+      "body": "Estamos terminando esta sección. Muy pronto vas a poder usarla con tu información real.",
+      "back": "Volver a mi panel"
+    }
   }
 }

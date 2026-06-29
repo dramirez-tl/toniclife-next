@@ -25,60 +25,67 @@ import {
 } from '@heroicons/react/24/outline';
 
 export interface NavLink {
+  // key = clave i18n bajo distributor.nav.* ; name = fallback en español.
+  key: string;
   name: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
 }
 
 export interface NavGroup {
+  // key = clave i18n bajo distributor.groups.* ; title = fallback en español.
+  key: string;
   title: string;
   items: NavLink[];
 }
 
 // Destinos núcleo (pestañas principales + tope del sidebar).
 export const CORE_NAV: NavLink[] = [
-  { name: 'Inicio', href: '/distribuidor', icon: HomeIcon },
-  { name: 'Mi Red', href: '/distribuidor/red', icon: UsersIcon },
-  { name: 'Comisiones', href: '/distribuidor/comisiones', icon: CurrencyDollarIcon },
-  { name: 'Ventas', href: '/distribuidor/ventas', icon: ChartBarIcon },
+  { key: 'home', name: 'Inicio', href: '/distribuidor', icon: HomeIcon },
+  { key: 'network', name: 'Mi Red', href: '/distribuidor/red', icon: UsersIcon },
+  { key: 'commissions', name: 'Comisiones', href: '/distribuidor/comisiones', icon: CurrencyDollarIcon },
+  { key: 'sales', name: 'Ventas', href: '/distribuidor/ventas', icon: ChartBarIcon },
 ];
 
 // Secundarios, agrupados bajo "Más".
 export const MORE_GROUPS: NavGroup[] = [
   {
+    key: 'business',
     title: 'Mi Negocio',
     items: [
-      { name: 'Mis Pedidos', href: '/distribuidor/pedidos', icon: ClipboardDocumentListIcon },
-      { name: 'Compartir carrito', href: '/distribuidor/compartir-carrito', icon: ShoppingCartIcon },
+      { key: 'orders', name: 'Mis Pedidos', href: '/distribuidor/pedidos', icon: ClipboardDocumentListIcon },
+      { key: 'shareCart', name: 'Compartir carrito', href: '/distribuidor/compartir-carrito', icon: ShoppingCartIcon },
     ],
   },
   {
+    key: 'tools',
     title: 'Herramientas',
     items: [
-      { name: 'Materiales', href: '/distribuidor/materiales', icon: FolderIcon },
-      { name: 'Capacitación', href: '/distribuidor/capacitacion', icon: AcademicCapIcon },
+      { key: 'materials', name: 'Materiales', href: '/distribuidor/materiales', icon: FolderIcon },
+      { key: 'training', name: 'Capacitación', href: '/distribuidor/capacitacion', icon: AcademicCapIcon },
     ],
   },
   {
+    key: 'account',
     title: 'Mi cuenta',
     items: [
-      { name: 'Pagos', href: '/distribuidor/pagos', icon: DocumentTextIcon },
-      { name: 'Notificaciones', href: '/distribuidor/notificaciones', icon: BellIcon },
-      { name: 'Configuración', href: '/distribuidor/configuracion', icon: Cog6ToothIcon },
+      { key: 'payments', name: 'Pagos', href: '/distribuidor/pagos', icon: DocumentTextIcon },
+      { key: 'notifications', name: 'Notificaciones', href: '/distribuidor/notificaciones', icon: BellIcon },
+      { key: 'settings', name: 'Configuración', href: '/distribuidor/configuracion', icon: Cog6ToothIcon },
     ],
   },
 ];
 
 // Módulos aún no habilitados (se muestran como "Próximamente", no clickeables).
 // Reportes/Metas/Ranking/Actividad se liberarán poco a poco.
-export const COMING_SOON: { name: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { name: 'Reportes', icon: ChartBarIcon },
-  { name: 'Metas', icon: FlagIcon },
-  { name: 'Ranking', icon: TrophyIcon },
-  { name: 'Actividad', icon: ClockIcon },
-  { name: 'Prospectos', icon: UserGroupIcon },
-  { name: 'Scripts de Venta', icon: DocumentDuplicateIcon },
-  { name: 'Eventos', icon: CalendarIcon },
-  { name: 'Comunicación', icon: ChatBubbleLeftRightIcon },
-  { name: 'Soporte', icon: PhoneIcon },
+export const COMING_SOON: { key: string; name: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { key: 'reports', name: 'Reportes', icon: ChartBarIcon },
+  { key: 'goals', name: 'Metas', icon: FlagIcon },
+  { key: 'ranking', name: 'Ranking', icon: TrophyIcon },
+  { key: 'activity', name: 'Actividad', icon: ClockIcon },
+  { key: 'prospects', name: 'Prospectos', icon: UserGroupIcon },
+  { key: 'salesScripts', name: 'Scripts de Venta', icon: DocumentDuplicateIcon },
+  { key: 'events', name: 'Eventos', icon: CalendarIcon },
+  { key: 'communication', name: 'Comunicación', icon: ChatBubbleLeftRightIcon },
+  { key: 'support', name: 'Soporte', icon: PhoneIcon },
 ];

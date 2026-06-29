@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { DistributorSidebar } from '@/components/distributor/DistributorSidebar';
 import { DistributorTopNav } from '@/components/distributor/DistributorTopNav';
@@ -13,20 +14,21 @@ import { DistributorLocaleSync } from '@/components/distributor/DistributorLocal
 
 // Secciones que aún viven sobre datos de demostración (no conectadas al API).
 // Se muestran como "próximamente" para no presentar números ficticios como
-// reales (auditoría jun-2026). Al conectar una sección, quitar su entrada.
+// reales (auditoría jun-2026). El valor es la CLAVE i18n bajo
+// distributor.comingSoonRoutes.* Al conectar una sección, quitar su entrada.
 const COMING_SOON_ROUTES: Record<string, string> = {
-  '/distribuidor/actividad': 'Actividad',
-  '/distribuidor/clientes': 'Mis clientes',
-  '/distribuidor/comunicacion': 'Comunicación',
-  '/distribuidor/eventos': 'Eventos',
-  '/distribuidor/integraciones': 'Integraciones',
-  '/distribuidor/inventario': 'Mi inventario',
-  '/distribuidor/metas': 'Metas',
-  '/distribuidor/prospectos': 'Prospectos',
-  '/distribuidor/ranking': 'Ranking',
-  '/distribuidor/reportes': 'Reportes',
-  '/distribuidor/scripts': 'Guiones de venta',
-  '/distribuidor/soporte': 'Soporte',
+  '/distribuidor/actividad': 'actividad',
+  '/distribuidor/clientes': 'clientes',
+  '/distribuidor/comunicacion': 'comunicacion',
+  '/distribuidor/eventos': 'eventos',
+  '/distribuidor/integraciones': 'integraciones',
+  '/distribuidor/inventario': 'inventario',
+  '/distribuidor/metas': 'metas',
+  '/distribuidor/prospectos': 'prospectos',
+  '/distribuidor/ranking': 'ranking',
+  '/distribuidor/reportes': 'reportes',
+  '/distribuidor/scripts': 'scripts',
+  '/distribuidor/soporte': 'soporte',
 };
 
 // Roles que tienen acceso al panel de distribuidor (canonical + legacy-migration + admin)
@@ -52,7 +54,11 @@ export default function DistributorLayout({
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const pathname = usePathname();
-  const comingSoonTitle = pathname ? COMING_SOON_ROUTES[pathname] : undefined;
+  const t = useTranslations('distributor');
+  const comingSoonKey = pathname ? COMING_SOON_ROUTES[pathname] : undefined;
+  const comingSoonTitle = comingSoonKey
+    ? t(`comingSoonRoutes.${comingSoonKey}`)
+    : undefined;
 
   return (
     <AuthGuard requiredRoles={DISTRIBUTOR_ROLES}>

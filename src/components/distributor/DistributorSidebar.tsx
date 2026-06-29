@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   ShoppingCartIcon,
   ArrowLeftOnRectangleIcon,
@@ -47,6 +48,7 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const user = useAppSelector(selectUser);
+  const t = useTranslations('distributor');
 
   const { networkSummary, profile, points } = useDistributorDashboard();
 
@@ -61,10 +63,10 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
   const handleLogout = async () => {
     try {
       await dispatch(logoutAsync()).unwrap();
-      toast.success('Sesión cerrada correctamente');
+      toast.success(t('footer.loggedOut'));
       router.push('/login');
     } catch {
-      toast.error('Error al cerrar sesión');
+      toast.error(t('footer.logoutError'));
     }
   };
 
@@ -76,8 +78,8 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
   };
 
   const getUserDisplayName = () => {
-    if (!user) return 'Distribuidor';
-    return `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Distribuidor';
+    if (!user) return t('sidebar.distributor');
+    return `${user.firstName || ''} ${user.lastName || ''}`.trim() || t('sidebar.distributor');
   };
 
   const isCoreActive = (href: string) =>
@@ -98,7 +100,7 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
         <Link
           href="/distribuidor"
           className="flex items-center"
-          aria-label="Ir al panel de distribuidor"
+          aria-label={t('sidebar.goToPanel')}
           onClick={onNavigate}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -123,7 +125,7 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
                 {user?.countryCode && <span className="ml-1">{countryCodeToFlag(user.countryCode)}</span>}
               </p>
               <p className="text-xs text-yellow-400 font-medium mt-0.5">
-                {profile?.rankLabel || 'Distribuidor'}
+                {profile?.rankLabel || t('sidebar.distributor')}
               </p>
             </div>
           </div>
@@ -133,12 +135,12 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
               type="button"
               onClick={() => {
                 navigator.clipboard?.writeText(String(profile.code));
-                toast.success('Número de distribuidor copiado');
+                toast.success(t('sidebar.copied'));
               }}
               className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-white/5 px-2 py-1.5 transition-colors hover:bg-white/10"
-              title="Copiar número de distribuidor"
+              title={t('sidebar.copyTitle')}
             >
-              <span className="text-[10px] uppercase tracking-wide text-white/50">Distribuidor</span>
+              <span className="text-[10px] uppercase tracking-wide text-white/50">{t('sidebar.distributor')}</span>
               <span className="text-xs font-bold text-white">#{profile.code}</span>
               <ClipboardDocumentIcon className="h-3.5 w-3.5 text-white/50" />
             </button>
@@ -147,32 +149,32 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
           <div className="space-y-2 mt-3">
             {/* Network breakdown */}
             <div className="bg-white/5 rounded-lg p-2">
-              <p className="text-[10px] text-white/60 uppercase tracking-wide text-center mb-1.5">Mi Red</p>
+              <p className="text-[10px] text-white/60 uppercase tracking-wide text-center mb-1.5">{t('sidebar.myNetwork')}</p>
               <div className="grid grid-cols-3 gap-1">
                 <div className="text-center">
                   <p className="text-sm font-bold text-white">
                     {(networkSummary?.totalNetwork || 0).toLocaleString()}
                   </p>
-                  <p className="text-[9px] text-white/50">Total</p>
+                  <p className="text-[9px] text-white/50">{t('sidebar.total')}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-sm font-bold text-emerald-400">
                     {(networkSummary?.totalDistributors || 0).toLocaleString()}
                   </p>
-                  <p className="text-[9px] text-white/50">Activos</p>
+                  <p className="text-[9px] text-white/50">{t('sidebar.active')}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-sm font-bold text-white/40">
                     {(networkSummary?.inactiveDistributors || 0).toLocaleString()}
                   </p>
-                  <p className="text-[9px] text-white/50">Inactivos</p>
+                  <p className="text-[9px] text-white/50">{t('sidebar.inactive')}</p>
                 </div>
               </div>
             </div>
             {/* Puntos para calificar (mínimo personal del periodo) */}
             <div className="bg-white/5 rounded-lg p-2">
               <p className="text-[10px] text-white/60 uppercase tracking-wide text-center mb-1">
-                {points?.isPersonalQualified ? 'Calificado este periodo' : 'Puntos para calificar'}
+                {points?.isPersonalQualified ? t('sidebar.qualified') : t('sidebar.pointsToQualify')}
               </p>
               <p className="text-center text-sm font-bold text-white">
                 {(points?.personalPoints || 0).toLocaleString()}{' '}
@@ -207,7 +209,7 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
                 data-tour={CORE_TOUR_KEY[item.href]}
               >
                 <item.icon className="h-5 w-5 flex-shrink-0" />
-                <span>{item.name}</span>
+                <span>{t(`nav.${item.key}`)}</span>
               </Link>
             </li>
           ))}
@@ -215,9 +217,9 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
 
         {/* Grupos secundarios */}
         {MORE_GROUPS.map((group) => (
-          <div key={group.title} className="mt-5" data-tour={GROUP_TOUR_KEY[group.title]}>
+          <div key={group.key} className="mt-5" data-tour={GROUP_TOUR_KEY[group.title]}>
             <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-white/40">
-              {group.title}
+              {t(`groups.${group.key}`)}
             </p>
             <ul className="space-y-1">
               {group.items.map((item) => (
@@ -229,7 +231,7 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
                     data-tour={ITEM_TOUR_KEY[item.href]}
                   >
                     <item.icon className="h-5 w-5 flex-shrink-0" />
-                    <span>{item.name}</span>
+                    <span>{t(`nav.${item.key}`)}</span>
                   </Link>
                 </li>
               ))}
@@ -240,17 +242,17 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
         {/* Próximamente */}
         <div className="mt-5">
           <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-white/40">
-            Próximamente
+            {t('groups.comingSoon')}
           </p>
           <ul className="space-y-1">
             {COMING_SOON.map((item) => (
-              <li key={item.name}>
+              <li key={item.key}>
                 <div
                   className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/25 cursor-not-allowed select-none"
-                  title="Disponible pronto"
+                  title={t('groups.soon')}
                 >
                   <item.icon className="h-5 w-5 flex-shrink-0" />
-                  <span>{item.name}</span>
+                  <span>{t(`comingSoonItems.${item.key}`)}</span>
                 </div>
               </li>
             ))}
@@ -268,7 +270,7 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
             data-tour="d-tienda"
           >
             <ShoppingCartIcon className="h-5 w-5" />
-            <span>Ir a la Tienda</span>
+            <span>{t('footer.goToStore')}</span>
           </Link>
           <button
             type="button"
@@ -277,7 +279,7 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
             data-tour="d-help"
           >
             <QuestionMarkCircleIcon className="h-5 w-5" />
-            <span>Ver tutorial</span>
+            <span>{t('footer.viewTutorial')}</span>
           </button>
           <Link
             href="/"
@@ -285,14 +287,14 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white transition-colors"
           >
             <ArrowLeftOnRectangleIcon className="h-5 w-5" />
-            <span>Volver al sitio</span>
+            <span>{t('footer.backToSite')}</span>
           </Link>
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-red-300 hover:bg-red-500/10 hover:text-red-200 transition-colors"
           >
             <ArrowRightOnRectangleIcon className="h-5 w-5" />
-            <span>Cerrar sesión</span>
+            <span>{t('footer.logout')}</span>
           </button>
         </div>
       </div>

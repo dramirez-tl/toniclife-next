@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   BellIcon,
   EllipsisHorizontalIcon,
@@ -32,6 +33,7 @@ export function DistributorTopNav({ onOpenMore }: DistributorTopNavProps) {
   const pathname = usePathname();
   const user = useAppSelector(selectUser);
   const { profile } = useDistributorDashboard();
+  const t = useTranslations('distributor');
 
   const isActive = (href: string) =>
     href === '/distribuidor' ? pathname === href : pathname.startsWith(href);
@@ -39,8 +41,8 @@ export function DistributorTopNav({ onOpenMore }: DistributorTopNavProps) {
   // "Más" se marca activo cuando la ruta no pertenece a ninguna pestaña núcleo.
   const moreActive = !CORE_NAV.some((item) => isActive(item.href));
 
-  const firstName = user?.firstName || profile?.firstName || 'Distribuidor';
-  const rankLabel = profile?.rankLabel || 'Distribuidor';
+  const firstName = user?.firstName || profile?.firstName || t('sidebar.distributor');
+  const rankLabel = profile?.rankLabel || t('sidebar.distributor');
 
   const tabClass = (active: boolean) =>
     cn(
@@ -55,9 +57,9 @@ export function DistributorTopNav({ onOpenMore }: DistributorTopNavProps) {
         <div className="flex min-w-0 items-center gap-2.5" data-tour="m-profile">
           <RankMedal rank={profile?.rank} size="sm" />
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold leading-tight">Hola, {firstName}</p>
+            <p className="truncate text-sm font-semibold leading-tight">{t('topnav.hello', { name: firstName })}</p>
             <p className="truncate text-[11px] leading-tight text-white/70">
-              {rankLabel} · ID {profile?.code || '—'}
+              {rankLabel} · {t('topnav.id', { code: profile?.code || '—' })}
             </p>
           </div>
         </div>
@@ -66,7 +68,7 @@ export function DistributorTopNav({ onOpenMore }: DistributorTopNavProps) {
             type="button"
             onClick={() => startDistributorTour()}
             className="rounded-full p-2 transition-colors hover:bg-white/10"
-            aria-label="Ver tutorial"
+            aria-label={t('topnav.viewTutorial')}
             data-tour="m-help"
           >
             <QuestionMarkCircleIcon className="h-5 w-5" />
@@ -74,7 +76,7 @@ export function DistributorTopNav({ onOpenMore }: DistributorTopNavProps) {
           <Link
             href="/distribuidor/notificaciones"
             className="rounded-full p-2 transition-colors hover:bg-white/10"
-            aria-label="Notificaciones"
+            aria-label={t('topnav.notifications')}
           >
             <BellIcon className="h-5 w-5" />
           </Link>
@@ -91,7 +93,7 @@ export function DistributorTopNav({ onOpenMore }: DistributorTopNavProps) {
             data-tour={CORE_TOUR_KEY[item.href]}
           >
             <item.icon className="h-5 w-5" />
-            <span>{item.name}</span>
+            <span>{t(`nav.${item.key}`)}</span>
           </Link>
         ))}
         <Button
@@ -102,7 +104,7 @@ export function DistributorTopNav({ onOpenMore }: DistributorTopNavProps) {
           data-tour="m-more"
         >
           <EllipsisHorizontalIcon className="h-5 w-5" />
-          <span>Más</span>
+          <span>{t('groups.more')}</span>
         </Button>
       </nav>
     </div>

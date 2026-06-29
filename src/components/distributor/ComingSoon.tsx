@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { Hourglass } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { Button } from '@/components/ui/button';
  * COMING_SOON_ROUTES en el layout del panel.
  */
 export function ComingSoon({ title }: { title: string }) {
+  const t = useTranslations('distributor');
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
       <Card className="max-w-md text-center">
@@ -20,12 +22,9 @@ export function ComingSoon({ title }: { title: string }) {
             <Hourglass className="h-8 w-8 text-primary" />
           </div>
           <h1 className="text-2xl font-bold text-primary">{title}</h1>
-          <p className="text-muted-foreground">
-            Estamos terminando esta sección. Muy pronto vas a poder usarla con
-            tu información real.
-          </p>
+          <p className="text-muted-foreground">{t('comingSoonPage.body')}</p>
           <Button asChild>
-            <Link href="/distribuidor">Volver a mi panel</Link>
+            <Link href="/distribuidor">{t('comingSoonPage.back')}</Link>
           </Button>
         </CardContent>
       </Card>
