@@ -133,7 +133,12 @@ export default function PosPage() {
   );
 
   const branchOptions = useMemo(
-    () => posBranches.map((b: Branch) => ({ value: b.id, label: b.name })),
+    () =>
+      posBranches.map((b: Branch) => ({
+        value: b.id,
+        // Clave de sucursal (code) + nombre, p.ej. "268 · USA Tulsa Sucursal TL".
+        label: b.code ? `${b.code} · ${b.name}` : b.name,
+      })),
     [posBranches],
   );
 
@@ -498,7 +503,7 @@ export default function PosPage() {
                   onChange={handleBranchChange}
                   placeholder="Buscar sucursal..."
                   showAllOption={false}
-                  className="w-full"
+                  className="w-full bg-white text-gray-900"
                 />
               </div>
             )}
@@ -506,7 +511,7 @@ export default function PosPage() {
               <div className="hidden sm:flex items-center gap-2 ml-4">
                 <MapPinIcon className="h-5 w-5 text-white/60 flex-shrink-0" />
                 <span className="px-3 py-1.5 bg-white/15 border border-white/25 rounded-lg text-sm font-medium">
-                  {selectedBranch.name}
+                  {selectedBranch.code ? `${selectedBranch.code} · ${selectedBranch.name}` : selectedBranch.name}
                 </span>
               </div>
             )}
