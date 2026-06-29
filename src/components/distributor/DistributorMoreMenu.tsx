@@ -14,6 +14,7 @@ import { useAppDispatch } from '@/store/hooks';
 import { logoutAsync } from '@/store/slices/authSlice';
 import { toast } from 'sonner';
 import { MORE_GROUPS, COMING_SOON } from './distributorNav';
+import { DistributorLanguageToggle } from './DistributorLanguageToggle';
 
 interface DistributorMoreMenuProps {
   onNavigate?: () => void;
@@ -109,6 +110,8 @@ export function DistributorMoreMenu({ onNavigate }: DistributorMoreMenuProps) {
 
       {/* Acciones */}
       <div className="border-t border-gray-100 p-3 space-y-1">
+        {/* Selector de idioma ES/EN (visible; persiste en la cuenta) */}
+        <DistributorLanguageToggle tone="light" className="mb-1" />
         <Link
           href="/productos"
           onClick={onNavigate}

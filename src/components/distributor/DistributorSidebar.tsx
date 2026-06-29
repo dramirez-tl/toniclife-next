@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { useDistributorDashboard } from '@/hooks/useDistributor';
 import { startDistributorTour } from '@/lib/distributorTour';
 import { CORE_NAV, MORE_GROUPS, COMING_SOON } from './distributorNav';
+import { DistributorLanguageToggle } from './DistributorLanguageToggle';
 
 // Anclas del tour guiado (ver distributorTour.ts).
 const CORE_TOUR_KEY: Record<string, string> = {
@@ -262,6 +263,8 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
 
       {/* Footer Actions */}
       <div className="border-t border-white/10 p-3">
+        {/* Selector de idioma ES/EN (visible; persiste en la cuenta) */}
+        <DistributorLanguageToggle tone="dark" className="mb-1" />
         <div className="space-y-1">
           <Link
             href="/productos"
