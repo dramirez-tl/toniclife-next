@@ -29,6 +29,7 @@ export const distributorKeys = {
   topPerformers: (limit: number) => [...distributorKeys.all, 'topPerformers', limit] as const,
   goals: () => [...distributorKeys.all, 'goals'] as const,
   referralLink: () => [...distributorKeys.all, 'referralLink'] as const,
+  preferences: () => [...distributorKeys.all, 'preferences'] as const,
 };
 
 /**
@@ -230,6 +231,29 @@ export function useDistributorDashboard(periodId?: string) {
       topPerformersQuery.refetch();
     },
   };
+}
+
+/**
+ * Preferencias del panel (idioma). Fuente de verdad = cuenta (users.language).
+ */
+export function useDistributorPreferences() {
+  return useQuery({
+    queryKey: distributorKeys.preferences(),
+    queryFn: () => distributorApi.getPreferences(),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  });
+}
+
+export function useUpdateDistributorPreferences() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (language: 'es' | 'en') =>
+      distributorApi.updatePreferences(language),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: distributorKeys.preferences() });
+    },
+  });
 }
 
 /**

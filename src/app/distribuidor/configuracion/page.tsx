@@ -1,9 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  useDistributorPreferences,
+  useUpdateDistributorPreferences,
+} from '@/hooks/useDistributor';
+import {
+  DEFAULT_LOCALE,
+  buildLocale,
+  localeCountry,
+} from '@/i18n/config';
+import { getStoredLocale, setStoredLocale } from '@/lib/store-locale';
 import {
   Cog6ToothIcon,
   BellIcon,
@@ -48,6 +58,17 @@ export default function ConfiguracionPage() {
     loginAlerts: true,
   });
 
+  // Idioma: preferencia REAL de la cuenta (users.language). El resto de ajustes
+  // de esta pantalla aún son demostrativos (no persisten).
+  const { data: prefs } = useDistributorPreferences();
+  const updatePrefs = useUpdateDistributorPreferences();
+
+  useEffect(() => {
+    if (prefs?.language) {
+      setSettings((s) => ({ ...s, language: prefs.language }));
+    }
+  }, [prefs?.language]);
+
   const handleToggle = (key: string) => {
     setSettings({ ...settings, [key]: !settings[key as keyof typeof settings] });
     toast.success('Configuración actualizada');
@@ -55,6 +76,21 @@ export default function ConfiguracionPage() {
 
   const handleChange = (key: string, value: string) => {
     setSettings({ ...settings, [key]: value });
+  };
+
+  // Cambia el idioma del panel: persiste en la cuenta, ajusta la cookie de
+  // locale y recarga para que todo el panel se muestre en el nuevo idioma.
+  const handleLanguageChange = (lang: string) => {
+    const language: 'es' | 'en' = lang === 'en' ? 'en' : 'es';
+    setSettings((s) => ({ ...s, language }));
+    updatePrefs.mutate(language, {
+      onSuccess: () => {
+        const stored = getStoredLocale() || DEFAULT_LOCALE;
+        setStoredLocale(buildLocale(language, localeCountry(stored)));
+        window.location.reload();
+      },
+      onError: () => toast.error('No se pudo cambiar el idioma'),
+    });
   };
 
   const handleSave = () => {
@@ -350,7 +386,7 @@ export default function ConfiguracionPage() {
                         { value: 'en', label: 'English' },
                       ]}
                       value={settings.language}
-                      onChange={(val) => handleChange('language', val)}
+                      onChange={handleLanguageChange}
                       showAllOption={false}
                       className="w-full"
                     />

@@ -9,6 +9,7 @@ import { DistributorMoreMenu } from '@/components/distributor/DistributorMoreMen
 import { ComingSoon } from '@/components/distributor/ComingSoon';
 import { DistributorTour } from '@/components/distributor/DistributorTour';
 import { OnboardingGate } from '@/components/distributor/OnboardingGate';
+import { DistributorLocaleSync } from '@/components/distributor/DistributorLocaleSync';
 
 // Secciones que aún viven sobre datos de demostración (no conectadas al API).
 // Se muestran como "próximamente" para no presentar números ficticios como
@@ -55,6 +56,8 @@ export default function DistributorLayout({
 
   return (
     <AuthGuard requiredRoles={DISTRIBUTOR_ROLES}>
+      {/* Aplica el idioma guardado en la cuenta (users.language) al panel */}
+      <DistributorLocaleSync />
       {/* Tour guiado de primera vez (omitible + repetible desde "Ver tutorial") */}
       <DistributorTour />
       <div className="min-h-screen bg-gray-50">

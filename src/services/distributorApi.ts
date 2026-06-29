@@ -201,6 +201,27 @@ class DistributorApi {
   }
 
   /**
+   * Preferencias del panel (idioma). Backend: GET /distributor/preferences
+   */
+  async getPreferences(): Promise<{ language: 'es' | 'en' }> {
+    const { data } = await api.get<{ language: 'es' | 'en' }>(
+      '/distributor/preferences',
+    );
+    return data;
+  }
+
+  /**
+   * Actualiza el idioma preferido. Backend: PATCH /distributor/preferences
+   */
+  async updatePreferences(language: 'es' | 'en'): Promise<{ language: 'es' | 'en' }> {
+    const { data } = await api.patch<{ language: 'es' | 'en' }>(
+      '/distributor/preferences',
+      { language },
+    );
+    return data;
+  }
+
+  /**
    * Obtiene los puntos del periodo actual
    * Backend: GET /distributor/points
    */
