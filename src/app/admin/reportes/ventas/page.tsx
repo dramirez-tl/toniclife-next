@@ -43,6 +43,7 @@ import {
   DocumentTextIcon,
   ArrowDownTrayIcon,
   SparklesIcon,
+  PrinterIcon,
 } from '@heroicons/react/24/outline';
 
 // ================================
@@ -245,6 +246,119 @@ function downloadCsv(rows: Sale[], filename: string, getBranchTz: (branchName: s
 // ================================
 // Sale Detail Modal
 // ================================
+
+/**
+ * Reimpresión del ticket POS desde el admin: abre una ventana imprimible con el
+ * formato de ticket térmico (no es comprobante fiscal). Usa los datos del detalle
+ * de la venta (items, totales, pagos, puntos).
+ */
+function printSaleTicket(sale: Sale, branchTz: string) {
+  const currency = sale.currencyCode || 'MXN';
+  const esc = (s: unknown) =>
+    String(s ?? '').replace(/[&<>"]/g, (ch) =>
+      ch === '&' ? '&amp;' : ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : '&quot;',
+    );
+  const money = (n: number) => esc(formatCurrency(n, currency));
+  const dateStr = (() => {
+    try {
+      return new Intl.DateTimeFormat('es-MX', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+        timeZone: branchTz || 'America/Mexico_City',
+      }).format(new Date(sale.createdAt));
+    } catch {
+      return new Date(sale.createdAt).toLocaleString('es-MX');
+    }
+  })();
+
+  const itemsHtml = (sale.items ?? [])
+    .map(
+      (it) => `
+      <div class="it">
+        <div class="it-name">${esc(it.productName)}</div>
+        <div class="it-line"><span>${esc(it.quantity)} x ${money(it.unitPrice)}</span><span>${money(it.total)}</span></div>
+      </div>`,
+    )
+    .join('');
+
+  const paymentsHtml = (sale.payments ?? [])
+    .map(
+      (p) =>
+        `<div class="row"><span>${esc(PAYMENT_LABELS[p.paymentMethod] ?? p.paymentMethod)}</span><span>${money(p.amount)}</span></div>`,
+    )
+    .join('');
+
+  const cash = (sale.payments ?? []).reduce(
+    (s, p) => s + (p.amountReceived ?? 0),
+    0,
+  );
+  const change = (sale.payments ?? []).reduce(
+    (s, p) => s + (p.changeGiven ?? 0),
+    0,
+  );
+  const taxLabel = currency === 'USD' ? 'Sales tax' : 'IVA';
+
+  const html = `<!doctype html><html lang="es"><head><meta charset="utf-8" />
+  <title>Ticket ${esc(sale.saleNumber)}</title>
+  <style>
+    @page { size: 80mm auto; margin: 0; }
+    * { box-sizing: border-box; }
+    body { width: 80mm; margin: 0 auto; padding: 8px 10px; font-family: 'Courier New', monospace; font-size: 12px; color: #000; }
+    .c { text-align: center; }
+    .b { font-weight: bold; }
+    .lg { font-size: 14px; }
+    .muted { color: #444; }
+    hr { border: none; border-top: 1px dashed #000; margin: 6px 0; }
+    .row { display: flex; justify-content: space-between; gap: 8px; }
+    .it { margin-bottom: 4px; }
+    .it-name { }
+    .it-line { display: flex; justify-content: space-between; gap: 8px; }
+    .tot { font-size: 14px; }
+    .reprint { border: 1px solid #000; padding: 2px 6px; display: inline-block; margin-top: 4px; font-size: 10px; }
+  </style></head><body>
+    <div class="c b lg">TONIC LIFE</div>
+    <div class="c">${esc(sale.branchName ?? '')}</div>
+    <div class="c reprint">REIMPRESIÓN · No es comprobante fiscal</div>
+    <hr />
+    <div class="row"><span class="muted">Folio</span><span class="b">${esc(sale.saleNumber)}</span></div>
+    <div class="row"><span class="muted">Fecha</span><span>${esc(dateStr)}</span></div>
+    <div class="row"><span class="muted">Cliente</span><span>${esc(sale.customerName || 'Público general')}${sale.customerNumber ? ' #' + esc(sale.customerNumber) : ''}</span></div>
+    ${sale.sellerName ? `<div class="row"><span class="muted">Atendió</span><span>${esc(sale.sellerName)}</span></div>` : ''}
+    <hr />
+    ${itemsHtml || '<div class="muted">(sin productos)</div>'}
+    <hr />
+    <div class="row"><span>Subtotal</span><span>${money(sale.subtotal)}</span></div>
+    ${sale.discountAmount > 0 ? `<div class="row"><span>Descuento</span><span>-${money(sale.discountAmount)}</span></div>` : ''}
+    <div class="row"><span>${taxLabel}</span><span>${money(sale.taxAmount)}</span></div>
+    <div class="row b tot"><span>TOTAL</span><span>${money(sale.total)} ${esc(currency)}</span></div>
+    <hr />
+    ${paymentsHtml}
+    ${cash > 0 ? `<div class="row"><span>Recibido</span><span>${money(cash)}</span></div>` : ''}
+    ${change > 0 ? `<div class="row"><span>Cambio</span><span>${money(change)}</span></div>` : ''}
+    ${
+      sale.accumulatedPoints != null
+        ? `<hr /><div class="row"><span>Puntos de la venta</span><span class="b">+${esc(Number(sale.accumulatedPoints).toLocaleString('es-MX'))}</span></div>${
+            sale.pointsBalanceAfter != null
+              ? `<div class="row muted"><span>Saldo del periodo</span><span>${esc(Number(sale.pointsBalanceBefore ?? 0).toLocaleString('es-MX'))} → ${esc(Number(sale.pointsBalanceAfter).toLocaleString('es-MX'))}</span></div>`
+              : ''
+          }`
+        : ''
+    }
+    <hr />
+    <div class="c">¡Gracias por su compra!</div>
+    <div class="c muted" style="font-size:10px">Reimpreso ${esc(new Date().toLocaleString('es-MX'))}</div>
+    <script>window.onload = function(){ setTimeout(function(){ window.print(); }, 150); };</script>
+  </body></html>`;
+
+  const w = window.open('', '_blank', 'width=380,height=680');
+  if (!w) {
+    toast.error('Permite las ventanas emergentes para imprimir el ticket');
+    return;
+  }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+}
 
 function SaleDetailModal({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale: Sale | null; onClose: () => void; branchTz?: string }) {
   // El row de la lista no trae items ni puntos; al abrir, traemos el detalle
@@ -478,8 +592,17 @@ function SaleDetailModal({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-100">
-          <Button variant="ghost" className="w-full" onClick={onClose}>
+        <div className="p-4 border-t border-gray-100 flex gap-2">
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={() => printSaleTicket(view, branchTz)}
+            disabled={!view.items || view.items.length === 0}
+          >
+            <PrinterIcon className="h-4 w-4" />
+            Imprimir ticket
+          </Button>
+          <Button variant="ghost" className="flex-1" onClick={onClose}>
             Cerrar
           </Button>
         </div>
