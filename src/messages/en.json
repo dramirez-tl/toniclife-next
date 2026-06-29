@@ -1068,6 +1068,114 @@
         "businessPointsValue": "{points} pts",
         "viewFullProfile": "View Full Profile"
       }
+    },
+    "enroll": {
+      "common": {
+        "closeAria": "Close",
+        "firstName": "First name(s)",
+        "lastName": "Last name",
+        "mothersLastName": "Mother's last name",
+        "rfc": "RFC",
+        "email": "Email",
+        "phone": "Phone",
+        "submitInvite": "Create and send invitation",
+        "ready": "Done",
+        "createdSuffix": " created",
+        "invitationSent": "The invitation with login details was sent by email.",
+        "tempPasswordLabel": "Temporary password",
+        "tempPasswordCopyAria": "Copy password",
+        "mustChangeOnLogin": "They will need to change it on first login.",
+        "copied": "Copied",
+        "copyError": "Could not copy"
+      },
+      "member": {
+        "ariaLabel": "Enroll new member",
+        "title": "Enroll new member",
+        "uplineLabel": "Place under (upline)",
+        "uplineAll": "Myself (directly under me)",
+        "uplineLoading": "Loading your network...",
+        "uplinePlaceholder": "Search in my network...",
+        "uplineHelp": "By default they are placed directly under you. You can place them under any member of your network.",
+        "uplineOption": "{name} · Level {level}",
+        "kitPaymentTitle": "Kit payment",
+        "inviteOptionTitle": "Send invitation by email",
+        "inviteOptionDesc": "The new member logs in, chooses and pays for their kit.",
+        "sponsorOptionTitle": "I pay for the kit now",
+        "sponsorOptionDesc": "A payment (Stripe) is generated for the member's kit.",
+        "kitLabel": "Enrollment kit",
+        "kitSelectPlaceholder": "— Select a kit —",
+        "kitLoading": "Loading kits...",
+        "kitSearchPlaceholder": "Search kit...",
+        "kitOptionWithPrice": "{name} — ${price}",
+        "submitSponsor": "Create and generate payment",
+        "submitInvite": "Create and send invitation",
+        "errChooseKit": "For the sponsor to pay, choose a kit.",
+        "createdSuccess": "Member created successfully",
+        "createError": "Could not create the member",
+        "kitOrderGenerated": "Kit order",
+        "kitOrderGeneratedSuffix": " generated. Continue to payment to activate the member.",
+        "goToPayKit": "Go to pay for the kit",
+        "autoOpenHint": "If it did not open automatically, use this button. The member is activated when payment is confirmed.",
+        "paymentNotGenerated": "The member was created, but the payment could not be generated",
+        "paymentNotGeneratedRetry": ". You can retry the kit payment later.",
+        "inviteNotSent": "The member was created, but the invitation email did not go out. Share the login details yourself:"
+      },
+      "preferred": {
+        "ariaLabel": "Enroll preferred customer",
+        "title": "Enroll preferred customer",
+        "intro": "The preferred customer <b>does not buy a kit</b> and <b>does not build a network</b>. They get a <b>preferred price</b> when buying online or by showing their ID at a branch. They are registered under you.",
+        "createdSuccess": "Preferred customer created successfully",
+        "createError": "Could not create the preferred customer",
+        "inviteNotSent": "The customer was created, but the invitation email did not go out. Share the login details yourself:",
+        "customerIdLabel": "Preferred customer ID",
+        "customerIdCopyAria": "Copy ID",
+        "customerIdHelp": "This is the ID they give at the branch for their preferred price."
+      }
+    },
+    "orders": {
+      "title": "My Orders",
+      "subtitle": "Confirm your purchases: order, payment and delivery status.",
+      "backToPanel": "Back to Main Panel",
+      "buyProducts": "Buy products",
+      "exploreProducts": "Explore products",
+      "orderNumber": "Order #{number}",
+      "items": "{count, plural, =1 {# item} other {# items}}",
+      "pickupAt": "Pick up at {branch}",
+      "pickupDefaultBranch": "branch",
+      "homeDelivery": "Home delivery",
+      "points": "{points} pts",
+      "pagination": {
+        "previous": "Previous",
+        "next": "Next",
+        "pageOf": "Page {page} of {total}"
+      },
+      "empty": {
+        "title": "You don't have any orders yet",
+        "body": "When you make a purchase, you'll be able to see your order, payment and delivery status here."
+      },
+      "error": {
+        "title": "We couldn't load your orders",
+        "body": "Check your connection and try again.",
+        "retry": "Retry"
+      },
+      "status": {
+        "pending": "Pending",
+        "confirmed": "Confirmed",
+        "paid": "Paid",
+        "processing": "Processing",
+        "shipped": "Shipped",
+        "delivered": "Delivered",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "payment": {
+        "completed": "Paid",
+        "paid": "Paid",
+        "pending": "Pending payment",
+        "partial": "Partial payment",
+        "failed": "Payment failed",
+        "refunded": "Refunded"
+      }
     }
   }
 }

@@ -9,6 +9,7 @@
 //                 de Stripe (Ruta A). Al pagarse, el miembro se activa.
 
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -46,6 +47,7 @@ const EMPTY = {
 };
 
 export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
+  const t = useTranslations('distributor.enroll');
   const [form, setForm] = useState({ ...EMPTY });
   const [uplineCustomerId, setUplineCustomerId] = useState(''); // '' = bajo mí
   const [kitProductId, setKitProductId] = useState('');
@@ -78,19 +80,22 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
       (kitsQuery.data?.data ?? []).map((k) => ({
         value: k.id,
         label: k.price
-          ? `${k.name} — $${Number(k.price).toLocaleString()}`
+          ? t('member.kitOptionWithPrice', {
+              name: k.name,
+              price: Number(k.price).toLocaleString(),
+            })
           : k.name,
       })),
-    [kitsQuery.data],
+    [kitsQuery.data, t],
   );
 
   const uplineOptions = useMemo(
     () =>
       (downlinesQuery.data?.data ?? []).map((m) => ({
         value: m.id,
-        label: `${m.fullName} · Nivel ${m.level}`,
+        label: t('member.uplineOption', { name: m.fullName, level: m.level }),
       })),
-    [downlinesQuery.data],
+    [downlinesQuery.data, t],
   );
 
   const set = (k: keyof typeof EMPTY, v: string) =>
@@ -123,7 +128,7 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (payerMode === 'sponsor' && !kitProductId) {
-      toast.error('Para que el patrocinador pague, elige un kit.');
+      toast.error(t('member.errChooseKit'));
       return;
     }
     try {
@@ -139,14 +144,14 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
         payerMode,
       });
       setResult(res);
-      toast.success('Miembro creado correctamente');
+      toast.success(t('member.createdSuccess'));
       if (payerMode === 'sponsor' && res.paymentUrl) {
         window.open(res.paymentUrl, '_blank', 'noopener');
       }
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || 'No se pudo crear el miembro';
+          ?.message || t('member.createError');
       toast.error(Array.isArray(msg) ? msg.join(', ') : msg);
     }
   };
@@ -154,9 +159,9 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
   const copy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success('Copiado');
+      toast.success(t('common.copied'));
     } catch {
-      toast.error('No se pudo copiar');
+      toast.error(t('common.copyError'));
     }
   };
 
@@ -168,17 +173,17 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
         }`}
         role="dialog"
         aria-modal="true"
-        aria-label="Dar de alta nuevo miembro"
+        aria-label={t('member.ariaLabel')}
       >
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
             <h3 className="text-lg font-bold text-gray-900">
-              Dar de alta nuevo miembro
+              {t('member.title')}
             </h3>
             <button
               onClick={handleClose}
               className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
-              aria-label="Cerrar"
+              aria-label={t('common.closeAria')}
             >
               <XMarkIcon className="h-5 w-5" />
             </button>
@@ -191,7 +196,7 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
               <form onSubmit={handleSubmit} className="space-y-5">
                 {/* Datos personales */}
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Nombre(s)" required>
+                  <Field label={t('common.firstName')} required>
                     <input
                       className={inputCls}
                       value={form.firstName}
@@ -199,7 +204,7 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
                       required
                     />
                   </Field>
-                  <Field label="Apellido paterno" required>
+                  <Field label={t('common.lastName')} required>
                     <input
                       className={inputCls}
                       value={form.lastName}
@@ -207,14 +212,14 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
                       required
                     />
                   </Field>
-                  <Field label="Apellido materno">
+                  <Field label={t('common.mothersLastName')}>
                     <input
                       className={inputCls}
                       value={form.mothersLastName}
                       onChange={(e) => set('mothersLastName', e.target.value)}
                     />
                   </Field>
-                  <Field label="RFC">
+                  <Field label={t('common.rfc')}>
                     <input
                       className={`${inputCls} uppercase`}
                       value={form.rfc}
@@ -222,7 +227,7 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
                       maxLength={13}
                     />
                   </Field>
-                  <Field label="Correo" required>
+                  <Field label={t('common.email')} required>
                     <input
                       type="email"
                       className={inputCls}
@@ -231,7 +236,7 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
                       required
                     />
                   </Field>
-                  <Field label="Teléfono" required>
+                  <Field label={t('common.phone')} required>
                     <PhoneInput
                       value={form.phone}
                       onChange={(v) => set('phone', v)}
@@ -240,61 +245,60 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
                 </div>
 
                 {/* Colocación en la red */}
-                <Field label="Colocar bajo (upline)">
+                <Field label={t('member.uplineLabel')}>
                   <SearchableSelect
                     options={uplineOptions}
                     value={uplineCustomerId}
                     onChange={setUplineCustomerId}
-                    allLabel="Yo mismo (directo bajo mí)"
+                    allLabel={t('member.uplineAll')}
                     allValue=""
                     placeholder={
                       downlinesQuery.isLoading
-                        ? 'Cargando tu red...'
-                        : 'Buscar en mi red...'
+                        ? t('member.uplineLoading')
+                        : t('member.uplinePlaceholder')
                     }
                   />
                   <p className="mt-1 text-xs text-gray-500">
-                    Por defecto queda directo bajo ti. Puedes colocarlo bajo
-                    cualquier miembro de tu red.
+                    {t('member.uplineHelp')}
                   </p>
                 </Field>
 
                 {/* Modo de pago del kit */}
                 <div>
                   <p className="mb-2 text-sm font-medium text-gray-700">
-                    Pago del kit
+                    {t('member.kitPaymentTitle')}
                   </p>
                   <div className="grid grid-cols-1 gap-2">
                     <PayerOption
                       active={payerMode === 'invite'}
                       onClick={() => setPayerMode('invite')}
                       icon={<EnvelopeIcon className="h-5 w-5" />}
-                      title="Enviar invitación por correo"
-                      desc="El nuevo miembro inicia sesión, elige y paga su kit."
+                      title={t('member.inviteOptionTitle')}
+                      desc={t('member.inviteOptionDesc')}
                     />
                     <PayerOption
                       active={payerMode === 'sponsor'}
                       onClick={() => setPayerMode('sponsor')}
                       icon={<CreditCardIcon className="h-5 w-5" />}
-                      title="Yo pago el kit ahora"
-                      desc="Se genera un pago (Stripe) para el kit del miembro."
+                      title={t('member.sponsorOptionTitle')}
+                      desc={t('member.sponsorOptionDesc')}
                     />
                   </div>
                 </div>
 
                 {/* Kit (solo si el patrocinador paga) */}
                 {payerMode === 'sponsor' && (
-                  <Field label="Kit de inscripción" required>
+                  <Field label={t('member.kitLabel')} required>
                     <SearchableSelect
                       options={kitOptions}
                       value={kitProductId}
                       onChange={setKitProductId}
-                      allLabel="— Selecciona un kit —"
+                      allLabel={t('member.kitSelectPlaceholder')}
                       allValue=""
                       placeholder={
                         kitsQuery.isLoading
-                          ? 'Cargando kits...'
-                          : 'Buscar kit...'
+                          ? t('member.kitLoading')
+                          : t('member.kitSearchPlaceholder')
                       }
                     />
                   </Field>
@@ -309,8 +313,8 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
                   >
                     {registerMutation.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
                     {payerMode === 'sponsor'
-                      ? 'Crear y generar pago'
-                      : 'Crear y enviar invitación'}
+                      ? t('member.submitSponsor')
+                      : t('member.submitInvite')}
                   </Button>
                 </div>
               </form>
@@ -399,6 +403,7 @@ function ResultView({
   onCopy: (text: string) => void;
   onClose: () => void;
 }) {
+  const t = useTranslations('distributor.enroll');
   const isSponsor = result.payerMode === 'sponsor';
   return (
     <div className="space-y-4">
@@ -406,7 +411,8 @@ function ResultView({
         <CheckCircleIcon className="h-6 w-6 flex-shrink-0 text-green-600" />
         <div>
           <p className="text-sm font-semibold text-green-800">
-            {result.fullName} creado
+            {result.fullName}
+            {t('common.createdSuffix')}
           </p>
           <p className="text-xs text-green-700">
             {result.email}
@@ -421,11 +427,11 @@ function ResultView({
           {result.paymentUrl ? (
             <>
               <p className="text-sm text-gray-700">
-                Orden del kit
+                {t('member.kitOrderGenerated')}
                 {result.kitOrderNumber ? (
                   <span className="font-mono"> #{result.kitOrderNumber}</span>
-                ) : null}{' '}
-                generada. Continúa al pago para activar al miembro.
+                ) : null}
+                {t('member.kitOrderGeneratedSuffix')}
               </p>
               <a
                 href={result.paymentUrl}
@@ -435,21 +441,20 @@ function ResultView({
               >
                 <Button variant="default" className="w-full">
                   <CreditCardIcon className="h-4 w-4" />
-                  Ir a pagar el kit
+                  {t('member.goToPayKit')}
                 </Button>
               </a>
               <p className="mt-2 text-xs text-gray-500">
-                Si no se abrió automáticamente, usa este botón. El miembro se
-                activa cuando se confirma el pago.
+                {t('member.autoOpenHint')}
               </p>
             </>
           ) : (
             <div className="flex items-start gap-2">
               <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0 text-amber-500" />
               <p className="text-sm text-amber-700">
-                El miembro quedó creado, pero no se pudo generar el pago
-                {result.paymentError ? `: ${result.paymentError}` : ''}. Puedes
-                reintentar el pago del kit más tarde.
+                {t('member.paymentNotGenerated')}
+                {result.paymentError ? `: ${result.paymentError}` : ''}
+                {t('member.paymentNotGeneratedRetry')}
               </p>
             </div>
           )}
@@ -461,13 +466,13 @@ function ResultView({
         <div className="rounded-xl border border-gray-200 p-4">
           <p className="text-sm text-gray-700">
             {result.invitationSent
-              ? 'Se envió la invitación por correo con sus datos de acceso.'
-              : 'El miembro fue creado, pero el correo de invitación no salió. Comparte tú los datos de acceso:'}
+              ? t('common.invitationSent')
+              : t('member.inviteNotSent')}
           </p>
           {result.tempPassword && (
             <div className="mt-3 rounded-lg bg-gray-50 p-3">
               <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                Contraseña temporal
+                {t('common.tempPasswordLabel')}
               </p>
               <div className="mt-1 flex items-center justify-between gap-2">
                 <span className="font-mono text-sm text-[#3E667D]">
@@ -477,13 +482,13 @@ function ResultView({
                   type="button"
                   onClick={() => onCopy(result.tempPassword as string)}
                   className="rounded-md p-1 text-gray-500 hover:bg-gray-200"
-                  aria-label="Copiar contraseña"
+                  aria-label={t('common.tempPasswordCopyAria')}
                 >
                   <ClipboardDocumentIcon className="h-4 w-4" />
                 </button>
               </div>
               <p className="mt-1 text-xs text-gray-500">
-                Deberá cambiarla al iniciar sesión.
+                {t('common.mustChangeOnLogin')}
               </p>
             </div>
           )}
@@ -491,7 +496,7 @@ function ResultView({
       )}
 
       <Button variant="outline" className="w-full" onClick={onClose}>
-        Listo
+        {t('common.ready')}
       </Button>
     </div>
   );

@@ -6,6 +6,7 @@
 // - Se le crea cuenta + contraseña temporal + invitación por correo.
 
 import { useState, type FormEvent, type ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import { PhoneInput } from '@/components/ui/PhoneInput';
@@ -33,6 +34,7 @@ const EMPTY = {
 };
 
 export function PreferredEnrollmentPanel({ isOpen, onClose }: Props) {
+  const t = useTranslations('distributor.enroll');
   const [form, setForm] = useState({ ...EMPTY });
   const [result, setResult] = useState<RegisterPreferredResult | null>(null);
 
@@ -68,11 +70,11 @@ export function PreferredEnrollmentPanel({ isOpen, onClose }: Props) {
         rfc: form.rfc.trim() || undefined,
       });
       setResult(res);
-      toast.success('Cliente preferente creado correctamente');
+      toast.success(t('preferred.createdSuccess'));
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || 'No se pudo crear el cliente preferente';
+          ?.message || t('preferred.createError');
       toast.error(Array.isArray(msg) ? msg.join(', ') : msg);
     }
   };
@@ -80,9 +82,9 @@ export function PreferredEnrollmentPanel({ isOpen, onClose }: Props) {
   const copy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success('Copiado');
+      toast.success(t('common.copied'));
     } catch {
-      toast.error('No se pudo copiar');
+      toast.error(t('common.copyError'));
     }
   };
 
@@ -94,17 +96,17 @@ export function PreferredEnrollmentPanel({ isOpen, onClose }: Props) {
         }`}
         role="dialog"
         aria-modal="true"
-        aria-label="Dar de alta cliente preferente"
+        aria-label={t('preferred.ariaLabel')}
       >
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
             <h3 className="text-lg font-bold text-gray-900">
-              Dar de alta cliente preferente
+              {t('preferred.title')}
             </h3>
             <button
               onClick={handleClose}
               className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
-              aria-label="Cerrar"
+              aria-label={t('common.closeAria')}
             >
               <XMarkIcon className="h-5 w-5" />
             </button>
@@ -117,15 +119,14 @@ export function PreferredEnrollmentPanel({ isOpen, onClose }: Props) {
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="rounded-xl border border-[#a7c1e2]/25 bg-[#C8DDF2]/10 p-4">
                   <p className="text-sm text-gray-600">
-                    El cliente preferente <strong>no compra kit</strong> y{' '}
-                    <strong>no crea red</strong>. Obtiene{' '}
-                    <strong>precio preferente</strong> al comprar en línea o
-                    presentando su ID en sucursal. Queda registrado bajo ti.
+                    {t.rich('preferred.intro', {
+                      b: (chunks) => <strong>{chunks}</strong>,
+                    })}
                   </p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Nombre(s)" required>
+                  <Field label={t('common.firstName')} required>
                     <input
                       className={inputCls}
                       value={form.firstName}
@@ -133,7 +134,7 @@ export function PreferredEnrollmentPanel({ isOpen, onClose }: Props) {
                       required
                     />
                   </Field>
-                  <Field label="Apellido paterno" required>
+                  <Field label={t('common.lastName')} required>
                     <input
                       className={inputCls}
                       value={form.lastName}
@@ -141,14 +142,14 @@ export function PreferredEnrollmentPanel({ isOpen, onClose }: Props) {
                       required
                     />
                   </Field>
-                  <Field label="Apellido materno">
+                  <Field label={t('common.mothersLastName')}>
                     <input
                       className={inputCls}
                       value={form.mothersLastName}
                       onChange={(e) => set('mothersLastName', e.target.value)}
                     />
                   </Field>
-                  <Field label="RFC">
+                  <Field label={t('common.rfc')}>
                     <input
                       className={`${inputCls} uppercase`}
                       value={form.rfc}
@@ -156,7 +157,7 @@ export function PreferredEnrollmentPanel({ isOpen, onClose }: Props) {
                       maxLength={13}
                     />
                   </Field>
-                  <Field label="Correo" required>
+                  <Field label={t('common.email')} required>
                     <input
                       type="email"
                       className={inputCls}
@@ -165,7 +166,7 @@ export function PreferredEnrollmentPanel({ isOpen, onClose }: Props) {
                       required
                     />
                   </Field>
-                  <Field label="Teléfono" required>
+                  <Field label={t('common.phone')} required>
                     <PhoneInput
                       value={form.phone}
                       onChange={(v) => set('phone', v)}
@@ -183,7 +184,7 @@ export function PreferredEnrollmentPanel({ isOpen, onClose }: Props) {
                     {registerMutation.isPending && (
                       <Loader2 className="mr-2 size-4 animate-spin" />
                     )}
-                    Crear y enviar invitación
+                    {t('common.submitInvite')}
                   </Button>
                 </div>
               </form>
@@ -234,13 +235,15 @@ function ResultView({
   onCopy: (text: string) => void;
   onClose: () => void;
 }) {
+  const t = useTranslations('distributor.enroll');
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 rounded-xl border border-green-100 bg-green-50 p-4">
         <CheckCircleIcon className="h-6 w-6 flex-shrink-0 text-green-600" />
         <div>
           <p className="text-sm font-semibold text-green-800">
-            {result.fullName} creado
+            {result.fullName}
+            {t('common.createdSuffix')}
           </p>
           <p className="text-xs text-green-700">
             {result.email}
@@ -252,13 +255,13 @@ function ResultView({
       <div className="rounded-xl border border-gray-200 p-4">
         <p className="text-sm text-gray-700">
           {result.invitationSent
-            ? 'Se envió la invitación por correo con sus datos de acceso.'
-            : 'El cliente fue creado, pero el correo de invitación no salió. Comparte tú los datos de acceso:'}
+            ? t('common.invitationSent')
+            : t('preferred.inviteNotSent')}
         </p>
         {result.tempPassword && (
           <div className="mt-3 rounded-lg bg-gray-50 p-3">
             <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-              Contraseña temporal
+              {t('common.tempPasswordLabel')}
             </p>
             <div className="mt-1 flex items-center justify-between gap-2">
               <span className="font-mono text-sm text-[#3E667D]">
@@ -268,20 +271,20 @@ function ResultView({
                 type="button"
                 onClick={() => onCopy(result.tempPassword)}
                 className="rounded-md p-1 text-gray-500 hover:bg-gray-200"
-                aria-label="Copiar contraseña"
+                aria-label={t('common.tempPasswordCopyAria')}
               >
                 <ClipboardDocumentIcon className="h-4 w-4" />
               </button>
             </div>
             <p className="mt-1 text-xs text-gray-500">
-              Deberá cambiarla al iniciar sesión.
+              {t('common.mustChangeOnLogin')}
             </p>
           </div>
         )}
         {result.customerNumber && (
           <div className="mt-3 rounded-lg bg-gray-50 p-3">
             <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-              ID de cliente preferente
+              {t('preferred.customerIdLabel')}
             </p>
             <div className="mt-1 flex items-center justify-between gap-2">
               <span className="font-mono text-sm text-[#3E667D]">
@@ -291,20 +294,20 @@ function ResultView({
                 type="button"
                 onClick={() => onCopy(result.customerNumber as string)}
                 className="rounded-md p-1 text-gray-500 hover:bg-gray-200"
-                aria-label="Copiar ID"
+                aria-label={t('preferred.customerIdCopyAria')}
               >
                 <ClipboardDocumentIcon className="h-4 w-4" />
               </button>
             </div>
             <p className="mt-1 text-xs text-gray-500">
-              Este es el ID que da en sucursal para su precio preferente.
+              {t('preferred.customerIdHelp')}
             </p>
           </div>
         )}
       </div>
 
       <Button variant="outline" className="w-full" onClick={onClose}>
-        Listo
+        {t('common.ready')}
       </Button>
     </div>
   );

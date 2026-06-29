@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import {
   ClipboardDocumentListIcon,
@@ -42,35 +43,41 @@ function formatDate(value: string | null): string {
 
 type BadgeVariant = 'success' | 'warning' | 'destructive' | 'info' | 'secondary';
 
-const ORDER_STATUS: Record<string, { label: string; variant: BadgeVariant }> = {
-  pending: { label: 'Pendiente', variant: 'warning' },
-  confirmed: { label: 'Confirmado', variant: 'success' },
-  paid: { label: 'Pagado', variant: 'success' },
-  processing: { label: 'En preparación', variant: 'info' },
-  shipped: { label: 'Enviado', variant: 'info' },
-  delivered: { label: 'Entregado', variant: 'success' },
-  completed: { label: 'Completado', variant: 'success' },
-  cancelled: { label: 'Cancelado', variant: 'destructive' },
+// Las claves (pending/paid/...) son códigos de estado del backend; NO se traducen.
+// Solo se traduce la etiqueta visible (status.<clave> / payment.<clave>).
+const ORDER_STATUS: Record<string, BadgeVariant> = {
+  pending: 'warning',
+  confirmed: 'success',
+  paid: 'success',
+  processing: 'info',
+  shipped: 'info',
+  delivered: 'success',
+  completed: 'success',
+  cancelled: 'destructive',
 };
 
 const PAYMENT_STATUS: Record<
   string,
-  { label: string; variant: BadgeVariant; Icon: typeof CheckCircleIcon }
+  { variant: BadgeVariant; Icon: typeof CheckCircleIcon }
 > = {
-  completed: { label: 'Pagado', variant: 'success', Icon: CheckCircleIcon },
-  paid: { label: 'Pagado', variant: 'success', Icon: CheckCircleIcon },
-  pending: { label: 'Pendiente de pago', variant: 'warning', Icon: ClockIcon },
-  partial: { label: 'Pago parcial', variant: 'info', Icon: ClockIcon },
-  failed: { label: 'Pago fallido', variant: 'destructive', Icon: XCircleIcon },
-  refunded: { label: 'Reembolsado', variant: 'secondary', Icon: ArrowPathIcon },
+  completed: { variant: 'success', Icon: CheckCircleIcon },
+  paid: { variant: 'success', Icon: CheckCircleIcon },
+  pending: { variant: 'warning', Icon: ClockIcon },
+  partial: { variant: 'info', Icon: ClockIcon },
+  failed: { variant: 'destructive', Icon: XCircleIcon },
+  refunded: { variant: 'secondary', Icon: ArrowPathIcon },
 };
 
-function orderStatusBadge(status: string) {
-  const s = ORDER_STATUS[status] ?? { label: status, variant: 'secondary' as const };
-  return <Badge variant={s.variant}>{s.label}</Badge>;
+type OrdersT = ReturnType<typeof useTranslations<'distributor.orders'>>;
+
+function orderStatusBadge(status: string, t: OrdersT) {
+  const variant = ORDER_STATUS[status] ?? ('secondary' as const);
+  // Etiqueta traducida; si el código es desconocido se muestra tal cual.
+  const label = ORDER_STATUS[status] ? t(`status.${status}` as never) : status;
+  return <Badge variant={variant}>{label}</Badge>;
 }
 
-function paymentBadge(order: MyOrder) {
+function paymentBadge(order: MyOrder, t: OrdersT) {
   // Si no hay registro de pago (pedidos migrados), inferimos del estado del pedido.
   const key =
     order.paymentStatus ??
@@ -78,11 +85,12 @@ function paymentBadge(order: MyOrder) {
       ? 'completed'
       : 'pending');
   const p = PAYMENT_STATUS[key] ?? PAYMENT_STATUS.pending;
+  const labelKey = PAYMENT_STATUS[key] ? key : 'pending';
   const { Icon } = p;
   return (
     <Badge variant={p.variant} className="gap-1">
       <Icon className="h-3.5 w-3.5" />
-      {p.label}
+      {t(`payment.${labelKey}` as never)}
     </Badge>
   );
 }
@@ -92,6 +100,7 @@ function paymentBadge(order: MyOrder) {
 const PAGE_SIZE = 10;
 
 export default function MisPedidosPage() {
+  const t = useTranslations('distributor.orders');
   const [page, setPage] = useState(1);
   const { data, isLoading, isError, refetch, isFetching } = useMyOrders({
     page,
@@ -110,22 +119,22 @@ export default function MisPedidosPage() {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <ClipboardDocumentListIcon className="h-8 lg:h-10 w-8 lg:w-10" />
-                <h1 className="text-2xl lg:text-4xl font-bold">Mis Pedidos</h1>
+                <h1 className="text-2xl lg:text-4xl font-bold">{t('title')}</h1>
               </div>
               <p className="text-white/80 text-base lg:text-lg">
-                Confirma tus compras: estatus del pedido, pago y entrega.
+                {t('subtitle')}
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
               <Link href="/distribuidor">
                 <Button variant="secondary" size="sm">
-                  Volver al Panel Principal
+                  {t('backToPanel')}
                 </Button>
               </Link>
               <Link href="/productos">
                 <Button variant="secondary" size="sm">
                   <ShoppingBagIcon className="h-4 w-4" />
-                  Comprar productos
+                  {t('buyProducts')}
                 </Button>
               </Link>
             </div>
@@ -138,14 +147,14 @@ export default function MisPedidosPage() {
         {isLoading ? (
           <OrdersSkeleton />
         ) : isError ? (
-          <ErrorState onRetry={() => void refetch()} />
+          <ErrorState onRetry={() => void refetch()} t={t} />
         ) : orders.length === 0 ? (
-          <EmptyState />
+          <EmptyState t={t} />
         ) : (
           <>
             <div className="space-y-4">
               {orders.map((order) => (
-                <OrderCard key={order.id} order={order} />
+                <OrderCard key={order.id} order={order} t={t} />
               ))}
             </div>
 
@@ -158,10 +167,10 @@ export default function MisPedidosPage() {
                   disabled={page <= 1 || isFetching}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
-                  Anterior
+                  {t('pagination.previous')}
                 </Button>
                 <span className="text-sm text-gray-600">
-                  Página {page} de {totalPages}
+                  {t('pagination.pageOf', { page, total: totalPages })}
                 </span>
                 <Button
                   variant="outline"
@@ -169,7 +178,7 @@ export default function MisPedidosPage() {
                   disabled={page >= totalPages || isFetching}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 >
-                  Siguiente
+                  {t('pagination.next')}
                 </Button>
               </div>
             )}
@@ -182,7 +191,7 @@ export default function MisPedidosPage() {
 
 // ===== Tarjeta de pedido =====
 
-function OrderCard({ order }: { order: MyOrder }) {
+function OrderCard({ order, t }: { order: MyOrder; t: OrdersT }) {
   return (
     <Card className="border border-gray-200 transition-shadow hover:shadow-md">
       <CardContent className="p-5">
@@ -191,9 +200,9 @@ function OrderCard({ order }: { order: MyOrder }) {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-semibold text-gray-900">
-                Pedido #{order.orderNumber}
+                {t('orderNumber', { number: order.orderNumber })}
               </span>
-              {orderStatusBadge(order.status)}
+              {orderStatusBadge(order.status, t)}
             </div>
             <p className="mt-1 text-sm text-gray-500">
               {formatDate(order.orderDate ?? order.createdAt)}
@@ -202,8 +211,7 @@ function OrderCard({ order }: { order: MyOrder }) {
                   {' · '}
                   <span className="inline-flex items-center gap-1">
                     <CubeIcon className="h-4 w-4" />
-                    {order.itemsCount}{' '}
-                    {order.itemsCount === 1 ? 'artículo' : 'artículos'}
+                    {t('items', { count: order.itemsCount })}
                   </span>
                 </>
               )}
@@ -212,12 +220,14 @@ function OrderCard({ order }: { order: MyOrder }) {
               {order.delivery === 'pickup' ? (
                 <>
                   <BuildingStorefrontIcon className="h-4 w-4 text-[#3E667D]" />
-                  Recoger en {order.pickupBranchName || 'sucursal'}
+                  {t('pickupAt', {
+                    branch: order.pickupBranchName || t('pickupDefaultBranch'),
+                  })}
                 </>
               ) : (
                 <>
                   <TruckIcon className="h-4 w-4 text-[#3E667D]" />
-                  Envío a domicilio
+                  {t('homeDelivery')}
                 </>
               )}
             </p>
@@ -225,14 +235,16 @@ function OrderCard({ order }: { order: MyOrder }) {
 
           {/* Derecha: pago + total */}
           <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-            {paymentBadge(order)}
+            {paymentBadge(order, t)}
             <div className="text-right">
               <p className="text-lg font-bold text-gray-900">
                 {currencyFmt.format(order.total)}
               </p>
               {order.totalPoints > 0 && (
                 <p className="text-xs font-medium text-[#3E667D]">
-                  {order.totalPoints.toLocaleString('es-MX')} pts
+                  {t('points', {
+                    points: order.totalPoints.toLocaleString('es-MX'),
+                  })}
                 </p>
               )}
             </div>
@@ -269,7 +281,7 @@ function OrdersSkeleton() {
   );
 }
 
-function EmptyState() {
+function EmptyState({ t }: { t: OrdersT }) {
   return (
     <Card className="border border-dashed border-gray-300 bg-white">
       <CardContent className="flex flex-col items-center justify-center px-6 py-16 text-center">
@@ -277,16 +289,15 @@ function EmptyState() {
           <ClipboardDocumentListIcon className="h-8 w-8 text-[#3E667D]" />
         </div>
         <h3 className="text-lg font-semibold text-gray-900">
-          Aún no tienes pedidos
+          {t('empty.title')}
         </h3>
         <p className="mt-1 max-w-sm text-sm text-gray-500">
-          Cuando realices una compra, aquí podrás ver el estatus de tu pedido, el
-          pago y la entrega.
+          {t('empty.body')}
         </p>
         <Link href="/productos" className="mt-6">
           <Button>
             <ShoppingBagIcon className="h-4 w-4" />
-            Explorar productos
+            {t('exploreProducts')}
           </Button>
         </Link>
       </CardContent>
@@ -294,20 +305,20 @@ function EmptyState() {
   );
 }
 
-function ErrorState({ onRetry }: { onRetry: () => void }) {
+function ErrorState({ onRetry, t }: { onRetry: () => void; t: OrdersT }) {
   return (
     <Card className="border border-red-200 bg-red-50">
       <CardContent className="flex flex-col items-center justify-center px-6 py-16 text-center">
         <XCircleIcon className="mb-3 h-10 w-10 text-red-400" />
         <h3 className="text-lg font-semibold text-gray-900">
-          No pudimos cargar tus pedidos
+          {t('error.title')}
         </h3>
         <p className="mt-1 text-sm text-gray-500">
-          Revisa tu conexión e inténtalo de nuevo.
+          {t('error.body')}
         </p>
         <Button variant="outline" className="mt-6" onClick={onRetry}>
           <ArrowPathIcon className="h-4 w-4" />
-          Reintentar
+          {t('error.retry')}
         </Button>
       </CardContent>
     </Card>

@@ -1068,6 +1068,114 @@
         "businessPointsValue": "{points} pts",
         "viewFullProfile": "Ver Perfil Completo"
       }
+    },
+    "enroll": {
+      "common": {
+        "closeAria": "Cerrar",
+        "firstName": "Nombre(s)",
+        "lastName": "Apellido paterno",
+        "mothersLastName": "Apellido materno",
+        "rfc": "RFC",
+        "email": "Correo",
+        "phone": "Teléfono",
+        "submitInvite": "Crear y enviar invitación",
+        "ready": "Listo",
+        "createdSuffix": " creado",
+        "invitationSent": "Se envió la invitación por correo con sus datos de acceso.",
+        "tempPasswordLabel": "Contraseña temporal",
+        "tempPasswordCopyAria": "Copiar contraseña",
+        "mustChangeOnLogin": "Deberá cambiarla al iniciar sesión.",
+        "copied": "Copiado",
+        "copyError": "No se pudo copiar"
+      },
+      "member": {
+        "ariaLabel": "Dar de alta nuevo miembro",
+        "title": "Dar de alta nuevo miembro",
+        "uplineLabel": "Colocar bajo (upline)",
+        "uplineAll": "Yo mismo (directo bajo mí)",
+        "uplineLoading": "Cargando tu red...",
+        "uplinePlaceholder": "Buscar en mi red...",
+        "uplineHelp": "Por defecto queda directo bajo ti. Puedes colocarlo bajo cualquier miembro de tu red.",
+        "uplineOption": "{name} · Nivel {level}",
+        "kitPaymentTitle": "Pago del kit",
+        "inviteOptionTitle": "Enviar invitación por correo",
+        "inviteOptionDesc": "El nuevo miembro inicia sesión, elige y paga su kit.",
+        "sponsorOptionTitle": "Yo pago el kit ahora",
+        "sponsorOptionDesc": "Se genera un pago (Stripe) para el kit del miembro.",
+        "kitLabel": "Kit de inscripción",
+        "kitSelectPlaceholder": "— Selecciona un kit —",
+        "kitLoading": "Cargando kits...",
+        "kitSearchPlaceholder": "Buscar kit...",
+        "kitOptionWithPrice": "{name} — ${price}",
+        "submitSponsor": "Crear y generar pago",
+        "submitInvite": "Crear y enviar invitación",
+        "errChooseKit": "Para que el patrocinador pague, elige un kit.",
+        "createdSuccess": "Miembro creado correctamente",
+        "createError": "No se pudo crear el miembro",
+        "kitOrderGenerated": "Orden del kit",
+        "kitOrderGeneratedSuffix": " generada. Continúa al pago para activar al miembro.",
+        "goToPayKit": "Ir a pagar el kit",
+        "autoOpenHint": "Si no se abrió automáticamente, usa este botón. El miembro se activa cuando se confirma el pago.",
+        "paymentNotGenerated": "El miembro quedó creado, pero no se pudo generar el pago",
+        "paymentNotGeneratedRetry": ". Puedes reintentar el pago del kit más tarde.",
+        "inviteNotSent": "El miembro fue creado, pero el correo de invitación no salió. Comparte tú los datos de acceso:"
+      },
+      "preferred": {
+        "ariaLabel": "Dar de alta cliente preferente",
+        "title": "Dar de alta cliente preferente",
+        "intro": "El cliente preferente <b>no compra kit</b> y <b>no crea red</b>. Obtiene <b>precio preferente</b> al comprar en línea o presentando su ID en sucursal. Queda registrado bajo ti.",
+        "createdSuccess": "Cliente preferente creado correctamente",
+        "createError": "No se pudo crear el cliente preferente",
+        "inviteNotSent": "El cliente fue creado, pero el correo de invitación no salió. Comparte tú los datos de acceso:",
+        "customerIdLabel": "ID de cliente preferente",
+        "customerIdCopyAria": "Copiar ID",
+        "customerIdHelp": "Este es el ID que da en sucursal para su precio preferente."
+      }
+    },
+    "orders": {
+      "title": "Mis Pedidos",
+      "subtitle": "Confirma tus compras: estatus del pedido, pago y entrega.",
+      "backToPanel": "Volver al Panel Principal",
+      "buyProducts": "Comprar productos",
+      "exploreProducts": "Explorar productos",
+      "orderNumber": "Pedido #{number}",
+      "items": "{count, plural, =1 {# artículo} other {# artículos}}",
+      "pickupAt": "Recoger en {branch}",
+      "pickupDefaultBranch": "sucursal",
+      "homeDelivery": "Envío a domicilio",
+      "points": "{points} pts",
+      "pagination": {
+        "previous": "Anterior",
+        "next": "Siguiente",
+        "pageOf": "Página {page} de {total}"
+      },
+      "empty": {
+        "title": "Aún no tienes pedidos",
+        "body": "Cuando realices una compra, aquí podrás ver el estatus de tu pedido, el pago y la entrega."
+      },
+      "error": {
+        "title": "No pudimos cargar tus pedidos",
+        "body": "Revisa tu conexión e inténtalo de nuevo.",
+        "retry": "Reintentar"
+      },
+      "status": {
+        "pending": "Pendiente",
+        "confirmed": "Confirmado",
+        "paid": "Pagado",
+        "processing": "En preparación",
+        "shipped": "Enviado",
+        "delivered": "Entregado",
+        "completed": "Completado",
+        "cancelled": "Cancelado"
+      },
+      "payment": {
+        "completed": "Pagado",
+        "paid": "Pagado",
+        "pending": "Pendiente de pago",
+        "partial": "Pago parcial",
+        "failed": "Pago fallido",
+        "refunded": "Reembolsado"
+      }
     }
   }
 }
