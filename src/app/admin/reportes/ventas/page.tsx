@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { useActiveBranches } from '@/hooks/useBranches';
-import { useSales, useUpdateSalePaymentMethod } from '@/hooks/usePos';
+import { useSales, useSale, useUpdateSalePaymentMethod } from '@/hooks/usePos';
 import { useAppSelector } from '@/store';
 import { selectUserRoles } from '@/store';
 import type { Sale, SaleItem, SaleQueryParams, PosSaleStatus, PosPaymentMethod } from '@/types/pos';
@@ -42,6 +42,7 @@ import {
   ReceiptPercentIcon,
   DocumentTextIcon,
   ArrowDownTrayIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 
 // ================================
@@ -246,9 +247,13 @@ function downloadCsv(rows: Sale[], filename: string, getBranchTz: (branchName: s
 // ================================
 
 function SaleDetailModal({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale: Sale | null; onClose: () => void; branchTz?: string }) {
+  // El row de la lista no trae items ni puntos; al abrir, traemos el detalle
+  // completo (GET /pos/sales/:id). Mientras carga se usa el row de la lista.
+  const { data: detail } = useSale(sale?.id ?? '', !!sale?.id);
   if (!sale) return null;
 
-  const currency = sale.currencyCode || 'MXN';
+  const view = detail ?? sale;
+  const currency = view.currencyCode || 'MXN';
 
   const itemColumns: DataTableColumn<SaleItem>[] = [
     {
@@ -277,6 +282,16 @@ function SaleDetailModal({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
       headerClassName: 'text-right px-3 py-2.5 text-xs font-medium text-gray-500',
       cellClassName: 'px-3 py-3 text-right text-gray-700',
       render: (item) => formatCurrency(item.unitPrice, currency),
+    },
+    {
+      key: 'points',
+      header: 'Puntos',
+      headerClassName: 'text-right px-3 py-2.5 text-xs font-medium text-gray-500',
+      cellClassName: 'px-3 py-3 text-right text-gray-700',
+      render: (item) =>
+        item.points != null
+          ? Number(item.points).toLocaleString('es-MX')
+          : '—',
     },
     {
       key: 'total',
@@ -358,44 +373,64 @@ function SaleDetailModal({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
             </div>
           </div>
 
-          {/* Items */}
-          {sale.items && sale.items.length > 0 && (
+          {/* Items (ticket) */}
+          {view.items && view.items.length > 0 ? (
             <div>
               <h3 className="text-sm font-semibold text-gray-700 mb-3">Productos</h3>
               <div className="border border-gray-200 rounded-xl overflow-hidden">
                 <DataTable<SaleItem>
                   columns={itemColumns}
-                  data={sale.items}
+                  data={view.items}
                   getRowKey={(item, i) => String(item.id ?? i)}
                 />
               </div>
             </div>
+          ) : (
+            <p className="text-sm text-gray-400">Cargando productos…</p>
           )}
 
           {/* Totals */}
           <div className="bg-gray-50 rounded-xl p-4 space-y-2">
             <div className="flex justify-between text-sm text-gray-600">
               <span>Subtotal</span>
-              <span>{formatCurrency(sale.subtotal, currency)}</span>
+              <span>{formatCurrency(view.subtotal, currency)}</span>
             </div>
-            {sale.discountAmount > 0 && (
+            {view.discountAmount > 0 && (
               <div className="flex justify-between text-sm text-green-600">
                 <span className="flex items-center gap-1">
                   <ReceiptPercentIcon className="h-3.5 w-3.5" />
-                  Descuento{sale.discountPercent ? ` (${sale.discountPercent}%)` : ''}
+                  Descuento{view.discountPercent ? ` (${view.discountPercent}%)` : ''}
                 </span>
-                <span>-{formatCurrency(sale.discountAmount, currency)}</span>
+                <span>-{formatCurrency(view.discountAmount, currency)}</span>
               </div>
             )}
             <div className="flex justify-between text-sm text-gray-600">
-              <span>IVA</span>
-              <span>{formatCurrency(sale.taxAmount, currency)}</span>
+              <span>{currency === 'USD' ? 'Sales tax' : 'IVA'}</span>
+              <span>{formatCurrency(view.taxAmount, currency)}</span>
             </div>
             <div className="flex justify-between font-bold text-base text-gray-900 border-t border-gray-200 pt-2 mt-2">
               <span>Total</span>
-              <span className="text-[#3E667D]">{formatCurrency(sale.total, currency)}</span>
+              <span className="text-[#3E667D]">{formatCurrency(view.total, currency)}</span>
             </div>
           </div>
+
+          {/* Puntos generados por la venta (MLM) */}
+          {view.accumulatedPoints != null && (
+            <div className="flex items-center justify-between rounded-xl border border-[#a7c1e2] bg-[#C8DDF2]/20 p-4">
+              <div className="flex items-center gap-2">
+                <SparklesIcon className="h-5 w-5 text-[#3E667D]" />
+                <div>
+                  <p className="text-sm font-semibold text-[#2f5165]">Puntos de la venta</p>
+                  <p className="text-xs text-gray-500">
+                    Se acreditan al periodo del distribuidor{sale.customerName ? '' : ' (solo ventas con cliente distribuidor)'}.
+                  </p>
+                </div>
+              </div>
+              <span className="text-lg font-bold text-[#3E667D]">
+                +{Number(view.accumulatedPoints).toLocaleString('es-MX')}
+              </span>
+            </div>
+          )}
 
           {/* Invoice info */}
           {sale.invoiceUuid && (
