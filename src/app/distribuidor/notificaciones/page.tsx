@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, Suspense } from 'react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { Button } from '@/components/ui/button';
@@ -40,20 +41,17 @@ import { toast } from 'sonner';
 
 type CategoryFilterId = 'all' | NotificationCategory;
 
-interface CategoryFilterOption {
-  id: CategoryFilterId;
-  name: string;
-}
-
-const CATEGORY_FILTERS: CategoryFilterOption[] = [
-  { id: 'all', name: 'Todas' },
-  { id: 'orders', name: 'Ventas' },
-  { id: 'commission', name: 'Comisiones' },
-  { id: 'network', name: 'Reclutamiento' },
-  { id: 'mlm', name: 'Logros' },
-  { id: 'alert', name: 'Alertas' },
-  { id: 'system', name: 'Sistema' },
-  { id: 'general', name: 'General' },
+// Los ids (all/orders/commission/...) son códigos de categoría; la etiqueta
+// visible se traduce vía t('categories.<id>').
+const CATEGORY_FILTER_IDS: CategoryFilterId[] = [
+  'all',
+  'orders',
+  'commission',
+  'network',
+  'mlm',
+  'alert',
+  'system',
+  'general',
 ];
 
 const getCategoryIcon = (category: NotificationCategory) => {
@@ -112,6 +110,7 @@ export default function NotificacionesPage() {
 }
 
 function NotificacionesContent() {
+  const t = useTranslations('distributor.notifications');
   const { get, getNumber, setParams } = useQueryFilters({ category: 'all', read: 'all', page: '1' });
   const filterCategory = get('category') as CategoryFilterId;
   const filterRead = get('read') as 'all' | 'unread' | 'read';
@@ -173,7 +172,7 @@ function NotificacionesContent() {
       await markAsRead.mutateAsync([notificationId]);
     } catch (error: any) {
       toast.error(
-        error.response?.data?.message || 'Error al marcar la notificacion como leida'
+        error.response?.data?.message || t('toast.markReadError')
       );
     }
   };
@@ -181,11 +180,10 @@ function NotificacionesContent() {
   const handleMarkAllAsRead = async () => {
     try {
       await markAllAsRead.mutateAsync();
-      toast.success('Todas las notificaciones marcadas como leidas');
+      toast.success(t('toast.allRead'));
     } catch (error: any) {
       toast.error(
-        error.response?.data?.message ||
-          'Error al marcar todas las notificaciones como leidas'
+        error.response?.data?.message || t('toast.allReadError')
       );
     }
   };
@@ -193,10 +191,10 @@ function NotificacionesContent() {
   const handleDelete = async (notificationId: string) => {
     try {
       await deleteNotification.mutateAsync(notificationId);
-      toast.success('Notificacion eliminada');
+      toast.success(t('toast.deleted'));
     } catch (error: any) {
       toast.error(
-        error.response?.data?.message || 'Error al eliminar la notificacion'
+        error.response?.data?.message || t('toast.deleteError')
       );
     }
   };
@@ -217,11 +215,11 @@ function NotificacionesContent() {
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);
 
-    if (diffMins < 1) return 'Ahora';
-    if (diffMins < 60) return `Hace ${diffMins}m`;
-    if (diffHours < 24) return `Hace ${diffHours}h`;
-    if (diffDays === 1) return 'Ayer';
-    if (diffDays < 7) return `Hace ${diffDays} dias`;
+    if (diffMins < 1) return t('time.now');
+    if (diffMins < 60) return t('time.minutes', { count: diffMins });
+    if (diffHours < 24) return t('time.hours', { count: diffHours });
+    if (diffDays === 1) return t('time.yesterday');
+    if (diffDays < 7) return t('time.days', { count: diffDays });
     return date.toLocaleDateString('es-MX', { month: 'short', day: 'numeric' });
   };
 
@@ -237,9 +235,9 @@ function NotificacionesContent() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="flex items-center gap-3 mb-2">
               <BellIcon className="h-10 w-10" />
-              <h1 className="text-4xl font-bold">Notificaciones</h1>
+              <h1 className="text-4xl font-bold">{t('title')}</h1>
             </div>
-            <p className="text-white/80 text-lg">Cargando notificaciones...</p>
+            <p className="text-white/80 text-lg">{t('loading')}</p>
           </div>
         </div>
 
@@ -301,7 +299,7 @@ function NotificacionesContent() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
             <div className="flex items-center gap-3 mb-2">
               <BellIcon className="h-10 w-10" />
-              <h1 className="text-4xl font-bold">Notificaciones</h1>
+              <h1 className="text-4xl font-bold">{t('title')}</h1>
             </div>
           </div>
         </div>
@@ -310,7 +308,7 @@ function NotificacionesContent() {
             <CardContent className="p-6">
               <div className="flex items-center gap-3 text-red-700">
                 <ExclamationTriangleIcon className="h-6 w-6" />
-                <p>Error al cargar las notificaciones. Por favor, intenta de nuevo.</p>
+                <p>{t('error.body')}</p>
               </div>
               <Button
                 variant="outline"
@@ -318,7 +316,7 @@ function NotificacionesContent() {
                 onClick={() => refetch()}
               >
                 <ArrowPathIcon className="h-4 w-4" />
-                Reintentar
+                {t('error.retry')}
               </Button>
             </CardContent>
           </Card>
@@ -347,22 +345,22 @@ function NotificacionesContent() {
                     </div>
                   )}
                 </div>
-                <h1 className="text-4xl font-bold">Notificaciones</h1>
+                <h1 className="text-4xl font-bold">{t('title')}</h1>
               </div>
               <p className="text-white/80 text-lg">
-                Mantente al dia con todas tus actualizaciones
+                {t('subtitle')}
               </p>
             </div>
             <div className="flex gap-3">
               <Link href="/distribuidor">
-                <Button variant="secondary">Volver al Panel Principal</Button>
+                <Button variant="secondary">{t('backToPanel')}</Button>
               </Link>
               <Button
                 variant="default"
-                onClick={() => toast.info('Funcion proximamente disponible')}
+                onClick={() => toast.info(t('preferencesSoon'))}
               >
                 <Cog6ToothIcon className="h-5 w-5" />
-                Preferencias
+                {t('preferences')}
               </Button>
             </div>
           </div>
@@ -379,10 +377,7 @@ function NotificacionesContent() {
                 <div className="flex items-center gap-3">
                   <BellSolidIcon className="h-6 w-6 text-blue-600" />
                   <span className="font-semibold text-blue-900">
-                    Tienes {unreadCount}{' '}
-                    {unreadCount === 1
-                      ? 'notificacion nueva'
-                      : 'notificaciones nuevas'}
+                    {t('unreadBanner', { count: unreadCount })}
                   </span>
                 </div>
                 <div className="flex gap-2">
@@ -394,8 +389,8 @@ function NotificacionesContent() {
                   >
                     <CheckIcon className="h-4 w-4" />
                     {markAllAsRead.isPending
-                      ? 'Marcando...'
-                      : 'Marcar todas como leidas'}
+                      ? t('markingAll')
+                      : t('markAllRead')}
                   </Button>
                 </div>
               </div>
@@ -408,34 +403,34 @@ function NotificacionesContent() {
           <div className="lg:col-span-1">
             <Card>
               <CardContent className="p-6">
-                <h3 className="font-bold text-gray-900 mb-4">Filtrar por Tipo</h3>
+                <h3 className="font-bold text-gray-900 mb-4">{t('filterByType')}</h3>
                 <div className="space-y-2">
-                  {CATEGORY_FILTERS.map((cat) => (
+                  {CATEGORY_FILTER_IDS.map((catId) => (
                     <button
-                      key={cat.id}
-                      onClick={() => handleFilterCategory(cat.id)}
+                      key={catId}
+                      onClick={() => handleFilterCategory(catId)}
                       className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
-                        filterCategory === cat.id
+                        filterCategory === catId
                           ? 'bg-[#3E667D] text-white'
                           : 'hover:bg-gray-100 text-gray-700'
                       }`}
                     >
-                      <span className="text-sm font-medium">{cat.name}</span>
-                      {cat.id !== 'all' && categoryCounts[cat.id] !== undefined && (
+                      <span className="text-sm font-medium">{t(`categories.${catId}` as never)}</span>
+                      {catId !== 'all' && categoryCounts[catId] !== undefined && (
                         <span
                           className={`text-xs px-2 py-0.5 rounded-full ${
-                            filterCategory === cat.id
+                            filterCategory === catId
                               ? 'bg-white/20 text-white'
                               : 'bg-gray-200 text-gray-700'
                           }`}
                         >
-                          {categoryCounts[cat.id]}
+                          {categoryCounts[catId]}
                         </span>
                       )}
-                      {cat.id === 'all' && (
+                      {catId === 'all' && (
                         <span
                           className={`text-xs px-2 py-0.5 rounded-full ${
-                            filterCategory === cat.id
+                            filterCategory === catId
                               ? 'bg-white/20 text-white'
                               : 'bg-gray-200 text-gray-700'
                           }`}
@@ -449,13 +444,13 @@ function NotificacionesContent() {
 
                 <hr className="my-4" />
 
-                <h3 className="font-bold text-gray-900 mb-4">Estado</h3>
+                <h3 className="font-bold text-gray-900 mb-4">{t('state')}</h3>
                 <div className="space-y-2">
                   {(
                     [
-                      { value: 'all', label: 'Todas' },
-                      { value: 'unread', label: 'No leidas' },
-                      { value: 'read', label: 'Leidas' },
+                      { value: 'all', label: t('readFilter.all') },
+                      { value: 'unread', label: t('readFilter.unread') },
+                      { value: 'read', label: t('readFilter.read') },
                     ] as const
                   ).map((status) => (
                     <button
@@ -480,18 +475,17 @@ function NotificacionesContent() {
             <Card>
               <CardContent className="p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-6">
-                  {totalNotifications}{' '}
-                  {totalNotifications === 1 ? 'Notificacion' : 'Notificaciones'}
+                  {t('count', { count: totalNotifications })}
                 </h2>
 
                 {notifications.length === 0 ? (
                   <div className="text-center py-12">
                     <BellIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-xl font-bold text-gray-900 mb-2">
-                      No hay notificaciones
+                      {t('empty.title')}
                     </h3>
                     <p className="text-gray-600">
-                      Estas al dia con todas tus notificaciones
+                      {t('empty.body')}
                     </p>
                     {(filterCategory !== 'all' || filterRead !== 'all') && (
                       <Button
@@ -499,7 +493,7 @@ function NotificacionesContent() {
                         className="mt-4"
                         onClick={() => setParams({ category: null, read: null, page: null })}
                       >
-                        Limpiar filtros
+                        {t('empty.clearFilters')}
                       </Button>
                     )}
                   </div>
@@ -558,8 +552,8 @@ function NotificacionesContent() {
                                 }`}
                               >
                                 {notification.priority === 'URGENT'
-                                  ? 'Urgente'
-                                  : 'Alta Prioridad'}
+                                  ? t('priority.urgent')
+                                  : t('priority.high')}
                               </span>
                             ) : null}
                           </div>
@@ -570,7 +564,7 @@ function NotificacionesContent() {
                               <button
                                 onClick={() => handleMarkAsRead(notification.id)}
                                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                                title="Marcar como leida"
+                                title={t('actions.markRead')}
                                 disabled={markAsRead.isPending}
                               >
                                 <CheckIcon className="h-4 w-4 text-gray-600" />
@@ -579,7 +573,7 @@ function NotificacionesContent() {
                             <button
                               onClick={() => handleDelete(notification.id)}
                               className="p-2 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Eliminar"
+                              title={t('actions.delete')}
                               disabled={deleteNotification.isPending}
                             >
                               <TrashIcon className="h-4 w-4 text-red-600" />
@@ -595,10 +589,9 @@ function NotificacionesContent() {
                 {notifications.length > 0 && (
                   <div className="mt-6 flex items-center justify-between">
                     <p className="text-sm text-gray-600">
-                      Mostrando {notifications.length} de {totalNotifications}{' '}
-                      notificaciones
+                      {t('pagination.showing', { shown: notifications.length, total: totalNotifications })}
                       {totalPages > 1 &&
-                        ` (Pagina ${currentPage} de ${totalPages})`}
+                        t('pagination.page', { current: currentPage, total: totalPages })}
                     </p>
                     <div className="flex gap-2">
                       <Button
@@ -609,7 +602,7 @@ function NotificacionesContent() {
                           setParams({ page: String(Math.max(1, currentPage - 1)) })
                         }
                       >
-                        Anterior
+                        {t('pagination.previous')}
                       </Button>
                       <Button
                         variant="outline"
@@ -619,7 +612,7 @@ function NotificacionesContent() {
                           setParams({ page: String(Math.min(totalPages, currentPage + 1)) })
                         }
                       >
-                        Siguiente
+                        {t('pagination.next')}
                       </Button>
                     </div>
                   </div>

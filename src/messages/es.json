@@ -1311,6 +1311,200 @@
           "default": "Contacta a soporte si crees que esto es un error."
         }
       }
+    },
+    "payments": {
+      "title": "Datos para Comisiones",
+      "subtitle": "Para poder depositarte tus comisiones, necesitamos verificar tu identidad e información bancaria. Estos datos son confidenciales y solo los usa el equipo de Tesorería.",
+      "protected": "Información protegida",
+      "badges": {
+        "completed": "Completado",
+        "pending": "Pendiente"
+      },
+      "status": {
+        "paid": "Pagado",
+        "pending": "Pendiente",
+        "failed": "Fallido",
+        "reversed": "Revertido"
+      },
+      "banner": {
+        "completeTitle": "Datos completos y validados",
+        "completeBody": "Estás listo para recibir pagos de comisiones.",
+        "validationTitle": "Documentos pendientes de validación",
+        "validationBody": "Tu información está en revisión por el equipo de Tesorería.",
+        "incompleteTitle": "Datos incompletos para recibir comisiones",
+        "missing": "Falta: {fields}"
+      },
+      "missingFields": {
+        "email": "Correo electrónico",
+        "phone": "Teléfono",
+        "curp": "CURP",
+        "rfc": "RFC",
+        "ineNumber": "Número de INE",
+        "ineDocument": "INE (escaneado)",
+        "taxIdDocument": "Constancia Fiscal",
+        "bankStatement": "Carátula de cuenta",
+        "clabe": "CLABE interbancaria"
+      },
+      "infoCards": {
+        "identityTitle": "Verificar tu identidad",
+        "identityBody": "INE y CURP para confirmar que eres titular de la cuenta.",
+        "fiscalTitle": "Cumplimiento fiscal",
+        "fiscalBody": "RFC y régimen fiscal para calcular retenciones correctamente.",
+        "depositTitle": "Cuenta para depósitos",
+        "depositBody": "CLABE y carátula para transferir tus comisiones de forma segura."
+      },
+      "personal": {
+        "title": "Información Personal",
+        "tooltip": "Datos de contacto para que Tesorería pueda comunicarse contigo si hay algún problema con tu pago.",
+        "fullName": "Nombre completo",
+        "fullNameTooltip": "Se toma de tu perfil. Si necesitas cambiarlo, contacta a soporte.",
+        "readOnlyField": "Campo de solo lectura",
+        "email": "Correo electrónico",
+        "emailTooltip": "Email donde te notificaremos cuando se procese un depósito de comisiones.",
+        "emailPlaceholder": "tu@email.com",
+        "phone": "Teléfono",
+        "phoneTooltip": "Número de contacto para que Tesorería te ubique en caso de aclaraciones."
+      },
+      "fiscal": {
+        "title": "Información Fiscal",
+        "tooltip": "Datos requeridos por el SAT para calcular retenciones de ISR e IVA sobre tus comisiones.",
+        "note": "Tu constancia fiscal debe indicar Régimen de Sueldos y Salarios e Ingresos Asimilados a Salarios.",
+        "curp": "CURP",
+        "curpTooltip": "Clave Única de Registro de Población (18 caracteres). Lo encuentras en tu acta de nacimiento o en consulta.curp.gob.mx",
+        "curpCount": "{count}/18 caracteres",
+        "rfc": "RFC",
+        "rfcTooltip": "Registro Federal de Contribuyentes (12-13 caracteres). Lo encuentras en tu Constancia de Situación Fiscal.",
+        "ineNumber": "Número de INE",
+        "ineNumberTooltip": "Número de credencial que aparece al reverso de tu INE (credencial de elector).",
+        "taxRegime": "Régimen Fiscal",
+        "taxRegimeTooltip": "El régimen que aparece en tu Constancia de Situación Fiscal del SAT. Determina cómo se calculan tus retenciones.",
+        "selectPlaceholder": "Seleccionar..."
+      },
+      "banking": {
+        "title": "Datos Bancarios",
+        "tooltip": "Cuenta donde se depositarán tus comisiones. Debe estar a tu nombre y ser una cuenta bancaria mexicana con CLABE.",
+        "note": "La cuenta debe estar a nombre del distribuidor que recibirá las comisiones.",
+        "bank": "Banco",
+        "bankTooltip": "Nombre de tu banco. Ej: BBVA, Banorte, Santander, HSBC, etc.",
+        "bankPlaceholder": "BBVA, Banorte, Santander...",
+        "clabe": "CLABE Interbancaria",
+        "clabeTooltip": "La CLABE es un número de 18 dígitos que identifica tu cuenta bancaria. La encuentras en tu estado de cuenta, app del banco, o carátula de la cuenta.",
+        "clabeCount": "{count}/18 dígitos",
+        "clabeComplete": "Completa",
+        "accountHolder": "Titular de la cuenta",
+        "accountHolderTooltip": "Nombre exacto como aparece en tu estado de cuenta. Debe coincidir con tu nombre registrado como distribuidor.",
+        "accountHolderPlaceholder": "NOMBRE COMPLETO DEL TITULAR"
+      },
+      "documents": {
+        "title": "Documentos Requeridos",
+        "tooltip": "Escaneados o fotos legibles de tus documentos. Se aceptan JPG, PNG y PDF. Máximo 5MB por archivo.",
+        "note": "Sube fotos o escaneos legibles. El equipo de Tesorería los revisará y validará.",
+        "ineTitle": "INE (Credencial de elector)",
+        "ineHint": "Foto por ambos lados. Debe verse claramente tu nombre, foto y número de credencial.",
+        "taxIdTitle": "Constancia de Situación Fiscal (RFC)",
+        "taxIdHint": "Descárgala desde el portal del SAT. Debe indicar régimen de Sueldos y Salarios e Ingresos Asimilados a Salarios.",
+        "bankStatementTitle": "Carátula de Estado de Cuenta",
+        "bankStatementHint": "Documento del banco donde se vea tu nombre, nombre del banco y CLABE interbancaria completa."
+      },
+      "contact": {
+        "title": "Dudas sobre tus datos",
+        "body": "Envía tus documentos escaneados o foto legible a <email>comisiones@toniclife.com</email> o por WhatsApp al <whatsapp>+52 462 220 1995</whatsapp>. Atención a clientes: <phone>462 626 5304</phone> Ext. 105, 124, 126."
+      },
+      "save": {
+        "footerNote": "Tus datos están protegidos y solo los usa Tesorería.",
+        "saving": "Guardando...",
+        "save": "Guardar Datos"
+      },
+      "validation": {
+        "clabeLength": "La CLABE debe tener exactamente 18 dígitos"
+      },
+      "toast": {
+        "updated": "Datos actualizados correctamente",
+        "saveError": "Error al guardar los datos"
+      },
+      "history": {
+        "title": "Historial de Pagos de Comisiones",
+        "filterAll": "Todos los estados",
+        "filterPaid": "Pagados",
+        "filterPending": "Pendientes",
+        "filterFailed": "Fallidos",
+        "incompleteWarning": "Completa tus datos para comisiones arriba para poder recibir pagos.",
+        "empty": "No hay pagos de comisiones registrados aún.",
+        "columns": {
+          "period": "Periodo",
+          "amount": "Monto",
+          "date": "Fecha",
+          "method": "Método",
+          "reference": "Referencia",
+          "status": "Estado"
+        }
+      }
+    },
+    "notifications": {
+      "title": "Notificaciones",
+      "loading": "Cargando notificaciones...",
+      "subtitle": "Mantente al día con todas tus actualizaciones",
+      "backToPanel": "Volver al Panel Principal",
+      "preferences": "Preferencias",
+      "preferencesSoon": "Función próximamente disponible",
+      "unreadBanner": "{count, plural, =1 {Tienes # notificación nueva} other {Tienes # notificaciones nuevas}}",
+      "markAllRead": "Marcar todas como leídas",
+      "markingAll": "Marcando...",
+      "filterByType": "Filtrar por Tipo",
+      "state": "Estado",
+      "categories": {
+        "all": "Todas",
+        "orders": "Ventas",
+        "commission": "Comisiones",
+        "network": "Reclutamiento",
+        "mlm": "Logros",
+        "alert": "Alertas",
+        "system": "Sistema",
+        "general": "General"
+      },
+      "readFilter": {
+        "all": "Todas",
+        "unread": "No leídas",
+        "read": "Leídas"
+      },
+      "count": "{count, plural, =1 {# Notificación} other {# Notificaciones}}",
+      "empty": {
+        "title": "No hay notificaciones",
+        "body": "Estás al día con todas tus notificaciones",
+        "clearFilters": "Limpiar filtros"
+      },
+      "priority": {
+        "urgent": "Urgente",
+        "high": "Alta Prioridad"
+      },
+      "actions": {
+        "markRead": "Marcar como leída",
+        "delete": "Eliminar"
+      },
+      "time": {
+        "now": "Ahora",
+        "minutes": "Hace {count}m",
+        "hours": "Hace {count}h",
+        "yesterday": "Ayer",
+        "days": "Hace {count} días"
+      },
+      "pagination": {
+        "showing": "Mostrando {shown} de {total} notificaciones",
+        "page": " (Página {current} de {total})",
+        "previous": "Anterior",
+        "next": "Siguiente"
+      },
+      "error": {
+        "body": "Error al cargar las notificaciones. Por favor, intenta de nuevo.",
+        "retry": "Reintentar"
+      },
+      "toast": {
+        "markReadError": "Error al marcar la notificación como leída",
+        "allRead": "Todas las notificaciones marcadas como leídas",
+        "allReadError": "Error al marcar todas las notificaciones como leídas",
+        "deleted": "Notificación eliminada",
+        "deleteError": "Error al eliminar la notificación"
+      }
     }
   }
 }

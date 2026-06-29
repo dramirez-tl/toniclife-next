@@ -1311,6 +1311,200 @@
           "default": "Contact support if you think this is a mistake."
         }
       }
+    },
+    "payments": {
+      "title": "Commission Details",
+      "subtitle": "To deposit your commissions, we need to verify your identity and bank information. This data is confidential and only used by the Treasury team.",
+      "protected": "Protected information",
+      "badges": {
+        "completed": "Completed",
+        "pending": "Pending"
+      },
+      "status": {
+        "paid": "Paid",
+        "pending": "Pending",
+        "failed": "Failed",
+        "reversed": "Reversed"
+      },
+      "banner": {
+        "completeTitle": "Data complete and validated",
+        "completeBody": "You are ready to receive commission payments.",
+        "validationTitle": "Documents pending validation",
+        "validationBody": "Your information is under review by the Treasury team.",
+        "incompleteTitle": "Incomplete data to receive commissions",
+        "missing": "Missing: {fields}"
+      },
+      "missingFields": {
+        "email": "Email",
+        "phone": "Phone",
+        "curp": "CURP",
+        "rfc": "RFC",
+        "ineNumber": "INE number",
+        "ineDocument": "INE (scanned)",
+        "taxIdDocument": "Tax ID Certificate",
+        "bankStatement": "Account statement",
+        "clabe": "CLABE interbank number"
+      },
+      "infoCards": {
+        "identityTitle": "Verify your identity",
+        "identityBody": "INE and CURP to confirm you are the account holder.",
+        "fiscalTitle": "Tax compliance",
+        "fiscalBody": "RFC and tax regime to calculate withholdings correctly.",
+        "depositTitle": "Account for deposits",
+        "depositBody": "CLABE and statement to transfer your commissions securely."
+      },
+      "personal": {
+        "title": "Personal Information",
+        "tooltip": "Contact details so Treasury can reach you if there is any issue with your payment.",
+        "fullName": "Full name",
+        "fullNameTooltip": "Taken from your profile. If you need to change it, contact support.",
+        "readOnlyField": "Read-only field",
+        "email": "Email",
+        "emailTooltip": "Email where we will notify you when a commission deposit is processed.",
+        "emailPlaceholder": "you@email.com",
+        "phone": "Phone",
+        "phoneTooltip": "Contact number so Treasury can reach you in case of clarifications."
+      },
+      "fiscal": {
+        "title": "Tax Information",
+        "tooltip": "Information required by the SAT to calculate ISR and IVA withholdings on your commissions.",
+        "note": "Your tax certificate must indicate Régimen de Sueldos y Salarios e Ingresos Asimilados a Salarios.",
+        "curp": "CURP",
+        "curpTooltip": "Clave Única de Registro de Población (18 characters). You can find it on your birth certificate or at consulta.curp.gob.mx",
+        "curpCount": "{count}/18 characters",
+        "rfc": "RFC",
+        "rfcTooltip": "Registro Federal de Contribuyentes (12-13 characters). You can find it on your Constancia de Situación Fiscal.",
+        "ineNumber": "INE number",
+        "ineNumberTooltip": "Card number shown on the back of your INE (voter ID card).",
+        "taxRegime": "Tax regime",
+        "taxRegimeTooltip": "The regime shown on your Constancia de Situación Fiscal from the SAT. It determines how your withholdings are calculated.",
+        "selectPlaceholder": "Select..."
+      },
+      "banking": {
+        "title": "Bank Details",
+        "tooltip": "Account where your commissions will be deposited. It must be in your name and be a Mexican bank account with CLABE.",
+        "note": "The account must be in the name of the distributor who will receive the commissions.",
+        "bank": "Bank",
+        "bankTooltip": "Name of your bank. E.g.: BBVA, Banorte, Santander, HSBC, etc.",
+        "bankPlaceholder": "BBVA, Banorte, Santander...",
+        "clabe": "CLABE Interbank Number",
+        "clabeTooltip": "The CLABE is an 18-digit number that identifies your bank account. You can find it on your statement, your bank's app, or the account cover sheet.",
+        "clabeCount": "{count}/18 digits",
+        "clabeComplete": "Complete",
+        "accountHolder": "Account holder",
+        "accountHolderTooltip": "Exact name as it appears on your statement. It must match your registered distributor name.",
+        "accountHolderPlaceholder": "FULL NAME OF ACCOUNT HOLDER"
+      },
+      "documents": {
+        "title": "Required Documents",
+        "tooltip": "Legible scans or photos of your documents. JPG, PNG and PDF are accepted. Maximum 5MB per file.",
+        "note": "Upload legible photos or scans. The Treasury team will review and validate them.",
+        "ineTitle": "INE (Voter ID card)",
+        "ineHint": "Photo of both sides. Your name, photo and card number must be clearly visible.",
+        "taxIdTitle": "Constancia de Situación Fiscal (RFC)",
+        "taxIdHint": "Download it from the SAT portal. It must indicate the régimen de Sueldos y Salarios e Ingresos Asimilados a Salarios.",
+        "bankStatementTitle": "Account Statement Cover Sheet",
+        "bankStatementHint": "Bank document showing your name, the bank's name and the full CLABE interbank number."
+      },
+      "contact": {
+        "title": "Questions about your data",
+        "body": "Send your scanned documents or a legible photo to <email>comisiones@toniclife.com</email> or via WhatsApp at <whatsapp>+52 462 220 1995</whatsapp>. Customer service: <phone>462 626 5304</phone> Ext. 105, 124, 126."
+      },
+      "save": {
+        "footerNote": "Your data is protected and only used by Treasury.",
+        "saving": "Saving...",
+        "save": "Save Data"
+      },
+      "validation": {
+        "clabeLength": "The CLABE must be exactly 18 digits"
+      },
+      "toast": {
+        "updated": "Data updated successfully",
+        "saveError": "Error saving data"
+      },
+      "history": {
+        "title": "Commission Payment History",
+        "filterAll": "All statuses",
+        "filterPaid": "Paid",
+        "filterPending": "Pending",
+        "filterFailed": "Failed",
+        "incompleteWarning": "Complete your commission details above to be able to receive payments.",
+        "empty": "No commission payments recorded yet.",
+        "columns": {
+          "period": "Period",
+          "amount": "Amount",
+          "date": "Date",
+          "method": "Method",
+          "reference": "Reference",
+          "status": "Status"
+        }
+      }
+    },
+    "notifications": {
+      "title": "Notifications",
+      "loading": "Loading notifications...",
+      "subtitle": "Stay up to date with all your updates",
+      "backToPanel": "Back to Main Panel",
+      "preferences": "Preferences",
+      "preferencesSoon": "Feature coming soon",
+      "unreadBanner": "{count, plural, =1 {You have # new notification} other {You have # new notifications}}",
+      "markAllRead": "Mark all as read",
+      "markingAll": "Marking...",
+      "filterByType": "Filter by Type",
+      "state": "Status",
+      "categories": {
+        "all": "All",
+        "orders": "Sales",
+        "commission": "Commissions",
+        "network": "Recruitment",
+        "mlm": "Achievements",
+        "alert": "Alerts",
+        "system": "System",
+        "general": "General"
+      },
+      "readFilter": {
+        "all": "All",
+        "unread": "Unread",
+        "read": "Read"
+      },
+      "count": "{count, plural, =1 {# Notification} other {# Notifications}}",
+      "empty": {
+        "title": "No notifications",
+        "body": "You are up to date with all your notifications",
+        "clearFilters": "Clear filters"
+      },
+      "priority": {
+        "urgent": "Urgent",
+        "high": "High Priority"
+      },
+      "actions": {
+        "markRead": "Mark as read",
+        "delete": "Delete"
+      },
+      "time": {
+        "now": "Now",
+        "minutes": "{count}m ago",
+        "hours": "{count}h ago",
+        "yesterday": "Yesterday",
+        "days": "{count} days ago"
+      },
+      "pagination": {
+        "showing": "Showing {shown} of {total} notifications",
+        "page": " (Page {current} of {total})",
+        "previous": "Previous",
+        "next": "Next"
+      },
+      "error": {
+        "body": "Error loading notifications. Please try again.",
+        "retry": "Retry"
+      },
+      "toast": {
+        "markReadError": "Error marking the notification as read",
+        "allRead": "All notifications marked as read",
+        "allReadError": "Error marking all notifications as read",
+        "deleted": "Notification deleted",
+        "deleteError": "Error deleting the notification"
+      }
     }
   }
 }

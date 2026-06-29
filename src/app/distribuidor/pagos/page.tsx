@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { PhoneInput } from '@/components/ui/PhoneInput';
 import { DataTable, type DataTableColumn } from '@/components/ui';
@@ -72,18 +73,19 @@ function FieldLabel({ label, tooltip, required = false }: { label: string; toolt
 // ===== FIELD STATUS BADGE =====
 
 function FieldBadge({ value }: { value: string | null | undefined }) {
+  const t = useTranslations('distributor.payments');
   if (value) {
     return (
       <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600 border border-emerald-100">
         <CheckCircleIcon className="h-3 w-3" />
-        Completado
+        {t('badges.completed')}
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-600 border border-amber-100">
         <ExclamationTriangleIcon className="h-3 w-3" />
-        Pendiente
+        {t('badges.pending')}
     </span>
   );
 }
@@ -118,11 +120,13 @@ function CompletionProgress({ paymentData }: { paymentData: any }) {
 // ===== STATUS BADGE COMPONENT =====
 
 function StatusBadge({ status }: { status: string }) {
+  const t = useTranslations('distributor.payments');
+  // Las claves (completed/pending/...) son códigos de estado del backend; NO se traducen.
   const config: Record<string, { label: string; className: string }> = {
-    completed: { label: 'Pagado', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-    pending: { label: 'Pendiente', className: 'bg-amber-50 text-amber-700 border-amber-200' },
-    failed: { label: 'Fallido', className: 'bg-red-50 text-red-700 border-red-200' },
-    reversed: { label: 'Revertido', className: 'bg-gray-50 text-gray-700 border-gray-200' },
+    completed: { label: t('status.paid'), className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    pending: { label: t('status.pending'), className: 'bg-amber-50 text-amber-700 border-amber-200' },
+    failed: { label: t('status.failed'), className: 'bg-red-50 text-red-700 border-red-200' },
+    reversed: { label: t('status.reversed'), className: 'bg-gray-50 text-gray-700 border-gray-200' },
   };
   const c = config[status] || config.pending;
   return (
@@ -135,13 +139,14 @@ function StatusBadge({ status }: { status: string }) {
 // ===== OVERALL STATUS BANNER =====
 
 function OverallStatusBanner({ status, missingFields }: { status: string; missingFields: string[] }) {
+  const t = useTranslations('distributor.payments');
   if (status === 'complete') {
     return (
       <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
         <ShieldCheckIcon className="h-6 w-6 text-emerald-600 flex-shrink-0" />
         <div>
-          <p className="text-sm font-semibold text-emerald-800">Datos completos y validados</p>
-          <p className="text-xs text-emerald-600">Estás listo para recibir pagos de comisiones.</p>
+          <p className="text-sm font-semibold text-emerald-800">{t('banner.completeTitle')}</p>
+          <p className="text-xs text-emerald-600">{t('banner.completeBody')}</p>
         </div>
       </div>
     );
@@ -151,30 +156,24 @@ function OverallStatusBanner({ status, missingFields }: { status: string; missin
       <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
         <ClockIcon className="h-6 w-6 text-amber-600 flex-shrink-0" />
         <div>
-          <p className="text-sm font-semibold text-amber-800">Documentos pendientes de validación</p>
-          <p className="text-xs text-amber-600">Tu información está en revisión por el equipo de Tesorería.</p>
+          <p className="text-sm font-semibold text-amber-800">{t('banner.validationTitle')}</p>
+          <p className="text-xs text-amber-600">{t('banner.validationBody')}</p>
         </div>
       </div>
     );
   }
-  const fieldLabels: Record<string, string> = {
-    email: 'Correo electrónico',
-    phone: 'Teléfono',
-    curp: 'CURP',
-    rfc: 'RFC',
-    ineNumber: 'Número de INE',
-    ineDocument: 'INE (escaneado)',
-    taxIdDocument: 'Constancia Fiscal',
-    bankStatement: 'Carátula de cuenta',
-    clabe: 'CLABE interbancaria',
+  // Las claves de campo (email/phone/...) son identificadores del backend; solo se traduce su etiqueta.
+  const fieldLabel = (f: string) => {
+    const known = ['email', 'phone', 'curp', 'rfc', 'ineNumber', 'ineDocument', 'taxIdDocument', 'bankStatement', 'clabe'];
+    return known.includes(f) ? t(`missingFields.${f}` as never) : f;
   };
   return (
     <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
       <ExclamationTriangleIcon className="h-6 w-6 text-red-500 flex-shrink-0 mt-0.5" />
       <div>
-        <p className="text-sm font-semibold text-red-800">Datos incompletos para recibir comisiones</p>
+        <p className="text-sm font-semibold text-red-800">{t('banner.incompleteTitle')}</p>
         <p className="text-xs text-red-600 mt-1">
-          Falta: {missingFields.map((f) => fieldLabels[f] || f).join(', ')}
+          {t('banner.missing', { fields: missingFields.map(fieldLabel).join(', ') })}
         </p>
       </div>
     </div>
@@ -184,6 +183,7 @@ function OverallStatusBanner({ status, missingFields }: { status: string; missin
 // ===== MAIN PAGE =====
 
 export default function PagosPage() {
+  const t = useTranslations('distributor.payments');
   const { data: paymentData, isLoading } = usePaymentData();
   const updateMutation = useUpdatePaymentData();
   const [paymentFilter, setPaymentFilter] = useState<string | undefined>(undefined);
@@ -226,7 +226,7 @@ export default function PagosPage() {
 
     // Validate CLABE
     if (clabe && !/^[0-9]{18}$/.test(clabe)) {
-      toast.error('La CLABE debe tener exactamente 18 dígitos');
+      toast.error(t('validation.clabeLength'));
       return;
     }
 
@@ -247,27 +247,27 @@ export default function PagosPage() {
 
     try {
       await updateMutation.mutateAsync(formData);
-      toast.success('Datos actualizados correctamente');
+      toast.success(t('toast.updated'));
       setIneFile(null);
       setTaxIdFile(null);
       setBankStatFile(null);
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || 'Error al guardar los datos');
+      toast.error(err?.response?.data?.message || t('toast.saveError'));
     }
-  }, [email, phone, curp, rfc, ineNumber, taxRegime, bankName, clabe, accountHolder, ineFile, taxIdFile, bankStatFile, updateMutation]);
+  }, [email, phone, curp, rfc, ineNumber, taxRegime, bankName, clabe, accountHolder, ineFile, taxIdFile, bankStatFile, updateMutation, t]);
 
   // Definir columnas ANTES de cualquier early return (Rules of Hooks).
   const paymentColumns: DataTableColumn<CommissionPayment>[] = useMemo(() => [
     {
       key: 'period',
-      header: 'Periodo',
+      header: t('history.columns.period'),
       headerClassName: 'text-xs font-semibold text-gray-500 uppercase',
       cellClassName: 'font-medium text-gray-900',
       render: (p) => p.periodName || p.periodCode,
     },
     {
       key: 'amount',
-      header: 'Monto',
+      header: t('history.columns.amount'),
       headerClassName: 'text-right text-xs font-semibold text-gray-500 uppercase',
       cellClassName: 'text-right font-semibold text-gray-900',
       render: (p) => (
@@ -279,7 +279,7 @@ export default function PagosPage() {
     },
     {
       key: 'date',
-      header: 'Fecha',
+      header: t('history.columns.date'),
       headerClassName: 'text-xs font-semibold text-gray-500 uppercase',
       cellClassName: 'text-gray-600',
       render: (p) =>
@@ -289,26 +289,26 @@ export default function PagosPage() {
     },
     {
       key: 'method',
-      header: 'Método',
+      header: t('history.columns.method'),
       headerClassName: 'text-xs font-semibold text-gray-500 uppercase',
       cellClassName: 'text-gray-600 capitalize',
       render: (p) => p.paymentMethod || '—',
     },
     {
       key: 'reference',
-      header: 'Referencia',
+      header: t('history.columns.reference'),
       headerClassName: 'text-xs font-semibold text-gray-500 uppercase',
       cellClassName: 'text-gray-500 font-mono text-xs',
       render: (p) => p.reference || '—',
     },
     {
       key: 'status',
-      header: 'Estado',
+      header: t('history.columns.status'),
       headerClassName: 'text-center text-xs font-semibold text-gray-500 uppercase',
       cellClassName: 'text-center',
       render: (p) => <StatusBadge status={p.status} />,
     },
-  ], []);
+  ], [t]);
 
   if (isLoading) {
     return (
@@ -336,15 +336,15 @@ export default function PagosPage() {
               <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur flex items-center justify-center">
                 <BanknotesIcon className="h-6 w-6 text-white" />
               </div>
-              <h1 className="text-2xl font-bold text-white">Datos para Comisiones</h1>
+              <h1 className="text-2xl font-bold text-white">{t('title')}</h1>
             </div>
             <p className="text-sm text-white/70 mt-2 max-w-lg">
-              Para poder depositarte tus comisiones, necesitamos verificar tu identidad e información bancaria. Estos datos son confidenciales y solo los usa el equipo de Tesorería.
+              {t('subtitle')}
             </p>
           </div>
           <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/10">
             <LockClosedIcon className="h-4 w-4 text-white/60" />
-            <span className="text-xs text-white/70">Información protegida</span>
+            <span className="text-xs text-white/70">{t('protected')}</span>
           </div>
         </div>
       </div>
@@ -367,8 +367,8 @@ export default function PagosPage() {
             <IdentificationIcon className="h-4 w-4 text-blue-600" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-800">Verificar tu identidad</p>
-            <p className="text-[10px] text-gray-500 mt-0.5">INE y CURP para confirmar que eres titular de la cuenta.</p>
+            <p className="text-xs font-semibold text-gray-800">{t('infoCards.identityTitle')}</p>
+            <p className="text-[10px] text-gray-500 mt-0.5">{t('infoCards.identityBody')}</p>
           </div>
         </div>
         <div className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4">
@@ -376,8 +376,8 @@ export default function PagosPage() {
             <ShieldCheckIcon className="h-4 w-4 text-emerald-600" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-800">Cumplimiento fiscal</p>
-            <p className="text-[10px] text-gray-500 mt-0.5">RFC y régimen fiscal para calcular retenciones correctamente.</p>
+            <p className="text-xs font-semibold text-gray-800">{t('infoCards.fiscalTitle')}</p>
+            <p className="text-[10px] text-gray-500 mt-0.5">{t('infoCards.fiscalBody')}</p>
           </div>
         </div>
         <div className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white p-4">
@@ -385,8 +385,8 @@ export default function PagosPage() {
             <BuildingLibraryIcon className="h-4 w-4 text-amber-600" />
           </div>
           <div>
-            <p className="text-xs font-semibold text-gray-800">Cuenta para depósitos</p>
-            <p className="text-[10px] text-gray-500 mt-0.5">CLABE y carátula para transferir tus comisiones de forma segura.</p>
+            <p className="text-xs font-semibold text-gray-800">{t('infoCards.depositTitle')}</p>
+            <p className="text-[10px] text-gray-500 mt-0.5">{t('infoCards.depositBody')}</p>
           </div>
         </div>
       </div>
@@ -402,9 +402,9 @@ export default function PagosPage() {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
                     <DocumentTextIcon className="h-4 w-4 text-[#3E667D]" />
-                    Información Personal
+                    {t('personal.title')}
                   </h2>
-                  <Tooltip text="Datos de contacto para que Tesorería pueda comunicarse contigo si hay algún problema con tu pago.">
+                  <Tooltip text={t('personal.tooltip')}>
                     <QuestionMarkCircleIcon className="h-4 w-4 text-gray-400 hover:text-[#3E667D] cursor-help" />
                   </Tooltip>
                 </div>
@@ -412,20 +412,20 @@ export default function PagosPage() {
                   {/* Read-only name */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <FieldLabel label="Nombre completo" tooltip="Se toma de tu perfil. Si necesitas cambiarlo, contacta a soporte." />
+                      <FieldLabel label={t('personal.fullName')} tooltip={t('personal.fullNameTooltip')} />
                       <FieldBadge value={paymentData?.personal.fullName} />
                     </div>
                     <div className="flex items-center gap-2">
                       <p className="flex-1 text-sm text-gray-900 bg-gray-50 rounded-lg px-3 py-2 border border-gray-200">
                         {paymentData?.personal.fullName || '—'}
                       </p>
-                      <LockClosedIcon className="h-4 w-4 text-gray-300 flex-shrink-0" title="Campo de solo lectura" />
+                      <LockClosedIcon className="h-4 w-4 text-gray-300 flex-shrink-0" title={t('personal.readOnlyField')} />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <div className="flex items-center justify-between">
-                        <FieldLabel label="Correo electrónico" tooltip="Email donde te notificaremos cuando se procese un depósito de comisiones." required />
+                        <FieldLabel label={t('personal.email')} tooltip={t('personal.emailTooltip')} required />
                         <FieldBadge value={email} />
                       </div>
                       <div className="relative">
@@ -435,13 +435,13 @@ export default function PagosPage() {
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           className="w-full rounded-lg border border-gray-300 pl-9 pr-3 py-2 text-sm focus:border-[#3E667D] focus:ring-1 focus:ring-[#3E667D] outline-none"
-                          placeholder="tu@email.com"
+                          placeholder={t('personal.emailPlaceholder')}
                         />
                       </div>
                     </div>
                     <div>
                       <div className="flex items-center justify-between">
-                        <FieldLabel label="Teléfono" tooltip="Número de contacto para que Tesorería te ubique en caso de aclaraciones." required />
+                        <FieldLabel label={t('personal.phone')} tooltip={t('personal.phoneTooltip')} required />
                         <FieldBadge value={phone} />
                       </div>
                       <PhoneInput
@@ -460,20 +460,20 @@ export default function PagosPage() {
                 <div className="flex items-center justify-between mb-1">
                   <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
                     <ShieldCheckIcon className="h-4 w-4 text-[#3E667D]" />
-                    Información Fiscal
+                    {t('fiscal.title')}
                   </h2>
-                  <Tooltip text="Datos requeridos por el SAT para calcular retenciones de ISR e IVA sobre tus comisiones.">
+                  <Tooltip text={t('fiscal.tooltip')}>
                     <QuestionMarkCircleIcon className="h-4 w-4 text-gray-400 hover:text-[#3E667D] cursor-help" />
                   </Tooltip>
                 </div>
                 <p className="text-[10px] text-gray-400 mb-4">
-                  Tu constancia fiscal debe indicar Régimen de Sueldos y Salarios e Ingresos Asimilados a Salarios.
+                  {t('fiscal.note')}
                 </p>
                 <div className="space-y-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <div className="flex items-center justify-between">
-                        <FieldLabel label="CURP" tooltip="Clave Única de Registro de Población (18 caracteres). Lo encuentras en tu acta de nacimiento o en consulta.curp.gob.mx" required />
+                        <FieldLabel label={t('fiscal.curp')} tooltip={t('fiscal.curpTooltip')} required />
                         <FieldBadge value={curp} />
                       </div>
                       <input
@@ -485,12 +485,12 @@ export default function PagosPage() {
                         placeholder="GARM850101HGTRZR09"
                       />
                       {curp && curp.length > 0 && curp.length < 18 && (
-                        <p className="text-[10px] text-amber-500 mt-0.5">{curp.length}/18 caracteres</p>
+                        <p className="text-[10px] text-amber-500 mt-0.5">{t('fiscal.curpCount', { count: curp.length })}</p>
                       )}
                     </div>
                     <div>
                       <div className="flex items-center justify-between">
-                        <FieldLabel label="RFC" tooltip="Registro Federal de Contribuyentes (12-13 caracteres). Lo encuentras en tu Constancia de Situación Fiscal." required />
+                        <FieldLabel label={t('fiscal.rfc')} tooltip={t('fiscal.rfcTooltip')} required />
                         <FieldBadge value={rfc} />
                       </div>
                       <input
@@ -506,7 +506,7 @@ export default function PagosPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <div className="flex items-center justify-between">
-                        <FieldLabel label="Número de INE" tooltip="Número de credencial que aparece al reverso de tu INE (credencial de elector)." required />
+                        <FieldLabel label={t('fiscal.ineNumber')} tooltip={t('fiscal.ineNumberTooltip')} required />
                         <FieldBadge value={ineNumber} />
                       </div>
                       <input
@@ -520,7 +520,7 @@ export default function PagosPage() {
                     </div>
                     <div>
                       <div className="flex items-center justify-between">
-                        <FieldLabel label="Régimen Fiscal" tooltip="El régimen que aparece en tu Constancia de Situación Fiscal del SAT. Determina cómo se calculan tus retenciones." required />
+                        <FieldLabel label={t('fiscal.taxRegime')} tooltip={t('fiscal.taxRegimeTooltip')} required />
                         <FieldBadge value={taxRegime} />
                       </div>
                       <select
@@ -528,7 +528,8 @@ export default function PagosPage() {
                         onChange={(e) => setTaxRegime(e.target.value)}
                         className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#3E667D] focus:ring-1 focus:ring-[#3E667D] outline-none bg-white"
                       >
-                        <option value="">Seleccionar...</option>
+                        <option value="">{t('fiscal.selectPlaceholder')}</option>
+                        {/* Nombres oficiales de régimen fiscal SAT: NO se traducen. */}
                         <option value="ASIMILADOS">Asimilados a Salarios</option>
                         <option value="FIC">Fideicomiso (FIC)</option>
                         <option value="RESICO">RESICO</option>
@@ -548,20 +549,20 @@ export default function PagosPage() {
                 <div className="flex items-center justify-between mb-1">
                   <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
                     <CreditCardIcon className="h-4 w-4 text-[#3E667D]" />
-                    Datos Bancarios
+                    {t('banking.title')}
                   </h2>
-                  <Tooltip text="Cuenta donde se depositarán tus comisiones. Debe estar a tu nombre y ser una cuenta bancaria mexicana con CLABE.">
+                  <Tooltip text={t('banking.tooltip')}>
                     <QuestionMarkCircleIcon className="h-4 w-4 text-gray-400 hover:text-[#3E667D] cursor-help" />
                   </Tooltip>
                 </div>
                 <div className="flex items-center gap-1.5 mb-4">
                   <LockClosedIcon className="h-3 w-3 text-gray-400" />
-                  <p className="text-[10px] text-gray-400">La cuenta debe estar a nombre del distribuidor que recibirá las comisiones.</p>
+                  <p className="text-[10px] text-gray-400">{t('banking.note')}</p>
                 </div>
                 <div className="space-y-3">
                   <div>
                     <div className="flex items-center justify-between">
-                      <FieldLabel label="Banco" tooltip="Nombre de tu banco. Ej: BBVA, Banorte, Santander, HSBC, etc." required />
+                      <FieldLabel label={t('banking.bank')} tooltip={t('banking.bankTooltip')} required />
                       <FieldBadge value={bankName} />
                     </div>
                     <div className="relative">
@@ -571,13 +572,13 @@ export default function PagosPage() {
                         value={bankName}
                         onChange={(e) => setBankName(e.target.value)}
                         className="w-full rounded-lg border border-gray-300 pl-9 pr-3 py-2 text-sm focus:border-[#3E667D] focus:ring-1 focus:ring-[#3E667D] outline-none"
-                        placeholder="BBVA, Banorte, Santander..."
+                        placeholder={t('banking.bankPlaceholder')}
                       />
                     </div>
                   </div>
                   <div>
                     <div className="flex items-center justify-between">
-                      <FieldLabel label="CLABE Interbancaria" tooltip="La CLABE es un número de 18 dígitos que identifica tu cuenta bancaria. La encuentras en tu estado de cuenta, app del banco, o carátula de la cuenta." required />
+                      <FieldLabel label={t('banking.clabe')} tooltip={t('banking.clabeTooltip')} required />
                       <FieldBadge value={clabe && clabe.length === 18 ? clabe : undefined} />
                     </div>
                     <input
@@ -591,7 +592,7 @@ export default function PagosPage() {
                     <div className="flex items-center justify-between mt-1">
                       {clabe ? (
                         <p className={`text-[10px] font-medium ${clabe.length === 18 ? 'text-emerald-500' : 'text-amber-500'}`}>
-                          {clabe.length}/18 dígitos {clabe.length === 18 && '- Completa'}
+                          {t('banking.clabeCount', { count: clabe.length })} {clabe.length === 18 && `- ${t('banking.clabeComplete')}`}
                         </p>
                       ) : (
                         <span />
@@ -600,7 +601,7 @@ export default function PagosPage() {
                   </div>
                   <div>
                     <div className="flex items-center justify-between">
-                      <FieldLabel label="Titular de la cuenta" tooltip="Nombre exacto como aparece en tu estado de cuenta. Debe coincidir con tu nombre registrado como distribuidor." required />
+                      <FieldLabel label={t('banking.accountHolder')} tooltip={t('banking.accountHolderTooltip')} required />
                       <FieldBadge value={accountHolder} />
                     </div>
                     <input
@@ -608,7 +609,7 @@ export default function PagosPage() {
                       value={accountHolder}
                       onChange={(e) => setAccountHolder(e.target.value)}
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm uppercase focus:border-[#3E667D] focus:ring-1 focus:ring-[#3E667D] outline-none"
-                      placeholder="NOMBRE COMPLETO DEL TITULAR"
+                      placeholder={t('banking.accountHolderPlaceholder')}
                     />
                   </div>
                 </div>
@@ -623,22 +624,22 @@ export default function PagosPage() {
                 <div className="flex items-center justify-between mb-1">
                   <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
                     <ArrowDownTrayIcon className="h-4 w-4 text-[#3E667D]" />
-                    Documentos Requeridos
+                    {t('documents.title')}
                   </h2>
-                  <Tooltip text="Escaneados o fotos legibles de tus documentos. Se aceptan JPG, PNG y PDF. Máximo 5MB por archivo.">
+                  <Tooltip text={t('documents.tooltip')}>
                     <QuestionMarkCircleIcon className="h-4 w-4 text-gray-400 hover:text-[#3E667D] cursor-help" />
                   </Tooltip>
                 </div>
                 <p className="text-[10px] text-gray-400 mb-4">
-                  Sube fotos o escaneos legibles. El equipo de Tesorería los revisará y validará.
+                  {t('documents.note')}
                 </p>
                 <div className="space-y-5">
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-gray-700">INE (Credencial de elector)</span>
+                      <span className="text-sm font-medium text-gray-700">{t('documents.ineTitle')}</span>
                       <FieldBadge value={paymentData?.documents.ineDocument.url} />
                     </div>
-                    <p className="text-[10px] text-gray-400 mb-2">Foto por ambos lados. Debe verse claramente tu nombre, foto y número de credencial.</p>
+                    <p className="text-[10px] text-gray-400 mb-2">{t('documents.ineHint')}</p>
                     <FileUpload
                       label=""
                       name="ineDocument"
@@ -650,10 +651,10 @@ export default function PagosPage() {
                   </div>
                   <div className="border-t border-gray-100 pt-4">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-gray-700">Constancia de Situación Fiscal (RFC)</span>
+                      <span className="text-sm font-medium text-gray-700">{t('documents.taxIdTitle')}</span>
                       <FieldBadge value={paymentData?.documents.taxIdDocument.url} />
                     </div>
-                    <p className="text-[10px] text-gray-400 mb-2">Descárgala desde el portal del SAT. Debe indicar régimen de Sueldos y Salarios e Ingresos Asimilados a Salarios.</p>
+                    <p className="text-[10px] text-gray-400 mb-2">{t('documents.taxIdHint')}</p>
                     <FileUpload
                       label=""
                       name="taxIdDocument"
@@ -665,10 +666,10 @@ export default function PagosPage() {
                   </div>
                   <div className="border-t border-gray-100 pt-4">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-gray-700">Carátula de Estado de Cuenta</span>
+                      <span className="text-sm font-medium text-gray-700">{t('documents.bankStatementTitle')}</span>
                       <FieldBadge value={paymentData?.documents.bankStatement.url} />
                     </div>
-                    <p className="text-[10px] text-gray-400 mb-2">Documento del banco donde se vea tu nombre, nombre del banco y CLABE interbancaria completa.</p>
+                    <p className="text-[10px] text-gray-400 mb-2">{t('documents.bankStatementHint')}</p>
                     <FileUpload
                       label=""
                       name="bankStatement"
@@ -684,10 +685,13 @@ export default function PagosPage() {
 
             {/* Contact info */}
             <div className="rounded-xl border border-[#3E667D]/10 bg-[#3E667D]/5 p-4">
-              <p className="text-xs font-semibold text-[#3E667D] mb-1">Dudas sobre tus datos</p>
+              <p className="text-xs font-semibold text-[#3E667D] mb-1">{t('contact.title')}</p>
               <p className="text-[10px] text-gray-600 leading-relaxed">
-                Envía tus documentos escaneados o foto legible a <span className="font-medium">comisiones@toniclife.com</span> o por
-                WhatsApp al <span className="font-medium">+52 462 220 1995</span>. Atención a clientes: <span className="font-medium">462 626 5304</span> Ext. 105, 124, 126.
+                {t.rich('contact.body', {
+                  email: (chunks) => <span className="font-medium">{chunks}</span>,
+                  whatsapp: (chunks) => <span className="font-medium">{chunks}</span>,
+                  phone: (chunks) => <span className="font-medium">{chunks}</span>,
+                })}
               </p>
             </div>
 
@@ -699,7 +703,7 @@ export default function PagosPage() {
           <div className="flex items-center justify-between gap-4">
             <p className="hidden items-center gap-1.5 text-xs text-gray-500 sm:flex">
               <LockClosedIcon className="h-3.5 w-3.5" />
-              Tus datos están protegidos y solo los usa Tesorería.
+              {t('save.footerNote')}
             </p>
             <button
               type="submit"
@@ -709,12 +713,12 @@ export default function PagosPage() {
               {updateMutation.isPending ? (
                 <>
                   <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                  Guardando...
+                  {t('save.saving')}
                 </>
               ) : (
                 <>
                   <CheckCircleIcon className="h-4 w-4" />
-                  Guardar Datos
+                  {t('save.save')}
                 </>
               )}
             </button>
@@ -728,24 +732,24 @@ export default function PagosPage() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
               <BanknotesIcon className="h-4 w-4 text-[#3E667D]" />
-              Historial de Pagos de Comisiones
+              {t('history.title')}
             </h2>
             <select
               value={paymentFilter || ''}
               onChange={(e) => setPaymentFilter(e.target.value || undefined)}
               className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs focus:border-[#3E667D] focus:ring-1 focus:ring-[#3E667D] outline-none bg-white"
             >
-              <option value="">Todos los estados</option>
-              <option value="completed">Pagados</option>
-              <option value="pending">Pendientes</option>
-              <option value="failed">Fallidos</option>
+              <option value="">{t('history.filterAll')}</option>
+              <option value="completed">{t('history.filterPaid')}</option>
+              <option value="pending">{t('history.filterPending')}</option>
+              <option value="failed">{t('history.filterFailed')}</option>
             </select>
           </div>
 
           {paymentData?.overallStatus === 'incomplete' && (
             <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 mb-4 text-xs text-amber-700">
               <ExclamationTriangleIcon className="h-4 w-4 flex-shrink-0" />
-              Completa tus datos para comisiones arriba para poder recibir pagos.
+              {t('history.incompleteWarning')}
             </div>
           )}
 
@@ -753,7 +757,7 @@ export default function PagosPage() {
             columns={paymentColumns}
             data={payments}
             getRowKey={(p) => String(p.id)}
-            emptyMessage="No hay pagos de comisiones registrados aún."
+            emptyMessage={t('history.empty')}
           />
         </CardContent>
       </Card>
