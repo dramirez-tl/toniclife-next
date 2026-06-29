@@ -1176,6 +1176,141 @@
         "failed": "Pago fallido",
         "refunded": "Reembolsado"
       }
+    },
+    "materials": {
+      "title": "Material de Marketing",
+      "subtitle": "Recursos descargables para impulsar tu negocio",
+      "backToPanel": "Volver al Panel Principal",
+      "stats": {
+        "totalMaterials": "Total de Materiales",
+        "totalDownloads": "Descargas Totales",
+        "categories": "Categorías"
+      },
+      "searchPlaceholder": "Buscar materiales...",
+      "allCategories": "Todas las categorías",
+      "allTypes": "Todos los tipos",
+      "sort": {
+        "default": "Orden destacado",
+        "recent": "Más Recientes",
+        "popular": "Más Descargados",
+        "name": "Nombre A-Z"
+      },
+      "categories": {
+        "catalogos": "Catálogos",
+        "redes_sociales": "Redes Sociales",
+        "testimonios": "Testimonios",
+        "presentaciones": "Presentaciones",
+        "guias": "Guías",
+        "branding": "Branding",
+        "capacitacion": "Capacitación",
+        "otros": "Otros"
+      },
+      "types": {
+        "pdf": "PDF",
+        "image": "Imagen",
+        "video": "Video",
+        "document": "Documento",
+        "presentation": "Presentación"
+      },
+      "downloads": "{count} descargas",
+      "actions": {
+        "download": "Descargar",
+        "preview": "Vista Previa",
+        "share": "Compartir"
+      },
+      "empty": {
+        "title": "No hay materiales disponibles",
+        "filtered": "Intenta ajustar los filtros de búsqueda",
+        "default": "Los materiales de marketing aparecerán aquí cuando el administrador los publique."
+      },
+      "toast": {
+        "noFileDownload": "Este material aún no tiene archivo disponible",
+        "downloading": "Descargando: {title}",
+        "downloadError": "No se pudo iniciar la descarga",
+        "noFilePreview": "No hay archivo para mostrar",
+        "previewError": "No se pudo abrir la vista previa",
+        "linkCopied": "Enlace de {title} copiado (válido 1 hora)",
+        "shareError": "No se pudo copiar el enlace"
+      },
+      "tips": {
+        "title": "Tips para Usar el Material de Marketing",
+        "social": {
+          "title": "Redes Sociales",
+          "item1": "Publica contenido 3-5 veces por semana",
+          "item2": "Usa los hashtags sugeridos en cada material",
+          "item3": "Personaliza los textos con tu experiencia",
+          "item4": "Responde todos los comentarios y mensajes"
+        },
+        "presentations": {
+          "title": "Presentaciones",
+          "item1": "Practica antes de presentar a prospectos",
+          "item2": "Adapta el contenido a tu audiencia",
+          "item3": "Comparte testimonios reales",
+          "item4": "Siempre incluye tu información de contacto"
+        }
+      }
+    },
+    "training": {
+      "academyName": "Rise Academy",
+      "title": "Sistema de Capacitación",
+      "subtitle": "Cursos élite de grandes coaches en multinivel",
+      "logoAlt": "Rise Academy",
+      "backToPanel": "Volver al Panel Principal",
+      "stats": {
+        "availableCourses": "Cursos Disponibles",
+        "contentHours": "Horas de Contenido",
+        "estimatedValue": "Valor Estimado",
+        "includedWithKit": "Incluido con tu kit"
+      },
+      "filters": {
+        "allCategories": "Todas",
+        "allLevels": "Todos"
+      },
+      "categories": {
+        "liderazgo": "Liderazgo",
+        "ventas": "Ventas",
+        "marketing": "Marketing",
+        "productos": "Productos",
+        "fundamentos": "Fundamentos"
+      },
+      "difficulty": {
+        "principiante": "Principiante",
+        "intermedio": "Intermedio",
+        "avanzado": "Avanzado"
+      },
+      "by": "Por",
+      "videos": "{count, plural, =1 {# video} other {# videos}}",
+      "viewCourse": "Ver Curso",
+      "empty": {
+        "title": "No hay cursos disponibles",
+        "body": "Pronto habrá más contenido para ti."
+      },
+      "lightboxAlt": "Vista ampliada",
+      "course": {
+        "academy": "Academia",
+        "noInstructor": "Sin instructor",
+        "back": "Volver",
+        "notFound": "Curso no encontrado.",
+        "backToAcademy": "Volver a la academia",
+        "videoUnavailable": "El video aún no está disponible.",
+        "loadingPlayer": "Cargando reproductor...",
+        "videoLoadError": "No se pudo cargar el video",
+        "minutes": "{minutes} min",
+        "completed": "Completado",
+        "sidebarTitle": "Contenido del curso",
+        "lessonsSummary": "{lessons, plural, =1 {# lección} other {# lecciones}} · {completed, plural, =1 {# completada} other {# completadas}}",
+        "percentCompleted": "{percent}% completado",
+        "courseFinished": " · ¡Curso terminado!",
+        "loading": "Cargando...",
+        "noLessons": "Aún no hay lecciones disponibles.",
+        "emptyLessons": "Este curso aún no tiene lecciones publicadas.",
+        "restricted": {
+          "title": "Curso restringido",
+          "requiresEnrollment": "<strong>{title}</strong> requiere inscripción previa.",
+          "notEnrolled": "Contacta a tu sponsor o a soporte para adquirir este contenido.",
+          "default": "Contacta a soporte si crees que esto es un error."
+        }
+      }
     }
   }
 }

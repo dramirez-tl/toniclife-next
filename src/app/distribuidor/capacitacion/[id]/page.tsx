@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, use, useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -40,6 +41,7 @@ export default function CourseDetailPage({ params }: { params: Promise<{ id: str
 }
 
 function CourseDetailContent({ courseId }: { courseId: string }) {
+  const t = useTranslations('distributor.training.course');
   const router = useRouter();
 
   const { data: course, isLoading: loadingCourse } = useCourse(courseId);
@@ -90,7 +92,7 @@ function CourseDetailContent({ courseId }: { courseId: string }) {
         const { url } = await coursesService.getLessonStreamUrl(courseId, currentLesson.id);
         if (!cancelled) setStreamUrl(url);
       } catch {
-        if (!cancelled) toast.error('No se pudo cargar el video');
+        if (!cancelled) toast.error(t('videoLoadError'));
       } finally {
         if (!cancelled) setLoadingStream(false);
       }
@@ -99,7 +101,7 @@ function CourseDetailContent({ courseId }: { courseId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [courseId, currentLesson]);
+  }, [courseId, currentLesson, t]);
 
   const updateProgress = useUpdateLessonProgress(courseId);
 
@@ -134,12 +136,12 @@ function CourseDetailContent({ courseId }: { courseId: string }) {
   if (!course) {
     return (
       <div className="p-8 text-center">
-        <p className="text-gray-600">Curso no encontrado.</p>
+        <p className="text-gray-600">{t('notFound')}</p>
         <button
           onClick={() => router.push('/distribuidor/capacitacion')}
           className="mt-4 text-[#3E667D] hover:underline"
         >
-          Volver a la academia
+          {t('backToAcademy')}
         </button>
       </div>
     );
@@ -162,13 +164,14 @@ function CourseDetailContent({ courseId }: { courseId: string }) {
           <button
             type="button"
             onClick={() => router.push('/distribuidor/capacitacion')}
+            aria-label={t('back')}
             className="rounded-full p-2 hover:bg-white/10 transition-colors"
           >
             <ArrowLeftIcon className="h-5 w-5" />
           </button>
           <div className="flex-1 min-w-0">
             <p className="text-xs text-white/60 truncate">
-              Academia · {course.instructorName || 'Sin instructor'}
+              {t('academy')} · {course.instructorName || t('noInstructor')}
             </p>
             <h1 className="text-xl sm:text-2xl font-bold truncate">{course.title}</h1>
           </div>
@@ -186,12 +189,12 @@ function CourseDetailContent({ courseId }: { courseId: string }) {
               <div className="aspect-video rounded-xl bg-gray-900 flex items-center justify-center">
                 <div className="text-center">
                   <PlayCircleIcon className="mx-auto h-14 w-14 text-gray-600 mb-2" />
-                  <p className="text-gray-400 text-sm">El video aún no está disponible.</p>
+                  <p className="text-gray-400 text-sm">{t('videoUnavailable')}</p>
                 </div>
               </div>
             ) : loadingStream || !streamUrl ? (
               <div className="aspect-video rounded-xl bg-gray-900 flex items-center justify-center">
-                <div className="animate-pulse text-gray-500 text-sm">Cargando reproductor...</div>
+                <div className="animate-pulse text-gray-500 text-sm">{t('loadingPlayer')}</div>
               </div>
             ) : (
               <VideoPlayer
@@ -219,14 +222,14 @@ function CourseDetailContent({ courseId }: { courseId: string }) {
                     {currentLesson.durationMinutes > 0 && (
                       <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">
                         <ClockIcon className="h-3.5 w-3.5" />
-                        <span>{currentLesson.durationMinutes} min</span>
+                        <span>{t('minutes', { minutes: currentLesson.durationMinutes })}</span>
                       </div>
                     )}
                   </div>
                   {currentProgress?.completed && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-medium text-emerald-700">
                       <CheckCircleIcon className="h-4 w-4" />
-                      Completado
+                      {t('completed')}
                     </span>
                   )}
                 </div>
@@ -243,9 +246,9 @@ function CourseDetailContent({ courseId }: { courseId: string }) {
           <aside className="lg:sticky lg:top-4 lg:self-start">
             <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
-                <h3 className="text-sm font-semibold text-gray-900">Contenido del curso</h3>
+                <h3 className="text-sm font-semibold text-gray-900">{t('sidebarTitle')}</h3>
                 <p className="text-[11px] text-gray-500 mt-0.5">
-                  {lessons.length} lecciones · {completedCount} completadas
+                  {t('lessonsSummary', { lessons: lessons.length, completed: completedCount })}
                 </p>
                 {lessons.length > 0 && (
                   <div className="mt-2">
@@ -256,17 +259,17 @@ function CourseDetailContent({ courseId }: { courseId: string }) {
                       />
                     </div>
                     <p className="mt-1 text-[11px] font-medium text-gray-500">
-                      {Math.round(coursePct)}% completado
-                      {coursePct >= 100 ? ' · ¡Curso terminado!' : ''}
+                      {t('percentCompleted', { percent: Math.round(coursePct) })}
+                      {coursePct >= 100 ? t('courseFinished') : ''}
                     </p>
                   </div>
                 )}
               </div>
               {loadingLessons ? (
-                <div className="p-4 text-sm text-gray-500">Cargando...</div>
+                <div className="p-4 text-sm text-gray-500">{t('loading')}</div>
               ) : lessons.length === 0 ? (
                 <div className="p-6 text-center text-sm text-gray-500">
-                  Aún no hay lecciones disponibles.
+                  {t('noLessons')}
                 </div>
               ) : (
                 <ul className="divide-y divide-gray-100 max-h-[70vh] overflow-y-auto">
@@ -313,7 +316,7 @@ function CourseDetailContent({ courseId }: { courseId: string }) {
                               </p>
                               <div className="flex items-center gap-2 mt-0.5 text-[11px] text-gray-500">
                                 {lesson.durationMinutes > 0 && (
-                                  <span>{lesson.durationMinutes} min</span>
+                                  <span>{t('minutes', { minutes: lesson.durationMinutes })}</span>
                                 )}
                                 {prog && !prog.completed && prog.percent > 0 && (
                                   <span className="text-[#3E667D]">
@@ -344,6 +347,7 @@ function AccessDenied({
   courseTitle: string;
   reason?: string;
 }) {
+  const t = useTranslations('distributor.training.course');
   const router = useRouter();
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50 flex items-center justify-center p-6">
@@ -351,21 +355,24 @@ function AccessDenied({
         <div className="mx-auto h-14 w-14 rounded-full bg-amber-50 flex items-center justify-center mb-4">
           <LockClosedIcon className="h-7 w-7 text-amber-600" />
         </div>
-        <h1 className="text-lg font-semibold text-gray-900 mb-2">Curso restringido</h1>
+        <h1 className="text-lg font-semibold text-gray-900 mb-2">{t('restricted.title')}</h1>
         <p className="text-sm text-gray-600 mb-1">
-          <strong>{courseTitle}</strong> requiere inscripción previa.
+          {t.rich('restricted.requiresEnrollment', {
+            title: courseTitle,
+            strong: (chunks) => <strong>{chunks}</strong>,
+          })}
         </p>
         <p className="text-xs text-gray-500 mb-6">
           {reason === 'not_enrolled'
-            ? 'Contacta a tu sponsor o a soporte para adquirir este contenido.'
-            : 'Contacta a soporte si crees que esto es un error.'}
+            ? t('restricted.notEnrolled')
+            : t('restricted.default')}
         </p>
         <button
           type="button"
           onClick={() => router.push('/distribuidor/capacitacion')}
           className="w-full rounded-lg bg-[#3E667D] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#2f5165] transition-colors"
         >
-          Volver a la academia
+          {t('backToAcademy')}
         </button>
       </div>
     </div>
@@ -373,11 +380,12 @@ function AccessDenied({
 }
 
 function EmptyLessonsState() {
+  const t = useTranslations('distributor.training.course');
   return (
     <div className="aspect-video rounded-xl bg-gray-900 flex items-center justify-center">
       <div className="text-center">
         <AcademicCapIcon className="mx-auto h-14 w-14 text-gray-600 mb-2" />
-        <p className="text-gray-400 text-sm">Este curso aún no tiene lecciones publicadas.</p>
+        <p className="text-gray-400 text-sm">{t('emptyLessons')}</p>
       </div>
     </div>
   );

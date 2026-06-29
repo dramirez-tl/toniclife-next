@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -27,19 +28,8 @@ function resolveUrl(url: string | null): string | null {
   return `${API_BASE}${url}`;
 }
 
-const categoryLabels: Record<string, string> = {
-  liderazgo: 'Liderazgo',
-  ventas: 'Ventas',
-  marketing: 'Marketing',
-  productos: 'Productos',
-  fundamentos: 'Fundamentos',
-};
-
-const difficultyLabels: Record<string, string> = {
-  principiante: 'Principiante',
-  intermedio: 'Intermedio',
-  avanzado: 'Avanzado',
-};
+const CATEGORY_KEYS = ['liderazgo', 'ventas', 'marketing', 'productos', 'fundamentos'];
+const DIFFICULTY_KEYS = ['principiante', 'intermedio', 'avanzado'];
 
 const difficultyColors: Record<string, string> = {
   principiante: 'bg-green-100 text-green-800',
@@ -52,6 +42,11 @@ export default function CapacitacionPage() {
 }
 
 function CapacitacionContent() {
+  const t = useTranslations('distributor.training');
+  const categoryLabel = (cat: string) =>
+    CATEGORY_KEYS.includes(cat) ? t(`categories.${cat}`) : cat;
+  const difficultyLabel = (level: string) =>
+    DIFFICULTY_KEYS.includes(level) ? t(`difficulty.${level}`) : level;
   const { get, setParams } = useQueryFilters({
     category: 'all',
     level: 'all',
@@ -95,7 +90,7 @@ function CapacitacionContent() {
               <div className="flex-shrink-0 bg-white/10 backdrop-blur-sm rounded-2xl p-2 border border-white/15 shadow-lg">
                 <Image
                   src="/images/rise_academy/RiseAcademyWhite.png"
-                  alt="Rise Academy"
+                  alt={t('logoAlt')}
                   width={280}
                   height={280}
                   className="h-40 w-40 sm:h-48 sm:w-48 lg:h-56 lg:w-56 object-contain"
@@ -105,19 +100,19 @@ function CapacitacionContent() {
               {/* Título y subtítulo */}
               <div className="min-w-0">
                 <p className="text-xs sm:text-sm uppercase tracking-[0.2em] text-white/60 font-medium mb-1">
-                  Rise Academy
+                  {t('academyName')}
                 </p>
                 <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight">
-                  Sistema de Capacitación
+                  {t('title')}
                 </h1>
                 <p className="text-white/80 text-base sm:text-lg mt-2">
-                  Cursos élite de grandes coaches en multinivel
+                  {t('subtitle')}
                 </p>
               </div>
             </div>
             <Link href="/distribuidor" className="flex-shrink-0">
               <Button variant="secondary">
-                Volver al Panel Principal
+                {t('backToPanel')}
               </Button>
             </Link>
           </div>
@@ -132,7 +127,7 @@ function CapacitacionContent() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Cursos Disponibles</p>
+                  <p className="text-sm text-gray-600 mb-1">{t('stats.availableCourses')}</p>
                   <p className="text-3xl font-bold text-[#3E667D]">{stats.totalCourses}</p>
                 </div>
                 <AcademicCapIcon className="h-12 w-12 text-[#3E667D]/30" />
@@ -144,7 +139,7 @@ function CapacitacionContent() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Horas de Contenido</p>
+                  <p className="text-sm text-gray-600 mb-1">{t('stats.contentHours')}</p>
                   <p className="text-3xl font-bold text-purple-600">{stats.totalHours.toFixed(1)}</p>
                 </div>
                 <ClockIcon className="h-12 w-12 text-purple-400/30" />
@@ -156,12 +151,12 @@ function CapacitacionContent() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Valor Estimado</p>
+                  <p className="text-sm text-gray-600 mb-1">{t('stats.estimatedValue')}</p>
                   <p className="text-3xl font-bold text-emerald-600">$30,000+</p>
                 </div>
                 <TrophyIcon className="h-12 w-12 text-emerald-400/30" />
               </div>
-              <p className="text-[10px] text-gray-400 mt-1">Incluido con tu kit</p>
+              <p className="text-[10px] text-gray-400 mt-1">{t('stats.includedWithKit')}</p>
             </CardContent>
           </Card>
         </div>
@@ -171,19 +166,19 @@ function CapacitacionContent() {
           <div className="flex flex-wrap gap-3 mb-6">
             {categories.length > 1 && (
               <SearchableSelect
-                options={categories.map(cat => ({ value: cat, label: categoryLabels[cat] || cat }))}
+                options={categories.map(cat => ({ value: cat, label: categoryLabel(cat) }))}
                 value={filterCategory}
                 onChange={(val) => setParams({ category: val })}
-                allLabel="Todas"
+                allLabel={t('filters.allCategories')}
                 allValue="all"
               />
             )}
             {levels.length > 1 && (
               <SearchableSelect
-                options={levels.map(l => ({ value: l, label: difficultyLabels[l] || l }))}
+                options={levels.map(l => ({ value: l, label: difficultyLabel(l) }))}
                 value={filterLevel}
                 onChange={(val) => setParams({ level: val })}
-                allLabel="Todos"
+                allLabel={t('filters.allLevels')}
                 allValue="all"
               />
             )}
@@ -237,14 +232,14 @@ function CapacitacionContent() {
                     <div className="flex-1 p-4 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${difficultyColors[course.difficulty] || 'bg-gray-100 text-gray-800'}`}>
-                          {difficultyLabels[course.difficulty] || course.difficulty}
+                          {difficultyLabel(course.difficulty)}
                         </span>
-                        <span className="text-xs text-gray-500">{categoryLabels[course.category] || course.category}</span>
+                        <span className="text-xs text-gray-500">{categoryLabel(course.category)}</span>
                       </div>
                       <h3 className="font-bold text-gray-900 mb-1 line-clamp-2">{course.title}</h3>
 
                       {course.instructorName && (
-                        <p className="text-sm text-gray-600 mb-2">Por <strong>{course.instructorName}</strong></p>
+                        <p className="text-sm text-gray-600 mb-2">{t('by')} <strong>{course.instructorName}</strong></p>
                       )}
 
                       {course.description && (
@@ -262,7 +257,7 @@ function CapacitacionContent() {
                         {course.lessonCount > 0 && (
                           <span className="flex items-center gap-1">
                             <VideoCameraIcon className="h-3 w-3" />
-                            {course.lessonCount} {course.lessonCount === 1 ? 'video' : 'videos'}
+                            {t('videos', { count: course.lessonCount })}
                           </span>
                         )}
                       </div>
@@ -274,7 +269,7 @@ function CapacitacionContent() {
                         onClick={() => handleStartCourse(course)}
                       >
                         <PlayIcon className="h-4 w-4" />
-                        Ver Curso
+                        {t('viewCourse')}
                       </Button>
                     </div>
                   </div>
@@ -287,8 +282,8 @@ function CapacitacionContent() {
         {!isLoading && filteredCourses.length === 0 && (
           <div className="text-center py-12 text-gray-400">
             <AcademicCapIcon className="mx-auto h-12 w-12 mb-3" />
-            <p className="text-lg font-medium text-gray-600">No hay cursos disponibles</p>
-            <p className="text-sm">Pronto habrá más contenido para ti.</p>
+            <p className="text-lg font-medium text-gray-600">{t('empty.title')}</p>
+            <p className="text-sm">{t('empty.body')}</p>
           </div>
         )}
       </div>
@@ -308,7 +303,7 @@ function CapacitacionContent() {
           </button>
           <img
             src={lightboxUrl}
-            alt="Vista ampliada"
+            alt={t('lightboxAlt')}
             className="max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           />

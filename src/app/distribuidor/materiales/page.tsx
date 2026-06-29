@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, Suspense } from 'react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,24 +33,18 @@ function resolveUrl(url: string | null): string | null {
   return `${API_BASE}${url}`;
 }
 
-const categoryLabels: Record<MaterialCategory, string> = {
-  catalogos: 'Catálogos',
-  redes_sociales: 'Redes Sociales',
-  testimonios: 'Testimonios',
-  presentaciones: 'Presentaciones',
-  guias: 'Guías',
-  branding: 'Branding',
-  capacitacion: 'Capacitación',
-  otros: 'Otros',
-};
+const CATEGORY_KEYS: MaterialCategory[] = [
+  'catalogos',
+  'redes_sociales',
+  'testimonios',
+  'presentaciones',
+  'guias',
+  'branding',
+  'capacitacion',
+  'otros',
+];
 
-const typeLabels: Record<MaterialType, string> = {
-  pdf: 'PDF',
-  image: 'Imagen',
-  video: 'Video',
-  document: 'Documento',
-  presentation: 'Presentación',
-};
+const TYPE_KEYS: MaterialType[] = ['pdf', 'image', 'video', 'document', 'presentation'];
 
 const typeIcons: Record<MaterialType, typeof DocumentTextIcon> = {
   pdf: DocumentTextIcon,
@@ -83,6 +78,7 @@ export default function MaterialesPage() {
 }
 
 function MaterialesContent() {
+  const t = useTranslations('distributor.materials');
   const [searchQuery, setSearchQuery] = useState('');
   const { get, setParams } = useQueryFilters({
     category: 'all',
@@ -122,29 +118,29 @@ function MaterialesContent() {
 
   const handleDownload = async (material: MarketingMaterial) => {
     if (!material.hasFile) {
-      toast.error('Este material aún no tiene archivo disponible');
+      toast.error(t('toast.noFileDownload'));
       return;
     }
     try {
       const { url } = await materialsService.getDownloadUrl(material.id);
       // Abrir en nueva pestaña para respetar Content-Disposition attachment
       window.open(url, '_blank', 'noopener');
-      toast.success(`Descargando: ${material.title}`);
+      toast.success(t('toast.downloading', { title: material.title }));
     } catch {
-      toast.error('No se pudo iniciar la descarga');
+      toast.error(t('toast.downloadError'));
     }
   };
 
   const handlePreview = async (material: MarketingMaterial) => {
     if (!material.hasFile) {
-      toast.error('No hay archivo para mostrar');
+      toast.error(t('toast.noFilePreview'));
       return;
     }
     try {
       const { url } = await materialsService.getPreviewUrl(material.id);
       window.open(url, '_blank', 'noopener');
     } catch {
-      toast.error('No se pudo abrir la vista previa');
+      toast.error(t('toast.previewError'));
     }
   };
 
@@ -152,14 +148,17 @@ function MaterialesContent() {
     try {
       const { url } = await materialsService.getPreviewUrl(material.id);
       await navigator.clipboard.writeText(url);
-      toast.success(`Enlace de ${material.title} copiado (válido 1 hora)`);
+      toast.success(t('toast.linkCopied', { title: material.title }));
     } catch {
-      toast.error('No se pudo copiar el enlace');
+      toast.error(t('toast.shareError'));
     }
   };
 
-  const categoryOptions = Object.entries(categoryLabels).map(([value, label]) => ({ value, label }));
-  const typeOptions = Object.entries(typeLabels).map(([value, label]) => ({ value, label }));
+  const categoryOptions = CATEGORY_KEYS.map((value) => ({
+    value,
+    label: t(`categories.${value}`),
+  }));
+  const typeOptions = TYPE_KEYS.map((value) => ({ value, label: t(`types.${value}`) }));
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -170,14 +169,14 @@ function MaterialesContent() {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <ArrowDownTrayIcon className="h-10 w-10" />
-                <h1 className="text-4xl font-bold">Material de Marketing</h1>
+                <h1 className="text-4xl font-bold">{t('title')}</h1>
               </div>
               <p className="text-white/80 text-lg">
-                Recursos descargables para impulsar tu negocio
+                {t('subtitle')}
               </p>
             </div>
             <Link href="/distribuidor">
-              <Button variant="secondary">Volver al Panel Principal</Button>
+              <Button variant="secondary">{t('backToPanel')}</Button>
             </Link>
           </div>
         </div>
@@ -191,7 +190,7 @@ function MaterialesContent() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Total de Materiales</p>
+                  <p className="text-sm text-gray-600 mb-1">{t('stats.totalMaterials')}</p>
                   <p className="text-3xl font-bold text-gray-900">{stats.totalMaterials}</p>
                 </div>
                 <DocumentTextIcon className="h-12 w-12 text-blue-400" />
@@ -202,7 +201,7 @@ function MaterialesContent() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Descargas Totales</p>
+                  <p className="text-sm text-gray-600 mb-1">{t('stats.totalDownloads')}</p>
                   <p className="text-3xl font-bold text-gray-900">{stats.totalDownloads}</p>
                 </div>
                 <ArrowDownTrayIcon className="h-12 w-12 text-green-400" />
@@ -213,7 +212,7 @@ function MaterialesContent() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 mb-1">Categorías</p>
+                  <p className="text-sm text-gray-600 mb-1">{t('stats.categories')}</p>
                   <p className="text-3xl font-bold text-gray-900">{stats.categories}</p>
                 </div>
                 <FunnelIcon className="h-12 w-12 text-purple-400" />
@@ -230,7 +229,7 @@ function MaterialesContent() {
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Buscar materiales..."
+                  placeholder={t('searchPlaceholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
@@ -240,7 +239,7 @@ function MaterialesContent() {
                 options={categoryOptions}
                 value={filterCategory}
                 onChange={(val) => setParams({ category: val })}
-                allLabel="Todas las categorías"
+                allLabel={t('allCategories')}
                 allValue="all"
                 className="lg:w-48"
               />
@@ -248,16 +247,16 @@ function MaterialesContent() {
                 options={typeOptions}
                 value={filterType}
                 onChange={(val) => setParams({ type: val })}
-                allLabel="Todos los tipos"
+                allLabel={t('allTypes')}
                 allValue="all"
                 className="lg:w-40"
               />
               <SearchableSelect
                 options={[
-                  { value: 'default', label: 'Orden destacado' },
-                  { value: 'recent', label: 'Más Recientes' },
-                  { value: 'popular', label: 'Más Descargados' },
-                  { value: 'name', label: 'Nombre A-Z' },
+                  { value: 'default', label: t('sort.default') },
+                  { value: 'recent', label: t('sort.recent') },
+                  { value: 'popular', label: t('sort.popular') },
+                  { value: 'name', label: t('sort.name') },
                 ]}
                 value={sortBy}
                 onChange={(val) => setParams({ sortBy: val })}
@@ -280,12 +279,12 @@ function MaterialesContent() {
             <CardContent className="p-16 text-center">
               <DocumentTextIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-xl font-bold text-gray-900 mb-2">
-                No hay materiales disponibles
+                {t('empty.title')}
               </h3>
               <p className="text-gray-600">
                 {searchQuery || filterCategory !== 'all' || filterType !== 'all'
-                  ? 'Intenta ajustar los filtros de búsqueda'
-                  : 'Los materiales de marketing aparecerán aquí cuando el administrador los publique.'}
+                  ? t('empty.filtered')
+                  : t('empty.default')}
               </p>
             </CardContent>
           </Card>
@@ -324,9 +323,9 @@ function MaterialesContent() {
                         className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${typeBadgeColors[material.type]}`}
                       >
                         <IconComponent className="h-3 w-3 mr-1" />
-                        {typeLabels[material.type]}
+                        {t(`types.${material.type}`)}
                       </span>
-                      <span className="text-xs text-gray-500">{categoryLabels[material.category]}</span>
+                      <span className="text-xs text-gray-500">{t(`categories.${material.category}`)}</span>
                     </div>
 
                     {/* Title + Description */}
@@ -340,7 +339,7 @@ function MaterialesContent() {
                     {/* Meta */}
                     <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
                       <span>{formatBytes(material.fileSize)}</span>
-                      <span>{material.downloadCount} descargas</span>
+                      <span>{t('downloads', { count: material.downloadCount })}</span>
                     </div>
 
                     {/* Actions */}
@@ -352,7 +351,7 @@ function MaterialesContent() {
                         onClick={() => handleDownload(material)}
                       >
                         <ArrowDownTrayIcon className="h-4 w-4" />
-                        Descargar
+                        {t('actions.download')}
                       </Button>
                       <div className="grid grid-cols-2 gap-2">
                         <Button
@@ -361,7 +360,7 @@ function MaterialesContent() {
                           onClick={() => handlePreview(material)}
                         >
                           <EyeIcon className="h-4 w-4" />
-                          Vista Previa
+                          {t('actions.preview')}
                         </Button>
                         <Button
                           variant="ghost"
@@ -369,7 +368,7 @@ function MaterialesContent() {
                           onClick={() => handleShare(material)}
                         >
                           <ShareIcon className="h-4 w-4" />
-                          Compartir
+                          {t('actions.share')}
                         </Button>
                       </div>
                     </div>
@@ -385,25 +384,25 @@ function MaterialesContent() {
           <CardContent className="p-8">
             <h3 className="mb-4 flex items-center gap-2 text-xl font-bold text-gray-900">
               <LightBulbIcon className="h-6 w-6 text-amber-500" />
-              Tips para Usar el Material de Marketing
+              {t('tips.title')}
             </h3>
             <div className="grid md:grid-cols-2 gap-6">
               <div>
-                <h4 className="font-semibold text-gray-900 mb-2">Redes Sociales</h4>
+                <h4 className="font-semibold text-gray-900 mb-2">{t('tips.social.title')}</h4>
                 <ul className="text-sm text-gray-600 space-y-1">
-                  <li>• Publica contenido 3-5 veces por semana</li>
-                  <li>• Usa los hashtags sugeridos en cada material</li>
-                  <li>• Personaliza los textos con tu experiencia</li>
-                  <li>• Responde todos los comentarios y mensajes</li>
+                  <li>• {t('tips.social.item1')}</li>
+                  <li>• {t('tips.social.item2')}</li>
+                  <li>• {t('tips.social.item3')}</li>
+                  <li>• {t('tips.social.item4')}</li>
                 </ul>
               </div>
               <div>
-                <h4 className="font-semibold text-gray-900 mb-2">Presentaciones</h4>
+                <h4 className="font-semibold text-gray-900 mb-2">{t('tips.presentations.title')}</h4>
                 <ul className="text-sm text-gray-600 space-y-1">
-                  <li>• Practica antes de presentar a prospectos</li>
-                  <li>• Adapta el contenido a tu audiencia</li>
-                  <li>• Comparte testimonios reales</li>
-                  <li>• Siempre incluye tu información de contacto</li>
+                  <li>• {t('tips.presentations.item1')}</li>
+                  <li>• {t('tips.presentations.item2')}</li>
+                  <li>• {t('tips.presentations.item3')}</li>
+                  <li>• {t('tips.presentations.item4')}</li>
                 </ul>
               </div>
             </div>
