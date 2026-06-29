@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, Suspense } from 'react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSelector } from 'react-redux';
@@ -45,6 +46,7 @@ export default function RedPage() {
 }
 
 function RedContent() {
+  const t = useTranslations('distributor.network');
   const [isInvitePanelOpen, setIsInvitePanelOpen] = useState(false);
   const [isEnrollOpen, setIsEnrollOpen] = useState(false);
   const [isPreferredOpen, setIsPreferredOpen] = useState(false);
@@ -100,9 +102,9 @@ function RedContent() {
     if (!dynamicPersonalLink) return;
     try {
       await copyLinkMutation.mutateAsync(dynamicPersonalLink);
-      toast.success('Enlace de invitación copiado');
+      toast.success(t('toasts.inviteLinkCopied'));
     } catch {
-      toast.error('Error al copiar el enlace');
+      toast.error(t('toasts.copyError'));
     }
   };
 
@@ -111,16 +113,16 @@ function RedContent() {
     try {
       const result = await shareLinkMutation.mutateAsync({
         link: dynamicPersonalLink,
-        title: 'Invitación a Tonic Life',
-        text: 'Únete a mi equipo de Tonic Life con este enlace de invitación.',
+        title: t('toasts.shareTitle'),
+        text: t('toasts.shareText'),
       });
       if (result.method === 'clipboard') {
-        toast.success('Enlace copiado al portapapeles');
+        toast.success(t('toasts.linkCopiedClipboard'));
       } else {
-        toast.success('Enlace compartido exitosamente');
+        toast.success(t('toasts.linkShared'));
       }
     } catch {
-      toast.error('Error al compartir el enlace');
+      toast.error(t('toasts.shareError'));
     }
   };
 
@@ -133,16 +135,16 @@ function RedContent() {
             <div>
               <div className="flex items-center gap-3 mb-2">
                 <UsersIcon className="h-8 lg:h-10 w-8 lg:w-10" />
-                <h1 className="text-2xl lg:text-4xl font-bold">Mi Red de Distribuidores</h1>
+                <h1 className="text-2xl lg:text-4xl font-bold">{t('title')}</h1>
               </div>
               <p className="text-white/80 text-base lg:text-lg">
-                Visualiza y gestiona tu red multinivel
+                {t('subtitle')}
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
               <Link href="/distribuidor">
                 <Button variant="secondary" size="sm">
-                  Volver al Panel Principal
+                  {t('backToPanel')}
                 </Button>
               </Link>
               <Button
@@ -151,7 +153,7 @@ function RedContent() {
                 onClick={handleInviteMember}
               >
                 <ShareIcon className="h-4 w-4" />
-                Enlace de invitación
+                {t('inviteLink')}
               </Button>
             </div>
           </div>
@@ -164,9 +166,9 @@ function RedContent() {
         <Card className="mb-6 border-0 bg-gradient-to-br from-[#3E667D] to-[#0A4B94] text-white shadow-lg">
           <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-bold">Crece tu red</h2>
+              <h2 className="text-lg font-bold">{t('grow.title')}</h2>
               <p className="text-sm text-white/80">
-                Da de alta un nuevo socio o un cliente preferente en segundos.
+                {t('grow.subtitle')}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -175,7 +177,7 @@ function RedContent() {
                 className="bg-white text-[#3E667D] hover:bg-white/90 shadow-md shadow-black/10"
               >
                 <UserPlusIcon className="h-4 w-4" />
-                Dar de alta socio
+                {t('grow.enrollPartner')}
               </Button>
               <Button
                 variant="outline"
@@ -183,7 +185,7 @@ function RedContent() {
                 className="border-white/40 bg-white/10 text-white hover:bg-white/20"
               >
                 <UserPlusIcon className="h-4 w-4" />
-                Cliente preferente
+                {t('grow.preferredCustomer')}
               </Button>
             </div>
           </CardContent>
@@ -192,8 +194,8 @@ function RedContent() {
         {/* Pestañas: Descendencia de Red (lista) y Volumen por línea directa */}
         <Tabs defaultValue="descendencia" className="mb-2">
           <TabsList>
-            <TabsTrigger value="descendencia">Descendencia de Red</TabsTrigger>
-            <TabsTrigger value="volumen">Volumen por línea directa</TabsTrigger>
+            <TabsTrigger value="descendencia">{t('tabs.downline')}</TabsTrigger>
+            <TabsTrigger value="volumen">{t('tabs.directLineVolume')}</TabsTrigger>
           </TabsList>
           <TabsContent value="descendencia" className="mt-4">
             <TreeListView />
@@ -209,9 +211,9 @@ function RedContent() {
         {/* Help CTA */}
         <Card className="mt-8 border-0 bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white shadow-lg">
           <CardContent className="p-6 lg:p-8">
-            <h3 className="text-xl lg:text-2xl font-bold mb-3">Haz Crecer tu Red</h3>
+            <h3 className="text-xl lg:text-2xl font-bold mb-3">{t('helpCta.title')}</h3>
             <p className="text-white/85 mb-6 max-w-2xl">
-              Invita a más distribuidores y aumenta tus comisiones. ¡Cada nuevo miembro activo te acerca a tu siguiente rango!
+              {t('helpCta.body')}
             </p>
             <Button
               variant="secondary"
@@ -219,7 +221,7 @@ function RedContent() {
               onClick={() => setIsEnrollOpen(true)}
             >
               <UserPlusIcon className="h-5 w-5" />
-              Dar de alta nuevo miembro
+              {t('helpCta.enrollNewMember')}
             </Button>
           </CardContent>
         </Card>
@@ -232,15 +234,15 @@ function RedContent() {
         }`}
         role="dialog"
         aria-modal="true"
-        aria-label="Invitar nuevo distribuidor"
+        aria-label={t('invitePanel.ariaLabel')}
       >
         <div className="flex h-full flex-col">
           <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
-            <h3 className="text-lg font-bold text-gray-900">Invitar Nuevo Distribuidor</h3>
+            <h3 className="text-lg font-bold text-gray-900">{t('invitePanel.title')}</h3>
             <button
               onClick={() => setIsInvitePanelOpen(false)}
               className="rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
-              aria-label="Cerrar panel de invitación"
+              aria-label={t('invitePanel.closeAria')}
             >
               <XMarkIcon className="h-5 w-5" />
             </button>
@@ -248,17 +250,16 @@ function RedContent() {
 
           <div className="flex-1 overflow-y-auto px-5 py-5">
             <div className="rounded-xl border border-[#a7c1e2]/25 bg-[#C8DDF2]/10 p-4">
-              <p className="text-sm font-semibold text-[#3E667D]">¿Cómo invitar?</p>
+              <p className="text-sm font-semibold text-[#3E667D]">{t('invitePanel.howToTitle')}</p>
               <p className="mt-1 text-sm text-gray-600">
-                Comparte este enlace con la persona que deseas invitar. Al registrarse con este link,
-                quedará vinculada a tu red.
+                {t('invitePanel.howToBody')}
               </p>
             </div>
 
             <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Enlace de Registro</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{t('invitePanel.registrationLink')}</p>
               <p className="mt-2 break-all font-mono text-sm text-[#3E667D]">
-                {dynamicPersonalLink || 'Cargando enlace...'}
+                {dynamicPersonalLink || t('invitePanel.loadingLink')}
               </p>
             </div>
 
@@ -270,7 +271,7 @@ function RedContent() {
                 disabled={!dynamicPersonalLink || copyLinkMutation.isPending}
               >
                 <ClipboardDocumentIcon className="h-4 w-4" />
-                Copiar
+                {t('invitePanel.copy')}
               </Button>
               <Button
                 variant="outline"
@@ -279,7 +280,7 @@ function RedContent() {
                 disabled={!dynamicPersonalLink || shareLinkMutation.isPending}
               >
                 <ShareIcon className="h-4 w-4" />
-                Compartir
+                {t('invitePanel.share')}
               </Button>
             </div>
           </div>
@@ -315,6 +316,7 @@ const fmtPts = (n: number) =>
   Number(n || 0).toLocaleString('es-MX', { maximumFractionDigits: 0 });
 
 function DirectLinesVolumeSection() {
+  const t = useTranslations('distributor.network.directLines');
   const { data: periodsData } = useCommissionPeriods();
   const periodsArray: any[] = Array.isArray(periodsData)
     ? periodsData
@@ -352,11 +354,10 @@ function DirectLinesVolumeSection() {
             </div>
             <div>
               <h3 className="text-lg font-bold text-gray-900">
-                Volumen por línea directa
+                {t('title')}
               </h3>
               <p className="text-sm text-gray-500">
-                El volumen de grupo de cada una de tus líneas en el periodo,
-                de la más baja a la más alta.
+                {t('subtitle')}
               </p>
             </div>
           </div>
@@ -365,7 +366,7 @@ function DirectLinesVolumeSection() {
             <SearchableSelect
               options={visiblePeriods.map((p: any) => ({
                 value: p.id,
-                label: `${p.name}${p.isCurrent ? ' (Actual)' : ''}`,
+                label: `${p.name}${p.isCurrent ? t('periodCurrent') : ''}`,
               }))}
               value={periodId}
               onChange={setPeriodId}
@@ -380,12 +381,12 @@ function DirectLinesVolumeSection() {
           <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
             <InformationCircleIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
             <span>
-              <strong>Rollover:</strong> cada línea aporta a tu volumen de grupo
-              hasta <strong>{fmtPts(cap)} pts</strong>
-              {data?.viewerRankName ? ` (tu rango ${data.viewerRankName})` : ''}.
-              Lo que una línea genere por encima del tope <strong>“rolla”</strong>{' '}
-              y no te cuenta. Conviene <strong>fortalecer las líneas más bajas</strong>{' '}
-              para aprovechar tu tope en cada una, en vez de concentrar todo en una sola.
+              <strong>{t('rolloverPrefix')}</strong> {t('rolloverBody1')}{' '}
+              <strong>{fmtPts(cap)} {t('ptsUnit')}</strong>
+              {data?.viewerRankName ? t('rolloverViewerRank', { rank: data.viewerRankName }) : ''}.
+              {' '}<strong>“{t('rolloverWord')}”</strong>{' '}
+              {t('rolloverBody2')} <strong>{t('rolloverStrengthen')}</strong>{' '}
+              {t('rolloverBody3')}
             </span>
           </div>
         )}
@@ -394,15 +395,15 @@ function DirectLinesVolumeSection() {
         {data && lines.length > 0 && (
           <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-center">
-              <p className="text-xs uppercase tracking-wide text-gray-400">Volumen total de líneas</p>
+              <p className="text-xs uppercase tracking-wide text-gray-400">{t('totalLinesVolume')}</p>
               <p className="text-xl font-bold text-gray-900">{fmtPts(data.totalGroupVolume)}</p>
             </div>
             <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-center">
-              <p className="text-xs uppercase tracking-wide text-emerald-600">Te cuenta (grupo)</p>
+              <p className="text-xs uppercase tracking-wide text-emerald-600">{t('countsForGroup')}</p>
               <p className="text-xl font-bold text-emerald-700">{fmtPts(data.totalCounted)}</p>
             </div>
             <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-center">
-              <p className="text-xs uppercase tracking-wide text-amber-600">Rolla (excedente)</p>
+              <p className="text-xs uppercase tracking-wide text-amber-600">{t('rollsOver')}</p>
               <p className="text-xl font-bold text-amber-700">{fmtPts(data.totalRolledOver)}</p>
             </div>
           </div>
@@ -415,7 +416,7 @@ function DirectLinesVolumeSection() {
         ) : lines.length === 0 ? (
           <div className="rounded-xl border border-dashed border-gray-200 py-10 text-center">
             <p className="text-sm text-gray-500">
-              Aún no tienes líneas directas con volumen en este periodo.
+              {t('empty')}
             </p>
           </div>
         ) : (
@@ -435,7 +436,7 @@ function DirectLinesVolumeSection() {
                       <div className="flex items-center gap-2">
                         {i === 0 && lines.length > 1 && (
                           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                            Más baja
+                            {t('lowest')}
                           </span>
                         )}
                         <span className="truncate font-semibold text-gray-900">{l.name}</span>
@@ -443,23 +444,23 @@ function DirectLinesVolumeSection() {
                       </div>
                       <p className="mt-0.5 text-xs text-gray-500">
                         {l.rankName ? `${l.rankName} · ` : ''}
-                        {l.activeCount}/{l.memberCount} activos
+                        {t('activeOfTotal', { active: l.activeCount, total: l.memberCount })}
                       </p>
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-bold text-gray-900">
-                        {fmtPts(l.legVolume)} <span className="text-xs font-normal text-gray-400">pts</span>
+                        {fmtPts(l.legVolume)} <span className="text-xs font-normal text-gray-400">{t('ptsUnit')}</span>
                       </p>
                       {l.rolledOver > 0 ? (
                         <span className="text-xs font-medium text-amber-600">
-                          rolla {fmtPts(l.rolledOver)}
+                          {t('rollsOverAmount', { amount: fmtPts(l.rolledOver) })}
                         </span>
                       ) : hasCap && toCap > 0 ? (
                         <span className="text-xs font-medium text-gray-400">
-                          faltan {fmtPts(toCap)} para el tope
+                          {t('remainingToCap', { amount: fmtPts(toCap) })}
                         </span>
                       ) : hasCap ? (
-                        <span className="text-xs font-medium text-emerald-600">tope alcanzado</span>
+                        <span className="text-xs font-medium text-emerald-600">{t('capReached')}</span>
                       ) : null}
                     </div>
                   </div>
@@ -477,7 +478,7 @@ function DirectLinesVolumeSection() {
                       <div
                         className="absolute top-[-2px] h-[14px] w-0.5 bg-gray-700"
                         style={{ left: `${capPct}%` }}
-                        title={`Tope: ${fmtPts(cap)} pts`}
+                        title={t('capTitle', { amount: fmtPts(cap) })}
                       />
                     )}
                   </div>
@@ -493,6 +494,7 @@ function DirectLinesVolumeSection() {
 
 // Sección: clientes preferentes del distribuidor (no son parte del árbol MLM)
 function PreferredCustomersSection({ onAdd }: { onAdd: () => void }) {
+  const t = useTranslations('distributor.network.preferred');
   const { data: preferred = [], isLoading } = usePreferredCustomers();
 
   return (
@@ -501,15 +503,15 @@ function PreferredCustomersSection({ onAdd }: { onAdd: () => void }) {
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <h3 className="text-lg font-bold text-gray-900">
-              Clientes preferentes
+              {t('title')}
             </h3>
             <p className="text-sm text-gray-500">
-              Compran a precio preferente con su ID. No forman parte de tu red MLM.
+              {t('subtitle')}
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={onAdd}>
             <UserPlusIcon className="h-4 w-4" />
-            Agregar
+            {t('add')}
           </Button>
         </div>
 
@@ -520,7 +522,7 @@ function PreferredCustomersSection({ onAdd }: { onAdd: () => void }) {
         ) : preferred.length === 0 ? (
           <div className="rounded-xl border border-dashed border-gray-200 py-8 text-center">
             <p className="text-sm text-gray-500">
-              Aún no tienes clientes preferentes.
+              {t('empty')}
             </p>
             <Button
               variant="ghost"
@@ -529,7 +531,7 @@ function PreferredCustomersSection({ onAdd }: { onAdd: () => void }) {
               onClick={onAdd}
             >
               <UserPlusIcon className="h-4 w-4" />
-              Dar de alta el primero
+              {t('enrollFirst')}
             </Button>
           </div>
         ) : (
@@ -537,11 +539,11 @@ function PreferredCustomersSection({ onAdd }: { onAdd: () => void }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-400">
-                  <th className="py-2 pr-4 font-medium">ID</th>
-                  <th className="py-2 pr-4 font-medium">Nombre</th>
-                  <th className="py-2 pr-4 font-medium">Correo</th>
-                  <th className="py-2 pr-4 font-medium">Teléfono</th>
-                  <th className="py-2 pr-4 font-medium">Alta</th>
+                  <th className="py-2 pr-4 font-medium">{t('columns.id')}</th>
+                  <th className="py-2 pr-4 font-medium">{t('columns.name')}</th>
+                  <th className="py-2 pr-4 font-medium">{t('columns.email')}</th>
+                  <th className="py-2 pr-4 font-medium">{t('columns.phone')}</th>
+                  <th className="py-2 pr-4 font-medium">{t('columns.joinDate')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -640,6 +642,8 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 
 // Vista de la descendencia de red (tabla con paginación del servidor)
 function TreeListView() {
+  const t = useTranslations('distributor.network.downline');
+  const tStatus = useTranslations('distributor.network.status');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [exportJobId, setExportJobId] = useState<string | null>(null);
@@ -671,19 +675,19 @@ function TreeListView() {
         setExportPct(st.percent);
         if (st.status === 'done') {
           await networkApi.downloadNetworkExportFile(exportJobId, st.filename);
-          finish(`Archivo descargado (${st.total.toLocaleString()} registros)`);
+          finish(t('exportDownloaded', { count: st.total.toLocaleString() }));
         } else if (st.status === 'error') {
-          finish(st.error || 'No se pudo generar el archivo', true);
+          finish(st.error || t('exportGenError'), true);
         }
       } catch {
-        finish('La exportación expiró o no se encontró; vuelve a generarla', true);
+        finish(t('exportExpired'), true);
       }
     };
     void poll();
-    const t = window.setInterval(() => void poll(), 1800);
+    const intervalId = window.setInterval(() => void poll(), 1800);
     return () => {
       active = false;
-      window.clearInterval(t);
+      window.clearInterval(intervalId);
     };
   }, [exportJobId]);
   const { get, getNumber, setParams } = useQueryFilters({ page: '1', limit: '20' });
@@ -764,18 +768,16 @@ function TreeListView() {
       localStorage.setItem('tl_red_export_job', jobId);
       setExportPct(0);
       setExportJobId(jobId);
-      toast.info(
-        'Generando el archivo en segundo plano… puedes seguir navegando; se descargará al terminar.',
-      );
+      toast.info(t('exportStarted'));
     } catch {
-      toast.error('No se pudo iniciar la exportación');
+      toast.error(t('exportStartError'));
     }
   };
 
   const columns: DataTableColumn<DownlineItem>[] = [
     {
       key: 'fullName',
-      header: 'Distribuidor',
+      header: t('columns.distributor'),
       sortable: true,
       sortValue: (m) => m.fullName,
       render: (m) => {
@@ -803,14 +805,14 @@ function TreeListView() {
     },
     {
       key: 'level',
-      header: 'Nivel',
+      header: t('columns.level'),
       sortable: true,
       sortValue: (m) => m.level,
-      render: (m) => <span className="text-sm text-gray-600">Nivel {m.level}</span>,
+      render: (m) => <span className="text-sm text-gray-600">{t('columns.levelValue', { level: m.level })}</span>,
     },
     {
       key: 'depthMarker',
-      header: 'Profundidad',
+      header: t('columns.depth'),
       sortable: false,
       render: (m) => (
         <span className="font-mono text-sm tracking-widest text-[#3E667D]/70">
@@ -820,7 +822,7 @@ function TreeListView() {
     },
     {
       key: 'rankName',
-      header: 'Rango',
+      header: t('columns.rank'),
       sortable: true,
       sortValue: (m) => m.rankName || 'Distribuidor',
       render: (m) => {
@@ -834,7 +836,7 @@ function TreeListView() {
     },
     {
       key: 'sponsorName',
-      header: 'Patrocinador',
+      header: t('columns.sponsor'),
       sortable: true,
       sortValue: (m) => m.sponsorName || '',
       render: (m) =>
@@ -842,7 +844,7 @@ function TreeListView() {
           <div className="min-w-0">
             <p className="text-sm text-gray-700 truncate">{m.sponsorName}</p>
             {m.sponsorCode && (
-              <p className="text-xs text-gray-400 font-mono">ID {m.sponsorCode}</p>
+              <p className="text-xs text-gray-400 font-mono">{t('columns.sponsorId', { code: m.sponsorCode })}</p>
             )}
           </div>
         ) : (
@@ -851,17 +853,20 @@ function TreeListView() {
     },
     {
       key: 'status',
-      header: 'Estado',
+      header: t('columns.status'),
       sortable: true,
       sortValue: (m) => m.status,
       render: (m) => {
         const s = statusLabels[m.status] || statusLabels.active;
-        return <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${s.color}`}>{s.label}</span>;
+        const label = statusLabels[m.status]
+          ? tStatus(m.status as 'active' | 'inactive' | 'suspended')
+          : m.status;
+        return <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${s.color}`}>{label}</span>;
       },
     },
     {
       key: 'personalPoints',
-      header: 'Pts. personales',
+      header: t('columns.personalPoints'),
       headerClassName: 'text-right',
       cellClassName: 'text-right',
       sortable: true,
@@ -872,7 +877,7 @@ function TreeListView() {
     },
     {
       key: 'createdAt',
-      header: 'Ingreso',
+      header: t('columns.joinDate'),
       sortable: true,
       sortValue: (m) => m.createdAt || '',
       render: (m) => (
@@ -890,8 +895,8 @@ function TreeListView() {
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Descendencia de Red</h2>
-              <p className="text-sm text-gray-500">Consulta tu red y descarga la lista completa en Excel</p>
+              <h2 className="text-lg font-semibold text-gray-900">{t('title')}</h2>
+              <p className="text-sm text-gray-500">{t('subtitle')}</p>
             </div>
             <Button
               variant="default"
@@ -901,12 +906,12 @@ function TreeListView() {
               {exportJobId ? (
                 <>
                   <Loader2 className="mr-2 size-4 animate-spin" />
-                  Generando… {exportPct}%
+                  {t('generating', { percent: exportPct })}
                 </>
               ) : (
                 <>
                   <ArrowDownTrayIcon className="h-4 w-4" />
-                  Descargar Excel
+                  {t('downloadExcel')}
                 </>
               )}
             </Button>
@@ -926,7 +931,7 @@ function TreeListView() {
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Buscar por nombre o email..."
+                  placeholder={t('searchPlaceholder')}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                 />
               </div>
@@ -938,7 +943,7 @@ function TreeListView() {
                   className="shrink-0 text-gray-500"
                 >
                   <XMarkIcon className="h-4 w-4" />
-                  Limpiar
+                  {t('clear')}
                 </Button>
               )}
             </div>
@@ -946,33 +951,33 @@ function TreeListView() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             {/* Filtro de nivel */}
             <SearchableSelect
-              options={[1, 2, 3, 4, 5].map(n => ({ value: String(n), label: `Nivel ${n}` }))}
+              options={[1, 2, 3, 4, 5].map(n => ({ value: String(n), label: t('filters.levelOption', { n }) }))}
               value={levelFilterStr}
               onChange={(val) => setParams({ level: val || null, page: null })}
-              allLabel="Todos los niveles"
+              allLabel={t('filters.allLevels')}
               allValue=""
             />
             {/* Filtro de estado */}
             <SearchableSelect
               options={[
-                { value: 'active', label: 'Activos' },
-                { value: 'inactive', label: 'Inactivos' },
-                { value: 'suspended', label: 'Suspendidos' },
+                { value: 'active', label: t('filters.active') },
+                { value: 'inactive', label: t('filters.inactive') },
+                { value: 'suspended', label: t('filters.suspended') },
               ]}
               value={statusFilterStr}
               onChange={(val) => setParams({ status: val || null, page: null })}
-              allLabel="Todos los estados"
+              allLabel={t('filters.allStatuses')}
               allValue=""
             />
             {/* Filtro de calificación */}
             <SearchableSelect
               options={[
-                { value: 'false', label: 'No calificados' },
-                { value: 'true', label: 'Calificados' },
+                { value: 'false', label: t('filters.notQualified') },
+                { value: 'true', label: t('filters.qualified') },
               ]}
               value={qualifiedStr}
               onChange={(val) => setParams({ qualified: val || null, page: null })}
-              allLabel="Calificación: todos"
+              allLabel={t('filters.allQualification')}
               allValue=""
             />
             {/* Filtro de rango */}
@@ -983,20 +988,20 @@ function TreeListView() {
               }))}
               value={rankStr}
               onChange={(val) => setParams({ rank: val || null, page: null })}
-              allLabel="Todos los rangos"
+              allLabel={t('filters.allRanks')}
               allValue=""
             />
             {/* Filtro: nuevos socios del periodo (26→25) */}
             <SearchableSelect
               options={sortedPeriods.map((p: any) => ({
                 value: p.id,
-                label: `Nuevos en ${p.name}${
-                  currentPeriodData?.id === p.id ? ' (Actual)' : ''
+                label: `${t('filters.newInPeriod', { period: p.name })}${
+                  currentPeriodData?.id === p.id ? t('periodCurrent') : ''
                 }`,
               }))}
               value={joinedPeriod}
               onChange={(val) => setParams({ joinedPeriod: val || null, page: null })}
-              allLabel="Ingreso: todos los periodos"
+              allLabel={t('filters.allPeriods')}
               allValue=""
             />
             </div>
@@ -1008,8 +1013,8 @@ function TreeListView() {
       {error ? (
         <Card>
           <CardContent className="p-8 text-center">
-            <p className="text-red-500 mb-2">Error al cargar los distribuidores</p>
-            <p className="text-sm text-gray-500">Intenta de nuevo más tarde</p>
+            <p className="text-red-500 mb-2">{t('error.title')}</p>
+            <p className="text-sm text-gray-500">{t('error.body')}</p>
             <Button
               variant="outline"
               size="sm"
@@ -1017,7 +1022,7 @@ function TreeListView() {
               onClick={() => refetch()}
             >
               <ArrowPathIcon className="h-4 w-4" />
-              Reintentar
+              {t('error.retry')}
             </Button>
           </CardContent>
         </Card>
@@ -1026,7 +1031,7 @@ function TreeListView() {
           <CardContent className="p-4 sm:p-6">
             {isFetching && !isLoading && (
               <div className="mb-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700">
-                Actualizando resultados...
+                {t('updating')}
               </div>
             )}
             <DataTable
@@ -1040,8 +1045,8 @@ function TreeListView() {
                   <UsersIcon className="mx-auto mb-3 h-12 w-12 text-gray-300" />
                   <p className="text-gray-500">
                     {hasActiveFilters
-                      ? 'No se encontraron distribuidores con los filtros aplicados'
-                      : 'No tienes distribuidores en tu red aún'}
+                      ? t('empty.withFilters')
+                      : t('empty.noFilters')}
                   </p>
                 </div>
               }

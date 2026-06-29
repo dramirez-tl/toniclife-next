@@ -899,6 +899,175 @@
         "qualifiedYes": "Yes",
         "qualifiedPending": "Pending"
       }
+    },
+    "network": {
+      "title": "My Distributor Network",
+      "subtitle": "View and manage your multilevel network",
+      "backToPanel": "Back to Main Panel",
+      "inviteLink": "Invitation link",
+      "grow": {
+        "title": "Grow your network",
+        "subtitle": "Enroll a new partner or a preferred customer in seconds.",
+        "enrollPartner": "Enroll partner",
+        "preferredCustomer": "Preferred customer"
+      },
+      "tabs": {
+        "downline": "Network Downline",
+        "directLineVolume": "Volume by direct line"
+      },
+      "helpCta": {
+        "title": "Grow Your Network",
+        "body": "Invite more distributors and increase your commissions. Every new active member brings you closer to your next rank!",
+        "enrollNewMember": "Enroll new member"
+      },
+      "invitePanel": {
+        "ariaLabel": "Invite new distributor",
+        "title": "Invite New Distributor",
+        "closeAria": "Close invitation panel",
+        "howToTitle": "How to invite?",
+        "howToBody": "Share this link with the person you want to invite. When they sign up with this link, they will be linked to your network.",
+        "registrationLink": "Registration Link",
+        "loadingLink": "Loading link...",
+        "copy": "Copy",
+        "share": "Share"
+      },
+      "toasts": {
+        "inviteLinkCopied": "Invitation link copied",
+        "copyError": "Failed to copy the link",
+        "linkCopiedClipboard": "Link copied to clipboard",
+        "linkShared": "Link shared successfully",
+        "shareError": "Failed to share the link",
+        "shareTitle": "Invitation to Tonic Life",
+        "shareText": "Join my Tonic Life team with this invitation link."
+      },
+      "directLines": {
+        "title": "Volume by direct line",
+        "subtitle": "The group volume of each of your lines in the period, from lowest to highest.",
+        "periodCurrent": " (Current)",
+        "rolloverPrefix": "Rollover:",
+        "rolloverBody1": "each line contributes to your group volume up to",
+        "ptsUnit": "pts",
+        "rolloverViewerRank": " (your rank {rank})",
+        "rolloverWord": "rolls over",
+        "rolloverBody2": "and does not count for you. It is worth",
+        "rolloverStrengthen": "strengthening the lowest lines",
+        "rolloverBody3": "to make the most of your cap in each one, instead of concentrating everything in a single line.",
+        "totalLinesVolume": "Total line volume",
+        "countsForGroup": "Counts for you (group)",
+        "rollsOver": "Rolls over (excess)",
+        "empty": "You don't have any direct lines with volume in this period yet.",
+        "lowest": "Lowest",
+        "activeOfTotal": "{active}/{total} active",
+        "rollsOverAmount": "rolls over {amount}",
+        "remainingToCap": "{amount} left to reach the cap",
+        "capReached": "cap reached",
+        "capTitle": "Cap: {amount} pts"
+      },
+      "preferred": {
+        "title": "Preferred customers",
+        "subtitle": "They buy at preferred prices with their ID. They are not part of your MLM network.",
+        "add": "Add",
+        "empty": "You don't have any preferred customers yet.",
+        "enrollFirst": "Enroll the first one",
+        "columns": {
+          "id": "ID",
+          "name": "Name",
+          "email": "Email",
+          "phone": "Phone",
+          "joinDate": "Join date"
+        }
+      },
+      "downline": {
+        "title": "Network Downline",
+        "subtitle": "Browse your network and download the full list in Excel",
+        "downloadExcel": "Download Excel",
+        "generating": "Generating… {percent}%",
+        "searchPlaceholder": "Search by name or email...",
+        "clear": "Clear",
+        "updating": "Updating results...",
+        "exportStarted": "Generating the file in the background… you can keep browsing; it will download when finished.",
+        "exportStartError": "Could not start the export",
+        "exportDownloaded": "File downloaded ({count} records)",
+        "exportGenError": "Could not generate the file",
+        "exportExpired": "The export expired or was not found; please generate it again",
+        "filters": {
+          "levelOption": "Level {n}",
+          "allLevels": "All levels",
+          "active": "Active",
+          "inactive": "Inactive",
+          "suspended": "Suspended",
+          "allStatuses": "All statuses",
+          "notQualified": "Not qualified",
+          "qualified": "Qualified",
+          "allQualification": "Qualification: all",
+          "allRanks": "All ranks",
+          "newInPeriod": "New in {period}",
+          "allPeriods": "Join date: all periods"
+        },
+        "columns": {
+          "distributor": "Distributor",
+          "level": "Level",
+          "levelValue": "Level {level}",
+          "depth": "Depth",
+          "rank": "Rank",
+          "sponsor": "Sponsor",
+          "sponsorId": "ID {code}",
+          "status": "Status",
+          "personalPoints": "Personal pts.",
+          "joinDate": "Join date"
+        },
+        "error": {
+          "title": "Error loading distributors",
+          "body": "Please try again later",
+          "retry": "Retry"
+        },
+        "empty": {
+          "withFilters": "No distributors found with the applied filters",
+          "noFilters": "You don't have any distributors in your network yet"
+        },
+        "periodCurrent": " (Current)"
+      },
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive",
+        "suspended": "Suspended"
+      },
+      "export": {
+        "fileName": "network-downline",
+        "headers": {
+          "distributorId": "Distributor ID",
+          "name": "Name",
+          "level": "Level",
+          "depth": "Depth",
+          "rank": "Rank",
+          "sponsor": "Sponsor",
+          "sponsorId": "Sponsor ID",
+          "status": "Status",
+          "personalPoints": "Personal points",
+          "joinDate": "Join date"
+        }
+      },
+      "detail": {
+        "selectMember": "Select a network member to view their details",
+        "loading": "Loading information...",
+        "loadError": "Error loading the information",
+        "closeAria": "Close panel",
+        "code": "Code: {code}",
+        "contact": "Contact",
+        "memberSince": "Since {date}",
+        "sponsor": "Sponsor",
+        "network": "Network",
+        "directs": "Directs",
+        "totalNetwork": "Total Network",
+        "maxDepth": "Maximum Depth",
+        "levelsCount": "{count} levels",
+        "salesTitle": "Sales (Current Period)",
+        "personalSales": "Personal Sales",
+        "networkSales": "Network Sales",
+        "businessPoints": "Business Points",
+        "businessPointsValue": "{points} pts",
+        "viewFullProfile": "View Full Profile"
+      }
     }
   }
 }

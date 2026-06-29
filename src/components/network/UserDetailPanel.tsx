@@ -2,6 +2,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { useNetworkStats } from '@/hooks/useNetwork';
 import { RANK_COLORS, RANK_LABELS, RANK_BG_COLORS, RANK_TEXT_COLORS } from '@/constants/ranks';
 import { RankType, NetworkMemberDetail } from '@/types/network';
@@ -52,6 +53,7 @@ export function UserDetailPanel({
   rootUserDetailData,
   onClose,
 }: UserDetailPanelProps) {
+  const t = useTranslations('distributor.network.detail');
   // Verificar si es el usuario raíz
   const isRootUser = userId === rootUserId && rootUserDetailData;
 
@@ -96,7 +98,7 @@ export function UserDetailPanel({
       <div className="h-full flex items-center justify-center p-6 text-center">
         <div>
           <UserGroupIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500">Selecciona un miembro de la red para ver sus detalles</p>
+          <p className="text-gray-500">{t('selectMember')}</p>
         </div>
       </div>
     );
@@ -108,7 +110,7 @@ export function UserDetailPanel({
       <div className="h-full flex items-center justify-center p-6">
         <div className="text-center">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#3E667D] mx-auto mb-4"></div>
-          <p className="text-gray-500">Cargando información...</p>
+          <p className="text-gray-500">{t('loading')}</p>
         </div>
       </div>
     );
@@ -119,7 +121,7 @@ export function UserDetailPanel({
       <div className="h-full flex items-center justify-center p-6 text-center">
         <div>
           <XMarkIcon className="h-16 w-16 text-red-300 mx-auto mb-4" />
-          <p className="text-red-500">Error al cargar la información</p>
+          <p className="text-red-500">{t('loadError')}</p>
         </div>
       </div>
     );
@@ -154,7 +156,7 @@ export function UserDetailPanel({
           <button
             onClick={onClose}
             className="absolute top-4 right-4 p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Cerrar panel"
+            title={t('closeAria')}
           >
             <XMarkIcon className="h-5 w-5 text-gray-500" />
           </button>
@@ -172,7 +174,7 @@ export function UserDetailPanel({
             <h2 className="text-xl font-bold text-gray-900 truncate">
               {memberDetail.firstName} {memberDetail.lastName}
             </h2>
-            <p className="text-sm text-gray-500">Código: {memberDetail.code}</p>
+            <p className="text-sm text-gray-500">{t('code', { code: memberDetail.code })}</p>
             <div
               className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium mt-2"
               style={{ backgroundColor: rankBgColor, color: rankTextColor }}
@@ -189,7 +191,7 @@ export function UserDetailPanel({
         {/* Información de contacto */}
         <section>
           <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
-            Contacto
+            {t('contact')}
           </h3>
           <div className="space-y-2">
             <div className="flex items-center gap-3 text-sm">
@@ -208,7 +210,7 @@ export function UserDetailPanel({
             )}
             <div className="flex items-center gap-3 text-sm">
               <CalendarIcon className="h-4 w-4 text-gray-400" />
-              <span className="text-gray-700">Desde {formatDate(memberDetail.joinDate)}</span>
+              <span className="text-gray-700">{t('memberSince', { date: formatDate(memberDetail.joinDate) })}</span>
             </div>
           </div>
         </section>
@@ -217,7 +219,7 @@ export function UserDetailPanel({
         {memberDetail.sponsorId && memberDetail.sponsorName && (
           <section>
             <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
-              Patrocinador
+              {t('sponsor')}
             </h3>
             <div className="flex items-center gap-2 text-sm text-gray-700">
               <UserIcon className="h-4 w-4 text-[#3E667D]" />
@@ -229,29 +231,29 @@ export function UserDetailPanel({
         {/* Estadísticas de red */}
         <section>
           <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
-            Red
+            {t('network')}
           </h3>
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-gray-50 rounded-lg p-3">
               <div className="flex items-center gap-2 text-gray-500 mb-1">
                 <UserGroupIcon className="h-4 w-4" />
-                <span className="text-xs">Directos</span>
+                <span className="text-xs">{t('directs')}</span>
               </div>
               <p className="text-2xl font-bold text-gray-900">{memberDetail.stats.directCount}</p>
             </div>
             <div className="bg-gray-50 rounded-lg p-3">
               <div className="flex items-center gap-2 text-gray-500 mb-1">
                 <UserGroupIcon className="h-4 w-4" />
-                <span className="text-xs">Red Total</span>
+                <span className="text-xs">{t('totalNetwork')}</span>
               </div>
               <p className="text-2xl font-bold text-gray-900">{memberDetail.stats.networkCount}</p>
             </div>
             <div className="bg-gray-50 rounded-lg p-3 col-span-2">
               <div className="flex items-center gap-2 text-gray-500 mb-1">
                 <ChartBarIcon className="h-4 w-4" />
-                <span className="text-xs">Profundidad Máxima</span>
+                <span className="text-xs">{t('maxDepth')}</span>
               </div>
-              <p className="text-2xl font-bold text-gray-900">{memberDetail.stats.maxDepth} niveles</p>
+              <p className="text-2xl font-bold text-gray-900">{t('levelsCount', { count: memberDetail.stats.maxDepth })}</p>
             </div>
           </div>
         </section>
@@ -292,7 +294,7 @@ export function UserDetailPanel({
           disabled
           className="block w-full py-2 px-4 bg-[#3E667D]/50 text-white text-center font-medium rounded-lg cursor-not-allowed"
         >
-          Ver Perfil Completo
+          {t('viewFullProfile')}
         </button>
       </div>
     </div>

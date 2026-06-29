@@ -899,6 +899,175 @@
         "qualifiedYes": "Sí",
         "qualifiedPending": "Pendiente"
       }
+    },
+    "network": {
+      "title": "Mi Red de Distribuidores",
+      "subtitle": "Visualiza y gestiona tu red multinivel",
+      "backToPanel": "Volver al Panel Principal",
+      "inviteLink": "Enlace de invitación",
+      "grow": {
+        "title": "Crece tu red",
+        "subtitle": "Da de alta un nuevo socio o un cliente preferente en segundos.",
+        "enrollPartner": "Dar de alta socio",
+        "preferredCustomer": "Cliente preferente"
+      },
+      "tabs": {
+        "downline": "Descendencia de Red",
+        "directLineVolume": "Volumen por línea directa"
+      },
+      "helpCta": {
+        "title": "Haz Crecer tu Red",
+        "body": "Invita a más distribuidores y aumenta tus comisiones. ¡Cada nuevo miembro activo te acerca a tu siguiente rango!",
+        "enrollNewMember": "Dar de alta nuevo miembro"
+      },
+      "invitePanel": {
+        "ariaLabel": "Invitar nuevo distribuidor",
+        "title": "Invitar Nuevo Distribuidor",
+        "closeAria": "Cerrar panel de invitación",
+        "howToTitle": "¿Cómo invitar?",
+        "howToBody": "Comparte este enlace con la persona que deseas invitar. Al registrarse con este link, quedará vinculada a tu red.",
+        "registrationLink": "Enlace de Registro",
+        "loadingLink": "Cargando enlace...",
+        "copy": "Copiar",
+        "share": "Compartir"
+      },
+      "toasts": {
+        "inviteLinkCopied": "Enlace de invitación copiado",
+        "copyError": "Error al copiar el enlace",
+        "linkCopiedClipboard": "Enlace copiado al portapapeles",
+        "linkShared": "Enlace compartido exitosamente",
+        "shareError": "Error al compartir el enlace",
+        "shareTitle": "Invitación a Tonic Life",
+        "shareText": "Únete a mi equipo de Tonic Life con este enlace de invitación."
+      },
+      "directLines": {
+        "title": "Volumen por línea directa",
+        "subtitle": "El volumen de grupo de cada una de tus líneas en el periodo, de la más baja a la más alta.",
+        "periodCurrent": " (Actual)",
+        "rolloverPrefix": "Rollover:",
+        "rolloverBody1": "cada línea aporta a tu volumen de grupo hasta",
+        "ptsUnit": "pts",
+        "rolloverViewerRank": " (tu rango {rank})",
+        "rolloverWord": "rolla",
+        "rolloverBody2": "y no te cuenta. Conviene",
+        "rolloverStrengthen": "fortalecer las líneas más bajas",
+        "rolloverBody3": "para aprovechar tu tope en cada una, en vez de concentrar todo en una sola.",
+        "totalLinesVolume": "Volumen total de líneas",
+        "countsForGroup": "Te cuenta (grupo)",
+        "rollsOver": "Rolla (excedente)",
+        "empty": "Aún no tienes líneas directas con volumen en este periodo.",
+        "lowest": "Más baja",
+        "activeOfTotal": "{active}/{total} activos",
+        "rollsOverAmount": "rolla {amount}",
+        "remainingToCap": "faltan {amount} para el tope",
+        "capReached": "tope alcanzado",
+        "capTitle": "Tope: {amount} pts"
+      },
+      "preferred": {
+        "title": "Clientes preferentes",
+        "subtitle": "Compran a precio preferente con su ID. No forman parte de tu red MLM.",
+        "add": "Agregar",
+        "empty": "Aún no tienes clientes preferentes.",
+        "enrollFirst": "Dar de alta el primero",
+        "columns": {
+          "id": "ID",
+          "name": "Nombre",
+          "email": "Correo",
+          "phone": "Teléfono",
+          "joinDate": "Alta"
+        }
+      },
+      "downline": {
+        "title": "Descendencia de Red",
+        "subtitle": "Consulta tu red y descarga la lista completa en Excel",
+        "downloadExcel": "Descargar Excel",
+        "generating": "Generando… {percent}%",
+        "searchPlaceholder": "Buscar por nombre o email...",
+        "clear": "Limpiar",
+        "updating": "Actualizando resultados...",
+        "exportStarted": "Generando el archivo en segundo plano… puedes seguir navegando; se descargará al terminar.",
+        "exportStartError": "No se pudo iniciar la exportación",
+        "exportDownloaded": "Archivo descargado ({count} registros)",
+        "exportGenError": "No se pudo generar el archivo",
+        "exportExpired": "La exportación expiró o no se encontró; vuelve a generarla",
+        "filters": {
+          "levelOption": "Nivel {n}",
+          "allLevels": "Todos los niveles",
+          "active": "Activos",
+          "inactive": "Inactivos",
+          "suspended": "Suspendidos",
+          "allStatuses": "Todos los estados",
+          "notQualified": "No calificados",
+          "qualified": "Calificados",
+          "allQualification": "Calificación: todos",
+          "allRanks": "Todos los rangos",
+          "newInPeriod": "Nuevos en {period}",
+          "allPeriods": "Ingreso: todos los periodos"
+        },
+        "columns": {
+          "distributor": "Distribuidor",
+          "level": "Nivel",
+          "levelValue": "Nivel {level}",
+          "depth": "Profundidad",
+          "rank": "Rango",
+          "sponsor": "Patrocinador",
+          "sponsorId": "ID {code}",
+          "status": "Estado",
+          "personalPoints": "Pts. personales",
+          "joinDate": "Ingreso"
+        },
+        "error": {
+          "title": "Error al cargar los distribuidores",
+          "body": "Intenta de nuevo más tarde",
+          "retry": "Reintentar"
+        },
+        "empty": {
+          "withFilters": "No se encontraron distribuidores con los filtros aplicados",
+          "noFilters": "No tienes distribuidores en tu red aún"
+        },
+        "periodCurrent": " (Actual)"
+      },
+      "status": {
+        "active": "Activo",
+        "inactive": "Inactivo",
+        "suspended": "Suspendido"
+      },
+      "export": {
+        "fileName": "descendencia-red",
+        "headers": {
+          "distributorId": "ID distribuidor",
+          "name": "Nombre",
+          "level": "Nivel",
+          "depth": "Profundidad",
+          "rank": "Rango",
+          "sponsor": "Patrocinador",
+          "sponsorId": "ID patrocinador",
+          "status": "Estado",
+          "personalPoints": "Puntos personales",
+          "joinDate": "Fecha de ingreso"
+        }
+      },
+      "detail": {
+        "selectMember": "Selecciona un miembro de la red para ver sus detalles",
+        "loading": "Cargando información...",
+        "loadError": "Error al cargar la información",
+        "closeAria": "Cerrar panel",
+        "code": "Código: {code}",
+        "contact": "Contacto",
+        "memberSince": "Desde {date}",
+        "sponsor": "Patrocinador",
+        "network": "Red",
+        "directs": "Directos",
+        "totalNetwork": "Red Total",
+        "maxDepth": "Profundidad Máxima",
+        "levelsCount": "{count} niveles",
+        "salesTitle": "Ventas (Periodo Actual)",
+        "personalSales": "Ventas Personales",
+        "networkSales": "Ventas de Red",
+        "businessPoints": "Puntos de Negocio",
+        "businessPointsValue": "{points} pts",
+        "viewFullProfile": "Ver Perfil Completo"
+      }
     }
   }
 }
