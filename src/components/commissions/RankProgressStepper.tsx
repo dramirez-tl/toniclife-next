@@ -3,6 +3,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import { MlmRank } from '@/types/commissions';
 import { getRankImage } from '@/constants/ranks';
 import { Card, CardContent } from '@/components/ui/card';
@@ -46,49 +47,19 @@ const defaultColor = { bg: 'bg-gray-400', text: 'text-gray-500', border: 'border
 // NOTA: los números de niveles/generaciones de comisión NO se hardcodean aquí
 // porque varían por rango y ya se muestran, con datos reales de la API, en la
 // sección "Requisitos" (Hasta nivel {levelMax} / {generationMax} generaciones).
-// Aquí solo van los beneficios cualitativos.
-const rankBenefits: Record<string, string[]> = {
-  distribuidor: [
-    'Precio de distribuidor en productos',
-    'Enlace personal de tienda y registro',
-  ],
-  bronce: [
-    'Desbloquea comisiones por niveles',
-    'Acceso a materiales de marketing',
-  ],
-  plata: [
-    'Inicia comisiones por generación',
-    'Acceso a entrenamientos exclusivos',
-  ],
-  oro: [
-    'Mayor alcance de generaciones',
-    'Reconocimiento de liderazgo',
-  ],
-  platino: [
-    'Elegible para Bono Auto mensual',
-    'Acceso a incentivos de liderazgo',
-  ],
-  diamante: [
-    'Bono Auto mensual',
-    'Invitaciones a eventos VIP',
-  ],
-  doble_diamante: [
-    'Bono Auto aumentado',
-    'Viajes de reconocimiento',
-  ],
-  triple_diamante: [
-    'Bono Auto premium',
-    'Reconocimiento internacional',
-  ],
-  sirius: [
-    'Bono Auto elite',
-    'Consejo de líderes',
-  ],
-  azul: [
-    'Bono Auto máximo',
-    'Participación en utilidades',
-    'Reconocimiento Diamante Azul',
-  ],
+// Aquí solo van los beneficios cualitativos (claves i18n bajo
+// distributor.commissions.rankStepper.benefits).
+const rankBenefitKeys: Record<string, string[]> = {
+  distribuidor: ['distribuidor1', 'distribuidor2'],
+  bronce: ['bronce1', 'bronce2'],
+  plata: ['plata1', 'plata2'],
+  oro: ['oro1', 'oro2'],
+  platino: ['platino1', 'platino2'],
+  diamante: ['diamante1', 'diamante2'],
+  doble_diamante: ['doble_diamante1', 'doble_diamante2'],
+  triple_diamante: ['triple_diamante1', 'triple_diamante2'],
+  sirius: ['sirius1', 'sirius2'],
+  azul: ['azul1', 'azul2', 'azul3'],
 };
 
 function formatPoints(pts: number): string {
@@ -102,6 +73,7 @@ export function RankProgressStepper({
   currentRankNumber,
   currencyCode = 'MXN',
 }: RankProgressStepperProps) {
+  const t = useTranslations('distributor.commissions.rankStepper');
   const [selectedRank, setSelectedRank] = useState<MlmRank | null>(null);
 
   const handleRankClick = (rank: MlmRank) => {
@@ -114,10 +86,10 @@ export function RankProgressStepper({
         <div className="flex items-start justify-between mb-6">
           <div>
             <h3 className="text-xl font-bold text-gray-900">
-              Progresion de Rango
+              {t('title')}
             </h3>
             <p className="text-sm text-gray-500 mt-1">
-              Toca cualquier rango para ver sus beneficios y requisitos
+              {t('subtitle')}
             </p>
           </div>
           <div className="flex items-center gap-2 text-sm">
@@ -221,7 +193,7 @@ export function RankProgressStepper({
                     {/* Requirement hint */}
                     {rank.pointsGroupRequired > 0 && (
                       <p className={`mt-0.5 text-[10px] text-center ${isLocked ? 'text-gray-300' : 'text-gray-400'}`}>
-                        {formatPoints(rank.pointsGroupRequired)} pts
+                        {t('points', { points: formatPoints(rank.pointsGroupRequired) })}
                       </p>
                     )}
                   </Button>
@@ -251,7 +223,7 @@ export function RankProgressStepper({
           <div className="text-center mt-2">
             <p className="text-xs text-gray-400 flex items-center justify-center gap-1">
               <ChevronDownIcon className="h-3 w-3" />
-              Selecciona un rango para ver detalles
+              {t('selectHint')}
             </p>
           </div>
         )}
@@ -262,7 +234,7 @@ export function RankProgressStepper({
           const isCurrent = selectedRank.rankNumber === currentRankNumber;
           const isLocked = selectedRank.rankNumber > currentRankNumber;
           const colors = rankColors[selectedRank.code] || defaultColor;
-          const benefits = rankBenefits[selectedRank.code] || [];
+          const benefitKeys = rankBenefitKeys[selectedRank.code] || [];
           const selRankImg = getRankImage(selectedRank.code);
           const autoBonus = currencyCode === 'USD'
             ? parseFloat(selectedRank.autoBonusUsd || '0')
@@ -293,7 +265,7 @@ export function RankProgressStepper({
                   <div>
                     <p className="font-bold text-gray-900">{selectedRank.name}</p>
                     <p className="text-xs text-gray-500">
-                      {isCompleted ? 'Rango alcanzado' : isCurrent ? 'Tu rango actual' : 'Rango bloqueado'}
+                      {isCompleted ? t('rankAchieved') : isCurrent ? t('currentRank') : t('rankLocked')}
                     </p>
                   </div>
                 </div>
@@ -308,16 +280,16 @@ export function RankProgressStepper({
                   <div>
                     <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
                       <BoltIcon className="h-4 w-4 text-amber-500" />
-                      {isLocked ? 'Requisitos para desbloquear' : 'Requisitos'}
+                      {isLocked ? t('requirementsToUnlock') : t('requirements')}
                     </h4>
                     <div className="space-y-2.5">
                       <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                        <span className="text-sm text-gray-600">Puntos personales</span>
+                        <span className="text-sm text-gray-600">{t('personalPoints')}</span>
                         <span className="font-bold text-gray-900">{formatPoints(selectedRank.pointsPersonalRequired)}</span>
                       </div>
                       {selectedRank.pointsGroupRequired > 0 && (
                         <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                          <span className="text-sm text-gray-600">Puntos de grupo</span>
+                          <span className="text-sm text-gray-600">{t('groupPoints')}</span>
                           <span className="font-bold text-gray-900">{formatPoints(selectedRank.pointsGroupRequired)}</span>
                         </div>
                       )}
@@ -325,28 +297,28 @@ export function RankProgressStepper({
                         <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
                           <div className="flex items-center gap-1.5">
                             <UserGroupIcon className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm text-gray-600">Calificados 1er nivel</span>
+                            <span className="text-sm text-gray-600">{t('qualifiersFirstLevel')}</span>
                           </div>
                           <span className="font-bold text-gray-900">{selectedRank.qualifiersFirstLevel}</span>
                         </div>
                       )}
                       {selectedRank.levelMax && (
                         <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                          <span className="text-sm text-gray-600">Niveles de comision</span>
-                          <span className="font-bold text-gray-900">Hasta nivel {selectedRank.levelMax}</span>
+                          <span className="text-sm text-gray-600">{t('commissionLevels')}</span>
+                          <span className="font-bold text-gray-900">{t('upToLevel', { level: selectedRank.levelMax })}</span>
                         </div>
                       )}
                       {selectedRank.generationMax && selectedRank.generationMax > 0 && (
                         <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                          <span className="text-sm text-gray-600">Generaciones</span>
-                          <span className="font-bold text-gray-900">{selectedRank.generationMax} generacion{selectedRank.generationMax > 1 ? 'es' : ''}</span>
+                          <span className="text-sm text-gray-600">{t('generations')}</span>
+                          <span className="font-bold text-gray-900">{t('generationsValue', { count: selectedRank.generationMax })}</span>
                         </div>
                       )}
                       {autoBonus > 0 && (
                         <div className="flex items-center justify-between bg-emerald-50 rounded-lg px-3 py-2 border border-emerald-100">
                           <div className="flex items-center gap-1.5">
                             <CurrencyDollarIcon className="h-4 w-4 text-emerald-500" />
-                            <span className="text-sm font-medium text-emerald-700">Bono Auto</span>
+                            <span className="text-sm font-medium text-emerald-700">{t('autoBonus')}</span>
                           </div>
                           <span className="font-bold text-emerald-700">
                             ${autoBonus.toLocaleString(currencyCode === 'USD' ? 'en-US' : 'es-MX')} {currencyCode}
@@ -360,23 +332,23 @@ export function RankProgressStepper({
                   <div>
                     <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
                       <SparklesIcon className="h-4 w-4 text-[#3E667D]" />
-                      Beneficios de este rango
+                      {t('benefitsTitle')}
                     </h4>
-                    {benefits.length > 0 ? (
+                    {benefitKeys.length > 0 ? (
                       <ul className="space-y-2">
-                        {benefits.map((benefit, i) => (
-                          <li key={i} className="flex items-start gap-2">
+                        {benefitKeys.map((benefitKey) => (
+                          <li key={benefitKey} className="flex items-start gap-2">
                             <CheckIcon className={`h-4 w-4 mt-0.5 flex-shrink-0 ${
                               isLocked ? 'text-gray-300' : 'text-emerald-500'
                             }`} />
                             <span className={`text-sm ${isLocked ? 'text-gray-400' : 'text-gray-700'}`}>
-                              {benefit}
+                              {t(`benefits.${benefitKey}`)}
                             </span>
                           </li>
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-sm text-gray-400">Informacion no disponible</p>
+                      <p className="text-sm text-gray-400">{t('noInfo')}</p>
                     )}
                   </div>
                 </div>

@@ -1,6 +1,7 @@
 // components/commissions/CommissionSummaryCards.tsx
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { CommissionSummary } from '@/types/commissions';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -26,6 +27,7 @@ interface SummaryCardsProps {
 }
 
 export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN', isActivePeriod }: SummaryCardsProps) {
+  const t = useTranslations('distributor.commissions.summaryCards');
   const isUsd = currencyCode === 'USD';
   const formatCurrency = (amount: string | number) => {
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -106,15 +108,15 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                     </div>
                     <div>
                       <p className="text-white/70 text-sm font-medium">
-                        {isActivePeriod ? 'Periodo Activo' : 'Tu Balance del Periodo'}
+                        {isActivePeriod ? t('activePeriod') : t('yourPeriodBalance')}
                       </p>
                       {isActivePeriod && totalNet === 0 ? (
                         <div>
                           <p className="text-2xl lg:text-3xl font-bold tracking-tight text-white/90 mt-1">
-                            En curso
+                            {t('inProgress')}
                           </p>
                           <p className="text-white/50 text-sm mt-1">
-                            El balance se calculara al cierre del periodo
+                            {t('balanceAtClose')}
                           </p>
                         </div>
                       ) : (
@@ -126,7 +128,7 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                             <span className="text-white/60 text-sm">{currencyCode}</span>
                           </div>
                           <p className="text-white/75 text-xs mt-1">
-                            Esto es lo que se te deposita (neto, ya con IVA y retenciones aplicadas)
+                            {t('netHint')}
                           </p>
                         </div>
                       )}
@@ -136,14 +138,14 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                   {/* Summary info */}
                   <div className="mt-6">
                     <div className="flex items-center justify-between text-sm mb-2">
-                      <span className="text-white/70">Comisión bruta (antes de impuestos)</span>
+                      <span className="text-white/70">{t('grossBeforeTaxes')}</span>
                       <span className="text-white font-medium">
                         {formatCurrency(summary.totalSubtotalMxn)}<Badge light />
                       </span>
                     </div>
                     {parseFloat(summary.totalIva || '0') > 0 && (
                       <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-white/70">IVA 16%</span>
+                        <span className="text-white/70">{t('iva')}</span>
                         <span className="text-white font-medium">
                           +{formatCurrency(summary.totalIva || '0')}<Badge light />
                         </span>
@@ -151,7 +153,7 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                     )}
                     {parseFloat(summary.totalIvaWithholding || '0') > 0 && (
                       <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-white/70">Ret. IVA 10.6667%</span>
+                        <span className="text-white/70">{t('ivaWithholding')}</span>
                         <span className="text-white font-medium">
                           -{formatCurrency(summary.totalIvaWithholding || '0')}<Badge light />
                         </span>
@@ -159,7 +161,7 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                     )}
                     {parseFloat(summary.totalIsr || '0') > 0 && (
                       <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-white/70">ISR</span>
+                        <span className="text-white/70">{t('isr')}</span>
                         <span className="text-white font-medium">
                           -{formatCurrency(summary.totalIsr || '0')}<Badge light />
                         </span>
@@ -167,20 +169,20 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                     )}
                     {parseFloat(summary.totalResico || '0') > 0 && (
                       <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-white/70">RESICO</span>
+                        <span className="text-white/70">{t('resico')}</span>
                         <span className="text-white font-medium">
                           -{formatCurrency(summary.totalResico || '0')}<Badge light />
                         </span>
                       </div>
                     )}
                     <div className="flex items-center justify-between border-t border-white/20 pt-2.5 mt-2.5">
-                      <span className="text-sm font-semibold text-white">Neto a depositar</span>
+                      <span className="text-sm font-semibold text-white">{t('netToDeposit')}</span>
                       <span className="text-lg font-bold text-white">
                         {formatCurrency(summary.totalNetMxn)}<Badge light />
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-xs text-white/60 mt-2">
-                      <span>{summary.transactionCount} transacciones</span>
+                      <span>{t('transactions', { count: summary.transactionCount })}</span>
                     </div>
                   </div>
                 </div>
@@ -191,9 +193,9 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                     <div className="flex items-center gap-3">
                       <BanknotesIcon className="h-8 w-8 text-white" />
                       <div>
-                        <p className="text-white/70 text-xs uppercase tracking-wide">Comisión bruta</p>
+                        <p className="text-white/70 text-xs uppercase tracking-wide">{t('grossCommission')}</p>
                         <p className="text-xl font-bold">{formatCurrency(summary.totalSubtotalMxn)}<Badge light /></p>
-                        <p className="text-white/50 text-[10px]">antes de IVA y retenciones</p>
+                        <p className="text-white/50 text-[10px]">{t('beforeIvaAndRetentions')}</p>
                       </div>
                     </div>
                   </div>
@@ -201,19 +203,19 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                     <div className="flex items-center gap-3">
                       <ClockIcon className="h-8 w-8 text-yellow-300" />
                       <div>
-                        <p className="text-yellow-200/80 text-xs uppercase tracking-wide">Desglose</p>
+                        <p className="text-yellow-200/80 text-xs uppercase tracking-wide">{t('breakdown')}</p>
                         <div className="mt-1 space-y-0.5">
                           {parseFloat(summary.totalIva || '0') > 0 && (
-                            <p className="text-sm font-semibold text-green-300">+IVA: {formatCurrency(summary.totalIva || '0')}</p>
+                            <p className="text-sm font-semibold text-green-300">{t('breakdownIva', { amount: formatCurrency(summary.totalIva || '0') })}</p>
                           )}
                           {parseFloat(summary.totalIvaWithholding || '0') > 0 && (
-                            <p className="text-sm font-semibold text-yellow-100">-Ret. IVA: {formatCurrency(summary.totalIvaWithholding || '0')}</p>
+                            <p className="text-sm font-semibold text-yellow-100">{t('breakdownIvaWithholding', { amount: formatCurrency(summary.totalIvaWithholding || '0') })}</p>
                           )}
                           {parseFloat(summary.totalIsr || '0') > 0 && (
-                            <p className="text-sm font-semibold text-yellow-100">-ISR: {formatCurrency(summary.totalIsr || '0')}</p>
+                            <p className="text-sm font-semibold text-yellow-100">{t('breakdownIsr', { amount: formatCurrency(summary.totalIsr || '0') })}</p>
                           )}
                           {parseFloat(summary.totalResico || '0') > 0 && (
-                            <p className="text-sm font-semibold text-yellow-100">-RESICO: {formatCurrency(summary.totalResico || '0')}</p>
+                            <p className="text-sm font-semibold text-yellow-100">{t('breakdownResico', { amount: formatCurrency(summary.totalResico || '0') })}</p>
                           )}
                         </div>
                       </div>
@@ -237,14 +239,14 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                   <ShoppingBagIcon className="h-6 w-6 text-white" />
                 </div>
               </div>
-              <p className="text-sm text-gray-500 font-medium mb-1">Ventas Personales</p>
+              <p className="text-sm text-gray-500 font-medium mb-1">{t('personalSales')}</p>
               <p className="text-3xl font-bold text-gray-900 tracking-tight">
                 {formatCurrency(personalSales)}<Badge />
               </p>
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <p className="text-xs text-gray-500 flex items-center gap-1">
                   <ShoppingBagIcon className="h-3.5 w-3.5 text-[#3E667D]" />
-                  Tus compras en el periodo
+                  {t('personalSalesHint')}
                 </p>
               </div>
             </div>
@@ -261,15 +263,15 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                   <UserGroupIcon className="h-6 w-6 text-white" />
                 </div>
               </div>
-              <p className="text-sm text-gray-500 font-medium mb-1">Puntos de Red</p>
+              <p className="text-sm text-gray-500 font-medium mb-1">{t('networkPoints')}</p>
               <p className="text-3xl font-bold text-gray-900 tracking-tight">
                 {networkGroupPoints.toLocaleString('es-MX', { maximumFractionDigits: 0 })}
-                <span className="text-base font-semibold text-gray-400 ml-1">pts</span>
+                <span className="text-base font-semibold text-gray-400 ml-1">{t('pts')}</span>
               </p>
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <p className="text-xs text-gray-500 flex items-center gap-1">
                   <UserGroupIcon className="h-3.5 w-3.5 text-[#3E667D]" />
-                  Puntos de grupo de tu red en el periodo
+                  {t('networkPointsHint')}
                 </p>
               </div>
             </div>
@@ -293,7 +295,7 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                   {mlmPercent}%
                 </div>
               </div>
-              <p className="text-sm text-gray-500 font-medium mb-1">Comisiones MLM</p>
+              <p className="text-sm text-gray-500 font-medium mb-1">{t('mlmCommissions')}</p>
               <p className="text-3xl font-bold text-gray-900 tracking-tight">
                 {formatCurrency(summary.mlmCommissionsMxn)}<Badge />
               </p>
@@ -317,14 +319,14 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                   {cedeaPercent}%
                 </div>
               </div>
-              <p className="text-sm text-gray-500 font-medium mb-1">Bonos por generación</p>
+              <p className="text-sm text-gray-500 font-medium mb-1">{t('generationBonuses')}</p>
               <p className="text-3xl font-bold text-gray-900 tracking-tight">
                 {formatCurrency(summary.cedeaBonusesMxn)}<Badge />
               </p>
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <p className="text-xs text-gray-500 flex items-center gap-1">
                   <TrophyIcon className="h-3.5 w-3.5 text-yellow-500" />
-                  Bono por generación
+                  {t('generationBonusHint')}
                 </p>
               </div>
             </div>
@@ -347,14 +349,14 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                   {autoPercent}%
                 </div>
               </div>
-              <p className="text-sm text-gray-500 font-medium mb-1">Bonos Automaticos</p>
+              <p className="text-sm text-gray-500 font-medium mb-1">{t('autoBonuses')}</p>
               <p className="text-3xl font-bold text-gray-900 tracking-tight">
                 {formatCurrency(summary.autoBonusesMxn)}<Badge />
               </p>
               <div className="mt-3 pt-3 border-t border-gray-100">
                 <p className="text-xs text-gray-500 flex items-center gap-1">
                   <ShoppingBagIcon className="h-3.5 w-3.5 text-purple-500" />
-                  Bono automatico (Platino+)
+                  {t('autoBonusHint')}
                 </p>
               </div>
             </div>
@@ -368,43 +370,43 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
       <Card className="border-0 shadow-md overflow-hidden">
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="font-bold text-gray-900 text-lg">Desglose Fiscal</h3>
+            <h3 className="font-bold text-gray-900 text-lg">{t('taxBreakdown')}</h3>
             <span className="text-xs text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
-              Calculado automaticamente
+              {t('calculatedAutomatically')}
             </span>
           </div>
 
           <div className="border border-gray-200 rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3 bg-gray-50 border-b border-gray-200">
-              <span className="text-sm font-medium text-gray-700">BRUTO</span>
+              <span className="text-sm font-medium text-gray-700">{t('gross')}</span>
               <span className="text-sm font-bold text-gray-900 tabular-nums">{formatCurrency(summary.totalSubtotalMxn)}</span>
             </div>
             {parseFloat(summary.totalIva || '0') > 0 && (
               <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-                <span className="text-sm text-gray-600">IVA 16%</span>
+                <span className="text-sm text-gray-600">{t('ivaShort')}</span>
                 <span className="text-sm font-semibold text-blue-600 tabular-nums">+ {formatCurrency(summary.totalIva || '0')}</span>
               </div>
             )}
             {parseFloat(summary.totalIvaWithholding || '0') > 0 && (
               <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-                <span className="text-sm text-gray-600">RET IVA 10.6667%</span>
+                <span className="text-sm text-gray-600">{t('ivaWithholdingShort')}</span>
                 <span className="text-sm font-semibold text-red-500 tabular-nums">- {formatCurrency(summary.totalIvaWithholding || '0')}</span>
               </div>
             )}
             {parseFloat(summary.totalIsr || '0') > 0 && (
               <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-                <span className="text-sm text-gray-600">ISR</span>
+                <span className="text-sm text-gray-600">{t('isr')}</span>
                 <span className="text-sm font-semibold text-red-500 tabular-nums">- {formatCurrency(summary.totalIsr || '0')}</span>
               </div>
             )}
             {parseFloat(summary.totalResico || '0') > 0 && (
               <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-                <span className="text-sm text-gray-600">RESICO</span>
+                <span className="text-sm text-gray-600">{t('resico')}</span>
                 <span className="text-sm font-semibold text-red-500 tabular-nums">- {formatCurrency(summary.totalResico || '0')}</span>
               </div>
             )}
             <div className="flex items-center justify-between px-5 py-3 bg-[#3E667D]/5 border-t border-gray-200">
-              <span className="text-sm font-bold text-[#3E667D]">NETO</span>
+              <span className="text-sm font-bold text-[#3E667D]">{t('net')}</span>
               <span className="text-sm font-bold text-[#3E667D] tabular-nums">{formatCurrency(summary.totalNetMxn)}</span>
             </div>
           </div>

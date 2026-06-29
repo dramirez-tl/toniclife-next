@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -48,6 +49,7 @@ export default function ComisionesPage() {
 }
 
 function ComisionesContent() {
+  const t = useTranslations('distributor.commissions.page');
   const user = useAppSelector(selectUser);
 
   const currencyCode = user?.currencyCode || 'MXN';
@@ -105,7 +107,7 @@ function ComisionesContent() {
   // del periodo ya cargados (no requiere endpoint de backend).
   const handleDownloadStatement = () => {
     if (!commissionsData?.summary) {
-      toast.error('No hay datos de comisiones para este periodo');
+      toast.error(t('toastNoData'));
       return;
     }
     try {
@@ -120,15 +122,15 @@ function ComisionesContent() {
         commissions: commissionsData.data || [],
         generatedAt: new Date(),
       });
-      toast.success('Estado de cuenta descargado');
+      toast.success(t('toastStatementDownloaded'));
     } catch {
-      toast.error('No se pudo generar el estado de cuenta');
+      toast.error(t('toastStatementError'));
     }
   };
 
   const handleRefresh = () => {
     refetchCommissions();
-    toast.success('Datos actualizados');
+    toast.success(t('toastRefreshed'));
   };
 
   // Get current period name for display
@@ -172,10 +174,10 @@ function ComisionesContent() {
           {/* Breadcrumb */}
           <nav className="flex items-center gap-2 text-sm text-white/60 mb-6">
             <Link href="/distribuidor" className="hover:text-white transition-colors">
-              Panel Principal
+              {t('breadcrumbHome')}
             </Link>
             <span>/</span>
-            <span className="text-white">Comisiones</span>
+            <span className="text-white">{t('breadcrumbCurrent')}</span>
           </nav>
 
           <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-6">
@@ -186,10 +188,10 @@ function ComisionesContent() {
                 </div>
                 <div>
                   <h1 className="text-3xl lg:text-4xl font-bold text-white tracking-tight">
-                    Comisiones
+                    {t('title')}
                   </h1>
                   <p className="text-white/70 text-sm lg:text-base mt-0.5">
-                    Gestiona y visualiza todas tus comisiones
+                    {t('subtitle')}
                   </p>
                 </div>
               </div>
@@ -200,14 +202,14 @@ function ComisionesContent() {
                 <div className="flex flex-wrap gap-4 mt-6">
                   <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 border border-white/20">
                     <CalendarDaysIcon className="h-4 w-4 text-white/80" />
-                    <span className="text-white/80 text-sm">Tus comisiones se calculan al cierre del periodo</span>
+                    <span className="text-white/80 text-sm">{t('calculatedAtClose')}</span>
                   </div>
                 </div>
               ) : commissionsData?.summary && (
                 <div className="flex flex-wrap gap-4 mt-6">
                   <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 border border-white/20">
                     <SparklesIcon className="h-4 w-4 text-[#3E667D]" />
-                    <span className="text-white/80 text-sm">Total Neto:</span>
+                    <span className="text-white/80 text-sm">{t('totalNet')}</span>
                     <span className="text-white font-bold">
                       {new Intl.NumberFormat(currencyCode === 'USD' ? 'en-US' : 'es-MX', { style: 'currency', currency: currencyCode, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(parseFloat(commissionsData.summary.totalNetMxn))}
                     </span>
@@ -216,7 +218,7 @@ function ComisionesContent() {
                   {parseFloat(commissionsData.summary.totalRetentions) > 0 && (
                     <div className="flex items-center gap-2 bg-yellow-500/20 backdrop-blur-sm rounded-full px-4 py-2 border border-yellow-400/30">
                       <ArrowTrendingUpIcon className="h-4 w-4 text-yellow-400" />
-                      <span className="text-white/80 text-sm">Retenciones:</span>
+                      <span className="text-white/80 text-sm">{t('retentions')}</span>
                       <span className="text-yellow-300 font-bold">
                         {new Intl.NumberFormat(currencyCode === 'USD' ? 'en-US' : 'es-MX', { style: 'currency', currency: currencyCode, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(parseFloat(commissionsData.summary.totalRetentions))}
                       </span>
@@ -234,10 +236,10 @@ function ComisionesContent() {
                 onClick={handleDownloadStatement}
                 disabled={!commissionsData?.summary || isLoadingCommissions || isActivePeriod}
                 className="bg-white text-[#3E667D] hover:bg-white/90 shadow-lg shadow-black/10 disabled:opacity-60"
-                title={isActivePeriod ? 'Disponible al cierre del periodo' : 'Descargar tu estado de cuenta del periodo en PDF'}
+                title={isActivePeriod ? t('downloadStatementTitleActive') : t('downloadStatementTitle')}
               >
                 <ArrowDownTrayIcon className="h-4 w-4" />
-                Estado de cuenta
+                {t('downloadStatement')}
               </Button>
             </div>
           </div>
@@ -258,7 +260,7 @@ function ComisionesContent() {
                   <SearchableSelect
                     options={periodsUpToCurrent(sortedPeriods).map((period: any) => ({
                       value: period.id,
-                      label: `${period.name}${period.isCurrent ? ' (Actual)' : ''}`,
+                      label: period.isCurrent ? t('periodCurrent', { name: period.name }) : period.name,
                     }))}
                     value={selectedPeriodId}
                     onChange={setSelectedPeriodId}
@@ -276,7 +278,7 @@ function ComisionesContent() {
                   }`}
                 >
                   <FunnelIcon className="h-4 w-4" />
-                  <span>Filtros</span>
+                  <span>{t('filters')}</span>
                   {hasActiveFilters && (
                     <span className="w-2 h-2 bg-[#C8DDF2] rounded-full animate-pulse" />
                   )}
@@ -296,7 +298,7 @@ function ComisionesContent() {
                     }`}
                   >
                     <ChartBarIcon className="h-4 w-4" />
-                    <span className="hidden sm:inline">Resumen</span>
+                    <span className="hidden sm:inline">{t('viewSummary')}</span>
                   </button>
                   {/* Detalle y Tendencia ocultos temporalmente (a peticion): solo
                       "Resumen" visible. Para restaurar, descomentar estos dos
@@ -329,7 +331,7 @@ function ComisionesContent() {
                 <button
                   onClick={handleRefresh}
                   className="p-2.5 text-gray-500 hover:text-[#3E667D] hover:bg-[#3E667D]/5 rounded-xl transition-all"
-                  title="Actualizar datos"
+                  title={t('refreshData')}
                 >
                   <ArrowPathIcon className="h-5 w-5" />
                 </button>
@@ -343,18 +345,18 @@ function ComisionesContent() {
                   {/* Type filter */}
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                      Tipo de comisión
+                      {t('filterTypeLabel')}
                     </label>
                     <SearchableSelect
                       options={[
-                        { value: 'mlm', label: 'Comisiones MLM' },
-                        { value: 'cedea_bonus', label: 'Bonos por generación' },
-                        { value: 'auto_bonus', label: 'Bonos Automaticos' },
-                        { value: 'adjustment', label: 'Ajustes' },
+                        { value: 'mlm', label: t('typeMlm') },
+                        { value: 'cedea_bonus', label: t('typeCedea') },
+                        { value: 'auto_bonus', label: t('typeAutoBonus') },
+                        { value: 'adjustment', label: t('typeAdjustment') },
                       ]}
                       value={filterType}
                       onChange={(val) => setParams({ type: val })}
-                      allLabel="Todos los tipos"
+                      allLabel={t('typeAll')}
                       allValue="all"
                       className="min-w-[180px]"
                     />
@@ -363,17 +365,17 @@ function ComisionesContent() {
                   {/* Status filter */}
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                      Estado
+                      {t('filterStatusLabel')}
                     </label>
                     <SearchableSelect
                       options={[
-                        { value: 'paid', label: 'Pagadas' },
-                        { value: 'approved', label: 'Aprobadas' },
-                        { value: 'calculated', label: 'Calculadas' },
+                        { value: 'paid', label: t('statusPaid') },
+                        { value: 'approved', label: t('statusApproved') },
+                        { value: 'calculated', label: t('statusCalculated') },
                       ]}
                       value={filterStatus}
                       onChange={(val) => setParams({ status: val })}
-                      allLabel="Todos los estados"
+                      allLabel={t('statusAll')}
                       allValue="all"
                       className="min-w-[160px]"
                     />
@@ -388,7 +390,7 @@ function ComisionesContent() {
                         }}
                         className="px-4 py-2.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl transition-colors"
                       >
-                        Limpiar filtros
+                        {t('clearFilters')}
                       </button>
                     </div>
                   )}
@@ -420,12 +422,10 @@ function ComisionesContent() {
                   <CalendarDaysIcon className="h-7 w-7 text-[#3E667D]" />
                 </div>
                 <h3 className="text-lg font-bold text-gray-900">
-                  Tus comisiones se calculan al cierre del periodo
+                  {t('closedPeriodTitle')}
                 </h3>
                 <p className="max-w-md text-sm text-gray-500">
-                  El monto de comisiones de {currentPeriod?.name ?? 'este periodo'} se
-                  mostrará cuando cierre el periodo. Mientras tanto sigue sumando puntos
-                  y ventas; aquí podrás consultar el detalle de los periodos ya cerrados.
+                  {t('closedPeriodBody', { period: currentPeriod?.name ?? t('thisPeriod') })}
                 </p>
               </CardContent>
             </Card>
@@ -455,7 +455,7 @@ function ComisionesContent() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-900">
-                  Historial de Comisiones
+                  {t('historyTitle')}
                 </h2>
                 <label className="flex items-center gap-2 text-sm text-gray-600">
                   <input
@@ -464,7 +464,7 @@ function ComisionesContent() {
                     onChange={(e) => setShowTaxDetails(e.target.checked)}
                     className="rounded border-gray-300 text-[#3E667D] focus:ring-[#a7c1e2]"
                   />
-                  Mostrar detalles de impuestos
+                  {t('showTaxDetails')}
                 </label>
               </div>
 
@@ -487,13 +487,13 @@ function ComisionesContent() {
           <Card>
             <CardContent className="p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-6">
-                Tendencia de Comisiones (Últimos 6 meses)
+                {t('trendTitle')}
               </h2>
               {trends && trends.length > 0 ? (
                 <CommissionChart data={trends} height={350} />
               ) : (
                 <div className="flex items-center justify-center py-12 text-gray-500">
-                  No hay datos de tendencia disponibles
+                  {t('noTrendData')}
                 </div>
               )}
             </CardContent>
@@ -529,14 +529,15 @@ function ComisionesContent() {
                   <div className="flex-1 max-w-2xl">
                     <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-4 py-1.5 text-sm font-medium mb-4">
                       <SparklesIcon className="h-4 w-4" />
-                      <span>Consejo Pro</span>
+                      <span>{t('proTipBadge')}</span>
                     </div>
                     <h3 className="text-2xl lg:text-3xl font-bold mb-4 tracking-tight">
-                      Maximiza tus Comisiones
+                      {t('proTipTitle')}
                     </h3>
                     <p className="text-white/85 text-base lg:text-lg leading-relaxed">
-                      Ayuda a tus distribuidores a calificar <span className="font-semibold">(≥3,300 puntos)</span> para desbloquear porcentajes aumentados.
-                      ¡Cada distribuidor calificado adicional aumenta tus ganancias en todos los niveles!
+                      {t.rich('proTipBody', {
+                        strong: (chunks) => <span className="font-semibold">{chunks}</span>,
+                      })}
                     </p>
 
                     <div className="flex flex-wrap gap-4 mt-8">
@@ -547,7 +548,7 @@ function ComisionesContent() {
                           className="bg-white text-[#3E667D] hover:bg-white/90 shadow-lg shadow-black/10"
                         >
                           <UserGroupIcon className="h-5 w-5 mr-2" />
-                          Ver Mi Red
+                          {t('viewMyNetwork')}
                         </Button>
                       </Link>
                     </div>
@@ -556,14 +557,15 @@ function ComisionesContent() {
                   {/* Stats highlight — porcentajes reales por nivel */}
                   <div className="lg:w-72">
                     <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                      <p className="text-white/70 text-sm uppercase tracking-wide mb-4">Tus porcentajes de comisión</p>
+                      <p className="text-white/70 text-sm uppercase tracking-wide mb-4">{t('yourPercentages')}</p>
                       {topLevels.length > 0 ? (
                         <div className="space-y-4">
                           {topLevels.map((lvl) => (
                             <div key={lvl.levelNumber} className="flex items-center justify-between">
                               <span className="text-white/80">
-                                Nivel {lvl.levelNumber}
-                                {lvl.levelNumber === 1 ? ' (directos)' : ''}
+                                {lvl.levelNumber === 1
+                                  ? t('levelDirect', { n: lvl.levelNumber })
+                                  : t('level', { n: lvl.levelNumber })}
                               </span>
                               <span className="font-bold">{fmtPct(lvl.basePercentage)}</span>
                             </div>
@@ -573,7 +575,7 @@ function ComisionesContent() {
                               parseFloat(level1.basePercentage) && (
                               <div className="flex items-center justify-between">
                                 <span className="text-white/80">
-                                  Nivel 1 con {level1.qualifiersRequired ?? 5}+ calificados
+                                  {t('levelWithQualifiers', { count: level1.qualifiersRequired ?? 5 })}
                                 </span>
                                 <span className="font-bold text-yellow-300">
                                   {fmtPct(level1.upgradedPercentage)}
@@ -582,13 +584,13 @@ function ComisionesContent() {
                             )}
                           <div className="pt-4 border-t border-white/20">
                             <p className="text-xs text-white/60">
-                              Más comisiones por generación según tu rango. Tus directos cuentan al tener ≥3,300 puntos.
+                              {t('percentagesFootnote')}
                             </p>
                           </div>
                         </div>
                       ) : (
                         <p className="text-sm text-white/70">
-                          Consulta la tabla de porcentajes por nivel más abajo.
+                          {t('percentagesFallback')}
                         </p>
                       )}
                     </div>

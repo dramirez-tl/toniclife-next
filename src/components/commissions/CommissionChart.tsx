@@ -2,6 +2,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 import { MonthlyCommissionTrend } from '@/types/commissions';
 
 interface CommissionChartProps {
@@ -22,6 +23,7 @@ export function CommissionChart({
   height = 300,
   showLegend = true,
 }: CommissionChartProps) {
+  const t = useTranslations('distributor.commissions.chart');
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return null;
 
@@ -45,7 +47,7 @@ export function CommissionChart({
   if (!chartData) {
     return (
       <div className="flex items-center justify-center h-full text-gray-500">
-        No hay datos disponibles
+        {t('noData')}
       </div>
     );
   }
@@ -137,28 +139,28 @@ export function CommissionChart({
               className="w-3 h-3 rounded"
               style={{ backgroundColor: COLORS.mlm }}
             />
-            <span className="text-xs text-gray-600">MLM</span>
+            <span className="text-xs text-gray-600">{t('legendMlm')}</span>
           </div>
           <div className="flex items-center gap-2">
             <div
               className="w-3 h-3 rounded"
               style={{ backgroundColor: COLORS.cedea }}
             />
-            <span className="text-xs text-gray-600">Generación</span>
+            <span className="text-xs text-gray-600">{t('legendGeneration')}</span>
           </div>
           <div className="flex items-center gap-2">
             <div
               className="w-3 h-3 rounded"
               style={{ backgroundColor: COLORS.autoBonus }}
             />
-            <span className="text-xs text-gray-600">Auto Bono</span>
+            <span className="text-xs text-gray-600">{t('legendAutoBonus')}</span>
           </div>
           <div className="flex items-center gap-2">
             <div
               className="w-3 h-3 rounded"
               style={{ backgroundColor: COLORS.adjustment }}
             />
-            <span className="text-xs text-gray-600">Ajustes</span>
+            <span className="text-xs text-gray-600">{t('legendAdjustment')}</span>
           </div>
         </div>
       )}

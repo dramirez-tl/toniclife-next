@@ -1,6 +1,7 @@
 // components/commissions/CommissionTable.tsx
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { Commission, CommissionType, CommissionStatus } from '@/types/commissions';
 import {
   CalendarIcon,
@@ -29,37 +30,38 @@ interface CommissionTableProps {
   currencyCode?: string;
 }
 
-const typeConfig: Record<CommissionType, { label: string; icon: typeof UserIcon; color: string }> = {
+const typeConfig: Record<CommissionType, { labelKey: string; icon: typeof UserIcon; color: string }> = {
   mlm: {
-    label: 'MLM',
+    labelKey: 'typeMlm',
     icon: ArrowsRightLeftIcon,
     color: 'text-blue-600 bg-blue-50',
   },
   cedea_bonus: {
-    label: 'Generación',
+    labelKey: 'typeCedea',
     icon: TrophyIcon,
     color: 'text-green-600 bg-green-50',
   },
   auto_bonus: {
-    label: 'Auto Bono',
+    labelKey: 'typeAutoBonus',
     icon: ShoppingBagIcon,
     color: 'text-yellow-600 bg-yellow-50',
   },
   adjustment: {
-    label: 'Ajuste',
+    labelKey: 'typeAdjustment',
     icon: AdjustmentsHorizontalIcon,
     color: 'text-purple-600 bg-purple-50',
   },
 };
 
-const statusConfig: Record<CommissionStatus, { label: string; color: string }> = {
-  calculated: { label: 'Calculada', color: 'bg-gray-100 text-gray-700' },
-  approved: { label: 'Aprobada', color: 'bg-blue-100 text-blue-700' },
-  paid: { label: 'Pagada', color: 'bg-green-100 text-green-700' },
-  cancelled: { label: 'Cancelada', color: 'bg-red-100 text-red-700' },
+const statusConfig: Record<CommissionStatus, { labelKey: string; color: string }> = {
+  calculated: { labelKey: 'statusCalculated', color: 'bg-gray-100 text-gray-700' },
+  approved: { labelKey: 'statusApproved', color: 'bg-blue-100 text-blue-700' },
+  paid: { labelKey: 'statusPaid', color: 'bg-green-100 text-green-700' },
+  cancelled: { labelKey: 'statusCancelled', color: 'bg-red-100 text-red-700' },
 };
 
 export function CommissionTable({ commissions, showTaxDetails = false, currencyCode = 'MXN' }: CommissionTableProps) {
+  const t = useTranslations('distributor.commissions.table');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const isUsd = currencyCode === 'USD';
 
@@ -92,7 +94,7 @@ export function CommissionTable({ commissions, showTaxDetails = false, currencyC
   if (commissions.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
-        No hay comisiones para mostrar
+        {t('empty')}
       </div>
     );
   }
@@ -103,32 +105,32 @@ export function CommissionTable({ commissions, showTaxDetails = false, currencyC
         <TableHeader>
           <TableRow className="border-b border-gray-200 hover:bg-transparent">
             <TableHead className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-              Fecha
+              {t('colDate')}
             </TableHead>
             <TableHead className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-              Tipo
+              {t('colType')}
             </TableHead>
             <TableHead className="text-left py-3 px-4 text-sm font-semibold text-gray-600">
-              Distribuidor
+              {t('colDistributor')}
             </TableHead>
             <TableHead className="text-right py-3 px-4 text-sm font-semibold text-gray-600">
-              Subtotal
+              {t('colSubtotal')}
             </TableHead>
             {showTaxDetails && (
               <>
                 <TableHead className="text-right py-3 px-4 text-sm font-semibold text-gray-600">
-                  IVA
+                  {t('colIva')}
                 </TableHead>
                 <TableHead className="text-right py-3 px-4 text-sm font-semibold text-gray-600">
-                  Ret. IVA
+                  {t('colIvaWithholding')}
                 </TableHead>
               </>
             )}
             <TableHead className="text-right py-3 px-4 text-sm font-semibold text-gray-600">
-              Total
+              {t('colTotal')}
             </TableHead>
             <TableHead className="text-center py-3 px-4 text-sm font-semibold text-gray-600">
-              Estado
+              {t('colStatus')}
             </TableHead>
             <TableHead className="w-10"></TableHead>
           </TableRow>
@@ -157,7 +159,7 @@ export function CommissionTable({ commissions, showTaxDetails = false, currencyC
                   <TableCell className="py-4 px-4">
                     <div className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium ${type.color}`}>
                       <TypeIcon className="h-3.5 w-3.5" />
-                      <span>{type.label}</span>
+                      <span>{t(type.labelKey)}</span>
                     </div>
                   </TableCell>
                   <TableCell className="py-4 px-4">
@@ -196,7 +198,7 @@ export function CommissionTable({ commissions, showTaxDetails = false, currencyC
                   </TableCell>
                   <TableCell className="py-4 px-4 text-center">
                     <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${status.color}`}>
-                      {status.label}
+                      {t(status.labelKey)}
                     </span>
                   </TableCell>
                   <TableCell className="py-4 px-2">
@@ -214,46 +216,46 @@ export function CommissionTable({ commissions, showTaxDetails = false, currencyC
                     <TableCell colSpan={showTaxDetails ? 9 : 7} className="px-4 py-4">
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                         <div>
-                          <p className="text-gray-500 text-xs">ID Comision</p>
+                          <p className="text-gray-500 text-xs">{t('detailCommissionId')}</p>
                           <p className="font-mono text-gray-900">{commission.id}</p>
                         </div>
                         <div>
-                          <p className="text-gray-500 text-xs">Subtotal Comisiones</p>
+                          <p className="text-gray-500 text-xs">{t('detailSubtotal')}</p>
                           <p className="text-gray-900">{formatCurrency(commission.subtotalEarnings)}<CurrBadge /></p>
                         </div>
                         {commission.autoBonus && (
                           <div>
-                            <p className="text-gray-500 text-xs">Auto Bono</p>
+                            <p className="text-gray-500 text-xs">{t('detailAutoBonus')}</p>
                             <p className="text-green-600">+{formatCurrency(commission.autoBonus)}<CurrBadge /></p>
                           </div>
                         )}
                         <div>
-                          <p className="text-gray-500 text-xs">IVA</p>
+                          <p className="text-gray-500 text-xs">{t('detailIva')}</p>
                           <p className="text-green-600">+{formatCurrency(commission.ivaAmount || '0')}<CurrBadge /></p>
                         </div>
                         <div>
-                          <p className="text-gray-500 text-xs">Ret. IVA</p>
+                          <p className="text-gray-500 text-xs">{t('detailIvaWithholding')}</p>
                           <p className="text-red-600">-{formatCurrency(commission.ivaWithholding || '0')}<CurrBadge /></p>
                         </div>
                         {parseFloat(commission.isrAmount || '0') > 0 && (
                           <div>
-                            <p className="text-gray-500 text-xs">ISR</p>
+                            <p className="text-gray-500 text-xs">{t('detailIsr')}</p>
                             <p className="text-red-600">-{formatCurrency(commission.isrAmount || '0')}<CurrBadge /></p>
                           </div>
                         )}
                         {parseFloat(commission.resicoAmount || '0') > 0 && (
                           <div>
-                            <p className="text-gray-500 text-xs">RESICO (1.25%)</p>
+                            <p className="text-gray-500 text-xs">{t('detailResico')}</p>
                             <p className="text-red-600">-{formatCurrency(commission.resicoAmount || '0')}<CurrBadge /></p>
                           </div>
                         )}
                         <div>
-                          <p className="text-gray-500 text-xs">Total Neto</p>
+                          <p className="text-gray-500 text-xs">{t('detailNet')}</p>
                           <p className="font-bold text-[#3E667D]">{formatCurrency(commission.totalAmount)}<CurrBadge /></p>
                         </div>
                         {commission.approvedAt && (
                           <div>
-                            <p className="text-gray-500 text-xs">Fecha de Aprobacion</p>
+                            <p className="text-gray-500 text-xs">{t('detailApprovedAt')}</p>
                             <p className="text-gray-900">{formatDate(commission.approvedAt)}</p>
                           </div>
                         )}
@@ -268,7 +270,7 @@ export function CommissionTable({ commissions, showTaxDetails = false, currencyC
         <TableFooter>
           <TableRow className="bg-gray-100 font-bold hover:bg-gray-100">
             <TableCell colSpan={showTaxDetails ? 6 : 4} className="py-4 px-4 text-right text-gray-700">
-              Total:
+              {t('total')}
             </TableCell>
             <TableCell className="py-4 px-4 text-right text-[#3E667D]">
               {formatCurrency(commissions.reduce((sum, c) => sum + parseFloat(c.totalAmount), 0))}<CurrBadge />

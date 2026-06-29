@@ -3,6 +3,7 @@
 // datos reales (resumen + estructura, ya convertidos a la moneda del distribuidor).
 'use client';
 
+import { useTranslations } from 'next-intl';
 import {
   CommissionStructure,
   CommissionSummary,
@@ -33,6 +34,7 @@ export function CommissionBreakdown({
   currencyCode = 'MXN',
   isActivePeriod,
 }: CommissionBreakdownProps) {
+  const t = useTranslations('distributor.commissions.breakdown');
   if (!summary) return null;
 
   const isUsd = currencyCode === 'USD';
@@ -55,11 +57,11 @@ export function CommissionBreakdown({
   const resico = parseFloat(summary.totalResico || '0');
 
   const types = [
-    { key: 'mlm', label: 'Comisiones por nivel (MLM)', amount: parseFloat(summary.mlmCommissionsMxn || '0'), color: 'text-blue-600' },
-    { key: 'cedea', label: 'Bonos por generación', amount: parseFloat(summary.cedeaBonusesMxn || '0'), color: 'text-yellow-600' },
-    { key: 'auto', label: 'Bonos automáticos', amount: parseFloat(summary.autoBonusesMxn || '0'), color: 'text-purple-600' },
-    { key: 'adj', label: 'Ajustes', amount: parseFloat(summary.adjustmentsMxn || '0'), color: 'text-gray-600' },
-  ].filter((t) => t.amount !== 0);
+    { key: 'mlm', label: t('typeMlm'), amount: parseFloat(summary.mlmCommissionsMxn || '0'), color: 'text-blue-600' },
+    { key: 'cedea', label: t('typeCedea'), amount: parseFloat(summary.cedeaBonusesMxn || '0'), color: 'text-yellow-600' },
+    { key: 'auto', label: t('typeAuto'), amount: parseFloat(summary.autoBonusesMxn || '0'), color: 'text-purple-600' },
+    { key: 'adj', label: t('typeAdjustment'), amount: parseFloat(summary.adjustmentsMxn || '0'), color: 'text-gray-600' },
+  ].filter((tp) => tp.amount !== 0);
 
   const userLevelMax = structure?.userLevelMax ?? 2;
   const userQualifiedCount = structure?.userQualifiedCount ?? 0;
@@ -110,34 +112,35 @@ export function CommissionBreakdown({
             <CalculatorIcon className="h-6 w-6 text-[#3E667D]" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-gray-900">Cómo se calculó tu comisión</h3>
+            <h3 className="text-lg font-bold text-gray-900">{t('title')}</h3>
             <p className="text-sm text-gray-500">
-              Paso a paso, con los datos reales del periodo
-              {isActivePeriod ? ' (en curso, se cierra al final del periodo)' : ''}.
+              {t('subtitle', { active: isActivePeriod ? t('subtitleActive') : '' })}
             </p>
           </div>
         </div>
 
         <div>
           {/* Paso 1: rango y alcance */}
-          <Step n={1} icon={TrophyIcon} title="Tu rango define hasta dónde cobras">
+          <Step n={1} icon={TrophyIcon} title={t('step1Title')}>
             <p className="text-sm text-gray-600">
-              Con rango <span className="font-semibold text-gray-900">{userRankName}</span> cobras
-              comisión por nivel <span className="font-semibold text-gray-900">hasta el nivel {userLevelMax}</span>
+              {t('step1RankPrefix')} <span className="font-semibold text-gray-900">{userRankName}</span> {t('step1LevelText')}{' '}
+              <span className="font-semibold text-gray-900">{t('step1LevelHighlight', { level: userLevelMax })}</span>
               {userGenerationMax > 0 ? (
-                <> y bonos por generación <span className="font-semibold text-gray-900">hasta la generación {userGenerationMax}</span>.</>
+                <>{t('step1GenerationText')}<span className="font-semibold text-gray-900">{t('step1GenerationHighlight', { generation: userGenerationMax })}</span>{t('step1Period')}</>
               ) : (
-                <>. Las generaciones requieren rango Plata o superior.</>
+                <>{t('step1NoGeneration')}</>
               )}
             </p>
           </Step>
 
           {/* Paso 2: calificados → % → monto por nivel */}
-          <Step n={2} icon={UserGroupIcon} title="Tus calificados definen el porcentaje de cada nivel">
+          <Step n={2} icon={UserGroupIcon} title={t('step2Title')}>
             <p className="text-sm text-gray-600">
-              Tienes <span className="font-semibold text-gray-900">{userQualifiedCount} calificado(s)</span> en
-              tu primer nivel. De eso depende si en cada nivel cobras el % base o el % aumentado.
-              {hasLevelAmounts && ' Abajo, el monto exacto que aportó cada nivel a tu comisión MLM.'}
+              {t.rich('step2Body', {
+                count: userQualifiedCount,
+                strong: (chunks) => <span className="font-semibold text-gray-900">{chunks}</span>,
+              })}
+              {hasLevelAmounts && t('step2HasAmounts')}
             </p>
             {applicableLevels.length > 0 && (
               <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
@@ -149,7 +152,7 @@ export function CommissionBreakdown({
                   return (
                     <div key={l.levelNumber} className="rounded-lg border border-gray-200 px-3 py-2">
                       <div className="flex items-center justify-between">
-                        <p className="text-[11px] text-gray-500">Nivel {l.levelNumber}</p>
+                        <p className="text-[11px] text-gray-500">{t('step2Level', { n: l.levelNumber })}</p>
                         <p className="text-sm font-bold text-[#3E667D]">{pct(rate)}</p>
                       </div>
                       {bd && (
@@ -160,14 +163,14 @@ export function CommissionBreakdown({
                       <div className="mt-0.5 flex items-center justify-between">
                         {bd && bd.members > 0 ? (
                           <span className="text-[10px] text-gray-400">
-                            {bd.members} dist.
+                            {t('step2Members', { count: bd.members })}
                           </span>
                         ) : (
                           <span />
                         )}
                         {upgraded && (
                           <span className="text-[10px] font-medium text-emerald-600 flex items-center gap-0.5">
-                            <CheckCircleIcon className="h-3 w-3" /> aumentado
+                            <CheckCircleIcon className="h-3 w-3" /> {t('step2Upgraded')}
                           </span>
                         )}
                       </div>
@@ -179,7 +182,7 @@ export function CommissionBreakdown({
             {hasLevelAmounts && (
               <div className="mt-3 flex items-center justify-between rounded-lg bg-[#3E667D]/5 px-4 py-2.5">
                 <span className="text-sm font-semibold text-[#3E667D]">
-                  Total comisión por nivel (MLM)
+                  {t('step2TotalMlm')}
                 </span>
                 <span className="text-sm font-bold text-[#3E667D] tabular-nums">
                   {fmt(levelBreakdown!.totalMlm)}{' '}
@@ -192,60 +195,60 @@ export function CommissionBreakdown({
           </Step>
 
           {/* Paso 3: desglose por tipo */}
-          <Step n={3} icon={ReceiptPercentIcon} title="Tu comisión bruta por tipo">
+          <Step n={3} icon={ReceiptPercentIcon} title={t('step3Title')}>
             {types.length > 0 ? (
               <div className="rounded-xl border border-gray-200 overflow-hidden">
-                {types.map((t) => (
-                  <div key={t.key} className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 last:border-0">
-                    <span className="text-sm text-gray-600">{t.label}</span>
-                    <span className={`text-sm font-semibold tabular-nums ${t.color}`}>{fmt(t.amount)}</span>
+                {types.map((tp) => (
+                  <div key={tp.key} className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 last:border-0">
+                    <span className="text-sm text-gray-600">{tp.label}</span>
+                    <span className={`text-sm font-semibold tabular-nums ${tp.color}`}>{fmt(tp.amount)}</span>
                   </div>
                 ))}
                 <div className="flex items-center justify-between px-4 py-2.5 bg-gray-50">
-                  <span className="text-sm font-semibold text-gray-700">Subtotal bruto</span>
+                  <span className="text-sm font-semibold text-gray-700">{t('step3Subtotal')}</span>
                   <span className="text-sm font-bold text-gray-900 tabular-nums">{fmt(subtotal)}</span>
                 </div>
               </div>
             ) : (
               <p className="text-sm text-gray-500">
-                Aún no hay comisiones registradas en este periodo.
+                {t('step3Empty')}
               </p>
             )}
           </Step>
 
           {/* Paso 4: bruto → impuestos → neto */}
-          <Step n={4} icon={ArrowRightIcon} title="Del bruto al neto (impuestos)">
+          <Step n={4} icon={ArrowRightIcon} title={t('step4Title')}>
             <div className="rounded-xl border border-gray-200 overflow-hidden">
               <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
-                <span className="text-sm text-gray-600">Bruto</span>
+                <span className="text-sm text-gray-600">{t('step4Gross')}</span>
                 <span className="text-sm font-semibold text-gray-900 tabular-nums">{fmt(subtotal)}</span>
               </div>
               {iva > 0 && (
                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
-                  <span className="text-sm text-gray-600">IVA 16%</span>
+                  <span className="text-sm text-gray-600">{t('step4Iva')}</span>
                   <span className="text-sm font-semibold text-blue-600 tabular-nums">+ {fmt(iva)}</span>
                 </div>
               )}
               {ivaWh > 0 && (
                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
-                  <span className="text-sm text-gray-600">Retención IVA</span>
+                  <span className="text-sm text-gray-600">{t('step4IvaWithholding')}</span>
                   <span className="text-sm font-semibold text-red-500 tabular-nums">- {fmt(ivaWh)}</span>
                 </div>
               )}
               {isr > 0 && (
                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
-                  <span className="text-sm text-gray-600">ISR</span>
+                  <span className="text-sm text-gray-600">{t('step4Isr')}</span>
                   <span className="text-sm font-semibold text-red-500 tabular-nums">- {fmt(isr)}</span>
                 </div>
               )}
               {resico > 0 && (
                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
-                  <span className="text-sm text-gray-600">RESICO</span>
+                  <span className="text-sm text-gray-600">{t('step4Resico')}</span>
                   <span className="text-sm font-semibold text-red-500 tabular-nums">- {fmt(resico)}</span>
                 </div>
               )}
               <div className="flex items-center justify-between px-4 py-3 bg-[#3E667D]/5">
-                <span className="text-sm font-bold text-[#3E667D]">Neto a pagar</span>
+                <span className="text-sm font-bold text-[#3E667D]">{t('step4Net')}</span>
                 <span className="text-base font-bold text-[#3E667D] tabular-nums">
                   {fmt(net)} <span className="text-[10px] font-semibold text-[#3E667D]/60">{currencyCode}</span>
                 </span>

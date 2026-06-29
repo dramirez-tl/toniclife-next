@@ -1,6 +1,7 @@
 // components/commissions/CommissionPercentagesTable.tsx
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { CommissionStructure } from '@/types/commissions';
 import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, type DataTableColumn } from '@/components/ui';
@@ -20,12 +21,13 @@ type GenerationRow = CommissionStructure['generations'][number];
 export function CommissionPercentagesTable({
   structure,
 }: CommissionPercentagesTableProps) {
+  const t = useTranslations('distributor.commissions.percentages');
   const { levels, generations, userLevelMax = 2, userGenerationMax = 0, userQualifiedCount = 0, userRankName = 'Distribuidor' } = structure;
 
   const levelColumns: DataTableColumn<LevelRow>[] = [
     {
       key: 'nivel',
-      header: 'Nivel',
+      header: t('levelHeader'),
       render: (row) => {
         const isUnlocked = row.levelNumber <= userLevelMax;
         return (
@@ -44,7 +46,7 @@ export function CommissionPercentagesTable({
                 {row.name}
               </p>
               <p className="text-xs text-gray-500">
-                {row.levelNumber === 1 ? 'Directos' : `${row.levelNumber} niveles de profundidad`}
+                {row.levelNumber === 1 ? t('levelDirects') : t('levelDepth', { count: row.levelNumber })}
               </p>
             </div>
           </div>
@@ -53,7 +55,7 @@ export function CommissionPercentagesTable({
     },
     {
       key: 'basePercent',
-      header: '% Base',
+      header: t('baseHeader'),
       headerClassName: 'text-center',
       cellClassName: 'text-center',
       render: (row) => {
@@ -77,7 +79,7 @@ export function CommissionPercentagesTable({
     },
     {
       key: 'upgradedPercent',
-      header: '% Aumentado',
+      header: t('upgradedHeader'),
       headerClassName: 'text-center',
       cellClassName: 'text-center',
       render: (row) => {
@@ -102,7 +104,7 @@ export function CommissionPercentagesTable({
     },
     {
       key: 'qualRequired',
-      header: 'Calificados Requeridos',
+      header: t('qualRequiredHeader'),
       headerClassName: 'text-center',
       cellClassName: 'text-center',
       render: (row) => {
@@ -125,7 +127,7 @@ export function CommissionPercentagesTable({
     },
     {
       key: 'estado',
-      header: 'Tu Estado',
+      header: t('yourStatusHeader'),
       headerClassName: 'text-center',
       cellClassName: 'text-center',
       render: (row) => {
@@ -147,13 +149,13 @@ export function CommissionPercentagesTable({
               {currentRate}%
             </span>
             {hasIncreasedRate && (
-              <span className="text-xs text-[#3E667D]">Aumentado</span>
+              <span className="text-xs text-[#3E667D]">{t('upgraded')}</span>
             )}
           </div>
         ) : (
           <div className="inline-flex items-center gap-2 text-gray-400">
             <LockClosedIcon className="h-4 w-4" />
-            <span className="text-sm">Bloqueado</span>
+            <span className="text-sm">{t('locked')}</span>
           </div>
         );
       },
@@ -163,7 +165,7 @@ export function CommissionPercentagesTable({
   const generationColumns: DataTableColumn<GenerationRow>[] = [
     {
       key: 'generacion',
-      header: 'Generacion',
+      header: t('generationHeader'),
       render: (gen) => {
         const isUnlocked = userGenerationMax > 0 && gen.generationNumber < userGenerationMax;
         return (
@@ -179,12 +181,12 @@ export function CommissionPercentagesTable({
             </div>
             <div>
               <p className="font-medium text-gray-900">
-                Generacion {gen.generationNumber + 1}
+                {t('generationLabel', { n: gen.generationNumber + 1 })}
               </p>
               <p className="text-xs text-gray-500">
                 {gen.generationNumber === 0
-                  ? 'Primer lider Plata+ en tu linea'
-                  : `${gen.generationNumber + 1}° lider Plata+ en profundidad`}
+                  ? t('generationFirst')
+                  : t('generationDepth', { n: gen.generationNumber + 1 })}
               </p>
             </div>
           </div>
@@ -193,7 +195,7 @@ export function CommissionPercentagesTable({
     },
     {
       key: 'porcentaje',
-      header: 'Porcentaje',
+      header: t('percentageHeader'),
       headerClassName: 'text-center',
       cellClassName: 'text-center',
       render: (gen) => {
@@ -212,7 +214,7 @@ export function CommissionPercentagesTable({
     },
     {
       key: 'estado',
-      header: 'Tu Estado',
+      header: t('yourStatusHeader'),
       headerClassName: 'text-center',
       cellClassName: 'text-center',
       render: (gen) => {
@@ -226,7 +228,7 @@ export function CommissionPercentagesTable({
         ) : (
           <div className="inline-flex items-center gap-2 text-gray-400">
             <LockClosedIcon className="h-4 w-4" />
-            <span className="text-sm">Bloqueado</span>
+            <span className="text-sm">{t('locked')}</span>
           </div>
         );
       },
@@ -241,15 +243,15 @@ export function CommissionPercentagesTable({
           <div className="flex items-start justify-between mb-6">
             <div>
               <h3 className="text-xl font-bold text-gray-900">
-                Comisiones por Nivel
+                {t('levelCommissionsTitle')}
               </h3>
               <p className="text-sm text-gray-600 mt-1">
-                Ganancias sobre las ventas de tu red, por niveles de profundidad
+                {t('levelCommissionsSubtitle')}
               </p>
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-500">
               <InformationCircleIcon className="h-5 w-5" />
-              <span>Rango: {userRankName}</span>
+              <span>{t('rank', { rank: userRankName })}</span>
             </div>
           </div>
 
@@ -273,19 +275,19 @@ export function CommissionPercentagesTable({
             <div className="flex items-start justify-between mb-6">
               <div>
                 <h3 className="text-xl font-bold text-gray-900">
-                  Comisiones por Generación
+                  {t('generationCommissionsTitle')}
                 </h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  Bonos sobre las ventas de distribuidores rango Plata o superior en tu red
+                  {t('generationCommissionsSubtitle')}
                 </p>
               </div>
               {userGenerationMax > 0 ? (
                 <span className="text-xs font-medium bg-green-100 text-green-700 px-3 py-1 rounded-full">
-                  Activo — hasta generacion {userGenerationMax}
+                  {t('generationActive', { max: userGenerationMax })}
                 </span>
               ) : (
                 <span className="text-xs font-medium bg-gray-100 text-gray-500 px-3 py-1 rounded-full">
-                  Requiere rango Plata o superior
+                  {t('generationRequiresSilver')}
                 </span>
               )}
             </div>
@@ -313,10 +315,10 @@ export function CommissionPercentagesTable({
             <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
               <span className="text-blue-600 font-bold text-sm">{userLevelMax}</span>
             </div>
-            <h4 className="font-medium text-blue-900">Tu Nivel Maximo</h4>
+            <h4 className="font-medium text-blue-900">{t('yourMaxLevel')}</h4>
           </div>
           <p className="text-sm text-blue-700">
-            Cobras hasta el nivel {userLevelMax} con tu rango {userRankName}
+            {t('yourMaxLevelBody', { level: userLevelMax, rank: userRankName })}
           </p>
         </div>
 
@@ -325,20 +327,20 @@ export function CommissionPercentagesTable({
             <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
               <CheckIcon className="h-4 w-4 text-green-600" />
             </div>
-            <h4 className="font-medium text-green-900">Calificados</h4>
+            <h4 className="font-medium text-green-900">{t('qualifiers')}</h4>
           </div>
           <p className="text-sm text-green-700">
-            Tienes {userQualifiedCount} distribuidores calificados en primer nivel
+            {t('qualifiersBody', { count: userQualifiedCount })}
           </p>
         </div>
 
         <div className="p-4 bg-purple-50 rounded-lg">
           <div className="flex items-center gap-2 mb-2">
             <InformationCircleIcon className="h-5 w-5 text-purple-600" />
-            <h4 className="font-medium text-purple-900">Como Aumentar</h4>
+            <h4 className="font-medium text-purple-900">{t('howToIncrease')}</h4>
           </div>
           <p className="text-sm text-purple-700">
-            Ayuda a mas distribuidores a calificar (3,300+ pts) para desbloquear porcentajes aumentados
+            {t('howToIncreaseBody')}
           </p>
         </div>
       </div>
