@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import {
   ChartBarIcon,
   UsersIcon,
@@ -66,6 +67,7 @@ const activityColors: Record<string, string> = {
 */
 
 export default function DistribuidorDashboard() {
+  const t = useTranslations('distributor.dashboard');
   const user = useAppSelector(selectUser);
   const currencyCode = user?.currencyCode || 'MXN';
   const isUsd = currencyCode === 'USD';
@@ -156,16 +158,16 @@ export default function DistribuidorDashboard() {
     try {
       const result = await shareLinkMutation.mutateAsync({
         link: dynamicPersonalLink,
-        title: 'Únete a Tonic Life',
-        text: `Únete a mi equipo en Tonic Life y comienza tu camino hacia el bienestar y el éxito financiero.`,
+        title: t('share.shareTitle'),
+        text: t('share.shareText'),
       });
       if (result.method === 'clipboard') {
-        toast.success('Enlace copiado al portapapeles');
+        toast.success(t('toasts.linkCopied'));
       } else {
-        toast.success('Enlace compartido exitosamente');
+        toast.success(t('toasts.linkShared'));
       }
     } catch {
-      toast.error('Error al compartir el enlace');
+      toast.error(t('toasts.shareError'));
     }
   };
 
@@ -173,15 +175,15 @@ export default function DistribuidorDashboard() {
     if (!dynamicStoreLink) return;
     try {
       await copyLinkMutation.mutateAsync(dynamicStoreLink);
-      toast.success('Enlace de tienda copiado al portapapeles');
+      toast.success(t('toasts.storeLinkCopied'));
     } catch {
-      toast.error('Error al copiar el enlace');
+      toast.error(t('toasts.copyError'));
     }
   };
 
   const handleRefresh = () => {
     refetch();
-    toast.success('Actualizando datos...');
+    toast.success(t('refreshing'));
   };
 
   const handleDownloadQr = (link?: string) => {
@@ -190,7 +192,7 @@ export default function DistribuidorDashboard() {
         ? link
         : dynamicStoreLink || dynamicPersonalLink;
     if (!target) {
-      toast.error('No se pudo generar el código QR');
+      toast.error(t('toasts.qrError'));
       return;
     }
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1024x1024&data=${encodeURIComponent(target)}`;
@@ -200,27 +202,25 @@ export default function DistribuidorDashboard() {
     document.body.appendChild(downloadLink);
     downloadLink.click();
     document.body.removeChild(downloadLink);
-    toast.success('Descargando QR...');
+    toast.success(t('toasts.qrDownloading'));
   };
 
   const handleCopyCode = async () => {
     if (!referralCode) return;
     try {
       await navigator.clipboard.writeText(referralCode);
-      toast.success('Código copiado');
+      toast.success(t('toasts.codeCopied'));
     } catch {
-      toast.error('No se pudo copiar el código');
+      toast.error(t('toasts.codeCopyError'));
     }
   };
 
   const handleShareWhatsApp = () => {
     if (!dynamicStoreLink) {
-      toast.error('No se pudo generar el enlace');
+      toast.error(t('toasts.linkError'));
       return;
     }
-    const text = encodeURIComponent(
-      `¡Descubre los productos de Tonic Life para tu bienestar! Compra con mi enlace: ${dynamicStoreLink}`,
-    );
+    const text = encodeURIComponent(t('share.whatsappText', { link: dynamicStoreLink }));
     window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener');
   };
 
@@ -245,18 +245,15 @@ export default function DistribuidorDashboard() {
             <div className="w-20 h-20 bg-white/20 backdrop-blur rounded-full flex items-center justify-center mx-auto mb-4">
               <ServerIcon className="h-10 w-10 text-white" />
             </div>
-            <h2 className="text-xl font-bold text-white">Error de Conexión</h2>
+            <h2 className="text-xl font-bold text-white">{t('error.title')}</h2>
           </div>
           <CardContent className="p-6 text-center">
             <div className="space-y-4">
               <div className="flex items-center justify-center gap-2 text-gray-500">
                 <WifiIcon className="h-5 w-5" />
-                <span className="text-sm">Sin conexión con el servidor</span>
+                <span className="text-sm">{t('error.offline')}</span>
               </div>
-              <p className="text-gray-600">
-                No pudimos cargar la información de tu Centro de Negocio.
-                Esto puede deberse a un problema temporal con el servidor o tu conexión a internet.
-              </p>
+              <p className="text-gray-600">{t('error.body')}</p>
               {process.env.NODE_ENV === 'development' && error && (
                 <div className="bg-gray-50 rounded-lg p-3 text-left">
                   <p className="text-xs font-mono text-gray-500 break-all">
@@ -271,24 +268,24 @@ export default function DistribuidorDashboard() {
                   onClick={() => refetch()}
                 >
                   <ArrowPathIcon className="h-5 w-5" />
-                  Intentar de nuevo
+                  {t('error.retry')}
                 </Button>
                 <div className="flex gap-3">
                   <Link href="/" className="flex-1">
-                    <Button variant="outline" className="w-full">Ir al inicio</Button>
+                    <Button variant="outline" className="w-full">{t('error.goHome')}</Button>
                   </Link>
                 </div>
               </div>
               <div className="mt-6 pt-4 border-t border-gray-100">
-                <p className="text-xs text-gray-400 mb-2">Sugerencias:</p>
+                <p className="text-xs text-gray-400 mb-2">{t('error.suggestions')}</p>
                 <ul className="text-xs text-gray-500 space-y-1">
                   <li className="flex items-center gap-2">
                     <ExclamationCircleIcon className="h-3 w-3 text-gray-400" />
-                    Verifica tu conexión a internet
+                    {t('error.checkConnection')}
                   </li>
                   <li className="flex items-center gap-2">
                     <ExclamationCircleIcon className="h-3 w-3 text-gray-400" />
-                    Intenta recargar la página en unos minutos
+                    {t('error.reloadLater')}
                   </li>
                 </ul>
               </div>
@@ -311,10 +308,10 @@ export default function DistribuidorDashboard() {
     ? 'from-amber-400 to-yellow-400'
     : 'from-red-400 to-orange-400';
   const progressLabel = progressPercent >= 75
-    ? 'Vas muy bien'
+    ? t('hero.statusGood')
     : progressPercent >= 40
-    ? 'Vas a buen ritmo'
-    : 'Necesitas avanzar';
+    ? t('hero.statusOk')
+    : t('hero.statusLow');
   const progressDot = progressPercent >= 75
     ? 'bg-emerald-400'
     : progressPercent >= 40
@@ -324,7 +321,7 @@ export default function DistribuidorDashboard() {
   // El rango actual sale del PERFIL (fuente de verdad): un distribuidor que aún no
   // califica es "Distribuidor", no "Bronce". El siguiente rango se deriva del orden real.
   const currentRankCode = (profile?.rank || 'distribuidor') as RankType;
-  const currentRankLabel = profile?.rankLabel || RANK_LABELS[currentRankCode] || 'Distribuidor';
+  const currentRankLabel = profile?.rankLabel || RANK_LABELS[currentRankCode] || t('distributor');
   const currentIndex = getRankIndex(currentRankCode);
   const nextRankCode: RankType | null =
     currentIndex >= 0 && currentIndex < RANK_ORDER.length - 1 ? RANK_ORDER[currentIndex + 1] : null;
@@ -342,14 +339,14 @@ export default function DistribuidorDashboard() {
     <div className="max-w-3xl mx-auto space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold text-gray-900">Tu resumen del periodo</h1>
+        <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
         <Button
           variant="ghost"
           size="icon"
           onClick={handleRefresh}
           disabled={isRefreshing}
           className="rounded-full"
-          title="Actualizar datos"
+          title={t('refresh')}
         >
           <ArrowPathIcon className={`h-5 w-5 text-gray-500 ${isRefreshing ? 'animate-spin' : ''}`} />
         </Button>
@@ -362,17 +359,17 @@ export default function DistribuidorDashboard() {
           <SearchableSelect
             options={periodsUpToCurrent(sortedPeriods).map((period: any) => ({
               value: period.id,
-              label: `${period.name}${period.isCurrent ? ' (Actual)' : ''}`,
+              label: `${period.name}${period.isCurrent ? ` (${t('current')})` : ''}`,
             }))}
             value={selectedPeriodId}
             onChange={setSelectedPeriodId}
-            placeholder="Selecciona un periodo"
+            placeholder={t('selectPeriod')}
             showAllOption={false}
           />
         </div>
         {!isCurrentSelected && selectedPeriodId && (
           <span className="text-[11px] font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full whitespace-nowrap">
-            Periodo pasado
+            {t('pastPeriod')}
           </span>
         )}
         {profile?.code && (
@@ -380,12 +377,12 @@ export default function DistribuidorDashboard() {
             type="button"
             onClick={() => {
               navigator.clipboard?.writeText(String(profile.code));
-              toast.success('Número de distribuidor copiado');
+              toast.success(t('numberCopied'));
             }}
             className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm transition-colors hover:bg-gray-50 whitespace-nowrap"
-            title="Copiar número de distribuidor"
+            title={t('copyNumber')}
           >
-            <span className="text-xs text-gray-500">Distribuidor</span>
+            <span className="text-xs text-gray-500">{t('distributor')}</span>
             <span className="font-semibold text-[#3E667D]">#{profile.code}</span>
             <ClipboardDocumentIcon className="h-4 w-4 text-gray-400" />
           </button>
@@ -399,16 +396,16 @@ export default function DistribuidorDashboard() {
           <div className="flex items-center gap-4">
             <RankMedal rank={currentRankCode} size="lg" glow zoomable />
             <div className="min-w-0">
-              <p className="text-white/60 text-xs uppercase tracking-wide">Tu nivel</p>
+              <p className="text-white/60 text-xs uppercase tracking-wide">{t('hero.level')}</p>
               <h2 className="text-2xl font-bold leading-tight">{currentRankLabel}</h2>
               {points?.isPersonalQualified ? (
                 <span className="inline-flex items-center gap-1 mt-1 text-xs font-medium text-emerald-100 bg-emerald-500/25 px-2 py-0.5 rounded-full">
                   <CheckCircleIcon className="h-3.5 w-3.5" />
-                  Calificado este periodo
+                  {t('hero.qualified')}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 mt-1 text-xs font-medium text-amber-100 bg-amber-400/25 px-2 py-0.5 rounded-full">
-                  En progreso
+                  {t('hero.inProgress')}
                 </span>
               )}
             </div>
@@ -418,15 +415,17 @@ export default function DistribuidorDashboard() {
           <div className="mt-6">
             {points?.isPersonalQualified ? (
               <p className="text-white/80 text-sm">
-                Ya alcanzaste tus {(points?.personalPointsRequired || 3300).toLocaleString()} puntos
-                este periodo. ¡Sigue vendiendo para aumentar tus ganancias!
+                {t('hero.qualifiedBody', { points: (points?.personalPointsRequired || 3300).toLocaleString() })}
               </p>
             ) : (
               <>
                 <div className="flex justify-between items-baseline mb-2">
-                  <span className="text-sm font-semibold">Tu meta del periodo</span>
+                  <span className="text-sm font-semibold">{t('hero.goal')}</span>
                   <span className="text-xs text-white/70">
-                    {(points?.personalPoints || 0).toLocaleString()} / {(points?.personalPointsRequired || 3300).toLocaleString()} pts
+                    {t('hero.pts', {
+                      current: (points?.personalPoints || 0).toLocaleString(),
+                      required: (points?.personalPointsRequired || 3300).toLocaleString(),
+                    })}
                   </span>
                 </div>
                 <div className="h-3 bg-white/15 rounded-full overflow-hidden">
@@ -440,10 +439,10 @@ export default function DistribuidorDashboard() {
                     <span className={`w-2 h-2 rounded-full ${progressDot}`} />
                     {progressLabel} — {progressPercent}%
                   </span>
-                  <span>{points?.daysRemaining ?? '--'} días restantes</span>
+                  <span>{t('hero.daysRemaining', { days: points?.daysRemaining ?? '--' })}</span>
                 </div>
                 <p className="mt-3 text-sm font-medium text-white">
-                  Te faltan {personalPointsGap.toLocaleString()} puntos para calificar este periodo.
+                  {t('hero.gap', { points: personalPointsGap.toLocaleString() })}
                 </p>
               </>
             )}
@@ -457,7 +456,7 @@ export default function DistribuidorDashboard() {
             >
               <RankMedal rank={nextRankCode} size="md" locked />
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-white/60">Tu siguiente meta</p>
+                <p className="text-xs text-white/60">{t('hero.nextGoal')}</p>
                 <p className="font-semibold truncate">{nextRankLabel}</p>
               </div>
               <div className="flex items-center gap-1">
@@ -474,7 +473,7 @@ export default function DistribuidorDashboard() {
                 variant="default"
                 className="bg-white text-[#3E667D] hover:bg-white/90 font-semibold w-full sm:w-auto"
               >
-                {points?.isPersonalQualified ? 'Seguir vendiendo' : 'Cómo lograrlo'}
+                {points?.isPersonalQualified ? t('hero.ctaQualified') : t('hero.ctaProgress')}
                 <ChevronRightIcon className="h-4 w-4 ml-1" />
               </Button>
             </Link>
@@ -490,17 +489,17 @@ export default function DistribuidorDashboard() {
               <CurrencyDollarIcon className="h-5 w-5 text-[#3E667D] mx-auto mb-1" />
               {isCurrentSelected ? (
                 <>
-                  <p className="text-base font-bold text-gray-400 leading-tight mt-0.5">Al cierre</p>
-                  <p className="text-[11px] font-medium text-gray-600">Comisiones</p>
-                  <p className="text-[10px] text-gray-400">se calcula al cierre del periodo</p>
+                  <p className="text-base font-bold text-gray-400 leading-tight mt-0.5">{t('stats.atClose')}</p>
+                  <p className="text-[11px] font-medium text-gray-600">{t('stats.commissions')}</p>
+                  <p className="text-[10px] text-gray-400">{t('stats.commissionsAtClose')}</p>
                 </>
               ) : (
                 <>
                   <p className="text-lg font-bold text-[#3E667D] leading-tight">
                     {formatMoney(commissionsSummary?.totalNet || 0)}
                   </p>
-                  <p className="text-[11px] font-medium text-gray-600">Comisiones</p>
-                  <p className="text-[10px] text-gray-400">este periodo · {currencyCode}</p>
+                  <p className="text-[11px] font-medium text-gray-600">{t('stats.commissions')}</p>
+                  <p className="text-[10px] text-gray-400">{t('stats.thisPeriodCurrency', { currency: currencyCode })}</p>
                 </>
               )}
             </div>
@@ -509,16 +508,16 @@ export default function DistribuidorDashboard() {
               <p className="text-lg font-bold text-[#3E667D] leading-tight">
                 {(networkSummary?.totalDistributors || 0).toLocaleString()}
               </p>
-              <p className="text-[11px] font-medium text-gray-600">En tu red</p>
-              <p className="text-[10px] text-gray-400">{(networkSummary?.activeDistributors || 0).toLocaleString()} activos</p>
+              <p className="text-[11px] font-medium text-gray-600">{t('stats.inNetwork')}</p>
+              <p className="text-[10px] text-gray-400">{t('stats.activeCount', { count: (networkSummary?.activeDistributors || 0).toLocaleString() })}</p>
             </div>
             <div className="p-4 text-center">
               <ChartBarIcon className="h-5 w-5 text-[#3E667D] mx-auto mb-1" />
               <p className="text-lg font-bold text-[#3E667D] leading-tight">
                 {(points?.totalPoints || 0).toLocaleString()}
               </p>
-              <p className="text-[11px] font-medium text-gray-600">Puntos</p>
-              <p className="text-[10px] text-gray-400">este periodo</p>
+              <p className="text-[11px] font-medium text-gray-600">{t('stats.points')}</p>
+              <p className="text-[10px] text-gray-400">{t('stats.thisPeriod')}</p>
             </div>
           </div>
 
@@ -529,27 +528,27 @@ export default function DistribuidorDashboard() {
                 onClick={() => setShowPointsDetail((v) => !v)}
                 className="w-full h-auto border-t border-gray-100 py-2 text-xs font-medium text-[#3E667D] flex items-center justify-center gap-1 hover:bg-gray-50 rounded-none"
               >
-                {showPointsDetail ? 'Ocultar desglose' : 'Ver desglose de puntos'}
+                {showPointsDetail ? t('stats.hideBreakdown') : t('stats.showBreakdown')}
                 {showPointsDetail ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />}
               </Button>
               {showPointsDetail && (
                 <div className="border-t border-gray-100 p-4 space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Puntos por tus ventas</span>
+                    <span className="text-gray-600">{t('stats.pointsFromSales')}</span>
                     <span className="font-semibold text-[#3E667D]">{points.personalPoints.toLocaleString()}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Puntos de tu equipo</span>
+                    <span className="text-gray-600">{t('stats.pointsFromTeam')}</span>
                     <span className="font-semibold text-[#3E667D]">{points.groupPoints.toLocaleString()}</span>
                   </div>
                   {points.rolloverPoints > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Puntos acumulados</span>
+                      <span className="text-gray-600">{t('stats.rollover')}</span>
                       <span className="font-semibold text-emerald-600">+{points.rolloverPoints.toLocaleString()}</span>
                     </div>
                   )}
                   <div className="flex justify-between pt-2 border-t border-gray-100">
-                    <span className="font-semibold text-gray-800">Total</span>
+                    <span className="font-semibold text-gray-800">{t('stats.total')}</span>
                     <span className="font-bold text-[#3E667D]">{points.totalPoints.toLocaleString()}</span>
                   </div>
                 </div>
@@ -567,10 +566,8 @@ export default function DistribuidorDashboard() {
               <ShoppingBagIcon className="h-6 w-6 text-white" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-base font-bold">Compra a precio de distribuidor</p>
-              <p className="text-sm text-white/80">
-                Pide del almacén a tu precio. Envío a domicilio o recoge en sucursal.
-              </p>
+              <p className="text-base font-bold">{t('buyCta.title')}</p>
+              <p className="text-sm text-white/80">{t('buyCta.body')}</p>
             </div>
             <ChevronRightIcon className="h-5 w-5 shrink-0 text-white/70" />
           </CardContent>
@@ -580,7 +577,7 @@ export default function DistribuidorDashboard() {
       {/* ══════════════ Acciones rápidas ══════════════ */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle>¿Qué quieres hacer?</CardTitle>
+          <CardTitle>{t('actions.title')}</CardTitle>
         </CardHeader>
         <CardContent className="pt-2">
           <div className="grid grid-cols-2 gap-3">
@@ -588,37 +585,37 @@ export default function DistribuidorDashboard() {
               <div className="w-10 h-10 rounded-full bg-[#abc9ba]/20 flex items-center justify-center">
                 <ShoppingBagIcon className="h-5 w-5 text-[#3E667D]" />
               </div>
-              <span className="text-sm font-medium text-gray-700">Compartir carrito</span>
+              <span className="text-sm font-medium text-gray-700">{t('actions.shareCart')}</span>
             </Link>
             <Link href="/distribuidor/ventas" className={actionBox}>
               <div className="w-10 h-10 rounded-full bg-[#C8DDF2]/20 flex items-center justify-center">
                 <ChartBarIcon className="h-5 w-5 text-[#3E667D]" />
               </div>
-              <span className="text-sm font-medium text-gray-700">Nueva venta</span>
+              <span className="text-sm font-medium text-gray-700">{t('actions.newSale')}</span>
             </Link>
             <Link href="/distribuidor/red?alta=socio" className={actionBox}>
               <div className="w-10 h-10 rounded-full bg-[#3E667D]/10 flex items-center justify-center">
                 <UserPlusIcon className="h-5 w-5 text-[#3E667D]" />
               </div>
-              <span className="text-sm font-medium text-gray-700">Dar de alta socio</span>
+              <span className="text-sm font-medium text-gray-700">{t('actions.enrollPartner')}</span>
             </Link>
             <Link href="/distribuidor/red?alta=preferente" className={actionBox}>
               <div className="w-10 h-10 rounded-full bg-[#abc9ba]/20 flex items-center justify-center">
                 <UserPlusIcon className="h-5 w-5 text-[#3E667D]" />
               </div>
-              <span className="text-sm font-medium text-gray-700">Cliente preferente</span>
+              <span className="text-sm font-medium text-gray-700">{t('actions.preferredCustomer')}</span>
             </Link>
             <Link href="/distribuidor/red" className={actionBox}>
               <div className="w-10 h-10 rounded-full bg-[#3E667D]/10 flex items-center justify-center">
                 <UsersIcon className="h-5 w-5 text-[#3E667D]" />
               </div>
-              <span className="text-sm font-medium text-gray-700">Mi equipo</span>
+              <span className="text-sm font-medium text-gray-700">{t('actions.myTeam')}</span>
             </Link>
             <Link href="/distribuidor/comisiones" className={actionBox}>
               <div className="w-10 h-10 rounded-full bg-[#a7c1e2]/20 flex items-center justify-center">
                 <CurrencyDollarIcon className="h-5 w-5 text-[#3E667D]" />
               </div>
-              <span className="text-sm font-medium text-gray-700">Mis comisiones</span>
+              <span className="text-sm font-medium text-gray-700">{t('actions.myCommissions')}</span>
             </Link>
           </div>
         </CardContent>
@@ -636,10 +633,10 @@ export default function DistribuidorDashboard() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-amber-800">
-                Completa tus datos para recibir comisiones
+                {t('banners.completeData')}
               </p>
               <p className="text-xs text-amber-600 mt-0.5">
-                Necesitamos tu información fiscal y bancaria para poder depositarte.
+                {t('banners.completeDataBody')}
               </p>
             </div>
             <ChevronRightIcon className="h-5 w-5 text-amber-400 group-hover:text-amber-600 transition-colors flex-shrink-0" />
@@ -658,14 +655,12 @@ export default function DistribuidorDashboard() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-[#2f5165]">
-                {myCourses.length === 1
-                  ? 'Tienes acceso a 1 curso de capacitación'
-                  : `Tienes acceso a ${myCourses.length} cursos de capacitación`}
+                {t('banners.courses', { count: myCourses.length })}
               </p>
               <p className="text-xs text-[#3E667D]/80 mt-0.5 line-clamp-1">
                 {myCourses.length === 1
                   ? myCourses[0].title
-                  : 'Entra a la Academia y continúa aprendiendo con los mejores coaches.'}
+                  : t('banners.coursesBody')}
               </p>
             </div>
             <ChevronRightIcon className="h-5 w-5 text-[#3E667D]/50 group-hover:text-[#3E667D] transition-colors flex-shrink-0" />
@@ -682,16 +677,14 @@ export default function DistribuidorDashboard() {
               <GiftIcon className="h-6 w-6" />
             </div>
             <div className="min-w-0">
-              <h3 className="text-lg font-bold leading-tight">Comparte y gana comisión</h3>
-              <p className="text-sm text-white/80">
-                Ganas la diferencia entre el precio público y tu precio de distribuidor. Estas ventas no suman puntos.
-              </p>
+              <h3 className="text-lg font-bold leading-tight">{t('share.title')}</h3>
+              <p className="text-sm text-white/80">{t('share.body')}</p>
             </div>
           </div>
 
           <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-white/10 px-4 py-3">
             <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-wide text-white/60">Tu código</p>
+              <p className="text-[11px] uppercase tracking-wide text-white/60">{t('share.yourCode')}</p>
               <p className="text-xl font-bold tracking-wider truncate">
                 {referralCode || '—'}
               </p>
@@ -704,7 +697,7 @@ export default function DistribuidorDashboard() {
               className="shrink-0"
             >
               <ClipboardDocumentIcon className="h-4 w-4" />
-              Copiar código
+              {t('share.copyCode')}
             </Button>
           </div>
         </div>
@@ -718,7 +711,7 @@ export default function DistribuidorDashboard() {
             className="w-full bg-[#15803d] text-white hover:bg-[#166534]"
           >
             <ShareIcon className="h-5 w-5" />
-            Compartir por WhatsApp
+            {t('share.whatsapp')}
           </Button>
 
           {/* Secundarias */}
@@ -730,7 +723,7 @@ export default function DistribuidorDashboard() {
               className="border-[#a7c1e2] text-[#3E667D] hover:bg-[#C8DDF2]/10"
             >
               <ClipboardDocumentIcon className="h-4 w-4" />
-              Copiar enlace
+              {t('share.copyLink')}
             </Button>
             <Button
               variant="outline"
@@ -739,7 +732,7 @@ export default function DistribuidorDashboard() {
               className="border-[#a7c1e2] text-[#3E667D] hover:bg-[#C8DDF2]/10"
             >
               <ArrowDownTrayIcon className="h-4 w-4" />
-              Código QR
+              {t('share.qr')}
             </Button>
           </div>
 
@@ -751,7 +744,7 @@ export default function DistribuidorDashboard() {
             className="mt-4 flex w-full items-center justify-center gap-1.5 text-sm font-medium text-[#3E667D] hover:underline disabled:opacity-50"
           >
             <UsersIcon className="h-4 w-4" />
-            ¿Quieres sumar socios a tu red? Comparte tu invitación
+            {t('share.invitePartners')}
           </button>
         </CardContent>
       </Card>

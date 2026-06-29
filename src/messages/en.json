@@ -499,6 +499,103 @@
     "comingSoonPage": {
       "body": "We're finishing this section. Very soon you'll be able to use it with your real information.",
       "back": "Back to my panel"
+    },
+    "dashboard": {
+      "title": "Your period summary",
+      "refresh": "Refresh data",
+      "refreshing": "Refreshing data...",
+      "selectPeriod": "Select a period",
+      "current": "Current",
+      "pastPeriod": "Past period",
+      "distributor": "Distributor",
+      "copyNumber": "Copy distributor number",
+      "numberCopied": "Distributor number copied",
+      "hero": {
+        "level": "Your level",
+        "qualified": "Qualified this period",
+        "inProgress": "In progress",
+        "qualifiedBody": "You've already reached your {points} points this period. Keep selling to increase your earnings!",
+        "goal": "Your period goal",
+        "pts": "{current} / {required} pts",
+        "daysRemaining": "{days} days left",
+        "gap": "You need {points} more points to qualify this period.",
+        "nextGoal": "Your next goal",
+        "ctaQualified": "Keep selling",
+        "ctaProgress": "How to get there",
+        "statusGood": "You're doing great",
+        "statusOk": "You're on track",
+        "statusLow": "You need to move forward"
+      },
+      "stats": {
+        "atClose": "At close",
+        "commissions": "Commissions",
+        "commissionsAtClose": "calculated at period close",
+        "thisPeriodCurrency": "this period · {currency}",
+        "inNetwork": "In your network",
+        "activeCount": "{count} active",
+        "points": "Points",
+        "thisPeriod": "this period",
+        "showBreakdown": "View points breakdown",
+        "hideBreakdown": "Hide breakdown",
+        "pointsFromSales": "Points from your sales",
+        "pointsFromTeam": "Points from your team",
+        "rollover": "Accumulated points",
+        "total": "Total"
+      },
+      "buyCta": {
+        "title": "Buy at distributor price",
+        "body": "Order from the warehouse at your price. Home delivery or pick up at a branch."
+      },
+      "actions": {
+        "title": "What would you like to do?",
+        "shareCart": "Share cart",
+        "newSale": "New sale",
+        "enrollPartner": "Enroll partner",
+        "preferredCustomer": "Preferred customer",
+        "myTeam": "My team",
+        "myCommissions": "My commissions"
+      },
+      "banners": {
+        "completeData": "Complete your details to receive commissions",
+        "completeDataBody": "We need your tax and banking information to be able to pay you.",
+        "courses": "{count, plural, =1 {You have access to 1 training course} other {You have access to # training courses}}",
+        "coursesBody": "Enter the Academy and keep learning with the best coaches."
+      },
+      "share": {
+        "title": "Share and earn commission",
+        "body": "You earn the difference between the public price and your distributor price. These sales don't add points.",
+        "yourCode": "Your code",
+        "copyCode": "Copy code",
+        "whatsapp": "Share via WhatsApp",
+        "copyLink": "Copy link",
+        "qr": "QR code",
+        "invitePartners": "Want to add partners to your network? Share your invitation",
+        "shareTitle": "Join Tonic Life",
+        "shareText": "Join my team at Tonic Life and start your journey toward wellness and financial success.",
+        "whatsappText": "Discover Tonic Life products for your wellness! Buy with my link: {link}"
+      },
+      "toasts": {
+        "linkCopied": "Link copied to clipboard",
+        "linkShared": "Link shared successfully",
+        "shareError": "Error sharing the link",
+        "storeLinkCopied": "Store link copied to clipboard",
+        "copyError": "Error copying the link",
+        "qrError": "Could not generate the QR code",
+        "qrDownloading": "Downloading QR...",
+        "codeCopied": "Code copied",
+        "codeCopyError": "Could not copy the code",
+        "linkError": "Could not generate the link"
+      },
+      "error": {
+        "title": "Connection Error",
+        "offline": "No connection to the server",
+        "body": "We couldn't load your Business Center information. This may be due to a temporary problem with the server or your internet connection.",
+        "retry": "Try again",
+        "goHome": "Go home",
+        "suggestions": "Suggestions:",
+        "checkConnection": "Check your internet connection",
+        "reloadLater": "Try reloading the page in a few minutes"
+      }
     }
   }
 }

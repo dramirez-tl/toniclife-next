@@ -499,6 +499,103 @@
     "comingSoonPage": {
       "body": "Estamos terminando esta sección. Muy pronto vas a poder usarla con tu información real.",
       "back": "Volver a mi panel"
+    },
+    "dashboard": {
+      "title": "Tu resumen del periodo",
+      "refresh": "Actualizar datos",
+      "refreshing": "Actualizando datos...",
+      "selectPeriod": "Selecciona un periodo",
+      "current": "Actual",
+      "pastPeriod": "Periodo pasado",
+      "distributor": "Distribuidor",
+      "copyNumber": "Copiar número de distribuidor",
+      "numberCopied": "Número de distribuidor copiado",
+      "hero": {
+        "level": "Tu nivel",
+        "qualified": "Calificado este periodo",
+        "inProgress": "En progreso",
+        "qualifiedBody": "Ya alcanzaste tus {points} puntos este periodo. ¡Sigue vendiendo para aumentar tus ganancias!",
+        "goal": "Tu meta del periodo",
+        "pts": "{current} / {required} pts",
+        "daysRemaining": "{days} días restantes",
+        "gap": "Te faltan {points} puntos para calificar este periodo.",
+        "nextGoal": "Tu siguiente meta",
+        "ctaQualified": "Seguir vendiendo",
+        "ctaProgress": "Cómo lograrlo",
+        "statusGood": "Vas muy bien",
+        "statusOk": "Vas a buen ritmo",
+        "statusLow": "Necesitas avanzar"
+      },
+      "stats": {
+        "atClose": "Al cierre",
+        "commissions": "Comisiones",
+        "commissionsAtClose": "se calcula al cierre del periodo",
+        "thisPeriodCurrency": "este periodo · {currency}",
+        "inNetwork": "En tu red",
+        "activeCount": "{count} activos",
+        "points": "Puntos",
+        "thisPeriod": "este periodo",
+        "showBreakdown": "Ver desglose de puntos",
+        "hideBreakdown": "Ocultar desglose",
+        "pointsFromSales": "Puntos por tus ventas",
+        "pointsFromTeam": "Puntos de tu equipo",
+        "rollover": "Puntos acumulados",
+        "total": "Total"
+      },
+      "buyCta": {
+        "title": "Compra a precio de distribuidor",
+        "body": "Pide del almacén a tu precio. Envío a domicilio o recoge en sucursal."
+      },
+      "actions": {
+        "title": "¿Qué quieres hacer?",
+        "shareCart": "Compartir carrito",
+        "newSale": "Nueva venta",
+        "enrollPartner": "Dar de alta socio",
+        "preferredCustomer": "Cliente preferente",
+        "myTeam": "Mi equipo",
+        "myCommissions": "Mis comisiones"
+      },
+      "banners": {
+        "completeData": "Completa tus datos para recibir comisiones",
+        "completeDataBody": "Necesitamos tu información fiscal y bancaria para poder depositarte.",
+        "courses": "{count, plural, =1 {Tienes acceso a 1 curso de capacitación} other {Tienes acceso a # cursos de capacitación}}",
+        "coursesBody": "Entra a la Academia y continúa aprendiendo con los mejores coaches."
+      },
+      "share": {
+        "title": "Comparte y gana comisión",
+        "body": "Ganas la diferencia entre el precio público y tu precio de distribuidor. Estas ventas no suman puntos.",
+        "yourCode": "Tu código",
+        "copyCode": "Copiar código",
+        "whatsapp": "Compartir por WhatsApp",
+        "copyLink": "Copiar enlace",
+        "qr": "Código QR",
+        "invitePartners": "¿Quieres sumar socios a tu red? Comparte tu invitación",
+        "shareTitle": "Únete a Tonic Life",
+        "shareText": "Únete a mi equipo en Tonic Life y comienza tu camino hacia el bienestar y el éxito financiero.",
+        "whatsappText": "¡Descubre los productos de Tonic Life para tu bienestar! Compra con mi enlace: {link}"
+      },
+      "toasts": {
+        "linkCopied": "Enlace copiado al portapapeles",
+        "linkShared": "Enlace compartido exitosamente",
+        "shareError": "Error al compartir el enlace",
+        "storeLinkCopied": "Enlace de tienda copiado al portapapeles",
+        "copyError": "Error al copiar el enlace",
+        "qrError": "No se pudo generar el código QR",
+        "qrDownloading": "Descargando QR...",
+        "codeCopied": "Código copiado",
+        "codeCopyError": "No se pudo copiar el código",
+        "linkError": "No se pudo generar el enlace"
+      },
+      "error": {
+        "title": "Error de Conexión",
+        "offline": "Sin conexión con el servidor",
+        "body": "No pudimos cargar la información de tu Centro de Negocio. Esto puede deberse a un problema temporal con el servidor o tu conexión a internet.",
+        "retry": "Intentar de nuevo",
+        "goHome": "Ir al inicio",
+        "suggestions": "Sugerencias:",
+        "checkConnection": "Verifica tu conexión a internet",
+        "reloadLater": "Intenta recargar la página en unos minutos"
+      }
     }
   }
 }
