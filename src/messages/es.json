@@ -942,7 +942,7 @@
       },
       "directLines": {
         "title": "Volumen por línea directa",
-        "subtitle": "El volumen de grupo de cada una de tus líneas en el periodo, de la más baja a la más alta.",
+        "subtitle": "El volumen de grupo de cada una de tus líneas en el periodo: primero las que tienen puntos.",
         "periodCurrent": " (Actual)",
         "rolloverPrefix": "Rollover:",
         "rolloverBody1": "cada línea aporta a tu volumen de grupo hasta",

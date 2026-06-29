@@ -343,6 +343,15 @@ function DirectLinesVolumeSection() {
   const cap = data?.rollOverLimit ?? 0;
   const hasCap = data?.hasCap ?? false;
   const maxBar = Math.max(1, cap, ...lines.map((l) => l.legVolume));
+  // Orden solicitado: primero las líneas CON volumen (de mayor a menor) y al
+  // final las que están en 0. El badge "más baja" se calcula por VALOR real
+  // (no por posición), así sigue marcando la pierna más débil.
+  const displayLines = [...lines].sort((a, b) => b.legVolume - a.legVolume);
+  const lowestId =
+    lines.length > 0
+      ? lines.reduce((min, l) => (l.legVolume < min.legVolume ? l : min), lines[0])
+          .memberId
+      : null;
 
   return (
     <Card className="mb-6">
@@ -421,7 +430,7 @@ function DirectLinesVolumeSection() {
           </div>
         ) : (
           <div className={`space-y-2 ${isFetching ? 'opacity-60' : ''}`}>
-            {lines.map((l, i) => {
+            {displayLines.map((l) => {
               const countedPct = (Math.min(l.counted, maxBar) / maxBar) * 100;
               const rolledPct = (Math.min(l.rolledOver, maxBar) / maxBar) * 100;
               const capPct = hasCap ? (Math.min(cap, maxBar) / maxBar) * 100 : 0;
@@ -434,7 +443,7 @@ function DirectLinesVolumeSection() {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        {i === 0 && lines.length > 1 && (
+                        {lines.length > 1 && l.memberId === lowestId && (
                           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
                             {t('lowest')}
                           </span>

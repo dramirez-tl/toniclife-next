@@ -942,7 +942,7 @@
       },
       "directLines": {
         "title": "Volume by direct line",
-        "subtitle": "The group volume of each of your lines in the period, from lowest to highest.",
+        "subtitle": "The group volume of each of your lines in the period: lines with points first.",
         "periodCurrent": " (Current)",
         "rolloverPrefix": "Rollover:",
         "rolloverBody1": "each line contributes to your group volume up to",
