@@ -829,6 +829,76 @@
           "azul3": "Blue Diamond recognition"
         }
       }
+    },
+    "sales": {
+      "title": "Sales Performance",
+      "subtitle": "Analyze your performance and your network's",
+      "selectPeriod": "Select a period",
+      "periodCurrent": " (Current)",
+      "pastPeriod": "Past period",
+      "refreshing": "Refreshing data...",
+      "refreshTitle": "Refresh data",
+      "refreshAria": "Refresh sales data",
+      "sellNow": "Sell now",
+      "backToPanel": "Back to Main Panel",
+      "error": {
+        "title": "We couldn't load your sales",
+        "body": "There was a problem fetching the information. Please try again.",
+        "retry": "Retry"
+      },
+      "empty": {
+        "title": "You don't have any sales this period yet",
+        "body": "Share a cart with your customers or your store link to start adding sales and points.",
+        "shareCart": "Share cart",
+        "goToStore": "Go to the store"
+      },
+      "stats": {
+        "totalSales": "Total Sales",
+        "personalPlusNetwork": "Personal + Network",
+        "personalSales": "Personal Sales",
+        "networkSales": "Network Sales",
+        "percentOfTotal": "{percent}% of total",
+        "personalOrders": "Personal Orders",
+        "averageTicket": "Average ticket: {amount} {currency}"
+      },
+      "topProducts": {
+        "title": "Best-Selling Products",
+        "units": "{count} units",
+        "percentOfTotal": "{percent}% of total",
+        "empty": "No products sold this period"
+      },
+      "breakdown": {
+        "title": "Sales Distribution",
+        "personalSales": "Personal Sales",
+        "networkSales": "Network Sales",
+        "personalLegend": "Personal ({percent}%)",
+        "networkLegend": "Network ({percent}%)"
+      },
+      "topPerformers": {
+        "title": "Top performers",
+        "empty": "No leader data for this period"
+      },
+      "quickActions": {
+        "title": "Quick Actions",
+        "subtitle": "Shortcuts to keep your sales momentum going",
+        "shareCartTitle": "Share cart",
+        "shareCartDesc": "Build an order and send the payment link",
+        "registerSaleTitle": "Register sale",
+        "registerSaleDesc": "Add a new order",
+        "myNetworkTitle": "My network",
+        "myNetworkDesc": "Review and grow your network",
+        "viewCommissionsTitle": "View commissions",
+        "viewCommissionsDesc": "Review your earnings for the period"
+      },
+      "period": {
+        "title": "Period",
+        "period": "Period",
+        "daysRemaining": "Days remaining",
+        "personalPoints": "Personal points",
+        "qualified": "Qualified",
+        "qualifiedYes": "Yes",
+        "qualifiedPending": "Pending"
+      }
     }
   }
 }

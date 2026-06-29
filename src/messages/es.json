@@ -829,6 +829,76 @@
           "azul3": "Reconocimiento Diamante Azul"
         }
       }
+    },
+    "sales": {
+      "title": "Rendimiento de Ventas",
+      "subtitle": "Analiza tu desempeño y el de tu red",
+      "selectPeriod": "Selecciona un periodo",
+      "periodCurrent": " (Actual)",
+      "pastPeriod": "Periodo pasado",
+      "refreshing": "Actualizando datos...",
+      "refreshTitle": "Actualizar datos",
+      "refreshAria": "Actualizar datos de ventas",
+      "sellNow": "Vender ahora",
+      "backToPanel": "Volver al Panel Principal",
+      "error": {
+        "title": "No pudimos cargar tus ventas",
+        "body": "Ocurrió un problema al obtener la información. Intenta nuevamente.",
+        "retry": "Reintentar"
+      },
+      "empty": {
+        "title": "Aún no tienes ventas este periodo",
+        "body": "Comparte un carrito con tus clientes o tu enlace de tienda para empezar a sumar ventas y puntos.",
+        "shareCart": "Compartir carrito",
+        "goToStore": "Ir a la tienda"
+      },
+      "stats": {
+        "totalSales": "Ventas Totales",
+        "personalPlusNetwork": "Personal + Red",
+        "personalSales": "Ventas Personales",
+        "networkSales": "Ventas de Red",
+        "percentOfTotal": "{percent}% del total",
+        "personalOrders": "Pedidos Personales",
+        "averageTicket": "Ticket promedio: {amount} {currency}"
+      },
+      "topProducts": {
+        "title": "Productos Más Vendidos",
+        "units": "{count} unidades",
+        "percentOfTotal": "{percent}% del total",
+        "empty": "No hay productos vendidos en este periodo"
+      },
+      "breakdown": {
+        "title": "Distribución de Ventas",
+        "personalSales": "Ventas Personales",
+        "networkSales": "Ventas de Red",
+        "personalLegend": "Personal ({percent}%)",
+        "networkLegend": "Red ({percent}%)"
+      },
+      "topPerformers": {
+        "title": "Líderes del Mes",
+        "empty": "Sin datos de líderes en este periodo"
+      },
+      "quickActions": {
+        "title": "Acciones Rápidas",
+        "subtitle": "Atajos para mantener activo tu ritmo comercial",
+        "shareCartTitle": "Compartir carrito",
+        "shareCartDesc": "Arma un pedido y envía el link de pago",
+        "registerSaleTitle": "Registrar venta",
+        "registerSaleDesc": "Agrega un nuevo pedido",
+        "myNetworkTitle": "Mi red",
+        "myNetworkDesc": "Revisa y haz crecer tu red",
+        "viewCommissionsTitle": "Ver comisiones",
+        "viewCommissionsDesc": "Revisa tus ingresos del periodo"
+      },
+      "period": {
+        "title": "Periodo",
+        "period": "Periodo",
+        "daysRemaining": "Días restantes",
+        "personalPoints": "Puntos personales",
+        "qualified": "Calificado",
+        "qualifiedYes": "Sí",
+        "qualifiedPending": "Pendiente"
+      }
     }
   }
 }
