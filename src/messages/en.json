@@ -1681,6 +1681,160 @@
         "downloadingQR": "Downloading QR code...",
         "linkCopied": "Link copied to clipboard"
       }
+    },
+    "kit": {
+      "confirming": {
+        "title": "Confirming your payment…",
+        "body": "We are validating your payment with the bank. As soon as it is confirmed, we will activate your account and take you to your panel.",
+        "verifyNow": "Verify now",
+        "verifying": "Verifying…",
+        "slowTitle": "Your payment is taking a moment",
+        "slowBody": "If you already paid, your account will activate automatically as soon as the bank confirms (it may take a few minutes). Keep this window open or check again in a moment.",
+        "verifyAgain": "Verify again",
+        "support": "Charge not showing up? Contact your sponsor or support.",
+        "activated": "Payment confirmed! Your distributor account is active."
+      },
+      "header": {
+        "title": "Activate your Tonic Life business",
+        "subtitle": "Choose your enrollment kit and how you want to receive it. Once payment is complete, your distributor account will be active."
+      },
+      "steps": {
+        "chooseKit": "Choose your kit",
+        "delivery": "Delivery",
+        "payment": "Payment"
+      },
+      "kits": {
+        "empty": "There are no enrollment kits available for your country right now. Contact your sponsor or support.",
+        "points": "{points} points"
+      },
+      "delivery": {
+        "pickupTitle": "Pick up at branch",
+        "pickupSubtitle": "No shipping cost. Pick up your kit at the branch you choose.",
+        "shippingTitle": "Home delivery",
+        "shippingSubtitle": "Receive your kit at the address you provide.",
+        "branchLabel": "Branch for pickup",
+        "branchPlaceholder": "Search for your branch…"
+      },
+      "address": {
+        "street": "Street",
+        "extNumber": "Exterior number",
+        "intNumber": "Interior number",
+        "neighborhood": "Neighborhood",
+        "zipCode": "ZIP code",
+        "city": "City / Municipality",
+        "state": "State",
+        "phone": "Contact phone",
+        "reference": "References",
+        "referencePlaceholder": "Cross streets, facade color, etc."
+      },
+      "summary": {
+        "title": "Summary",
+        "kit": "Kit",
+        "delivery": "Delivery",
+        "pickup": "Pickup — {branch}",
+        "pickupDefaultBranch": "branch",
+        "homeDelivery": "Home delivery",
+        "kitPrice": "Kit price",
+        "shipping": "Shipping",
+        "shippingFree": "Free (pick up at branch)",
+        "total": "Total",
+        "earnPoints": "You earn {points} points",
+        "securePayment": "Secure payment with Stripe"
+      },
+      "actions": {
+        "continue": "Continue",
+        "back": "Back",
+        "pay": "Pay for my kit",
+        "redirecting": "Redirecting to payment…"
+      },
+      "toast": {
+        "cancelled": "You cancelled the payment. Whenever you like, choose your kit and try again.",
+        "noPaymentLink": "The payment link could not be generated. Please try again.",
+        "payStartFailed": "The payment could not be started. Please try again."
+      }
+    },
+    "terms": {
+      "header": {
+        "title": "Last step",
+        "subtitle": "To activate your business, read and accept the Tonic Life documents."
+      },
+      "instructions": "Review each document (it opens in a new tab) and check the box to confirm that you accept it.",
+      "docs": {
+        "terms": "the Terms and Conditions",
+        "privacy": "the Privacy Notice",
+        "contract": "the Distributor Agreement"
+      },
+      "accept": "I have read and accept {doc} of Tonic Life.",
+      "submit": "Accept and enter my panel",
+      "submitting": "Submitting…",
+      "disclaimer": "By accepting, you confirm that your enrollment information is correct.",
+      "toast": {
+        "success": "Thank you! Your account is ready.",
+        "error": "We couldn't record your acceptance. Please try again."
+      }
+    },
+    "shareCart": {
+      "header": {
+        "title": "Share cart",
+        "subtitle": "Choose products from the catalog and share the cart. Your customer pays directly at retail price; the sale counts toward you.",
+        "back": "Back"
+      },
+      "created": {
+        "title": "Done! Share this link with your customer",
+        "copy": "Copy",
+        "whatsapp": "WhatsApp",
+        "close": "Close"
+      },
+      "catalog": {
+        "title": "Choose products",
+        "searchPlaceholder": "Search by name or code...",
+        "allCategories": "All",
+        "loadingError": "No products found with these filters.",
+        "addOne": "Add one",
+        "removeOne": "Remove one",
+        "add": "Add"
+      },
+      "cart": {
+        "title": "Your cart",
+        "units": "{count, plural, =1 {# unit} other {# units}}",
+        "empty": "Add products from the catalog to build the cart you are going to share.",
+        "removeOne": "Remove one",
+        "addOne": "Add one",
+        "remove": "Remove",
+        "noteLabel": "Message for the customer (optional)",
+        "notePlaceholder": "E.g. Here is your order, let me know if you have any questions.",
+        "createLink": "Create link to share",
+        "createHint": "The customer will see retail prices and choose delivery or branch."
+      },
+      "history": {
+        "title": "My shared carts",
+        "empty": "You haven't shared any carts yet.",
+        "colProducts": "Products",
+        "colTotal": "Total",
+        "colStatus": "Status",
+        "colCreated": "Created",
+        "colActions": "Actions",
+        "productCount": "{count, plural, =1 {# product} other {# products}}",
+        "copyLink": "Copy link",
+        "cancel": "Cancel"
+      },
+      "status": {
+        "open": "To pay",
+        "ordered": "In process",
+        "paid": "Paid",
+        "cancelled": "Cancelled",
+        "expired": "Expired"
+      },
+      "shareText": "I'm sharing a Tonic Life cart so you can pay directly: {url}",
+      "toast": {
+        "addProduct": "Add at least one product",
+        "created": "Cart link created",
+        "createError": "The cart could not be created",
+        "linkCopied": "Link copied",
+        "copyError": "Could not copy",
+        "cartCancelled": "Cart cancelled",
+        "cancelError": "Could not cancel"
+      }
     }
   }
 }

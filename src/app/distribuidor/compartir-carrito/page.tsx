@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -63,6 +64,7 @@ function ProductThumb({ src, name }: { src?: string; name: string }) {
 }
 
 function CompartirCarritoContent() {
+  const t = useTranslations('distributor.shareCart');
   const [lines, setLines] = useState<Line[]>([]);
   const [note, setNote] = useState('');
   const [search, setSearch] = useState('');
@@ -121,7 +123,7 @@ function CompartirCarritoContent() {
 
   const handleCreate = async () => {
     if (!lines.length) {
-      toast.error('Agrega al menos un producto');
+      toast.error(t('toast.addProduct'));
       return;
     }
     try {
@@ -132,11 +134,11 @@ function CompartirCarritoContent() {
       setCreatedToken(res.token);
       setLines([]);
       setNote('');
-      toast.success('Link de carrito creado');
+      toast.success(t('toast.created'));
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || 'No se pudo crear el carrito';
+          ?.message || t('toast.createError');
       toast.error(Array.isArray(msg) ? msg.join(', ') : msg);
     }
   };
@@ -144,16 +146,14 @@ function CompartirCarritoContent() {
   const copyLink = async (url: string) => {
     try {
       await navigator.clipboard.writeText(url);
-      toast.success('Link copiado');
+      toast.success(t('toast.linkCopied'));
     } catch {
-      toast.error('No se pudo copiar');
+      toast.error(t('toast.copyError'));
     }
   };
 
   const shareWhatsApp = (url: string) => {
-    const text = encodeURIComponent(
-      `Te comparto un carrito de Tonic Life para que lo pagues directo: ${url}`,
-    );
+    const text = encodeURIComponent(t('shareText', { url }));
     window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener');
   };
 
@@ -165,16 +165,15 @@ function CompartirCarritoContent() {
             <div>
               <div className="flex items-center gap-3 mb-1">
                 <ShoppingCartIcon className="h-8 w-8" />
-                <h1 className="text-2xl lg:text-3xl font-bold">Compartir carrito</h1>
+                <h1 className="text-2xl lg:text-3xl font-bold">{t('header.title')}</h1>
               </div>
               <p className="text-white/80 text-sm lg:text-base">
-                Elige productos del catálogo y comparte el carrito. Tu cliente paga
-                directo a precio público; la venta cuenta para ti.
+                {t('header.subtitle')}
               </p>
             </div>
             <Link href="/distribuidor/ventas">
               <Button variant="secondary" size="sm">
-                Volver
+                {t('header.back')}
               </Button>
             </Link>
           </div>
@@ -190,7 +189,7 @@ function CompartirCarritoContent() {
                 <LinkIcon className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-green-800">
-                    ¡Listo! Comparte este link con tu cliente
+                    {t('created.title')}
                   </p>
                   <p className="mt-1 break-all font-mono text-xs text-green-700">
                     {shareUrl}
@@ -198,7 +197,7 @@ function CompartirCarritoContent() {
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button size="sm" onClick={() => copyLink(shareUrl)}>
                       <ClipboardDocumentIcon className="h-4 w-4" />
-                      Copiar
+                      {t('created.copy')}
                     </Button>
                     <Button
                       size="sm"
@@ -206,14 +205,14 @@ function CompartirCarritoContent() {
                       onClick={() => shareWhatsApp(shareUrl)}
                     >
                       <ShareIcon className="h-4 w-4" />
-                      WhatsApp
+                      {t('created.whatsapp')}
                     </Button>
                   </div>
                 </div>
                 <button
                   onClick={() => setCreatedToken(null)}
                   className="rounded p-1 text-green-700 hover:bg-green-100"
-                  aria-label="Cerrar"
+                  aria-label={t('created.close')}
                 >
                   <XMarkIcon className="h-4 w-4" />
                 </button>
@@ -230,7 +229,7 @@ function CompartirCarritoContent() {
                   solo los productos scrollean debajo. */}
               <div className="sticky top-0 z-10 -mx-4 -mt-4 rounded-t-xl border-b border-gray-100 bg-white px-4 pt-4 pb-3 lg:-mx-6 lg:-mt-6 lg:px-6 lg:pt-6">
               <h2 className="text-lg font-bold text-gray-900 mb-4">
-                Elige productos
+                {t('catalog.title')}
               </h2>
 
               {/* Búsqueda */}
@@ -240,7 +239,7 @@ function CompartirCarritoContent() {
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Buscar por nombre o código..."
+                  placeholder={t('catalog.searchPlaceholder')}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                 />
               </div>
@@ -255,7 +254,7 @@ function CompartirCarritoContent() {
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
-                  Todos
+                  {t('catalog.allCategories')}
                 </button>
                 {categoriesData.map((cat) => (
                   <button
@@ -280,7 +279,7 @@ function CompartirCarritoContent() {
                 </div>
               ) : products.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-gray-200 py-12 text-center text-sm text-gray-500">
-                  No se encontraron productos con estos filtros.
+                  {t('catalog.loadingError')}
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -314,7 +313,7 @@ function CompartirCarritoContent() {
                                 <button
                                   onClick={() => setQty(p.id, q - 1)}
                                   className="p-1.5 text-gray-600 hover:bg-gray-100"
-                                  aria-label="Quitar uno"
+                                  aria-label={t('catalog.removeOne')}
                                 >
                                   <MinusIcon className="h-4 w-4" />
                                 </button>
@@ -324,7 +323,7 @@ function CompartirCarritoContent() {
                                 <button
                                   onClick={() => setQty(p.id, q + 1)}
                                   className="p-1.5 text-gray-600 hover:bg-gray-100"
-                                  aria-label="Agregar uno"
+                                  aria-label={t('catalog.addOne')}
                                 >
                                   <PlusIcon className="h-4 w-4" />
                                 </button>
@@ -339,7 +338,7 @@ function CompartirCarritoContent() {
                                 }
                               >
                                 <PlusIcon className="h-4 w-4" />
-                                Agregar
+                                {t('catalog.add')}
                               </Button>
                             )}
                           </div>
@@ -356,18 +355,17 @@ function CompartirCarritoContent() {
           <Card className="lg:sticky lg:top-6 h-fit">
             <CardContent className="p-4 lg:p-6">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-bold text-gray-900">Tu carrito</h2>
+                <h2 className="text-lg font-bold text-gray-900">{t('cart.title')}</h2>
                 {totalUnits > 0 && (
                   <span className="rounded-full bg-[#C8DDF2]/40 px-2.5 py-0.5 text-xs font-semibold text-[#3E667D]">
-                    {totalUnits} {totalUnits === 1 ? 'unidad' : 'unidades'}
+                    {t('cart.units', { count: totalUnits })}
                   </span>
                 )}
               </div>
 
               {lines.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-gray-200 py-8 text-center text-sm text-gray-500">
-                  Agrega productos del catálogo para armar el carrito que vas a
-                  compartir.
+                  {t('cart.empty')}
                 </div>
               ) : (
                 <ul className="divide-y divide-gray-100">
@@ -383,7 +381,7 @@ function CompartirCarritoContent() {
                         <button
                           onClick={() => setQty(l.productId, l.quantity - 1)}
                           className="p-1 text-gray-600 hover:bg-gray-100"
-                          aria-label="Quitar uno"
+                          aria-label={t('cart.removeOne')}
                         >
                           <MinusIcon className="h-3.5 w-3.5" />
                         </button>
@@ -393,7 +391,7 @@ function CompartirCarritoContent() {
                         <button
                           onClick={() => setQty(l.productId, l.quantity + 1)}
                           className="p-1 text-gray-600 hover:bg-gray-100"
-                          aria-label="Agregar uno"
+                          aria-label={t('cart.addOne')}
                         >
                           <PlusIcon className="h-3.5 w-3.5" />
                         </button>
@@ -401,7 +399,7 @@ function CompartirCarritoContent() {
                       <button
                         onClick={() => removeLine(l.productId)}
                         className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-red-500"
-                        aria-label="Quitar"
+                        aria-label={t('cart.remove')}
                       >
                         <TrashIcon className="h-4 w-4" />
                       </button>
@@ -413,14 +411,14 @@ function CompartirCarritoContent() {
               {/* Nota */}
               <div className="mt-4">
                 <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Mensaje para el cliente (opcional)
+                  {t('cart.noteLabel')}
                 </label>
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   rows={2}
                   maxLength={500}
-                  placeholder="Ej. Aquí está tu pedido, cualquier duda me avisas."
+                  placeholder={t('cart.notePlaceholder')}
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-[#a7c1e2] focus:border-transparent"
                 />
               </div>
@@ -434,10 +432,10 @@ function CompartirCarritoContent() {
                   <Loader2 className="mr-2 size-4 animate-spin" />
                 )}
                 <LinkIcon className="h-4 w-4" />
-                Crear link para compartir
+                {t('cart.createLink')}
               </Button>
               <p className="mt-2 text-center text-[11px] text-gray-400">
-                El cliente verá los precios al público y elegirá envío o sucursal.
+                {t('cart.createHint')}
               </p>
             </CardContent>
           </Card>
@@ -447,7 +445,7 @@ function CompartirCarritoContent() {
         <Card>
           <CardContent className="p-4 lg:p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-4">
-              Mis carritos compartidos
+              {t('history.title')}
             </h2>
             {cartsLoading ? (
               <div className="flex items-center justify-center py-8 text-gray-400">
@@ -455,18 +453,18 @@ function CompartirCarritoContent() {
               </div>
             ) : sharedCarts.length === 0 ? (
               <p className="py-6 text-center text-sm text-gray-500">
-                Aún no has compartido carritos.
+                {t('history.empty')}
               </p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-wide text-gray-400">
-                      <th className="py-2 pr-4 font-medium">Productos</th>
-                      <th className="py-2 pr-4 font-medium">Total</th>
-                      <th className="py-2 pr-4 font-medium">Estado</th>
-                      <th className="py-2 pr-4 font-medium">Creado</th>
-                      <th className="py-2 pr-4 font-medium">Acciones</th>
+                      <th className="py-2 pr-4 font-medium">{t('history.colProducts')}</th>
+                      <th className="py-2 pr-4 font-medium">{t('history.colTotal')}</th>
+                      <th className="py-2 pr-4 font-medium">{t('history.colStatus')}</th>
+                      <th className="py-2 pr-4 font-medium">{t('history.colCreated')}</th>
+                      <th className="py-2 pr-4 font-medium">{t('history.colActions')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -478,7 +476,7 @@ function CompartirCarritoContent() {
                           className="border-b border-gray-50 last:border-0"
                         >
                           <td className="py-2.5 pr-4 text-gray-700">
-                            {c.itemCount} producto{c.itemCount === 1 ? '' : 's'}
+                            {t('history.productCount', { count: c.itemCount })}
                           </td>
                           <td className="py-2.5 pr-4 font-medium text-gray-900">
                             {c.subtotal.toLocaleString('es-MX', {
@@ -494,6 +492,13 @@ function CompartirCarritoContent() {
                             <StatusBadge
                               status={c.status}
                               orderStatus={c.orderStatus}
+                              labels={{
+                                open: t('status.open'),
+                                ordered: t('status.ordered'),
+                                paid: t('status.paid'),
+                                cancelled: t('status.cancelled'),
+                                expired: t('status.expired'),
+                              }}
                             />
                           </td>
                           <td className="py-2.5 pr-4 text-gray-500">
@@ -504,7 +509,7 @@ function CompartirCarritoContent() {
                               <button
                                 onClick={() => copyLink(url)}
                                 className="rounded p-1.5 text-gray-500 hover:bg-gray-100"
-                                title="Copiar link"
+                                title={t('history.copyLink')}
                               >
                                 <ClipboardDocumentIcon className="h-4 w-4" />
                               </button>
@@ -513,13 +518,13 @@ function CompartirCarritoContent() {
                                   onClick={() =>
                                     cancelMutation.mutate(c.token, {
                                       onSuccess: () =>
-                                        toast.success('Carrito cancelado'),
+                                        toast.success(t('toast.cartCancelled')),
                                       onError: () =>
-                                        toast.error('No se pudo cancelar'),
+                                        toast.error(t('toast.cancelError')),
                                     })
                                   }
                                   className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-red-500"
-                                  title="Cancelar"
+                                  title={t('history.cancel')}
                                 >
                                   <TrashIcon className="h-4 w-4" />
                                 </button>
@@ -543,17 +548,19 @@ function CompartirCarritoContent() {
 function StatusBadge({
   status,
   orderStatus,
+  labels,
 }: {
   status: string;
   orderStatus?: string | null;
+  labels: Record<'open' | 'ordered' | 'paid' | 'cancelled' | 'expired', string>;
 }) {
   const paid = status === 'paid' || orderStatus === 'confirmed';
   const map: Record<string, { label: string; cls: string }> = {
-    open: { label: 'Por pagar', cls: 'bg-blue-50 text-blue-600' },
-    ordered: { label: 'En proceso', cls: 'bg-amber-50 text-amber-600' },
-    paid: { label: 'Pagado', cls: 'bg-green-50 text-green-600' },
-    cancelled: { label: 'Cancelado', cls: 'bg-gray-100 text-gray-500' },
-    expired: { label: 'Expirado', cls: 'bg-gray-100 text-gray-500' },
+    open: { label: labels.open, cls: 'bg-blue-50 text-blue-600' },
+    ordered: { label: labels.ordered, cls: 'bg-amber-50 text-amber-600' },
+    paid: { label: labels.paid, cls: 'bg-green-50 text-green-600' },
+    cancelled: { label: labels.cancelled, cls: 'bg-gray-100 text-gray-500' },
+    expired: { label: labels.expired, cls: 'bg-gray-100 text-gray-500' },
   };
   const cfg = paid ? map.paid : map[status] || map.open;
   return (

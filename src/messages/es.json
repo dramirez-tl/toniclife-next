@@ -1681,6 +1681,160 @@
         "downloadingQR": "Descargando código QR...",
         "linkCopied": "Enlace copiado al portapapeles"
       }
+    },
+    "kit": {
+      "confirming": {
+        "title": "Confirmando tu pago…",
+        "body": "Estamos validando tu pago con el banco. En cuanto se confirme, activaremos tu cuenta y te llevaremos a tu panel.",
+        "verifyNow": "Verificar ahora",
+        "verifying": "Verificando…",
+        "slowTitle": "Tu pago está tardando un poco",
+        "slowBody": "Si ya pagaste, tu cuenta se activará automáticamente en cuanto el banco confirme (puede tardar unos minutos). Deja esta ventana abierta o vuelve a verificar en un momento.",
+        "verifyAgain": "Verificar de nuevo",
+        "support": "¿El cobro no aparece? Contacta a tu patrocinador o a soporte.",
+        "activated": "¡Pago confirmado! Tu cuenta de distribuidor está activa."
+      },
+      "header": {
+        "title": "Activa tu negocio Tonic Life",
+        "subtitle": "Elige tu kit de inscripción y cómo quieres recibirlo. Al completar el pago, tu cuenta de distribuidor quedará activa."
+      },
+      "steps": {
+        "chooseKit": "Elige tu kit",
+        "delivery": "Entrega",
+        "payment": "Pago"
+      },
+      "kits": {
+        "empty": "No hay kits de inscripción disponibles para tu país en este momento. Contacta a tu patrocinador o a soporte.",
+        "points": "{points} puntos"
+      },
+      "delivery": {
+        "pickupTitle": "Recoger en sucursal",
+        "pickupSubtitle": "Sin costo de envío. Recoge tu kit en la sucursal que elijas.",
+        "shippingTitle": "Envío a domicilio",
+        "shippingSubtitle": "Recibe tu kit en la dirección que indiques.",
+        "branchLabel": "Sucursal para recoger",
+        "branchPlaceholder": "Busca tu sucursal…"
+      },
+      "address": {
+        "street": "Calle",
+        "extNumber": "Número exterior",
+        "intNumber": "Número interior",
+        "neighborhood": "Colonia",
+        "zipCode": "Código postal",
+        "city": "Ciudad / Municipio",
+        "state": "Estado",
+        "phone": "Teléfono de contacto",
+        "reference": "Referencias",
+        "referencePlaceholder": "Entre calles, color de fachada, etc."
+      },
+      "summary": {
+        "title": "Resumen",
+        "kit": "Kit",
+        "delivery": "Entrega",
+        "pickup": "Recoger — {branch}",
+        "pickupDefaultBranch": "sucursal",
+        "homeDelivery": "Envío a domicilio",
+        "kitPrice": "Precio del kit",
+        "shipping": "Envío",
+        "shippingFree": "Gratis (recoger en sucursal)",
+        "total": "Total",
+        "earnPoints": "Acumulas {points} puntos",
+        "securePayment": "Pago seguro con Stripe"
+      },
+      "actions": {
+        "continue": "Continuar",
+        "back": "Atrás",
+        "pay": "Pagar mi kit",
+        "redirecting": "Redirigiendo al pago…"
+      },
+      "toast": {
+        "cancelled": "Cancelaste el pago. Cuando quieras, elige tu kit y vuelve a intentar.",
+        "noPaymentLink": "No se pudo generar el enlace de pago. Intenta de nuevo.",
+        "payStartFailed": "No se pudo iniciar el pago. Intenta de nuevo."
+      }
+    },
+    "terms": {
+      "header": {
+        "title": "Último paso",
+        "subtitle": "Para activar tu negocio, lee y acepta los documentos de Tonic Life."
+      },
+      "instructions": "Revisa cada documento (se abre en una pestaña nueva) y marca la casilla para confirmar que lo aceptas.",
+      "docs": {
+        "terms": "los Términos y Condiciones",
+        "privacy": "el Aviso de Privacidad",
+        "contract": "el Contrato de Distribuidor"
+      },
+      "accept": "He leído y acepto {doc} de Tonic Life.",
+      "submit": "Aceptar y entrar a mi panel",
+      "submitting": "Registrando…",
+      "disclaimer": "Al aceptar confirmas que la información de tu inscripción es correcta.",
+      "toast": {
+        "success": "¡Gracias! Tu cuenta quedó lista.",
+        "error": "No se pudo registrar tu aceptación. Intenta de nuevo."
+      }
+    },
+    "shareCart": {
+      "header": {
+        "title": "Compartir carrito",
+        "subtitle": "Elige productos del catálogo y comparte el carrito. Tu cliente paga directo a precio público; la venta cuenta para ti.",
+        "back": "Volver"
+      },
+      "created": {
+        "title": "¡Listo! Comparte este link con tu cliente",
+        "copy": "Copiar",
+        "whatsapp": "WhatsApp",
+        "close": "Cerrar"
+      },
+      "catalog": {
+        "title": "Elige productos",
+        "searchPlaceholder": "Buscar por nombre o código...",
+        "allCategories": "Todos",
+        "loadingError": "No se encontraron productos con estos filtros.",
+        "addOne": "Agregar uno",
+        "removeOne": "Quitar uno",
+        "add": "Agregar"
+      },
+      "cart": {
+        "title": "Tu carrito",
+        "units": "{count, plural, =1 {# unidad} other {# unidades}}",
+        "empty": "Agrega productos del catálogo para armar el carrito que vas a compartir.",
+        "removeOne": "Quitar uno",
+        "addOne": "Agregar uno",
+        "remove": "Quitar",
+        "noteLabel": "Mensaje para el cliente (opcional)",
+        "notePlaceholder": "Ej. Aquí está tu pedido, cualquier duda me avisas.",
+        "createLink": "Crear link para compartir",
+        "createHint": "El cliente verá los precios al público y elegirá envío o sucursal."
+      },
+      "history": {
+        "title": "Mis carritos compartidos",
+        "empty": "Aún no has compartido carritos.",
+        "colProducts": "Productos",
+        "colTotal": "Total",
+        "colStatus": "Estado",
+        "colCreated": "Creado",
+        "colActions": "Acciones",
+        "productCount": "{count, plural, =1 {# producto} other {# productos}}",
+        "copyLink": "Copiar link",
+        "cancel": "Cancelar"
+      },
+      "status": {
+        "open": "Por pagar",
+        "ordered": "En proceso",
+        "paid": "Pagado",
+        "cancelled": "Cancelado",
+        "expired": "Expirado"
+      },
+      "shareText": "Te comparto un carrito de Tonic Life para que lo pagues directo: {url}",
+      "toast": {
+        "addProduct": "Agrega al menos un producto",
+        "created": "Link de carrito creado",
+        "createError": "No se pudo crear el carrito",
+        "linkCopied": "Link copiado",
+        "copyError": "No se pudo copiar",
+        "cartCancelled": "Carrito cancelado",
+        "cancelError": "No se pudo cancelar"
+      }
     }
   }
 }

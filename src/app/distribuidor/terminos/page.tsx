@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -17,19 +18,17 @@ import { distributorApi } from '@/services/distributorApi';
 import { myOrdersKeys } from '@/hooks/useMyOrders';
 
 // Documentos que el miembro debe aceptar (links a las páginas públicas).
+// La etiqueta visible se traduce vía docs.<key>; aquí solo el id y la ruta.
 const DOCS = [
-  { key: 'terms', label: 'los Términos y Condiciones', href: '/terminos' },
-  { key: 'privacy', label: 'el Aviso de Privacidad', href: '/privacidad' },
-  {
-    key: 'contract',
-    label: 'el Contrato de Distribuidor',
-    href: '/contrato-distribuidor',
-  },
+  { key: 'terms', href: '/terminos' },
+  { key: 'privacy', href: '/privacidad' },
+  { key: 'contract', href: '/contrato-distribuidor' },
 ] as const;
 
 type DocKey = (typeof DOCS)[number]['key'];
 
 export default function TerminosInscripcionPage() {
+  const t = useTranslations('distributor.terms');
   const queryClient = useQueryClient();
   const [checked, setChecked] = useState<Record<DocKey, boolean>>({
     terms: false,
@@ -47,12 +46,11 @@ export default function TerminosInscripcionPage() {
       await distributorApi.acceptTerms();
       // Refresca el gating (needsTerms pasa a false) y entra al panel.
       await queryClient.invalidateQueries({ queryKey: myOrdersKeys.onboarding });
-      toast.success('¡Gracias! Tu cuenta quedó lista.');
+      toast.success(t('toast.success'));
       window.location.href = '/distribuidor';
     } catch (error: any) {
       toast.error(
-        error?.response?.data?.message ||
-          'No se pudo registrar tu aceptación. Intenta de nuevo.',
+        error?.response?.data?.message || t('toast.error'),
       );
       setSubmitting(false);
     }
@@ -64,10 +62,10 @@ export default function TerminosInscripcionPage() {
       <div className="mb-6 rounded-2xl bg-gradient-to-r from-[#3E667D] to-[#0A4B94] p-6 text-white shadow-lg">
         <div className="flex items-center gap-2">
           <ShieldCheckIcon className="h-6 w-6" />
-          <h1 className="text-xl font-bold sm:text-2xl">Último paso</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">{t('header.title')}</h1>
         </div>
         <p className="mt-1 text-sm text-white/85">
-          Para activar tu negocio, lee y acepta los documentos de Tonic Life.
+          {t('header.subtitle')}
         </p>
       </div>
 
@@ -76,8 +74,7 @@ export default function TerminosInscripcionPage() {
           <div className="mb-5 flex items-start gap-3 rounded-lg bg-[#3E667D]/5 p-4">
             <DocumentTextIcon className="mt-0.5 h-5 w-5 shrink-0 text-[#3E667D]" />
             <p className="text-sm text-gray-600">
-              Revisa cada documento (se abre en una pestaña nueva) y marca la
-              casilla para confirmar que lo aceptas.
+              {t('instructions')}
             </p>
           </div>
 
@@ -96,18 +93,21 @@ export default function TerminosInscripcionPage() {
                   className="mt-0.5"
                 />
                 <span className="text-sm text-gray-700">
-                  He leído y acepto{' '}
-                  <Link
-                    href={doc.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-0.5 font-medium text-[#3E667D] hover:underline"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {doc.label}
-                    <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
-                  </Link>{' '}
-                  de Tonic Life.
+                  {t.rich('accept', {
+                    doc: () => (
+                      <Link
+                        key="doc-link"
+                        href={doc.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-0.5 font-medium text-[#3E667D] hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {t(`docs.${doc.key}` as never)}
+                        <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
+                      </Link>
+                    ),
+                  })}
                 </span>
               </label>
             ))}
@@ -120,11 +120,11 @@ export default function TerminosInscripcionPage() {
             onClick={handleAccept}
           >
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-            {submitting ? 'Registrando…' : 'Aceptar y entrar a mi panel'}
+            {submitting ? t('submitting') : t('submit')}
           </Button>
 
           <p className="mt-3 text-center text-xs text-gray-400">
-            Al aceptar confirmas que la información de tu inscripción es correcta.
+            {t('disclaimer')}
           </p>
         </CardContent>
       </Card>

@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -61,6 +62,7 @@ function InscripcionContent() {
 const CONFIRM_TIMEOUT_S = 150;
 
 function ConfirmingPayment() {
+  const t = useTranslations('distributor.kit');
   const queryClient = useQueryClient();
   const [elapsed, setElapsed] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -74,14 +76,14 @@ function ConfirmingPayment() {
 
   useEffect(() => {
     if (data && !data.needsKit) {
-      toast.success('¡Pago confirmado! Tu cuenta de distribuidor está activa.');
+      toast.success(t('confirming.activated'));
       // Tras activar: si faltan términos, primero a aceptarlos; si no, al panel
       // (primera visita → el tutorial se muestra automáticamente).
       window.location.href = data.needsTerms
         ? '/distribuidor/terminos'
         : '/distribuidor';
     }
-  }, [data]);
+  }, [data, t]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -99,11 +101,10 @@ function ConfirmingPayment() {
             <>
               <Loader2 className="mb-5 h-12 w-12 animate-spin text-[#3E667D]" />
               <h2 className="text-xl font-bold text-gray-900">
-                Confirmando tu pago…
+                {t('confirming.title')}
               </h2>
               <p className="mt-2 max-w-sm text-sm text-gray-600">
-                Estamos validando tu pago con el banco. En cuanto se confirme,
-                activaremos tu cuenta y te llevaremos a tu panel.
+                {t('confirming.body')}
               </p>
               <Button
                 variant="outline"
@@ -113,7 +114,7 @@ function ConfirmingPayment() {
                 disabled={refreshing}
               >
                 {refreshing && <Loader2 className="h-4 w-4 animate-spin" />}
-                {refreshing ? 'Verificando…' : 'Verificar ahora'}
+                {refreshing ? t('confirming.verifying') : t('confirming.verifyNow')}
               </Button>
             </>
           ) : (
@@ -122,12 +123,10 @@ function ConfirmingPayment() {
                 <ShieldCheckIcon className="h-7 w-7 text-amber-500" />
               </div>
               <h2 className="text-xl font-bold text-gray-900">
-                Tu pago está tardando un poco
+                {t('confirming.slowTitle')}
               </h2>
               <p className="mt-2 max-w-sm text-sm text-gray-600">
-                Si ya pagaste, tu cuenta se activará automáticamente en cuanto el
-                banco confirme (puede tardar unos minutos). Deja esta ventana
-                abierta o vuelve a verificar en un momento.
+                {t('confirming.slowBody')}
               </p>
               <Button
                 variant="default"
@@ -137,10 +136,10 @@ function ConfirmingPayment() {
                 disabled={refreshing}
               >
                 {refreshing && <Loader2 className="h-4 w-4 animate-spin" />}
-                {refreshing ? 'Verificando…' : 'Verificar de nuevo'}
+                {refreshing ? t('confirming.verifying') : t('confirming.verifyAgain')}
               </Button>
               <p className="mt-4 text-xs text-gray-400">
-                ¿El cobro no aparece? Contacta a tu patrocinador o a soporte.
+                {t('confirming.support')}
               </p>
             </>
           )}
@@ -167,6 +166,7 @@ const EMPTY_ADDRESS: KitShippingAddress = {
 };
 
 function EnrollmentWizard() {
+  const t = useTranslations('distributor.kit');
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [kitId, setKitId] = useState<string | null>(null);
   const [delivery, setDelivery] = useState<DeliveryMode | null>(null);
@@ -181,9 +181,9 @@ function EnrollmentWizard() {
   // Regreso desde Stripe tras CANCELAR el pago: avisamos y dejamos reintentar.
   useEffect(() => {
     if (searchParams.get('cancelled') === '1') {
-      toast('Cancelaste el pago. Cuando quieras, elige tu kit y vuelve a intentar.');
+      toast(t('toast.cancelled'));
     }
-  }, [searchParams]);
+  }, [searchParams, t]);
 
   const kits = enrollment?.kits;
   const shippingCost = enrollment?.shippingCost ?? 0;
@@ -234,7 +234,7 @@ function EnrollmentWizard() {
           : { shippingAddress: address }),
       });
       if (!result.paymentUrl) {
-        toast.error('No se pudo generar el enlace de pago. Intenta de nuevo.');
+        toast.error(t('toast.noPaymentLink'));
         setPaying(false);
         return;
       }
@@ -242,8 +242,7 @@ function EnrollmentWizard() {
       window.location.href = result.paymentUrl;
     } catch (error: any) {
       toast.error(
-        error?.response?.data?.message ||
-          'No se pudo iniciar el pago. Intenta de nuevo.',
+        error?.response?.data?.message || t('toast.payStartFailed'),
       );
       setPaying(false);
     }
@@ -256,17 +255,23 @@ function EnrollmentWizard() {
         <div className="flex items-center gap-2">
           <SparklesIcon className="h-6 w-6" />
           <h1 className="text-xl font-bold sm:text-2xl">
-            Activa tu negocio Tonic Life
+            {t('header.title')}
           </h1>
         </div>
         <p className="mt-1 text-sm text-white/85">
-          Elige tu kit de inscripción y cómo quieres recibirlo. Al completar el
-          pago, tu cuenta de distribuidor quedará activa.
+          {t('header.subtitle')}
         </p>
       </div>
 
       {/* Pasos */}
-      <Stepper step={step} />
+      <Stepper
+        step={step}
+        labels={[
+          t('steps.chooseKit'),
+          t('steps.delivery'),
+          t('steps.payment'),
+        ]}
+      />
 
       {/* Paso 1: elegir kit */}
       {step === 1 && (
@@ -276,8 +281,7 @@ function EnrollmentWizard() {
           ) : !kits || kits.length === 0 ? (
             <Card className="border border-dashed border-gray-300">
               <CardContent className="px-6 py-12 text-center text-sm text-gray-500">
-                No hay kits de inscripción disponibles para tu país en este
-                momento. Contacta a tu patrocinador o a soporte.
+                {t('kits.empty')}
               </CardContent>
             </Card>
           ) : (
@@ -288,6 +292,9 @@ function EnrollmentWizard() {
                   kit={kit}
                   selected={kitId === kit.productId}
                   onSelect={() => setKitId(kit.productId)}
+                  pointsLabel={t('kits.points', {
+                    points: kit.points.toLocaleString('es-MX'),
+                  })}
                 />
               ))}
             </div>
@@ -299,7 +306,7 @@ function EnrollmentWizard() {
               disabled={!kitId}
               onClick={() => setStep(2)}
             >
-              Continuar
+              {t('actions.continue')}
               <ArrowRightIcon className="h-4 w-4" />
             </Button>
           </div>
@@ -314,27 +321,27 @@ function EnrollmentWizard() {
               active={delivery === 'pickup'}
               onSelect={() => setDelivery('pickup')}
               Icon={BuildingStorefrontIcon}
-              title="Recoger en sucursal"
-              subtitle="Sin costo de envío. Recoge tu kit en la sucursal que elijas."
+              title={t('delivery.pickupTitle')}
+              subtitle={t('delivery.pickupSubtitle')}
             />
             <DeliveryCard
               active={delivery === 'shipping'}
               onSelect={() => setDelivery('shipping')}
               Icon={TruckIcon}
-              title="Envío a domicilio"
-              subtitle="Recibe tu kit en la dirección que indiques."
+              title={t('delivery.shippingTitle')}
+              subtitle={t('delivery.shippingSubtitle')}
             />
           </div>
 
           {delivery === 'pickup' && (
             <Card className="border border-gray-200">
               <CardContent className="space-y-2 p-5">
-                <Label>Sucursal para recoger</Label>
+                <Label>{t('delivery.branchLabel')}</Label>
                 <SearchableSelect
                   options={branchOptions}
                   value={branchId}
                   onChange={setBranchId}
-                  placeholder="Busca tu sucursal…"
+                  placeholder={t('delivery.branchPlaceholder')}
                   showAllOption={false}
                 />
               </CardContent>
@@ -344,25 +351,25 @@ function EnrollmentWizard() {
           {delivery === 'shipping' && (
             <Card className="border border-gray-200">
               <CardContent className="grid gap-4 p-5 sm:grid-cols-2">
-                <Field label="Calle" required className="sm:col-span-2">
+                <Field label={t('address.street')} required className="sm:col-span-2">
                   <Input
                     value={address.street}
                     onChange={(e) => setAddress({ ...address, street: e.target.value })}
                   />
                 </Field>
-                <Field label="Número exterior">
+                <Field label={t('address.extNumber')}>
                   <Input
                     value={address.extNumber}
                     onChange={(e) => setAddress({ ...address, extNumber: e.target.value })}
                   />
                 </Field>
-                <Field label="Número interior">
+                <Field label={t('address.intNumber')}>
                   <Input
                     value={address.intNumber}
                     onChange={(e) => setAddress({ ...address, intNumber: e.target.value })}
                   />
                 </Field>
-                <Field label="Colonia">
+                <Field label={t('address.neighborhood')}>
                   <Input
                     value={address.neighborhood}
                     onChange={(e) =>
@@ -370,35 +377,35 @@ function EnrollmentWizard() {
                     }
                   />
                 </Field>
-                <Field label="Código postal" required>
+                <Field label={t('address.zipCode')} required>
                   <Input
                     value={address.zipCode}
                     onChange={(e) => setAddress({ ...address, zipCode: e.target.value })}
                   />
                 </Field>
-                <Field label="Ciudad / Municipio" required>
+                <Field label={t('address.city')} required>
                   <Input
                     value={address.city}
                     onChange={(e) => setAddress({ ...address, city: e.target.value })}
                   />
                 </Field>
-                <Field label="Estado" required>
+                <Field label={t('address.state')} required>
                   <Input
                     value={address.state}
                     onChange={(e) => setAddress({ ...address, state: e.target.value })}
                   />
                 </Field>
-                <Field label="Teléfono de contacto">
+                <Field label={t('address.phone')}>
                   <Input
                     value={address.phone}
                     onChange={(e) => setAddress({ ...address, phone: e.target.value })}
                   />
                 </Field>
-                <Field label="Referencias" className="sm:col-span-2">
+                <Field label={t('address.reference')} className="sm:col-span-2">
                   <Input
                     value={address.reference}
                     onChange={(e) => setAddress({ ...address, reference: e.target.value })}
-                    placeholder="Entre calles, color de fachada, etc."
+                    placeholder={t('address.referencePlaceholder')}
                   />
                 </Field>
               </CardContent>
@@ -408,7 +415,7 @@ function EnrollmentWizard() {
           <div className="flex justify-between">
             <Button variant="outline" size="lg" onClick={() => setStep(1)}>
               <ArrowLeftIcon className="h-4 w-4" />
-              Atrás
+              {t('actions.back')}
             </Button>
             <Button
               size="lg"
@@ -419,7 +426,7 @@ function EnrollmentWizard() {
               }
               onClick={() => setStep(3)}
             >
-              Continuar
+              {t('actions.continue')}
               <ArrowRightIcon className="h-4 w-4" />
             </Button>
           </div>
@@ -432,37 +439,38 @@ function EnrollmentWizard() {
           <Card className="border border-gray-200">
             <CardContent className="p-5">
               <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
-                Resumen
+                {t('summary.title')}
               </h3>
               <div className="flex items-center justify-between border-b border-gray-100 py-2">
-                <span className="text-gray-700">Kit</span>
+                <span className="text-gray-700">{t('summary.kit')}</span>
                 <span className="font-medium text-gray-900">{selectedKit.name}</span>
               </div>
               <div className="flex items-center justify-between border-b border-gray-100 py-2">
-                <span className="text-gray-700">Entrega</span>
+                <span className="text-gray-700">{t('summary.delivery')}</span>
                 <span className="font-medium text-gray-900">
                   {delivery === 'pickup'
-                    ? `Recoger — ${
-                        branchOptions.find((b) => b.value === branchId)?.label ??
-                        'sucursal'
-                      }`
-                    : 'Envío a domicilio'}
+                    ? t('summary.pickup', {
+                        branch:
+                          branchOptions.find((b) => b.value === branchId)?.label ??
+                          t('summary.pickupDefaultBranch'),
+                      })
+                    : t('summary.homeDelivery')}
                 </span>
               </div>
               <div className="flex items-center justify-between py-2">
-                <span className="text-gray-700">Precio del kit</span>
+                <span className="text-gray-700">{t('summary.kitPrice')}</span>
                 <span className="text-gray-900">{fmt.format(selectedKit.price)}</span>
               </div>
               <div className="flex items-center justify-between py-2">
-                <span className="text-gray-700">Envío</span>
+                <span className="text-gray-700">{t('summary.shipping')}</span>
                 <span className="text-gray-900">
                   {delivery === 'pickup'
-                    ? 'Gratis (recoger en sucursal)'
+                    ? t('summary.shippingFree')
                     : fmt.format(shippingCost)}
                 </span>
               </div>
               <div className="mt-1 flex items-center justify-between border-t border-gray-200 pt-3">
-                <span className="font-semibold text-gray-900">Total</span>
+                <span className="font-semibold text-gray-900">{t('summary.total')}</span>
                 <span className="text-lg font-bold text-[#3E667D]">
                   {fmt.format(
                     selectedKit.price +
@@ -472,7 +480,9 @@ function EnrollmentWizard() {
               </div>
               {selectedKit.points > 0 && (
                 <p className="mt-2 text-xs font-medium text-[#3E667D]">
-                  Acumulas {selectedKit.points.toLocaleString('es-MX')} puntos
+                  {t('summary.earnPoints', {
+                    points: selectedKit.points.toLocaleString('es-MX'),
+                  })}
                 </p>
               )}
             </CardContent>
@@ -480,17 +490,17 @@ function EnrollmentWizard() {
 
           <div className="flex items-center justify-center gap-1.5 text-xs text-gray-500">
             <ShieldCheckIcon className="h-4 w-4" />
-            Pago seguro con Stripe
+            {t('summary.securePayment')}
           </div>
 
           <div className="flex justify-between">
             <Button variant="outline" size="lg" onClick={() => setStep(2)} disabled={paying}>
               <ArrowLeftIcon className="h-4 w-4" />
-              Atrás
+              {t('actions.back')}
             </Button>
             <Button size="lg" disabled={!canPay || paying} onClick={handlePay}>
               {paying && <Loader2 className="h-4 w-4 animate-spin" />}
-              {paying ? 'Redirigiendo al pago…' : 'Pagar mi kit'}
+              {paying ? t('actions.redirecting') : t('actions.pay')}
             </Button>
           </div>
         </div>
@@ -501,8 +511,7 @@ function EnrollmentWizard() {
 
 // ===== Subcomponentes =====
 
-function Stepper({ step }: { step: 1 | 2 | 3 }) {
-  const labels = ['Elige tu kit', 'Entrega', 'Pago'];
+function Stepper({ step, labels }: { step: 1 | 2 | 3; labels: string[] }) {
   return (
     <div className="mb-6 flex items-center justify-center gap-2">
       {labels.map((label, i) => {
@@ -543,10 +552,12 @@ function KitCard({
   kit,
   selected,
   onSelect,
+  pointsLabel,
 }: {
   kit: EnrollmentKit;
   selected: boolean;
   onSelect: () => void;
+  pointsLabel: string;
 }) {
   const [imgError, setImgError] = useState(false);
   const fmt = new Intl.NumberFormat('es-MX', {
@@ -585,9 +596,7 @@ function KitCard({
         {fmt.format(kit.price)}
       </span>
       {kit.points > 0 && (
-        <span className="text-xs text-gray-500">
-          {kit.points.toLocaleString('es-MX')} puntos
-        </span>
+        <span className="text-xs text-gray-500">{pointsLabel}</span>
       )}
     </button>
   );
