@@ -64,6 +64,36 @@ export const useStartImport = () => {
   });
 };
 
+/** Arranca el PREVIEW del SYNC de clientes. Invalida load-jobs para el polling. */
+export const useStartSyncPreview = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => maintenanceService.startSyncPreview(file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: maintenanceKeys.loadJobs() });
+    },
+  });
+};
+
+/** Arranca el APPLY del SYNC de clientes (token del preview + force opcional). */
+export const useStartSyncApply = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      file,
+      token,
+      force,
+    }: {
+      file: File;
+      token: string;
+      force: boolean;
+    }) => maintenanceService.startSyncApply(file, token, force),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: maintenanceKeys.loadJobs() });
+    },
+  });
+};
+
 /** Previsualiza las ventas de un periodo (solo cuando hay periodId). */
 export const usePeriodSalesPreview = (periodId: string | null) =>
   useQuery({

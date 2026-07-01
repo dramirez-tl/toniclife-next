@@ -11,13 +11,60 @@ import type {
   PeriodSalesResetResult,
 } from '@/types/maintenance';
 
+/** Un distribuidor en BD ausente del archivo maestro (candidato a borrar). */
+export interface ClientesSyncRemoval {
+  customerNumber: string;
+  nombre: string;
+  tieneTransaccional: boolean;
+  tieneRed: boolean;
+  deletable: boolean;
+  motivoBloqueo?: string;
+}
+
+/** Un cliente existente cuyo patrocinador del archivo difiere del de la BD. */
+export interface ClientesSyncSponsorChange {
+  customerNumber: string;
+  nombre: string;
+  sponsorActual: string | null;
+  sponsorArchivo: string | null;
+}
+
+/** Plan (dry-run) del SYNC de clientes. */
+export interface ClientesSyncPlan {
+  totalRows: number;
+  aInsertar: number;
+  aActualizar: number;
+  aBorrar: number;
+  aBorrarBloqueados: number;
+  removals: ClientesSyncRemoval[];
+  sponsorChanges: ClientesSyncSponsorChange[];
+  pctBorrar: number;
+  umbralPct: number;
+  excedeUmbral: boolean;
+  token: string;
+}
+
+/** Resultado del apply del SYNC de clientes. */
+export interface ClientesSyncApplyResult {
+  insertados: number;
+  actualizados: number;
+  borrados: number;
+  borradosOmitidos: number;
+  raicesRed: number;
+  accesosLegacy: number;
+  durationMs: number;
+}
+
 export interface LoadJob {
   id: string;
   key: string;
+  kind?: 'import' | 'sync-preview' | 'sync-apply';
   status: 'running' | 'done' | 'error';
   startedAt: string;
   finishedAt?: string;
   result?: ImportResult;
+  syncPlan?: ClientesSyncPlan;
+  syncApply?: ClientesSyncApplyResult;
   error?: { message: string; errors?: string[] };
   progress?: LoadProgress;
 }
@@ -76,6 +123,43 @@ class MaintenanceService {
   async getLoadJobs(): Promise<LoadJob[]> {
     const { data } = await api.get<LoadJob[]>('/maintenance/load-jobs');
     return data;
+  }
+
+  /**
+   * Arranca el PREVIEW (dry-run) del SYNC de clientes en segundo plano. El plan se
+   * sigue por getLoadJobs() (job kind='sync-preview' → syncPlan al terminar).
+   */
+  async startSyncPreview(file: File): Promise<{ jobId: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const { data } = await api.post<{ jobId: string; status: string }>(
+      '/maintenance/clientes-sync/preview',
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return { jobId: data.jobId };
+  }
+
+  /**
+   * Arranca el APPLY del SYNC de clientes (requiere el token del preview del MISMO
+   * archivo). `force` permite exceder el umbral de borrado. Se sigue por
+   * getLoadJobs() (job kind='sync-apply' → syncApply al terminar).
+   */
+  async startSyncApply(
+    file: File,
+    token: string,
+    force: boolean,
+  ): Promise<{ jobId: string }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('token', token);
+    if (force) formData.append('force', 'true');
+    const { data } = await api.post<{ jobId: string; status: string }>(
+      '/maintenance/clientes-sync/apply',
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return { jobId: data.jobId };
   }
 
   async downloadTemplate(key: string): Promise<void> {

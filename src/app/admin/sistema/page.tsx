@@ -33,6 +33,8 @@ import {
   useResetPeriodSales,
   useRunCleanupBlock,
   useStartImport,
+  useStartSyncApply,
+  useStartSyncPreview,
 } from '@/hooks/useMaintenance';
 import { useCommissionPeriods } from '@/hooks/useCommissions';
 import { maintenanceService } from '@/services/maintenance.service';
@@ -139,11 +141,11 @@ function SistemaContent() {
 
               <TabsContent value="carga" className="mt-6">
                 <p className="mb-4 text-sm text-muted-foreground">
-                  Pobla el sistema por fases con archivos <strong>Excel (.xlsx)</strong> o
-                  CSV. Excel conserva acentos y signos automáticamente; el CSV se
-                  detecta como UTF-8 o Windows-1252 (Excel) y respeta los acentos.
-                  La validación es todo-o-nada: si una fila es inválida, no se
-                  inserta ninguna.
+                  Pobla el sistema por fases con archivos{' '}
+                  <strong>Excel (.xlsx)</strong> o CSV. Excel conserva acentos y
+                  signos automáticamente; el CSV se detecta como UTF-8 o
+                  Windows-1252 (Excel) y respeta los acentos. La validación es
+                  todo-o-nada: si una fila es inválida, no se inserta ninguna.
                 </p>
                 <div className="space-y-3">
                   {data.load.map((phase) => (
@@ -154,10 +156,10 @@ function SistemaContent() {
 
               <TabsContent value="reset" className="mt-6">
                 <p className="mb-4 text-sm text-muted-foreground">
-                  Borra TODAS las ventas (pedidos ecommerce + ventas de sucursal)
-                  de un periodo por rango de fecha 26→25, para poder re-correr la
-                  migración histórica. NO toca comisiones, puntos, rangos ni red
-                  (la re-migración los reescribe).
+                  Borra TODAS las ventas (pedidos ecommerce + ventas de
+                  sucursal) de un periodo por rango de fecha 26→25, para poder
+                  re-correr la migración histórica. NO toca comisiones, puntos,
+                  rangos ni red (la re-migración los reescribe).
                 </p>
                 <ResetPeriodSalesCard />
               </TabsContent>
@@ -327,6 +329,10 @@ function LoadPhaseCard({ phase }: { phase: LoadPhaseStatus }) {
   const { data: jobs } = useLoadJobs();
   const queryClient = useQueryClient();
   const ready = phase.status === 'ready';
+  const [syncOpen, setSyncOpen] = useState(false);
+  // La fase de clientes admite SINCRONIZAR (upsert + reconciliación de borrado)
+  // contra el archivo maestro completo, además de la carga insert-only.
+  const canSync = phase.key === 'clientes-red';
 
   // Job vivo de ESTA fase (jobs viene del más reciente al más viejo). La carga
   // corre en el backend: al recargar/navegar, esto la reencuentra y reconecta.
@@ -473,10 +479,370 @@ function LoadPhaseCard({ phase }: { phase: LoadPhaseStatus }) {
             >
               {busy ? 'Procesando…' : 'Subir archivo'}
             </Button>
+            {canSync && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busy}
+                onClick={() => setSyncOpen(true)}
+                title="Sincronizar con el archivo maestro (actualiza, agrega y borra los de prueba)"
+              >
+                Sincronizar…
+              </Button>
+            )}
           </div>
         )}
       </CardContent>
+      {canSync && (
+        <ClientesSyncDialog open={syncOpen} onOpenChange={setSyncOpen} />
+      )}
     </Card>
+  );
+}
+
+// ----------------------------------------------------------------
+// SYNC de clientes: upsert + reconciliación (preview → aplicar)
+// ----------------------------------------------------------------
+
+function ClientesSyncDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [previewJobId, setPreviewJobId] = useState<string | null>(null);
+  const [applyJobId, setApplyJobId] = useState<string | null>(null);
+  const [force, setForce] = useState(false);
+  const startPreview = useStartSyncPreview();
+  const startApply = useStartSyncApply();
+  const { data: jobs } = useLoadJobs();
+  const queryClient = useQueryClient();
+
+  const previewJob = jobs?.find((j) => j.id === previewJobId);
+  const applyJob = jobs?.find((j) => j.id === applyJobId);
+  const plan = previewJob?.status === 'done' ? previewJob.syncPlan : undefined;
+  const previewing = startPreview.isPending || previewJob?.status === 'running';
+  const applying = startApply.isPending || applyJob?.status === 'running';
+
+  const reset = () => {
+    setFile(null);
+    setPreviewJobId(null);
+    setApplyJobId(null);
+    setForce(false);
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
+  // Aviso de fin del apply (una sola vez) + cierre.
+  const prevApply = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const prev = prevApply.current;
+    const cur = applyJob?.status;
+    if (prev === 'running' && cur === 'done' && applyJob?.syncApply) {
+      const r = applyJob.syncApply;
+      toast.success(
+        `SYNC de clientes: ${nf.format(r.actualizados)} actualizados, ${nf.format(r.insertados)} nuevos, ${nf.format(r.borrados)} borrados` +
+          (r.borradosOmitidos > 0
+            ? ` (${nf.format(r.borradosOmitidos)} omitidos por tener red)`
+            : ''),
+        { duration: 10000 },
+      );
+      queryClient.invalidateQueries({ queryKey: maintenanceKeys.all });
+      onOpenChange(false);
+      reset();
+    } else if (prev === 'running' && cur === 'error') {
+      const errs = applyJob?.error?.errors;
+      const detail = errs?.length ? ` — ${errs.slice(0, 3).join(' · ')}` : '';
+      toast.error(
+        `${applyJob?.error?.message ?? 'Error al aplicar'}${detail}`,
+        {
+          duration: 12000,
+        },
+      );
+    }
+    prevApply.current = cur;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applyJob?.status]);
+
+  // Aviso de error del preview.
+  const prevPreview = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (prevPreview.current === 'running' && previewJob?.status === 'error') {
+      const errs = previewJob?.error?.errors;
+      const detail = errs?.length
+        ? ` — ${errs.slice(0, 3).join(' · ')}${errs.length > 3 ? ` (+${errs.length - 3})` : ''}`
+        : '';
+      toast.error(
+        `${previewJob?.error?.message ?? 'Error al previsualizar'}${detail}`,
+        { duration: 12000 },
+      );
+    }
+    prevPreview.current = previewJob?.status;
+  }, [previewJob?.status, previewJob?.error]);
+
+  const handlePickFile = async (f: File | undefined) => {
+    if (!f) return;
+    setFile(f);
+    setApplyJobId(null);
+    setForce(false);
+    try {
+      const { jobId } = await startPreview.mutateAsync(f);
+      setPreviewJobId(jobId);
+    } catch (error: unknown) {
+      const data = (error as { response?: { data?: { message?: string } } })
+        ?.response?.data;
+      toast.error(data?.message ?? 'No se pudo iniciar el preview');
+    }
+  };
+
+  const handleApply = async () => {
+    if (!file || !plan) return;
+    try {
+      const { jobId } = await startApply.mutateAsync({
+        file,
+        token: plan.token,
+        force,
+      });
+      setApplyJobId(jobId);
+    } catch (error: unknown) {
+      const data = (error as { response?: { data?: { message?: string } } })
+        ?.response?.data;
+      toast.error(data?.message ?? 'No se pudo iniciar el apply');
+    }
+  };
+
+  const nothingToDo =
+    plan &&
+    plan.aInsertar === 0 &&
+    plan.aActualizar === 0 &&
+    plan.aBorrar === 0;
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        onOpenChange(v);
+        if (!v && !applying) reset();
+      }}
+    >
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Sincronizar clientes (archivo maestro)</DialogTitle>
+          <DialogDescription>
+            El archivo debe ser la lista <strong>COMPLETA</strong> de clientes.
+            Se actualizan los que cambiaron, se agregan los nuevos y se borran
+            los distribuidores que ya no estén (cuentas de prueba). Primero
+            previsualiza; nada se escribe hasta que confirmes.
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Paso 1: elegir archivo */}
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            className="hidden"
+            onChange={(e) => handlePickFile(e.target.files?.[0])}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={previewing || applying}
+            onClick={() => fileRef.current?.click()}
+          >
+            {file ? 'Cambiar archivo' : 'Elegir archivo'}
+          </Button>
+          <span className="truncate text-sm text-muted-foreground">
+            {file?.name ?? 'Ningún archivo seleccionado'}
+          </span>
+        </div>
+
+        {previewing && (
+          <p className="text-sm text-muted-foreground">
+            Analizando el archivo (dry-run, no se escribe nada)…
+          </p>
+        )}
+
+        {plan && (
+          <div className="space-y-4">
+            {/* Resumen */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <SyncStat
+                label="Actualizar"
+                value={plan.aActualizar}
+                tone="info"
+              />
+              <SyncStat label="Agregar" value={plan.aInsertar} tone="success" />
+              <SyncStat label="Borrar" value={plan.aBorrar} tone="warning" />
+              <SyncStat
+                label="Omitidos (red)"
+                value={plan.aBorrarBloqueados}
+                tone="outline"
+              />
+            </div>
+
+            {plan.excedeUmbral && (
+              <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-800">
+                ⚠️ Se borraría el <strong>{plan.pctBorrar}%</strong> de los
+                distribuidores (sobre el umbral de {plan.umbralPct}%). Verifica
+                que el archivo maestro esté completo. Marca la casilla para
+                forzar si es intencional.
+                <label className="mt-2 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={force}
+                    onChange={(e) => setForce(e.target.checked)}
+                  />
+                  <span>Entiendo el riesgo; borrar de todos modos (force)</span>
+                </label>
+              </div>
+            )}
+
+            {/* Cambios de patrocinador (solo se reportan) */}
+            {plan.sponsorChanges.length > 0 && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                <p className="font-medium">
+                  {plan.sponsorChanges.length} cambio(s) de patrocinador
+                  detectado(s) — NO se aplican (la red no se recoloca):
+                </p>
+                <ul className="mt-1 max-h-28 overflow-y-auto text-xs">
+                  {plan.sponsorChanges.slice(0, 50).map((s) => (
+                    <li key={s.customerNumber}>
+                      {s.customerNumber} ({s.nombre}): {s.sponsorActual ?? '—'}{' '}
+                      → {s.sponsorArchivo ?? '—'}
+                    </li>
+                  ))}
+                  {plan.sponsorChanges.length > 50 && (
+                    <li>… (+{plan.sponsorChanges.length - 50} más)</li>
+                  )}
+                </ul>
+              </div>
+            )}
+
+            {/* Detalle de los que se borrarían */}
+            {plan.removals.length > 0 && (
+              <div>
+                <p className="mb-1 text-sm font-medium text-foreground">
+                  Distribuidores ausentes del archivo ({plan.removals.length})
+                </p>
+                <div className="max-h-56 overflow-y-auto rounded-md border">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-muted">
+                      <tr className="text-left">
+                        <th className="p-2">#</th>
+                        <th className="p-2">Nombre</th>
+                        <th className="p-2">Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {plan.removals.slice(0, 300).map((r) => (
+                        <tr
+                          key={r.customerNumber}
+                          className="border-t border-border/50"
+                        >
+                          <td className="p-2 font-mono">{r.customerNumber}</td>
+                          <td className="p-2">{r.nombre}</td>
+                          <td className="p-2">
+                            {!r.deletable ? (
+                              <Badge variant="outline">
+                                Omitido — {r.motivoBloqueo ?? 'tiene red'}
+                              </Badge>
+                            ) : r.tieneTransaccional ? (
+                              <Badge variant="warning">
+                                Borrar + su historial (ventas/puntos)
+                              </Badge>
+                            ) : (
+                              <Badge variant="success">Borrar</Badge>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {plan.removals.length > 300 && (
+                    <p className="p-2 text-xs text-muted-foreground">
+                      … mostrando 300 de {plan.removals.length}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {nothingToDo && (
+              <p className="text-sm text-muted-foreground">
+                No hay cambios: el archivo coincide con la BD.
+              </p>
+            )}
+          </div>
+        )}
+
+        {applying && (
+          <div className="text-sm">
+            <p className="text-muted-foreground">
+              {applyJob?.progress?.stage ?? 'Aplicando cambios'}…
+            </p>
+            {applyJob?.progress && applyJob.progress.total > 0 && (
+              <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary transition-all"
+                  style={{ width: `${applyJob.progress.percent}%` }}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => {
+              onOpenChange(false);
+              if (!applying) reset();
+            }}
+            disabled={applying}
+          >
+            Cerrar
+          </Button>
+          <Button
+            variant="destructive"
+            disabled={
+              !plan ||
+              applying ||
+              previewing ||
+              nothingToDo ||
+              (plan.excedeUmbral && !force)
+            }
+            onClick={handleApply}
+          >
+            {applying ? 'Aplicando…' : 'Aplicar cambios'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SyncStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: 'info' | 'success' | 'warning' | 'outline';
+}) {
+  return (
+    <div className="rounded-md border p-2 text-center">
+      <div className="text-lg font-bold text-foreground">
+        {nf.format(value)}
+      </div>
+      <Badge variant={tone} className="mt-0.5">
+        {label}
+      </Badge>
+    </div>
   );
 }
 
@@ -485,7 +851,8 @@ function LoadPhaseCard({ phase }: { phase: LoadPhaseStatus }) {
 // ----------------------------------------------------------------
 
 function ResetPeriodSalesCard() {
-  const { data: periodsData, isLoading: periodsLoading } = useCommissionPeriods();
+  const { data: periodsData, isLoading: periodsLoading } =
+    useCommissionPeriods();
   const [periodId, setPeriodId] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const preview = usePeriodSalesPreview(periodId || null);
@@ -514,8 +881,8 @@ function ResetPeriodSalesCard() {
       );
     } catch (error: unknown) {
       const message =
-        (error as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message ?? 'Error al resetear las ventas del periodo';
+        (error as { response?: { data?: { message?: string } } })?.response
+          ?.data?.message ?? 'Error al resetear las ventas del periodo';
       toast.error(message);
     }
   };
@@ -592,7 +959,9 @@ function ResetPeriodSalesCard() {
                     </p>
                   </div>
                   <div className="rounded bg-background p-3">
-                    <p className="text-xs text-muted-foreground">Total a borrar</p>
+                    <p className="text-xs text-muted-foreground">
+                      Total a borrar
+                    </p>
                     <p className="font-semibold text-foreground">
                       {nf.format(pv.totalSales)}
                     </p>
