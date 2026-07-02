@@ -92,9 +92,27 @@ export interface SalesByProductResponse {
   products: ProductSales[];
 }
 
+export interface SalesFxByCurrency {
+  currencyCode: string;
+  total: number;
+  rateToMxn: number | null;
+  totalMxn: number | null;
+}
+
+// Consolidado de todos los países en MXN con la tasa CONGELADA del periodo
+// (period_exchange_rates). null si el rango no corresponde a ningún periodo.
+export interface SalesFxSummary {
+  periodId: string;
+  periodName: string;
+  totalMxn: number;
+  missing: string[];
+  byCurrency: SalesFxByCurrency[];
+}
+
 export interface SalesByBranchResponse {
   summary: SalesSummary;
   branches: BranchSales[];
+  fx: SalesFxSummary | null;
 }
 
 // ================================

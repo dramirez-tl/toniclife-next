@@ -244,12 +244,31 @@ export default function VentasSucursalPage() {
               <p className="text-lg font-bold text-gray-900">{formatCurrency(totalsByKey[c.key], c.key)}</p>
             </div>
           ))}
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
+          <div className="rounded-xl border border-[#3E667D]/30 bg-[#3E667D] p-4 shadow-sm hover:shadow-md transition-shadow">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg">📦</span>
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Órdenes</p>
+              <span className="text-lg">🌎</span>
+              <p className="text-xs font-medium text-white/70 uppercase tracking-wide">
+                Total del periodo (MXN)
+              </p>
             </div>
-            <p className="text-lg font-bold text-gray-900">{totals.orderCount.toLocaleString()}</p>
+            <p
+              className="text-lg font-bold text-white"
+              title={
+                data.fx
+                  ? `Convertido con la tasa congelada del periodo ${data.fx.periodName}`
+                  : 'El rango no corresponde a un periodo; sin conversión'
+              }
+            >
+              {data.fx ? formatCurrency(data.fx.totalMxn, 'MXN') : '—'}
+            </p>
+            <p className="text-xs text-white/70 mt-1">
+              {totals.orderCount.toLocaleString()} órdenes
+              {data.fx && data.fx.missing.length > 0 && (
+                <span className="ml-2 inline-flex items-center rounded-full bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-200">
+                  sin tasa: {data.fx.missing.join(', ')}
+                </span>
+              )}
+            </p>
           </div>
         </div>
       )}
