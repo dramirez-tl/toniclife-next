@@ -21,6 +21,8 @@ export interface PosLicense {
   branchCode?: string;
   label?: string;
   status: PosLicenseStatus;
+  /** Liberada individualmente para pruebas (opera aunque el POS global esté bloqueado). */
+  operationsReleased: boolean;
   hardwareFingerprint?: string;
   hardwareInfo?: PosLicenseHardwareInfo;
   activatedAt?: string;

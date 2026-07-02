@@ -46,6 +46,14 @@ class PosLicensesService {
     const response = await api.patch<PosLicense>(`/pos-licenses/${id}/unbind`);
     return response.data;
   }
+
+  /** Libera/bloquea la operación de una terminal individual (pilotos). */
+  async setRelease(id: string, released: boolean): Promise<PosLicense> {
+    const response = await api.patch<PosLicense>(`/pos-licenses/${id}/release`, {
+      released,
+    });
+    return response.data;
+  }
 }
 
 export const posLicensesService = new PosLicensesService();

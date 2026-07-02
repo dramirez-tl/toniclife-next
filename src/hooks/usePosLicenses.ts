@@ -80,3 +80,15 @@ export const useUnbindPosLicense = () => {
     },
   });
 };
+
+export const useSetPosLicenseRelease = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, released }: { id: string; released: boolean }) =>
+      posLicensesService.setRelease(id, released),
+    onSuccess: (license) => {
+      queryClient.invalidateQueries({ queryKey: posLicensesKeys.all });
+      queryClient.invalidateQueries({ queryKey: posLicensesKeys.byBranch(license.branchId) });
+    },
+  });
+};

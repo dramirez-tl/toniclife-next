@@ -44,8 +44,11 @@ import { useCommissionPeriods } from '@/hooks/useCommissions';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { maintenanceService } from '@/services/maintenance.service';
 import { configService } from '@/services/config.service';
+import { usePosLicenses, useSetPosLicenseRelease } from '@/hooks/usePosLicenses';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { Switch } from '@/components/ui/switch';
 import type { CleanupBlockStatus, LoadPhaseStatus } from '@/types/maintenance';
+import type { PosLicense } from '@/types/posLicense';
 
 const cf = new Intl.NumberFormat('es-MX', {
   style: 'currency',
@@ -351,6 +354,9 @@ function PosOperationsCard() {
               </Button>
             </div>
           </div>
+
+          {/* Liberación por terminal (pilotos) */}
+          <PosLicenseReleaseList globalEnabled={enabled} />
         </CardContent>
       </Card>
 
@@ -386,6 +392,136 @@ function PosOperationsCard() {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function fmtLastSeen(iso?: string): string {
+  if (!iso) return 'nunca';
+  return new Date(iso).toLocaleString('es-MX', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+const POS_STATUS_LABEL: Record<string, string> = {
+  active: 'Activa',
+  inactive: 'Sin activar',
+  revoked: 'Revocada',
+};
+
+/**
+ * Lista de terminales con un switch para liberar individualmente (pilotos).
+ * La liberación por licencia es un allowlist SOBRE el flag global: cuando el
+ * global está liberado, todas operan y estos switches quedan informativos.
+ */
+function PosLicenseReleaseList({ globalEnabled }: { globalEnabled: boolean }) {
+  const { data: licenses = [], isLoading } = usePosLicenses();
+  const setRelease = useSetPosLicenseRelease();
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
+  // Excluir revocadas: no son instalables.
+  const rows = licenses.filter((l) => l.status !== 'revoked');
+
+  const handleToggle = (lic: PosLicense, released: boolean) => {
+    setPendingId(lic.id);
+    setRelease.mutate(
+      { id: lic.id, released },
+      {
+        onSuccess: () =>
+          toast.success(
+            released
+              ? `${lic.branchName ?? lic.licenseKey}: liberada para pruebas`
+              : `${lic.branchName ?? lic.licenseKey}: vuelta a bloqueada`,
+          ),
+        onError: () => toast.error('No se pudo cambiar la terminal'),
+        onSettled: () => setPendingId(null),
+      },
+    );
+  };
+
+  return (
+    <div className="space-y-2 border-t pt-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <label className="text-sm font-medium text-gray-700">
+            Liberar terminales individuales (pruebas)
+          </label>
+          <p className="text-xs text-muted-foreground">
+            Activa una terminal para operar aunque el POS global esté bloqueado.
+            Ideal para pilotos: instala en todas y prueba en las que elijas.
+          </p>
+        </div>
+      </div>
+
+      {globalEnabled && (
+        <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">
+          El POS global está liberado: todas las terminales operan. Estos
+          controles aplican solo cuando el POS global está bloqueado.
+        </div>
+      )}
+
+      {isLoading ? (
+        <Skeleton className="h-24 w-full" />
+      ) : rows.length === 0 ? (
+        <p className="py-3 text-sm text-muted-foreground">
+          No hay terminales registradas todavía. Genera licencias desde
+          Sucursales.
+        </p>
+      ) : (
+        <div className="divide-y rounded-lg border">
+          {rows.map((lic) => (
+            <div
+              key={lic.id}
+              className="flex items-center justify-between gap-4 px-4 py-3"
+            >
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="truncate text-sm font-medium text-gray-900">
+                    {lic.branchName ?? 'Sucursal sin nombre'}
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className={
+                      lic.status === 'active'
+                        ? 'border-green-200 bg-green-50 text-green-700'
+                        : 'border-gray-200 bg-gray-50 text-gray-500'
+                    }
+                  >
+                    {POS_STATUS_LABEL[lic.status] ?? lic.status}
+                  </Badge>
+                  {!globalEnabled && lic.operationsReleased && (
+                    <Badge
+                      variant="outline"
+                      className="border-blue-200 bg-blue-50 text-blue-700"
+                    >
+                      En pruebas
+                    </Badge>
+                  )}
+                </div>
+                <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="font-mono">{lic.licenseKey}</span>
+                  {lic.label && <span>· {lic.label}</span>}
+                  <span>· visto {fmtLastSeen(lic.lastSeenAt)}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs text-muted-foreground">
+                  {lic.operationsReleased ? 'Liberada' : 'Bloqueada'}
+                </span>
+                <Switch
+                  checked={lic.operationsReleased}
+                  disabled={pendingId === lic.id}
+                  onCheckedChange={(v) => handleToggle(lic, v)}
+                  aria-label={`Liberar ${lic.branchName ?? lic.licenseKey}`}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
