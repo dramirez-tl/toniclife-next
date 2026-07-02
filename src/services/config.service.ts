@@ -388,6 +388,30 @@ class ConfigService {
     return response.data;
   }
 
+  // ================================
+  // POS OPERATIONS (interruptor global de liberación de terminales)
+  // ================================
+
+  /** Estado global de operación del POS (liberado / bloqueado). Super admin. */
+  async getPosOperations(): Promise<PosOperationsState> {
+    const response = await api.get<PosOperationsState>('/config/pos-operations');
+    return response.data;
+  }
+
+  /** Libera (enabled=true) o bloquea (false) TODAS las terminales POS. */
+  async setPosOperations(
+    enabled: boolean,
+    message?: string,
+  ): Promise<PosOperationsState> {
+    const body: { enabled: boolean; message?: string } = { enabled };
+    if (message !== undefined) body.message = message;
+    const response = await api.patch<PosOperationsState>(
+      '/config/pos-operations',
+      body,
+    );
+    return response.data;
+  }
+
   /** Merge + guarda los ajustes de plataforma. */
   async updatePlatformSettings(
     patch: Record<string, unknown>,
@@ -406,6 +430,12 @@ export interface ShippingSettings {
   expressCost: number;
   freeThreshold: number;
   kitCost: number;
+}
+
+/** Estado global de operación del POS (interruptor de liberación de terminales). */
+export interface PosOperationsState {
+  enabled: boolean;
+  message: string | null;
 }
 
 export const configService = new ConfigService();

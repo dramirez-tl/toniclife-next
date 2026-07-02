@@ -9,11 +9,15 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   ExclamationTriangleIcon,
   WrenchScrewdriverIcon,
+  ComputerDesktopIcon,
+  LockClosedIcon,
+  LockOpenIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -37,7 +41,9 @@ import {
   useStartSyncPreview,
 } from '@/hooks/useMaintenance';
 import { useCommissionPeriods } from '@/hooks/useCommissions';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { maintenanceService } from '@/services/maintenance.service';
+import { configService } from '@/services/config.service';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import type { CleanupBlockStatus, LoadPhaseStatus } from '@/types/maintenance';
 
@@ -116,12 +122,25 @@ function SistemaContent() {
               </div>
             )}
 
-            <Tabs defaultValue="limpieza">
+            <Tabs defaultValue="pos">
               <TabsList>
+                <TabsTrigger value="pos">Puntos de Venta</TabsTrigger>
                 <TabsTrigger value="limpieza">Limpieza</TabsTrigger>
                 <TabsTrigger value="carga">Carga masiva</TabsTrigger>
                 <TabsTrigger value="reset">Reset por periodo</TabsTrigger>
               </TabsList>
+
+              <TabsContent value="pos" className="mt-6">
+                <p className="mb-4 text-sm text-muted-foreground">
+                  Interruptor global de las terminales POS (Electron). Mientras
+                  esté <strong>bloqueado</strong>, las sucursales pueden instalar
+                  el POS, activar su licencia y configurar la impresora térmica,
+                  pero la pantalla de venta muestra la leyenda de “próximamente”.
+                  Al <strong>liberar</strong>, todas las terminales se activan en
+                  su siguiente latido (≤ 60 s), sin reinstalar.
+                </p>
+                <PosOperationsCard />
+              </TabsContent>
 
               <TabsContent value="limpieza" className="mt-6">
                 <p className="mb-4 text-sm text-muted-foreground">
@@ -168,6 +187,205 @@ function SistemaContent() {
         )}
       </div>
     </div>
+  );
+}
+
+// ----------------------------------------------------------------
+// Puntos de Venta (interruptor global de liberación)
+// ----------------------------------------------------------------
+
+const DEFAULT_LOCK_MESSAGE =
+  'El punto de venta se habilitará muy pronto. Mientras tanto puedes configurar la impresora térmica desde el ícono de ajustes. En cuanto se libere, esta pantalla se activará automáticamente.';
+
+function PosOperationsCard() {
+  const posOpsKey = ['config', 'pos-operations'] as const;
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: posOpsKey,
+    queryFn: () => configService.getPosOperations(),
+    staleTime: 30_000,
+  });
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [messageDraft, setMessageDraft] = useState<string | null>(null);
+
+  // Draft del mensaje: null = usar lo que vino del server (aún sin editar).
+  const message = messageDraft ?? data?.message ?? '';
+  const messageDirty =
+    messageDraft !== null && (messageDraft.trim() || '') !== (data?.message ?? '');
+
+  const toggle = useMutation({
+    mutationFn: (enabled: boolean) => configService.setPosOperations(enabled),
+    onSuccess: (res) => {
+      setConfirmOpen(false);
+      toast.success(
+        res.enabled
+          ? 'POS liberado. Las terminales se activarán en ≤ 60 s.'
+          : 'POS bloqueado. Las terminales mostrarán la leyenda de próximamente.',
+      );
+      void refetch();
+    },
+    onError: () => toast.error('No se pudo cambiar el estado del POS'),
+  });
+
+  const saveMessage = useMutation({
+    mutationFn: (msg: string) =>
+      configService.setPosOperations(data?.enabled ?? false, msg),
+    onSuccess: () => {
+      setMessageDraft(null);
+      toast.success('Leyenda actualizada');
+      void refetch();
+    },
+    onError: () => toast.error('No se pudo guardar la leyenda'),
+  });
+
+  if (isLoading) return <Skeleton className="h-56 w-full" />;
+  if (isError || !data) {
+    return (
+      <Card>
+        <CardContent className="p-6 text-sm text-destructive">
+          No se pudo cargar el estado del POS.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const enabled = data.enabled;
+
+  return (
+    <>
+      <Card>
+        <CardContent className="space-y-6 p-6">
+          {/* Estado actual */}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4">
+              <div
+                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${
+                  enabled
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-amber-100 text-amber-700'
+                }`}
+              >
+                {enabled ? (
+                  <LockOpenIcon className="h-6 w-6" />
+                ) : (
+                  <LockClosedIcon className="h-6 w-6" />
+                )}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-bold text-gray-900">
+                    Terminales POS
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className={
+                      enabled
+                        ? 'border-green-200 bg-green-50 text-green-700'
+                        : 'border-amber-200 bg-amber-50 text-amber-700'
+                    }
+                  >
+                    {enabled ? 'Liberado' : 'Bloqueado'}
+                  </Badge>
+                </div>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {enabled
+                    ? 'La operación de venta está activa en todas las sucursales.'
+                    : 'Instalación y configuración disponibles; venta bloqueada hasta liberar.'}
+                </p>
+              </div>
+            </div>
+            <Button
+              size="lg"
+              variant={enabled ? 'outline' : 'default'}
+              onClick={() => setConfirmOpen(true)}
+              disabled={toggle.isPending}
+              className={
+                enabled ? '' : 'bg-green-600 text-white hover:bg-green-700'
+              }
+            >
+              {enabled ? (
+                <>
+                  <LockClosedIcon className="h-5 w-5" />
+                  Bloquear POS
+                </>
+              ) : (
+                <>
+                  <LockOpenIcon className="h-5 w-5" />
+                  Liberar POS
+                </>
+              )}
+            </Button>
+          </div>
+
+          {/* Leyenda de bloqueo */}
+          <div className="space-y-2 border-t pt-4">
+            <label className="text-sm font-medium text-gray-700">
+              Leyenda mientras está bloqueado
+            </label>
+            <p className="text-xs text-muted-foreground">
+              Se muestra en la terminal en la zona de venta. Déjala vacía para
+              usar el texto por defecto.
+            </p>
+            <Input
+              value={message}
+              onChange={(e) => setMessageDraft(e.target.value)}
+              placeholder={DEFAULT_LOCK_MESSAGE}
+            />
+            <div className="flex justify-end gap-2">
+              {messageDirty && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setMessageDraft(null)}
+                >
+                  Cancelar
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!messageDirty || saveMessage.isPending}
+                onClick={() => saveMessage.mutate(messageDraft ?? '')}
+              >
+                Guardar leyenda
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {enabled ? 'Bloquear todas las terminales POS' : 'Liberar todas las terminales POS'}
+            </DialogTitle>
+            <DialogDescription>
+              {enabled
+                ? 'La pantalla de venta de TODAS las terminales quedará bloqueada con la leyenda de próximamente. Las ventas en curso podrían interrumpirse. ¿Continuar?'
+                : 'Se habilitará la operación de venta en TODAS las terminales instaladas. Cada una lo aplicará en su siguiente latido (≤ 60 segundos). ¿Continuar?'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant={enabled ? 'destructive' : 'default'}
+              disabled={toggle.isPending}
+              onClick={() => toggle.mutate(!enabled)}
+              className={enabled ? '' : 'bg-green-600 text-white hover:bg-green-700'}
+            >
+              {toggle.isPending
+                ? 'Aplicando…'
+                : enabled
+                  ? 'Sí, bloquear'
+                  : 'Sí, liberar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
