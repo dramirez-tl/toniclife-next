@@ -147,7 +147,9 @@ export function useAnalytics(query: AnalyticsQuery) {
   return useQuery({
     queryKey: ['reports', 'analytics', query],
     queryFn: () => reportsService.getAnalytics(query),
-    enabled: !!query.startDate && !!query.endDate,
+    // La ventana se resuelve por número de periodos (months); startDate/endDate
+    // son opcionales (el API ya no los usa para analytics).
+    enabled: (query.months ?? 0) > 0,
     staleTime: 1000 * 60 * 5, // 5 minutes
   });
 }

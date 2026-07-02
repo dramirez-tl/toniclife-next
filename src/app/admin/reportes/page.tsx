@@ -2,17 +2,20 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   ChartBarIcon,
   ArrowTrendingUpIcon,
   ArrowTrendingDownIcon,
+  MinusSmallIcon,
   CurrencyDollarIcon,
   ShoppingBagIcon,
   UserGroupIcon,
   CalendarIcon,
   ArrowDownTrayIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -20,68 +23,47 @@ import { useAnalytics } from '@/hooks/useReports';
 import { PermissionGuard } from '@/components/auth';
 import { exportToCsv, csvDateStamp } from '@/lib/csv-export';
 
-// Helper to calculate date range based on selection
-function getDateRange(rangeKey: string): { startDate: string; endDate: string; months: number } {
-  const now = new Date();
-  const end = now.toISOString().split('T')[0];
-  let start: Date;
-  let months = 7;
+// recharts es pesado y solo corre en cliente: carga diferida con placeholder.
+const SalesTrendChart = dynamic(
+  () => import('@/components/admin/reports/SalesTrendChart'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-[320px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3E667D]" />
+      </div>
+    ),
+  },
+);
 
+// Cuántos periodos de negocio (26→25) mostrar. El API resuelve la ventana por
+// commission_periods; startDate/endDate quedan por compatibilidad del hook.
+function getMonths(rangeKey: string): number {
   switch (rangeKey) {
-    case 'last-7-days':
-      start = new Date(now);
-      start.setDate(start.getDate() - 7);
-      months = 1;
-      break;
-    case 'last-30-days':
-      start = new Date(now);
-      start.setDate(start.getDate() - 30);
-      months = 1;
-      break;
     case 'last-3-months':
-      start = new Date(now);
-      start.setMonth(start.getMonth() - 3);
-      months = 3;
-      break;
+      return 3;
     case 'last-6-months':
-      start = new Date(now);
-      start.setMonth(start.getMonth() - 6);
-      months = 6;
-      break;
+      return 6;
+    case 'last-12-months':
+      return 12;
     case 'last-7-months':
-      start = new Date(now);
-      start.setMonth(start.getMonth() - 7);
-      months = 7;
-      break;
-    case 'this-year':
-      start = new Date(now.getFullYear(), 0, 1);
-      months = now.getMonth() + 1;
-      break;
     default:
-      start = new Date(now);
-      start.setMonth(start.getMonth() - 7);
-      months = 7;
+      return 7;
   }
-
-  return {
-    startDate: start.toISOString().split('T')[0],
-    endDate: end,
-    months,
-  };
 }
 
 export default function ReportesPage() {
   const [dateRange, setDateRange] = useState('last-7-months');
   const [selectedMetric, setSelectedMetric] = useState<'sales' | 'orders' | 'customers'>('sales');
 
-  // Calculate date range based on selection
-  const dateParams = useMemo(() => getDateRange(dateRange), [dateRange]);
+  // Número de periodos de negocio a analizar
+  const months = useMemo(() => getMonths(dateRange), [dateRange]);
 
-  // Fetch analytics data
+  // Fetch analytics data (la ventana la resuelve el API por periodos 26→25)
   const { data: analyticsData, isLoading, isError, refetch } = useAnalytics({
-    startDate: dateParams.startDate,
-    endDate: dateParams.endDate,
-    months: dateParams.months,
+    startDate: '',
+    endDate: '',
+    months,
     limit: 5,
   });
 
@@ -100,6 +82,8 @@ export default function ReportesPage() {
   const currentMonthCustomers = kpis?.currentMonthCustomers || 0;
   const customersGrowth = kpis?.customersGrowth || 0;
   const averageOrderValue = kpis?.averageOrderValue || 0;
+  const missingRates = kpis?.missingRates || [];
+  const periodLabel = kpis?.periodLabel || '';
 
   const handleExportReport = (reportType: string) => {
     const stamp = csvDateStamp();
@@ -162,7 +146,8 @@ export default function ReportesPage() {
           +{growth.toFixed(1)}%
         </span>
       );
-    } else {
+    }
+    if (growth < 0) {
       return (
         <span className="inline-flex items-center gap-1 text-sm text-red-600 font-medium">
           <ArrowTrendingDownIcon className="h-4 w-4" />
@@ -170,6 +155,13 @@ export default function ReportesPage() {
         </span>
       );
     }
+    // growth === 0: sin comparación previa. Neutral, no rojo.
+    return (
+      <span className="inline-flex items-center gap-1 text-sm text-gray-400 font-medium">
+        <MinusSmallIcon className="h-4 w-4" />
+        s/d
+      </span>
+    );
   };
 
   return (
@@ -211,23 +203,28 @@ export default function ReportesPage() {
         {/* Date Range Filter */}
         <Card className="mb-6">
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-3">
                 <CalendarIcon className="h-5 w-5 text-gray-400" />
-                <span className="text-sm font-medium text-gray-700">Período de Análisis:</span>
-                <SearchableSelect
-                  options={[
-                    { value: 'last-7-days', label: 'Últimos 7 días' },
-                    { value: 'last-30-days', label: 'Últimos 30 días' },
-                    { value: 'last-3-months', label: 'Últimos 3 meses' },
-                    { value: 'last-6-months', label: 'Últimos 6 meses' },
-                    { value: 'last-7-months', label: 'Últimos 7 meses' },
-                    { value: 'this-year', label: 'Este año' },
-                  ]}
-                  value={dateRange}
-                  onChange={setDateRange}
-                  showAllOption={false}
-                />
+                <span className="text-sm font-medium text-gray-700">Últimos</span>
+                <div className="w-44">
+                  <SearchableSelect
+                    options={[
+                      { value: 'last-3-months', label: '3 periodos' },
+                      { value: 'last-6-months', label: '6 periodos' },
+                      { value: 'last-7-months', label: '7 periodos' },
+                      { value: 'last-12-months', label: '12 periodos' },
+                    ]}
+                    value={dateRange}
+                    onChange={setDateRange}
+                    showAllOption={false}
+                  />
+                </div>
+                {periodLabel && (
+                  <span className="text-xs text-gray-500">
+                    {periodLabel}
+                  </span>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={() => handleExportReport('ventas')}>
@@ -238,6 +235,20 @@ export default function ReportesPage() {
                 </Button>
               </div>
             </div>
+            <p className="mt-3 text-xs text-gray-400">
+              Periodos de negocio (26→25). Totales consolidados a pesos mexicanos
+              (POS + pedidos) con la tasa de cambio de cada periodo.
+            </p>
+            {missingRates.length > 0 && (
+              <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                <ExclamationTriangleIcon className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+                <p className="text-xs text-amber-700">
+                  Hay ventas en {missingRates.join(', ')} sin tipo de cambio
+                  capturado en algún periodo; esos montos no se suman al total en MXN.
+                  Captura la tasa en Configuración → Catálogos → Tipos de Cambio.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -267,6 +278,7 @@ export default function ReportesPage() {
               </div>
               <p className="text-sm text-gray-600 mb-1">Ventas del Período</p>
               <p className="text-3xl font-bold text-gray-900">{formatCurrency(currentMonthSales)}</p>
+              <p className="text-xs text-gray-400 mt-1">Consolidado MXN · POS + pedidos</p>
             </CardContent>
           </Card>
 
@@ -278,8 +290,9 @@ export default function ReportesPage() {
                 </div>
                 {getGrowthIndicator(ordersGrowth)}
               </div>
-              <p className="text-sm text-gray-600 mb-1">Pedidos del Período</p>
+              <p className="text-sm text-gray-600 mb-1">Ventas/Documentos</p>
               <p className="text-3xl font-bold text-gray-900">{currentMonthOrders.toLocaleString()}</p>
+              <p className="text-xs text-gray-400 mt-1">Ventas POS + pedidos del período</p>
             </CardContent>
           </Card>
 
@@ -293,6 +306,7 @@ export default function ReportesPage() {
               </div>
               <p className="text-sm text-gray-600 mb-1">Clientes del Período</p>
               <p className="text-3xl font-bold text-gray-900">{currentMonthCustomers.toLocaleString()}</p>
+              <p className="text-xs text-gray-400 mt-1">Clientes distintos con compra</p>
             </CardContent>
           </Card>
 
@@ -305,6 +319,7 @@ export default function ReportesPage() {
               </div>
               <p className="text-sm text-gray-600 mb-1">Ticket Promedio</p>
               <p className="text-3xl font-bold text-gray-900">{formatCurrency(averageOrderValue)}</p>
+              <p className="text-xs text-gray-400 mt-1">Venta MXN ÷ documentos</p>
             </CardContent>
           </Card>
         </div>
@@ -348,51 +363,18 @@ export default function ReportesPage() {
               </div>
             </div>
 
-            {/* Simple Bar Chart */}
-            <div className="space-y-4">
-              {isLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3E667D]"></div>
-                </div>
-              ) : salesTrend.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  No hay datos disponibles para el período seleccionado
-                </div>
-              ) : (
-                salesTrend.map((data) => {
-                  const value = selectedMetric === 'sales' ? data.sales :
-                               selectedMetric === 'orders' ? data.orders :
-                               data.customers;
-                  const maxValue = Math.max(...salesTrend.map(d =>
-                    selectedMetric === 'sales' ? d.sales :
-                    selectedMetric === 'orders' ? d.orders :
-                    d.customers
-                  ));
-                  const percentage = maxValue > 0 ? (value / maxValue) * 100 : 0;
-
-                  return (
-                    <div key={`${data.month}-${data.year}`}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium text-gray-700 w-12">{data.month}</span>
-                        <span className="text-sm font-semibold text-gray-900">
-                          {selectedMetric === 'sales' ? formatCurrency(value) : value.toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-8">
-                        <div
-                          className="bg-gradient-to-r from-[#3E667D] to-[#C8DDF2] h-8 rounded-full flex items-center justify-end pr-3 transition-all duration-500"
-                          style={{ width: `${Math.max(percentage, 5)}%` }}
-                        >
-                          <span className="text-xs font-bold text-white">
-                            {percentage.toFixed(0)}%
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+            {/* Area chart (recharts) */}
+            {isLoading ? (
+              <div className="flex items-center justify-center h-[320px]">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#3E667D]"></div>
+              </div>
+            ) : salesTrend.length === 0 ? (
+              <div className="text-center py-16 text-gray-500">
+                No hay datos disponibles para el período seleccionado
+              </div>
+            ) : (
+              <SalesTrendChart data={salesTrend} metric={selectedMetric} />
+            )}
           </CardContent>
         </Card>
 

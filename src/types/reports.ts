@@ -406,6 +406,10 @@ export interface AnalyticsKPIs {
   previousMonthCustomers: number;
   customersGrowth: number;
   averageOrderValue: number;
+  /** Monedas con ventas en la ventana pero sin tasa de periodo capturada (suma parcial). */
+  missingRates: string[];
+  /** Etiqueta de la ventana consolidada (ej: "ENERO 2026 → JULIO 2026"). */
+  periodLabel: string;
 }
 
 export interface AnalyticsResponse {
