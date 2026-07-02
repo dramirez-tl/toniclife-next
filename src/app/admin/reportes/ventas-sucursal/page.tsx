@@ -116,7 +116,7 @@ export default function VentasSucursalPage() {
     }
 
     const periodLabel = `${formatDateDisplay(appliedStart)} - ${formatDateDisplay(appliedEnd)}`;
-    const headers = ['Sucursal', ...CURRENCY_CONFIG.map((c) => `Total ${c.key}`), 'Órdenes', 'Período'];
+    const headers = ['Sucursal', ...CURRENCY_CONFIG.map((c) => `Total ${c.key}`), 'Ventas/Documentos', 'Período'];
     const rows = data.branches.map((b) => [
       b.branchName,
       ...CURRENCY_CONFIG.map((c) => getCurrencyTotal(b as unknown as Record<string, unknown>, c.key).toFixed(2)),
@@ -262,7 +262,7 @@ export default function VentasSucursalPage() {
               {data.fx ? formatCurrency(data.fx.totalMxn, 'MXN') : '—'}
             </p>
             <p className="text-xs text-white/70 mt-1">
-              {totals.orderCount.toLocaleString()} órdenes
+              {totals.orderCount.toLocaleString()} ventas/documentos
               {data.fx && data.fx.missing.length > 0 && (
                 <span className="ml-2 inline-flex items-center rounded-full bg-amber-400/20 px-1.5 py-0.5 text-[10px] font-medium text-amber-200">
                   sin tasa: {data.fx.missing.join(', ')}
@@ -319,7 +319,7 @@ export default function VentasSucursalPage() {
                     </TableHead>
                   ))}
                   <TableHead className="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Órdenes
+                    Ventas/Documentos
                   </TableHead>
                   <TableHead className="px-6 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Período
