@@ -73,6 +73,32 @@ export interface ClosePeriodDto {
   confirm: boolean;
 }
 
+// Tipos de cambio por periodo (X→MXN congelado durante el periodo).
+// Backend: GET/PUT /mlm/periods/:id/exchange-rates
+export interface PeriodExchangeRate {
+  currencyCode: string;
+  currencyName: string;
+  /** Pesos MXN por 1 unidad. undefined = pendiente de captura. */
+  rateToMxn?: string;
+  source?: 'auto' | 'manual' | 'backfill';
+  fetchedAt?: string;
+  updatedAt?: string;
+}
+
+export interface PeriodExchangeRatesResponse {
+  periodId: string;
+  periodName: string;
+  isClosed: boolean;
+  rates: PeriodExchangeRate[];
+  missing: string[];
+}
+
+export interface PeriodFxSnapshotResult {
+  inserted: number;
+  updated: number;
+  unavailable: string[];
+}
+
 export interface GeneratePeriodsDto {
   year: number;
   overwrite?: boolean;

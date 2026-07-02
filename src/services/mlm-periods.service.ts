@@ -7,6 +7,8 @@ import type {
   CreatePeriodDto,
   UpdatePeriodDto,
   PeriodPreview,
+  PeriodExchangeRatesResponse,
+  PeriodFxSnapshotResult,
 } from '@/types/mlm-periods';
 
 class MlmPeriodsService {
@@ -82,6 +84,42 @@ class MlmPeriodsService {
    */
   async reopenPeriod(id: string): Promise<MlmPeriod> {
     const response = await api.post<MlmPeriod>(`/mlm/periods/${id}/reopen`);
+    return response.data;
+  }
+
+  /**
+   * Exchange rates (X→MXN) frozen for a period, one row per active-country currency
+   */
+  async getExchangeRates(id: string): Promise<PeriodExchangeRatesResponse> {
+    const response = await api.get<PeriodExchangeRatesResponse>(
+      `/mlm/periods/${id}/exchange-rates`
+    );
+    return response.data;
+  }
+
+  /**
+   * Manual override of one currency rate (open periods only)
+   */
+  async setExchangeRate(
+    id: string,
+    currencyCode: string,
+    rateToMxn: number
+  ): Promise<PeriodExchangeRatesResponse> {
+    const response = await api.put<PeriodExchangeRatesResponse>(
+      `/mlm/periods/${id}/exchange-rates/${currencyCode}`,
+      { rateToMxn }
+    );
+    return response.data;
+  }
+
+  /**
+   * Fetch live rates from the FX provider: fills missing + refreshes auto rates.
+   * Never touches manual rates. Open periods only.
+   */
+  async refreshExchangeRates(id: string): Promise<PeriodFxSnapshotResult> {
+    const response = await api.post<PeriodFxSnapshotResult>(
+      `/mlm/periods/${id}/exchange-rates/refresh`
+    );
     return response.data;
   }
 }

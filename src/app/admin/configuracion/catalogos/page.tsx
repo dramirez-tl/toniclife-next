@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { CatalogTable, CatalogFormModal, type Column } from '@/components/admin/catalogs';
+import { PeriodExchangeRatesTab } from '@/components/admin/catalogs/PeriodExchangeRatesTab';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
@@ -21,9 +22,6 @@ import {
   usePriceTypes,
   useCreatePriceType,
   useUpdatePriceType,
-  useExchangeRates,
-  useCreateExchangeRate,
-  useUpdateExchangeRate,
   usePaymentMethods,
   useCreatePaymentMethod,
   useUpdatePaymentMethod,
@@ -47,8 +45,6 @@ import type {
   CreateCurrencyDto,
   PriceType,
   CreatePriceTypeDto,
-  ExchangeRate,
-  CreateExchangeRateDto,
   PaymentMethod,
   CreatePaymentMethodDto,
   TaxRule,
@@ -318,35 +314,6 @@ const priceTypeColumns: Column<PriceType>[] = [
   },
 ];
 
-const exchangeRateColumns: Column<ExchangeRate>[] = [
-  {
-    key: 'pair',
-    header: 'Par',
-    render: (r) => (
-      <span className="font-medium">
-        {r.fromCurrencyCode} <span className="text-gray-400 mx-1">&rarr;</span> {r.toCurrencyCode}
-      </span>
-    ),
-  },
-  {
-    key: 'rate',
-    header: 'Tasa',
-    // numeric de Postgres llega como string por el API: convertir antes de formatear
-    render: (r) => Number(r.rate).toFixed(4),
-  },
-  { key: 'source', header: 'Fuente', render: (r) => r.source || '-' },
-  {
-    key: 'effectiveDate',
-    header: 'Vigencia',
-    render: (r) => new Date(r.effectiveDate).toLocaleDateString('es-MX'),
-  },
-  {
-    key: 'isActive',
-    header: 'Estado',
-    render: (r) => <StatusBadge active={r.isActive} />,
-  },
-];
-
 const paymentMethodColumns: Column<PaymentMethod>[] = [
   { key: 'code', header: 'Código' },
   { key: 'name', header: 'Nombre' },
@@ -466,16 +433,6 @@ const emptyPriceTypeForm = (): Record<string, string | number> => ({
   priority: 0,
 });
 
-const emptyExchangeRateForm = (): Record<string, string | number> => ({
-  fromCurrencyCode: '',
-  toCurrencyCode: '',
-  rate: 0,
-  inverseRate: 0,
-  source: '',
-  effectiveDate: '',
-  expirationDate: '',
-});
-
 const emptyPaymentMethodForm = (): Record<string, string | number | boolean> => ({
   code: '',
   name: '',
@@ -537,7 +494,6 @@ function CatalogosContent() {
   const { data: countries = [], isLoading: loadingCountries } = useCountries();
   const { data: currencies = [], isLoading: loadingCurrencies } = useCurrencies();
   const { data: priceTypes = [], isLoading: loadingPriceTypes } = usePriceTypes();
-  const { data: exchangeRates = [], isLoading: loadingExchangeRates } = useExchangeRates();
   const { data: paymentMethods = [], isLoading: loadingPaymentMethods } = usePaymentMethods();
   const { data: taxRules = [], isLoading: loadingTaxRules } = useTaxRules();
   const { data: satCfdiUses = [], isLoading: loadingSatCfdiUses } = useSatCfdiUses();
@@ -585,21 +541,6 @@ function CatalogosContent() {
     onError: () => toast.error('Error al crear'),
   });
   const updatePriceType = useUpdatePriceType({
-    onSuccess: () => {
-      toast.success('Registro actualizado');
-      closeModal();
-    },
-    onError: () => toast.error('Error al actualizar'),
-  });
-
-  const createExchangeRate = useCreateExchangeRate({
-    onSuccess: () => {
-      toast.success('Registro creado');
-      closeModal();
-    },
-    onError: () => toast.error('Error al crear'),
-  });
-  const updateExchangeRate = useUpdateExchangeRate({
     onSuccess: () => {
       toast.success('Registro actualizado');
       closeModal();
@@ -665,9 +606,6 @@ function CatalogosContent() {
         break;
       case 'priceTypes':
         setFormData(emptyPriceTypeForm());
-        break;
-      case 'exchangeRates':
-        setFormData(emptyExchangeRateForm());
         break;
       case 'paymentMethods':
         setFormData(emptyPaymentMethodForm());
@@ -736,19 +674,6 @@ function CatalogosContent() {
             discountPercentage: p.discountPercentage,
             appliesTo: p.appliesTo.join(', '),
             priority: p.priority,
-          });
-          break;
-        }
-        case 'exchangeRates': {
-          const e = item as ExchangeRate;
-          setFormData({
-            fromCurrencyCode: e.fromCurrencyCode,
-            toCurrencyCode: e.toCurrencyCode,
-            rate: e.rate,
-            inverseRate: e.inverseRate || 0,
-            source: e.source || '',
-            effectiveDate: e.effectiveDate ? e.effectiveDate.substring(0, 10) : '',
-            expirationDate: e.expirationDate ? e.expirationDate.substring(0, 10) : '',
           });
           break;
         }
@@ -884,23 +809,6 @@ function CatalogosContent() {
         }
         break;
       }
-      case 'exchangeRates': {
-        const dto: CreateExchangeRateDto = {
-          fromCurrencyCode: formData.fromCurrencyCode as string,
-          toCurrencyCode: formData.toCurrencyCode as string,
-          rate: Number(formData.rate),
-          inverseRate: Number(formData.inverseRate) || undefined,
-          source: (formData.source as string) || undefined,
-          effectiveDate: formData.effectiveDate as string,
-          expirationDate: (formData.expirationDate as string) || undefined,
-        };
-        if (isEditing) {
-          updateExchangeRate.mutate({ id: itemId, dto });
-        } else {
-          createExchangeRate.mutate(dto);
-        }
-        break;
-      }
       case 'paymentMethods': {
         const dto: CreatePaymentMethodDto = {
           code: formData.code as string,
@@ -957,8 +865,6 @@ function CatalogosContent() {
     updateCurrency,
     createPriceType,
     updatePriceType,
-    createExchangeRate,
-    updateExchangeRate,
     createPaymentMethod,
     updatePaymentMethod,
     createTaxRule,
@@ -978,8 +884,6 @@ function CatalogosContent() {
     updateCurrency.isPending ||
     createPriceType.isPending ||
     updatePriceType.isPending ||
-    createExchangeRate.isPending ||
-    updateExchangeRate.isPending ||
     createPaymentMethod.isPending ||
     updatePaymentMethod.isPending ||
     createTaxRule.isPending ||
@@ -1004,14 +908,6 @@ function CatalogosContent() {
   const filteredPriceTypes = useMemo(
     () => filterBySearch(priceTypes, searchTerm, ['name', 'code']),
     [priceTypes, searchTerm]
-  );
-  const filteredExchangeRates = useMemo(
-    () =>
-      filterBySearch(exchangeRates, searchTerm, [
-        'fromCurrencyCode',
-        'toCurrencyCode',
-      ]),
-    [exchangeRates, searchTerm]
   );
   const filteredPaymentMethods = useMemo(
     () => filterBySearch(paymentMethods, searchTerm, ['name', 'code']),
@@ -1294,64 +1190,6 @@ function CatalogosContent() {
           </>
         );
 
-      case 'exchangeRates':
-        return (
-          <>
-            <div className="grid grid-cols-2 gap-4">
-              <FormInput
-                label="Moneda Origen"
-                required
-                value={formData.fromCurrencyCode || ''}
-                onChange={(v) => updateField('fromCurrencyCode', v.toUpperCase())}
-                placeholder="USD"
-              />
-              <FormInput
-                label="Moneda Destino"
-                required
-                value={formData.toCurrencyCode || ''}
-                onChange={(v) => updateField('toCurrencyCode', v.toUpperCase())}
-                placeholder="MXN"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <FormInput
-                label="Tasa"
-                required
-                value={formData.rate ?? 0}
-                onChange={(v) => updateField('rate', v)}
-                type="number"
-              />
-              <FormInput
-                label="Tasa Inversa"
-                value={formData.inverseRate ?? 0}
-                onChange={(v) => updateField('inverseRate', v)}
-                type="number"
-              />
-            </div>
-            <FormInput
-              label="Fuente"
-              value={formData.source || ''}
-              onChange={(v) => updateField('source', v)}
-              placeholder="Banxico, Manual..."
-            />
-            <div className="grid grid-cols-2 gap-4">
-              <FormInput
-                label="Fecha Vigencia"
-                required
-                value={formData.effectiveDate || ''}
-                onChange={(v) => updateField('effectiveDate', v)}
-                type="date"
-              />
-              <FormInput
-                label="Fecha Expiracion"
-                value={formData.expirationDate || ''}
-                onChange={(v) => updateField('expirationDate', v)}
-                type="date"
-              />
-            </div>
-          </>
-        );
-
       case 'paymentMethods':
         return (
           <>
@@ -1527,6 +1365,12 @@ function CatalogosContent() {
   // ================================
 
   const renderTabContent = () => {
+    // Tipos de cambio: por periodo (26→25), con su propio toolbar (selector de
+    // periodo + refresh del proveedor); no usa el buscador/Nuevo genérico.
+    if (activeTab === 'exchangeRates') {
+      return <PeriodExchangeRatesTab />;
+    }
+
     const isReadOnly = READ_ONLY_TABS.includes(activeTab);
 
     // Build table/data per tab
@@ -1578,18 +1422,6 @@ function CatalogosContent() {
             onEdit={openEdit}
             showActions={true}
             emptyMessage="No se encontraron tipos de precio."
-          />
-        );
-        break;
-      case 'exchangeRates':
-        tableElement = (
-          <CatalogTable<ExchangeRate>
-            columns={exchangeRateColumns}
-            data={filteredExchangeRates}
-            isLoading={loadingExchangeRates}
-            onEdit={openEdit}
-            showActions={true}
-            emptyMessage="No se encontraron tipos de cambio."
           />
         );
         break;

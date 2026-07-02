@@ -8,6 +8,7 @@ import type {
   CreatePeriodDto,
   UpdatePeriodDto,
   PeriodPreview,
+  PeriodExchangeRatesResponse,
 } from '@/types/mlm-periods';
 
 // Query keys
@@ -17,6 +18,8 @@ export const mlmPeriodKeys = {
   current: () => [...mlmPeriodKeys.all, 'current'] as const,
   detail: (id: string) => [...mlmPeriodKeys.all, 'detail', id] as const,
   preview: (year: number) => [...mlmPeriodKeys.all, 'preview', year] as const,
+  exchangeRates: (id: string) =>
+    [...mlmPeriodKeys.all, 'exchange-rates', id] as const,
 };
 
 /**
@@ -133,6 +136,62 @@ export function useReopenPeriod() {
     mutationFn: (id: string) => mlmPeriodsService.reopenPeriod(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: mlmPeriodKeys.all });
+    },
+  });
+}
+
+/**
+ * Hook to get the frozen exchange rates (X→MXN) of a period
+ */
+export function usePeriodExchangeRates(periodId: string, enabled = true) {
+  return useQuery<PeriodExchangeRatesResponse>({
+    queryKey: mlmPeriodKeys.exchangeRates(periodId),
+    queryFn: () => mlmPeriodsService.getExchangeRates(periodId),
+    enabled: enabled && !!periodId,
+    staleTime: 60 * 1000,
+  });
+}
+
+/**
+ * Hook to manually override one currency rate of an open period
+ */
+export function useSetPeriodExchangeRate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      periodId,
+      currencyCode,
+      rateToMxn,
+    }: {
+      periodId: string;
+      currencyCode: string;
+      rateToMxn: number;
+    }) => mlmPeriodsService.setExchangeRate(periodId, currencyCode, rateToMxn),
+    onSuccess: (_, { periodId }) => {
+      queryClient.invalidateQueries({
+        queryKey: mlmPeriodKeys.exchangeRates(periodId),
+      });
+      queryClient.invalidateQueries({ queryKey: mlmPeriodKeys.lists() });
+    },
+  });
+}
+
+/**
+ * Hook to fetch live rates from the FX provider (fills missing + refreshes
+ * auto rates; never touches manual ones)
+ */
+export function useRefreshPeriodExchangeRates() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (periodId: string) =>
+      mlmPeriodsService.refreshExchangeRates(periodId),
+    onSuccess: (_, periodId) => {
+      queryClient.invalidateQueries({
+        queryKey: mlmPeriodKeys.exchangeRates(periodId),
+      });
+      queryClient.invalidateQueries({ queryKey: mlmPeriodKeys.lists() });
     },
   });
 }
