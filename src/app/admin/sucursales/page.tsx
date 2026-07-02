@@ -1655,7 +1655,17 @@ function SucursalesContent() {
                     key: 'licenseKey',
                     header: 'Clave',
                     cellClassName: 'font-mono text-xs text-foreground',
-                    render: (license) => <>{license.licenseKey}</>,
+                    render: (license) => (
+                      <div>
+                        <div>{license.licenseKey}</div>
+                        {/* Sucursal REAL de la licencia (branch_id). La etiqueta es
+                            texto libre y NO asigna sucursal: hacerla visible evita
+                            licencias generadas en la sucursal equivocada. */}
+                        <div className="mt-0.5 font-sans text-[11px] text-muted-foreground">
+                          Sucursal {license.branchCode ?? '—'} · {license.branchName ?? ''}
+                        </div>
+                      </div>
+                    ),
                   },
                   {
                     key: 'label',
