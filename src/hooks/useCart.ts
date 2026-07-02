@@ -2,7 +2,25 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.4 E-commerce
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { cartService } from '@/services/cart.service';
+
+/**
+ * Aviso de error de las mutaciones del carrito. Antes fallaban en SILENCIO
+ * (botón "Agregando..." que no agregaba nada, sin pista de la causa: sesión
+ * vencida, producto sin precio, etc.). Muestra el mensaje real del API.
+ */
+function toastCartError(err: unknown, fallback: string): void {
+  const e = err as {
+    response?: { status?: number; data?: { message?: string | string[] } };
+  };
+  if (e?.response?.status === 401) {
+    toast.error('Tu sesión expiró. Vuelve a iniciar sesión o continúa como invitado.');
+    return;
+  }
+  const msg = e?.response?.data?.message;
+  toast.error(Array.isArray(msg) ? msg.join(', ') : msg || fallback);
+}
 import type {
   Cart,
   CartSummary,
@@ -76,6 +94,7 @@ export const useAddCartItem = () => {
       queryClient.setQueryData(cartKeys.cart(), data);
       queryClient.invalidateQueries({ queryKey: cartKeys.summary() });
     },
+    onError: (err) => toastCartError(err, 'No se pudo agregar el producto al carrito'),
   });
 };
 
@@ -89,6 +108,7 @@ export const useUpdateCartItem = () => {
       queryClient.setQueryData(cartKeys.cart(), data);
       queryClient.invalidateQueries({ queryKey: cartKeys.summary() });
     },
+    onError: (err) => toastCartError(err, 'No se pudo actualizar el carrito'),
   });
 };
 
@@ -101,6 +121,7 @@ export const useRemoveCartItem = () => {
       queryClient.setQueryData(cartKeys.cart(), data);
       queryClient.invalidateQueries({ queryKey: cartKeys.summary() });
     },
+    onError: (err) => toastCartError(err, 'No se pudo quitar el producto'),
   });
 };
 
@@ -113,6 +134,7 @@ export const useClearCart = () => {
       queryClient.setQueryData(cartKeys.cart(), data);
       queryClient.invalidateQueries({ queryKey: cartKeys.summary() });
     },
+    onError: (err) => toastCartError(err, 'No se pudo vaciar el carrito'),
   });
 };
 

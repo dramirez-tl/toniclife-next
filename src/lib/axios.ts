@@ -198,8 +198,12 @@ api.interceptors.response.use(
           sessionStorage.removeItem('user');
           clearAuthCookies();
 
-          // Only redirect if not already on login page
-          if (!window.location.pathname.includes('/login')) {
+          // Tienda pública (carrito/checkout/catálogo): NO expulsar a /login a
+          // mitad de compra — se degrada a invitado (los tokens ya quedaron
+          // limpios y el carrito sigue vía x-session-id). El redirect a login
+          // se reserva para las áreas autenticadas (panel/admin).
+          const isPublic = isPublicEndpoint(originalRequest?.url);
+          if (!isPublic && !window.location.pathname.includes('/login')) {
             window.location.href = '/login';
           }
         }
