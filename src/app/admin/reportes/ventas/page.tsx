@@ -399,12 +399,14 @@ function SaleDetailModal({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
     },
     {
       key: 'points',
+      // pos_sale_items.points es POR UNIDAD (igual que P. Unit.): se muestra
+      // el total de la línea (pts × cantidad) para no confundir con qty > 1.
       header: 'Puntos',
       headerClassName: 'text-right px-3 py-2.5 text-xs font-medium text-gray-500',
       cellClassName: 'px-3 py-3 text-right text-gray-700',
       render: (item) =>
         item.points != null
-          ? Number(item.points).toLocaleString('es-MX')
+          ? (Number(item.points) * (Number(item.quantity) || 1)).toLocaleString('es-MX')
           : '—',
     },
     {
