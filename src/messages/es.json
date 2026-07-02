@@ -1118,7 +1118,11 @@
         "autoOpenHint": "Si no se abrió automáticamente, usa este botón. El miembro se activa cuando se confirma el pago.",
         "paymentNotGenerated": "El miembro quedó creado, pero no se pudo generar el pago",
         "paymentNotGeneratedRetry": ". Puedes reintentar el pago del kit más tarde.",
-        "inviteNotSent": "El miembro fue creado, pero el correo de invitación no salió. Comparte tú los datos de acceso:"
+        "inviteNotSent": "El miembro fue creado, pero el correo de invitación no salió. Comparte tú los datos de acceso:",
+        "countryLabel": "País de residencia",
+        "countryInherit": "Mismo país que el mío (por defecto)",
+        "countryLoading": "Cargando países...",
+        "countryHelp": "Define la moneda y el catálogo de productos con el que verá el portal."
       },
       "preferred": {
         "ariaLabel": "Dar de alta cliente preferente",

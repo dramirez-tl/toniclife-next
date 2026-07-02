@@ -26,6 +26,8 @@ export interface RegisterMemberRequest {
   email: string;
   phone: string;
   rfc?: string;
+  /** País de residencia: define portal, catálogo y precios. Omitido = país del patrocinador. */
+  countryId?: string;
   birthDate?: string;
   /** Nodo bajo el que se coloca (customer_id). Vacío = bajo el propio distribuidor. */
   uplineCustomerId?: string;
@@ -61,6 +63,8 @@ export interface RegisterPreferredRequest {
   email: string;
   phone: string;
   rfc?: string;
+  /** País de residencia: define portal, catálogo y precios. Omitido = país del patrocinador. */
+  countryId?: string;
   birthDate?: string;
 }
 

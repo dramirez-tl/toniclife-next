@@ -1118,7 +1118,11 @@
         "autoOpenHint": "If it did not open automatically, use this button. The member is activated when payment is confirmed.",
         "paymentNotGenerated": "The member was created, but the payment could not be generated",
         "paymentNotGeneratedRetry": ". You can retry the kit payment later.",
-        "inviteNotSent": "The member was created, but the invitation email did not go out. Share the login details yourself:"
+        "inviteNotSent": "The member was created, but the invitation email did not go out. Share the login details yourself:",
+        "countryLabel": "Country of residence",
+        "countryInherit": "Same country as mine (default)",
+        "countryLoading": "Loading countries...",
+        "countryHelp": "Sets the currency and product catalog they will see in the portal."
       },
       "preferred": {
         "ariaLabel": "Enroll preferred customer",

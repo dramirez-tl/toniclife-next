@@ -5,9 +5,11 @@
 // - Nace activo con precio preferente y queda ligado al patrocinador.
 // - Se le crea cuenta + contraseña temporal + invitación por correo.
 
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Loader2 } from 'lucide-react';
 import { PhoneInput } from '@/components/ui/PhoneInput';
 import {
@@ -16,6 +18,7 @@ import {
   ClipboardDocumentIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { configService } from '@/services/config.service';
 import { useRegisterPreferred } from '@/hooks/useDistributor';
 import type { RegisterPreferredResult } from '@/services/distributorApi';
 
@@ -36,9 +39,26 @@ const EMPTY = {
 export function PreferredEnrollmentPanel({ isOpen, onClose }: Props) {
   const t = useTranslations('distributor.enroll');
   const [form, setForm] = useState({ ...EMPTY });
+  const [countryId, setCountryId] = useState(''); // '' = mismo país que el patrocinador
   const [result, setResult] = useState<RegisterPreferredResult | null>(null);
 
   const registerMutation = useRegisterPreferred();
+
+  // País de residencia del cliente: define portal, catálogo y precios.
+  const countriesQuery = useQuery({
+    queryKey: ['active-countries'],
+    queryFn: () => configService.getActiveCountries(),
+    enabled: isOpen,
+    staleTime: 10 * 60 * 1000,
+  });
+  const countryOptions = useMemo(
+    () =>
+      (countriesQuery.data ?? []).map((c) => ({
+        value: c.id,
+        label: c.currencyCode ? `${c.name} (${c.currencyCode})` : c.name,
+      })),
+    [countriesQuery.data],
+  );
 
   const set = (k: keyof typeof EMPTY, v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -48,6 +68,7 @@ export function PreferredEnrollmentPanel({ isOpen, onClose }: Props) {
     window.setTimeout(() => {
       setResult(null);
       setForm({ ...EMPTY });
+      setCountryId('');
     }, 300);
   };
 
@@ -68,6 +89,7 @@ export function PreferredEnrollmentPanel({ isOpen, onClose }: Props) {
         email: form.email.trim(),
         phone: form.phone.trim(),
         rfc: form.rfc.trim() || undefined,
+        countryId: countryId || undefined,
       });
       setResult(res);
       toast.success(t('preferred.createdSuccess'));
@@ -173,6 +195,25 @@ export function PreferredEnrollmentPanel({ isOpen, onClose }: Props) {
                     />
                   </Field>
                 </div>
+
+                {/* País de residencia: define portal, catálogo y precios */}
+                <Field label={t('member.countryLabel')}>
+                  <SearchableSelect
+                    options={countryOptions}
+                    value={countryId}
+                    onChange={setCountryId}
+                    allLabel={t('member.countryInherit')}
+                    allValue=""
+                    placeholder={
+                      countriesQuery.isLoading
+                        ? t('member.countryLoading')
+                        : t('member.countryLabel')
+                    }
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    {t('member.countryHelp')}
+                  </p>
+                </Field>
 
                 <div className="pt-2">
                   <Button

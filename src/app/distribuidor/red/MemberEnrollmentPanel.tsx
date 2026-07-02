@@ -26,6 +26,7 @@ import {
 import { toast } from 'sonner';
 import { kitsService } from '@/services/kits.service';
 import { networkApi } from '@/services/networkApi';
+import { configService } from '@/services/config.service';
 import { useRegisterMember } from '@/hooks/useDistributor';
 import type {
   RegisterMemberResult,
@@ -50,11 +51,20 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
   const t = useTranslations('distributor.enroll');
   const [form, setForm] = useState({ ...EMPTY });
   const [uplineCustomerId, setUplineCustomerId] = useState(''); // '' = bajo mí
+  const [countryId, setCountryId] = useState(''); // '' = mismo país que el patrocinador
   const [kitProductId, setKitProductId] = useState('');
   const [payerMode, setPayerMode] = useState<KitPayerMode>('invite');
   const [result, setResult] = useState<RegisterMemberResult | null>(null);
 
   const registerMutation = useRegisterMember();
+
+  // País de residencia del nuevo miembro: define portal, catálogo y precios.
+  const countriesQuery = useQuery({
+    queryKey: ['active-countries'],
+    queryFn: () => configService.getActiveCountries(),
+    enabled: isOpen,
+    staleTime: 10 * 60 * 1000,
+  });
 
   const kitsQuery = useQuery({
     queryKey: ['enrollment-kits'],
@@ -101,9 +111,19 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
   const set = (k: keyof typeof EMPTY, v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
 
+  const countryOptions = useMemo(
+    () =>
+      (countriesQuery.data ?? []).map((c) => ({
+        value: c.id,
+        label: c.currencyCode ? `${c.name} (${c.currencyCode})` : c.name,
+      })),
+    [countriesQuery.data],
+  );
+
   const resetAll = () => {
     setForm({ ...EMPTY });
     setUplineCustomerId('');
+    setCountryId('');
     setKitProductId('');
     setPayerMode('invite');
   };
@@ -140,6 +160,7 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
         phone: form.phone.trim(),
         rfc: form.rfc.trim() || undefined,
         uplineCustomerId: uplineCustomerId || undefined,
+        countryId: countryId || undefined,
         kitProductId: kitProductId || undefined,
         payerMode,
       });
@@ -243,6 +264,25 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
                     />
                   </Field>
                 </div>
+
+                {/* País de residencia: define portal, catálogo y precios */}
+                <Field label={t('member.countryLabel')}>
+                  <SearchableSelect
+                    options={countryOptions}
+                    value={countryId}
+                    onChange={setCountryId}
+                    allLabel={t('member.countryInherit')}
+                    allValue=""
+                    placeholder={
+                      countriesQuery.isLoading
+                        ? t('member.countryLoading')
+                        : t('member.countryLabel')
+                    }
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    {t('member.countryHelp')}
+                  </p>
+                </Field>
 
                 {/* Colocación en la red */}
                 <Field label={t('member.uplineLabel')}>
