@@ -67,31 +67,31 @@ export default function DistributorLayout({
       {/* Tour guiado de primera vez (omitible + repetible desde "Ver tutorial") */}
       <DistributorTour />
       <div className="min-h-screen bg-gray-50">
-        {/* Desktop sidebar */}
-        <div className="hidden lg:block">
+        {/* Sidebar rico: tablet (≥768px) y escritorio */}
+        <div className="hidden md:block">
           <DistributorSidebar />
         </div>
 
-        {/* Mobile: barra superior fija con pestañas */}
-        <div className="lg:hidden">
+        {/* Teléfono (<768px): barra superior fija con pestañas */}
+        <div className="md:hidden">
           <DistributorTopNav onOpenMore={() => setMoreOpen(true)} />
         </div>
 
-        {/* Mobile: panel "Más" deslizable */}
+        {/* Teléfono: panel "Más" deslizable */}
         {moreOpen && (
-          <div className="lg:hidden">
+          <div className="md:hidden">
             <div
-              className="fixed inset-0 z-50 bg-black/50"
+              className="fixed inset-0 z-50 bg-black/50 animate-in fade-in duration-200"
               onClick={() => setMoreOpen(false)}
             />
-            <div className="fixed inset-y-0 right-0 z-50 w-80 max-w-[85%] overflow-y-auto shadow-xl">
+            <div className="fixed inset-y-0 right-0 z-50 w-80 max-w-[85%] overflow-y-auto shadow-xl animate-in slide-in-from-right duration-200">
               <DistributorMoreMenu onNavigate={() => setMoreOpen(false)} />
             </div>
           </div>
         )}
 
         {/* Main content */}
-        <div className="lg:pl-64">
+        <div className="md:pl-64">
           <main className="p-4 lg:p-6">
             <OnboardingGate>
               {comingSoonTitle ? <ComingSoon title={comingSoonTitle} /> : children}

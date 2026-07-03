@@ -8,7 +8,6 @@ import {
   EllipsisHorizontalIcon,
   QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
@@ -46,7 +45,7 @@ export function DistributorTopNav({ onOpenMore }: DistributorTopNavProps) {
 
   const tabClass = (active: boolean) =>
     cn(
-      'flex flex-col items-center gap-0.5 whitespace-nowrap border-b-2 px-3 py-2 text-[11px] font-medium transition-colors',
+      'flex flex-1 flex-col items-center justify-center gap-1 whitespace-nowrap border-b-2 px-1 py-2.5 text-[10px] font-medium leading-none transition-colors',
       active ? 'border-white text-white' : 'border-transparent text-white/60 hover:text-white',
     );
 
@@ -83,8 +82,8 @@ export function DistributorTopNav({ onOpenMore }: DistributorTopNavProps) {
         </div>
       </div>
 
-      {/* Pestañas */}
-      <nav className="flex items-stretch gap-1 overflow-x-auto px-2">
+      {/* Pestañas — repartidas a lo ancho (flex-1), tap grande, sin scroll apretado */}
+      <nav className="flex items-stretch px-1">
         {CORE_NAV.map((item) => (
           <Link
             key={item.href}
@@ -96,16 +95,15 @@ export function DistributorTopNav({ onOpenMore }: DistributorTopNavProps) {
             <span>{t(`nav.${item.key}`)}</span>
           </Link>
         ))}
-        <Button
+        <button
           type="button"
-          variant="ghost"
           onClick={onOpenMore}
-          className={cn('h-auto', tabClass(moreActive))}
+          className={tabClass(moreActive)}
           data-tour="m-more"
         >
           <EllipsisHorizontalIcon className="h-5 w-5" />
           <span>{t('groups.more')}</span>
-        </Button>
+        </button>
       </nav>
     </div>
   );

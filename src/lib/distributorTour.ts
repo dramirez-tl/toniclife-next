@@ -25,10 +25,12 @@ export function markDistributorTourSeen(): void {
   }
 }
 
+// El sidebar (anclas "d-") se muestra desde 768px (md); por debajo va la barra
+// superior/menú móvil (anclas "m-"). Este umbral debe coincidir con el del layout.
 function isDesktop(): boolean {
   return (
     typeof window !== 'undefined' &&
-    window.matchMedia('(min-width: 1024px)').matches
+    window.matchMedia('(min-width: 768px)').matches
   );
 }
 
