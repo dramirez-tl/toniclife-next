@@ -251,12 +251,30 @@ export function DistributorPeriodActivity({ customerId }: DistributorPeriodActiv
                 )}
               </div>
               {stats.commission.exists ? (
-                <p className="text-lg font-bold text-gray-900">
-                  ${formatMxn(stats.commission.subtotal)}{' '}
-                  <span className="text-xs font-medium text-gray-400">
-                    {stats.commission.currencyCode || ''}
-                  </span>
-                </p>
+                <div className="text-right">
+                  {/* Moneda del país del distribuidor */}
+                  <p className="text-lg font-bold text-gray-900">
+                    $
+                    {formatMxn(
+                      stats.commission.subtotalLocal ?? stats.commission.subtotal,
+                    )}{' '}
+                    <span className="text-xs font-medium text-gray-400">
+                      {stats.commission.subtotalLocal != null
+                        ? stats.commission.localCurrency
+                        : stats.commission.currencyCode || ''}
+                    </span>
+                  </p>
+                  {/* Equivalente en MXN con el TC registrado del periodo */}
+                  {stats.commission.localCurrency !== 'MXN' &&
+                    stats.commission.subtotalMxn != null && (
+                      <p className="text-[11px] text-gray-400">
+                        ≈ ${formatMxn(stats.commission.subtotalMxn)} MXN
+                        {stats.commission.exchangeRate != null && (
+                          <> · TC {formatMxn(stats.commission.exchangeRate)}</>
+                        )}
+                      </p>
+                    )}
+                </div>
               ) : (
                 <p className="text-sm font-medium text-gray-400">Sin cálculo aún</p>
               )}

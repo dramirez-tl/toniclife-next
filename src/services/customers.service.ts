@@ -96,6 +96,10 @@ class CustomersService {
       currencyCode: string | null;
       status: string | null;
       calculatedAt: string | null;
+      localCurrency: string;
+      subtotalLocal: number | null;
+      subtotalMxn: number | null;
+      exchangeRate: number | null;
     };
     lastCalculation: {
       statsAt: string | null;
