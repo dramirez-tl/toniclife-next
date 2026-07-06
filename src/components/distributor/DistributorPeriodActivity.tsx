@@ -25,7 +25,28 @@ function formatDate(value: string | null | undefined): string {
   if (!value) return '—';
   const d = new Date(value);
   if (isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+  // Las fechas de periodo son DATE puros (llegan como medianoche UTC): se
+  // formatean en UTC para no recorrerlas un día (26-jun se pintaba 25-jun).
+  return d.toLocaleDateString('es-MX', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
+function formatDateTime(value: string | null | undefined): string {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '—';
+  return d.toLocaleString('es-MX', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'America/Mexico_City',
+  });
 }
 
 function formatMxn(value: number): string {
@@ -181,14 +202,14 @@ export function DistributorPeriodActivity({ customerId }: DistributorPeriodActiv
               label="Roll over"
               value={formatNumber(stats.points.rollOver)}
               accent="violet"
-              subtitle="Puntos acumulados del grupo"
+              subtitle="Grupo con tope por pierna aplicado"
             />
             <StatCard
               icon={ShoppingCartIcon}
               label="Ventas del periodo"
-              value={`$${formatMxn(stats.sales.totalMxn)}`}
+              value={`$${formatMxn(stats.sales.totalMxn)} ${stats.sales.currencyCode || 'MXN'}`}
               accent="emerald"
-              subtitle={`${stats.sales.ordersCount} pedidos · ${stats.sales.posSalesCount} POS`}
+              subtitle={`${stats.sales.ordersCount} pedidos · ${stats.sales.posSalesCount} POS (solo completadas)`}
             />
             <StatCard
               icon={CurrencyDollarIcon}
@@ -208,6 +229,48 @@ export function DistributorPeriodActivity({ customerId }: DistributorPeriodActiv
               accent="rose"
               subtitle="Altas en el periodo"
             />
+          </div>
+
+          {/* Comisión del periodo (último cálculo) */}
+          <div className="mt-3 rounded-lg border border-gray-200 bg-white p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <CurrencyDollarIcon className="h-5 w-5 text-emerald-600" />
+                <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                  Comisión del periodo
+                </p>
+                {!selectedPeriod?.isClosed && (
+                  <span className="inline-flex items-center rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                    al último cálculo
+                  </span>
+                )}
+                {stats.commission.status && (
+                  <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">
+                    {stats.commission.status}
+                  </span>
+                )}
+              </div>
+              {stats.commission.exists ? (
+                <p className="text-lg font-bold text-gray-900">
+                  ${formatMxn(stats.commission.subtotal)}{' '}
+                  <span className="text-xs font-medium text-gray-400">
+                    {stats.commission.currencyCode || ''}
+                  </span>
+                </p>
+              ) : (
+                <p className="text-sm font-medium text-gray-400">Sin cálculo aún</p>
+              )}
+            </div>
+            <p className="text-[11px] text-gray-400 mt-2">
+              Último cálculo de comisión:{' '}
+              <span className="font-medium text-gray-500">
+                {formatDateTime(stats.lastCalculation.commissionAt)}
+              </span>
+              {' · '}Rango/puntos actualizados:{' '}
+              <span className="font-medium text-gray-500">
+                {formatDateTime(stats.lastCalculation.statsAt)}
+              </span>
+            </p>
           </div>
 
           {/* Red */}

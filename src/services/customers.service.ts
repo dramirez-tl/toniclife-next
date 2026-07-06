@@ -87,6 +87,19 @@ class CustomersService {
       posSalesCount: number;
       posSalesTotalMxn: number;
       totalMxn: number;
+      currencyCode: string;
+    };
+    commission: {
+      exists: boolean;
+      subtotal: number;
+      total: number;
+      currencyCode: string | null;
+      status: string | null;
+      calculatedAt: string | null;
+    };
+    lastCalculation: {
+      statsAt: string | null;
+      commissionAt: string | null;
     };
   }> {
     const response = await api.get(
