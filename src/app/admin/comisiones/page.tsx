@@ -27,6 +27,7 @@ import {
   useCommissionPeriods,
   useCommissionPercentages,
   commissionKeys,
+  periodsUpToCurrent,
 } from '@/hooks/useCommissions';
 import type { Commission, CommissionStatus } from '@/types/commissions';
 import { PermissionGuard } from '@/components/auth';
@@ -48,18 +49,28 @@ function ComisionesContent() {
   const searchQuery = get('search');
   const page = getNumber('page');
 
+  // Fetch periods for filter (el selector solo muestra hasta el corriente)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: periodsData } = useCommissionPeriods() as { data: any };
+  // periodsData may be an array or an object with periods/data - handle both
+  const periods: Array<{ id: string; name: string; code?: string; isCurrent?: boolean }> =
+    Array.isArray(periodsData) ? periodsData : (periodsData?.periods ?? periodsData?.data ?? []);
+  const visiblePeriods = periodsUpToCurrent(periods);
+  const currentPeriodId = periods.find((p) => p.isCurrent)?.id;
+
+  // Filtro efectivo: por DEFECTO el periodo actual. 'all' (elegir "Todos los
+  // Períodos") muestra todo de forma explícita.
+  const effectivePeriodId =
+    filterPeriod === 'all' ? undefined : filterPeriod || currentPeriodId;
+
   // Fetch commissions from API
   const { data: commissionsData, isLoading } = useAllCommissions({
-    periodId: filterPeriod || undefined,
+    periodId: effectivePeriodId || undefined,
     status: filterStatus !== 'all' ? filterStatus : undefined,
     search: searchQuery || undefined,
     page,
     limit: 20,
   });
-
-  // Fetch periods for filter
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: periodsData } = useCommissionPeriods() as { data: any };
 
   // Fetch percentages for rates table
   const { data: percentages } = useCommissionPercentages();
@@ -78,9 +89,6 @@ function ComisionesContent() {
   const summary = commissionsData?.summary;
   const totalResults = commissionsData?.total ?? 0;
   const totalPages = commissionsData?.totalPages ?? 1;
-  // periodsData may be an array or an object with periods/data - handle both
-  const periods: Array<{ id: string; name: string; code?: string; isCurrent?: boolean }> =
-    Array.isArray(periodsData) ? periodsData : (periodsData?.periods ?? periodsData?.data ?? []);
 
   // Count pending commissions (calculated = pending approval)
   const pendingCount = commissions.filter(c => c.status === 'calculated').length;
@@ -113,7 +121,7 @@ function ComisionesContent() {
   };
 
   // Periodo objetivo del recálculo (filtro seleccionado o el actual).
-  const activePeriodId = filterPeriod || periods.find((p) => p.isCurrent)?.id;
+  const activePeriodId = effectivePeriodId || currentPeriodId;
 
   // Avance del recálculo en el backend (polling solo mientras corre).
   const queryClient = useQueryClient();
@@ -611,12 +619,12 @@ function ComisionesContent() {
               </div>
               <div className="lg:col-span-3">
                 <SearchableSelect
-                  options={periods.map((period) => ({
+                  options={visiblePeriods.map((period) => ({
                     value: period.id,
                     label: period.name,
                   }))}
-                  value={filterPeriod}
-                  onChange={(val) => setParams({ period: val || null, page: '1' })}
+                  value={effectivePeriodId || ''}
+                  onChange={(val) => setParams({ period: val || 'all', page: '1' })}
                   allLabel="Todos los Períodos"
                 />
               </div>
