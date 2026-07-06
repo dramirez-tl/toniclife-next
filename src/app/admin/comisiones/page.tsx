@@ -1,6 +1,7 @@
 'use client';
 
-import { Suspense, useMemo } from 'react';
+import { Suspense, useEffect, useMemo, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,8 +24,10 @@ import {
   useApproveCommissions,
   useMarkCommissionsAsPaid,
   useCalculateCommissions,
+  useCalculateProgress,
   useCommissionPeriods,
   useCommissionPercentages,
+  commissionKeys,
 } from '@/hooks/useCommissions';
 import { useClosePeriod } from '@/hooks/useMlmPeriods';
 import type { Commission, CommissionStatus } from '@/types/commissions';
@@ -114,17 +117,45 @@ function ComisionesContent() {
     }
   };
 
+  // Periodo objetivo del recálculo (filtro seleccionado o el actual).
+  const activePeriodId = filterPeriod || periods.find((p) => p.isCurrent)?.id;
+
+  // Avance del recálculo en el backend (polling solo mientras corre).
+  const queryClient = useQueryClient();
+  const { data: calcProgress } = useCalculateProgress(activePeriodId);
+  const calcRunning = calcProgress?.status === 'running';
+  const prevCalcStatus = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (prevCalcStatus.current === 'running' && calcProgress?.status === 'done') {
+      toast.success(
+        `Comisiones calculadas: ${calcProgress.calculated ?? 0} (sin calificar: ${calcProgress.skipped ?? 0})`,
+      );
+      queryClient.invalidateQueries({ queryKey: commissionKeys.all });
+    } else if (
+      prevCalcStatus.current === 'running' &&
+      calcProgress?.status === 'error'
+    ) {
+      toast.error(`El recálculo falló: ${calcProgress.error ?? 'error desconocido'}`);
+    }
+    prevCalcStatus.current = calcProgress?.status;
+  }, [calcProgress, queryClient]);
+
   const handleCalculateCommissions = async () => {
-    const periodId = filterPeriod || periods.find((p) => p.isCurrent)?.id;
-    if (!periodId) {
+    if (!activePeriodId) {
       toast.error('Selecciona un periodo primero');
       return;
     }
     try {
-      await calculateMutation.mutateAsync({ periodId });
-      toast.success('Comisiones calculadas exitosamente');
+      const res = await calculateMutation.mutateAsync({ periodId: activePeriodId });
+      if (res.alreadyRunning) {
+        toast.info('Ya hay un recálculo corriendo para este periodo');
+      } else if (res.started) {
+        toast.info('Recálculo iniciado — el botón muestra el avance');
+      } else {
+        toast.success('Comisiones calculadas exitosamente');
+      }
     } catch {
-      toast.error('Error al calcular comisiones');
+      toast.error('Error al iniciar el cálculo');
     }
   };
 
@@ -412,10 +443,14 @@ function ComisionesContent() {
                 variant="outline"
                 className="border-white text-white hover:bg-white/10"
                 onClick={handleCalculateCommissions}
-                disabled={calculateMutation.isPending}
+                disabled={calculateMutation.isPending || calcRunning}
               >
                 <CalculatorIcon className="h-5 w-5" />
-                {calculateMutation.isPending ? 'Calculando...' : 'Calcular Comisiones'}
+                {calcRunning
+                  ? `Calculando… ${calcProgress?.percent ?? 0}%`
+                  : calculateMutation.isPending
+                    ? 'Iniciando...'
+                    : 'Calcular Comisiones'}
               </Button>
               {approvedCount > 0 && (
                 <Button

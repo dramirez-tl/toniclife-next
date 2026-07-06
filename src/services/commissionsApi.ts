@@ -215,21 +215,55 @@ class CommissionsApi {
   }
 
   /**
-   * Calcula comisiones para un periodo
+   * Calcula comisiones para un periodo.
    * Backend: POST /mlm/commissions/calculate
-   * Expects: CalculateCommissionsDto { periodId, customerId?, recalculate? }
+   * Sin customerId el backend ARRANCA el recálculo en segundo plano y responde
+   * { started: true }; el avance se consulta con getCalculateProgress.
    */
   async calculateCommissions(dto: {
     periodId: string;
     customerId?: string;
     recalculate?: boolean;
-  }): Promise<{ calculated: number; skipped: number; errors: string[] }> {
-    const { data } = await api.post<{ calculated: number; skipped: number; errors: string[] }>(
+  }): Promise<CalculateStartResponse> {
+    const { data } = await api.post<CalculateStartResponse>(
       '/mlm/commissions/calculate',
       dto,
     );
     return data;
   }
+
+  /**
+   * Avance del recálculo del periodo (polling).
+   * Backend: GET /mlm/commissions/calculate/progress/:periodId
+   */
+  async getCalculateProgress(periodId: string): Promise<CalculateProgress> {
+    const { data } = await api.get<CalculateProgress>(
+      `/mlm/commissions/calculate/progress/${periodId}`,
+    );
+    return data;
+  }
+}
+
+export interface CalculateStartResponse {
+  started: boolean;
+  alreadyRunning?: boolean;
+  calculated?: number;
+  skipped?: number;
+  errors?: string[];
+}
+
+export interface CalculateProgress {
+  status: 'idle' | 'running' | 'done' | 'error';
+  phase?: 'grupo' | 'comisiones';
+  percent?: number;
+  processed?: number;
+  total?: number;
+  startedAt?: string;
+  finishedAt?: string;
+  calculated?: number;
+  skipped?: number;
+  errorsCount?: number;
+  error?: string;
 }
 
 export const commissionsApi = new CommissionsApi();

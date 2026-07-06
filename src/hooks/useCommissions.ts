@@ -297,7 +297,7 @@ export function useUpdateCommissionPercentage() {
 }
 
 /**
- * Hook para calcular comisiones
+ * Hook para calcular comisiones (arranca el recálculo en segundo plano).
  */
 export function useCalculateCommissions() {
   const queryClient = useQueryClient();
@@ -308,5 +308,21 @@ export function useCalculateCommissions() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: commissionKeys.all });
     },
+  });
+}
+
+/**
+ * Avance del recálculo del periodo. Hace polling cada 2.5s SOLO mientras el
+ * backend reporta status 'running'; si está idle/done/error deja de refrescar.
+ */
+export function useCalculateProgress(periodId?: string) {
+  return useQuery({
+    queryKey: [...commissionKeys.all, 'calc-progress', periodId] as const,
+    queryFn: () => commissionsApi.getCalculateProgress(periodId!),
+    enabled: !!periodId,
+    staleTime: 0,
+    gcTime: 60 * 1000,
+    refetchInterval: (query) =>
+      query.state.data?.status === 'running' ? 2500 : false,
   });
 }
