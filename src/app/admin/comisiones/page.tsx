@@ -16,7 +16,6 @@ import {
   BanknotesIcon,
   ChartBarIcon,
   CalculatorIcon,
-  LockClosedIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import {
@@ -29,7 +28,6 @@ import {
   useCommissionPercentages,
   commissionKeys,
 } from '@/hooks/useCommissions';
-import { useClosePeriod } from '@/hooks/useMlmPeriods';
 import type { Commission, CommissionStatus } from '@/types/commissions';
 import { PermissionGuard } from '@/components/auth';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -74,9 +72,6 @@ function ComisionesContent() {
 
   // Calculate commissions mutation
   const calculateMutation = useCalculateCommissions();
-
-  // Close period mutation
-  const closePeriodMutation = useClosePeriod();
 
   // Computed values
   const commissions = commissionsData?.data || [];
@@ -174,22 +169,6 @@ function ComisionesContent() {
       toast.success(`${approvedIds.length} comisiones marcadas como pagadas`);
     } catch {
       toast.error('Error al marcar comisiones como pagadas');
-    }
-  };
-
-  const handleClosePeriod = async () => {
-    // Find the current/active period from the list
-    const currentPeriod = periods.find((p) => p.isCurrent) || (periods.length > 0 ? periods[0] : null);
-    if (!currentPeriod) {
-      toast.info('No hay un periodo activo para cerrar');
-      return;
-    }
-
-    try {
-      await closePeriodMutation.mutateAsync(currentPeriod.id);
-      toast.success(`Periodo "${currentPeriod.name}" cerrado exitosamente`);
-    } catch {
-      toast.error('Error al cerrar el periodo');
     }
   };
 
@@ -463,15 +442,6 @@ function ComisionesContent() {
                   {markPaidMutation.isPending ? 'Procesando...' : `Marcar como Pagadas (${approvedCount})`}
                 </Button>
               )}
-              <Button
-                variant="outline"
-                className="border-white/70 bg-transparent text-white hover:bg-white/10 hover:text-white"
-                onClick={handleClosePeriod}
-                disabled={closePeriodMutation.isPending}
-              >
-                <LockClosedIcon className="h-5 w-5" />
-                {closePeriodMutation.isPending ? 'Cerrando...' : 'Cerrar Periodo'}
-              </Button>
               {pendingCount > 0 && (
                 <Button
                   variant="default"
