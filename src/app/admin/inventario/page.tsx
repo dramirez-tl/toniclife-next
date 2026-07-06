@@ -419,7 +419,7 @@ function InventarioContent() {
                 <Link href="/admin/inventario/traspasos">
                   <Button
                     variant="outline"
-                    className="border-white text-white hover:bg-white/10"
+                    className="border-white/70 bg-transparent text-white hover:bg-white/10 hover:text-white"
                   >
                     <ArrowsRightLeftIcon className="h-5 w-5" />
                     Traspasos

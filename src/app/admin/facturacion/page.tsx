@@ -314,7 +314,7 @@ function FacturacionContent() {
               <Link href="/admin/facturacion/datos-fiscales">
                 <Button
                   variant="outline"
-                  className="border-white text-white hover:bg-white/10"
+                  className="border-white/70 bg-transparent text-white hover:bg-white/10 hover:text-white"
                 >
                   <BuildingOfficeIcon className="h-5 w-5" />
                   Datos Fiscales
@@ -323,7 +323,7 @@ function FacturacionContent() {
               <Link href="/admin/facturacion/global">
                 <Button
                   variant="outline"
-                  className="border-white text-white hover:bg-white/10"
+                  className="border-white/70 bg-transparent text-white hover:bg-white/10 hover:text-white"
                 >
                   <GlobeAltIcon className="h-5 w-5" />
                   Factura Global
@@ -332,7 +332,7 @@ function FacturacionContent() {
               <Link href="/admin/facturacion/complemento-pago">
                 <Button
                   variant="outline"
-                  className="border-white text-white hover:bg-white/10"
+                  className="border-white/70 bg-transparent text-white hover:bg-white/10 hover:text-white"
                 >
                   <DocumentDuplicateIcon className="h-5 w-5" />
                   Complemento de Pago
@@ -341,7 +341,7 @@ function FacturacionContent() {
               <Link href="/admin/facturacion/reporte-folios">
                 <Button
                   variant="outline"
-                  className="border-white text-white hover:bg-white/10"
+                  className="border-white/70 bg-transparent text-white hover:bg-white/10 hover:text-white"
                 >
                   <ChartBarIcon className="h-5 w-5" />
                   Reporte Folios
