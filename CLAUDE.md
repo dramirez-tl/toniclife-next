@@ -217,18 +217,18 @@ export const productsService = new ProductsService();
 - Tipos fuertes en todos los métodos (`Promise<Product[]>`, nunca `any`).
 - NO incluyas lógica de caché aquí — eso va en los hooks de React Query.
 
-**⚠️ Inconsistencia de naming heredada:** la mayoría de los 30 archivos de
+**⚠️ Inconsistencia de naming heredada:** la mayoría de los 36 archivos de
 servicios siguen el patrón `<recurso>.service.ts`
 (`products.service.ts`, `users.service.ts`, `orders.service.ts`, etc.),
-pero **5 archivos legados** usan `<recurso>Api.ts`:
+pero **4 archivos legados** usan `<recurso>Api.ts`:
 - `auditApi.ts`
 - `commissionsApi.ts`
 - `distributorApi.ts`
 - `networkApi.ts`
-- `securityApi.ts`
 
-Para servicios nuevos usa siempre `.service.ts`. Renombrar los 5 legados
-es deuda técnica de refactor menor.
+(`securityApi.ts` se eliminó en la limpieza jul-2026: solo lo importaba el
+hook muerto `useSecurity`.) Para servicios nuevos usa siempre `.service.ts`.
+Renombrar los 4 legados es deuda técnica de refactor menor.
 
 ---
 
@@ -467,21 +467,20 @@ Consúmelos desde `@/components/ui/*`, no desde `@radix-ui/react-*` directo.
 
 ```
 src/
-├── app/                    # App Router (131 rutas page.tsx)
-│   ├── admin/              # ~55 páginas: auditoría, comisiones, distribuidores,
+├── app/                    # App Router (156 rutas page.tsx; verificado 06-jul-2026)
+│   ├── admin/              # 84 páginas: auditoría, comisiones, distribuidores,
 │   │                       #            facturación, inventario, logs, mlm,
 │   │                       #            notificaciones, pedidos, productos,
 │   │                       #            RRHH, seguridad, sucursales, usuarios
-│   ├── distribuidor/       # ~24 páginas: portal de distribuidor
-│   ├── (public rutas)/     # landing, blog, buscar, carrito, checkout,
-│   │                       # contacto, FAQ, productos públicos, etc.
+│   ├── distribuidor/       # 27 páginas: portal de distribuidor (i18n ES/EN)
+│   ├── [locale]/           # rutas públicas por país/idioma (tienda multipaís):
+│   │                       # landing, buscar, carrito, checkout, productos, etc.
 │   ├── layout.tsx
 │   └── page.tsx            # ⚠️ En main = landing "coming soon" productiva
 ├── components/
 │   ├── ui/                 # shadcn/ui (lowercase) — primitivos + compuestos
 │   ├── auth/               # PermissionGuard, AuthProvider, etc.
 │   ├── layout/             # Header, Footer, Sidebar
-│   ├── network/            # UserDetailPanel, NetworkVisualization (xyflow)
 │   ├── pos/                # PaymentModal, etc.
 │   └── (muchos más por dominio)
 ├── hooks/                  # React Query hooks + key factories (15+ hooks)
@@ -489,7 +488,7 @@ src/
 │   ├── axios.ts            # Cliente HTTP con interceptores
 │   ├── stripe.ts           # Init Stripe
 │   └── utils.ts            # cn() helper, formatters
-├── services/               # Clases singleton que hablan con el API (30 archivos)
+├── services/               # Clases singleton que hablan con el API (36 archivos)
 ├── store/                  # 🟥 Redux Toolkit (legacy) — 3 slices
 ├── stores/                 # 🟩 Zustand — 1 store (pos-cart)
 ├── providers/              # QueryProvider (React Query), etc.
@@ -539,13 +538,12 @@ Ver lista global en `../CLAUDE.md`. Puntos específicos del frontend:
    coexisten con overlap conocido en `authSlice` y `customersSlice`. Sesión
    dedicada pendiente para mapear responsabilidades y retirar Redux o dejarlo
    solo para UI state global (`uiSlice`).
-2. **Conteo de rutas actualizado:** 131 `page.tsx` (el CLAUDE.md viejo
-   decía 72).
+2. **Conteo de rutas actualizado:** 156 `page.tsx` (verificado 06-jul-2026).
 3. **Landing "coming soon" en `main`** — 5 commits exclusivos que NO deben
    propagarse a staging. Ver advertencia en `../CLAUDE.md`.
-4. **Naming inconsistente en `src/services/`**: 5 archivos legados usan
+4. **Naming inconsistente en `src/services/`**: 4 archivos legados usan
    sufijo `Api.ts` (`auditApi`, `commissionsApi`, `distributorApi`,
-   `networkApi`, `securityApi`) en vez de `.service.ts`. Refactor pendiente.
+   `networkApi`) en vez de `.service.ts`. Refactor pendiente.
 5. **QA visual post-migración shadcn** (jun-2026): el `Card` canónico trae más
    padding/gap que el viejo y el Combobox ya no muestra "X" para limpiar
    (se limpia eligiendo "Todos"). Revisar espaciados y, si se activa, dark mode.
@@ -554,9 +552,14 @@ Ver lista global en `../CLAUDE.md`. Puntos específicos del frontend:
 7. **~9 PRs de Dependabot acumulados** en este repo (axios, eslint,
    hook-form, lucide-react, next, react, tailwindcss, tailwindcss/postcss,
    types/node). Revisar en sesión dedicada.
-8. **`UserDetailPanel.tsx`** tiene 3 desactivaciones (link sponsor, botón
-   "Ver Perfil Completo", sección ventas) heredadas en ambas ramas —
-   decisión de mantenerlas por ahora.
+8. **Limpieza jul-2026 (pre-auditoría):** se eliminó código muerto verificado
+   sin importadores: `components/network/` completo (NetworkVisualization/
+   UserDetailPanel/NetworkGraph/NetworkSearch — la vista real de Mi Red usa
+   tabla), `lib/mock-data.ts`, `useSecurity`+`securityApi`, `useAccount`
+   (superseded por `useMyOrders`), `CartDrawer` + barrel de cart,
+   `PosProductSearch`, 6 secciones viejas de landing y `pdf/` (11 MB sin
+   referencias). Si se quiere revivir la vista de grafo de red, recuperar de
+   la historia git (previo a este punto).
 
 ---
 
@@ -613,5 +616,3 @@ Cambios en estas áreas requieren confirmación explícita del usuario:
   `axios.ts`, `authSlice`) — errores aquí bloquean a todos los usuarios.
 - **`app/page.tsx`** en `main` — es la landing "coming soon" productiva.
   NO modificar sin coordinar.
-- **`NetworkVisualization` y `UserDetailPanel`** — tocan datos MLM
-  sensibles y tienen 3 desactivaciones intencionales vigentes.
