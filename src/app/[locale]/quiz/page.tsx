@@ -46,6 +46,9 @@ function QuizPageContent() {
   const [currentStep, setCurrentStep] = useState(1);
   const [totalSteps, setTotalSteps] = useState(10);
   const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
+  // Historial de preguntas visitadas para poder REGRESAR. Re-responder es
+  // seguro: el backend upserta por (session, question_key) y recalcula la ruta.
+  const [questionHistory, setQuestionHistory] = useState<QuizQuestionType[]>([]);
 
   const { storedToken, clearSession } = useQuizFlow();
   const startQuiz = useStartQuiz();
@@ -145,13 +148,16 @@ function QuizPageContent() {
         if (result.isComplete) {
           setStage('results');
         } else if (result.nextQuestion) {
+          if (currentQuestion) {
+            setQuestionHistory((h) => [...h, currentQuestion]);
+          }
           setCurrentQuestion(result.nextQuestion);
         }
       } catch (error: any) {
         toast.error(error.response?.data?.message || t('answerError'));
       }
     },
-    [sessionToken, submitAnswer, t]
+    [sessionToken, submitAnswer, currentQuestion, t]
   );
 
   const handleMultipleAnswer = useCallback(
@@ -173,14 +179,27 @@ function QuizPageContent() {
         if (result.isComplete) {
           setStage('results');
         } else if (result.nextQuestion) {
+          if (currentQuestion) {
+            setQuestionHistory((h) => [...h, currentQuestion]);
+          }
           setCurrentQuestion(result.nextQuestion);
         }
       } catch (error: any) {
         toast.error(error.response?.data?.message || t('answerError'));
       }
     },
-    [sessionToken, submitMultipleAnswer, t]
+    [sessionToken, submitMultipleAnswer, currentQuestion, t]
   );
+
+  // Regresa a la pregunta anterior (la respuesta previa queda preseleccionada;
+  // al re-responder, el backend sobreescribe y recalcula el camino).
+  const handlePrevious = useCallback(() => {
+    if (questionHistory.length === 0) return;
+    const prevQuestion = questionHistory[questionHistory.length - 1];
+    setQuestionHistory((h) => h.slice(0, -1));
+    setCurrentQuestion(prevQuestion);
+    setCurrentStep((s) => Math.max(1, s - 1));
+  }, [questionHistory]);
 
   const handleSaveEmail = useCallback(
     async (email: string, name?: string, phone?: string) => {
@@ -207,6 +226,7 @@ function QuizPageContent() {
     setCurrentQuestion(null);
     setCurrentStep(1);
     setAnswers({});
+    setQuestionHistory([]);
     setStage('welcome');
   }, [clearSession]);
 
@@ -258,6 +278,8 @@ function QuizPageContent() {
                   question={currentQuestion}
                   onAnswer={handleAnswer}
                   onMultipleAnswer={handleMultipleAnswer}
+                  onPrevious={handlePrevious}
+                  canGoPrevious={questionHistory.length > 0}
                   selectedAnswer={answers[currentQuestion.questionKey]}
                   isLoading={isLoading}
                 />
