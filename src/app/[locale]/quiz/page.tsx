@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Header, Footer } from '@/components/layout';
-import { QuizWelcome, QuizQuestion, QuizResults, QuizProgress } from '@/components/quiz';
+import { QuizWelcome, QuizQuestion, QuizResults, QuizProgress, QuizAnalyzing } from '@/components/quiz';
 import { Card } from '@/components/ui';
 import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { QuizLanguage } from '@/types/quiz';
@@ -216,6 +216,13 @@ function QuizPageContent() {
     submitAnswer.isPending ||
     submitMultipleAnswer.isPending;
 
+  // Enviando la ÚLTIMA respuesta: el backend completa la sesión y genera las
+  // recomendaciones con IA (tarda varios segundos) → pantalla "analizando"
+  // en lugar de dejar la pregunta congelada en "Guardando…".
+  const isSubmittingFinal =
+    (submitAnswer.isPending || submitMultipleAnswer.isPending) &&
+    currentStep >= totalSteps;
+
   return (
     <>
       <Header />
@@ -242,26 +249,27 @@ function QuizPageContent() {
 
           {/* Questions Stage */}
           {stage === 'questions' && currentQuestion && (
-            <>
-              <QuizProgress current={currentStep} total={totalSteps} />
-              <QuizQuestion
-                question={currentQuestion}
-                onAnswer={handleAnswer}
-                onMultipleAnswer={handleMultipleAnswer}
-                selectedAnswer={answers[currentQuestion.questionKey]}
-                isLoading={isLoading}
-              />
-            </>
+            isSubmittingFinal ? (
+              <QuizAnalyzing />
+            ) : (
+              <>
+                <QuizProgress current={currentStep} total={totalSteps} />
+                <QuizQuestion
+                  question={currentQuestion}
+                  onAnswer={handleAnswer}
+                  onMultipleAnswer={handleMultipleAnswer}
+                  selectedAnswer={answers[currentQuestion.questionKey]}
+                  isLoading={isLoading}
+                />
+              </>
+            )
           )}
 
           {/* Results Stage */}
           {stage === 'results' && (
             <>
               {isLoadingResults ? (
-                <div className="text-center py-20">
-                  <div className="inline-block w-12 h-12 border-4 border-[#a7c1e2] border-t-transparent rounded-full animate-spin" />
-                  <p className="mt-4 text-gray-600">{t('generating')}</p>
-                </div>
+                <QuizAnalyzing />
               ) : quizResults ? (
                 <QuizResults
                   result={quizResults}

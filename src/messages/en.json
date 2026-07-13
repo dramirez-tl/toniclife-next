@@ -311,6 +311,15 @@
     }
   },
   "quiz": {
+    "analyzing": {
+      "title": "Analyzing your results",
+      "subtitle": "We're crafting recommendations just for you — this only takes a few seconds.",
+      "m1": "Reading your answers…",
+      "m2": "Identifying your wellness priorities…",
+      "m3": "Matching your profile with our catalog…",
+      "m4": "Picking the products that help you most…",
+      "m5": "Adding the final touches to your plan…"
+    },
     "page": {
       "preparing": "Preparing your personalized assessment...",
       "generating": "Generating your recommendations...",

@@ -311,6 +311,15 @@
     }
   },
   "quiz": {
+    "analyzing": {
+      "title": "Analizando tus resultados",
+      "subtitle": "Estamos preparando recomendaciones únicas para ti — esto toma solo unos segundos.",
+      "m1": "Leyendo tus respuestas…",
+      "m2": "Identificando tus prioridades de bienestar…",
+      "m3": "Cruzando tu perfil con nuestro catálogo…",
+      "m4": "Seleccionando los productos que más te ayudan…",
+      "m5": "Dando los últimos toques a tu plan…"
+    },
     "page": {
       "preparing": "Preparando tu evaluación personalizada...",
       "generating": "Generando tus recomendaciones...",
