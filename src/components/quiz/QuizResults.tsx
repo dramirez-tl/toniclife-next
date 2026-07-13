@@ -311,6 +311,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
                   isLoading={addToCart.isPending}
                   formatPrice={fmt}
                   compatibilityLabel={t('compatibility', { score: Math.round(Number(product.score)) })}
+                  addLabel={t('add')}
                 />
               ))}
             </div>
@@ -348,30 +349,35 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
                 {result.recommendations.slice(3, 9).map((product) => (
                   <div
                     key={product.productId}
-                    className="rounded-2xl border border-gray-100 bg-white p-4 text-center transition-all hover:-translate-y-0.5 hover:shadow-md"
+                    className="flex flex-col rounded-2xl border border-gray-100 bg-white p-4 transition-all hover:-translate-y-0.5 hover:shadow-md hover:border-[#a7c1e2]/60"
                   >
-                    <div className="w-16 h-16 mx-auto bg-white rounded-xl shadow-sm flex items-center justify-center mb-3 overflow-hidden">
-                      <QuizProductImage src={product.productImage} name={product.productName} width={64} height={64} size="sm" />
+                    <div className="flex items-center gap-3">
+                      <div className="w-16 h-16 flex-shrink-0 rounded-xl ring-1 ring-gray-100 overflow-hidden flex items-center justify-center bg-gray-50">
+                        <QuizProductImage src={product.productImage} name={product.productName} width={64} height={64} size="sm" />
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="font-semibold text-[#3E667D] line-clamp-2 leading-snug">
+                          {product.productName}
+                        </h4>
+                        <p className="font-bold text-[#3E667D] mt-1">
+                          {fmt(product.price)}
+                        </p>
+                      </div>
                     </div>
-                    <h4 className="font-semibold text-[#3E667D] line-clamp-1">
-                      {product.productName}
-                    </h4>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {fmt(product.price)}
-                    </p>
-                    <div className="flex items-center justify-center gap-1 mt-2">
-                      <span className="text-xs text-[#3E667D] font-medium">
+                    <div className="mt-3 flex items-center justify-between gap-2">
+                      <span className="text-xs bg-[#C8DDF2]/40 text-[#2f5165] px-2 py-0.5 rounded-full font-medium">
                         {t('compatibility', { score: Math.round(Number(product.score)) })}
                       </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-[#a7c1e2] text-[#3E667D] hover:bg-[#C8DDF2]/20 hover:text-[#2f5165]"
+                        onClick={() => handleAddToCart(product)}
+                      >
+                        <ShoppingCartIcon className="h-4 w-4" />
+                        {t('add')}
+                      </Button>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="mt-2"
-                      onClick={() => handleAddToCart(product)}
-                    >
-                      {t('add')}
-                    </Button>
                   </div>
                 ))}
               </div>
@@ -477,9 +483,13 @@ function getProductInitials(name: string): string {
 
 function ProductImageFallback({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
   const textSize = size === 'sm' ? 'text-lg' : 'text-2xl';
+  // Sin foto: monograma de marca sobre gradiente sólido (se ve intencional,
+  // no como imagen rota).
   return (
-    <div className="w-full h-full bg-gradient-to-br from-[#C8DDF2]/30 to-[#3E667D]/20 flex items-center justify-center">
-      <span className={`${textSize} font-bold text-[#3E667D]/70`}>{getProductInitials(name)}</span>
+    <div className="w-full h-full bg-gradient-to-br from-[#3E667D] to-[#5b87a0] flex items-center justify-center">
+      <span className={`${textSize} font-bold text-white/90 tracking-wide`}>
+        {getProductInitials(name)}
+      </span>
     </div>
   );
 }
@@ -511,6 +521,7 @@ function ProductRecommendationCard({
   isLoading,
   formatPrice,
   compatibilityLabel,
+  addLabel,
 }: {
   product: ProductRecommendation;
   rank: number;
@@ -518,31 +529,58 @@ function ProductRecommendationCard({
   isLoading: boolean;
   formatPrice: (amount: number) => string;
   compatibilityLabel: string;
+  addLabel: string;
 }) {
+  const score = Math.round(Number(product.score));
   return (
-    <div className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 bg-white transition-all hover:-translate-y-0.5 hover:shadow-md">
-      {/* Rank Badge */}
-      <div className="w-10 h-10 flex-shrink-0 bg-gradient-to-br from-[#3E667D] to-[#2f5165] text-white rounded-full flex items-center justify-center font-bold shadow-sm">
-        #{rank}
-      </div>
-
-      {/* Product Image */}
-      <div className="w-20 h-20 bg-gray-50 rounded-xl ring-1 ring-gray-100 flex-shrink-0 flex items-center justify-center overflow-hidden">
-        <QuizProductImage src={product.productImage} name={product.productName} width={80} height={80} />
+    <div
+      className={`group relative flex items-center gap-4 p-4 sm:p-5 rounded-2xl border bg-white transition-all hover:-translate-y-0.5 hover:shadow-md ${
+        rank === 1
+          ? 'border-[#a7c1e2] ring-1 ring-[#C8DDF2]/60 shadow-sm'
+          : 'border-gray-100 hover:border-[#a7c1e2]/60'
+      }`}
+    >
+      {/* Imagen con badge de posición encima */}
+      <div className="relative flex-shrink-0">
+        <div className="w-24 h-24 rounded-xl ring-1 ring-gray-100 overflow-hidden flex items-center justify-center bg-gray-50">
+          <QuizProductImage
+            src={product.productImage}
+            name={product.productName}
+            width={96}
+            height={96}
+          />
+        </div>
+        <div
+          className={`absolute -top-2 -left-2 rounded-full px-2 py-0.5 text-[11px] font-bold text-white shadow-md ${
+            rank === 1
+              ? 'bg-gradient-to-r from-amber-500 to-amber-400'
+              : 'bg-gradient-to-br from-[#3E667D] to-[#2f5165]'
+          }`}
+        >
+          #{rank}
+        </div>
       </div>
 
       {/* Product Info */}
       <div className="flex-grow min-w-0">
         <h4 className="font-bold text-[#3E667D] line-clamp-1">{product.productName}</h4>
-        <p className="text-sm text-gray-500 line-clamp-2">{product.reason}</p>
+        <p className="text-sm text-gray-500 line-clamp-2 mt-0.5">{product.reason}</p>
 
         {/* Score and Category */}
         <div className="flex flex-wrap items-center gap-2 mt-2">
-          <span className="text-xs bg-[#C8DDF2]/40 text-[#3E667D] px-2 py-0.5 rounded-full font-medium">
+          <span
+            className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+              score >= 90
+                ? 'bg-[#3E667D] text-white'
+                : score >= 70
+                  ? 'bg-[#C8DDF2]/50 text-[#2f5165]'
+                  : 'bg-gray-100 text-gray-600'
+            }`}
+          >
             {compatibilityLabel}
           </span>
           {product.categoryName && (
-            <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
+            <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
               {product.categoryName}
             </span>
           )}
@@ -556,18 +594,18 @@ function ProductRecommendationCard({
             {formatPrice(product.originalPrice)}
           </div>
         )}
-        <div className="font-bold text-[#3E667D] text-lg">
+        <div className="font-bold text-[#3E667D] text-lg whitespace-nowrap">
           {formatPrice(product.price)}
         </div>
         <Button
           size="sm"
           variant="outline"
-          className="mt-2 border-[#a7c1e2] text-[#3E667D] hover:bg-[#C8DDF2]/20"
+          className="mt-2 border-[#a7c1e2] text-[#3E667D] hover:bg-[#C8DDF2]/20 hover:text-[#2f5165]"
           onClick={onAddToCart}
           disabled={isLoading}
-          aria-label="Agregar al carrito"
         >
           <ShoppingCartIcon className="h-4 w-4" />
+          <span className="hidden sm:inline">{addLabel}</span>
         </Button>
       </div>
     </div>

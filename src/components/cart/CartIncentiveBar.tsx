@@ -115,15 +115,26 @@ export function CartIncentiveBar({ variant = 'inline', className }: CartIncentiv
         })}
       </div>
 
-      {/* Tier labels */}
+      {/* Tier labels — los hitos cercanos a los bordes se anclan al borde en
+          vez de centrarse en su % (la última etiqueta caía en 100% y se
+          cortaba fuera de la tarjeta: "Kit Prosp…") */}
       <div className="relative h-5">
         {tiers.map((tier) => {
           const pos = tierPosition(tier.threshold);
+          const nearRight = pos > 82;
+          const nearLeft = pos < 18;
           return (
             <div
               key={tier.id}
-              className="absolute -translate-x-1/2 text-center"
-              style={{ left: `${pos}%` }}
+              className={cn(
+                'absolute',
+                nearRight
+                  ? 'right-0 text-right'
+                  : nearLeft
+                    ? 'left-0 text-left'
+                    : '-translate-x-1/2 text-center',
+              )}
+              style={nearRight || nearLeft ? undefined : { left: `${pos}%` }}
             >
               <span
                 className={cn(
