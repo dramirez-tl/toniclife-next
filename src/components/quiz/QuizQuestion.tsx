@@ -4,6 +4,23 @@ import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { Card, Button } from '@/components/ui';
 import { ChevronLeftIcon, CheckIcon } from '@heroicons/react/24/outline';
+import {
+  Heart,
+  Leaf,
+  Target,
+  Zap,
+  Salad,
+  Moon,
+  Sparkles,
+  Shield,
+  Flower2,
+  Dumbbell,
+  Activity,
+  Scale,
+  Flame,
+  HelpCircle,
+  type LucideIcon,
+} from 'lucide-react';
 import type { QuizQuestion as QuizQuestionType, QuestionType } from '@/types/quiz';
 
 interface QuizQuestionProps {
@@ -16,27 +33,27 @@ interface QuizQuestionProps {
   isLoading?: boolean;
 }
 
-// Category to emoji mapping
-const categoryEmojis: Record<string, string> = {
-  health: '❤️',
-  lifestyle: '🌿',
-  goals: '🎯',
-  energy: '⚡',
-  energia: '⚡',
-  digestion: '🍃',
-  stress: '😌',
-  estres: '😌',
-  beauty: '✨',
-  piel: '✨',
-  immune: '🛡️',
-  inmune: '🛡️',
-  hormonal: '💗',
-  'hormonal-female': '💗',
-  'hormonal-male': '💪',
-  circulacion: '🩸',
-  peso: '⚖️',
-  metabolico: '🔄',
-  'meta-principal': '🎯',
+// Icono por categoría (lucide) — sustituye los emojis para un look consistente
+const categoryIcons: Record<string, LucideIcon> = {
+  health: Heart,
+  lifestyle: Leaf,
+  goals: Target,
+  energy: Zap,
+  energia: Zap,
+  digestion: Salad,
+  stress: Moon,
+  estres: Moon,
+  beauty: Sparkles,
+  piel: Sparkles,
+  immune: Shield,
+  inmune: Shield,
+  hormonal: Flower2,
+  'hormonal-female': Flower2,
+  'hormonal-male': Dumbbell,
+  circulacion: Activity,
+  peso: Scale,
+  metabolico: Flame,
+  'meta-principal': Target,
 };
 
 // Category to title mapping
@@ -75,7 +92,7 @@ export function QuizQuestion({
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const isMultiple = question.questionType === 'multiple';
 
-  const emoji = categoryEmojis[question.category || ''] || '❓';
+  const CategoryIcon = categoryIcons[question.category || ''] || HelpCircle;
   const categoryTitle = categoryTitles[question.category || ''] || question.category || 'Pregunta';
 
   // Sync selected options with prop
@@ -125,7 +142,7 @@ export function QuizQuestion({
         <div className="bg-gradient-to-br from-[#3E667D] to-[#2f5165] text-white p-6 sm:p-8">
           {/* Category Badge */}
           <div className="inline-flex items-center gap-2 bg-white/15 ring-1 ring-white/20 px-3 py-1 rounded-full text-sm mb-4">
-            <span>{emoji}</span>
+            <CategoryIcon className="h-4 w-4" strokeWidth={2} />
             <span>{categoryTitle}</span>
           </div>
 
@@ -157,7 +174,7 @@ export function QuizQuestion({
               className={`
                 w-full text-left p-4 sm:p-5 rounded-2xl border-2 transition-all duration-200
                 hover:border-[#a7c1e2] hover:bg-[#C8DDF2]/5 hover:-translate-y-0.5 hover:shadow-sm
-                disabled:opacity-50 disabled:cursor-not-allowed
+                active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed
                 ${isOptionSelected(option.value)
                   ? 'border-[#3E667D] bg-[#C8DDF2]/15 ring-2 ring-[#a7c1e2]/40 shadow-sm'
                   : 'border-gray-200 bg-white'

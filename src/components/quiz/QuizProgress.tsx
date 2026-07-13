@@ -31,8 +31,12 @@ export function QuizProgress({ current, total }: QuizProgressProps) {
         />
       </div>
 
-      {/* Step indicators */}
-      <div className="flex justify-between mt-2.5">
+      {/* Step indicators — en móvil con muchas preguntas se ocultan (la barra ya
+          comunica el avance); en sm+ dan el detalle paso a paso */}
+      <div
+        className={`${total > 8 ? 'hidden sm:flex' : 'flex'} justify-between mt-2.5`}
+        aria-hidden="true"
+      >
         {Array.from({ length: total }, (_, i) => (
           <div
             key={i}
