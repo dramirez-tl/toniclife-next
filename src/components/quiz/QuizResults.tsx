@@ -316,8 +316,10 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
               ))}
             </div>
 
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4">
+            {/* CTA Buttons — grid, no flex: el Button de shadcn trae shrink-0,
+                y dos w-full en un flex-row suman 200% → "Compartir" se
+                desbordaba fuera de la tarjeta hasta el borde de la página. */}
+            <div className="grid gap-3 sm:grid-cols-2">
               <Button
                 size="lg"
                 className="w-full"
@@ -330,7 +332,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
               <Button
                 variant="outline"
                 size="lg"
-                className="w-full"
+                className="w-full border-[#a7c1e2] text-[#3E667D] hover:bg-[#C8DDF2]/20 hover:text-[#2f5165]"
                 onClick={handleShare}
               >
                 <ShareIcon className="h-5 w-5" />
@@ -426,7 +428,9 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#a7c1e2]/50"
                 />
-                <div className="flex gap-2">
+                {/* grid 1fr/auto — mismo motivo que el CTA: shrink-0 del Button
+                    hacía que w-full + botón auto desbordaran el contenedor */}
+                <div className="grid grid-cols-[1fr_auto] gap-2">
                   <Button onClick={handleSaveEmail} className="w-full">
                     {t('sendResults')}
                   </Button>

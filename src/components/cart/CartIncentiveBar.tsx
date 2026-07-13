@@ -88,7 +88,8 @@ export function CartIncentiveBar({ variant = 'inline', className }: CartIncentiv
           />
         </div>
 
-        {/* Milestone markers */}
+        {/* Milestone markers — barras verticales tipo "hito" (los círculos
+            grandes se leían como perillas de un slider deshabilitado) */}
         {tiers.map((tier) => {
           const pos = tierPosition(tier.threshold);
           return (
@@ -99,17 +100,11 @@ export function CartIncentiveBar({ variant = 'inline', className }: CartIncentiv
             >
               <div
                 className={cn(
-                  'w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-300',
-                  tier.reached
-                    ? 'bg-[#3E667D] border-[#3E667D]'
-                    : 'bg-white border-gray-300',
+                  'w-1.5 h-5 rounded-full ring-2 ring-white transition-all duration-300',
+                  tier.reached ? 'bg-[#3E667D]' : 'bg-gray-300',
                   justReachedTier?.id === tier.id && 'animate-bounce',
                 )}
-              >
-                {tier.reached && (
-                  <CheckCircleIcon className="h-3.5 w-3.5 text-white" />
-                )}
-              </div>
+              />
             </div>
           );
         })}
