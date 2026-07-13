@@ -69,6 +69,8 @@ export interface Cart {
   discountAmount: string;
   discountType?: number;
   discountPercentage?: string;
+  couponId?: string;
+  couponCode?: string;
   total: string;
   totalPoints: number;
   totalBusinessValue: string;

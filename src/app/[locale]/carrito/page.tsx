@@ -17,17 +17,103 @@ import {
   ArrowPathIcon,
   CreditCardIcon,
   SparklesIcon,
+  TicketIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import {
   useCart,
   useClearCart,
   useUpdateCartItem,
   useRemoveCartItem,
+  useApplyCoupon,
+  useRemoveCoupon,
 } from '@/hooks/useCart';
 import { useTranslations } from 'next-intl';
 import { formatCurrency } from '@/lib/currency';
 import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { toast } from 'sonner';
+
+/** Campo para aplicar/quitar cupón de descuento en el resumen del carrito. */
+function CouponBox({
+  couponCode,
+  applyLabel,
+  placeholder,
+  appliedLabel,
+}: {
+  couponCode?: string;
+  applyLabel: string;
+  placeholder: string;
+  appliedLabel: string;
+}) {
+  const [code, setCode] = useState('');
+  const applyCoupon = useApplyCoupon();
+  const removeCoupon = useRemoveCoupon();
+
+  const handleApply = async () => {
+    const value = code.trim();
+    if (!value) return;
+    try {
+      await applyCoupon.mutateAsync({ code: value });
+      toast.success(`${appliedLabel}: ${value.toUpperCase()}`);
+      setCode('');
+    } catch (e: unknown) {
+      const msg =
+        (e as { response?: { data?: { message?: string | string[] } } })?.response
+          ?.data?.message || 'Cupón inválido';
+      toast.error(Array.isArray(msg) ? msg[0] : msg);
+    }
+  };
+
+  const handleRemove = async () => {
+    try {
+      await removeCoupon.mutateAsync();
+      toast.success('Cupón removido');
+    } catch {
+      toast.error('No se pudo quitar el cupón');
+    }
+  };
+
+  if (couponCode) {
+    return (
+      <div className="mb-4 flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+        <span className="flex items-center gap-2 text-sm font-medium text-emerald-700">
+          <TicketIcon className="h-4 w-4" />
+          {couponCode}
+        </span>
+        <button
+          onClick={handleRemove}
+          disabled={removeCoupon.isPending}
+          className="rounded p-1 text-emerald-600 transition-colors hover:bg-emerald-100 disabled:opacity-50"
+          title="Quitar cupón"
+        >
+          <XMarkIcon className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-4 grid grid-cols-[1fr_auto] gap-2">
+      <input
+        value={code}
+        onChange={(e) => setCode(e.target.value.toUpperCase())}
+        onKeyDown={(e) => e.key === 'Enter' && handleApply()}
+        placeholder={placeholder}
+        className="w-full rounded-lg border border-gray-200 px-3 py-2 font-mono text-sm uppercase placeholder:font-sans placeholder:normal-case focus:border-[#3E667D] focus:outline-none focus:ring-1 focus:ring-[#a7c1e2]"
+        maxLength={40}
+      />
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-full border-[#a7c1e2] text-[#3E667D] hover:bg-[#C8DDF2]/20 hover:text-[#2f5165]"
+        onClick={handleApply}
+        disabled={applyCoupon.isPending || !code.trim()}
+      >
+        {applyCoupon.isPending ? '…' : applyLabel}
+      </Button>
+    </div>
+  );
+}
 
 /** Renders a product image with initials fallback on error */
 function CartProductImage({ src, name, width, height, className }: { src?: string; name: string; width: number; height: number; className?: string }) {
@@ -428,6 +514,14 @@ export default function CartPage() {
                     </Badge>
                   </div>
 
+                  {/* Cupón de descuento */}
+                  <CouponBox
+                    couponCode={cart.couponCode}
+                    applyLabel={t('couponApply')}
+                    placeholder={t('couponPlaceholder')}
+                    appliedLabel={t('couponApplied')}
+                  />
+
                   {/* Order Details */}
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between">
@@ -437,7 +531,10 @@ export default function CartPage() {
 
                     {discount > 0 && (
                       <div className="flex justify-between text-green-600">
-                        <span>{t('discount')}</span>
+                        <span>
+                          {t('discount')}
+                          {cart.couponCode ? ` (${cart.couponCode})` : ''}
+                        </span>
                         <span>-{fmt(discount)}</span>
                       </div>
                     )}
