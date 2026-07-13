@@ -19,7 +19,6 @@ import {
   ShieldCheckIcon,
   EnvelopeIcon,
 } from '@heroicons/react/24/outline';
-import { StarIcon } from '@heroicons/react/24/solid';
 import type { QuizResult, ProductRecommendation } from '@/types/quiz';
 import { useAddCartItem } from '@/hooks/useCart';
 import { useTrackCartAdd } from '@/hooks/useQuiz';
@@ -244,24 +243,35 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
               </div>
             </div>
 
-            {/* Health Categories */}
-            {result.summary?.healthCategories && result.summary.healthCategories.length > 0 && (
-              <div className="p-6 bg-gray-50">
-                <h3 className="text-sm font-semibold text-gray-600 mb-4">
-                  {t('focusAreas')}
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {result.summary.healthCategories.map((category, index) => (
-                    <span
-                      key={index}
-                      className="px-3 py-1 bg-white border border-gray-200 rounded-full text-sm text-gray-700"
-                    >
-                      {goalLabels[category]?.title || category}
-                    </span>
-                  ))}
+            {/* Health Categories — se filtran valores "ninguna/none" (no son
+                áreas de enfoque) y los códigos sin etiqueta se prettifican */}
+            {(() => {
+              const junk = new Set(['none', 'ninguna', 'ninguno', 'no', 'n/a', 'na', 'nada']);
+              const areas = (result.summary?.healthCategories || []).filter(
+                (c) => c && !junk.has(c.trim().toLowerCase()),
+              );
+              if (areas.length === 0) return null;
+              const pretty = (c: string) =>
+                goalLabels[c]?.title ||
+                c.replace(/[-_]/g, ' ').replace(/^\w/, (m) => m.toUpperCase());
+              return (
+                <div className="p-6 bg-gray-50">
+                  <h3 className="text-sm font-semibold text-gray-600 mb-4">
+                    {t('focusAreas')}
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {areas.map((category, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-white border border-gray-200 rounded-full text-sm text-gray-700"
+                      >
+                        {pretty(category)}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
           </Card>
 
           {/* Recommended Products Bundle */}
@@ -300,7 +310,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
                   onAddToCart={() => handleAddToCart(product)}
                   isLoading={addToCart.isPending}
                   formatPrice={fmt}
-                  compatibilityLabel={t('compatibility', { score: product.score })}
+                  compatibilityLabel={t('compatibility', { score: Math.round(Number(product.score)) })}
                 />
               ))}
             </div>
@@ -351,7 +361,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
                     </p>
                     <div className="flex items-center justify-center gap-1 mt-2">
                       <span className="text-xs text-[#3E667D] font-medium">
-                        {t('compatibility', { score: product.score })}
+                        {t('compatibility', { score: Math.round(Number(product.score)) })}
                       </span>
                     </div>
                     <Button
@@ -549,17 +559,13 @@ function ProductRecommendationCard({
         <div className="font-bold text-[#3E667D] text-lg">
           {formatPrice(product.price)}
         </div>
-        <div className="flex items-center gap-0.5 mt-1 justify-end">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <StarIcon key={star} className="h-3 w-3 text-yellow-400" />
-          ))}
-        </div>
         <Button
           size="sm"
-          variant="ghost"
-          className="mt-2"
+          variant="outline"
+          className="mt-2 border-[#a7c1e2] text-[#3E667D] hover:bg-[#C8DDF2]/20"
           onClick={onAddToCart}
           disabled={isLoading}
+          aria-label="Agregar al carrito"
         >
           <ShoppingCartIcon className="h-4 w-4" />
         </Button>
