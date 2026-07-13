@@ -275,7 +275,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
           </Card>
 
           {/* Recommended Products Bundle */}
-          <Card className="mb-8 rounded-2xl border-gray-100 shadow-sm">
+          <Card className="mb-8 rounded-2xl border-gray-100 shadow-sm px-6 sm:px-8">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <Badge variant="outline" className="mb-2 border-[#a7c1e2] bg-[#C8DDF2]/40 text-[#3E667D]">
@@ -343,7 +343,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
 
           {/* More Recommendations */}
           {result.recommendations.length > 3 && (
-            <Card className="mb-8 rounded-2xl border-gray-100 shadow-sm">
+            <Card className="mb-8 rounded-2xl border-gray-100 shadow-sm px-6 sm:px-8">
               <h3 className="text-xl font-bold text-[#3E667D] mb-4">
                 {t('alsoInterest')}
               </h3>
@@ -388,7 +388,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
 
           {/* Save Email Form */}
           {onSaveEmail && !showEmailForm && (
-            <Card className="mb-8 rounded-2xl border-gray-100 shadow-sm">
+            <Card className="mb-8 rounded-2xl border-gray-100 shadow-sm px-6 sm:px-8">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-[#C8DDF2]/40 rounded-full">
                   <EnvelopeIcon className="h-6 w-6 text-[#3E667D]" />
@@ -409,7 +409,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
           )}
 
           {showEmailForm && (
-            <Card className="mb-8 rounded-2xl border-gray-100 shadow-sm">
+            <Card className="mb-8 rounded-2xl border-gray-100 shadow-sm px-6 sm:px-8">
               <h3 className="font-semibold text-[#3E667D] mb-4">
                 {t('emailFormTitle')}
               </h3>

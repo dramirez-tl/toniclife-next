@@ -299,7 +299,7 @@ function QuizPageContent() {
                   onSaveEmail={handleSaveEmail}
                 />
               ) : (
-                <Card className="text-center py-12">
+                <Card className="text-center px-6 py-12">
                   <p className="text-gray-600">{t('resultsError')}</p>
                   <button
                     onClick={handleRestart}
