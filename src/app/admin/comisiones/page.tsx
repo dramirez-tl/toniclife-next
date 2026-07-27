@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import {
@@ -16,6 +17,9 @@ import {
   BanknotesIcon,
   ChartBarIcon,
   CalculatorIcon,
+  CalendarDaysIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import {
@@ -53,7 +57,16 @@ function ComisionesContent() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: periodsData } = useCommissionPeriods() as { data: any };
   // periodsData may be an array or an object with periods/data - handle both
-  const periods: Array<{ id: string; name: string; code?: string; isCurrent?: boolean }> =
+  const periods: Array<{
+    id: string;
+    name: string;
+    code?: string;
+    isCurrent?: boolean;
+    isClosed?: boolean;
+    startDate?: string;
+    endDate?: string;
+    periodNumber?: number;
+  }> =
     Array.isArray(periodsData) ? periodsData : (periodsData?.periods ?? periodsData?.data ?? []);
   const visiblePeriods = periodsUpToCurrent(periods);
   const currentPeriodId = periods.find((p) => p.isCurrent)?.id;
@@ -62,6 +75,32 @@ function ComisionesContent() {
   // Períodos") muestra todo de forma explícita.
   const effectivePeriodId =
     filterPeriod === 'all' ? undefined : filterPeriod || currentPeriodId;
+
+  // ── Selector de periodo (controla los datos de TODA la página) ────────────
+  // visiblePeriods viene ordenado por fecha DESC (más reciente primero), por lo
+  // que el "anterior" (más viejo) está en idx+1 y el "siguiente" en idx-1.
+  const isAllPeriods = filterPeriod === 'all';
+  const selectedIdx = visiblePeriods.findIndex((p) => p.id === effectivePeriodId);
+  const selectedPeriod = selectedIdx >= 0 ? visiblePeriods[selectedIdx] : null;
+  const olderPeriod = selectedIdx >= 0 ? visiblePeriods[selectedIdx + 1] : undefined;
+  const newerPeriod = selectedIdx > 0 ? visiblePeriods[selectedIdx - 1] : undefined;
+
+  // Formatea el rango 26→25 desde las partes Y-M-D (evita el desfase de TZ que
+  // provoca `new Date('YYYY-MM-DD')` al interpretarse como UTC medianoche).
+  const formatPeriodRange = (p?: { startDate?: string; endDate?: string } | null) => {
+    if (!p?.startDate || !p?.endDate) return null;
+    const fmt = (d: string) => {
+      const [y, m, day] = d.slice(0, 10).split('-').map(Number);
+      if (!y || !m || !day) return d;
+      return new Date(y, m - 1, day).toLocaleDateString('es-MX', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+    };
+    return `${fmt(p.startDate)} — ${fmt(p.endDate)}`;
+  };
+  const selectedRange = formatPeriodRange(selectedPeriod);
 
   // Fetch commissions from API
   const { data: commissionsData, isLoading } = useAllCommissions({
@@ -467,6 +506,90 @@ function ComisionesContent() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Selector de Periodo — controla los datos de TODA la página */}
+        <Card className="mb-6 border-gray-100 shadow-sm">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-[#3E667D]/10">
+                  <CalendarDaysIcon className="h-5 w-5 text-[#3E667D]" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                    Periodo · afecta toda la página
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-lg font-bold leading-tight text-gray-900">
+                      {isAllPeriods ? 'Todos los períodos' : selectedPeriod?.name ?? '—'}
+                    </p>
+                    {!isAllPeriods && selectedRange && (
+                      <span className="text-xs text-gray-500">{selectedRange}</span>
+                    )}
+                    {!isAllPeriods && selectedPeriod?.isCurrent && (
+                      <Badge variant="success">Actual</Badge>
+                    )}
+                    {!isAllPeriods && selectedPeriod && !selectedPeriod.isCurrent && selectedPeriod.isClosed && (
+                      <Badge variant="outline" className="text-gray-500">Cerrado</Badge>
+                    )}
+                    {!isAllPeriods && selectedPeriod && !selectedPeriod.isCurrent && !selectedPeriod.isClosed && (
+                      <Badge variant="warning">Abierto</Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-10 px-2.5"
+                  disabled={!olderPeriod}
+                  onClick={() => olderPeriod && setParams({ period: olderPeriod.id, page: '1' })}
+                  title="Periodo anterior"
+                  aria-label="Periodo anterior"
+                >
+                  <ChevronLeftIcon className="h-4 w-4" />
+                </Button>
+
+                <div className="w-44 sm:w-56">
+                  <SearchableSelect
+                    options={visiblePeriods.map((period) => ({
+                      value: period.id,
+                      label: period.name,
+                    }))}
+                    value={isAllPeriods ? '' : effectivePeriodId || ''}
+                    onChange={(val) => setParams({ period: val || 'all', page: '1' })}
+                    allLabel="Todos los Períodos"
+                  />
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-10 px-2.5"
+                  disabled={!newerPeriod}
+                  onClick={() => newerPeriod && setParams({ period: newerPeriod.id, page: '1' })}
+                  title="Periodo siguiente"
+                  aria-label="Periodo siguiente"
+                >
+                  <ChevronRightIcon className="h-4 w-4" />
+                </Button>
+
+                {currentPeriodId && !isAllPeriods && effectivePeriodId !== currentPeriodId && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-10 text-[#3E667D]"
+                    onClick={() => setParams({ period: null, page: '1' })}
+                  >
+                    Ir al actual
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
           <Card>
@@ -505,7 +628,7 @@ function ComisionesContent() {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-gray-600 mb-1">Total Subtotal</p>
                   <p className="text-xl font-bold text-[#3E667D] leading-tight">{formatCurrency(parseFloat(summary?.totalSubtotalMxn || '0'))}</p>
-                  <p className="text-xs text-gray-500 mt-1">Período seleccionado</p>
+                  <p className="text-xs text-gray-500 mt-1">{isAllPeriods ? 'Todos los períodos' : selectedPeriod?.name ?? 'Período seleccionado'}</p>
                 </div>
                 <div className="w-10 h-10 flex-shrink-0 bg-blue-100 rounded-full flex items-center justify-center">
                   <BanknotesIcon className="h-5 w-5 text-blue-600" />
@@ -591,7 +714,7 @@ function ComisionesContent() {
         <Card className="mb-6 border-gray-100 shadow-sm">
           <CardContent className="p-4">
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:gap-4">
-              <div className="lg:col-span-5">
+              <div className="lg:col-span-6">
                 <div className="relative">
                   <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <input
@@ -603,7 +726,7 @@ function ComisionesContent() {
                   />
                 </div>
               </div>
-              <div className="lg:col-span-3">
+              <div className="lg:col-span-4">
                 <SearchableSelect
                   options={[
                     { value: 'calculated', label: 'Calculadas' },
@@ -617,18 +740,7 @@ function ComisionesContent() {
                   allValue="all"
                 />
               </div>
-              <div className="lg:col-span-3">
-                <SearchableSelect
-                  options={visiblePeriods.map((period) => ({
-                    value: period.id,
-                    label: period.name,
-                  }))}
-                  value={effectivePeriodId || ''}
-                  onChange={(val) => setParams({ period: val || 'all', page: '1' })}
-                  allLabel="Todos los Períodos"
-                />
-              </div>
-              <div className="lg:col-span-1">
+              <div className="lg:col-span-2">
                 <Button
                   variant="outline"
                   onClick={handleExport}
