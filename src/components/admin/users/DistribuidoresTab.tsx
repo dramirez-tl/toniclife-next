@@ -425,26 +425,21 @@ export function DistribuidoresTab() {
 
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:gap-4">
             <div className="lg:col-span-4">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <div className="relative flex-1">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="text"
-                    placeholder="Buscar por nombre, email o código..."
-                    value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleSearch();
-                      }
-                    }}
-                    className="w-full rounded-lg border border-input bg-background py-2 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
-                  />
-                </div>
-                <Button size="sm" className="h-10 px-4 sm:min-w-[96px]" onClick={handleSearch}>
-                  Buscar
-                </Button>
+              <div className="relative">
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Buscar por nombre, email o código..."
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSearch();
+                    }
+                  }}
+                  className="h-10 w-full rounded-lg border border-input bg-background py-2 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                />
               </div>
             </div>
 
@@ -463,6 +458,13 @@ export function DistribuidoresTab() {
                 }}
                 className="h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
               />
+            </div>
+
+            {/* Botón buscar (después del No. Distribuidor) */}
+            <div className="flex items-center lg:col-span-1">
+              <Button size="sm" className="h-10 w-full" onClick={handleSearch}>
+                Buscar
+              </Button>
             </div>
 
             <div className="lg:col-span-2">
