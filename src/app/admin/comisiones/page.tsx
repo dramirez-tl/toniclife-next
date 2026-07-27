@@ -248,50 +248,48 @@ function ComisionesContent() {
       case 'calculated':
       case 'pending':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
+          <Badge variant="warning">
             <ClockIcon className="h-3 w-3" />
             Pendiente
-          </span>
+          </Badge>
         );
       case 'approved':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+          <Badge variant="info">
             <CheckCircleIcon className="h-3 w-3" />
             Aprobada
-          </span>
+          </Badge>
         );
       case 'paid':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+          <Badge variant="success">
             <CheckCircleIcon className="h-3 w-3" />
             Pagada
-          </span>
+          </Badge>
         );
       case 'cancelled':
         return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+          <Badge variant="destructive">
             <XCircleIcon className="h-3 w-3" />
             Cancelada
-          </span>
+          </Badge>
         );
       default:
         return null;
     }
   };
 
+  type BadgeVariant = 'default' | 'secondary' | 'success' | 'info' | 'warning' | 'destructive' | 'outline';
+
   const getTypeBadge = (type: string) => {
-    const typeLabels: Record<string, { label: string; color: string }> = {
-      'mlm': { label: 'MLM', color: 'bg-blue-100 text-blue-700' },
-      'cedea_bonus': { label: 'CEDEA', color: 'bg-purple-100 text-purple-700' },
-      'auto_bonus': { label: 'Auto Bono', color: 'bg-green-100 text-green-700' },
-      'adjustment': { label: 'Ajuste', color: 'bg-orange-100 text-orange-700' },
+    const typeLabels: Record<string, { label: string; variant: BadgeVariant }> = {
+      'mlm': { label: 'MLM', variant: 'info' },
+      'cedea_bonus': { label: 'CEDEA', variant: 'default' },
+      'auto_bonus': { label: 'Auto Bono', variant: 'success' },
+      'adjustment': { label: 'Ajuste', variant: 'warning' },
     };
-    const config = typeLabels[type] || { label: type, color: 'bg-gray-100 text-gray-700' };
-    return (
-      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
-        {config.label}
-      </span>
-    );
+    const config = typeLabels[type] || { label: type, variant: 'secondary' as BadgeVariant };
+    return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
   const formatCurrency = (amount: number | string) => {
@@ -310,8 +308,8 @@ function ComisionesContent() {
       sortValue: (c) => c.customerName,
       render: (c) => (
         <div>
-          <p className="font-semibold text-gray-900 text-sm">{c.customerName}</p>
-          <p className="text-xs text-gray-400">{c.periodCode}</p>
+          <p className="text-sm font-semibold text-foreground">{c.customerName}</p>
+          <p className="text-xs text-muted-foreground">{c.periodCode}</p>
         </div>
       ),
     },
@@ -328,7 +326,7 @@ function ComisionesContent() {
       headerClassName: 'text-right',
       cellClassName: 'text-right',
       render: (c) => (
-        <span className="text-sm font-medium text-gray-900 tabular-nums">{formatCurrency(c.subtotalEarnings)}</span>
+        <span className="text-sm font-medium tabular-nums text-foreground">{formatCurrency(c.subtotalEarnings)}</span>
       ),
     },
     {
@@ -339,8 +337,8 @@ function ComisionesContent() {
       render: (c) => {
         const val = parseFloat(c.ivaAmount || '0');
         return val > 0
-          ? <span className="text-sm font-medium text-blue-600 tabular-nums">+{formatCurrency(c.ivaAmount || '0')}</span>
-          : <span className="text-xs text-gray-300">—</span>;
+          ? <span className="text-sm font-medium tabular-nums text-blue-600 dark:text-blue-400">+{formatCurrency(c.ivaAmount || '0')}</span>
+          : <span className="text-xs text-muted-foreground/50">—</span>;
       },
     },
     {
@@ -351,8 +349,8 @@ function ComisionesContent() {
       render: (c) => {
         const val = parseFloat(c.ivaWithholding || '0');
         return val > 0
-          ? <span className="text-sm font-medium text-red-500 tabular-nums">-{formatCurrency(c.ivaWithholding || '0')}</span>
-          : <span className="text-xs text-gray-300">—</span>;
+          ? <span className="text-sm font-medium tabular-nums text-destructive">-{formatCurrency(c.ivaWithholding || '0')}</span>
+          : <span className="text-xs text-muted-foreground/50">—</span>;
       },
     },
     {
@@ -363,8 +361,8 @@ function ComisionesContent() {
       render: (c) => {
         const val = parseFloat(c.isrAmount || '0');
         return val > 0
-          ? <span className="text-sm font-medium text-red-500 tabular-nums">-{formatCurrency(c.isrAmount || '0')}</span>
-          : <span className="text-xs text-gray-300">—</span>;
+          ? <span className="text-sm font-medium tabular-nums text-destructive">-{formatCurrency(c.isrAmount || '0')}</span>
+          : <span className="text-xs text-muted-foreground/50">—</span>;
       },
     },
     {
@@ -375,7 +373,7 @@ function ComisionesContent() {
       headerClassName: 'text-right',
       cellClassName: 'text-right',
       render: (c) => (
-        <span className="text-sm font-bold text-[#3E667D] tabular-nums">{formatCurrency(c.totalAmount)}</span>
+        <span className="text-sm font-bold tabular-nums text-primary">{formatCurrency(c.totalAmount)}</span>
       ),
     },
     {
@@ -394,18 +392,18 @@ function ComisionesContent() {
             <button
               onClick={() => handleApproveCommission(c.id)}
               disabled={approveMutation.isPending}
-              className="rounded-lg p-1.5 transition-colors hover:bg-green-50"
+              className="rounded-lg p-1.5 transition-colors hover:bg-muted"
               title="Aprobar pago"
             >
-              <CheckCircleIcon className="h-4 w-4 text-green-600" />
+              <CheckCircleIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             </button>
           )}
           <button
             onClick={() => toast.success('Descargando recibo...')}
-            className="rounded-lg p-1.5 transition-colors hover:bg-gray-100"
+            className="rounded-lg p-1.5 transition-colors hover:bg-muted"
             title="Descargar recibo"
           >
-            <ArrowDownTrayIcon className="h-4 w-4 text-gray-500" />
+            <ArrowDownTrayIcon className="h-4 w-4 text-muted-foreground" />
           </button>
         </div>
       ),
@@ -417,57 +415,55 @@ function ComisionesContent() {
     {
       key: 'level',
       header: 'Nivel',
-      render: (rate) => (
-        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-          {rate.level}
-        </span>
-      ),
+      render: (rate) => <Badge variant="info">{rate.level}</Badge>,
     },
     {
       key: 'personalRate',
       header: 'Comisión Personal',
-      cellClassName: 'text-sm font-semibold text-green-600',
+      cellClassName: 'text-sm font-semibold text-emerald-600 dark:text-emerald-400',
       render: (rate) => <>{rate.personalRate}%</>,
     },
     {
       key: 'teamRate',
       header: 'Comisión Equipo',
-      cellClassName: 'text-sm font-semibold text-blue-600',
+      cellClassName: 'text-sm font-semibold text-blue-600 dark:text-blue-400',
       render: (rate) => <>{rate.teamRate}%</>,
     },
     {
       key: 'minSales',
       header: 'Ventas Mínimas',
-      cellClassName: 'text-sm text-gray-900',
+      cellClassName: 'text-sm text-foreground',
       render: (rate) => <>{formatCurrency(rate.minSales)}</>,
     },
   ];
 
   return (
     <PermissionGuard permissions={['commissions:read', 'commissions:*']}>
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex items-center justify-between">
+    <div className="min-h-screen">
+      {/* Header (banda de marca, slim) */}
+      <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
+        <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="flex items-center gap-3 mb-2">
-                <CurrencyDollarIcon className="h-10 w-10" />
-                <h1 className="text-4xl font-bold">Gestión de Comisiones</h1>
+              <div className="mb-1 flex items-center gap-2.5">
+                <CurrencyDollarIcon className="h-7 w-7" />
+                <h1 className="text-2xl font-bold sm:text-3xl">Gestión de Comisiones</h1>
               </div>
-              <p className="text-white/80 text-lg">
+              <p className="text-sm text-white/80 sm:text-base">
                 Administra y procesa comisiones de distribuidores
               </p>
             </div>
-            <div className="flex flex-wrap gap-3">
-              <Link href="/admin">
-                <Button variant="secondary">
-                  Volver al Panel Principal
-                </Button>
-              </Link>
+            <div className="flex flex-wrap gap-2">
               <Button
-                variant="outline"
-                className="border-white/70 bg-transparent text-white hover:bg-white/10 hover:text-white"
+                asChild
+                variant="ghost"
+                className="border border-white/25 text-white hover:bg-white/10 hover:text-white"
+              >
+                <Link href="/admin">Volver al Panel</Link>
+              </Button>
+              <Button
+                variant="ghost"
+                className="border border-white/25 text-white hover:bg-white/10 hover:text-white"
                 onClick={handleCalculateCommissions}
                 disabled={calculateMutation.isPending || calcRunning}
               >
@@ -480,8 +476,8 @@ function ComisionesContent() {
               </Button>
               {approvedCount > 0 && (
                 <Button
-                  variant="outline"
-                  className="border-white/70 bg-transparent text-white hover:bg-white/10 hover:text-white"
+                  variant="ghost"
+                  className="border border-white/25 text-white hover:bg-white/10 hover:text-white"
                   onClick={handleMarkAsPaid}
                   disabled={markPaidMutation.isPending}
                 >
@@ -491,7 +487,7 @@ function ComisionesContent() {
               )}
               {pendingCount > 0 && (
                 <Button
-                  variant="default"
+                  className="bg-card text-primary hover:bg-card/90"
                   onClick={handleApproveAll}
                   disabled={approveMutation.isPending}
                 >
@@ -507,29 +503,29 @@ function ComisionesContent() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Selector de Periodo — controla los datos de TODA la página */}
-        <Card className="mb-6 border-gray-100 shadow-sm">
+        <Card className="mb-6 border-border shadow-sm">
           <CardContent className="p-4 sm:p-5">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-[#3E667D]/10">
-                  <CalendarDaysIcon className="h-5 w-5 text-[#3E667D]" />
+                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-primary/10">
+                  <CalendarDaysIcon className="h-5 w-5 text-primary" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     Periodo · afecta toda la página
                   </p>
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-lg font-bold leading-tight text-gray-900">
+                    <p className="text-lg font-bold leading-tight text-foreground">
                       {isAllPeriods ? 'Todos los períodos' : selectedPeriod?.name ?? '—'}
                     </p>
                     {!isAllPeriods && selectedRange && (
-                      <span className="text-xs text-gray-500">{selectedRange}</span>
+                      <span className="text-xs text-muted-foreground">{selectedRange}</span>
                     )}
                     {!isAllPeriods && selectedPeriod?.isCurrent && (
                       <Badge variant="success">Actual</Badge>
                     )}
                     {!isAllPeriods && selectedPeriod && !selectedPeriod.isCurrent && selectedPeriod.isClosed && (
-                      <Badge variant="outline" className="text-gray-500">Cerrado</Badge>
+                      <Badge variant="outline" className="text-muted-foreground">Cerrado</Badge>
                     )}
                     {!isAllPeriods && selectedPeriod && !selectedPeriod.isCurrent && !selectedPeriod.isClosed && (
                       <Badge variant="warning">Abierto</Badge>
@@ -579,7 +575,7 @@ function ComisionesContent() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-10 text-[#3E667D]"
+                    className="h-10 text-primary"
                     onClick={() => setParams({ period: null, page: '1' })}
                   >
                     Ir al actual
@@ -596,13 +592,13 @@ function ComisionesContent() {
             <CardContent className="p-6">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-600 mb-1">Pendientes de Pago</p>
-                  <p className="text-3xl font-bold text-yellow-600 leading-tight">{pendingCount}</p>
-                  <p className="text-xs text-gray-500 mt-1">comisiones calculadas</p>
+                  <p className="mb-1 text-sm text-muted-foreground">Pendientes de Pago</p>
+                  <p className="text-3xl font-bold leading-tight text-amber-600 dark:text-amber-400">{pendingCount}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">comisiones calculadas</p>
                 </div>
-                <div className="w-10 h-10 flex-shrink-0 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <ClockIcon className="h-5 w-5 text-yellow-600" />
-                </div>
+                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  <ClockIcon className="h-5 w-5" />
+                </span>
               </div>
             </CardContent>
           </Card>
@@ -611,13 +607,13 @@ function ComisionesContent() {
             <CardContent className="p-6">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-600 mb-1">Total Neto</p>
-                  <p className="text-xl font-bold text-green-600 leading-tight">{formatCurrency(parseFloat(summary?.totalNetMxn || '0'))}</p>
-                  <p className="text-xs text-gray-500 mt-1">{new Intl.NumberFormat('es-MX').format(summary?.transactionCount || 0)} transacciones</p>
+                  <p className="mb-1 text-sm text-muted-foreground">Total Neto</p>
+                  <p className="text-xl font-bold leading-tight text-emerald-600 dark:text-emerald-400">{formatCurrency(parseFloat(summary?.totalNetMxn || '0'))}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{new Intl.NumberFormat('es-MX').format(summary?.transactionCount || 0)} transacciones</p>
                 </div>
-                <div className="w-10 h-10 flex-shrink-0 bg-green-100 rounded-full flex items-center justify-center">
-                  <CheckCircleIcon className="h-5 w-5 text-green-600" />
-                </div>
+                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  <CheckCircleIcon className="h-5 w-5" />
+                </span>
               </div>
             </CardContent>
           </Card>
@@ -626,13 +622,13 @@ function ComisionesContent() {
             <CardContent className="p-6">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-600 mb-1">Total Subtotal</p>
-                  <p className="text-xl font-bold text-[#3E667D] leading-tight">{formatCurrency(parseFloat(summary?.totalSubtotalMxn || '0'))}</p>
-                  <p className="text-xs text-gray-500 mt-1">{isAllPeriods ? 'Todos los períodos' : selectedPeriod?.name ?? 'Período seleccionado'}</p>
+                  <p className="mb-1 text-sm text-muted-foreground">Total Subtotal</p>
+                  <p className="text-xl font-bold leading-tight text-primary">{formatCurrency(parseFloat(summary?.totalSubtotalMxn || '0'))}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{isAllPeriods ? 'Todos los períodos' : selectedPeriod?.name ?? 'Período seleccionado'}</p>
                 </div>
-                <div className="w-10 h-10 flex-shrink-0 bg-blue-100 rounded-full flex items-center justify-center">
-                  <BanknotesIcon className="h-5 w-5 text-blue-600" />
-                </div>
+                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <BanknotesIcon className="h-5 w-5" />
+                </span>
               </div>
             </CardContent>
           </Card>
@@ -641,15 +637,15 @@ function ComisionesContent() {
             <CardContent className="p-6">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-600 mb-1">Total Retenciones</p>
-                  <p className="text-xl font-bold text-gray-900 leading-tight">
+                  <p className="mb-1 text-sm text-muted-foreground">Total Retenciones</p>
+                  <p className="text-xl font-bold leading-tight text-foreground">
                     {formatCurrency(parseFloat(summary?.totalRetentions || '0'))}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">Ret. IVA + ISR + RESICO</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Ret. IVA + ISR + RESICO</p>
                 </div>
-                <div className="w-10 h-10 flex-shrink-0 bg-purple-100 rounded-full flex items-center justify-center">
-                  <ChartBarIcon className="h-5 w-5 text-purple-600" />
-                </div>
+                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400">
+                  <ChartBarIcon className="h-5 w-5" />
+                </span>
               </div>
             </CardContent>
           </Card>
@@ -659,39 +655,39 @@ function ComisionesContent() {
         {summary && (
           <Card className="mb-8">
             <CardContent className="p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Desglose Fiscal</h3>
-              <div className="border border-gray-200 rounded-xl overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-3 bg-gray-50 border-b border-gray-200">
-                  <span className="text-sm font-medium text-gray-700">BRUTO</span>
-                  <span className="text-sm font-bold text-gray-900 tabular-nums">{formatCurrency(summary.totalSubtotalMxn)}</span>
+              <h3 className="mb-4 text-lg font-bold text-foreground">Desglose Fiscal</h3>
+              <div className="overflow-hidden rounded-xl border border-border">
+                <div className="flex items-center justify-between border-b border-border bg-muted/50 px-5 py-3">
+                  <span className="text-sm font-medium text-foreground">BRUTO</span>
+                  <span className="text-sm font-bold tabular-nums text-foreground">{formatCurrency(summary.totalSubtotalMxn)}</span>
                 </div>
                 {parseFloat(summary.totalIva || '0') > 0 && (
-                  <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-                    <span className="text-sm text-gray-600">IVA 16%</span>
-                    <span className="text-sm font-semibold text-blue-600 tabular-nums">+ {formatCurrency(summary.totalIva || '0')}</span>
+                  <div className="flex items-center justify-between border-b border-border px-5 py-3">
+                    <span className="text-sm text-muted-foreground">IVA 16%</span>
+                    <span className="text-sm font-semibold tabular-nums text-blue-600 dark:text-blue-400">+ {formatCurrency(summary.totalIva || '0')}</span>
                   </div>
                 )}
                 {parseFloat(summary.totalIvaWithholding || '0') > 0 && (
-                  <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-                    <span className="text-sm text-gray-600">RET IVA 10.6667%</span>
-                    <span className="text-sm font-semibold text-red-500 tabular-nums">- {formatCurrency(summary.totalIvaWithholding || '0')}</span>
+                  <div className="flex items-center justify-between border-b border-border px-5 py-3">
+                    <span className="text-sm text-muted-foreground">RET IVA 10.6667%</span>
+                    <span className="text-sm font-semibold tabular-nums text-destructive">- {formatCurrency(summary.totalIvaWithholding || '0')}</span>
                   </div>
                 )}
                 {parseFloat(summary.totalIsr || '0') > 0 && (
-                  <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-                    <span className="text-sm text-gray-600">ISR</span>
-                    <span className="text-sm font-semibold text-red-500 tabular-nums">- {formatCurrency(summary.totalIsr || '0')}</span>
+                  <div className="flex items-center justify-between border-b border-border px-5 py-3">
+                    <span className="text-sm text-muted-foreground">ISR</span>
+                    <span className="text-sm font-semibold tabular-nums text-destructive">- {formatCurrency(summary.totalIsr || '0')}</span>
                   </div>
                 )}
                 {parseFloat(summary.totalResico || '0') > 0 && (
-                  <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-                    <span className="text-sm text-gray-600">RESICO</span>
-                    <span className="text-sm font-semibold text-red-500 tabular-nums">- {formatCurrency(summary.totalResico || '0')}</span>
+                  <div className="flex items-center justify-between border-b border-border px-5 py-3">
+                    <span className="text-sm text-muted-foreground">RESICO</span>
+                    <span className="text-sm font-semibold tabular-nums text-destructive">- {formatCurrency(summary.totalResico || '0')}</span>
                   </div>
                 )}
-                <div className="flex items-center justify-between px-5 py-3 bg-[#3E667D]/5 border-t border-gray-200">
-                  <span className="text-sm font-bold text-[#3E667D]">NETO</span>
-                  <span className="text-sm font-bold text-[#3E667D] tabular-nums">{formatCurrency(summary.totalNetMxn)}</span>
+                <div className="flex items-center justify-between border-t border-border bg-primary/5 px-5 py-3">
+                  <span className="text-sm font-bold text-primary">NETO</span>
+                  <span className="text-sm font-bold tabular-nums text-primary">{formatCurrency(summary.totalNetMxn)}</span>
                 </div>
               </div>
             </CardContent>
@@ -701,7 +697,7 @@ function ComisionesContent() {
         {/* Commission Rates Card */}
         <Card className="mb-6">
           <CardContent className="p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Tasas de Comisión por Nivel</h3>
+            <h3 className="mb-4 text-lg font-bold text-foreground">Tasas de Comisión por Nivel</h3>
             <DataTable
               columns={commissionRateColumns}
               data={commissionRates}
@@ -711,18 +707,18 @@ function ComisionesContent() {
         </Card>
 
         {/* Filters */}
-        <Card className="mb-6 border-gray-100 shadow-sm">
+        <Card className="mb-6 border-border shadow-sm">
           <CardContent className="p-4">
             <div className="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:gap-4">
               <div className="lg:col-span-6">
                 <div className="relative">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="text"
                     placeholder="Buscar por nombre, email o ID..."
                     value={searchQuery}
                     onChange={(e) => setParams({ search: e.target.value, page: '1' })}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent text-sm"
+                    className="w-full rounded-lg border border-input bg-background py-2 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
                   />
                 </div>
               </div>
@@ -756,11 +752,11 @@ function ComisionesContent() {
         </Card>
 
         {/* Commissions Table */}
-        <Card className="border-gray-100 shadow-sm">
+        <Card className="border-border shadow-sm">
           <CardContent className="p-6">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-base font-semibold text-gray-900">Listado de Comisiones</h2>
-              <p className="text-sm text-gray-500">{totalResults} resultados</p>
+              <h2 className="text-base font-semibold text-foreground">Listado de Comisiones</h2>
+              <p className="text-sm text-muted-foreground">{totalResults} resultados</p>
             </div>
             <DataTable
               columns={commissionColumns}
@@ -770,9 +766,9 @@ function ComisionesContent() {
               minWidthClassName="min-w-[900px]"
               emptyState={
                 <div className="py-4 text-center">
-                  <CurrencyDollarIcon className="mx-auto mb-3 h-12 w-12 text-gray-300" />
-                  <p className="text-sm font-medium text-gray-700">No se encontraron comisiones</p>
-                  <p className="text-xs text-gray-500 mt-1">Intenta ajustar los filtros de busqueda</p>
+                  <CurrencyDollarIcon className="mx-auto mb-3 h-12 w-12 text-muted-foreground/40" />
+                  <p className="text-sm font-medium text-foreground">No se encontraron comisiones</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Intenta ajustar los filtros de busqueda</p>
                 </div>
               }
             />
