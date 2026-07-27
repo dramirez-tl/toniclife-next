@@ -17,6 +17,10 @@ export interface Commission {
   id: string;
   customerId: string;
   customerName: string;
+  /** Número de distribuidor (customer_number), ej. "88197". */
+  customerNumber?: string | null;
+  /** País de residencia del distribuidor. */
+  customerCountry?: string | null;
   periodId: string;
   periodCode: string;
   commissionType: CommissionType;

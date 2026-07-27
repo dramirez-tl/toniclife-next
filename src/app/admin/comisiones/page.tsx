@@ -20,6 +20,7 @@ import {
   CalendarDaysIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  EyeIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import {
@@ -292,12 +293,22 @@ function ComisionesContent() {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  const formatCurrency = (amount: number | string) => {
+  /**
+   * Formatea un monto EN SU PROPIA MONEDA. Antes estaba fijo en MXN, así que
+   * una comisión en USD/COP se mostraba con formato de pesos mexicanos.
+   * `currency` es el `currencyCode` de cada comisión (default MXN).
+   */
+  const formatCurrency = (amount: number | string, currency = 'MXN') => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) || 0 : amount;
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN',
-    }).format(numAmount);
+    try {
+      return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: currency || 'MXN',
+      }).format(numAmount);
+    } catch {
+      // Código de moneda desconocido → formato numérico + código.
+      return `${new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2 }).format(numAmount)} ${currency}`;
+    }
   };
 
   const commissionColumns: DataTableColumn<Commission>[] = [
@@ -308,8 +319,17 @@ function ComisionesContent() {
       sortValue: (c) => c.customerName,
       render: (c) => (
         <div>
-          <p className="text-sm font-semibold text-foreground">{c.customerName}</p>
-          <p className="text-xs text-muted-foreground">{c.periodCode}</p>
+          {/* Clic → ficha del distribuidor */}
+          <Link
+            href={`/admin/distribuidores/${c.customerId}`}
+            className="text-sm font-semibold text-foreground hover:text-primary hover:underline"
+          >
+            {c.customerName}
+          </Link>
+          <p className="text-xs text-muted-foreground">
+            {c.customerNumber ? `#${c.customerNumber}` : c.periodCode}
+            {c.customerNumber && c.customerCountry ? ` · ${c.customerCountry}` : ''}
+          </p>
         </div>
       ),
     },
@@ -319,6 +339,17 @@ function ComisionesContent() {
       render: (c) => getTypeBadge(c.commissionType),
     },
     {
+      key: 'currencyCode',
+      header: 'Moneda',
+      sortable: true,
+      sortValue: (c) => c.currencyCode || 'MXN',
+      render: (c) => (
+        <Badge variant="outline" className="font-mono text-muted-foreground">
+          {c.currencyCode || 'MXN'}
+        </Badge>
+      ),
+    },
+    {
       key: 'subtotalEarnings',
       header: 'Bruto',
       sortable: true,
@@ -326,7 +357,7 @@ function ComisionesContent() {
       headerClassName: 'text-right',
       cellClassName: 'text-right',
       render: (c) => (
-        <span className="text-sm font-medium tabular-nums text-foreground">{formatCurrency(c.subtotalEarnings)}</span>
+        <span className="text-sm font-medium tabular-nums text-foreground">{formatCurrency(c.subtotalEarnings, c.currencyCode)}</span>
       ),
     },
     {
@@ -337,7 +368,7 @@ function ComisionesContent() {
       render: (c) => {
         const val = parseFloat(c.ivaAmount || '0');
         return val > 0
-          ? <span className="text-sm font-medium tabular-nums text-blue-600 dark:text-blue-400">+{formatCurrency(c.ivaAmount || '0')}</span>
+          ? <span className="text-sm font-medium tabular-nums text-blue-600 dark:text-blue-400">+{formatCurrency(c.ivaAmount || '0', c.currencyCode)}</span>
           : <span className="text-xs text-muted-foreground/50">—</span>;
       },
     },
@@ -349,7 +380,7 @@ function ComisionesContent() {
       render: (c) => {
         const val = parseFloat(c.ivaWithholding || '0');
         return val > 0
-          ? <span className="text-sm font-medium tabular-nums text-destructive">-{formatCurrency(c.ivaWithholding || '0')}</span>
+          ? <span className="text-sm font-medium tabular-nums text-destructive">-{formatCurrency(c.ivaWithholding || '0', c.currencyCode)}</span>
           : <span className="text-xs text-muted-foreground/50">—</span>;
       },
     },
@@ -361,7 +392,7 @@ function ComisionesContent() {
       render: (c) => {
         const val = parseFloat(c.isrAmount || '0');
         return val > 0
-          ? <span className="text-sm font-medium tabular-nums text-destructive">-{formatCurrency(c.isrAmount || '0')}</span>
+          ? <span className="text-sm font-medium tabular-nums text-destructive">-{formatCurrency(c.isrAmount || '0', c.currencyCode)}</span>
           : <span className="text-xs text-muted-foreground/50">—</span>;
       },
     },
@@ -373,7 +404,7 @@ function ComisionesContent() {
       headerClassName: 'text-right',
       cellClassName: 'text-right',
       render: (c) => (
-        <span className="text-sm font-bold tabular-nums text-primary">{formatCurrency(c.totalAmount)}</span>
+        <span className="text-sm font-bold tabular-nums text-primary">{formatCurrency(c.totalAmount, c.currencyCode)}</span>
       ),
     },
     {
@@ -382,12 +413,37 @@ function ComisionesContent() {
       render: (c) => getStatusBadge(c.status),
     },
     {
+      key: 'paid',
+      header: 'Pagada',
+      sortable: true,
+      sortValue: (c) => (c.status === 'paid' ? 1 : 0),
+      render: (c) =>
+        c.status === 'paid' ? (
+          <Badge variant="success">
+            <CheckCircleIcon className="h-3 w-3" />
+            Sí
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="text-muted-foreground">
+            <XCircleIcon className="h-3 w-3" />
+            No
+          </Badge>
+        ),
+    },
+    {
       key: 'actions',
       header: '',
       headerClassName: 'text-right',
       cellClassName: 'text-right',
       render: (c) => (
         <div className="flex items-center justify-end gap-1">
+          <Link
+            href={`/admin/distribuidores/${c.customerId}`}
+            className="rounded-lg p-1.5 transition-colors hover:bg-muted"
+            title="Ver detalle del distribuidor"
+          >
+            <EyeIcon className="h-4 w-4 text-primary" />
+          </Link>
           {c.status === 'calculated' && (
             <button
               onClick={() => handleApproveCommission(c.id)}
@@ -715,7 +771,7 @@ function ComisionesContent() {
                   <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="text"
-                    placeholder="Buscar por nombre, email o ID..."
+                    placeholder="Buscar por nombre, email o No. de distribuidor (ej. 88197)..."
                     value={searchQuery}
                     onChange={(e) => setParams({ search: e.target.value, page: '1' })}
                     className="w-full rounded-lg border border-input bg-background py-2 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
@@ -763,7 +819,7 @@ function ComisionesContent() {
               data={commissions}
               isLoading={isLoading}
               getRowKey={(c) => c.id}
-              minWidthClassName="min-w-[900px]"
+              minWidthClassName="min-w-[1150px]"
               emptyState={
                 <div className="py-4 text-center">
                   <CurrencyDollarIcon className="mx-auto mb-3 h-12 w-12 text-muted-foreground/40" />
