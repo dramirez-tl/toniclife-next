@@ -70,6 +70,9 @@ export function DistribuidoresTab() {
   // Estado interno (no URL) para no chocar con los filtros del tab de usuarios
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  // Búsqueda exacta por número de distribuidor (igual que en "Cuentas de sistema")
+  const [customerNumberInput, setCustomerNumberInput] = useState('');
+  const [customerNumberQuery, setCustomerNumberQuery] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState<CustomerStatus | 'all'>('all');
   const [filterCountry, setFilterCountry] = useState('all');
@@ -104,10 +107,11 @@ export function DistribuidoresTab() {
   // Stats (server-side totals, dominio customers)
   const baseStatsParams = useMemo(() => ({
     search: searchQuery || undefined,
+    customerNumber: customerNumberQuery || undefined,
     countryId: filterCountry !== 'all' ? filterCountry : undefined,
     limit: 1,
     page: 1,
-  }), [searchQuery, filterCountry]);
+  }), [searchQuery, customerNumberQuery, filterCountry]);
 
   const activeStatsParams = useMemo(() => ({ ...baseStatsParams, status: 'active' as CustomerStatus }), [baseStatsParams]);
   const distributorStatsParams = useMemo(() => ({ ...baseStatsParams, customerType: 'distributor' }), [baseStatsParams]);
@@ -136,6 +140,7 @@ export function DistribuidoresTab() {
       page: currentPage,
       limit: pageSize,
       search: searchQuery || undefined,
+      customerNumber: customerNumberQuery || undefined,
       customerType: filterType !== 'all' ? filterType : undefined,
       status: filterStatus !== 'all' ? filterStatus : undefined,
       countryId: filterCountry !== 'all' ? filterCountry : undefined,
@@ -145,7 +150,7 @@ export function DistribuidoresTab() {
     if (filterCedea === 'yes') params.hasCedea = true;
     if (filterCedea === 'no') params.hasCedea = false;
     dispatch(fetchCustomers(params as never));
-  }, [dispatch, currentPage, pageSize, searchQuery, filterType, filterStatus, filterCountry, filterCedea, sortBy, sortOrder]);
+  }, [dispatch, currentPage, pageSize, searchQuery, customerNumberQuery, filterType, filterStatus, filterCountry, filterCedea, sortBy, sortOrder]);
 
   useEffect(() => {
     loadCustomers();
@@ -153,12 +158,15 @@ export function DistribuidoresTab() {
 
   const handleSearch = () => {
     setSearchQuery(searchInput.trim());
+    setCustomerNumberQuery(customerNumberInput.trim());
     setCurrentPage(1);
   };
 
   const resetFilters = () => {
     setSearchInput('');
     setSearchQuery('');
+    setCustomerNumberInput('');
+    setCustomerNumberQuery('');
     setFilterType('all');
     setFilterStatus('all');
     setFilterCountry('all');
@@ -169,7 +177,7 @@ export function DistribuidoresTab() {
   };
 
   const hasActiveFilters = Boolean(
-    searchQuery || filterType !== 'all' || filterStatus !== 'all' || filterCountry !== 'all' || filterCedea !== 'all',
+    searchQuery || customerNumberQuery || filterType !== 'all' || filterStatus !== 'all' || filterCountry !== 'all' || filterCedea !== 'all',
   );
 
   const handleConfirmDelete = async () => {
@@ -438,6 +446,23 @@ export function DistribuidoresTab() {
                   Buscar
                 </Button>
               </div>
+            </div>
+
+            {/* Búsqueda exacta por número de distribuidor */}
+            <div className="lg:col-span-2">
+              <input
+                type="text"
+                placeholder="No. Distribuidor"
+                value={customerNumberInput}
+                onChange={(e) => setCustomerNumberInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSearch();
+                  }
+                }}
+                className="h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+              />
             </div>
 
             <div className="lg:col-span-2">
