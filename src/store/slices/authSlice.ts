@@ -12,6 +12,7 @@ import {
   ResetPasswordData,
 } from '@/services/auth.service';
 import { AxiosError } from 'axios';
+import { requestSessionFromOtherTabs } from '@/lib/session-sync';
 
 // Types
 export interface AuthState {
@@ -87,8 +88,19 @@ export const initializeAuth = createAsyncThunk(
         // Sin access token en este storage pero con la flag cookie viva:
         // pestaña nueva sin "Recordarme" (sessionStorage es por-pestaña) o
         // storage limpio con la cookie httpOnly del refresh aún válida.
-        // Refresh silencioso vía cookie para restaurar la sesión.
         if (authService.hasAuthCookie()) {
+          // 1) Pedir la sesión a otras pestañas abiertas. Es el caso típico de
+          //    "abrir módulo en pestaña nueva": otra pestaña sí tiene los
+          //    tokens en su sessionStorage. No depende de cookies de tercero,
+          //    así que funciona también en Incógnito. Ver lib/session-sync.ts.
+          const hydrated = await requestSessionFromOtherTabs();
+          if (hydrated) {
+            const sharedUser = authService.getStoredUser();
+            if (sharedUser) return sharedUser;
+          }
+
+          // 2) Si no hubo otra pestaña que respondiera, refresh silencioso vía
+          //    la cookie httpOnly del API (falla si es cookie de tercero).
           try {
             const restored = await authService.refreshToken();
             return restored.user;

@@ -46,7 +46,10 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({
     identifier: '',
     password: '',
-    remember: false,
+    // ON por defecto: guarda los tokens en localStorage, que SÍ se comparte
+    // entre pestañas (abrir un módulo en otra pestaña ya no pide re-login).
+    // El usuario puede desmarcarlo para una sesión que muera con el navegador.
+    remember: true,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -173,7 +176,7 @@ export default function LoginPage() {
         // Cerrar la sesión recién creada
         dispatch(logoutAsync());
         toast.error(t('toast.emailLinked'), { duration: 8000 });
-        setFormData({ identifier: '', password: '', remember: false });
+        setFormData({ identifier: '', password: '', remember: true });
         return;
       }
 

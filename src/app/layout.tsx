@@ -9,6 +9,7 @@ import { ReduxProvider } from "@/store/provider";
 import { QueryProvider } from "@/providers/QueryProvider";
 import { ReferralCodeCapture } from "@/components/ReferralCodeCapture";
 import { VersionChecker } from "@/components/VersionChecker";
+import { SessionSync } from "@/components/SessionSync";
 import { DEFAULT_LOCALE, isSupportedLocale, localeLanguage } from "@/i18n/config";
 import esMessages from "@/messages/es.json";
 import enMessages from "@/messages/en.json";
@@ -113,6 +114,7 @@ export default async function RootLayout({
             <ReduxProvider>
               <ReferralCodeCapture />
               <VersionChecker />
+              <SessionSync />
               {children}
             </ReduxProvider>
           </QueryProvider>
