@@ -128,12 +128,19 @@ function AjustesContent() {
     };
   }, [statsData]);
 
+  // Mostrar el motivo real que manda el API en vez de un genérico.
+  const apiErr = (err: unknown, fallback: string) => {
+    const msg = (err as { response?: { data?: { message?: string | string[] } } })
+      ?.response?.data?.message;
+    toast.error(Array.isArray(msg) ? msg.join(' ') : (msg ?? fallback));
+  };
+
   const handleApprove = async (adjustment: AdjustmentDto) => {
     try {
       await approveAdjustment.mutateAsync({ id: adjustment.id });
       toast.success('Ajuste aprobado correctamente');
-    } catch {
-      toast.error('Error al aprobar el ajuste');
+    } catch (err) {
+      apiErr(err, 'Error al aprobar el ajuste');
     }
   };
 
@@ -149,8 +156,8 @@ function AjustesContent() {
       toast.success('Ajuste rechazado');
       setRejectTarget(null);
       setRejectReason('');
-    } catch {
-      toast.error('Error al rechazar el ajuste');
+    } catch (err) {
+      apiErr(err, 'Error al rechazar el ajuste');
     }
   };
 
@@ -161,9 +168,9 @@ function AjustesContent() {
     if (!ok) return;
     try {
       await applyAdjustment.mutateAsync({ id: adjustment.id });
-      toast.success('Ajuste aplicado correctamente');
-    } catch {
-      toast.error('Error al aplicar el ajuste');
+      toast.success('Ajuste aplicado: inventario actualizado');
+    } catch (err) {
+      apiErr(err, 'Error al aplicar el ajuste');
     }
   };
 
@@ -173,8 +180,8 @@ function AjustesContent() {
     try {
       await cancelAdjustment.mutateAsync(adjustment.id);
       toast.success('Ajuste cancelado');
-    } catch {
-      toast.error('Error al cancelar el ajuste');
+    } catch (err) {
+      apiErr(err, 'Error al cancelar el ajuste');
     }
   };
 
