@@ -7,6 +7,7 @@
 
 import { useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
@@ -112,31 +113,50 @@ export function PilotLiveTab() {
 
   return (
     <div className="space-y-4">
-      {/* Encabezado EN VIVO */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500" />
-          </span>
-          <span className="text-sm font-medium text-gray-700">
-            Ventas de hoy en sucursales piloto — se actualiza cada{' '}
-            {POLL_MS / 60_000} min
-          </span>
+      {/* Banner ejecutivo — pensado para proyectarse en pantalla de monitoreo */}
+      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl bg-gradient-to-r from-[#3E667D] to-[#0A4B94] px-6 py-4 text-white shadow-md">
+        <div className="flex items-center gap-4">
+          <Image
+            src="/images/logo/png/logo-text-white-r.png"
+            alt="Tonic Life"
+            width={170}
+            height={40}
+            priority
+            className="h-9 w-auto"
+          />
+          <div className="hidden h-9 w-px bg-white/30 sm:block" />
+          <div>
+            <p className="text-lg font-bold leading-tight">
+              Prueba piloto — Monitoreo en vivo
+            </p>
+            <p className="text-xs text-white/75">
+              {new Date().toLocaleDateString('es-MX', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}{' '}
+              · ventas de hoy · se actualiza cada {POLL_MS / 60_000} min
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs text-muted-foreground">
-            Actualizado:{' '}
+          <span className="flex items-center gap-2 text-xs font-medium text-white/90">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-300 opacity-75" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-400" />
+            </span>
+            EN VIVO ·{' '}
             {new Date(dataUpdatedAt).toLocaleTimeString('es-MX', {
               hour: '2-digit',
               minute: '2-digit',
             })}
           </span>
           <Button
-            variant="outline"
             size="sm"
             onClick={() => refetch()}
             disabled={isFetching}
+            className="border border-white/40 bg-white/10 text-white hover:bg-white/20"
           >
             {isFetching ? 'Actualizando…' : 'Actualizar ahora'}
           </Button>
@@ -209,7 +229,7 @@ export function PilotLiveTab() {
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <PilotLiveMap branches={data.branches} />
 
-        <Card className="lg:max-h-[420px] lg:overflow-hidden">
+        <Card className="lg:max-h-[460px] lg:overflow-hidden">
           <CardContent className="flex h-full flex-col p-4">
             <p className="mb-2 text-sm font-semibold text-gray-900">
               Últimas ventas de hoy

@@ -8,7 +8,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { PilotBranchLive } from '@/types/pilotLive';
 
-// Vista república mexicana completa.
+// Fallback si no hay sucursales con coordenadas: república completa.
 const MEXICO_CENTER: [number, number] = [23.3, -102.0];
 const MEXICO_ZOOM = 5;
 
@@ -52,8 +52,21 @@ export default function PilotLiveMap({
     (b) => b.latitude != null && b.longitude != null,
   );
 
+  // Encuadre automático: el mapa abre ajustado para que se vean SOLO los
+  // pines de las sucursales piloto (con margen); 1 pin = acercamiento a él;
+  // sin pines = vista de la república.
+  const positions = located.map(
+    (b) => [b.latitude!, b.longitude!] as [number, number],
+  );
+  const view =
+    positions.length >= 2
+      ? { bounds: L.latLngBounds(positions).pad(0.35) }
+      : positions.length === 1
+        ? { center: positions[0], zoom: 9 }
+        : { center: MEXICO_CENTER, zoom: MEXICO_ZOOM };
+
   return (
-    <div className="relative h-[420px] w-full overflow-hidden rounded-lg border">
+    <div className="relative h-[460px] w-full overflow-hidden rounded-lg border">
       {/* Estilos del pin (Leaflet renderiza el HTML del DivIcon fuera del
           árbol de Tailwind, por eso van como CSS plano). */}
       <style>{`
@@ -79,12 +92,7 @@ export default function PilotLiveMap({
           100% { transform: scale(1.9); opacity: 0; }
         }
       `}</style>
-      <MapContainer
-        center={MEXICO_CENTER}
-        zoom={MEXICO_ZOOM}
-        scrollWheelZoom
-        className="h-full w-full"
-      >
+      <MapContainer {...view} scrollWheelZoom className="h-full w-full">
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
