@@ -5,6 +5,7 @@
 // Tab Carga masiva: pobla por fases vía CSV con plantillas descargables.
 
 import { Suspense, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   ExclamationTriangleIcon,
@@ -89,8 +90,18 @@ function SistemaSkeleton() {
   );
 }
 
+const SISTEMA_TABS = ['pos', 'piloto', 'limpieza', 'carga', 'reset'];
+
 function SistemaContent() {
   const { data, isLoading, isError } = useMaintenanceOverview();
+
+  // Pestaña activa en la URL (?tab=piloto): sobrevive recargas y redeploys —
+  // clave para la pantalla de monitoreo proyectada con "Piloto en vivo".
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const activeTab =
+    tabParam && SISTEMA_TABS.includes(tabParam) ? tabParam : 'pos';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
@@ -130,7 +141,12 @@ function SistemaContent() {
               </div>
             )}
 
-            <Tabs defaultValue="pos">
+            <Tabs
+              value={activeTab}
+              onValueChange={(v) =>
+                router.replace(`/admin/sistema?tab=${v}`, { scroll: false })
+              }
+            >
               <TabsList>
                 <TabsTrigger value="pos">Puntos de Venta</TabsTrigger>
                 <TabsTrigger value="piloto">
