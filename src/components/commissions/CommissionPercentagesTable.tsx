@@ -162,12 +162,15 @@ export function CommissionPercentagesTable({
     },
   ];
 
+  // Desbloqueo de generaciones INCLUSIVE (paridad legacy, jul-2026): el motor
+  // paga los índices 0..generationMax inclusive (un Diamante con genMax=4 cobra
+  // la fila gen=4 al 2%), así que la comparación es <=, no <.
   const generationColumns: DataTableColumn<GenerationRow>[] = [
     {
       key: 'generacion',
       header: t('generationHeader'),
       render: (gen) => {
-        const isUnlocked = userGenerationMax > 0 && gen.generationNumber < userGenerationMax;
+        const isUnlocked = userGenerationMax > 0 && gen.generationNumber <= userGenerationMax;
         return (
           <div className="flex items-center gap-3">
             <div
@@ -199,7 +202,7 @@ export function CommissionPercentagesTable({
       headerClassName: 'text-center',
       cellClassName: 'text-center',
       render: (gen) => {
-        const isUnlocked = userGenerationMax > 0 && gen.generationNumber < userGenerationMax;
+        const isUnlocked = userGenerationMax > 0 && gen.generationNumber <= userGenerationMax;
         const percent = parseFloat(gen.percentage) * 100;
         return (
           <span
@@ -218,7 +221,7 @@ export function CommissionPercentagesTable({
       headerClassName: 'text-center',
       cellClassName: 'text-center',
       render: (gen) => {
-        const isUnlocked = userGenerationMax > 0 && gen.generationNumber < userGenerationMax;
+        const isUnlocked = userGenerationMax > 0 && gen.generationNumber <= userGenerationMax;
         const percent = parseFloat(gen.percentage) * 100;
         return isUnlocked ? (
           <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-700">
@@ -298,7 +301,7 @@ export function CommissionPercentagesTable({
               getRowKey={(gen) => String(gen.generationNumber)}
               rowClassName={(gen) =>
                 `border-b border-gray-100 ${
-                  userGenerationMax > 0 && gen.generationNumber < userGenerationMax
+                  userGenerationMax > 0 && gen.generationNumber <= userGenerationMax
                     ? ''
                     : 'opacity-50'
                 }`
