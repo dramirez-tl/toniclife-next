@@ -8,6 +8,7 @@
 import { useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
@@ -59,6 +60,16 @@ const STATUS_BADGE: Record<
 };
 
 export function PilotLiveTab() {
+  // Modo pantalla (?tv=1): la página oculta el encabezado de Sistema y las
+  // pestañas — queda solo este tablero, para proyectarse en el monitor.
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const tvMode = searchParams.get('tv') === '1';
+  const toggleTv = () =>
+    router.replace(`/admin/sistema?tab=piloto${tvMode ? '' : '&tv=1'}`, {
+      scroll: false,
+    });
+
   const { data, isLoading, isError, dataUpdatedAt, refetch, isFetching } =
     useQuery({
       queryKey: ['pos', 'pilot-live'],
@@ -160,6 +171,14 @@ export function PilotLiveTab() {
           >
             {isFetching ? 'Actualizando…' : 'Actualizar ahora'}
           </Button>
+          <Button
+            size="sm"
+            onClick={toggleTv}
+            className="border border-white/40 bg-white/10 text-white hover:bg-white/20"
+            title="Oculta el encabezado y las pestañas para proyectar (combínalo con F11)"
+          >
+            {tvMode ? 'Salir de pantalla' : 'Modo pantalla'}
+          </Button>
         </div>
       </div>
 
@@ -197,8 +216,12 @@ export function PilotLiveTab() {
                   </p>
                 </div>
               </div>
+              <p className="mt-2 border-t pt-2 text-[11px] text-muted-foreground">
+                🖥 {b.terminalsActive ?? 0} terminal(es)
+                {b.terminalVersions ? ` · POS v${b.terminalVersions}` : ''}
+              </p>
               {b.pendingCount > 0 && (
-                <p className="mt-2 text-[11px] font-medium text-amber-600">
+                <p className="mt-1 text-[11px] font-medium text-amber-600">
                   ⚠ {b.pendingCount} venta(s) pendiente(s) de cobro (traban
                   stock)
                 </p>

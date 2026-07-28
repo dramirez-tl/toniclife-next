@@ -102,21 +102,26 @@ function SistemaContent() {
   const tabParam = searchParams.get('tab');
   const activeTab =
     tabParam && SISTEMA_TABS.includes(tabParam) ? tabParam : 'pos';
+  // Modo pantalla (?tv=1): sin encabezado de Sistema ni fila de pestañas —
+  // pensado para proyectar "Piloto en vivo" en un monitor (con F11).
+  const tvMode = searchParams.get('tv') === '1';
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
-      <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <div className="mb-2 flex items-center gap-3">
-            <WrenchScrewdriverIcon className="h-9 w-9" />
-            <h1 className="text-3xl font-bold sm:text-4xl">Sistema</h1>
+      {!tvMode && (
+        <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
+          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+            <div className="mb-2 flex items-center gap-3">
+              <WrenchScrewdriverIcon className="h-9 w-9" />
+              <h1 className="text-3xl font-bold sm:text-4xl">Sistema</h1>
+            </div>
+            <p className="text-base text-white/80 sm:text-lg">
+              Limpieza y carga masiva de datos. Acceso exclusivo del Super
+              Administrador.
+            </p>
           </div>
-          <p className="text-base text-white/80 sm:text-lg">
-            Limpieza y carga masiva de datos. Acceso exclusivo del Super
-            Administrador.
-          </p>
         </div>
-      </div>
+      )}
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {isLoading && <SistemaSkeleton />}
@@ -147,7 +152,7 @@ function SistemaContent() {
                 router.replace(`/admin/sistema?tab=${v}`, { scroll: false })
               }
             >
-              <TabsList>
+              <TabsList className={tvMode ? 'hidden' : undefined}>
                 <TabsTrigger value="pos">Puntos de Venta</TabsTrigger>
                 <TabsTrigger value="piloto">
                   <span className="relative mr-1.5 flex h-2 w-2">

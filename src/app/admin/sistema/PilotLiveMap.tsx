@@ -124,6 +124,12 @@ export default function PilotLiveMap({
                 <p className="text-xs text-gray-500">
                   Última venta: {hora(b.lastSaleAt)}
                 </p>
+                <p className="mt-1 border-t pt-1 text-xs text-gray-600">
+                  🖥 {b.terminalsActive ?? 0} terminal(es)
+                  {b.terminalVersions ? ` · POS v${b.terminalVersions}` : ''}
+                  <br />
+                  Último latido: {hora(b.terminalsLastSeen ?? null)}
+                </p>
               </div>
             </Popup>
           </Marker>

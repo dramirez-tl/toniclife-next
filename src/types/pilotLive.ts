@@ -15,6 +15,12 @@ export interface PilotBranchLive {
   pendingCount: number;
   cancelledCount: number;
   lastSaleAt: string | null;
+  /** Terminales POS con licencia activa en la sucursal. */
+  terminalsActive?: number;
+  /** Versiones instaladas (distintas), ej. "2.0.4" o "2.0.3, 2.0.4". */
+  terminalVersions?: string | null;
+  /** Último latido de cualquier terminal de la sucursal. */
+  terminalsLastSeen?: string | null;
 }
 
 export interface PilotRecentSale {
