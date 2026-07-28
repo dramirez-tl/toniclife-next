@@ -432,6 +432,14 @@ function PosLicenseReleaseList({ globalEnabled }: { globalEnabled: boolean }) {
   // Excluir revocadas: no son instalables.
   const rows = licenses.filter((l) => l.status !== 'revoked');
 
+  // El API explica el motivo real del rechazo (p.ej. "migración 097 no
+  // aplicada", permisos) — mostrarlo en vez de un genérico.
+  const apiError = (err: unknown, fallback: string) => {
+    const msg = (err as { response?: { data?: { message?: string | string[] } } })
+      ?.response?.data?.message;
+    toast.error(Array.isArray(msg) ? msg.join(' ') : (msg ?? fallback));
+  };
+
   const handleToggle = (lic: PosLicense, released: boolean) => {
     setPendingId(lic.id);
     setRelease.mutate(
@@ -443,7 +451,7 @@ function PosLicenseReleaseList({ globalEnabled }: { globalEnabled: boolean }) {
               ? `${lic.branchName ?? lic.licenseKey}: liberada para pruebas`
               : `${lic.branchName ?? lic.licenseKey}: vuelta a bloqueada`,
           ),
-        onError: () => toast.error('No se pudo cambiar la terminal'),
+        onError: (err) => apiError(err, 'No se pudo cambiar la terminal'),
         onSettled: () => setPendingId(null),
       },
     );
@@ -460,7 +468,7 @@ function PosLicenseReleaseList({ globalEnabled }: { globalEnabled: boolean }) {
               ? `${lic.branchName ?? lic.licenseKey}: facturación habilitada en la terminal`
               : `${lic.branchName ?? lic.licenseKey}: facturación deshabilitada — la factura se emite en el sistema anterior`,
           ),
-        onError: () => toast.error('No se pudo cambiar la facturación'),
+        onError: (err) => apiError(err, 'No se pudo cambiar la facturación'),
         onSettled: () => setPendingInvoicingId(null),
       },
     );
