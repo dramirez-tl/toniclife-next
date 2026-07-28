@@ -44,7 +44,11 @@ import { useCommissionPeriods } from '@/hooks/useCommissions';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { maintenanceService } from '@/services/maintenance.service';
 import { configService } from '@/services/config.service';
-import { usePosLicenses, useSetPosLicenseRelease } from '@/hooks/usePosLicenses';
+import {
+  usePosLicenses,
+  useSetPosLicenseRelease,
+  useSetPosLicenseInvoicing,
+} from '@/hooks/usePosLicenses';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Switch } from '@/components/ui/switch';
 import type { CleanupBlockStatus, LoadPhaseStatus } from '@/types/maintenance';
@@ -419,7 +423,11 @@ const POS_STATUS_LABEL: Record<string, string> = {
 function PosLicenseReleaseList({ globalEnabled }: { globalEnabled: boolean }) {
   const { data: licenses = [], isLoading } = usePosLicenses();
   const setRelease = useSetPosLicenseRelease();
+  const setInvoicing = useSetPosLicenseInvoicing();
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [pendingInvoicingId, setPendingInvoicingId] = useState<string | null>(
+    null,
+  );
 
   // Excluir revocadas: no son instalables.
   const rows = licenses.filter((l) => l.status !== 'revoked');
@@ -441,6 +449,23 @@ function PosLicenseReleaseList({ globalEnabled }: { globalEnabled: boolean }) {
     );
   };
 
+  const handleToggleInvoicing = (lic: PosLicense, enabled: boolean) => {
+    setPendingInvoicingId(lic.id);
+    setInvoicing.mutate(
+      { id: lic.id, enabled },
+      {
+        onSuccess: () =>
+          toast.success(
+            enabled
+              ? `${lic.branchName ?? lic.licenseKey}: facturación habilitada en la terminal`
+              : `${lic.branchName ?? lic.licenseKey}: facturación deshabilitada — la factura se emite en el sistema anterior`,
+          ),
+        onError: () => toast.error('No se pudo cambiar la facturación'),
+        onSettled: () => setPendingInvoicingId(null),
+      },
+    );
+  };
+
   return (
     <div className="space-y-2 border-t pt-4">
       <div className="flex items-center justify-between">
@@ -450,7 +475,10 @@ function PosLicenseReleaseList({ globalEnabled }: { globalEnabled: boolean }) {
           </label>
           <p className="text-xs text-muted-foreground">
             Activa una terminal para operar aunque el POS global esté bloqueado.
-            Ideal para pilotos: instala en todas y prueba en las que elijas.
+            Ideal para pilotos: instala en todas y prueba en las que elijas. En
+            las terminales liberadas puedes además apagar la{' '}
+            <strong>Facturación</strong> (piloto doble captura: la factura se
+            emite solo en el sistema anterior para no timbrar dos veces).
           </p>
         </div>
       </div>
@@ -499,6 +527,14 @@ function PosLicenseReleaseList({ globalEnabled }: { globalEnabled: boolean }) {
                       En pruebas
                     </Badge>
                   )}
+                  {!lic.invoicingEnabled && (
+                    <Badge
+                      variant="outline"
+                      className="border-amber-200 bg-amber-50 text-amber-700"
+                    >
+                      Sin facturar
+                    </Badge>
+                  )}
                 </div>
                 <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
                   <span className="font-mono">{lic.licenseKey}</span>
@@ -507,6 +543,22 @@ function PosLicenseReleaseList({ globalEnabled }: { globalEnabled: boolean }) {
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                {/* Facturación por terminal: visible solo cuando la terminal
+                    puede operar. Apagar durante el piloto de doble captura
+                    (la factura se emite en el legacy, no dos veces). */}
+                {(globalEnabled || lic.operationsReleased) && (
+                  <div className="mr-2 flex items-center gap-2 border-r pr-4">
+                    <span className="text-xs text-muted-foreground">
+                      Facturación
+                    </span>
+                    <Switch
+                      checked={lic.invoicingEnabled}
+                      disabled={pendingInvoicingId === lic.id}
+                      onCheckedChange={(v) => handleToggleInvoicing(lic, v)}
+                      aria-label={`Facturación de ${lic.branchName ?? lic.licenseKey}`}
+                    />
+                  </div>
+                )}
                 <span className="text-xs text-muted-foreground">
                   {lic.operationsReleased ? 'Liberada' : 'Bloqueada'}
                 </span>

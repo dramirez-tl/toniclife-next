@@ -54,6 +54,14 @@ class PosLicensesService {
     });
     return response.data;
   }
+
+  /** Habilita/deshabilita la facturación de una terminal (piloto doble captura). */
+  async setInvoicing(id: string, enabled: boolean): Promise<PosLicense> {
+    const response = await api.patch<PosLicense>(`/pos-licenses/${id}/invoicing`, {
+      enabled,
+    });
+    return response.data;
+  }
 }
 
 export const posLicensesService = new PosLicensesService();

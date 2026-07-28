@@ -23,6 +23,10 @@ export interface PosLicense {
   status: PosLicenseStatus;
   /** Liberada individualmente para pruebas (opera aunque el POS global esté bloqueado). */
   operationsReleased: boolean;
+  /** Facturación habilitada en esta terminal. false = la terminal oculta
+   *  "Requiere factura" y el API rechaza timbrar sus ventas (piloto doble
+   *  captura: la factura se emite en el sistema legacy). */
+  invoicingEnabled: boolean;
   hardwareFingerprint?: string;
   hardwareInfo?: PosLicenseHardwareInfo;
   activatedAt?: string;
