@@ -1,8 +1,9 @@
 'use client';
 
 // Pestaña "Piloto en vivo" de /admin/sistema: mapa de la república con las
-// sucursales en prueba piloto + feed de ventas de HOY (nativas POS v2),
-// actualizado por polling cada 10s. Toast cuando entra una venta nueva.
+// sucursales en prueba piloto + feed de ventas de HOY (nativas POS v2).
+// Polling cada 30 min (petición del cliente: no saturar el backend) + botón
+// "Actualizar ahora" para refrescar bajo demanda. Toast en venta nueva.
 
 import { useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
@@ -10,6 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { posService } from '@/services/pos.service';
 import type { PilotRecentSale } from '@/types/pilotLive';
@@ -20,7 +22,7 @@ const PilotLiveMap = dynamic(() => import('./PilotLiveMap'), {
   loading: () => <Skeleton className="h-[420px] w-full rounded-lg" />,
 });
 
-const POLL_MS = 10_000;
+const POLL_MS = 30 * 60_000; // 30 minutos
 
 const money = (n: number, currency?: string | null) =>
   new Intl.NumberFormat('es-MX', {
@@ -56,13 +58,14 @@ const STATUS_BADGE: Record<
 };
 
 export function PilotLiveTab() {
-  const { data, isLoading, isError, dataUpdatedAt } = useQuery({
-    queryKey: ['pos', 'pilot-live'],
-    queryFn: () => posService.getPilotLive(),
-    refetchInterval: POLL_MS,
-    refetchIntervalInBackground: false,
-    staleTime: 5_000,
-  });
+  const { data, isLoading, isError, dataUpdatedAt, refetch, isFetching } =
+    useQuery({
+      queryKey: ['pos', 'pilot-live'],
+      queryFn: () => posService.getPilotLive(),
+      refetchInterval: POLL_MS,
+      refetchIntervalInBackground: false,
+      staleTime: 60_000,
+    });
 
   // Toast cuando aparece una venta COMPLETADA nueva (vs el fetch anterior).
   const seenIds = useRef<Set<string> | null>(null);
@@ -117,18 +120,27 @@ export function PilotLiveTab() {
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500" />
           </span>
           <span className="text-sm font-medium text-gray-700">
-            EN VIVO — ventas de hoy en sucursales piloto (se actualiza cada{' '}
-            {POLL_MS / 1000} s)
+            Ventas de hoy en sucursales piloto — se actualiza cada{' '}
+            {POLL_MS / 60_000} min
           </span>
         </div>
-        <span className="text-xs text-muted-foreground">
-          Actualizado:{' '}
-          {new Date(dataUpdatedAt).toLocaleTimeString('es-MX', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-          })}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">
+            Actualizado:{' '}
+            {new Date(dataUpdatedAt).toLocaleTimeString('es-MX', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isFetching}
+          >
+            {isFetching ? 'Actualizando…' : 'Actualizar ahora'}
+          </Button>
+        </div>
       </div>
 
       {/* Tarjetas por sucursal */}
