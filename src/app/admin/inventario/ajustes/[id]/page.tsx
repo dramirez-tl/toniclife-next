@@ -92,7 +92,7 @@ export default function CountDetailPage() {
     cancelMut.isPending;
 
   const tz = resolveTimeZone(
-    branches?.find((b) => b.name === count?.branch.name)?.timezone,
+    branches?.find((b) => b.name === count?.branch?.name)?.timezone,
   );
   const fmt = (d?: string) =>
     d
@@ -105,6 +105,69 @@ export default function CountDetailPage() {
 
   const status = (count?.status as string) ?? '';
   const badge = STATUS_BADGE[status] ?? { bg: 'bg-gray-100', text: 'text-gray-700' };
+
+  // ⚠ Este useMemo DEBE ir antes de los returns tempranos de loading/error:
+  // estaba después y al llegar los datos cambiaba el número de hooks entre
+  // renders → "Rendered more hooks than during the previous render" → la
+  // página moría con "Application error" y nunca se veían los botones del
+  // flujo (Enviar a revisión / Aprobar / Aplicar).
+  const itemColumns: DataTableColumn<AdjustmentItemDto>[] = useMemo(
+    () => [
+      {
+        key: 'product',
+        header: 'Producto',
+        render: (item) => (
+          <>
+            <p className="font-medium text-gray-900">{item.productName}</p>
+            <p className="text-xs text-gray-400">
+              {item.productCode}
+              {item.lotNumber ? ` · Lote ${item.lotNumber}` : ''}
+            </p>
+          </>
+        ),
+      },
+      {
+        key: 'systemQuantity',
+        header: 'Sistema',
+        headerClassName: 'text-right',
+        cellClassName: 'text-right text-gray-700',
+        render: (item) => item.systemQuantity,
+      },
+      {
+        key: 'countedQuantity',
+        header: 'Contado',
+        headerClassName: 'text-right',
+        cellClassName: 'text-right text-gray-700',
+        render: (item) => item.countedQuantity,
+      },
+      {
+        key: 'discrepancy',
+        header: 'Diferencia',
+        headerClassName: 'text-right',
+        cellClassName: 'text-right font-semibold',
+        render: (item) => {
+          const d = item.discrepancy ?? 0;
+          return (
+            <span
+              className={
+                d > 0 ? 'text-green-600' : d < 0 ? 'text-red-600' : 'text-gray-400'
+              }
+            >
+              {d > 0 ? '+' : ''}
+              {d}
+            </span>
+          );
+        },
+      },
+      {
+        key: 'notes',
+        header: 'Notas',
+        cellClassName: 'text-gray-500',
+        render: (item) => item.notes || '—',
+      },
+    ],
+    [],
+  );
 
   const handleSubmit = async () => {
     if (!id || !(await confirmAction('¿Enviar este conteo a revisión?'))) return;
@@ -207,64 +270,6 @@ export default function CountDetailPage() {
       </div>
     );
   }
-
-  const itemColumns: DataTableColumn<AdjustmentItemDto>[] = useMemo(
-    () => [
-      {
-        key: 'product',
-        header: 'Producto',
-        render: (item) => (
-          <>
-            <p className="font-medium text-gray-900">{item.productName}</p>
-            <p className="text-xs text-gray-400">
-              {item.productCode}
-              {item.lotNumber ? ` · Lote ${item.lotNumber}` : ''}
-            </p>
-          </>
-        ),
-      },
-      {
-        key: 'systemQuantity',
-        header: 'Sistema',
-        headerClassName: 'text-right',
-        cellClassName: 'text-right text-gray-700',
-        render: (item) => item.systemQuantity,
-      },
-      {
-        key: 'countedQuantity',
-        header: 'Contado',
-        headerClassName: 'text-right',
-        cellClassName: 'text-right text-gray-700',
-        render: (item) => item.countedQuantity,
-      },
-      {
-        key: 'discrepancy',
-        header: 'Diferencia',
-        headerClassName: 'text-right',
-        cellClassName: 'text-right font-semibold',
-        render: (item) => {
-          const d = item.discrepancy ?? 0;
-          return (
-            <span
-              className={
-                d > 0 ? 'text-green-600' : d < 0 ? 'text-red-600' : 'text-gray-400'
-              }
-            >
-              {d > 0 ? '+' : ''}
-              {d}
-            </span>
-          );
-        },
-      },
-      {
-        key: 'notes',
-        header: 'Notas',
-        cellClassName: 'text-gray-500',
-        render: (item) => item.notes || '—',
-      },
-    ],
-    [],
-  );
 
   return (
     <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
