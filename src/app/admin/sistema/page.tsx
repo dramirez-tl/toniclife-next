@@ -51,6 +51,7 @@ import {
 } from '@/hooks/usePosLicenses';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Switch } from '@/components/ui/switch';
+import { PilotLiveTab } from './PilotLiveTab';
 import type { CleanupBlockStatus, LoadPhaseStatus } from '@/types/maintenance';
 import type { PosLicense } from '@/types/posLicense';
 
@@ -132,10 +133,21 @@ function SistemaContent() {
             <Tabs defaultValue="pos">
               <TabsList>
                 <TabsTrigger value="pos">Puntos de Venta</TabsTrigger>
+                <TabsTrigger value="piloto">
+                  <span className="relative mr-1.5 flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+                  </span>
+                  Piloto en vivo
+                </TabsTrigger>
                 <TabsTrigger value="limpieza">Limpieza</TabsTrigger>
                 <TabsTrigger value="carga">Carga masiva</TabsTrigger>
                 <TabsTrigger value="reset">Reset por periodo</TabsTrigger>
               </TabsList>
+
+              <TabsContent value="piloto" className="mt-6">
+                <PilotLiveTab />
+              </TabsContent>
 
               <TabsContent value="pos" className="mt-6">
                 <p className="mb-4 text-sm text-muted-foreground">

@@ -2,6 +2,7 @@
 // Ref: toniclife-api/src/modules/pos/
 
 import api from '@/lib/axios';
+import type { PilotLiveResponse } from '@/types/pilotLive';
 import type {
   // Cash Register
   CashRegister,
@@ -375,6 +376,19 @@ class PosService {
    */
   calculateChange(amountDue: number, amountReceived: number): number {
     return Math.max(0, amountReceived - amountDue);
+  }
+
+  /**
+   * Monitor en vivo de la prueba piloto (ventas nativas de HOY por sucursal
+   * + feed). Pensado para polling (~10s) desde /admin/sistema.
+   */
+  async getPilotLive(branchCodes?: string[]): Promise<PilotLiveResponse> {
+    const response = await api.get<PilotLiveResponse>('/pos/pilot-live', {
+      params: branchCodes?.length
+        ? { branchCodes: branchCodes.join(',') }
+        : undefined,
+    });
+    return response.data;
   }
 }
 
