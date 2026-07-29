@@ -24,7 +24,8 @@ const ADMIN_ROLES = [
   'comisiones', 'comercial', 'comercial_two', 'comercial_three', 'comercial_usa',
   // Warehouse & production
   'almacen', 'laboratorio', 'materia_prima', 'aux_materia_prima', 'produccion',
-  'soporte', 'mantenimiento',
+  // 'sistemas' = código vigente del depto. de Sistemas (mig. 019 renombró 'soporte').
+  'sistemas', 'soporte', 'mantenimiento',
   // Distribution centers
   'cedea', 'cedea_two', 'cedeas', 'cedeas2', 'cedeas_viaticos', 'cedis',
   // HR & admin support

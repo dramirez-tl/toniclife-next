@@ -56,7 +56,9 @@ const ADMIN_ROLES = [
   'rh', 'contabilidad', 'auditor', 'viewer', 'call_center',
   // Operational roles
   'operaciones', 'sucursales', 'supervisor', 'auxiliar_sucursal', 'auxiliar',
-  'soporte', 'cedea', 'cedea_two', 'cedeas', 'cedeas2', 'comisiones',
+  // 'sistemas' es el código vigente (la migración 019 renombró 'soporte' → 'sistemas');
+  // 'soporte' se conserva por si quedara algún usuario con el código viejo.
+  'sistemas', 'soporte', 'cedea', 'cedea_two', 'cedeas', 'cedeas2', 'comisiones',
   'comercial', 'produccion', 'laboratorio', 'compras',
   // Legacy-migration codes (role.code came from legacy module names)
   'ventas',                   // Administrador (54 users)

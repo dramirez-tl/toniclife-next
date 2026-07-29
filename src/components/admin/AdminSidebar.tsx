@@ -67,6 +67,19 @@ const navigation: NavItem[] = [
     ],
   },
   {
+    name: 'Activos TI',
+    href: '/admin/activos',
+    icon: ComputerDesktopIcon,
+    permissions: ['assets', 'assets:read'],
+    children: [
+      { name: 'Inventario', href: '/admin/activos' },
+      { name: 'Categorías', href: '/admin/activos/categorias' },
+      { name: 'Ubicaciones', href: '/admin/activos/ubicaciones' },
+      { name: 'Facturas de compra', href: '/admin/activos/facturas' },
+      { name: 'Etiquetas', href: '/admin/activos/etiquetas' },
+    ],
+  },
+  {
     name: 'Tesorería',
     href: '/admin/tesoreria',
     icon: CurrencyDollarIcon,
@@ -247,7 +260,10 @@ export function AdminSidebar({ mobile = false, collapsed = false, onNavigate }: 
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
   // Roles con acceso al sidebar filtrado por permisos
-  const FULL_ACCESS_ROLES = ['super_admin', 'administrador', 'viewer', 'subadmin', 'sucursales', 'auxiliar_sucursal', 'contabilidad', 'call_center', 'cedea', 'cedea_two', 'cedeas', 'cedeas2', 'comercial', 'comercial_two', 'comercial_three', 'comercial_usa', 'dircomer'];
+  // 'sistemas' es el código vigente del rol del departamento de Sistemas
+  // (la migración 019 renombró 'soporte' → 'sistemas'). Sin él, esos usuarios
+  // caerían en isWorkerUser y solo verían el Panel Principal.
+  const FULL_ACCESS_ROLES = ['super_admin', 'administrador', 'sistemas', 'viewer', 'subadmin', 'sucursales', 'auxiliar_sucursal', 'contabilidad', 'call_center', 'cedea', 'cedea_two', 'cedeas', 'cedeas2', 'comercial', 'comercial_two', 'comercial_three', 'comercial_usa', 'dircomer'];
 
   const isWorkerUser = useMemo(() => {
     if (!user?.roles?.length) return true;
