@@ -29,6 +29,8 @@ export interface PilotRecentSale {
   branchCode: string;
   branchName: string;
   total: number;
+  /** Moneda de la sucursal de la venta (MXN, USD, ...). */
+  currencyCode?: string | null;
   status: 'completed' | 'pending' | 'cancelled' | string;
   createdAt: string;
   customerName: string | null;
@@ -36,6 +38,8 @@ export interface PilotRecentSale {
 }
 
 export interface PilotLiveResponse {
+  /** Día efectivo consultado (YYYY-MM-DD, corte CDMX). */
+  date: string;
   serverTime: string;
   branches: PilotBranchLive[];
   recentSales: PilotRecentSale[];

@@ -379,14 +379,18 @@ class PosService {
   }
 
   /**
-   * Monitor en vivo de la prueba piloto (ventas nativas de HOY por sucursal
-   * + feed). Pensado para polling (~10s) desde /admin/sistema.
+   * Monitor de la prueba piloto (ventas nativas por sucursal + feed).
+   * `date` (YYYY-MM-DD) navega a días anteriores; ausente = hoy (en vivo).
    */
-  async getPilotLive(branchCodes?: string[]): Promise<PilotLiveResponse> {
+  async getPilotLive(
+    branchCodes?: string[],
+    date?: string,
+  ): Promise<PilotLiveResponse> {
+    const params: Record<string, string> = {};
+    if (branchCodes?.length) params.branchCodes = branchCodes.join(',');
+    if (date) params.date = date;
     const response = await api.get<PilotLiveResponse>('/pos/pilot-live', {
-      params: branchCodes?.length
-        ? { branchCodes: branchCodes.join(',') }
-        : undefined,
+      params: Object.keys(params).length ? params : undefined,
     });
     return response.data;
   }

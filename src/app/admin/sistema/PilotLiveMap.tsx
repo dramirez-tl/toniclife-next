@@ -113,8 +113,11 @@ export default function PilotLiveMap({
                 </p>
                 <p className="mb-2 text-xs text-gray-600">{b.address}</p>
                 <p>
-                  Ventas hoy: <strong>{b.salesCount}</strong> ·{' '}
-                  <strong>{money(b.salesTotal, b.currencyCode)}</strong>
+                  Ventas del día: <strong>{b.salesCount}</strong> ·{' '}
+                  <strong>{money(b.salesTotal, b.currencyCode)}</strong>{' '}
+                  <span className="text-gray-500">
+                    ({b.currencyCode ?? 'MXN'})
+                  </span>
                 </p>
                 {b.pendingCount > 0 && (
                   <p className="text-amber-600">
