@@ -42,6 +42,12 @@ export interface PromotionRule {
   /** Si TRUE, al canjear se descuentan los puntos del periodo del distribuidor. */
   consumesPoints: boolean;
   isActive: boolean;
+  /** Nombre mostrado en ESTE país (null = usa el nombre base del producto). */
+  displayName?: string | null;
+  /** Nombre corto mostrado en ESTE país (null = usa el base). */
+  displayShortName?: string | null;
+  /** Descripción mostrada en ESTE país (null = usa la base). */
+  displayDescription?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -56,6 +62,10 @@ export interface UpsertPromotionRuleDto {
   availableTo?: string | null;
   consumesPoints?: boolean;
   isActive?: boolean;
+  /** Personalización por país (mig 100). Vacío/null = usar el dato base. */
+  displayName?: string | null;
+  displayShortName?: string | null;
+  displayDescription?: string | null;
 }
 
 // ================================

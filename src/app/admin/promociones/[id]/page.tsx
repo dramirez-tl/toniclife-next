@@ -1,32 +1,38 @@
+// Detalle/edición de una promoción canjeable por puntos.
+//
+// ESTRUCTURA (rediseño jul-2026 — pedido del cliente: "que quede claro qué
+// quedó para cada país"):
+//   1. Datos generales (BASE/global): código, switches y el contenido que se
+//      usa donde el país no personaliza.
+//   2. Componentes Globales: la lista que aplica en países SIN lista propia.
+//   3. UNA TARJETA POR PAÍS con TODO lo de ese país junto:
+//      regla de canje + lo que ve el distribuidor (nombre/descr.) +
+//      componentes propios.
+// La resolución en runtime: componentes del país si existen (mig 099), si no
+// los globales; nombre/descr. del país si la regla los define (mig 100), si
+// no los base.
 'use client';
 
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
-import {
-  ArrowLeftIcon,
-  SparklesIcon,
-  PlusIcon,
-  TrashIcon,
-  CheckIcon,
-  MagnifyingGlassIcon,
-} from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+  ArrowLeftIcon,
+  SparklesIcon,
+  MagnifyingGlassIcon,
+  PlusIcon,
+  TrashIcon,
+  CheckIcon,
+  GlobeAmericasIcon,
+} from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import {
   usePromotion,
   usePromotionComponents,
-  useReplacePromotionComponents,
   usePromotionRules,
+  useReplacePromotionComponents,
   useUpsertPromotionRule,
   useRemovePromotionRule,
 } from '@/hooks/usePromotions';
@@ -34,33 +40,536 @@ import { useProducts, useUpdateProduct } from '@/hooks/useProducts';
 import { useActiveCountries } from '@/hooks/useConfig';
 import { ProductType } from '@/types/product';
 import type { Product } from '@/types/product';
-import type { BulkPromotionComponentItem } from '@/types/promotion';
+import type {
+  BulkPromotionComponentItem,
+  PromotionRule,
+} from '@/types/promotion';
 
 type CompRow = BulkPromotionComponentItem & {
   productName: string;
   productCode: string;
 };
 
-export default function EditarPromocionPage({ params }: { params: Promise<{ id: string }> }) {
+const apiMsg = (err: unknown, fallback: string) =>
+  (err as { response?: { data?: { message?: string } } })?.response?.data
+    ?.message ?? fallback;
+
+// ================================================================
+// Compositor de componentes reutilizable (Global o un país).
+// Hooks propios: cada instancia carga y guarda SU alcance.
+// ================================================================
+function ComponentsEditor({
+  promotionId,
+  scope,
+  scopeLabel,
+  emptyHint,
+}: {
+  promotionId: string;
+  /** 'global' o UUID de país. */
+  scope: string;
+  scopeLabel: string;
+  emptyHint: string;
+}) {
+  const { data: components, isLoading } = usePromotionComponents(
+    promotionId,
+    scope,
+  );
+  const replaceComponents = useReplacePromotionComponents(promotionId);
+
+  const [rows, setRows] = useState<CompRow[]>([]);
+  const [dirty, setDirty] = useState(false);
+  const [productSearch, setProductSearch] = useState('');
+
+  useEffect(() => {
+    if (components) {
+      setRows(
+        components.map((c) => ({
+          componentProductId: c.componentProductId ?? '',
+          productName: c.componentProductName ?? '',
+          productCode: c.componentProductCode ?? '',
+          quantity: Number(c.quantity),
+          sortOrder: c.sortOrder,
+        })),
+      );
+      setDirty(false);
+    }
+  }, [components]);
+
+  const { data: productSearchResults } = useProducts(
+    productSearch.trim().length >= 2
+      ? {
+          search: productSearch,
+          isActive: true,
+          limit: 10,
+          productType: ProductType.FINISHED_GOOD,
+        }
+      : { limit: 0 },
+  );
+
+  const addComponent = (p: Product) => {
+    if (rows.some((r) => r.componentProductId === p.id)) {
+      toast.warning('Ese producto ya está en la lista');
+      return;
+    }
+    setRows((prev) => [
+      ...prev,
+      {
+        componentProductId: p.id,
+        productName: p.name,
+        productCode: p.code,
+        quantity: 1,
+        sortOrder: prev.length,
+      },
+    ]);
+    setDirty(true);
+    setProductSearch('');
+  };
+
+  const removeRow = (productId: string) => {
+    setRows((prev) => prev.filter((r) => r.componentProductId !== productId));
+    setDirty(true);
+  };
+
+  const updateQty = (productId: string, qty: number) => {
+    setRows((prev) =>
+      prev.map((r) =>
+        r.componentProductId === productId ? { ...r, quantity: qty } : r,
+      ),
+    );
+    setDirty(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      await replaceComponents.mutateAsync({
+        components: rows.map((r, i) => ({
+          componentProductId: r.componentProductId,
+          quantity: r.quantity,
+          sortOrder: i,
+        })),
+        countryId: scope === 'global' ? undefined : scope,
+      });
+      setDirty(false);
+      toast.success(`Componentes guardados (${scopeLabel})`);
+    } catch (err: unknown) {
+      toast.error(apiMsg(err, 'Error al guardar componentes'));
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-gray-800">
+          Componentes ({rows.length})
+          {dirty && (
+            <span className="ml-2 text-xs font-normal text-amber-600">
+              — sin guardar
+            </span>
+          )}
+        </h3>
+        <Button
+          variant={dirty ? 'default' : 'outline'}
+          size="sm"
+          onClick={handleSave}
+          disabled={replaceComponents.isPending || isLoading}
+        >
+          {replaceComponents.isPending && (
+            <Loader2 className="mr-1 size-3 animate-spin" />
+          )}
+          <CheckIcon className="h-3.5 w-3.5" />
+          Guardar
+        </Button>
+      </div>
+
+      <div className="relative">
+        <MagnifyingGlassIcon className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          type="text"
+          value={productSearch}
+          onChange={(e) => setProductSearch(e.target.value)}
+          placeholder="Buscar producto para agregar..."
+          className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
+        />
+        {productSearch.trim().length >= 2 &&
+          productSearchResults?.data &&
+          productSearchResults.data.length > 0 && (
+            <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-64 overflow-y-auto">
+              {productSearchResults.data.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => addComponent(p)}
+                  className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center justify-between"
+                >
+                  <div>
+                    <div className="text-sm font-medium">{p.name}</div>
+                    <div className="text-xs text-gray-500 font-mono">
+                      {p.code}
+                    </div>
+                  </div>
+                  <PlusIcon className="h-4 w-4 text-[#3E667D]" />
+                </button>
+              ))}
+            </div>
+          )}
+      </div>
+
+      {isLoading ? (
+        <p className="py-4 text-center text-sm text-gray-400">Cargando…</p>
+      ) : rows.length === 0 ? (
+        <div className="rounded-lg border-2 border-dashed p-4 text-center text-xs text-gray-500">
+          {emptyHint}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {rows.map((row) => (
+            <div
+              key={row.componentProductId}
+              className="flex items-center gap-3 rounded-md border border-gray-200 p-2.5 hover:bg-gray-50"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium">
+                  {row.productName}
+                </div>
+                <div className="text-xs text-gray-500 font-mono">
+                  {row.productCode}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <label className="text-xs text-gray-500">Cant:</label>
+                <input
+                  type="number"
+                  min={0.0001}
+                  step={0.0001}
+                  value={row.quantity}
+                  onChange={(e) =>
+                    updateQty(row.componentProductId, Number(e.target.value))
+                  }
+                  className="w-20 rounded border border-gray-300 px-2 py-1 text-right text-sm"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => removeRow(row.componentProductId)}
+                className="p-1 text-red-500 hover:text-red-700"
+                title="Quitar"
+              >
+                <TrashIcon className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ================================================================
+// Tarjeta de UN PAÍS: regla de canje + lo que ve el distribuidor +
+// componentes del país — todo junto para que se vea qué quedó dónde.
+// ================================================================
+function CountryCard({
+  promotionId,
+  rule,
+  baseName,
+  baseShortName,
+  baseDescription,
+}: {
+  promotionId: string;
+  rule: PromotionRule;
+  baseName: string;
+  baseShortName: string;
+  baseDescription: string;
+}) {
+  const upsertRule = useUpsertPromotionRule(promotionId);
+  const removeRule = useRemovePromotionRule(promotionId);
+
+  const [min, setMin] = useState(Number(rule.minPointsRequired));
+  const [validity, setValidity] = useState(rule.validityDays ?? 90);
+  const [recurrence, setRecurrence] = useState<'per_period' | 'one_time'>(
+    rule.recurrence ?? 'per_period',
+  );
+  const [from, setFrom] = useState(rule.availableFrom ?? '');
+  const [to, setTo] = useState(rule.availableTo ?? '');
+  const [consumes, setConsumes] = useState(rule.consumesPoints);
+  const [dName, setDName] = useState(rule.displayName ?? '');
+  const [dShortName, setDShortName] = useState(rule.displayShortName ?? '');
+  const [dDescription, setDDescription] = useState(
+    rule.displayDescription ?? '',
+  );
+
+  useEffect(() => {
+    setMin(Number(rule.minPointsRequired));
+    setValidity(rule.validityDays ?? 90);
+    setRecurrence(rule.recurrence ?? 'per_period');
+    setFrom(rule.availableFrom ?? '');
+    setTo(rule.availableTo ?? '');
+    setConsumes(rule.consumesPoints);
+    setDName(rule.displayName ?? '');
+    setDShortName(rule.displayShortName ?? '');
+    setDDescription(rule.displayDescription ?? '');
+  }, [rule]);
+
+  const countryLabel = rule.countryName ?? rule.countryCode ?? 'País';
+
+  const handleSave = async () => {
+    if (min <= 0) {
+      toast.error('El umbral de puntos debe ser mayor a 0');
+      return;
+    }
+    if (validity <= 0) {
+      toast.error('La vigencia debe ser mayor a 0 días');
+      return;
+    }
+    try {
+      await upsertRule.mutateAsync({
+        countryId: rule.countryId,
+        minPointsRequired: min,
+        validityDays: validity,
+        recurrence,
+        availableFrom: from || null,
+        availableTo: to || null,
+        consumesPoints: consumes,
+        isActive: true,
+        displayName: dName.trim() || null,
+        displayShortName: dShortName.trim() || null,
+        displayDescription: dDescription.trim() || null,
+      });
+      toast.success(`${countryLabel}: configuración guardada`);
+    } catch (err: unknown) {
+      toast.error(apiMsg(err, 'Error al guardar la configuración del país'));
+    }
+  };
+
+  const handleRemove = async () => {
+    try {
+      await removeRule.mutateAsync(rule.countryId);
+      toast.success(`${countryLabel}: regla desactivada`);
+    } catch (err: unknown) {
+      toast.error(apiMsg(err, 'Error al desactivar la regla'));
+    }
+  };
+
+  const inputCls =
+    'w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#3E667D]';
+
+  return (
+    <Card className={rule.isActive ? '' : 'opacity-70'}>
+      <CardContent className="p-6 space-y-4">
+        {/* Header del país */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold">{countryLabel}</h2>
+            {rule.countryCode && (
+              <span className="rounded bg-gray-100 px-2 py-0.5 font-mono text-xs text-gray-600">
+                {rule.countryCode}
+              </span>
+            )}
+            <span
+              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                rule.isActive
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-red-100 text-red-700'
+              }`}
+            >
+              {rule.isActive ? 'Activa' : 'Inactiva'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="default"
+              size="sm"
+              onClick={handleSave}
+              disabled={upsertRule.isPending}
+            >
+              {upsertRule.isPending && (
+                <Loader2 className="mr-1 size-3 animate-spin" />
+              )}
+              <CheckIcon className="h-3.5 w-3.5" />
+              Guardar {countryLabel}
+            </Button>
+            {rule.isActive && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRemove}
+                disabled={removeRule.isPending}
+                className="text-destructive border-destructive/40 hover:bg-destructive/5"
+              >
+                Desactivar
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {/* Columna izquierda: regla + personalización */}
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">
+                Regla de canje
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    Puntos mínimos
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={min}
+                    onChange={(e) => setMin(Number(e.target.value))}
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    Vigencia (días)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={validity}
+                    onChange={(e) => setValidity(Number(e.target.value))}
+                    className={inputCls}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs text-gray-600 mb-1">
+                    Recurrencia
+                  </label>
+                  <select
+                    value={recurrence}
+                    onChange={(e) =>
+                      setRecurrence(
+                        e.target.value as 'per_period' | 'one_time',
+                      )
+                    }
+                    className={inputCls}
+                  >
+                    <option value="per_period">Recurrente cada periodo</option>
+                    <option value="one_time">Una sola vez</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    Disponible desde
+                  </label>
+                  <input
+                    type="date"
+                    value={from}
+                    onChange={(e) => setFrom(e.target.value)}
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    Disponible hasta
+                  </label>
+                  <input
+                    type="date"
+                    value={to}
+                    onChange={(e) => setTo(e.target.value)}
+                    className={inputCls}
+                  />
+                </div>
+                <label className="col-span-2 flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={consumes}
+                    onChange={(e) => setConsumes(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  <span className="text-sm text-gray-700">
+                    Consume puntos al canjear
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div className="border-t pt-4">
+              <h3 className="text-sm font-semibold text-gray-800">
+                Lo que ve el distribuidor en {countryLabel}
+              </h3>
+              <p className="mb-2 text-xs text-gray-500">
+                Opcional. Si lo dejas vacío se usa el dato base (Global) del
+                producto.
+              </p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    Nombre
+                  </label>
+                  <input
+                    type="text"
+                    value={dName}
+                    onChange={(e) => setDName(e.target.value)}
+                    placeholder={baseName || 'Usa el nombre base'}
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    Nombre corto
+                  </label>
+                  <input
+                    type="text"
+                    value={dShortName}
+                    onChange={(e) => setDShortName(e.target.value)}
+                    placeholder={baseShortName || 'Usa el nombre corto base'}
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    Descripción
+                  </label>
+                  <textarea
+                    value={dDescription}
+                    onChange={(e) => setDDescription(e.target.value)}
+                    rows={2}
+                    placeholder={baseDescription || 'Usa la descripción base'}
+                    className={inputCls}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Columna derecha: componentes del país */}
+          <div className="rounded-lg bg-gray-50/70 p-4">
+            <ComponentsEditor
+              promotionId={promotionId}
+              scope={rule.countryId}
+              scopeLabel={countryLabel}
+              emptyHint={`Sin lista propia: en ${countryLabel} se entrega la lista GLOBAL. Agrega productos y guarda para darle contenido específico.`}
+            />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ================================================================
+// Página
+// ================================================================
+export default function EditarPromocionPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = use(params);
 
   const { data: promo, isLoading: promoLoading } = usePromotion(id);
-  // Alcance del compositor de componentes (mig 099): 'global' o UUID de país.
-  // Mismo código de promo con CONTENIDO distinto por país; si un país no
-  // tiene lista propia, aplica la Global.
-  const [componentsScope, setComponentsScope] = useState<string>('global');
-  const { data: components, isLoading: compsLoading } = usePromotionComponents(
-    id,
-    componentsScope,
-  );
   const { data: rules } = usePromotionRules(id);
   const { data: countries } = useActiveCountries();
   const updateProduct = useUpdateProduct();
-  const replaceComponents = useReplacePromotionComponents(id);
   const upsertRule = useUpsertPromotionRule(id);
-  const removeRule = useRemovePromotionRule(id);
 
-  // -------- datos del producto --------
+  // -------- datos del producto (BASE) --------
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [shortName, setShortName] = useState('');
@@ -84,32 +593,7 @@ export default function EditarPromocionPage({ params }: { params: Promise<{ id: 
     }
   }, [promo]);
 
-  // -------- componentes (compositor) --------
-  const [rows, setRows] = useState<CompRow[]>([]);
-  const [productSearch, setProductSearch] = useState('');
-
-  useEffect(() => {
-    if (components) {
-      setRows(
-        components.map((c) => ({
-          componentProductId: c.componentProductId ?? '',
-          productName: c.componentProductName ?? '',
-          productCode: c.componentProductCode ?? '',
-          quantity: Number(c.quantity),
-          sortOrder: c.sortOrder,
-        })),
-      );
-    }
-  }, [components]);
-
-  const { data: productSearchResults } = useProducts(
-    productSearch.trim().length >= 2
-      ? { search: productSearch, isActive: true, limit: 10, productType: ProductType.FINISHED_GOOD }
-      : { limit: 0 },
-  );
-
-  // Validación inline del código: no debe repetirse con OTRO producto/promoción
-  // (code es único global en la BD). Se excluye la promo actual.
+  // Validación inline del código: no debe repetirse con OTRO producto.
   const trimmedCode = code.trim();
   const { data: codeMatches } = useProducts(
     trimmedCode.length >= 2 ? { search: trimmedCode, limit: 10 } : { limit: 0 },
@@ -124,46 +608,9 @@ export default function EditarPromocionPage({ params }: { params: Promise<{ id: 
       : undefined;
   const codeTaken = !!codeConflict;
 
-  const addComponent = (p: Product) => {
-    if (rows.some((r) => r.componentProductId === p.id)) {
-      toast.warning('Ese producto ya está en la promoción');
-      return;
-    }
-    setRows((prev) => [
-      ...prev,
-      {
-        componentProductId: p.id,
-        productName: p.name,
-        productCode: p.code,
-        quantity: 1,
-        sortOrder: prev.length,
-      },
-    ]);
-    setProductSearch('');
-  };
-
-  const removeRow = (productId: string) => {
-    setRows((prev) => prev.filter((r) => r.componentProductId !== productId));
-  };
-
-  const updateQty = (productId: string, qty: number) => {
-    setRows((prev) =>
-      prev.map((r) => (r.componentProductId === productId ? { ...r, quantity: qty } : r)),
-    );
-  };
-
-  // -------- reglas por país --------
+  // -------- agregar país --------
   const [newRuleCountry, setNewRuleCountry] = useState('');
   const [newRuleMin, setNewRuleMin] = useState<number>(0);
-  const [newRuleValidity, setNewRuleValidity] = useState<number>(90);
-  const [newRuleRecurrence, setNewRuleRecurrence] = useState<
-    'per_period' | 'one_time'
-  >('per_period');
-  const [newRuleFrom, setNewRuleFrom] = useState('');
-  const [newRuleTo, setNewRuleTo] = useState('');
-  const [newRuleConsumes, setNewRuleConsumes] = useState(false);
-
-  // Países que aún no tienen regla configurada (para no duplicar selector).
   const ruledCountryIds = new Set((rules ?? []).map((r) => r.countryId));
   const availableCountriesForNewRule = (countries ?? []).filter(
     (c) => !ruledCountryIds.has(c.id),
@@ -197,19 +644,16 @@ export default function EditarPromocionPage({ params }: { params: Promise<{ id: 
           isVisibleEcommerce,
         },
       });
-      toast.success('Datos de la promoción actualizados');
+      toast.success('Datos base de la promoción actualizados');
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Error al actualizar';
-      toast.error(msg);
+      toast.error(apiMsg(err, 'Error al actualizar'));
     }
   };
 
   const handleCancelPromo = async () => {
     if (!promo) return;
     try {
-      // Cancelar = desactivar (soft). Queda inactiva: no se otorgan nuevos
-      // derechos ni aparece en el POS; los derechos existentes dejan de
-      // mostrarse porque el producto queda inactivo. Es reversible.
+      // Cancelar = desactivar (soft). Reversible.
       await updateProduct.mutateAsync({
         id: promo.id,
         dto: { isActive: false, availableInPos: false },
@@ -219,50 +663,22 @@ export default function EditarPromocionPage({ params }: { params: Promise<{ id: 
       setConfirmCancel(false);
       toast.success('Promoción cancelada. Ya no se otorga ni aparece en el POS.');
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Error al cancelar la promoción';
-      toast.error(msg);
+      toast.error(apiMsg(err, 'Error al cancelar la promoción'));
     }
   };
 
   const handleReactivatePromo = async () => {
     if (!promo) return;
     try {
-      await updateProduct.mutateAsync({
-        id: promo.id,
-        dto: { isActive: true },
-      });
+      await updateProduct.mutateAsync({ id: promo.id, dto: { isActive: true } });
       setIsActive(true);
       toast.success('Promoción reactivada');
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Error al reactivar la promoción';
-      toast.error(msg);
+      toast.error(apiMsg(err, 'Error al reactivar la promoción'));
     }
   };
 
-  const handleSaveComponents = async () => {
-    try {
-      await replaceComponents.mutateAsync({
-        components: rows.map((r, i) => ({
-          componentProductId: r.componentProductId,
-          quantity: r.quantity,
-          sortOrder: i,
-        })),
-        // Guardado POR ALCANCE: global no toca los países y viceversa.
-        countryId: componentsScope === 'global' ? undefined : componentsScope,
-      });
-      const scopeLabel =
-        componentsScope === 'global'
-          ? 'Global'
-          : (countries?.find((c) => c.id === componentsScope)?.name ??
-            'el país seleccionado');
-      toast.success(`Componentes guardados (${scopeLabel})`);
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Error al guardar componentes';
-      toast.error(msg);
-    }
-  };
-
-  const handleAddRule = async () => {
+  const handleAddCountry = async () => {
     if (!newRuleCountry) {
       toast.error('Selecciona un país');
       return;
@@ -271,69 +687,25 @@ export default function EditarPromocionPage({ params }: { params: Promise<{ id: 
       toast.error('El umbral de puntos debe ser mayor a 0');
       return;
     }
-    if (newRuleValidity <= 0) {
-      toast.error('La vigencia debe ser mayor a 0 días');
-      return;
-    }
     try {
       await upsertRule.mutateAsync({
         countryId: newRuleCountry,
         minPointsRequired: newRuleMin,
-        validityDays: newRuleValidity,
-        recurrence: newRuleRecurrence,
-        availableFrom: newRuleFrom || null,
-        availableTo: newRuleTo || null,
-        consumesPoints: newRuleConsumes,
+        validityDays: 90,
+        recurrence: 'per_period',
+        availableFrom: null,
+        availableTo: null,
+        consumesPoints: false,
         isActive: true,
       });
-      toast.success('Regla de canje agregada');
+      const c = countries?.find((x) => x.id === newRuleCountry);
+      toast.success(
+        `${c?.name ?? 'País'} agregado. Ajusta su regla, contenido y componentes en su tarjeta.`,
+      );
       setNewRuleCountry('');
       setNewRuleMin(0);
-      setNewRuleValidity(90);
-      setNewRuleRecurrence('per_period');
-      setNewRuleFrom('');
-      setNewRuleTo('');
-      setNewRuleConsumes(false);
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Error al agregar la regla';
-      toast.error(msg);
-    }
-  };
-
-  const handleUpdateRule = async (
-    countryId: string,
-    minPointsRequired: number,
-    validityDays: number,
-    recurrence: 'per_period' | 'one_time',
-    availableFrom: string | null,
-    availableTo: string | null,
-    consumesPoints: boolean,
-  ) => {
-    try {
-      await upsertRule.mutateAsync({
-        countryId,
-        minPointsRequired,
-        validityDays,
-        recurrence,
-        availableFrom,
-        availableTo,
-        consumesPoints,
-        isActive: true,
-      });
-      toast.success('Regla actualizada');
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Error al actualizar la regla';
-      toast.error(msg);
-    }
-  };
-
-  const handleRemoveRule = async (countryId: string) => {
-    try {
-      await removeRule.mutateAsync(countryId);
-      toast.success('Regla desactivada');
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Error al desactivar la regla';
-      toast.error(msg);
+      toast.error(apiMsg(err, 'Error al agregar el país'));
     }
   };
 
@@ -345,11 +717,17 @@ export default function EditarPromocionPage({ params }: { params: Promise<{ id: 
     );
   }
 
+  const inputCls =
+    'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3E667D]';
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
         <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-          <Link href="/admin/productos?tab=promociones" className="inline-flex items-center text-white/80 hover:text-white mb-3 text-sm">
+          <Link
+            href="/admin/productos?tab=promociones"
+            className="inline-flex items-center text-white/80 hover:text-white mb-3 text-sm"
+          >
             <ArrowLeftIcon className="h-4 w-4 mr-1" /> Volver a Promociones
           </Link>
           <div className="flex items-center gap-3 mb-2">
@@ -357,24 +735,37 @@ export default function EditarPromocionPage({ params }: { params: Promise<{ id: 
             <h1 className="text-3xl font-bold sm:text-4xl">{promo.name}</h1>
           </div>
           <div className="flex flex-wrap items-center gap-2 mt-2">
-            <span className="bg-white/15 px-3 py-1 rounded text-sm font-mono">{promo.code}</span>
+            <span className="bg-white/15 px-3 py-1 rounded text-sm font-mono">
+              {promo.code}
+            </span>
             <span className="bg-white/15 px-3 py-1 rounded text-sm">
               Tipo: Promoción canjeable por puntos
+            </span>
+            <span className="bg-white/15 px-3 py-1 rounded text-sm">
+              {(rules ?? []).filter((r) => r.isActive).length} país(es)
+              configurado(s)
             </span>
           </div>
         </div>
       </div>
 
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8 space-y-6">
-        {/* Layout: datos + componentes lado a lado */}
+        {/* ============ BASE: datos generales + componentes globales ============ */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* DATOS DEL PRODUCTO */}
           <Card className="lg:col-span-1">
             <CardContent className="p-6 space-y-4">
-              <h2 className="text-lg font-semibold">Datos generales</h2>
+              <div>
+                <h2 className="text-lg font-semibold">Datos generales</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Contenido BASE: se muestra en los países que no personalizan
+                  el suyo (abajo).
+                </p>
+              </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Código</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Código
+                </label>
                 <input
                   type="text"
                   value={code}
@@ -390,53 +781,65 @@ export default function EditarPromocionPage({ params }: { params: Promise<{ id: 
                 />
                 {codeTaken ? (
                   <p className="mt-1 text-xs text-red-600">
-                    Ya existe {codeConflict?.isActive ? 'una promoción/producto activo' : 'un producto'} con el código “{trimmedCode}”. Usa otro.
+                    Ya existe{' '}
+                    {codeConflict?.isActive
+                      ? 'una promoción/producto activo'
+                      : 'un producto'}{' '}
+                    con el código “{trimmedCode}”. Usa otro.
                   </p>
                 ) : (
                   <p className="mt-1 text-xs text-gray-500">
-                    Identificador único de la promoción, sin espacios. Cámbialo con
-                    cuidado: es la clave por la que se busca en el POS.
+                    Identificador único (el MISMO en todos los países); es la
+                    clave por la que se busca en el POS.
                   </p>
                 )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre
+                </label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  className={inputCls}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre corto</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre corto
+                </label>
                 <input
                   type="text"
                   value={shortName}
                   onChange={(e) => setShortName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  className={inputCls}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Descripción
+                </label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  className={inputCls}
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción tienda en línea</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Descripción tienda en línea
+                </label>
                 <textarea
                   value={longDescription}
                   onChange={(e) => setLongDescription(e.target.value)}
                   rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                  className={inputCls}
                 />
               </div>
 
@@ -467,7 +870,9 @@ export default function EditarPromocionPage({ params }: { params: Promise<{ id: 
                   onChange={(e) => setIsVisibleEcommerce(e.target.checked)}
                   className="h-4 w-4"
                 />
-                <span className="text-sm font-medium">Visible en tienda en línea</span>
+                <span className="text-sm font-medium">
+                  Visible en tienda en línea
+                </span>
               </label>
 
               <div className="pt-2">
@@ -477,7 +882,9 @@ export default function EditarPromocionPage({ params }: { params: Promise<{ id: 
                   onClick={handleSaveDetails}
                   disabled={updateProduct.isPending || codeTaken}
                 >
-                  {updateProduct.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
+                  {updateProduct.isPending && (
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                  )}
                   <CheckIcon className="h-4 w-4" />
                   Guardar datos
                 </Button>
@@ -489,8 +896,8 @@ export default function EditarPromocionPage({ params }: { params: Promise<{ id: 
                   confirmCancel ? (
                     <div className="space-y-2">
                       <p className="text-sm text-gray-700">
-                        ¿Cancelar esta promoción? Dejará de otorgarse y de aparecer
-                        en el POS. Podrás reactivarla después.
+                        ¿Cancelar esta promoción? Dejará de otorgarse y de
+                        aparecer en el POS. Podrás reactivarla después.
                       </p>
                       <div className="flex gap-2">
                         <Button
@@ -547,467 +954,107 @@ export default function EditarPromocionPage({ params }: { params: Promise<{ id: 
             </CardContent>
           </Card>
 
-          {/* COMPONENTES */}
+          {/* Componentes GLOBALES */}
           <Card className="lg:col-span-2">
             <CardContent className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Componentes ({rows.length})</h2>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={handleSaveComponents}
-                  disabled={replaceComponents.isPending || compsLoading}
-                >
-                  {replaceComponents.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-                  <CheckIcon className="h-4 w-4" />
-                  Guardar componentes
-                </Button>
-              </div>
-
-              {/* Alcance por país (mig 099): el mismo código de promo puede
-                  incluir cosas distintas en cada país. */}
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-gray-500">
-                  Componentes para
-                </label>
-                <select
-                  value={componentsScope}
-                  onChange={(e) => setComponentsScope(e.target.value)}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
-                >
-                  <option value="global">
-                    🌐 Global — países sin lista propia
-                  </option>
-                  {(countries ?? []).map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-                {componentsScope !== 'global' && rows.length === 0 && !compsLoading && (
-                  <p className="text-xs text-amber-600">
-                    Este país no tiene lista propia: al canjear aplica la lista
-                    Global. Agrega componentes y guarda para darle contenido
-                    específico.
+              <div className="flex items-center gap-2 border-b pb-3">
+                <GlobeAmericasIcon className="h-5 w-5 text-[#3E667D]" />
+                <div>
+                  <h2 className="text-lg font-semibold">
+                    Componentes Globales
+                  </h2>
+                  <p className="text-xs text-gray-500">
+                    Lo que incluye la promo en los países SIN lista propia. Si
+                    un país define la suya (abajo), la suya manda.
                   </p>
-                )}
-              </div>
-
-              <div className="relative">
-                <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  value={productSearch}
-                  onChange={(e) => setProductSearch(e.target.value)}
-                  placeholder="Buscar producto para agregar (mínimo 2 caracteres)..."
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
-                />
-                {productSearch.trim().length >= 2 && productSearchResults?.data && productSearchResults.data.length > 0 && (
-                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-72 overflow-y-auto">
-                    {productSearchResults.data.map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => addComponent(p)}
-                        className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center justify-between"
-                      >
-                        <div>
-                          <div className="text-sm font-medium">{p.name}</div>
-                          <div className="text-xs text-gray-500 font-mono">{p.code}</div>
-                        </div>
-                        <PlusIcon className="h-4 w-4 text-[#3E667D]" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {rows.length === 0 ? (
-                <div className="text-center py-12 text-gray-500 border-2 border-dashed rounded-lg">
-                  <p className="text-sm">Sin componentes todavía. Busca productos arriba para armar la promoción.</p>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  {rows.map((row) => (
-                    <div
-                      key={row.componentProductId}
-                      className="flex items-center gap-3 p-3 border border-gray-200 rounded-md hover:bg-gray-50"
-                    >
-                      <div className="flex-1">
-                        <div className="text-sm font-medium">{row.productName}</div>
-                        <div className="text-xs text-gray-500 font-mono">{row.productCode}</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <label className="text-xs text-gray-500">Cant:</label>
-                        <input
-                          type="number"
-                          min={0.0001}
-                          step={0.0001}
-                          value={row.quantity}
-                          onChange={(e) => updateQty(row.componentProductId, Number(e.target.value))}
-                          className="w-24 px-2 py-1 border border-gray-300 rounded text-sm text-right"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeRow(row.componentProductId)}
-                        className="text-red-500 hover:text-red-700 p-1"
-                        title="Quitar"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              </div>
+              <ComponentsEditor
+                promotionId={id}
+                scope="global"
+                scopeLabel="Global"
+                emptyHint="Sin componentes todavía. Busca productos arriba para armar la promoción."
+              />
             </CardContent>
           </Card>
         </div>
 
-        {/* REGLAS DE CANJE POR PAÍS */}
-        <Card>
-          <CardContent className="p-6 space-y-4">
-            <div>
-              <h2 className="text-lg font-semibold">Reglas de canje por país</h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Define el umbral de puntos personales acumulados en el periodo abierto que el distribuidor debe alcanzar para canjear esta promoción. Ej: México 4,000 / 6,000 — Estados Unidos 6,600 / 9,900.
-              </p>
-            </div>
-
-            {/* Listado de reglas existentes */}
-            <div className="space-y-2">
-              {(rules ?? []).length === 0 ? (
-                <div className="text-sm text-gray-500 border-2 border-dashed rounded-lg p-6 text-center">
-                  No hay reglas configuradas. Sin reglas, la promoción no se puede canjear en ningún país.
-                </div>
-              ) : (
-                <Table className="w-full">
-                  <TableHeader className="bg-gray-50 border-b">
-                    <TableRow>
-                      <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">País</TableHead>
-                      <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Puntos mínimos</TableHead>
-                      <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Vigencia (días)</TableHead>
-                      <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Recurrencia</TableHead>
-                      <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Disponible</TableHead>
-                      <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Consume puntos</TableHead>
-                      <TableHead className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Estado</TableHead>
-                      <TableHead className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody className="divide-y divide-gray-200">
-                    {(rules ?? []).map((rule) => (
-                      <RuleRow
-                        key={rule.id}
-                        countryLabel={
-                          rule.countryName ?? rule.countryCode ?? rule.countryId
-                        }
-                        initialMin={Number(rule.minPointsRequired)}
-                        initialValidity={rule.validityDays ?? 90}
-                        initialRecurrence={rule.recurrence ?? 'per_period'}
-                        initialFrom={rule.availableFrom ?? ''}
-                        initialTo={rule.availableTo ?? ''}
-                        initialConsumes={rule.consumesPoints}
-                        isActive={rule.isActive}
-                        onSave={(min, validity, recurrence, from, to, consumes) =>
-                          handleUpdateRule(
-                            rule.countryId,
-                            min,
-                            validity,
-                            recurrence,
-                            from || null,
-                            to || null,
-                            consumes,
-                          )
-                        }
-                        onRemove={() => handleRemoveRule(rule.countryId)}
-                        savePending={upsertRule.isPending}
-                        removePending={removeRule.isPending}
-                      />
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </div>
-
-            {/* Form para agregar regla nueva */}
-            {availableCountriesForNewRule.length > 0 && (
-              <div className="border-t pt-4">
-                <h3 className="text-sm font-semibold mb-3">Agregar regla para otro país</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">País</label>
-                    <select
-                      value={newRuleCountry}
-                      onChange={(e) => setNewRuleCountry(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    >
-                      <option value="">Seleccionar...</option>
-                      {availableCountriesForNewRule.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name} ({c.code})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">Puntos mínimos</label>
-                    <input
-                      type="number"
-                      min={0}
-                      step={1}
-                      value={newRuleMin}
-                      onChange={(e) => setNewRuleMin(Number(e.target.value))}
-                      placeholder="4000"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">Vigencia (días)</label>
-                    <input
-                      type="number"
-                      min={1}
-                      step={1}
-                      value={newRuleValidity}
-                      onChange={(e) => setNewRuleValidity(Number(e.target.value))}
-                      placeholder="90"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">Recurrencia</label>
-                    <select
-                      value={newRuleRecurrence}
-                      onChange={(e) =>
-                        setNewRuleRecurrence(
-                          e.target.value as 'per_period' | 'one_time',
-                        )
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    >
-                      <option value="per_period">Recurrente cada periodo</option>
-                      <option value="one_time">Una sola vez</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">Disponible desde (opcional)</label>
-                    <input
-                      type="date"
-                      value={newRuleFrom}
-                      onChange={(e) => setNewRuleFrom(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">Disponible hasta (opcional)</label>
-                    <input
-                      type="date"
-                      value={newRuleTo}
-                      onChange={(e) => setNewRuleTo(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={newRuleConsumes}
-                        onChange={(e) => setNewRuleConsumes(e.target.checked)}
-                        className="h-4 w-4"
-                      />
-                      <span className="text-sm text-gray-700">Consume puntos al canjear</span>
-                    </label>
-                  </div>
-                  <div className="flex items-end">
-                    <Button
-                      variant="default"
-                      className="w-full"
-                      onClick={handleAddRule}
-                      disabled={upsertRule.isPending}
-                    >
-                      {upsertRule.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-                      <PlusIcon className="h-4 w-4" />
-                      Agregar regla
-                    </Button>
-                  </div>
-                </div>
+        {/* ============ CONFIGURACIÓN POR PAÍS ============ */}
+        <div className="flex items-end justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">
+              Configuración por país
+            </h2>
+            <p className="text-sm text-gray-500">
+              Cada tarjeta reúne TODO lo de ese país: su regla de canje, lo que
+              ve el distribuidor y sus componentes. Sin regla, la promo no se
+              puede canjear en ese país.
+            </p>
+          </div>
+          {availableCountriesForNewRule.length > 0 && (
+            <div className="flex items-end gap-2">
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">País</label>
+                <select
+                  value={newRuleCountry}
+                  onChange={(e) => setNewRuleCountry(e.target.value)}
+                  className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+                >
+                  <option value="">Seleccionar…</option>
+                  {availableCountriesForNewRule.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name} ({c.code})
+                    </option>
+                  ))}
+                </select>
               </div>
-            )}
-          </CardContent>
-        </Card>
+              <div>
+                <label className="block text-xs text-gray-600 mb-1">
+                  Puntos mínimos
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={1}
+                  value={newRuleMin}
+                  onChange={(e) => setNewRuleMin(Number(e.target.value))}
+                  placeholder="4000"
+                  className="w-32 rounded-md border border-gray-300 px-3 py-2 text-sm"
+                />
+              </div>
+              <Button
+                variant="default"
+                onClick={handleAddCountry}
+                disabled={upsertRule.isPending}
+              >
+                {upsertRule.isPending && (
+                  <Loader2 className="mr-1 size-3 animate-spin" />
+                )}
+                <PlusIcon className="h-4 w-4" />
+                Agregar país
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {(rules ?? []).length === 0 ? (
+          <div className="rounded-lg border-2 border-dashed p-8 text-center text-sm text-gray-500">
+            No hay países configurados. Sin reglas, la promoción no se puede
+            canjear en ningún país — agrega el primero arriba a la derecha.
+          </div>
+        ) : (
+          (rules ?? []).map((rule) => (
+            <CountryCard
+              key={rule.id}
+              promotionId={id}
+              rule={rule}
+              baseName={name}
+              baseShortName={shortName}
+              baseDescription={description}
+            />
+          ))
+        )}
       </div>
     </div>
-  );
-}
-
-// --------------------------------------------------------------
-// Fila editable de regla (estado local para no perder el input al re-render)
-// --------------------------------------------------------------
-function RuleRow({
-  countryLabel,
-  initialMin,
-  initialValidity,
-  initialRecurrence,
-  initialFrom,
-  initialTo,
-  initialConsumes,
-  isActive,
-  onSave,
-  onRemove,
-  savePending,
-  removePending,
-}: {
-  countryLabel: string;
-  initialMin: number;
-  initialValidity: number;
-  initialRecurrence: 'per_period' | 'one_time';
-  initialFrom: string;
-  initialTo: string;
-  initialConsumes: boolean;
-  isActive: boolean;
-  onSave: (
-    minPoints: number,
-    validityDays: number,
-    recurrence: 'per_period' | 'one_time',
-    availableFrom: string,
-    availableTo: string,
-    consumesPoints: boolean,
-  ) => void;
-  onRemove: () => void;
-  savePending: boolean;
-  removePending: boolean;
-}) {
-  const [min, setMin] = useState(initialMin);
-  const [validity, setValidity] = useState(initialValidity);
-  const [recurrence, setRecurrence] = useState(initialRecurrence);
-  const [from, setFrom] = useState(initialFrom);
-  const [to, setTo] = useState(initialTo);
-  const [consumes, setConsumes] = useState(initialConsumes);
-
-  useEffect(() => {
-    setMin(initialMin);
-    setValidity(initialValidity);
-    setRecurrence(initialRecurrence);
-    setFrom(initialFrom);
-    setTo(initialTo);
-    setConsumes(initialConsumes);
-  }, [
-    initialMin,
-    initialValidity,
-    initialRecurrence,
-    initialFrom,
-    initialTo,
-    initialConsumes,
-  ]);
-
-  const dirty =
-    min !== initialMin ||
-    validity !== initialValidity ||
-    recurrence !== initialRecurrence ||
-    from !== initialFrom ||
-    to !== initialTo ||
-    consumes !== initialConsumes;
-
-  return (
-    <TableRow className="hover:bg-gray-50">
-      <TableCell className="px-4 py-2 text-sm font-medium">{countryLabel}</TableCell>
-      <TableCell className="px-4 py-2">
-        <input
-          type="number"
-          min={0}
-          step={1}
-          value={min}
-          onChange={(e) => setMin(Number(e.target.value))}
-          className="w-32 px-2 py-1 border border-gray-300 rounded text-sm text-right"
-        />
-      </TableCell>
-      <TableCell className="px-4 py-2">
-        <input
-          type="number"
-          min={1}
-          step={1}
-          value={validity}
-          onChange={(e) => setValidity(Number(e.target.value))}
-          className="w-24 px-2 py-1 border border-gray-300 rounded text-sm text-right"
-        />
-      </TableCell>
-      <TableCell className="px-4 py-2">
-        <select
-          value={recurrence}
-          onChange={(e) =>
-            setRecurrence(e.target.value as 'per_period' | 'one_time')
-          }
-          className="w-40 px-2 py-1 border border-gray-300 rounded text-sm"
-        >
-          <option value="per_period">Recurrente</option>
-          <option value="one_time">Una vez</option>
-        </select>
-      </TableCell>
-      <TableCell className="px-4 py-2">
-        <div className="flex flex-col gap-1">
-          <input
-            type="date"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            className="w-36 px-2 py-1 border border-gray-300 rounded text-xs"
-            title="Disponible desde"
-          />
-          <input
-            type="date"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            className="w-36 px-2 py-1 border border-gray-300 rounded text-xs"
-            title="Disponible hasta"
-          />
-        </div>
-      </TableCell>
-      <TableCell className="px-4 py-2">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={consumes}
-            onChange={(e) => setConsumes(e.target.checked)}
-            className="h-4 w-4"
-          />
-          <span className="text-xs text-gray-600">
-            {consumes ? 'Sí, consume' : 'Solo desbloquea'}
-          </span>
-        </label>
-      </TableCell>
-      <TableCell className="px-4 py-2">
-        <span
-          className={
-            isActive
-              ? 'inline-flex px-2 py-1 text-xs rounded bg-green-100 text-green-800'
-              : 'inline-flex px-2 py-1 text-xs rounded bg-gray-100 text-gray-700'
-          }
-        >
-          {isActive ? 'Activa' : 'Inactiva'}
-        </span>
-      </TableCell>
-      <TableCell className="px-4 py-2 text-right">
-        <div className="inline-flex gap-2">
-          <Button
-            variant="default"
-            size="sm"
-            disabled={savePending || (!dirty)}
-            onClick={() => onSave(min, validity, recurrence, from, to, consumes)}
-          >
-            {savePending && <Loader2 className="mr-2 size-4 animate-spin" />}
-            <CheckIcon className="h-4 w-4" />
-            Guardar
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            disabled={removePending}
-            onClick={onRemove}
-          >
-            {removePending && <Loader2 className="mr-2 size-4 animate-spin" />}
-            <TrashIcon className="h-4 w-4" />
-            Quitar
-          </Button>
-        </div>
-      </TableCell>
-    </TableRow>
   );
 }
