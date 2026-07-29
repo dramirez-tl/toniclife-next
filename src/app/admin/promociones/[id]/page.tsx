@@ -622,6 +622,12 @@ export default function EditarPromocionPage({
       toast.error('El código es requerido');
       return;
     }
+    if (!name.trim()) {
+      toast.error(
+        'El nombre base no puede quedar vacío: es el nombre interno de la promoción y el respaldo para países sin personalización. Si cada país ya tiene su propio nombre (abajo), el base solo se ve en el admin.',
+      );
+      return;
+    }
     if (/\s/.test(code)) {
       toast.error('El código no debe contener espacios');
       return;
@@ -797,14 +803,19 @@ export default function EditarPromocionPage({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre
+                  Nombre (base) <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className={inputCls}
+                  className={`${inputCls} ${!name.trim() ? 'border-red-400' : ''}`}
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  Obligatorio. Es el nombre interno (listados del admin) y el
+                  respaldo para países sin nombre propio. Si cada país
+                  personaliza el suyo abajo, el distribuidor NUNCA ve este.
+                </p>
               </div>
 
               <div>
@@ -973,7 +984,7 @@ export default function EditarPromocionPage({
                 promotionId={id}
                 scope="global"
                 scopeLabel="Global"
-                emptyHint="Sin componentes todavía. Busca productos arriba para armar la promoción."
+                emptyHint="Sin componentes globales. Los países CON lista propia (abajo) no se afectan, pero un país SIN lista propia no recibiría nada al canjear. Déjalo vacío solo si TODOS los países activos tienen su propia lista."
               />
             </CardContent>
           </Card>
