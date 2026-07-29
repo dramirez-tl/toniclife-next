@@ -16,7 +16,8 @@ export const promotionKeys = {
     [...promotionKeys.lists(), params] as const,
   details: () => [...promotionKeys.all, 'detail'] as const,
   detail: (id: string) => [...promotionKeys.details(), id] as const,
-  components: (id: string) => [...promotionKeys.detail(id), 'components'] as const,
+  components: (id: string, scope = 'all') =>
+    [...promotionKeys.detail(id), 'components', scope] as const,
   rules: (id: string) => [...promotionKeys.detail(id), 'rules'] as const,
   eligibility: (id: string, customerId: string, countryId: string) =>
     [...promotionKeys.detail(id), 'eligibility', customerId, countryId] as const,
@@ -46,12 +47,20 @@ export const usePromotion = (id: string | undefined) => {
   });
 };
 
-export const usePromotionComponents = (promotionId: string | undefined) => {
+/**
+ * Componentes de la promo por ALCANCE (mig 099): 'global' = los que aplican
+ * a todos los países sin lista propia; UUID = los específicos de ese país;
+ * ausente = todos los renglones.
+ */
+export const usePromotionComponents = (
+  promotionId: string | undefined,
+  countryScope?: string,
+) => {
   return useQuery({
     queryKey: promotionId
-      ? promotionKeys.components(promotionId)
+      ? promotionKeys.components(promotionId, countryScope ?? 'all')
       : promotionKeys.components('disabled'),
-    queryFn: () => promotionsService.getComponents(promotionId!),
+    queryFn: () => promotionsService.getComponents(promotionId!, countryScope),
     enabled: !!promotionId,
     staleTime: 60 * 1000,
   });
@@ -67,8 +76,9 @@ export const useReplacePromotionComponents = (promotionId: string) => {
     mutationFn: (dto: BulkReplacePromotionComponentsDto) =>
       promotionsService.replaceComponents(promotionId, dto),
     onSuccess: () => {
+      // Prefijo sin scope: invalida TODOS los alcances (global y por país).
       queryClient.invalidateQueries({
-        queryKey: promotionKeys.components(promotionId),
+        queryKey: [...promotionKeys.detail(promotionId), 'components'],
       });
       queryClient.invalidateQueries({
         queryKey: promotionKeys.detail(promotionId),

@@ -184,6 +184,8 @@ export interface ProductComponent {
   unitId?: string;
   sortOrder: number;
   isActive: boolean;
+  /** País del componente (mig 099). null = global. */
+  countryId?: string | null;
   createdAt: string;
   updatedAt: string;
 }

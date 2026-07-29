@@ -55,17 +55,27 @@ class PromotionsService {
 
   /**
    * Componentes de la promo (BoM). Reusa /products/:id/components.
+   *
+   * `countryScope` (componentes por país, mig 099):
+   *  - 'global' → solo los globales (aplican donde no hay lista por país).
+   *  - <uuid>   → solo los de ese país.
+   *  - ausente  → todos los renglones.
    */
-  async getComponents(promotionId: string): Promise<PromotionComponent[]> {
+  async getComponents(
+    promotionId: string,
+    countryScope?: string,
+  ): Promise<PromotionComponent[]> {
     const response = await api.get<PromotionComponent[]>(
       `/products/${promotionId}/components`,
+      { params: countryScope ? { countryId: countryScope } : undefined },
     );
     return response.data;
   }
 
   /**
-   * Reemplaza atomicamente todos los componentes de la promo.
-   * Reusa el endpoint del compositor de kits.
+   * Reemplaza atomicamente los componentes de la promo DEL ALCANCE indicado.
+   * Reusa el endpoint del compositor de kits. `countryId` ausente = alcance
+   * global; con UUID = solo ese país (no toca globales ni otros países).
    */
   async replaceComponents(
     promotionId: string,

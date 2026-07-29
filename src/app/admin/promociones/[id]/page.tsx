@@ -45,7 +45,14 @@ export default function EditarPromocionPage({ params }: { params: Promise<{ id: 
   const { id } = use(params);
 
   const { data: promo, isLoading: promoLoading } = usePromotion(id);
-  const { data: components, isLoading: compsLoading } = usePromotionComponents(id);
+  // Alcance del compositor de componentes (mig 099): 'global' o UUID de país.
+  // Mismo código de promo con CONTENIDO distinto por país; si un país no
+  // tiene lista propia, aplica la Global.
+  const [componentsScope, setComponentsScope] = useState<string>('global');
+  const { data: components, isLoading: compsLoading } = usePromotionComponents(
+    id,
+    componentsScope,
+  );
   const { data: rules } = usePromotionRules(id);
   const { data: countries } = useActiveCountries();
   const updateProduct = useUpdateProduct();
@@ -240,8 +247,15 @@ export default function EditarPromocionPage({ params }: { params: Promise<{ id: 
           quantity: r.quantity,
           sortOrder: i,
         })),
+        // Guardado POR ALCANCE: global no toca los países y viceversa.
+        countryId: componentsScope === 'global' ? undefined : componentsScope,
       });
-      toast.success('Componentes de la promoción guardados');
+      const scopeLabel =
+        componentsScope === 'global'
+          ? 'Global'
+          : (countries?.find((c) => c.id === componentsScope)?.name ??
+            'el país seleccionado');
+      toast.success(`Componentes guardados (${scopeLabel})`);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Error al guardar componentes';
       toast.error(msg);
@@ -548,6 +562,35 @@ export default function EditarPromocionPage({ params }: { params: Promise<{ id: 
                   <CheckIcon className="h-4 w-4" />
                   Guardar componentes
                 </Button>
+              </div>
+
+              {/* Alcance por país (mig 099): el mismo código de promo puede
+                  incluir cosas distintas en cada país. */}
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-gray-500">
+                  Componentes para
+                </label>
+                <select
+                  value={componentsScope}
+                  onChange={(e) => setComponentsScope(e.target.value)}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
+                >
+                  <option value="global">
+                    🌐 Global — países sin lista propia
+                  </option>
+                  {(countries ?? []).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                {componentsScope !== 'global' && rows.length === 0 && !compsLoading && (
+                  <p className="text-xs text-amber-600">
+                    Este país no tiene lista propia: al canjear aplica la lista
+                    Global. Agrega componentes y guarda para darle contenido
+                    específico.
+                  </p>
+                )}
               </div>
 
               <div className="relative">

@@ -112,4 +112,7 @@ export interface BulkPromotionComponentItem {
 
 export interface BulkReplacePromotionComponentsDto {
   components: BulkPromotionComponentItem[];
+  /** Alcance del reemplazo (mig 099): ausente = componentes GLOBALES;
+   *  UUID = solo los de ese país (no toca globales ni otros países). */
+  countryId?: string;
 }
