@@ -132,13 +132,38 @@ export function PromocionesTab() {
       key: 'countries',
       header: 'Países',
       render: (promo) => {
-        const countries = promo.activeCountries ?? [];
-        if (countries.length === 0) return <span className="text-sm text-gray-400">—</span>;
         const flagMap: Record<string, string> = {
           MX: '🇲🇽', US: '🇺🇸', CO: '🇨🇴', GT: '🇬🇹', FN: '🇲🇽',
           SV: '🇸🇻', HN: '🇭🇳', NI: '🇳🇮', CR: '🇨🇷', PA: '🇵🇦',
           PE: '🇵🇪', EC: '🇪🇨', CL: '🇨🇱', AR: '🇦🇷', BR: '🇧🇷', ES: '🇪🇸',
         };
+        // Para promos lo que importa es dónde hay REGLA de canje configurada
+        // (multipaís real), no solo dónde hay precio activo.
+        const rules = promo.promotionRuleCountries ?? [];
+        if (rules.length > 0) {
+          return (
+            <div className="flex flex-col gap-1">
+              {rules.map((r) => (
+                <span
+                  key={r.code}
+                  className={`inline-flex w-fit items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${
+                    r.isActive
+                      ? 'bg-gray-100 text-gray-700'
+                      : 'bg-gray-50 text-gray-400 line-through'
+                  }`}
+                  title={`${r.name}: ${formatNumber(Number(r.minPoints))} puntos mínimos${r.isActive ? '' : ' (regla inactiva)'}`}
+                >
+                  {flagMap[r.code] || '🏳️'} {r.code}
+                  <span className={r.isActive ? 'font-normal text-gray-500' : 'font-normal'}>
+                    · {formatNumber(Number(r.minPoints))} pts
+                  </span>
+                </span>
+              ))}
+            </div>
+          );
+        }
+        const countries = promo.activeCountries ?? [];
+        if (countries.length === 0) return <span className="text-sm text-gray-400">—</span>;
         return (
           <div className="flex flex-wrap gap-1">
             {countries.map((code) => (

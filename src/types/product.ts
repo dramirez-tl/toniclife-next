@@ -120,6 +120,14 @@ export interface Product {
   price?: string;
   priceCurrency?: string;
   activeCountries?: string[];
+  /** Solo promociones: países con regla de canje configurada (mig 036/099).
+   *  Refleja la configuración multipaís real, no solo dónde hay precio. */
+  promotionRuleCountries?: {
+    code: string;
+    name: string;
+    minPoints: string;
+    isActive: boolean;
+  }[];
   // UI-only fields (not in backend DTO, used by frontend pages)
   galleryUrls?: string[];
   videoUrl?: string;
