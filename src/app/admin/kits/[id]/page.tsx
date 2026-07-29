@@ -197,8 +197,9 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
         dto: {
           code: code.trim().toUpperCase(),
           name,
-          shortName: shortName.trim() || undefined,
-          description: description.trim() || undefined,
+          // null (no undefined): vaciar el campo debe BORRARLO en BD.
+          shortName: shortName.trim() || null,
+          description: description.trim() || null,
           kitPosition: (kitPosition || undefined) as KitPosition | undefined,
           isEnrollmentKit,
           kitType: (kitType || undefined) as KitType | undefined,

@@ -208,15 +208,17 @@ export default function EditarProductoAdminPage() {
 
     const dto: UpdateProductDto = {
       code: formData.code,
-      barcode: formData.barcode || undefined,
+      // Campos de texto opcionales: null (no undefined) para que vaciar
+      // el campo BORRE el valor en BD en lugar de dejarlo como estaba.
+      barcode: formData.barcode || null,
       name: formData.name,
-      shortName: formData.shortName || undefined,
-      description: formData.description || undefined,
-      longDescription: formData.longDescription || undefined,
-      nameEn: formData.nameEn || undefined,
-      shortNameEn: formData.shortNameEn || undefined,
-      descriptionEn: formData.descriptionEn || undefined,
-      longDescriptionEn: formData.longDescriptionEn || undefined,
+      shortName: formData.shortName || null,
+      description: formData.description || null,
+      longDescription: formData.longDescription || null,
+      nameEn: formData.nameEn || null,
+      shortNameEn: formData.shortNameEn || null,
+      descriptionEn: formData.descriptionEn || null,
+      longDescriptionEn: formData.longDescriptionEn || null,
       categoryId: formData.categoryId || undefined,
       unitId: formData.unitId || undefined,
       brand: formData.brand || undefined,

@@ -642,9 +642,10 @@ export default function EditarPromocionPage({
         dto: {
           code: code.trim().toUpperCase(),
           name,
-          shortName: shortName.trim() || undefined,
-          description: description.trim() || undefined,
-          longDescription: longDescription.trim() || undefined,
+          // null (no undefined): vaciar el campo debe BORRARLO en BD.
+          shortName: shortName.trim() || null,
+          description: description.trim() || null,
+          longDescription: longDescription.trim() || null,
           isActive,
           availableInPos,
           isVisibleEcommerce,

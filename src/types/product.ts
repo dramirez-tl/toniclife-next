@@ -384,7 +384,30 @@ export interface CreateProductDto {
   isActive?: boolean;
 }
 
-export interface UpdateProductDto extends Partial<CreateProductDto> {}
+export interface UpdateProductDto
+  extends Partial<
+    Omit<
+      CreateProductDto,
+      | 'barcode'
+      | 'shortName'
+      | 'description'
+      | 'longDescription'
+      | 'nameEn'
+      | 'shortNameEn'
+      | 'descriptionEn'
+      | 'longDescriptionEn'
+    >
+  > {
+  /** En update: `null` BORRA el valor en BD; `undefined` lo deja como está. */
+  barcode?: string | null;
+  shortName?: string | null;
+  description?: string | null;
+  longDescription?: string | null;
+  nameEn?: string | null;
+  shortNameEn?: string | null;
+  descriptionEn?: string | null;
+  longDescriptionEn?: string | null;
+}
 
 export interface CreateProductPriceDto {
   priceTypeId: string;
