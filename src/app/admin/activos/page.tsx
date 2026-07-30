@@ -11,10 +11,10 @@ import {
   ComputerDesktopIcon,
   PlusIcon,
   ArrowUpTrayIcon,
-  QrCodeIcon,
   PencilSquareIcon,
   EyeIcon,
 } from '@heroicons/react/24/outline';
+import { Barcode } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -107,9 +107,13 @@ function ActivosContent() {
       render: (a) => (
         <Link
           href={`/admin/activos/${a.id}`}
-          className="font-mono text-sm font-semibold text-primary hover:underline"
+          className="text-sm font-semibold text-primary hover:underline"
         >
-          {a.assetTag}
+          {a.assetTag ? (
+            <span className="font-mono tracking-wider">{a.assetTag}</span>
+          ) : (
+            <span className="text-muted-foreground italic">Sin etiqueta</span>
+          )}
         </Link>
       ),
     },
@@ -210,10 +214,10 @@ function ActivosContent() {
             hint="20% o menos"
           />
           <StatCard
-            label="Sin etiquetar"
+            label="Sin etiqueta"
             value={stats?.pendingLabel ?? 0}
             tone="text-amber-600"
-            hint="pendientes de imprimir"
+            hint="por vincular"
           />
         </div>
 
@@ -229,7 +233,7 @@ function ActivosContent() {
                 </Button>
                 <Button asChild variant="outline">
                   <Link href="/admin/activos/etiquetas">
-                    <QrCodeIcon className="mr-2 h-4 w-4" />
+                    <Barcode className="mr-2 h-4 w-4" />
                     Etiquetas
                   </Link>
                 </Button>

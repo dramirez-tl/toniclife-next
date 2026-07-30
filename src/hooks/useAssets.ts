@@ -13,6 +13,7 @@ import type {
   AssetCategoryQueryParams,
   AssetLocationQueryParams,
   AssetPurchaseQueryParams,
+  AssetLabelQueryParams,
   AssetQueryParams,
   AssignAssetDto,
   BulkReturnDto,
@@ -20,6 +21,7 @@ import type {
   CreateAssetDto,
   CreateAssetLocationDto,
   CreateAssetPurchaseDto,
+  CreateLabelBatchDto,
   CreateMaintenanceDto,
   PurchaseFileKind,
   RetireAssetDto,
@@ -45,7 +47,6 @@ export const assetKeys = {
   stats: () => [...assetKeys.all, 'stats'] as const,
   byTag: (tag: string) => [...assetKeys.all, 'by-tag', tag] as const,
   byUser: (userId: string) => [...assetKeys.all, 'by-user', userId] as const,
-  pendingLabels: () => [...assetKeys.all, 'pending-labels'] as const,
 };
 
 export const assetCategoryKeys = {
@@ -57,6 +58,15 @@ export const assetCategoryKeys = {
 export const assetLocationKeys = {
   all: ['it-asset-locations'] as const,
   list: (params: AssetLocationQueryParams) => [...assetLocationKeys.all, 'list', params] as const,
+};
+
+export const assetLabelKeys = {
+  all: ['it-asset-labels'] as const,
+  lists: () => [...assetLabelKeys.all, 'list'] as const,
+  list: (params: AssetLabelQueryParams) => [...assetLabelKeys.lists(), params] as const,
+  stats: () => [...assetLabelKeys.all, 'stats'] as const,
+  batches: () => [...assetLabelKeys.all, 'batches'] as const,
+  batch: (id: string) => [...assetLabelKeys.all, 'batch', id] as const,
 };
 
 export const assetPurchaseKeys = {
@@ -104,20 +114,12 @@ export function useAssetsByUser(userId: string | undefined) {
   });
 }
 
-export function usePendingLabels(limit = 200) {
-  return useQuery({
-    queryKey: [...assetKeys.pendingLabels(), limit],
-    queryFn: () => assetsService.getPendingLabels(limit),
-  });
-}
-
 /** Invalida listas + estadísticas (y opcionalmente el detalle de un activo). */
 function useInvalidateAssets() {
   const queryClient = useQueryClient();
   return (id?: string) => {
     void queryClient.invalidateQueries({ queryKey: assetKeys.lists() });
     void queryClient.invalidateQueries({ queryKey: assetKeys.stats() });
-    void queryClient.invalidateQueries({ queryKey: assetKeys.pendingLabels() });
     if (id) void queryClient.invalidateQueries({ queryKey: assetKeys.detail(id) });
   };
 }
@@ -267,14 +269,6 @@ export function useDeleteMaintenance() {
     mutationFn: ({ assetId, maintenanceId }: { assetId: string; maintenanceId: string }) =>
       assetsService.deleteMaintenance(assetId, maintenanceId),
     onSuccess: (_data, { assetId }) => invalidate(assetId),
-  });
-}
-
-export function useMarkLabelsPrinted() {
-  const invalidate = useInvalidateAssets();
-  return useMutation({
-    mutationFn: (assetIds: string[]) => assetsService.markLabelsPrinted(assetIds),
-    onSuccess: () => invalidate(),
   });
 }
 
@@ -482,5 +476,106 @@ export function useUnlinkAssetFromPurchase() {
     mutationFn: ({ purchaseId, assetId }: { purchaseId: string; assetId: string }) =>
       assetsService.unlinkAssetFromPurchase(purchaseId, assetId),
     onSuccess: (_data, { purchaseId }) => invalidate(purchaseId),
+  });
+}
+
+// ================================
+// ETIQUETAS (inventario propio)
+// ================================
+
+export function useAssetLabels(params: AssetLabelQueryParams = {}) {
+  return useQuery({
+    queryKey: assetLabelKeys.list(params),
+    queryFn: () => assetsService.getLabels(params),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useAssetLabelStats() {
+  return useQuery({
+    queryKey: assetLabelKeys.stats(),
+    queryFn: () => assetsService.getLabelStats(),
+  });
+}
+
+export function useAssetLabelBatches() {
+  return useQuery({
+    queryKey: assetLabelKeys.batches(),
+    queryFn: () => assetsService.getLabelBatches(),
+  });
+}
+
+export function useAssetLabelBatch(id: string | undefined) {
+  return useQuery({
+    queryKey: assetLabelKeys.batch(id ?? ''),
+    queryFn: () => assetsService.getLabelBatch(id as string),
+    enabled: !!id,
+  });
+}
+
+function useInvalidateLabels() {
+  const queryClient = useQueryClient();
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: assetLabelKeys.all });
+    void queryClient.invalidateQueries({ queryKey: assetKeys.all });
+  };
+}
+
+export function useCreateLabelBatch() {
+  const invalidate = useInvalidateLabels();
+  return useMutation({
+    mutationFn: (dto: CreateLabelBatchDto) => assetsService.createLabelBatch(dto),
+    onSuccess: invalidate,
+  });
+}
+
+export function useMarkBatchPrinted() {
+  const invalidate = useInvalidateLabels();
+  return useMutation({
+    mutationFn: (id: string) => assetsService.markBatchPrinted(id),
+    onSuccess: invalidate,
+  });
+}
+
+export function useVoidLabel() {
+  const invalidate = useInvalidateLabels();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      assetsService.voidLabel(id, reason),
+    onSuccess: invalidate,
+  });
+}
+
+export function useRestoreLabel() {
+  const invalidate = useInvalidateLabels();
+  return useMutation({
+    mutationFn: (id: string) => assetsService.restoreLabel(id),
+    onSuccess: invalidate,
+  });
+}
+
+/** Pega una etiqueta ya impresa a un equipo existente. */
+export function useLinkLabel() {
+  const invalidate = useInvalidateLabels();
+  return useMutation({
+    mutationFn: ({ assetId, code }: { assetId: string; code: string }) =>
+      assetsService.linkLabel(assetId, code),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUnlinkLabel() {
+  const invalidate = useInvalidateLabels();
+  return useMutation({
+    mutationFn: ({
+      assetId,
+      voidLabel,
+      reason,
+    }: {
+      assetId: string;
+      voidLabel?: boolean;
+      reason?: string;
+    }) => assetsService.unlinkLabel(assetId, { void: voidLabel, reason }),
+    onSuccess: invalidate,
   });
 }

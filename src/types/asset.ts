@@ -364,7 +364,10 @@ export interface AssetPurchaseListResponse {
 
 export interface Asset {
   id: string;
-  assetTag: string;
+  /** Código de la etiqueta física vinculada. null = aún sin etiqueta. */
+  assetTag: string | null;
+  labelId: string | null;
+  hasLabel: boolean;
   legacyTag: string | null;
   manufacturerTag: string | null;
   serialNumber: string | null;
@@ -399,8 +402,6 @@ export interface Asset {
   departmentName: string | null;
   locationId: string | null;
   locationName: string | null;
-  labelPrintedAt: string | null;
-  labelPrintedCount: number;
   parentAssetId: string | null;
   parentAssetTag: string | null;
   notes: string | null;
@@ -475,7 +476,8 @@ export interface AssetDetail extends Asset {
 }
 
 export interface CreateAssetDto {
-  assetTag?: string | null;
+  /** Código de la etiqueta ya impresa que se le pega al equipo. */
+  labelCode?: string | null;
   legacyTag?: string | null;
   manufacturerTag?: string | null;
   categoryId: string;
@@ -629,20 +631,96 @@ export interface CreateMaintenanceDto {
 export type UpdateMaintenanceDto = Partial<CreateMaintenanceDto>;
 
 // ================================
-// ETIQUETAS
+// ETIQUETAS (inventario propio, se imprimen ANTES de tener el equipo)
 // ================================
 
+export const LABEL_STATUSES = ['available', 'linked', 'void'] as const;
+export type LabelStatus = (typeof LABEL_STATUSES)[number];
+
+export const LABEL_STATUS_LABELS: Record<LabelStatus, string> = {
+  available: 'Disponible',
+  linked: 'En uso',
+  void: 'Cancelada',
+};
+
+export const LABEL_STATUS_VARIANTS: Record<LabelStatus, BadgeVariant> = {
+  available: 'success',
+  linked: 'info',
+  void: 'destructive',
+};
+
 export interface AssetLabel {
-  assetId: string;
-  barcodeValue: string;
-  symbology: string;
-  name: string;
-  brand: string | null;
-  model: string | null;
-  serialNumber: string | null;
-  categoryName: string;
-  branchName: string | null;
-  locationName: string | null;
+  id: string;
+  code: string;
+  status: LabelStatus;
+  batchId: string | null;
+  batchNumber: string | null;
+  assetId: string | null;
+  assetName: string | null;
+  assetSerial: string | null;
+  categoryName: string | null;
+  linkedAt: string | null;
+  printedAt: string | null;
+  printedCount: number;
+  voidedAt: string | null;
+  voidedReason: string | null;
+  createdAt: string;
+}
+
+export interface AssetLabelBatch {
+  id: string;
+  batchNumber: string;
+  quantity: number;
+  firstCode: string;
+  lastCode: string;
+  notes: string | null;
+  printedAt: string | null;
+  availableCount: number;
+  linkedCount: number;
+  voidCount: number;
+  createdAt: string;
+}
+
+export interface AssetLabelBatchDetail extends AssetLabelBatch {
+  labels: AssetLabel[];
+}
+
+export interface AssetLabelListResponse {
+  data: AssetLabel[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface AssetLabelQueryParams {
+  search?: string;
+  status?: LabelStatus;
+  batchId?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface AssetLabelStats {
+  total: number;
+  available: number;
+  linked: number;
+  voided: number;
+  batches: number;
+}
+
+/** Respuesta de /it-asset-labels/check/:code para el campo de escaneo. */
+export interface LabelCheckResult {
+  found: boolean;
+  usable: boolean;
+  code: string;
+  reason: string | null;
+  label: AssetLabel | null;
+}
+
+export interface CreateLabelBatchDto {
+  quantity: number;
+  notes?: string | null;
 }
 
 // ================================
@@ -670,7 +748,9 @@ export interface AssetImportPreview {
 
 export interface AssetImportResult {
   imported: number;
-  assets: { id: string; assetTag: string; line: number }[];
+  /** Cuántos traían código de etiqueta y quedaron vinculados. */
+  linkedLabels: number;
+  assets: { id: string; assetTag: string | null; line: number }[];
   firstTag: string | null;
   lastTag: string | null;
   message: string;

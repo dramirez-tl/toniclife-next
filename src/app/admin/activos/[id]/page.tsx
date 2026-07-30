@@ -16,13 +16,21 @@ import {
   TrashIcon,
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { confirmAction } from '@/lib/utils';
-import { useAsset, useMarkLabelsPrinted, useRestoreAsset, useRetireAsset } from '@/hooks/useAssets';
+import {
+  useAsset,
+  useLinkLabel,
+  useRestoreAsset,
+  useRetireAsset,
+  useUnlinkLabel,
+} from '@/hooks/useAssets';
+import { LabelCodeField } from '@/components/admin/assets/LabelCodeField';
 import { AssetFormModal } from '@/components/admin/assets/AssetFormModal';
 import {
   AssignAssetModal,
@@ -49,9 +57,12 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
   const { data: asset, isLoading } = useAsset(id);
   const retireMutation = useRetireAsset();
   const restoreMutation = useRestoreAsset();
-  const markLabels = useMarkLabelsPrinted();
+  const linkLabel = useLinkLabel();
+  const unlinkLabel = useUnlinkLabel();
 
   const [editOpen, setEditOpen] = useState(false);
+  const [labelDraft, setLabelDraft] = useState('');
+  const [labelUsable, setLabelUsable] = useState(false);
   const [assignOpen, setAssignOpen] = useState(false);
   const [assignMode, setAssignMode] = useState<AssignMode>('assign');
 
@@ -82,7 +93,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
 
   const handleRetire = async () => {
     const ok = await confirmAction(
-      `¿Dar de baja el activo ${asset.assetTag}? Se cerrará su asignación actual.`,
+      `¿Dar de baja "${asset.name}"? Se cerrará su asignación actual.`,
     );
     if (!ok) return;
     const reason = window.prompt('Motivo de la baja:');
@@ -95,10 +106,38 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
         id: asset.id,
         dto: { status: 'retired', reason: reason.trim() },
       });
-      toast.success(`Activo ${asset.assetTag} dado de baja`);
+      toast.success('Activo dado de baja');
     } catch (e) {
       const err = e as { response?: { data?: { message?: string } } };
       toast.error(err?.response?.data?.message || 'No se pudo dar de baja');
+    }
+  };
+
+  const handleLinkLabel = async () => {
+    const code = labelDraft.trim();
+    if (!code) return;
+    try {
+      await linkLabel.mutateAsync({ assetId: asset.id, code });
+      toast.success(`Etiqueta ${code} vinculada`);
+      setLabelDraft('');
+      setLabelUsable(false);
+    } catch (e) {
+      const err = e as { response?: { data?: { message?: string } } };
+      toast.error(err?.response?.data?.message || 'No se pudo vincular la etiqueta');
+    }
+  };
+
+  const handleUnlinkLabel = async () => {
+    const ok = await confirmAction(
+      `¿Quitarle la etiqueta ${asset.assetTag} a este equipo? Volverá al inventario como disponible.`,
+    );
+    if (!ok) return;
+    try {
+      const r = await unlinkLabel.mutateAsync({ assetId: asset.id });
+      toast.success(`Etiqueta ${r.code ?? ''} liberada`);
+    } catch (e) {
+      const err = e as { response?: { data?: { message?: string } } };
+      toast.error(err?.response?.data?.message || 'No se pudo quitar la etiqueta');
     }
   };
 
@@ -109,15 +148,6 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     } catch (e) {
       const err = e as { response?: { data?: { message?: string } } };
       toast.error(err?.response?.data?.message || 'No se pudo reactivar');
-    }
-  };
-
-  const handleMarkLabel = async () => {
-    try {
-      await markLabels.mutateAsync([asset.id]);
-      toast.success('Etiqueta marcada como impresa');
-    } catch {
-      toast.error('No se pudo marcar la etiqueta');
     }
   };
 
@@ -136,7 +166,9 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
           </button>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="font-mono text-sm text-white/70">{asset.assetTag}</p>
+              <p className="font-mono text-sm tracking-wider text-white/70">
+                {asset.assetTag ?? 'Sin etiqueta'}
+              </p>
               <h1 className="text-2xl font-bold sm:text-3xl">{asset.name}</h1>
               <p className="text-white/80">
                 {[asset.brand, asset.model, asset.categoryName].filter(Boolean).join(' · ')}
@@ -404,26 +436,65 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
           <TabsContent value="label">
             <Card>
               <CardContent className="space-y-4 p-6">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Código de barras de la etiqueta (CODE128). La impresión física se hará desde el
-                    proyecto de etiquetas; aquí puedes verificarlo y escanearlo desde pantalla.
-                  </p>
-                </div>
-                <div className="flex flex-col items-start gap-4">
-                  <AssetBarcode value={asset.assetTag} />
-                  <div className="text-sm">
-                    <p>
-                      <span className="text-muted-foreground">Impresa: </span>
-                      {asset.labelPrintedAt
-                        ? `${shortDate(asset.labelPrintedAt)} (${asset.labelPrintedCount} vez/veces)`
-                        : 'Pendiente'}
+                {asset.assetTag ? (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Etiqueta física vinculada a este equipo. El código de barras es Code128;
+                      puedes escanearlo desde pantalla para verificarlo.
                     </p>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={() => void handleMarkLabel()}>
-                    Marcar como impresa
-                  </Button>
-                </div>
+                    <div className="flex flex-col items-start gap-4">
+                      <AssetBarcode value={asset.assetTag} />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void handleUnlinkLabel()}
+                        disabled={unlinkLabel.isPending}
+                      >
+                        {unlinkLabel.isPending ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : null}
+                        Quitar esta etiqueta
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        Al quitarla, la etiqueta regresa al inventario como disponible y podrás
+                        vincularla a otro equipo.
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-muted-foreground">
+                      Este equipo aún no tiene etiqueta. Escanea o teclea el número de una
+                      etiqueta ya impresa para vincularla.
+                    </p>
+                    <div className="max-w-md">
+                      <LabelCodeField
+                        value={labelDraft}
+                        onChange={setLabelDraft}
+                        onValidityChange={({ usable }) => setLabelUsable(usable)}
+                        label="Código de la etiqueta"
+                        hint="Pega la etiqueta en el equipo y captura aquí su número."
+                      />
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => void handleLinkLabel()}
+                      disabled={!labelDraft.trim() || !labelUsable || linkLabel.isPending}
+                    >
+                      {linkLabel.isPending ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : null}
+                      Vincular etiqueta
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      ¿No tienes etiquetas impresas?{' '}
+                      <Link href="/admin/activos/etiquetas" className="text-primary hover:underline">
+                        Genera un lote
+                      </Link>
+                      .
+                    </p>
+                  </>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

@@ -35,6 +35,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { confirmAction } from '@/lib/utils';
+import { LabelCodeField } from './LabelCodeField';
 import {
   SpecFieldsRenderer,
   reconcileSpecs,
@@ -72,6 +73,7 @@ interface AssetFormModalProps {
 }
 
 interface FormState {
+  labelCode: string;
   categoryId: string;
   name: string;
   brand: string;
@@ -95,6 +97,7 @@ interface FormState {
 }
 
 const EMPTY: FormState = {
+  labelCode: '',
   categoryId: '',
   name: '',
   brand: '',
@@ -160,6 +163,9 @@ export function AssetFormModal({
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const invoiceFileRef = useRef<HTMLInputElement>(null);
 
+  // La etiqueta capturada sirve? (lo reporta LabelCodeField)
+  const [labelUsable, setLabelUsable] = useState(true);
+
   // Snapshot para saber si hay cambios sin guardar
   const initialSnapshot = useRef('');
 
@@ -210,8 +216,10 @@ export function AssetFormModal({
     setNewInvoiceOpen(false);
     setInvoice(EMPTY_INVOICE);
     setInvoiceFile(null);
+    setLabelUsable(true);
     if (asset) {
       setForm({
+        labelCode: asset.assetTag ?? '',
         categoryId: asset.categoryId,
         name: asset.name,
         brand: asset.brand ?? '',
@@ -378,6 +386,10 @@ export function AssetFormModal({
       toast.error('El nombre del equipo es obligatorio');
       return;
     }
+    if (!isEdit && form.labelCode.trim() && !labelUsable) {
+      toast.error('Esa etiqueta no se puede usar. Corrige el número o déjalo vacío.');
+      return;
+    }
     const specError = validateSpecs(specTemplate, specs);
     if (specError) {
       toast.error(specError);
@@ -417,8 +429,15 @@ export function AssetFormModal({
         await updateMutation.mutateAsync({ id: asset.id, dto: payload });
         toast.success(`Activo ${asset.assetTag} actualizado`);
       } else {
-        const created = await createMutation.mutateAsync(payload);
-        toast.success(`Activo dado de alta con la etiqueta ${created.assetTag}`);
+        const created = await createMutation.mutateAsync({
+          ...payload,
+          labelCode: form.labelCode.trim() || null,
+        });
+        toast.success(
+          created.assetTag
+            ? `Activo dado de alta con la etiqueta ${created.assetTag}`
+            : 'Activo dado de alta. Recuerda vincularle una etiqueta.',
+        );
       }
       onOpenChange(false);
       onSaved?.();
@@ -469,6 +488,14 @@ export function AssetFormModal({
           {/* ---------- Identificación ---------- */}
           <section className="grid gap-4">
             <h3 className="text-sm font-semibold text-muted-foreground">Identificación</h3>
+            {!isEdit && (
+              <LabelCodeField
+                value={form.labelCode}
+                onChange={(code) => set({ labelCode: code })}
+                onValidityChange={({ usable }) => setLabelUsable(usable)}
+                autoFocus
+              />
+            )}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
                 <Label>Categoría *</Label>

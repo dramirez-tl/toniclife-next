@@ -12,6 +12,13 @@ import type {
   AssetImportPreview,
   AssetImportResult,
   AssetLabel,
+  AssetLabelBatch,
+  AssetLabelBatchDetail,
+  AssetLabelListResponse,
+  AssetLabelQueryParams,
+  AssetLabelStats,
+  CreateLabelBatchDto,
+  LabelCheckResult,
   AssetListResponse,
   AssetLocation,
   AssetLocationQueryParams,
@@ -196,20 +203,82 @@ class AssetsService {
   }
 
   // ================================
-  // ETIQUETAS
+  // ETIQUETAS (inventario propio)
   // ================================
 
-  async getPendingLabels(limit = 200): Promise<AssetLabel[]> {
-    const { data } = await api.get<AssetLabel[]>('/it-assets/pending-labels', {
-      params: { limit },
-    });
+  async getLabels(params?: AssetLabelQueryParams): Promise<AssetLabelListResponse> {
+    const { data } = await api.get<AssetLabelListResponse>('/it-asset-labels', { params });
     return data;
   }
 
-  async markLabelsPrinted(assetIds: string[]): Promise<{ updated: number }> {
-    const { data } = await api.post<{ updated: number }>('/it-assets/labels/printed', {
-      assetIds,
-    });
+  async getLabelStats(): Promise<AssetLabelStats> {
+    const { data } = await api.get<AssetLabelStats>('/it-asset-labels/stats');
+    return data;
+  }
+
+  async getLabelBatches(): Promise<AssetLabelBatch[]> {
+    const { data } = await api.get<AssetLabelBatch[]>('/it-asset-labels/batches');
+    return data;
+  }
+
+  async getLabelBatch(id: string): Promise<AssetLabelBatchDetail> {
+    const { data } = await api.get<AssetLabelBatchDetail>(`/it-asset-labels/batches/${id}`);
+    return data;
+  }
+
+  /** Genera un lote de etiquetas sin vincular para mandar a imprimir. */
+  async createLabelBatch(dto: CreateLabelBatchDto): Promise<AssetLabelBatchDetail> {
+    const { data } = await api.post<AssetLabelBatchDetail>('/it-asset-labels/batches', dto);
+    return data;
+  }
+
+  async markBatchPrinted(id: string): Promise<{ printed: number }> {
+    const { data } = await api.post<{ printed: number }>(
+      `/it-asset-labels/batches/${id}/printed`,
+    );
+    return data;
+  }
+
+  /** ¿La etiqueta existe y está libre? Alimenta el campo de escaneo del alta. */
+  async checkLabel(code: string): Promise<LabelCheckResult> {
+    const { data } = await api.get<LabelCheckResult>(
+      `/it-asset-labels/check/${encodeURIComponent(code)}`,
+    );
+    return data;
+  }
+
+  async voidLabel(id: string, reason: string): Promise<{ voided: boolean; code: string }> {
+    const { data } = await api.post<{ voided: boolean; code: string }>(
+      `/it-asset-labels/${id}/void`,
+      { reason },
+    );
+    return data;
+  }
+
+  async restoreLabel(id: string): Promise<{ restored: boolean; code: string }> {
+    const { data } = await api.post<{ restored: boolean; code: string }>(
+      `/it-asset-labels/${id}/restore`,
+    );
+    return data;
+  }
+
+  /** Pega una etiqueta ya impresa a un equipo existente. */
+  async linkLabel(assetId: string, code: string): Promise<{ linked: boolean; code: string }> {
+    const { data } = await api.post<{ linked: boolean; code: string }>(
+      `/it-assets/${assetId}/label`,
+      { code },
+    );
+    return data;
+  }
+
+  async unlinkLabel(
+    assetId: string,
+    options?: { void?: boolean; reason?: string },
+  ): Promise<{ unlinked: boolean; code: string | null }> {
+    const { data } = await api.delete<{ unlinked: boolean; code: string | null }>(
+      `/it-assets/${assetId}/label`,
+      { params: { void: options?.void ? 'true' : undefined, reason: options?.reason } },
+    );
     return data;
   }
 
