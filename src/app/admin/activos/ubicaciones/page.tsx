@@ -252,7 +252,10 @@ function UbicacionesContent() {
       </div>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent
+          className="sm:max-w-lg"
+          onInteractOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>{editing ? 'Editar ubicación' : 'Nueva ubicación'}</DialogTitle>
           </DialogHeader>

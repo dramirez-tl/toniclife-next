@@ -7,10 +7,17 @@
 //
 // En el alta permite capturar CANTIDAD para dar de golpe N equipos idénticos
 // (los 20 mouse de la misma factura); cada uno recibe su propia etiqueta.
+//
+// El modal NO se cierra al hacer clic fuera ni con Esc: se captura mucho dato y
+// perderlo por un clic accidental es carísimo. Solo cierra por Cancelar o por la
+// X, y si hay cambios sin guardar pide confirmación.
+//
+// La factura se puede crear SIN salir del formulario (panel "Nueva factura"),
+// así no hay que ir a otra pantalla y perder lo ya capturado.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus, Upload, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -24,6 +31,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { confirmAction } from '@/lib/utils';
 import {
   SpecFieldsRenderer,
   reconcileSpecs,
@@ -34,7 +42,9 @@ import {
   useAssetLocations,
   useAssetPurchases,
   useBulkCreateAssets,
+  useCreateAssetPurchase,
   useUpdateAsset,
+  useUploadPurchaseFile,
 } from '@/hooks/useAssets';
 import { useBranches } from '@/hooks/useBranches';
 import {
@@ -106,6 +116,32 @@ const EMPTY: FormState = {
   count: '1',
 };
 
+/** Datos mínimos para dar de alta una factura sin salir del formulario. */
+interface InvoiceDraft {
+  supplierName: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  totalAmount: string;
+  currencyCode: string;
+}
+
+const EMPTY_INVOICE: InvoiceDraft = {
+  supplierName: '',
+  invoiceNumber: '',
+  invoiceDate: '',
+  totalAmount: '',
+  currencyCode: 'MXN',
+};
+
+const INVOICE_MIME = [
+  'application/pdf',
+  'application/xml',
+  'text/xml',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+];
+
 export function AssetFormModal({
   open,
   onOpenChange,
@@ -117,6 +153,15 @@ export function AssetFormModal({
   const [form, setForm] = useState<FormState>(EMPTY);
   const [specs, setSpecs] = useState<SpecValues>({});
 
+  // Panel de "Nueva factura" embebido en el propio formulario
+  const [newInvoiceOpen, setNewInvoiceOpen] = useState(false);
+  const [invoice, setInvoice] = useState<InvoiceDraft>(EMPTY_INVOICE);
+  const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
+  const invoiceFileRef = useRef<HTMLInputElement>(null);
+
+  // Snapshot para saber si hay cambios sin guardar
+  const initialSnapshot = useRef('');
+
   const { data: categories = [] } = useAssetCategories({ leafOnly: 'true' });
   const { data: branchesData } = useBranches({ limit: 200, isActive: true });
   const { data: locations = [] } = useAssetLocations(
@@ -126,7 +171,11 @@ export function AssetFormModal({
 
   const createMutation = useBulkCreateAssets();
   const updateMutation = useUpdateAsset();
+  const createPurchaseMutation = useCreateAssetPurchase();
+  const uploadInvoiceMutation = useUploadPurchaseFile();
   const isSaving = createMutation.isPending || updateMutation.isPending;
+  const isSavingInvoice =
+    createPurchaseMutation.isPending || uploadInvoiceMutation.isPending;
 
   const branches = branchesData?.data ?? [];
   const purchases = purchasesData?.data ?? [];
@@ -143,6 +192,9 @@ export function AssetFormModal({
   // Cargar el estado al abrir
   useEffect(() => {
     if (!open) return;
+    setNewInvoiceOpen(false);
+    setInvoice(EMPTY_INVOICE);
+    setInvoiceFile(null);
     if (asset) {
       setForm({
         categoryId: asset.categoryId,
@@ -175,7 +227,32 @@ export function AssetFormModal({
     }
   }, [open, asset, defaultPurchaseId]);
 
+  // Guarda la foto del estado recién cargado para poder detectar cambios.
+  useEffect(() => {
+    if (open) initialSnapshot.current = JSON.stringify({ form, specs });
+    // Solo al abrir: no queremos re-tomar la foto en cada tecleo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, asset?.id]);
+
   const set = (patch: Partial<FormState>) => setForm((prev) => ({ ...prev, ...patch }));
+
+  const hasUnsavedChanges = () =>
+    initialSnapshot.current !== JSON.stringify({ form, specs });
+
+  /**
+   * Único camino de cierre. Se llama desde Cancelar, la X y Esc; el clic fuera
+   * ni siquiera llega aquí (está bloqueado en el DialogContent).
+   */
+  const requestClose = async () => {
+    if (isSaving || isSavingInvoice) return;
+    if (hasUnsavedChanges()) {
+      const ok = await confirmAction(
+        'Hay cambios sin guardar en el activo. ¿Cerrar y perderlos?',
+      );
+      if (!ok) return;
+    }
+    onOpenChange(false);
+  };
 
   /** Al cambiar de categoría: hereda la vida útil sugerida y descarta specs huérfanas. */
   const handleCategoryChange = (categoryId: string) => {
@@ -194,6 +271,88 @@ export function AssetFormModal({
           ? String(next.defaultUsefulLifeMonths)
           : form.usefulLifeMonths,
     });
+  };
+
+  /** Al elegir una factura existente, hereda su fecha y moneda si están vacías. */
+  const handlePurchaseChange = (purchaseId: string) => {
+    const p = purchases.find((x) => x.id === purchaseId);
+    set({
+      purchaseId,
+      purchaseDate: form.purchaseDate || p?.invoiceDate || '',
+      currencyCode: form.currencyCode || p?.currencyCode || 'MXN',
+    });
+  };
+
+  const pickInvoiceFile = (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    if (!INVOICE_MIME.includes(file.type)) {
+      toast.error('Solo se aceptan PDF, XML, JPG, PNG o WEBP');
+      if (invoiceFileRef.current) invoiceFileRef.current.value = '';
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error('El archivo supera los 20 MB');
+      if (invoiceFileRef.current) invoiceFileRef.current.value = '';
+      return;
+    }
+    setInvoiceFile(file);
+  };
+
+  /**
+   * Crea la factura y (si se eligió) sube el archivo, SIN cerrar ni tocar el
+   * resto del formulario. Al terminar la deja seleccionada.
+   */
+  const handleSaveInvoice = async () => {
+    if (!invoice.supplierName.trim() && !invoice.invoiceNumber.trim()) {
+      toast.error('Captura al menos el proveedor o el folio de la factura');
+      return;
+    }
+    if (invoice.totalAmount && !Number.isFinite(Number(invoice.totalAmount))) {
+      toast.error('El total de la factura debe ser numérico');
+      return;
+    }
+    try {
+      const created = await createPurchaseMutation.mutateAsync({
+        supplierName: invoice.supplierName.trim() || null,
+        invoiceNumber: invoice.invoiceNumber.trim() || null,
+        invoiceDate: invoice.invoiceDate || null,
+        totalAmount: invoice.totalAmount ? Number(invoice.totalAmount) : null,
+        currencyCode: invoice.currencyCode || null,
+      });
+
+      if (invoiceFile) {
+        try {
+          await uploadInvoiceMutation.mutateAsync({
+            purchaseId: created.id,
+            file: invoiceFile,
+          });
+        } catch {
+          // La factura ya quedó creada y enlazada: el archivo se puede subir
+          // después desde Facturas de compra, sin perder nada de lo capturado.
+          toast.warning(
+            'La factura se creó y quedó seleccionada, pero el archivo no se pudo subir. Súbelo después desde Facturas de compra.',
+          );
+        }
+      }
+
+      set({
+        purchaseId: created.id,
+        purchaseDate: form.purchaseDate || created.invoiceDate || '',
+        currencyCode: form.currencyCode || created.currencyCode || 'MXN',
+      });
+      setNewInvoiceOpen(false);
+      setInvoice(EMPTY_INVOICE);
+      setInvoiceFile(null);
+      if (invoiceFileRef.current) invoiceFileRef.current.value = '';
+      toast.success(
+        `Factura ${created.invoiceNumber ?? created.supplierName ?? ''} creada y seleccionada`,
+      );
+    } catch (e) {
+      const err = e as { response?: { data?: { message?: string | string[] } } };
+      const msg = err?.response?.data?.message;
+      toast.error(Array.isArray(msg) ? msg[0] : msg || 'No se pudo crear la factura');
+    }
   };
 
   const handleSubmit = async () => {
@@ -262,15 +421,39 @@ export function AssetFormModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+    <Dialog open={open}>
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto sm:max-w-3xl"
+        showCloseButton={false}
+        // Clic fuera: NO cierra. Se captura demasiado dato como para perderlo
+        // por un clic accidental en el fondo.
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => {
+          e.preventDefault();
+          void requestClose();
+        }}
+      >
         <DialogHeader>
-          <DialogTitle>{isEdit ? `Editar ${asset?.assetTag}` : 'Nuevo activo'}</DialogTitle>
-          <DialogDescription>
-            {isEdit
-              ? 'La etiqueta con código de barras no cambia al editar.'
-              : 'La etiqueta (TI-000000) se genera automáticamente al guardar.'}
-          </DialogDescription>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <DialogTitle>
+                {isEdit ? `Editar ${asset?.assetTag}` : 'Nuevo activo'}
+              </DialogTitle>
+              <DialogDescription>
+                {isEdit
+                  ? 'La etiqueta con código de barras no cambia al editar.'
+                  : 'La etiqueta (TI-000000) se genera automáticamente al guardar.'}
+              </DialogDescription>
+            </div>
+            <button
+              type="button"
+              onClick={() => void requestClose()}
+              className="rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:outline-hidden"
+              aria-label="Cerrar"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </DialogHeader>
 
         <div className="grid gap-6 py-2">
@@ -406,22 +589,147 @@ export function AssetFormModal({
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2 sm:col-span-2">
                 <Label>Factura de compra</Label>
-                <SearchableSelect
-                  options={purchases.map((p) => ({
-                    value: p.id,
-                    label: `${p.invoiceNumber ?? 'Sin folio'} — ${p.supplierName ?? 'Sin proveedor'}${
-                      p.invoiceDate ? ` (${p.invoiceDate})` : ''
-                    }`,
-                  }))}
-                  value={form.purchaseId}
-                  onChange={(v) => set({ purchaseId: v })}
-                  placeholder="Busca la factura"
-                  allLabel="Sin factura"
-                  allValue=""
-                />
+                <div className="flex gap-2">
+                  <SearchableSelect
+                    options={purchases.map((p) => ({
+                      value: p.id,
+                      label: `${p.invoiceNumber ?? 'Sin folio'} — ${p.supplierName ?? 'Sin proveedor'}${
+                        p.invoiceDate ? ` (${p.invoiceDate})` : ''
+                      }`,
+                    }))}
+                    value={form.purchaseId}
+                    onChange={handlePurchaseChange}
+                    placeholder="Busca la factura"
+                    allLabel="Sin factura"
+                    allValue=""
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setNewInvoiceOpen((v) => !v)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nueva
+                  </Button>
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Una misma factura puede cubrir varios equipos: se sube una sola vez.
+                  Con &quot;Nueva&quot; la das de alta aquí mismo, sin perder lo que ya
+                  capturaste.
                 </p>
+
+                {newInvoiceOpen && (
+                  <div className="mt-1 grid gap-3 rounded-md border border-border bg-muted/30 p-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium">Nueva factura</p>
+                      <button
+                        type="button"
+                        onClick={() => setNewInvoiceOpen(false)}
+                        className="text-muted-foreground hover:text-foreground"
+                        aria-label="Cerrar el panel de nueva factura"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="grid gap-1">
+                        <Label className="text-xs">Proveedor</Label>
+                        <Input
+                          value={invoice.supplierName}
+                          onChange={(e) =>
+                            setInvoice((p) => ({ ...p, supplierName: e.target.value }))
+                          }
+                          placeholder="CompuSoluciones SA de CV"
+                        />
+                      </div>
+                      <div className="grid gap-1">
+                        <Label className="text-xs">Folio</Label>
+                        <Input
+                          value={invoice.invoiceNumber}
+                          onChange={(e) =>
+                            setInvoice((p) => ({ ...p, invoiceNumber: e.target.value }))
+                          }
+                          className="font-mono"
+                          placeholder="A-12345"
+                        />
+                      </div>
+                      <div className="grid gap-1">
+                        <Label className="text-xs">Fecha</Label>
+                        <Input
+                          type="date"
+                          value={invoice.invoiceDate}
+                          onChange={(e) =>
+                            setInvoice((p) => ({ ...p, invoiceDate: e.target.value }))
+                          }
+                        />
+                      </div>
+                      <div className="grid gap-1">
+                        <Label className="text-xs">Total</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min={0}
+                          value={invoice.totalAmount}
+                          onChange={(e) =>
+                            setInvoice((p) => ({ ...p, totalAmount: e.target.value }))
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        ref={invoiceFileRef}
+                        type="file"
+                        accept={INVOICE_MIME.join(',')}
+                        className="hidden"
+                        onChange={(e) => pickInvoiceFile(e.target.files)}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => invoiceFileRef.current?.click()}
+                      >
+                        <Upload className="mr-2 h-4 w-4" />
+                        {invoiceFile ? 'Cambiar archivo' : 'Adjuntar PDF / XML'}
+                      </Button>
+                      {invoiceFile ? (
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                          {invoiceFile.name}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setInvoiceFile(null);
+                              if (invoiceFileRef.current) invoiceFileRef.current.value = '';
+                            }}
+                            aria-label="Quitar el archivo"
+                          >
+                            <X className="h-3 w-3 text-destructive" />
+                          </button>
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Opcional</span>
+                      )}
+                    </div>
+
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => void handleSaveInvoice()}
+                        disabled={isSavingInvoice}
+                      >
+                        {isSavingInvoice ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : null}
+                        Crear y seleccionar
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="grid gap-2">
                 <Label>Fecha de compra</Label>
@@ -514,7 +822,11 @@ export function AssetFormModal({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
+          <Button
+            variant="outline"
+            onClick={() => void requestClose()}
+            disabled={isSaving || isSavingInvoice}
+          >
             Cancelar
           </Button>
           <Button onClick={() => void handleSubmit()} disabled={isSaving}>

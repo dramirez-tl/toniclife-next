@@ -317,7 +317,12 @@ export default function CategoriasActivosPage() {
 
       {/* Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+        <DialogContent
+          className="max-h-[90vh] overflow-y-auto sm:max-w-3xl"
+          // Armar una plantilla de características cuesta trabajo: no se pierde
+          // por un clic en el fondo.
+          onInteractOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>{editing ? `Editar ${editing.name}` : 'Nueva categoría'}</DialogTitle>
             <DialogDescription>

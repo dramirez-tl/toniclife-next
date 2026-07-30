@@ -316,7 +316,10 @@ function FacturasContent() {
 
       {/* Modal de alta/edición */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        <DialogContent
+          className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"
+          onInteractOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>{editingId ? 'Editar factura' : 'Nueva factura'}</DialogTitle>
             <DialogDescription>

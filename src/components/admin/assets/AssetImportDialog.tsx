@@ -95,7 +95,11 @@ export function AssetImportDialog({ open, onOpenChange }: AssetImportDialogProps
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"
+        // Una vista previa validada no se pierde por un clic en el fondo.
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Carga masiva de activos</DialogTitle>
           <DialogDescription>
