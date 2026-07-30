@@ -5,8 +5,11 @@
 // Secciones: Identificación · Características técnicas (dinámicas por categoría)
 // · Compra y factura · Ubicación. Validación imperativa, sin zod.
 //
-// En el alta permite capturar CANTIDAD para dar de golpe N equipos idénticos
-// (los 20 mouse de la misma factura); cada uno recibe su propia etiqueta.
+// Cada activo es UNA pieza con UNA etiqueta. Para dar de alta muchos equipos
+// iguales se usa la carga masiva CSV, no un campo de cantidad.
+//
+// Un equipo puede NO estar en ninguna sucursal (el corporativo de Irapuato):
+// en ese caso se deja la sucursal vacía y se elige la ubicación del sitio.
 //
 // El modal NO se cierra al hacer clic fuera ni con Esc: se captura mucho dato y
 // perderlo por un clic accidental es carísimo. Solo cierra por Cancelar o por la
@@ -41,7 +44,7 @@ import {
   useAssetCategories,
   useAssetLocations,
   useAssetPurchases,
-  useBulkCreateAssets,
+  useCreateAsset,
   useCreateAssetPurchase,
   useUpdateAsset,
   useUploadPurchaseFile,
@@ -89,7 +92,6 @@ interface FormState {
   branchId: string;
   locationId: string;
   notes: string;
-  count: string;
 }
 
 const EMPTY: FormState = {
@@ -113,7 +115,6 @@ const EMPTY: FormState = {
   branchId: '',
   locationId: '',
   notes: '',
-  count: '1',
 };
 
 /** Datos mínimos para dar de alta una factura sin salir del formulario. */
@@ -164,12 +165,12 @@ export function AssetFormModal({
 
   const { data: categories = [] } = useAssetCategories({ leafOnly: 'true' });
   const { data: branchesData } = useBranches({ limit: 200, isActive: true });
-  const { data: locations = [] } = useAssetLocations(
-    form.branchId ? { branchId: form.branchId } : {},
-  );
+  // Todas las ubicaciones: hay que poder elegir las que NO son de sucursal
+  // (corporativo) aunque no se haya elegido sucursal.
+  const { data: locations = [] } = useAssetLocations({});
   const { data: purchasesData } = useAssetPurchases({ limit: 100 });
 
-  const createMutation = useBulkCreateAssets();
+  const createMutation = useCreateAsset();
   const updateMutation = useUpdateAsset();
   const createPurchaseMutation = useCreateAssetPurchase();
   const uploadInvoiceMutation = useUploadPurchaseFile();
@@ -188,6 +189,20 @@ export function AssetFormModal({
     () => selectedCategory?.specTemplate ?? asset?.specTemplate ?? [],
     [selectedCategory, asset],
   );
+
+  /**
+   * Ubicaciones que aplican: las del sitio elegido. Sin sucursal se muestran las
+   * que no pertenecen a ninguna (corporativo); con sucursal, las de esa sucursal.
+   */
+  const locationOptions = useMemo(() => {
+    const applicable = form.branchId
+      ? locations.filter((l) => l.branchId === form.branchId)
+      : locations.filter((l) => l.isOffsite);
+    return applicable.map((l) => ({
+      value: l.id,
+      label: l.isOffsite ? `${l.siteName} › ${l.fullName}` : l.fullName,
+    }));
+  }, [locations, form.branchId]);
 
   // Cargar el estado al abrir
   useEffect(() => {
@@ -218,7 +233,6 @@ export function AssetFormModal({
         branchId: asset.branchId ?? '',
         locationId: asset.locationId ?? '',
         notes: asset.notes ?? '',
-        count: '1',
       });
       setSpecs(asset.specifications ?? {});
     } else {
@@ -369,11 +383,6 @@ export function AssetFormModal({
       toast.error(specError);
       return;
     }
-    const count = Number(form.count) || 1;
-    if (!isEdit && (count < 1 || count > 200)) {
-      toast.error('La cantidad debe estar entre 1 y 200');
-      return;
-    }
     if (form.purchaseCost && !Number.isFinite(Number(form.purchaseCost))) {
       toast.error('El costo debe ser numérico');
       return;
@@ -408,8 +417,8 @@ export function AssetFormModal({
         await updateMutation.mutateAsync({ id: asset.id, dto: payload });
         toast.success(`Activo ${asset.assetTag} actualizado`);
       } else {
-        const result = await createMutation.mutateAsync({ ...payload, count });
-        toast.success(result.message);
+        const created = await createMutation.mutateAsync(payload);
+        toast.success(`Activo dado de alta con la etiqueta ${created.assetTag}`);
       }
       onOpenChange(false);
       onSaved?.();
@@ -545,21 +554,6 @@ export function AssetFormModal({
                   showAllOption={false}
                 />
               </div>
-              {!isEdit && (
-                <div className="grid gap-2">
-                  <Label>Cantidad de equipos idénticos</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={200}
-                    value={form.count}
-                    onChange={(e) => set({ count: e.target.value })}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Cada uno recibe su propia etiqueta. Con más de 1, la serie se deja vacía.
-                  </p>
-                </div>
-              )}
             </div>
           </section>
 
@@ -793,21 +787,32 @@ export function AssetFormModal({
                   value={form.branchId}
                   onChange={(v) => set({ branchId: v, locationId: '' })}
                   placeholder="Busca la sucursal"
-                  allLabel="Sin sucursal"
+                  allLabel="No está en una sucursal (corporativo)"
                   allValue=""
                 />
+                <p className="text-xs text-muted-foreground">
+                  {form.branchId
+                    ? 'El equipo está en esta sucursal.'
+                    : 'Sin sucursal: elige abajo el sitio, por ejemplo Corporativo Irapuato.'}
+                </p>
               </div>
               <div className="grid gap-2">
                 <Label>Ubicación física</Label>
                 <SearchableSelect
-                  options={locations.map((l) => ({ value: l.id, label: l.fullName }))}
+                  options={locationOptions}
                   value={form.locationId}
                   onChange={(v) => set({ locationId: v })}
-                  placeholder={form.branchId ? 'Busca la ubicación' : 'Elige primero la sucursal'}
+                  placeholder="Busca la ubicación"
                   allLabel="Sin ubicación"
                   allValue=""
-                  disabled={!form.branchId}
                 />
+                {locationOptions.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    {form.branchId
+                      ? 'Esa sucursal no tiene ubicaciones registradas todavía.'
+                      : 'No hay sitios fuera de sucursal. Créalos en Activos → Ubicaciones.'}
+                  </p>
+                ) : null}
               </div>
               <div className="grid gap-2 sm:col-span-2">
                 <Label>Notas</Label>

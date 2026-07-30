@@ -74,10 +74,12 @@ function UbicacionesContent() {
 
   const { data: locations = [], isLoading } = useAssetLocations({
     includeInactive: 'true',
-    branchId: branchFilter !== 'all' ? branchFilter : undefined,
+    branchId:
+      branchFilter !== 'all' && branchFilter !== 'offsite' ? branchFilter : undefined,
+    withoutBranch: branchFilter === 'offsite' ? 'true' : undefined,
   });
   const { data: parentOptions = [] } = useAssetLocations(
-    form.branchId ? { branchId: form.branchId } : {},
+    form.branchId ? { branchId: form.branchId } : { withoutBranch: 'true' },
   );
 
   const createMutation = useCreateAssetLocation();
@@ -89,14 +91,15 @@ function UbicacionesContent() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ ...EMPTY, branchId: branchFilter !== 'all' ? branchFilter : '' });
+    const preset = branchFilter !== 'all' && branchFilter !== 'offsite' ? branchFilter : '';
+    setForm({ ...EMPTY, branchId: preset });
     setModalOpen(true);
   };
 
   const openEdit = (l: AssetLocation) => {
     setEditing(l);
     setForm({
-      branchId: l.branchId,
+      branchId: l.branchId ?? '',
       name: l.name,
       code: l.code ?? '',
       parentId: l.parentId ?? '',
@@ -107,16 +110,12 @@ function UbicacionesContent() {
   };
 
   const handleSubmit = async () => {
-    if (!form.branchId) {
-      toast.error('Selecciona la sucursal');
-      return;
-    }
     if (!form.name.trim()) {
       toast.error('El nombre de la ubicación es obligatorio');
       return;
     }
     const payload = {
-      branchId: form.branchId,
+      branchId: form.branchId || null,
       name: form.name.trim(),
       code: form.code.trim().toUpperCase() || null,
       parentId: form.parentId || null,
@@ -166,10 +165,15 @@ function UbicacionesContent() {
     },
     {
       key: 'branch',
-      header: 'Sucursal',
+      header: 'Sitio',
       sortable: true,
-      sortValue: (l) => l.branchName ?? '',
-      render: (l) => <span className="text-sm">{l.branchName ?? '—'}</span>,
+      sortValue: (l) => l.siteName,
+      render: (l) =>
+        l.isOffsite ? (
+          <Badge variant="info">Fuera de sucursal</Badge>
+        ) : (
+          <span className="text-sm">{l.branchName}</span>
+        ),
     },
     {
       key: 'assets',
@@ -214,7 +218,7 @@ function UbicacionesContent() {
             <h1 className="text-3xl font-bold sm:text-4xl">Ubicaciones</h1>
           </div>
           <p className="text-base text-white/80 sm:text-lg">
-            Dónde está físicamente cada equipo dentro de la sucursal
+            Dónde está físicamente cada equipo: en sucursal o en el corporativo
           </p>
         </div>
       </div>
@@ -226,12 +230,15 @@ function UbicacionesContent() {
               <h2 className="text-lg font-semibold">{locations.length} ubicaciones</h2>
               <div className="flex flex-wrap items-center gap-2">
                 <SearchableSelect
-                  options={branches.map((b) => ({ value: b.id, label: b.name }))}
+                  options={[
+                    { value: 'offsite', label: 'Fuera de sucursal (corporativo)' },
+                    ...branches.map((b) => ({ value: b.id, label: b.name })),
+                  ]}
                   value={branchFilter}
                   onChange={(v) => setParams({ branch: v })}
-                  allLabel="Todas las sucursales"
+                  allLabel="Todos los sitios"
                   allValue="all"
-                  className="w-56"
+                  className="w-64"
                 />
                 <Button onClick={openNew}>
                   <PlusIcon className="mr-2 h-4 w-4" />
@@ -261,14 +268,19 @@ function UbicacionesContent() {
           </DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
-              <Label>Sucursal *</Label>
+              <Label>Sucursal</Label>
               <SearchableSelect
                 options={branches.map((b) => ({ value: b.id, label: `${b.name} (${b.code})` }))}
                 value={form.branchId}
                 onChange={(v) => set({ branchId: v, parentId: '' })}
                 placeholder="Busca la sucursal"
-                showAllOption={false}
+                allLabel="No es una sucursal (corporativo, bodega...)"
+                allValue=""
               />
+              <p className="text-xs text-muted-foreground">
+                Déjala vacía para sitios que no son sucursal, como el corporativo de
+                Irapuato.
+              </p>
             </div>
             <div className="grid gap-2">
               <Label>Nombre *</Label>
@@ -299,7 +311,6 @@ function UbicacionesContent() {
                 onChange={(v) => set({ parentId: v })}
                 allLabel="Sin padre"
                 allValue=""
-                disabled={!form.branchId}
               />
             </div>
             <div className="grid gap-2">

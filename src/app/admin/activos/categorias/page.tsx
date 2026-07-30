@@ -49,7 +49,6 @@ interface FormState {
   parentId: string;
   defaultUsefulLifeMonths: string;
   requiresSerial: boolean;
-  isBulk: boolean;
   isActive: boolean;
   specTemplate: SpecFieldDef[];
 }
@@ -61,7 +60,6 @@ const EMPTY: FormState = {
   parentId: '',
   defaultUsefulLifeMonths: '',
   requiresSerial: true,
-  isBulk: false,
   isActive: true,
   specTemplate: [],
 };
@@ -97,7 +95,6 @@ export default function CategoriasActivosPage() {
       defaultUsefulLifeMonths:
         c.defaultUsefulLifeMonths !== null ? String(c.defaultUsefulLifeMonths) : '',
       requiresSerial: c.requiresSerial,
-      isBulk: c.isBulk,
       isActive: c.isActive,
       specTemplate: c.specTemplate ?? [],
     });
@@ -169,7 +166,6 @@ export default function CategoriasActivosPage() {
         ? Number(form.defaultUsefulLifeMonths)
         : null,
       requiresSerial: form.requiresSerial,
-      isBulk: form.isBulk,
       isActive: form.isActive,
       specTemplate: form.specTemplate.map((f, i) => ({
         ...f,
@@ -250,7 +246,6 @@ export default function CategoriasActivosPage() {
       render: (c) => (
         <div className="flex flex-wrap gap-1">
           {c.requiresSerial ? <Badge variant="outline">Con serie</Badge> : null}
-          {c.isBulk ? <Badge variant="info">A granel</Badge> : null}
           {!c.isActive ? <Badge variant="secondary">Inactiva</Badge> : null}
         </div>
       ),
@@ -389,14 +384,6 @@ export default function CategoriasActivosPage() {
                   onCheckedChange={(c) => set({ requiresSerial: c === true })}
                 />
                 <Label htmlFor="requires-serial">Normalmente trae número de serie</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="is-bulk"
-                  checked={form.isBulk}
-                  onCheckedChange={(c) => set({ isBulk: c === true })}
-                />
-                <Label htmlFor="is-bulk">Se lleva por cantidad (no se etiqueta por pieza)</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox

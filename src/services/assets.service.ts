@@ -25,8 +25,6 @@ import type {
   AssetQueryParams,
   AssetStats,
   AssignAssetDto,
-  BulkCreateAssetsDto,
-  BulkCreateResult,
   BulkReturnDto,
   CreateAssetCategoryDto,
   CreateAssetDto,
@@ -77,12 +75,6 @@ class AssetsService {
 
   async createAsset(dto: CreateAssetDto): Promise<AssetDetail> {
     const { data } = await api.post<AssetDetail>('/it-assets', dto);
-    return data;
-  }
-
-  /** Alta de N equipos idénticos; cada uno recibe su propia etiqueta. */
-  async bulkCreateAssets(dto: BulkCreateAssetsDto): Promise<BulkCreateResult> {
-    const { data } = await api.post<BulkCreateResult>('/it-assets/bulk', dto);
     return data;
   }
 

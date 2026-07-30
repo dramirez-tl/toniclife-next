@@ -258,7 +258,6 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                 <Field label="Sucursal" value={asset.branchName} />
                 <Field label="Ubicación" value={asset.locationName} />
                 <Field label="Departamento" value={asset.departmentName} />
-                <Field label="Cantidad" value={String(asset.quantity)} />
                 {asset.parentAssetTag ? (
                   <Field label="Accesorio de" value={asset.parentAssetTag} mono />
                 ) : null}

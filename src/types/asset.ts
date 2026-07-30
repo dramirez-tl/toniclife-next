@@ -199,7 +199,6 @@ export interface AssetCategory {
   specTemplate: SpecFieldDef[];
   defaultUsefulLifeMonths: number | null;
   requiresSerial: boolean;
-  isBulk: boolean;
   icon: string | null;
   sortOrder: number;
   isActive: boolean;
@@ -216,7 +215,6 @@ export interface CreateAssetCategoryDto {
   specTemplate?: SpecFieldDef[];
   defaultUsefulLifeMonths?: number | null;
   requiresSerial?: boolean;
-  isBulk?: boolean;
   icon?: string | null;
   sortOrder?: number;
   isActive?: boolean;
@@ -236,9 +234,14 @@ export interface AssetCategoryQueryParams {
 
 export interface AssetLocation {
   id: string;
-  branchId: string;
+  /** null = no pertenece a ninguna sucursal (corporativo u otro sitio). */
+  branchId: string | null;
   branchCode: string | null;
   branchName: string | null;
+  /** true = está fuera de sucursal. */
+  isOffsite: boolean;
+  /** "Corporativo Irapuato" o el nombre de la sucursal. */
+  siteName: string;
   parentId: string | null;
   parentName: string | null;
   code: string | null;
@@ -252,7 +255,8 @@ export interface AssetLocation {
 }
 
 export interface CreateAssetLocationDto {
-  branchId: string;
+  /** Vacío/null = sitio que NO es sucursal (ej. Corporativo Irapuato). */
+  branchId?: string | null;
   name: string;
   code?: string | null;
   parentId?: string | null;
@@ -264,6 +268,8 @@ export type UpdateAssetLocationDto = Partial<CreateAssetLocationDto>;
 
 export interface AssetLocationQueryParams {
   branchId?: string;
+  /** 'true' = solo las que no pertenecen a una sucursal. */
+  withoutBranch?: string;
   includeInactive?: string;
   search?: string;
 }
@@ -397,7 +403,6 @@ export interface Asset {
   labelPrintedCount: number;
   parentAssetId: string | null;
   parentAssetTag: string | null;
-  quantity: number;
   notes: string | null;
   retiredAt: string | null;
   retirementReason: string | null;
@@ -462,7 +467,6 @@ export interface AssetChild {
 export interface AssetDetail extends Asset {
   specTemplate: SpecFieldDef[];
   categoryRequiresSerial: boolean;
-  categoryIsBulk: boolean;
   assignments: AssetAssignment[];
   currentAssignment: AssetAssignment | null;
   documents: AssetDocument[];
@@ -494,21 +498,13 @@ export interface CreateAssetDto {
   locationId?: string | null;
   departmentId?: string | null;
   parentAssetId?: string | null;
-  quantity?: number;
   notes?: string | null;
 }
 
 export type UpdateAssetDto = Partial<CreateAssetDto> & { isActive?: boolean };
 
-export interface BulkCreateAssetsDto extends CreateAssetDto {
-  count: number;
-}
-
-export interface BulkCreateResult {
-  created: number;
-  assets: { id: string; assetTag: string }[];
-  message: string;
-}
+// No hay alta de "N equipos idénticos": cada activo es UNA pieza con UNA
+// etiqueta. Para dar de alta muchos iguales se usa la carga masiva CSV.
 
 export interface RetireAssetDto {
   status: 'retired' | 'lost' | 'stolen' | 'sold' | 'donated' | 'scrapped';

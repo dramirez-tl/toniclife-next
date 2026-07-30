@@ -15,7 +15,6 @@ import type {
   AssetPurchaseQueryParams,
   AssetQueryParams,
   AssignAssetDto,
-  BulkCreateAssetsDto,
   BulkReturnDto,
   CreateAssetCategoryDto,
   CreateAssetDto,
@@ -127,14 +126,6 @@ export function useCreateAsset() {
   const invalidate = useInvalidateAssets();
   return useMutation({
     mutationFn: (dto: CreateAssetDto) => assetsService.createAsset(dto),
-    onSuccess: () => invalidate(),
-  });
-}
-
-export function useBulkCreateAssets() {
-  const invalidate = useInvalidateAssets();
-  return useMutation({
-    mutationFn: (dto: BulkCreateAssetsDto) => assetsService.bulkCreateAssets(dto),
     onSuccess: () => invalidate(),
   });
 }
