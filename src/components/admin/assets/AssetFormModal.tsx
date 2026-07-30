@@ -69,6 +69,8 @@ interface AssetFormModalProps {
   asset?: AssetDetail | null;
   /** Preselecciona la factura (al dar de alta desde el detalle de una factura). */
   defaultPurchaseId?: string;
+  /** Etiqueta ya escaneada desde el listado: llega precargada. */
+  defaultLabelCode?: string;
   onSaved?: () => void;
 }
 
@@ -151,6 +153,7 @@ export function AssetFormModal({
   onOpenChange,
   asset,
   defaultPurchaseId,
+  defaultLabelCode,
   onSaved,
 }: AssetFormModalProps) {
   const isEdit = !!asset;
@@ -244,10 +247,14 @@ export function AssetFormModal({
       });
       setSpecs(asset.specifications ?? {});
     } else {
-      setForm({ ...EMPTY, purchaseId: defaultPurchaseId ?? '' });
+      setForm({
+        ...EMPTY,
+        purchaseId: defaultPurchaseId ?? '',
+        labelCode: defaultLabelCode ?? '',
+      });
       setSpecs({});
     }
-  }, [open, asset, defaultPurchaseId]);
+  }, [open, asset, defaultPurchaseId, defaultLabelCode]);
 
   // Guarda la foto del estado recién cargado para poder detectar cambios.
   useEffect(() => {
@@ -451,7 +458,9 @@ export function AssetFormModal({
   return (
     <Dialog open={open}>
       <DialogContent
-        className="max-h-[90vh] overflow-y-auto sm:max-w-3xl"
+        // Móvil: pantalla completa con el cuerpo scrolleando y el pie fijo, para
+        // que "Dar de alta" siempre quede al alcance del pulgar.
+        className="grid h-[100dvh] max-h-[100dvh] w-full max-w-full grid-rows-[auto_1fr_auto] gap-3 overflow-hidden rounded-none p-4 sm:h-auto sm:max-h-[90vh] sm:max-w-3xl sm:gap-4 sm:rounded-lg sm:p-6"
         showCloseButton={false}
         // Clic fuera: NO cierra. Se captura demasiado dato como para perderlo
         // por un clic accidental en el fondo.
@@ -484,7 +493,7 @@ export function AssetFormModal({
           </div>
         </DialogHeader>
 
-        <div className="grid gap-6 py-2">
+        <div className="grid gap-6 overflow-y-auto py-2 pr-1">
           {/* ---------- Identificación ---------- */}
           <section className="grid gap-4">
             <h3 className="text-sm font-semibold text-muted-foreground">Identificación</h3>
@@ -513,6 +522,7 @@ export function AssetFormModal({
               <div className="grid gap-2">
                 <Label>Nombre del equipo *</Label>
                 <Input
+                  className="h-12 sm:h-10"
                   value={form.name}
                   onChange={(e) => set({ name: e.target.value })}
                   placeholder="Laptop Dell Latitude 5420"
@@ -853,15 +863,20 @@ export function AssetFormModal({
           </section>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="border-t border-border pt-3 sm:border-0 sm:pt-0">
           <Button
             variant="outline"
             onClick={() => void requestClose()}
             disabled={isSaving || isSavingInvoice}
+            className="h-12 sm:h-10"
           >
             Cancelar
           </Button>
-          <Button onClick={() => void handleSubmit()} disabled={isSaving}>
+          <Button
+            onClick={() => void handleSubmit()}
+            disabled={isSaving}
+            className="h-12 sm:h-10"
+          >
             {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             {isEdit ? 'Guardar cambios' : 'Dar de alta'}
           </Button>

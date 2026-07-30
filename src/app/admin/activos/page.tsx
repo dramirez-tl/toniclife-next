@@ -6,6 +6,7 @@
 
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   ComputerDesktopIcon,
@@ -14,7 +15,7 @@ import {
   PencilSquareIcon,
   EyeIcon,
 } from '@heroicons/react/24/outline';
-import { Barcode } from 'lucide-react';
+import { Barcode, Camera, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +29,8 @@ import { useBranches } from '@/hooks/useBranches';
 import { AssetFormModal } from '@/components/admin/assets/AssetFormModal';
 import { LifeBar } from '@/components/admin/assets/AssignAssetModal';
 import { AssetImportDialog } from '@/components/admin/assets/AssetImportDialog';
+import { BarcodeScannerDialog } from '@/components/admin/assets/BarcodeScannerDialog';
+import { assetsService } from '@/services/assets.service';
 import {
   ASSET_CONDITION_LABELS,
   ASSET_STATUSES,
@@ -67,9 +70,32 @@ function ActivosContent() {
     limit: '20',
   });
 
+  const router = useRouter();
   const [formOpen, setFormOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
+  const [scanLookup, setScanLookup] = useState(false);
+  const [scanCode, setScanCode] = useState('');
   const [searchDraft, setSearchDraft] = useState(get('search'));
+
+  /**
+   * Escanear para BUSCAR: vas caminando con el celular, apuntas a la etiqueta y
+   * caes en la ficha del equipo. Si el código no está vinculado a nada, se
+   * ofrece darlo de alta con esa etiqueta ya puesta.
+   */
+  const handleScanSearch = async (code: string) => {
+    setScanLookup(true);
+    try {
+      const asset = await assetsService.getAssetByTag(code);
+      router.push(`/admin/activos/${asset.id}`);
+    } catch {
+      toast.info(`La etiqueta ${code} no está vinculada a ningún equipo. Dala de alta.`);
+      setScanCode(code);
+      setFormOpen(true);
+    } finally {
+      setScanLookup(false);
+    }
+  };
 
   const search = get('search');
   const status = get('status');
@@ -190,12 +216,12 @@ function ActivosContent() {
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50 dark:from-background dark:to-background">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
           <div className="mb-2 flex items-center gap-3">
-            <ComputerDesktopIcon className="h-9 w-9" />
-            <h1 className="text-3xl font-bold sm:text-4xl">Activos de TI</h1>
+            <ComputerDesktopIcon className="h-7 w-7 sm:h-9 sm:w-9" />
+            <h1 className="text-2xl font-bold sm:text-4xl">Activos de TI</h1>
           </div>
-          <p className="text-base text-white/80 sm:text-lg">
+          <p className="text-sm text-white/80 sm:text-lg">
             Inventario de equipo bajo gestión del departamento de Sistemas
           </p>
         </div>
@@ -203,7 +229,7 @@ function ActivosContent() {
 
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         {/* Estadísticas */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
           <StatCard label="Total de equipos" value={stats?.total ?? 0} />
           <StatCard label="Disponibles" value={stats?.available ?? 0} tone="text-emerald-600" />
           <StatCard label="Asignados" value={stats?.assigned ?? 0} tone="text-sky-600" />
@@ -226,33 +252,55 @@ function ActivosContent() {
           <CardContent className="space-y-4 p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-lg font-semibold">Inventario</h2>
-              <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={() => setImportOpen(true)}>
+              <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+                <Button
+                  onClick={() => setFormOpen(true)}
+                  className="order-first h-12 w-full sm:order-last sm:h-10 sm:w-auto"
+                >
+                  <PlusIcon className="mr-2 h-4 w-4" />
+                  Nuevo activo
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setImportOpen(true)}
+                  className="h-11 flex-1 sm:h-10 sm:flex-none"
+                >
                   <ArrowUpTrayIcon className="mr-2 h-4 w-4" />
                   Carga masiva
                 </Button>
-                <Button asChild variant="outline">
+                <Button asChild variant="outline" className="h-11 flex-1 sm:h-10 sm:flex-none">
                   <Link href="/admin/activos/etiquetas">
                     <Barcode className="mr-2 h-4 w-4" />
                     Etiquetas
                   </Link>
                 </Button>
-                <Button onClick={() => setFormOpen(true)}>
-                  <PlusIcon className="mr-2 h-4 w-4" />
-                  Nuevo activo
-                </Button>
               </div>
             </div>
 
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-6">
-              <div className="lg:col-span-2">
+              <div className="flex gap-2 lg:col-span-2">
                 <Input
+                  className="h-12 flex-1 sm:h-10"
                   value={searchDraft}
                   onChange={(e) => setSearchDraft(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && applySearch()}
                   onBlur={applySearch}
                   placeholder="Etiqueta, serie, nombre, marca o modelo"
                 />
+                <Button
+                  variant="outline"
+                  onClick={() => setScanOpen(true)}
+                  disabled={scanLookup}
+                  className="h-12 shrink-0 px-4 sm:h-10 sm:px-3"
+                  aria-label="Escanear una etiqueta para buscar el equipo"
+                  title="Escanear para buscar"
+                >
+                  {scanLookup ? (
+                    <Loader2 className="h-5 w-5 animate-spin sm:h-4 sm:w-4" />
+                  ) : (
+                    <Camera className="h-5 w-5 sm:h-4 sm:w-4" />
+                  )}
+                </Button>
               </div>
               <SearchableSelect
                 options={ASSET_STATUSES.map((s) => ({ value: s, label: ASSET_STATUS_LABELS[s] }))}
@@ -330,8 +378,75 @@ function ActivosContent() {
           </CardContent>
         </Card>
 
-        {/* Tabla */}
-        <Card>
+        {/* Listado: tarjetas en celular, tabla en escritorio.
+            Con 8 columnas, en un teléfono la tabla obliga a scroll horizontal y
+            es inservible para quien anda inventariando de pie. */}
+        <div className="space-y-3 sm:hidden">
+          {isLoading && !data ? (
+            <>
+              <Skeleton className="h-28 w-full" />
+              <Skeleton className="h-28 w-full" />
+              <Skeleton className="h-28 w-full" />
+            </>
+          ) : assets.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <ComputerDesktopIcon className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
+                <p className="text-sm font-medium">No hay activos que coincidan</p>
+                <p className="text-sm text-muted-foreground">
+                  Da de alta el primer equipo o usa la carga masiva.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            assets.map((a) => (
+              <Link key={a.id} href={`/admin/activos/${a.id}`} className="block">
+                <Card className="transition-colors active:bg-muted/60">
+                  <CardContent className="space-y-2 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-base font-medium">{a.name}</p>
+                        <p className="truncate text-sm text-muted-foreground">
+                          {[a.brand, a.model].filter(Boolean).join(' · ') || a.categoryName}
+                        </p>
+                      </div>
+                      <Badge variant={ASSET_STATUS_VARIANTS[a.status]} className="shrink-0">
+                        {ASSET_STATUS_LABELS[a.status]}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      {a.assetTag ? (
+                        <span className="font-mono tracking-wider text-foreground">
+                          {a.assetTag}
+                        </span>
+                      ) : (
+                        <span className="italic">Sin etiqueta</span>
+                      )}
+                      {a.serialNumber ? <span className="font-mono">S/N {a.serialNumber}</span> : null}
+                      {a.assignedUserName || a.branchName ? (
+                        <span>{a.assignedUserName ?? a.branchName}</span>
+                      ) : null}
+                    </div>
+                    <LifeBar pct={a.lifeRemainingPct} />
+                  </CardContent>
+                </Card>
+              </Link>
+            ))
+          )}
+          {assets.length > 0 && (
+            <DataTablePagination
+              currentPage={page}
+              pageSize={limit}
+              totalItems={data?.total ?? 0}
+              isLoading={isLoading || isFetching}
+              onPageChange={(p) => setParams({ page: String(p) })}
+              onPageSizeChange={(size) => setParams({ limit: String(size), page: null })}
+              pageSizeOptions={[10, 20, 50]}
+            />
+          )}
+        </div>
+
+        <Card className="hidden sm:block">
           <CardContent className="p-6">
             <DataTable
               columns={columns}
@@ -368,8 +483,19 @@ function ActivosContent() {
 
       <AssetFormModal
         open={formOpen}
-        onOpenChange={setFormOpen}
+        onOpenChange={(o) => {
+          setFormOpen(o);
+          if (!o) setScanCode('');
+        }}
+        defaultLabelCode={scanCode}
         onSaved={() => toast.success('Inventario actualizado')}
+      />
+      <BarcodeScannerDialog
+        open={scanOpen}
+        onOpenChange={setScanOpen}
+        onDetected={(code) => void handleScanSearch(code)}
+        title="Buscar equipo"
+        description="Apunta a la etiqueta del aparato para abrir su ficha."
       />
       <AssetImportDialog open={importOpen} onOpenChange={setImportOpen} />
     </div>

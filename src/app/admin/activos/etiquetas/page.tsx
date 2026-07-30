@@ -227,7 +227,7 @@ function EtiquetasContent() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50 dark:from-background dark:to-background">
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
           <Link
             href="/admin/activos"
             className="mb-4 inline-flex items-center gap-2 text-sm text-white/80 hover:text-white"
@@ -236,8 +236,8 @@ function EtiquetasContent() {
             Volver al inventario
           </Link>
           <div className="mb-2 flex items-center gap-3">
-            <Barcode className="h-9 w-9" />
-            <h1 className="text-3xl font-bold sm:text-4xl">Etiquetas</h1>
+            <Barcode className="h-7 w-7 sm:h-9 sm:w-9" />
+            <h1 className="text-2xl font-bold sm:text-4xl">Etiquetas</h1>
           </div>
           <p className="text-base text-white/80 sm:text-lg">
             Se imprimen por lote y se vinculan a un equipo al capturarlo
@@ -246,7 +246,7 @@ function EtiquetasContent() {
       </div>
 
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <StatCard label="Total impresas" value={stats?.total ?? 0} />
           <StatCard label="Disponibles" value={stats?.available ?? 0} tone="text-emerald-600" hint="listas para pegar" />
           <StatCard label="En uso" value={stats?.linked ?? 0} tone="text-sky-600" />
@@ -264,7 +264,7 @@ function EtiquetasContent() {
                   cuando las vinculas a un equipo.
                 </p>
               </div>
-              <Button onClick={() => setBatchModalOpen(true)}>
+              <Button onClick={() => setBatchModalOpen(true)} className="h-12 w-full sm:h-10 sm:w-auto">
                 <PlusIcon className="mr-2 h-4 w-4" />
                 Generar lote
               </Button>
@@ -328,7 +328,7 @@ function EtiquetasContent() {
         {/* Etiquetas */}
         <Card>
           <CardContent className="space-y-4 p-6">
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="grid gap-3 sm:flex sm:flex-wrap sm:items-center">
               <Input
                 value={searchDraft}
                 onChange={(e) => setSearchDraft(e.target.value.replace(/[^0-9]/g, ''))}
@@ -337,7 +337,7 @@ function EtiquetasContent() {
                 }
                 onBlur={() => setParams({ search: searchDraft || null, page: null })}
                 placeholder="Buscar por código"
-                className="max-w-xs font-mono"
+                className="h-12 font-mono sm:h-10 sm:max-w-xs"
                 inputMode="numeric"
               />
               <SearchableSelect
@@ -349,7 +349,7 @@ function EtiquetasContent() {
                 onChange={(v) => setParams({ status: v, page: null })}
                 allLabel="Todos los estados"
                 allValue="all"
-                className="w-52"
+                className="sm:w-52"
               />
               <SearchableSelect
                 options={batches.map((b) => ({ value: b.id, label: b.batchNumber }))}
@@ -357,7 +357,7 @@ function EtiquetasContent() {
                 onChange={(v) => setParams({ batch: v, page: null })}
                 allLabel="Todos los lotes"
                 allValue="all"
-                className="w-48"
+                className="sm:w-48"
               />
             </div>
 

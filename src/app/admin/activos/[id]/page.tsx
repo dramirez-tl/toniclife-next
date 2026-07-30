@@ -155,7 +155,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50 dark:from-background dark:to-background">
       {/* Header */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-        <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
           <button
             type="button"
             onClick={() => router.push('/admin/activos')}
@@ -169,42 +169,42 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
               <p className="font-mono text-sm tracking-wider text-white/70">
                 {asset.assetTag ?? 'Sin etiqueta'}
               </p>
-              <h1 className="text-2xl font-bold sm:text-3xl">{asset.name}</h1>
+              <h1 className="text-xl font-bold sm:text-3xl">{asset.name}</h1>
               <p className="text-white/80">
                 {[asset.brand, asset.model, asset.categoryName].filter(Boolean).join(' · ')}
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
               {asset.isActive ? (
                 <>
-                  <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
+                  <Button variant="secondary" size="sm" className="h-11 sm:h-9" onClick={() => setEditOpen(true)}>
                     <PencilSquareIcon className="mr-2 h-4 w-4" />
                     Editar
                   </Button>
                   {asset.currentAssignment ? (
                     <>
-                      <Button variant="secondary" size="sm" onClick={() => openAssign('transfer')}>
+                      <Button variant="secondary" size="sm" className="h-11 sm:h-9" onClick={() => openAssign('transfer')}>
                         <ArrowsRightLeftIcon className="mr-2 h-4 w-4" />
                         Transferir
                       </Button>
-                      <Button variant="secondary" size="sm" onClick={() => openAssign('return')}>
+                      <Button variant="secondary" size="sm" className="h-11 sm:h-9" onClick={() => openAssign('return')}>
                         <ArrowUturnLeftIcon className="mr-2 h-4 w-4" />
                         Devolver
                       </Button>
                     </>
                   ) : (
-                    <Button variant="secondary" size="sm" onClick={() => openAssign('assign')}>
+                    <Button variant="secondary" size="sm" className="h-11 sm:h-9" onClick={() => openAssign('assign')}>
                       <UserPlusIcon className="mr-2 h-4 w-4" />
                       Asignar
                     </Button>
                   )}
-                  <Button variant="destructive" size="sm" onClick={() => void handleRetire()}>
+                  <Button variant="destructive" size="sm" className="h-11 sm:h-9" onClick={() => void handleRetire()}>
                     <TrashIcon className="mr-2 h-4 w-4" />
                     Dar de baja
                   </Button>
                 </>
               ) : (
-                <Button variant="secondary" size="sm" onClick={() => void handleRestore()}>
+                <Button variant="secondary" size="sm" className="col-span-2 h-11 sm:h-9" onClick={() => void handleRestore()}>
                   <ArrowPathIcon className="mr-2 h-4 w-4" />
                   Reactivar
                 </Button>
@@ -230,7 +230,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
         )}
 
         {/* Resumen */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <SummaryCard label="Estado">
             <Badge variant={ASSET_STATUS_VARIANTS[asset.status]}>
               {ASSET_STATUS_LABELS[asset.status]}
@@ -263,7 +263,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
         </div>
 
         <Tabs defaultValue="info">
-          <TabsList className="flex-wrap">
+          <TabsList className="flex w-full justify-start overflow-x-auto sm:flex-wrap">
             <TabsTrigger value="info">Información</TabsTrigger>
             <TabsTrigger value="specs">Características</TabsTrigger>
             <TabsTrigger value="purchase">Compra</TabsTrigger>
