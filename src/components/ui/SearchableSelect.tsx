@@ -22,6 +22,17 @@ import {
 export interface SearchableSelectOption {
   value: string;
   label: string;
+  /**
+   * Segunda línea, más chica y tenue. Para el contexto de una opción cuyo
+   * nombre solo no basta: la ruta de una ubicación, la categoría padre, la
+   * sucursal a la que pertenece.
+   *
+   * Existe porque meter la ruta completa en `label` produce renglones de 60+
+   * caracteres que en un teléfono se cortan justo donde está el dato que
+   * distingue una opción de otra. Partirlo en dos líneas deja el nombre
+   * legible y el contexto debajo. El buscador también mira aquí.
+   */
+  hint?: string;
 }
 
 interface SearchableSelectProps {
@@ -80,11 +91,25 @@ export function SearchableSelect({
             className
           )}
         >
-          <span className="flex-1 truncate text-left">{triggerLabel}</span>
+          <span
+            className="flex-1 truncate text-left"
+            title={
+              selectedOption?.hint
+                ? `${selectedOption.label} · ${selectedOption.hint}`
+                : undefined
+            }
+          >
+            {triggerLabel}
+          </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] min-w-[220px] p-0" align="start">
+      {/* max-w evita que el panel se salga de la pantalla en móvil cuando el
+          disparador vive dentro de un diálogo ancho. */}
+      <PopoverContent
+        className="w-[--radix-popover-trigger-width] max-w-[calc(100vw-2rem)] min-w-[220px] p-0"
+        align="start"
+      >
         <Command>
           <CommandInput placeholder={placeholder} />
           <CommandList>
@@ -97,26 +122,43 @@ export function SearchableSelect({
                 >
                   <Check
                     className={cn(
-                      'mr-2 h-4 w-4',
+                      'h-4 w-4 shrink-0',
                       isAllSelected ? 'opacity-100' : 'opacity-0'
                     )}
                   />
-                  {allLabel}
+                  <span className="min-w-0 flex-1 break-words whitespace-normal">
+                    {allLabel}
+                  </span>
                 </CommandItem>
               )}
               {options.map((option) => (
                 <CommandItem
                   key={option.value}
-                  value={`${option.label} ${option.value}`}
+                  // El buscador de cmdk filtra por este string, así que el hint
+                  // va incluido: si la ruta se muestra abajo, teclear el nombre
+                  // del sitio tiene que seguir encontrando la opción.
+                  value={`${option.label} ${option.hint ?? ''} ${option.value}`}
                   onSelect={() => handleSelect(option.value)}
                 >
                   <Check
                     className={cn(
-                      'mr-2 h-4 w-4',
+                      'h-4 w-4 shrink-0',
                       value === option.value ? 'opacity-100' : 'opacity-0'
                     )}
                   />
-                  {option.label}
+                  {/* min-w-0 es lo que permite encoger por debajo del ancho del
+                      texto; sin él la línea desborda y CommandList la recorta
+                      con su overflow-x-hidden en vez de envolverla. */}
+                  <span className="min-w-0 flex-1">
+                    <span className="block break-words whitespace-normal">
+                      {option.label}
+                    </span>
+                    {option.hint ? (
+                      <span className="mt-0.5 block break-words whitespace-normal text-xs text-muted-foreground">
+                        {option.hint}
+                      </span>
+                    ) : null}
+                  </span>
                 </CommandItem>
               ))}
             </CommandGroup>

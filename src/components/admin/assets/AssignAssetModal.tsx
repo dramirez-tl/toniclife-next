@@ -102,21 +102,28 @@ export function AssignAssetModal({
 
   const targetOptions = useMemo(() => {
     switch (assignmentType) {
+      // El nombre propio va en la primera línea y el contexto (número de
+      // empleado, ruta de la ubicación) en la segunda: en un teléfono el
+      // renglón completo se cortaba justo donde está el dato que desempata.
       case 'user':
         return employees
           .filter((e) => !!e.userId)
           .map((e) => ({
             value: e.userId,
-            label: `${e.firstName} ${e.lastName}${e.secondLastName ? ` ${e.secondLastName}` : ''} — ${e.employeeNumber}`,
+            label: `${e.firstName} ${e.lastName}${e.secondLastName ? ` ${e.secondLastName}` : ''}`,
+            hint: e.employeeNumber,
           }));
       case 'branch':
-        return branches.map((b) => ({ value: b.id, label: `${b.name} (${b.code})` }));
+        return branches.map((b) => ({ value: b.id, label: b.name, hint: b.code }));
       case 'department':
         return departments.map((d) => ({ value: d.id, label: d.name }));
       case 'location':
+        // Aquí la lista NO viene filtrada por sucursal, así que el sitio sí
+        // hace falta para distinguir dos "Piso 1" de sucursales distintas.
         return locations.map((l) => ({
           value: l.id,
-          label: l.branchName ? `${l.branchName} › ${l.fullName}` : l.fullName,
+          label: l.name,
+          hint: [l.siteName, l.parentName].filter(Boolean).join(' › ') || undefined,
         }));
       default:
         return [];

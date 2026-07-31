@@ -209,7 +209,16 @@ export function AssetFormModal({
       : locations.filter((l) => l.isOffsite);
     return applicable.map((l) => ({
       value: l.id,
-      label: l.isOffsite ? `${l.siteName} › ${l.fullName}` : l.fullName,
+      // El nombre propio va solo en la primera línea y la ruta baja a la
+      // segunda. Antes iba todo junto ("Fuera de sucursal › Corporativo
+      // Irapuato › Piso 1 - Dpto. Sistemas") y en un teléfono se cortaba justo
+      // en la parte que distingue una ubicación de otra.
+      label: l.name,
+      // La lista ya viene filtrada por lo elegido en Sucursal, así que repetir
+      // la sucursal en cada renglón no aporta nada: basta el padre inmediato.
+      // "Fuera de sucursal" solo se muestra en los sitios raíz, donde sí dice
+      // algo que no se sabía.
+      hint: l.parentName ?? (l.isOffsite ? 'Fuera de sucursal' : undefined),
     }));
   }, [locations, form.branchId]);
 
@@ -478,8 +487,8 @@ export function AssetFormModal({
               </DialogTitle>
               <DialogDescription>
                 {isEdit
-                  ? 'La etiqueta con código de barras no cambia al editar.'
-                  : 'La etiqueta (TI-000000) se genera automáticamente al guardar.'}
+                  ? 'La etiqueta vinculada no cambia al editar.'
+                  : 'Escanea o teclea el folio de una etiqueta ya impresa. Puedes dejarlo en blanco y vincularla después.'}
               </DialogDescription>
             </div>
             <button
@@ -509,9 +518,11 @@ export function AssetFormModal({
               <div className="grid gap-2">
                 <Label>Categoría *</Label>
                 <SearchableSelect
+                  className="h-12 sm:h-10"
                   options={categories.map((c) => ({
                     value: c.id,
-                    label: c.parentName ? `${c.parentName} › ${c.name}` : c.name,
+                    label: c.name,
+                    hint: c.parentName ?? undefined,
                   }))}
                   value={form.categoryId}
                   onChange={handleCategoryChange}
@@ -570,6 +581,7 @@ export function AssetFormModal({
               <div className="grid gap-2">
                 <Label>Estado</Label>
                 <SearchableSelect
+                  className="h-12 sm:h-10"
                   options={ASSET_STATUSES.map((s) => ({
                     value: s,
                     label: ASSET_STATUS_LABELS[s],
@@ -582,6 +594,7 @@ export function AssetFormModal({
               <div className="grid gap-2">
                 <Label>Condición</Label>
                 <SearchableSelect
+                  className="h-12 sm:h-10"
                   options={ASSET_CONDITIONS.map((c) => ({
                     value: c,
                     label: ASSET_CONDITION_LABELS[c],
@@ -624,16 +637,19 @@ export function AssetFormModal({
                   <SearchableSelect
                     options={purchases.map((p) => ({
                       value: p.id,
-                      label: `${p.invoiceNumber ?? 'Sin folio'} — ${p.supplierName ?? 'Sin proveedor'}${
-                        p.invoiceDate ? ` (${p.invoiceDate})` : ''
-                      }`,
+                      // El folio es lo que se busca; proveedor y fecha son el
+                      // contexto para desempatar y van en la segunda línea.
+                      label: p.invoiceNumber ?? 'Sin folio',
+                      hint: [p.supplierName ?? 'Sin proveedor', p.invoiceDate]
+                        .filter(Boolean)
+                        .join(' · '),
                     }))}
                     value={form.purchaseId}
                     onChange={handlePurchaseChange}
                     placeholder="Busca la factura"
                     allLabel="Sin factura"
                     allValue=""
-                    className="flex-1"
+                    className="h-12 flex-1 sm:h-10"
                   />
                   <Button
                     type="button"
@@ -817,6 +833,7 @@ export function AssetFormModal({
               <div className="grid gap-2">
                 <Label>Sucursal</Label>
                 <SearchableSelect
+                  className="h-12 sm:h-10"
                   options={branches.map((b) => ({
                     value: b.id,
                     label: `${b.name} (${b.code})`,
@@ -836,6 +853,7 @@ export function AssetFormModal({
               <div className="grid gap-2">
                 <Label>Ubicación física</Label>
                 <SearchableSelect
+                  className="h-12 sm:h-10"
                   options={locationOptions}
                   value={form.locationId}
                   onChange={(v) => set({ locationId: v })}
