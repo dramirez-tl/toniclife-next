@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronsUpDown } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -88,6 +88,39 @@ export function SearchableSelect({
     setOpen(false);
   };
 
+  const listRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Deja desplazar la lista con el dedo (y con la rueda) cuando el selector
+   * vive dentro de un diálogo.
+   *
+   * El Dialog modal de Radix envuelve su contenido en react-remove-scroll, que
+   * cuelga de `document` un `touchmove`/`wheel` no pasivo. Ese manejador ignora
+   * los gestos nacidos dentro del DialogContent, pero este panel se renderiza
+   * en un Portal, o sea FUERA de él: cae en la rama "outside" y ahí llama
+   * `preventDefault()` sin siquiera revisar si el elemento puede desplazarse.
+   * Resultado: la lista no se mueve con el dedo.
+   *
+   * Se detiene la propagación con un listener NATIVO sobre el nodo, no con el
+   * `onTouchMove` de React: al estar el panel en un Portal, el evento sintético
+   * viaja por el árbol de React y no está garantizado que corra antes que el de
+   * `document`. Sobre el nodo sí, porque el evento pasa por aquí primero.
+   *
+   * Solo se detiene la propagación, nunca se llama preventDefault, así que los
+   * listeners pueden quedar pasivos y el navegador desplaza de forma nativa.
+   */
+  useEffect(() => {
+    const node = listRef.current;
+    if (!open || !node) return;
+    const stop = (e: Event) => e.stopPropagation();
+    node.addEventListener('touchmove', stop, { passive: true });
+    node.addEventListener('wheel', stop, { passive: true });
+    return () => {
+      node.removeEventListener('touchmove', stop);
+      node.removeEventListener('wheel', stop);
+    };
+  }, [open]);
+
   /**
    * Agrupa respetando el orden en que llegan: el primer grupo que aparece en
    * `options` es el primero de la lista. Así quien arma las opciones decide el
@@ -150,7 +183,7 @@ export function SearchableSelect({
       >
         <Command>
           <CommandInput placeholder={placeholder} />
-          <CommandList>
+          <CommandList ref={listRef} className="overscroll-contain">
             <CommandEmpty>Sin resultados</CommandEmpty>
             {/* "Todos" va en su propio bloque para que quede fijo hasta arriba
                 y no se lo lleve el encabezado del primer grupo. */}
