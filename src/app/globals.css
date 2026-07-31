@@ -507,3 +507,23 @@ input[type="range"]::-webkit-slider-runnable-track {
 .driver-popover.tl-tour .driver-popover-arrow {
   border-color: #ffffff;
 }
+
+/* ============================================================
+   Toasts sobre diálogos modales
+   ============================================================
+   Radix pone `pointer-events: none` en el <body> mientras hay un Dialog
+   modal abierto, y esa propiedad SE HEREDA. Sonner 2.x solo declara
+   pointer-events para los toasts ocultos, nunca `auto` para los visibles,
+   así que un toast que aparece con un modal abierto se ve pero no recibe
+   clics.
+
+   Eso dejaba muerta la confirmación de confirmAction() (el toast con
+   Confirmar/Cancelar): el usuario quedaba atrapado sin poder ni confirmar
+   ni cancelar.
+
+   La regla propia de sonner para ocultos, [data-sonner-toast][data-visible=false],
+   tiene más especificidad, así que sigue ganando: los invisibles no se
+   vuelven clicables. */
+[data-sonner-toast] {
+  pointer-events: auto;
+}
