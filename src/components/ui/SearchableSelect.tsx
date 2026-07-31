@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Check, ChevronsUpDown } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
@@ -33,6 +33,18 @@ export interface SearchableSelectOption {
    * legible y el contexto debajo. El buscador también mira aquí.
    */
   hint?: string;
+  /**
+   * Encabezado del bloque donde va la opción. Las opciones que comparten
+   * `group` salen juntas bajo un solo título.
+   *
+   * Para catálogos jerárquicos esto es mejor que repetir el padre en cada
+   * renglón (`hint`): con 16 departamentos colgando de "Corporativo Irapuato",
+   * el hint escribía ese nombre 16 veces y la lista se leía plana. Con el
+   * encabezado el padre se dice una vez y las hijas se ven como hijas.
+   *
+   * cmdk esconde solo los grupos que se quedan sin resultados al buscar.
+   */
+  group?: string;
 }
 
 interface SearchableSelectProps {
@@ -76,6 +88,32 @@ export function SearchableSelect({
     setOpen(false);
   };
 
+  /**
+   * Agrupa respetando el orden en que llegan: el primer grupo que aparece en
+   * `options` es el primero de la lista. Así quien arma las opciones decide el
+   * orden (por ejemplo raíz y luego sus hijas) sin que el componente reordene
+   * nada por su cuenta.
+   *
+   * Las opciones sin `group` caen en un bloque sin encabezado. Como la mayoría
+   * de los ~236 usos no manda `group`, ese es el camino de siempre y se ve
+   * igual que antes.
+   */
+  const groups = useMemo(() => {
+    const out: { heading?: string; items: SearchableSelectOption[] }[] = [];
+    const seen = new Map<string, number>();
+    for (const option of options) {
+      const key = option.group ?? '';
+      let at = seen.get(key);
+      if (at === undefined) {
+        at = out.length;
+        seen.set(key, at);
+        out.push({ heading: option.group, items: [] });
+      }
+      out[at].items.push(option);
+    }
+    return out;
+  }, [options]);
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -114,12 +152,11 @@ export function SearchableSelect({
           <CommandInput placeholder={placeholder} />
           <CommandList>
             <CommandEmpty>Sin resultados</CommandEmpty>
-            <CommandGroup>
-              {showAllOption && (
-                <CommandItem
-                  value={allLabel}
-                  onSelect={() => handleSelect(allValue)}
-                >
+            {/* "Todos" va en su propio bloque para que quede fijo hasta arriba
+                y no se lo lleve el encabezado del primer grupo. */}
+            {showAllOption && (
+              <CommandGroup>
+                <CommandItem value={allLabel} onSelect={() => handleSelect(allValue)}>
                   <Check
                     className={cn(
                       'h-4 w-4 shrink-0',
@@ -130,38 +167,43 @@ export function SearchableSelect({
                     {allLabel}
                   </span>
                 </CommandItem>
-              )}
-              {options.map((option) => (
-                <CommandItem
-                  key={option.value}
-                  // El buscador de cmdk filtra por este string, así que el hint
-                  // va incluido: si la ruta se muestra abajo, teclear el nombre
-                  // del sitio tiene que seguir encontrando la opción.
-                  value={`${option.label} ${option.hint ?? ''} ${option.value}`}
-                  onSelect={() => handleSelect(option.value)}
-                >
-                  <Check
-                    className={cn(
-                      'h-4 w-4 shrink-0',
-                      value === option.value ? 'opacity-100' : 'opacity-0'
-                    )}
-                  />
-                  {/* min-w-0 es lo que permite encoger por debajo del ancho del
-                      texto; sin él la línea desborda y CommandList la recorta
-                      con su overflow-x-hidden en vez de envolverla. */}
-                  <span className="min-w-0 flex-1">
-                    <span className="block break-words whitespace-normal">
-                      {option.label}
-                    </span>
-                    {option.hint ? (
-                      <span className="mt-0.5 block break-words whitespace-normal text-xs text-muted-foreground">
-                        {option.hint}
+              </CommandGroup>
+            )}
+            {groups.map((group, i) => (
+              <CommandGroup key={group.heading ?? `__sin-grupo-${i}`} heading={group.heading}>
+                {group.items.map((option) => (
+                  <CommandItem
+                    key={option.value}
+                    // El buscador de cmdk filtra por este string, así que el
+                    // hint y el grupo van incluidos: al mover el padre al
+                    // encabezado, teclear "corporativo" tiene que seguir
+                    // encontrando sus departamentos.
+                    value={`${option.label} ${option.hint ?? ''} ${option.group ?? ''} ${option.value}`}
+                    onSelect={() => handleSelect(option.value)}
+                  >
+                    <Check
+                      className={cn(
+                        'h-4 w-4 shrink-0',
+                        value === option.value ? 'opacity-100' : 'opacity-0'
+                      )}
+                    />
+                    {/* min-w-0 es lo que permite encoger por debajo del ancho
+                        del texto; sin él la línea desborda y CommandList la
+                        recorta con su overflow-x-hidden en vez de envolverla. */}
+                    <span className="min-w-0 flex-1">
+                      <span className="block break-words whitespace-normal">
+                        {option.label}
                       </span>
-                    ) : null}
-                  </span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
+                      {option.hint ? (
+                        <span className="mt-0.5 block break-words whitespace-normal text-xs text-muted-foreground">
+                          {option.hint}
+                        </span>
+                      ) : null}
+                    </span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ))}
           </CommandList>
         </Command>
       </PopoverContent>

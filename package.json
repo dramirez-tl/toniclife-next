@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "verify:asset-options": "node scripts/verify-asset-options.mjs"
   },
   "keywords": [],
   "author": "Ing. Diego Eduardo Ramírez Martínez",

@@ -26,6 +26,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { groupByRoot } from '@/lib/asset-select-options';
 import { useAssignAsset, useAssetLocations, useReturnAsset, useTransferAsset } from '@/hooks/useAssets';
 import { useBranches } from '@/hooks/useBranches';
 import { useDepartments, useEmployees } from '@/hooks/useHR';
@@ -118,13 +119,12 @@ export function AssignAssetModal({
       case 'department':
         return departments.map((d) => ({ value: d.id, label: d.name }));
       case 'location':
-        // Aquí la lista NO viene filtrada por sucursal, así que el sitio sí
-        // hace falta para distinguir dos "Piso 1" de sucursales distintas.
-        return locations.map((l) => ({
-          value: l.id,
-          label: l.name,
-          hint: [l.siteName, l.parentName].filter(Boolean).join(' › ') || undefined,
-        }));
+        // Aquí la lista NO viene filtrada por sucursal, así que el encabezado
+        // lleva la sucursal: dos sucursales pueden tener una "Bodega" cada una
+        // y sin eso se mezclarían bajo el mismo título.
+        return groupByRoot(locations, (root) =>
+          root.branchName ? `${root.branchName} › ${root.name}` : root.name,
+        );
       default:
         return [];
     }

@@ -35,6 +35,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { confirmAction } from '@/lib/utils';
+import { groupByRoot } from '@/lib/asset-select-options';
 import { LabelCodeField } from './LabelCodeField';
 import {
   SpecFieldsRenderer,
@@ -207,20 +208,16 @@ export function AssetFormModal({
     const applicable = form.branchId
       ? locations.filter((l) => l.branchId === form.branchId)
       : locations.filter((l) => l.isOffsite);
-    return applicable.map((l) => ({
-      value: l.id,
-      // El nombre propio va solo en la primera línea y la ruta baja a la
-      // segunda. Antes iba todo junto ("Fuera de sucursal › Corporativo
-      // Irapuato › Piso 1 - Dpto. Sistemas") y en un teléfono se cortaba justo
-      // en la parte que distingue una ubicación de otra.
-      label: l.name,
-      // La lista ya viene filtrada por lo elegido en Sucursal, así que repetir
-      // la sucursal en cada renglón no aporta nada: basta el padre inmediato.
-      // "Fuera de sucursal" solo se muestra en los sitios raíz, donde sí dice
-      // algo que no se sabía.
-      hint: l.parentName ?? (l.isOffsite ? 'Fuera de sucursal' : undefined),
-    }));
+    // El sitio se vuelve encabezado y sus departamentos cuelgan debajo, en vez
+    // de repetir "Corporativo Irapuato" en los 16 renglones.
+    return groupByRoot(applicable, (root) => root.name);
   }, [locations, form.branchId]);
+
+  /** Las categorías raíz encabezan; sus tipos de equipo van debajo. */
+  const categoryOptions = useMemo(
+    () => groupByRoot(categories, (root) => root.name),
+    [categories],
+  );
 
   // Cargar el estado al abrir
   useEffect(() => {
@@ -519,11 +516,7 @@ export function AssetFormModal({
                 <Label>Categoría *</Label>
                 <SearchableSelect
                   className="h-12 sm:h-10"
-                  options={categories.map((c) => ({
-                    value: c.id,
-                    label: c.name,
-                    hint: c.parentName ?? undefined,
-                  }))}
+                  options={categoryOptions}
                   value={form.categoryId}
                   onChange={handleCategoryChange}
                   placeholder="Busca la categoría"
