@@ -18,6 +18,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 export interface SearchableSelectOption {
   value: string;
@@ -71,6 +79,7 @@ export function SearchableSelect({
   className = '',
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const isAllSelected = value === allValue;
   const selectedOption = options.find((o) => o.value === value);
@@ -147,43 +156,49 @@ export function SearchableSelect({
     return out;
   }, [options]);
 
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          disabled={disabled}
-          className={cn(
-            'w-full justify-between font-normal',
-            isPlaceholder && 'text-muted-foreground',
-            className
-          )}
-        >
-          <span
-            className="flex-1 truncate text-left"
-            title={
-              selectedOption?.hint
-                ? `${selectedOption.label} · ${selectedOption.hint}`
-                : undefined
-            }
-          >
-            {triggerLabel}
-          </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      {/* max-w evita que el panel se salga de la pantalla en móvil cuando el
-          disparador vive dentro de un diálogo ancho. */}
-      <PopoverContent
-        className="w-[--radix-popover-trigger-width] max-w-[calc(100vw-2rem)] min-w-[220px] p-0"
-        align="start"
+  const trigger = (
+    <Button
+      type="button"
+      variant="outline"
+      role="combobox"
+      aria-expanded={open}
+      disabled={disabled}
+      className={cn(
+        'w-full justify-between font-normal',
+        isPlaceholder && 'text-muted-foreground',
+        className
+      )}
+    >
+      <span
+        className="flex-1 truncate text-left"
+        title={
+          selectedOption?.hint
+            ? `${selectedOption.label} · ${selectedOption.hint}`
+            : undefined
+        }
       >
-        <Command>
-          <CommandInput placeholder={placeholder} />
-          <CommandList ref={listRef} className="overscroll-contain">
+        {triggerLabel}
+      </span>
+      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+    </Button>
+  );
+
+  // El mismo listado sirve para el panel de escritorio y para el cajón del
+  // teléfono; lo único que cambia es la envoltura.
+  const list = (
+    // Command ya trae h-full. Dentro del cajón eso desbordaría, porque el
+    // encabezado también ocupa: ahí se reparte el espacio con flex.
+    <Command className={cn(isMobile && 'min-h-0 flex-1')}>
+      <CommandInput placeholder={placeholder} />
+      <CommandList
+        ref={listRef}
+        className={cn(
+          'overscroll-contain',
+          // En el cajón la lista ocupa todo el alto disponible en vez de los
+          // 300px que trae CommandList por defecto.
+          isMobile && 'max-h-none flex-1'
+        )}
+      >
             <CommandEmpty>Sin resultados</CommandEmpty>
             {/* "Todos" va en su propio bloque para que quede fijo hasta arriba
                 y no se lo lleve el encabezado del primer grupo. */}
@@ -237,8 +252,55 @@ export function SearchableSelect({
                 ))}
               </CommandGroup>
             ))}
-          </CommandList>
-        </Command>
+      </CommandList>
+    </Command>
+  );
+
+  /*
+    En el teléfono se abre un cajón lateral en vez del panel flotante.
+
+    No es solo estética. El panel del Popover se renderiza en un Portal, fuera
+    del DialogContent, y react-remove-scroll (el bloqueo de scroll del diálogo)
+    le hace preventDefault a todo gesto nacido ahí: la lista no se desplazaba
+    con el dedo. El cajón es un Dialog propio, así que al abrirse queda al tope
+    de la pila de bloqueos y su contenido SÍ es área desplazable permitida.
+    El problema desaparece por construcción en vez de quedar parchado.
+
+    De paso, en una pantalla chica un panel de 300px de alto anclado al campo
+    se veía apretado y quedaba tapado por el teclado; el cajón usa el alto
+    completo.
+  */
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetTrigger asChild>{trigger}</SheetTrigger>
+        <SheetContent
+          side="right"
+          className="flex w-full max-w-none flex-col gap-0 p-0 sm:max-w-md"
+          // Sin esto, el foco se va al buscador al abrir y el teclado se come
+          // la lista. Casi siempre se quiere ver las opciones, no teclear.
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          // El título ya dice qué se está eligiendo; sin esto Radix advierte
+          // en consola por la descripción faltante.
+          aria-describedby={undefined}
+        >
+          <SheetHeader className="border-b p-4 pr-12">
+            <SheetTitle className="text-base">{placeholder}</SheetTitle>
+          </SheetHeader>
+          {list}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      <PopoverContent
+        className="w-[--radix-popover-trigger-width] max-w-[calc(100vw-2rem)] min-w-[220px] p-0"
+        align="start"
+      >
+        {list}
       </PopoverContent>
     </Popover>
   );
