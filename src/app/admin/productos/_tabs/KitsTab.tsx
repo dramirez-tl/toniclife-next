@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -16,6 +17,7 @@ import {
   ArrowPathIcon,
   PlusIcon,
   CubeIcon,
+  PhotoIcon,
 } from '@heroicons/react/24/outline';
 import { useKits } from '@/hooks/useKits';
 import { useCountries } from '@/hooks/useConfig';
@@ -152,11 +154,36 @@ export function KitsTab() {
       sortable: true,
       sortValue: (k) => k.name,
       render: (kit) => (
-        <div>
-          <p className="font-semibold text-gray-900">{kit.name}</p>
-          {kit.shortName && (
-            <p className="text-sm text-gray-500 truncate max-w-xs">{kit.shortName}</p>
+        <div className="flex items-center gap-3">
+          {/* Imagen principal del kit: el hueco ambar delata los que faltan
+              por subir (el POS la muestra al inscribir). */}
+          {kit.imageUrl ? (
+            <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+              <Image
+                src={kit.imageUrl}
+                alt={kit.name}
+                width={40}
+                height={40}
+                className="object-cover"
+              />
+            </div>
+          ) : (
+            <div
+              className="w-10 h-10 rounded-lg border-2 border-dashed border-amber-300 bg-amber-50 flex items-center justify-center flex-shrink-0"
+              title="Este kit no tiene imagen cargada"
+            >
+              <PhotoIcon className="h-5 w-5 text-amber-500" />
+            </div>
           )}
+          <div>
+            <p className="font-semibold text-gray-900">{kit.name}</p>
+            {kit.shortName && (
+              <p className="text-sm text-gray-500 truncate max-w-xs">{kit.shortName}</p>
+            )}
+            {!kit.imageUrl && (
+              <p className="text-xs font-medium text-amber-600">Sin imagen</p>
+            )}
+          </div>
         </div>
       ),
     },
