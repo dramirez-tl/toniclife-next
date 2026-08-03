@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -16,6 +17,7 @@ import {
   ArrowPathIcon,
   PlusIcon,
   GiftIcon,
+  PhotoIcon,
 } from '@heroicons/react/24/outline';
 import { usePromotions } from '@/hooks/usePromotions';
 import { useCountries } from '@/hooks/useConfig';
@@ -120,11 +122,36 @@ export function PromocionesTab() {
       sortable: true,
       sortValue: (p) => p.name,
       render: (promo) => (
-        <div>
-          <p className="font-semibold text-gray-900">{promo.name}</p>
-          {promo.shortName && (
-            <p className="text-sm text-gray-500 truncate max-w-xs">{promo.shortName}</p>
+        <div className="flex items-center gap-3">
+          {/* Imagen principal de la promo: el hueco ambar delata las que
+              faltan por subir (el POS/tienda la muestran al canjear). */}
+          {promo.imageUrl ? (
+            <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+              <Image
+                src={promo.imageUrl}
+                alt={promo.name}
+                width={40}
+                height={40}
+                className="object-cover"
+              />
+            </div>
+          ) : (
+            <div
+              className="w-10 h-10 rounded-lg border-2 border-dashed border-amber-300 bg-amber-50 flex items-center justify-center flex-shrink-0"
+              title="Esta promoción no tiene imagen cargada"
+            >
+              <PhotoIcon className="h-5 w-5 text-amber-500" />
+            </div>
           )}
+          <div>
+            <p className="font-semibold text-gray-900">{promo.name}</p>
+            {promo.shortName && (
+              <p className="text-sm text-gray-500 truncate max-w-xs">{promo.shortName}</p>
+            )}
+            {!promo.imageUrl && (
+              <p className="text-xs font-medium text-amber-600">Sin imagen</p>
+            )}
+          </div>
         </div>
       ),
     },
