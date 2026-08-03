@@ -45,7 +45,13 @@ import {
   useDeleteCoupon,
 } from '@/hooks/useCoupons';
 import { useActiveCountries } from '@/hooks/useConfig';
-import type { Coupon, CouponInput, CouponType } from '@/services/coupons.service';
+import { useActiveBranches } from '@/hooks/useBranches';
+import type {
+  Coupon,
+  CouponChannel,
+  CouponInput,
+  CouponType,
+} from '@/services/coupons.service';
 import { PermissionGuard } from '@/components/auth';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -85,6 +91,12 @@ function randomCode(prefix = 'TL'): string {
   return `${prefix}-${s}`;
 }
 
+const CHANNEL_UI: Record<CouponChannel, { label: string; cls: string }> = {
+  all: { label: 'POS + Tienda', cls: 'border-gray-200 bg-gray-50 text-gray-600' },
+  pos: { label: 'Solo POS', cls: 'border-sky-200 bg-sky-50 text-sky-700' },
+  ecommerce: { label: 'Solo Tienda', cls: 'border-indigo-200 bg-indigo-50 text-indigo-700' },
+};
+
 const EMPTY_FORM: CouponInput = {
   code: '',
   description: '',
@@ -92,6 +104,9 @@ const EMPTY_FORM: CouponInput = {
   discountValue: 10,
   isActive: true,
   isStackable: false,
+  allowedChannel: 'all',
+  employeeOnly: false,
+  branchIds: [],
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -127,6 +142,12 @@ function CuponesContent() {
       })),
     [countriesData],
   );
+  const { data: branchesData } = useActiveBranches();
+  const branchNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const b of branchesData ?? []) m.set(b.id, b.name);
+    return m;
+  }, [branchesData]);
 
   const createMutation = useCreateCoupon();
   const updateMutation = useUpdateCoupon();
@@ -160,6 +181,9 @@ function CuponesContent() {
     validUntil: c.validUntil || undefined,
     isActive: c.isActive,
     isStackable: c.isStackable,
+    allowedChannel: c.allowedChannel ?? 'all',
+    employeeOnly: c.employeeOnly ?? false,
+    branchIds: (c.branches ?? []).map((b) => b.id),
   });
 
   const openEdit = (c: Coupon) => {
@@ -620,6 +644,97 @@ function CuponesContent() {
                 </div>
               </div>
 
+              {/* Dónde aplica: canal, empleados, sucursales (mig 108) */}
+              <div className="grid gap-4 rounded-lg border border-gray-200 bg-gray-50/60 p-4">
+                <p className="text-sm font-semibold text-gray-700">Dónde aplica</p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-2">
+                    <Label>Canal</Label>
+                    <SearchableSelect
+                      options={[
+                        { value: 'all', label: 'POS y Tienda en línea' },
+                        { value: 'pos', label: 'Solo Punto de Venta' },
+                        { value: 'ecommerce', label: 'Solo Tienda en línea' },
+                      ]}
+                      value={form.allowedChannel || 'all'}
+                      onChange={(v) =>
+                        set({ allowedChannel: (v || 'all') as CouponChannel })
+                      }
+                      showAllOption={false}
+                      disabled={form.employeeOnly}
+                    />
+                    {form.employeeOnly && (
+                      <p className="text-xs text-gray-400">
+                        Cupón de empleados: canal fijo Solo POS.
+                      </p>
+                    )}
+                  </div>
+                  <div className="grid content-start gap-2">
+                    <Label>Descuento para empleados</Label>
+                    <label className="flex cursor-pointer items-center gap-2 pt-1.5">
+                      <Switch
+                        checked={form.employeeOnly ?? false}
+                        onCheckedChange={(v) =>
+                          set({
+                            employeeOnly: v,
+                            ...(v ? { allowedChannel: 'pos' as CouponChannel } : {}),
+                          })
+                        }
+                      />
+                      <span className="text-sm text-gray-700">
+                        Solo empleados (lo aplica el cajero en mostrador)
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Sucursales (vacío = todas)</Label>
+                  <SearchableSelect
+                    options={(branchesData ?? [])
+                      .filter((b) => !(form.branchIds ?? []).includes(b.id))
+                      .map((b) => ({ value: b.id, label: b.name }))}
+                    value=""
+                    onChange={(v) => {
+                      if (!v) return;
+                      set({ branchIds: [...(form.branchIds ?? []), v] });
+                    }}
+                    placeholder="Agregar sucursal…"
+                    showAllOption={false}
+                  />
+                  {(form.branchIds ?? []).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {(form.branchIds ?? []).map((id) => (
+                        <Badge
+                          key={id}
+                          variant="outline"
+                          className="gap-1 border-[#a7c1e2] bg-[#C8DDF2]/30 text-[#2f5165]"
+                        >
+                          {branchNameById.get(id) ?? id}
+                          <button
+                            type="button"
+                            className="ml-0.5 text-[#2f5165]/60 hover:text-red-600"
+                            onClick={() =>
+                              set({
+                                branchIds: (form.branchIds ?? []).filter(
+                                  (x) => x !== id,
+                                ),
+                              })
+                            }
+                            title="Quitar sucursal"
+                          >
+                            ×
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-400">
+                    Sin sucursales seleccionadas, el cupón aplica en todas.
+                  </p>
+                </div>
+              </div>
+
               {/* Switches */}
               <div className="flex flex-wrap gap-6 pt-1">
                 <label className="flex cursor-pointer items-center gap-2">
@@ -746,6 +861,30 @@ function CouponRow({
           {c.countryName && (
             <Badge variant="outline" className="border-gray-200 bg-gray-50 text-gray-600">
               {c.countryName}
+            </Badge>
+          )}
+          {(c.allowedChannel ?? 'all') !== 'all' && (
+            <Badge variant="outline" className={CHANNEL_UI[c.allowedChannel].cls}>
+              {CHANNEL_UI[c.allowedChannel].label}
+            </Badge>
+          )}
+          {c.employeeOnly && (
+            <Badge
+              variant="outline"
+              className="border-teal-200 bg-teal-50 text-teal-700"
+            >
+              Empleados
+            </Badge>
+          )}
+          {(c.branches ?? []).length > 0 && (
+            <Badge
+              variant="outline"
+              className="border-gray-200 bg-gray-50 text-gray-600"
+              title={(c.branches ?? []).map((b) => b.name).join(', ')}
+            >
+              {c.branches.length === 1
+                ? c.branches[0].name
+                : `${c.branches.length} sucursales`}
             </Badge>
           )}
         </div>

@@ -3,6 +3,7 @@
 import api from '@/lib/axios';
 
 export type CouponType = 'percentage' | 'fixed_amount' | 'free_shipping';
+export type CouponChannel = 'all' | 'pos' | 'ecommerce';
 
 export interface Coupon {
   id: string;
@@ -25,6 +26,12 @@ export interface Coupon {
   validUntil: string | null;
   isActive: boolean;
   isStackable: boolean;
+  /** Canal de canje (mig 108): all | pos | ecommerce. */
+  allowedChannel: CouponChannel;
+  /** Cupón de descuento para EMPLEADOS (solo mostrador). */
+  employeeOnly: boolean;
+  /** Sucursales donde aplica (vacío = todas). */
+  branches: { id: string; name: string }[];
   createdAt: string;
   updatedAt: string;
 }
@@ -45,6 +52,9 @@ export interface CouponInput {
   validUntil?: string;
   isActive?: boolean;
   isStackable?: boolean;
+  allowedChannel?: CouponChannel;
+  employeeOnly?: boolean;
+  branchIds?: string[];
 }
 
 export interface CouponsQuery {
