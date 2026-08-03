@@ -117,6 +117,24 @@ class PromotionsService {
   }
 
   /**
+   * Sube la imagen POR PAÍS de la promo y la fija en la regla (mig 107).
+   */
+  async uploadRuleDisplayImage(
+    promotionId: string,
+    countryId: string,
+    file: File,
+  ): Promise<PromotionRule> {
+    const form = new FormData();
+    form.append('image', file);
+    const response = await api.post<PromotionRule>(
+      `/promotions/${promotionId}/rules/${countryId}/display-image`,
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    );
+    return response.data;
+  }
+
+  /**
    * Soft-delete: marca la regla como inactiva.
    */
   async removeRule(promotionId: string, countryId: string): Promise<void> {

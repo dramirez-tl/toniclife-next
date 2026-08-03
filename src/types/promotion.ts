@@ -48,6 +48,8 @@ export interface PromotionRule {
   displayShortName?: string | null;
   /** Descripción mostrada en ESTE país (null = usa la base). */
   displayDescription?: string | null;
+  /** Imagen mostrada en ESTE país (null = usa la imagen principal del producto). Mig 107. */
+  displayImageUrl?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -66,6 +68,11 @@ export interface UpsertPromotionRuleDto {
   displayName?: string | null;
   displayShortName?: string | null;
   displayDescription?: string | null;
+  /**
+   * Imagen por país (mig 107). undefined = NO tocar la actual; null/'' =
+   * limpiar (volver a la imagen base). La URL la fija el endpoint de upload.
+   */
+  displayImageUrl?: string | null;
 }
 
 // ================================

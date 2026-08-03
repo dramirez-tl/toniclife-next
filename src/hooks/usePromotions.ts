@@ -120,6 +120,20 @@ export const useUpsertPromotionRule = (promotionId: string) => {
   });
 };
 
+/** Sube la imagen POR PAÍS de la promo (mig 107). */
+export const useUploadPromotionRuleImage = (promotionId: string) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ countryId, file }: { countryId: string; file: File }) =>
+      promotionsService.uploadRuleDisplayImage(promotionId, countryId, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: promotionKeys.rules(promotionId),
+      });
+    },
+  });
+};
+
 export const useRemovePromotionRule = (promotionId: string) => {
   const queryClient = useQueryClient();
   return useMutation({

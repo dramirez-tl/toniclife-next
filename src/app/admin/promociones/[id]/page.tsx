@@ -13,8 +13,9 @@
 // no los base.
 'use client';
 
-import { use, useEffect, useState } from 'react';
+import { use, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -25,6 +26,8 @@ import {
   TrashIcon,
   CheckIcon,
   GlobeAmericasIcon,
+  PhotoIcon,
+  ArrowUpTrayIcon,
 } from '@heroicons/react/24/outline';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -35,6 +38,7 @@ import {
   useReplacePromotionComponents,
   useUpsertPromotionRule,
   useRemovePromotionRule,
+  useUploadPromotionRuleImage,
 } from '@/hooks/usePromotions';
 import { useProducts, useUpdateProduct } from '@/hooks/useProducts';
 import { useActiveCountries } from '@/hooks/useConfig';
@@ -274,15 +278,20 @@ function CountryCard({
   baseName,
   baseShortName,
   baseDescription,
+  baseImageUrl,
 }: {
   promotionId: string;
   rule: PromotionRule;
   baseName: string;
   baseShortName: string;
   baseDescription: string;
+  /** Imagen principal del producto (respaldo cuando el país no define la suya). */
+  baseImageUrl?: string;
 }) {
   const upsertRule = useUpsertPromotionRule(promotionId);
   const removeRule = useRemovePromotionRule(promotionId);
+  const uploadImage = useUploadPromotionRuleImage(promotionId);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const [min, setMin] = useState(Number(rule.minPointsRequired));
   const [validity, setValidity] = useState(rule.validityDays ?? 90);
@@ -347,6 +356,42 @@ function CountryCard({
       toast.success(`${countryLabel}: regla desactivada`);
     } catch (err: unknown) {
       toast.error(apiMsg(err, 'Error al desactivar la regla'));
+    }
+  };
+
+  const handleUploadImage = async (file: File | undefined) => {
+    if (!file) return;
+    try {
+      await uploadImage.mutateAsync({ countryId: rule.countryId, file });
+      toast.success(`${countryLabel}: imagen del país actualizada`);
+    } catch (err: unknown) {
+      toast.error(apiMsg(err, 'Error al subir la imagen del país'));
+    } finally {
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    }
+  };
+
+  // Quitar el override de imagen = volver a la imagen base del producto.
+  // Manda el payload completo de la regla (upsert) + displayImageUrl null.
+  const handleClearImage = async () => {
+    try {
+      await upsertRule.mutateAsync({
+        countryId: rule.countryId,
+        minPointsRequired: min,
+        validityDays: validity,
+        recurrence,
+        availableFrom: from || null,
+        availableTo: to || null,
+        consumesPoints: consumes,
+        isActive: true,
+        displayName: dName.trim() || null,
+        displayShortName: dShortName.trim() || null,
+        displayDescription: dDescription.trim() || null,
+        displayImageUrl: null,
+      });
+      toast.success(`${countryLabel}: se usará la imagen base del producto`);
+    } catch (err: unknown) {
+      toast.error(apiMsg(err, 'Error al quitar la imagen del país'));
     }
   };
 
@@ -533,6 +578,79 @@ function CountryCard({
                     placeholder={baseDescription || 'Usa la descripción base'}
                     className={inputCls}
                   />
+                </div>
+
+                {/* Imagen por país (mig 107): la foto que ve el distribuidor
+                    y el POS en ESTE país. Sin override = imagen base. */}
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    Imagen en {countryLabel}
+                  </label>
+                  <div className="flex items-center gap-3">
+                    {rule.displayImageUrl || baseImageUrl ? (
+                      <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border bg-gray-100">
+                        <Image
+                          src={(rule.displayImageUrl || baseImageUrl)!}
+                          alt={`Imagen de la promo en ${countryLabel}`}
+                          width={64}
+                          height={64}
+                          className="h-16 w-16 object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-amber-300 bg-amber-50"
+                        title="Sin imagen (ni del país ni base)"
+                      >
+                        <PhotoIcon className="h-6 w-6 text-amber-500" />
+                      </div>
+                    )}
+                    <div className="space-y-1.5">
+                      <p className="text-xs text-gray-500">
+                        {rule.displayImageUrl
+                          ? `Imagen propia de ${countryLabel}.`
+                          : baseImageUrl
+                            ? 'Usa la imagen base del producto.'
+                            : 'Sin imagen: sube una o carga la base en el producto.'}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => imageInputRef.current?.click()}
+                          disabled={uploadImage.isPending}
+                        >
+                          {uploadImage.isPending ? (
+                            <Loader2 className="mr-1 size-3 animate-spin" />
+                          ) : (
+                            <ArrowUpTrayIcon className="h-3.5 w-3.5" />
+                          )}
+                          Subir imagen de {countryLabel}
+                        </Button>
+                        {rule.displayImageUrl && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive"
+                            onClick={handleClearImage}
+                            disabled={upsertRule.isPending}
+                          >
+                            <TrashIcon className="h-3.5 w-3.5" />
+                            Usar imagen base
+                          </Button>
+                        )}
+                      </div>
+                      <input
+                        ref={imageInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        className="hidden"
+                        onChange={(e) => handleUploadImage(e.target.files?.[0])}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1063,6 +1181,7 @@ export default function EditarPromocionPage({
               baseName={name}
               baseShortName={shortName}
               baseDescription={description}
+              baseImageUrl={promo.imageUrl}
             />
           ))
         )}
