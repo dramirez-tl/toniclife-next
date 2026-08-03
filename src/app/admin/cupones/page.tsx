@@ -143,11 +143,16 @@ function CuponesContent() {
     [countriesData],
   );
   const { data: branchesData } = useActiveBranches();
+  // Nombres de sucursal: catálogo activo + los que ya vienen en los cupones
+  // (una sucursal inactiva ligada a un cupón viejo debe mostrar su nombre,
+  // no el UUID).
   const branchNameById = useMemo(() => {
     const m = new Map<string, string>();
     for (const b of branchesData ?? []) m.set(b.id, b.name);
+    for (const c of data?.data ?? [])
+      for (const b of c.branches ?? []) if (!m.has(b.id)) m.set(b.id, b.name);
     return m;
-  }, [branchesData]);
+  }, [branchesData, data]);
 
   const createMutation = useCreateCoupon();
   const updateMutation = useUpdateCoupon();
@@ -234,8 +239,11 @@ function CuponesContent() {
         input: { ...couponToForm(c), isActive: !c.isActive },
       });
       toast.success(c.isActive ? 'Cupón desactivado' : 'Cupón activado');
-    } catch {
-      toast.error('No se pudo cambiar el estado');
+    } catch (e: unknown) {
+      const msg =
+        (e as { response?: { data?: { message?: string | string[] } } })
+          ?.response?.data?.message || 'No se pudo cambiar el estado';
+      toast.error(Array.isArray(msg) ? msg[0] : msg);
     }
   };
 
@@ -252,8 +260,11 @@ function CuponesContent() {
     try {
       const res = await deleteMutation.mutateAsync(c.id);
       toast.success(res.deleted ? 'Cupón eliminado' : 'Cupón desactivado (tenía usos)');
-    } catch {
-      toast.error('No se pudo eliminar el cupón');
+    } catch (e: unknown) {
+      const msg =
+        (e as { response?: { data?: { message?: string | string[] } } })
+          ?.response?.data?.message || 'No se pudo eliminar el cupón';
+      toast.error(Array.isArray(msg) ? msg[0] : msg);
     }
   };
 
@@ -656,7 +667,10 @@ function CuponesContent() {
                         { value: 'pos', label: 'Solo Punto de Venta' },
                         { value: 'ecommerce', label: 'Solo Tienda en línea' },
                       ]}
-                      value={form.allowedChannel || 'all'}
+                      // Empleados fuerza 'pos' solo VISUALMENTE (y el server
+                      // lo aplica): el canal elegido no se pierde al apagar
+                      // el switch.
+                      value={form.employeeOnly ? 'pos' : form.allowedChannel || 'all'}
                       onChange={(v) =>
                         set({ allowedChannel: (v || 'all') as CouponChannel })
                       }
@@ -674,12 +688,7 @@ function CuponesContent() {
                     <label className="flex cursor-pointer items-center gap-2 pt-1.5">
                       <Switch
                         checked={form.employeeOnly ?? false}
-                        onCheckedChange={(v) =>
-                          set({
-                            employeeOnly: v,
-                            ...(v ? { allowedChannel: 'pos' as CouponChannel } : {}),
-                          })
-                        }
+                        onCheckedChange={(v) => set({ employeeOnly: v })}
                       />
                       <span className="text-sm text-gray-700">
                         Solo empleados (lo aplica el cajero en mostrador)
