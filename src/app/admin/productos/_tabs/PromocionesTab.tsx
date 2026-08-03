@@ -121,39 +121,46 @@ export function PromocionesTab() {
       header: 'Nombre',
       sortable: true,
       sortValue: (p) => p.name,
-      render: (promo) => (
-        <div className="flex items-center gap-3">
-          {/* Imagen principal de la promo: el hueco ambar delata las que
-              faltan por subir (el POS/tienda la muestran al canjear). */}
-          {promo.imageUrl ? (
-            <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-              <Image
-                src={promo.imageUrl}
-                alt={promo.name}
-                width={40}
-                height={40}
-                className="object-cover"
-              />
-            </div>
-          ) : (
-            <div
-              className="w-10 h-10 rounded-lg border-2 border-dashed border-amber-300 bg-amber-50 flex items-center justify-center flex-shrink-0"
-              title="Esta promoción no tiene imagen cargada"
-            >
-              <PhotoIcon className="h-5 w-5 text-amber-500" />
-            </div>
-          )}
-          <div>
-            <p className="font-semibold text-gray-900">{promo.name}</p>
-            {promo.shortName && (
-              <p className="text-sm text-gray-500 truncate max-w-xs">{promo.shortName}</p>
+      render: (promo) => {
+        // La imagen de una promo se sube POR PAÍS (mig 107); la base del
+        // producto es solo el respaldo. Miniatura: base o, si no hay, la
+        // primera imagen de país. "Sin imagen" = ningún país ni base.
+        const ruleImages = (promo.promotionRuleCountries ?? []).filter(
+          (r) => r.imageUrl,
+        );
+        const thumb = promo.imageUrl || ruleImages[0]?.imageUrl || null;
+        return (
+          <div className="flex items-center gap-3">
+            {thumb ? (
+              <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
+                <Image
+                  src={thumb}
+                  alt={promo.name}
+                  width={40}
+                  height={40}
+                  className="object-cover"
+                />
+              </div>
+            ) : (
+              <div
+                className="w-10 h-10 rounded-lg border-2 border-dashed border-amber-300 bg-amber-50 flex items-center justify-center flex-shrink-0"
+                title="Esta promoción no tiene imagen cargada en ningún país"
+              >
+                <PhotoIcon className="h-5 w-5 text-amber-500" />
+              </div>
             )}
-            {!promo.imageUrl && (
-              <p className="text-xs font-medium text-amber-600">Sin imagen</p>
-            )}
+            <div>
+              <p className="font-semibold text-gray-900">{promo.name}</p>
+              {promo.shortName && (
+                <p className="text-sm text-gray-500 truncate max-w-xs">{promo.shortName}</p>
+              )}
+              {!thumb && (
+                <p className="text-xs font-medium text-amber-600">Sin imagen</p>
+              )}
+            </div>
           </div>
-        </div>
-      ),
+        );
+      },
     },
     {
       key: 'countries',
@@ -178,12 +185,18 @@ export function PromocionesTab() {
                       ? 'bg-gray-100 text-gray-700'
                       : 'bg-gray-50 text-gray-400 line-through'
                   }`}
-                  title={`${r.name}: ${formatNumber(Number(r.minPoints))} puntos mínimos${r.isActive ? '' : ' (regla inactiva)'}`}
+                  title={`${r.name}: ${formatNumber(Number(r.minPoints))} puntos mínimos${r.isActive ? '' : ' (regla inactiva)'}${r.imageUrl ? ' — con imagen propia' : ' — SIN imagen propia (usa la base)'}`}
                 >
                   {flagMap[r.code] || '🏳️'} {r.code}
                   <span className={r.isActive ? 'font-normal text-gray-500' : 'font-normal'}>
                     · {formatNumber(Number(r.minPoints))} pts
                   </span>
+                  {/* La imagen se sube POR PAÍS: marca qué países ya la tienen */}
+                  <PhotoIcon
+                    className={`h-3.5 w-3.5 ${
+                      r.imageUrl ? 'text-emerald-600' : 'text-amber-400'
+                    }`}
+                  />
                 </span>
               ))}
             </div>

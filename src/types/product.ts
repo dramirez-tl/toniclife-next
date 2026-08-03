@@ -127,6 +127,8 @@ export interface Product {
     name: string;
     minPoints: string;
     isActive: boolean;
+    /** Imagen por país (mig 107); null/ausente = sin imagen propia en ese país. */
+    imageUrl?: string | null;
   }[];
   // UI-only fields (not in backend DTO, used by frontend pages)
   galleryUrls?: string[];
