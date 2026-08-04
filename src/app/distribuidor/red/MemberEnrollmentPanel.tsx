@@ -45,7 +45,36 @@ const EMPTY = {
   email: '',
   phone: '',
   rfc: '',
+  // Fecha de nacimiento OBLIGATORIA + datos adicionales opcionales.
+  birthDate: '',
+  nationality: '',
+  curp: '',
+  maritalStatus: '',
+  postalCode: '',
+  identificationType: '',
 };
+
+// Valores canónicos (mismos que el POS) — la etiqueta se traduce, el valor no.
+const MARITAL_VALUES = [
+  'soltero',
+  'casado',
+  'union_libre',
+  'divorciado',
+  'viudo',
+] as const;
+
+/** Tipos de identificación oficial según el país de residencia elegido. */
+function idTypeOptionsFor(countryCode?: string): string[] {
+  switch (countryCode) {
+    case 'MX':
+    case 'FN':
+      return ['INE', 'Pasaporte', 'Cédula profesional', 'Otro'];
+    case 'US':
+      return ['Licencia de conducir', 'Pasaporte', 'ID estatal', 'Otro'];
+    default:
+      return ['DNI', 'Pasaporte', 'Otro'];
+  }
+}
 
 export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
   const t = useTranslations('distributor.enroll');
@@ -137,11 +166,24 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
     }, 300);
   };
 
+  // País elegido (o defaults MX cuando hereda el del patrocinador — el
+  // mercado dominante): decide CURP y las opciones de identificación.
+  const selectedCountryCode = countryId
+    ? (countriesQuery.data ?? [])
+        .find((c) => c.id === countryId)
+        ?.code?.trim()
+        .toUpperCase()
+    : 'MX';
+  const showCurp = selectedCountryCode === 'MX' || selectedCountryCode === 'FN';
+  const todayIso = new Date().toISOString().slice(0, 10);
+
   const canSubmit =
     form.firstName.trim() &&
     form.lastName.trim() &&
     form.email.trim() &&
     form.phone.trim() &&
+    form.birthDate.trim() &&
+    form.birthDate <= todayIso &&
     (payerMode === 'invite' || !!kitProductId) &&
     !registerMutation.isPending;
 
@@ -159,6 +201,12 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
         email: form.email.trim(),
         phone: form.phone.trim(),
         rfc: form.rfc.trim() || undefined,
+        birthDate: form.birthDate,
+        nationality: form.nationality.trim() || undefined,
+        curp: showCurp ? form.curp.trim().toUpperCase() || undefined : undefined,
+        maritalStatus: form.maritalStatus || undefined,
+        postalCode: form.postalCode.trim() || undefined,
+        identificationType: form.identificationType || undefined,
         uplineCustomerId: uplineCustomerId || undefined,
         countryId: countryId || undefined,
         kitProductId: kitProductId || undefined,
@@ -263,6 +311,73 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
                       onChange={(v) => set('phone', v)}
                     />
                   </Field>
+                  <Field label={t('common.birthDate')} required>
+                    <input
+                      type="date"
+                      className={inputCls}
+                      value={form.birthDate}
+                      max={todayIso}
+                      onChange={(e) => set('birthDate', e.target.value)}
+                      required
+                    />
+                  </Field>
+                </div>
+
+                {/* Datos adicionales (todos opcionales) */}
+                <div className="rounded-lg border border-dashed border-gray-300 p-3">
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                    {t('common.extraTitle')}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label={t('common.nationality')}>
+                      <input
+                        className={inputCls}
+                        value={form.nationality}
+                        onChange={(e) => set('nationality', e.target.value)}
+                      />
+                    </Field>
+                    <Field label={t('common.maritalStatus')}>
+                      <SearchableSelect
+                        options={MARITAL_VALUES.map((v) => ({
+                          value: v,
+                          label: t(`common.marital.${v}`),
+                        }))}
+                        value={form.maritalStatus}
+                        onChange={(v) => set('maritalStatus', v)}
+                        allLabel={t('common.maritalNone')}
+                        allValue=""
+                      />
+                    </Field>
+                    {showCurp && (
+                      <Field label={t('common.curp')}>
+                        <input
+                          className={`${inputCls} uppercase`}
+                          value={form.curp}
+                          onChange={(e) => set('curp', e.target.value)}
+                          maxLength={18}
+                        />
+                      </Field>
+                    )}
+                    <Field label={t('common.postalCode')}>
+                      <input
+                        className={inputCls}
+                        value={form.postalCode}
+                        onChange={(e) => set('postalCode', e.target.value)}
+                        maxLength={10}
+                      />
+                    </Field>
+                    <Field label={t('common.idType')}>
+                      <SearchableSelect
+                        options={idTypeOptionsFor(selectedCountryCode).map(
+                          (v) => ({ value: v, label: v }),
+                        )}
+                        value={form.identificationType}
+                        onChange={(v) => set('identificationType', v)}
+                        allLabel={t('common.idTypeNone')}
+                        allValue=""
+                      />
+                    </Field>
+                  </div>
                 </div>
 
                 {/* País de residencia: define portal, catálogo y precios */}

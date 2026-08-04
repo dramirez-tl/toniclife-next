@@ -28,7 +28,14 @@ export interface RegisterMemberRequest {
   rfc?: string;
   /** País de residencia: define portal, catálogo y precios. Omitido = país del patrocinador. */
   countryId?: string;
+  /** Obligatoria en la UI (YYYY-MM-DD). */
   birthDate?: string;
+  /** Solo México/Frontera. */
+  curp?: string;
+  nationality?: string;
+  maritalStatus?: string;
+  postalCode?: string;
+  identificationType?: string;
   /** Nodo bajo el que se coloca (customer_id). Vacío = bajo el propio distribuidor. */
   uplineCustomerId?: string;
   kitProductId?: string;
