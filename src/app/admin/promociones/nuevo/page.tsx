@@ -3,7 +3,14 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeftIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import {
+  ArrowLeftIcon,
+  SparklesIcon,
+  GlobeAmericasIcon,
+  FlagIcon,
+  LockClosedIcon,
+  PhotoIcon,
+} from '@heroicons/react/24/outline';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
@@ -241,6 +248,76 @@ export default function NuevaPromocionPage() {
           </CardContent>
         </Card>
 
+        {/* MISMAS secciones que el editor, en vista previa: componentes y
+            países se guardan POR PROMOCIÓN (sus endpoints van por ID), así
+            que se habilitan justo al crear — el botón te lleva directo al
+            editor completo con estas secciones activas. */}
+        <Card className="border-dashed bg-slate-50/60">
+          <CardContent className="p-6">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+              <div className="flex items-center gap-2">
+                <GlobeAmericasIcon className="h-5 w-5 text-[#3E667D]" />
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-700">
+                    Componentes Globales
+                  </h2>
+                  <p className="text-xs text-gray-500">
+                    Lo que incluye la promo en los países SIN lista propia.
+                  </p>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 px-2.5 py-1 text-[11px] font-medium text-gray-600">
+                <LockClosedIcon className="h-3 w-3" />
+                Se habilita al crear
+              </span>
+            </div>
+            <p className="mt-3 text-sm text-gray-500">
+              Al dar “Crear promoción” pasas directo al editor para armar la
+              lista de productos que entrega la promoción.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-dashed bg-slate-50/60">
+          <CardContent className="p-6">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-3">
+              <div className="flex items-center gap-2">
+                <FlagIcon className="h-5 w-5 text-[#3E667D]" />
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-700">
+                    Configuración por país
+                  </h2>
+                  <p className="text-xs text-gray-500">
+                    Una tarjeta por país con TODO lo suyo junto.
+                  </p>
+                </div>
+              </div>
+              <span className="inline-flex items-center gap-1 rounded-full bg-gray-200 px-2.5 py-1 text-[11px] font-medium text-gray-600">
+                <LockClosedIcon className="h-3 w-3" />
+                Se habilita al crear
+              </span>
+            </div>
+            <ul className="mt-3 space-y-1.5 text-sm text-gray-500">
+              <li>
+                • Regla de canje: puntos mínimos, vigencia, recurrencia,
+                ventana de fechas y si consume puntos.
+              </li>
+              <li>
+                • Lo que ve el distribuidor en ese país: nombre, nombre corto
+                y descripción propios (vacío = usa el base).
+              </li>
+              <li className="flex items-center gap-1">
+                <PhotoIcon className="h-4 w-4 shrink-0" /> Imagen de la promo
+                por país (ej. Donna Life en México, NER-LIFE en USA).
+              </li>
+              <li>
+                • Componentes específicos del país (si no define, entrega los
+                Globales).
+              </li>
+            </ul>
+          </CardContent>
+        </Card>
+
         <div className="flex justify-end gap-3">
           <Link href="/admin/productos?tab=promociones">
             <Button variant="ghost">Cancelar</Button>
@@ -251,7 +328,7 @@ export default function NuevaPromocionPage() {
             disabled={createProduct.isPending || codeTaken}
           >
             {createProduct.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-            Crear promoción
+            Crear y configurar países
           </Button>
         </div>
       </form>
