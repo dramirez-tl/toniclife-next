@@ -76,6 +76,44 @@ export interface UpsertPromotionRuleDto {
 }
 
 // ================================
+// DERECHOS POR DISTRIBUIDOR (otorgamiento manual, mig 111)
+// ================================
+export interface CustomerPromotionGrant {
+  id: string;
+  productId: string;
+  productCode: string;
+  productName: string;
+  status: 'active' | 'redeemed' | 'expired' | 'cancelled' | string;
+  /** 'auto' = por puntos; 'manual' = excepción autorizada desde admin. */
+  source: 'auto' | 'manual' | string;
+  grantNote: string | null;
+  grantedByName: string | null;
+  grantedAt: string;
+  expiresAt: string;
+  redeemedAt: string | null;
+  redeemedSaleNumber: string | null;
+  consumesPoints: boolean;
+  minPointsRequired: number;
+}
+
+export interface ManualGrantRequest {
+  productIds: string[];
+  /** Default: la vigencia de la regla del país del distribuidor. */
+  validityDays?: number;
+  /** Default: lo que diga la regla. */
+  consumesPoints?: boolean;
+  /** Autorización obligatoria (queda en el derecho). */
+  note: string;
+}
+
+export interface ManualGrantResult {
+  productId: string;
+  code: string;
+  status: 'granted' | 'already_active' | 'already_redeemed' | 'error' | string;
+  message?: string;
+}
+
+// ================================
 // ELEGIBILIDAD
 // ================================
 export interface PromotionEligibility {

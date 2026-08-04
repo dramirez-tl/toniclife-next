@@ -16,6 +16,8 @@ import { CustomerStatus } from '@/types/customer';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { customersService } from '@/services/customers.service';
+import { promotionsService } from '@/services/promotions.service';
+import type { ManualGrantRequest } from '@/types/promotion';
 import { toast } from 'sonner';
 import type { PaymentReadinessItem, DocumentValidation } from '@/types/payment-data';
 import { DistributorPeriodActivity } from '@/components/distributor/DistributorPeriodActivity';
@@ -239,6 +241,11 @@ export default function DetalleDistribuidorPage() {
 
             {/* Actividad por Periodo */}
             <DistributorPeriodActivity customerId={customer.id} />
+
+            {/* Promociones (derechos + otorgamiento manual) */}
+            {customer.customerType === 'distributor' && (
+              <PromotionGrantsSection customerId={customer.id} />
+            )}
 
             {/* Información Fiscal */}
             <div className="bg-white rounded-lg shadow p-6">
@@ -503,6 +510,295 @@ export default function DetalleDistribuidorPage() {
 }
 
 // ===== PAYMENT READINESS SECTION =====
+
+// ============================================================================
+// Promociones del distribuidor: historial de derechos (auto/manual) +
+// "Otorgar promoción" por excepción autorizada (mig 111). Atiende solicitudes
+// tipo "habilítale al 1716485 la PROMO149 y 149-1" aunque ya no estén
+// vigentes: el canje (POS/panel) ya funciona por derechos, así que el
+// otorgado manual se canjea igual que uno ganado por puntos.
+// ============================================================================
+const GRANT_STATUS_META: Record<string, { label: string; cls: string }> = {
+  active: { label: 'Activo', cls: 'bg-emerald-100 text-emerald-800' },
+  redeemed: { label: 'Canjeado', cls: 'bg-blue-100 text-blue-800' },
+  expired: { label: 'Vencido', cls: 'bg-gray-100 text-gray-600' },
+  cancelled: { label: 'Cancelado', cls: 'bg-red-100 text-red-700' },
+};
+
+function PromotionGrantsSection({ customerId }: { customerId: string }) {
+  const queryClient = useQueryClient();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [validityDays, setValidityDays] = useState('');
+  const [note, setNote] = useState('');
+
+  const grantsQuery = useQuery({
+    queryKey: ['customer-grants', customerId],
+    queryFn: () => promotionsService.getCustomerGrants(customerId),
+    staleTime: 30 * 1000,
+  });
+
+  // Catálogo de promos para el modal (incluye NO vigentes, marcadas).
+  const promosQuery = useQuery({
+    queryKey: ['promos-for-grant'],
+    queryFn: () =>
+      promotionsService.listPromotions({ isActive: true, limit: 100 }),
+    enabled: modalOpen,
+    staleTime: 60 * 1000,
+  });
+
+  const grantMutation = useMutation({
+    mutationFn: (dto: ManualGrantRequest) =>
+      promotionsService.grantManual(customerId, dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customer-grants', customerId] });
+    },
+  });
+  const revokeMutation = useMutation({
+    mutationFn: (grantId: string) => promotionsService.revokeGrant(grantId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['customer-grants', customerId] });
+    },
+  });
+
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const handleGrant = async () => {
+    if (selected.size === 0) {
+      toast.error('Selecciona al menos una promoción');
+      return;
+    }
+    if (note.trim().length < 5) {
+      toast.error('La nota de autorización es obligatoria (quién autorizó / ticket)');
+      return;
+    }
+    try {
+      const results = await grantMutation.mutateAsync({
+        productIds: [...selected],
+        validityDays: validityDays.trim() ? Number(validityDays) : undefined,
+        note: note.trim(),
+      });
+      for (const r of results) {
+        if (r.status === 'granted') toast.success(`${r.code}: derecho otorgado ✔`);
+        else toast.warning(`${r.code}: ${r.message ?? r.status}`);
+      }
+      if (results.some((r) => r.status === 'granted')) {
+        setModalOpen(false);
+        setSelected(new Set());
+        setValidityDays('');
+        setNote('');
+      }
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ?? 'Error al otorgar';
+      toast.error(Array.isArray(msg) ? msg.join(', ') : msg);
+    }
+  };
+
+  const grants = grantsQuery.data ?? [];
+  const fmtDate = (iso: string | null) =>
+    iso
+      ? new Date(iso).toLocaleDateString('es-MX', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        })
+      : '—';
+
+  return (
+    <div className="bg-white rounded-lg shadow p-6">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+          <ShieldCheckIcon className="h-5 w-5" />
+          Promociones (derechos de canje)
+        </h2>
+        <button
+          onClick={() => setModalOpen(true)}
+          className="rounded-lg bg-[#3E667D] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#2f5165]"
+        >
+          + Otorgar promoción
+        </button>
+      </div>
+
+      {grantsQuery.isLoading ? (
+        <p className="py-4 text-center text-sm text-gray-400">Cargando…</p>
+      ) : grants.length === 0 ? (
+        <p className="rounded-lg border-2 border-dashed p-4 text-center text-sm text-gray-500">
+          Sin derechos de promoción. Usa “Otorgar promoción” para habilitarle
+          una (incluso si su ventana ya venció) con autorización de Operaciones.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {grants.map((g) => {
+            const meta =
+              GRANT_STATUS_META[g.status] ?? {
+                label: g.status,
+                cls: 'bg-gray-100 text-gray-600',
+              };
+            return (
+              <div
+                key={g.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900">
+                    <span className="font-mono text-xs bg-gray-100 rounded px-1.5 py-0.5 mr-1.5">
+                      {g.productCode}
+                    </span>
+                    {g.productName}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-gray-500">
+                    {g.source === 'manual' ? '✍ Manual' : '⚙ Automático'} ·
+                    otorgado {fmtDate(g.grantedAt)} · vence {fmtDate(g.expiresAt)}
+                    {g.consumesPoints ? ' · consume puntos' : ''}
+                    {g.redeemedSaleNumber
+                      ? ` · canjeado en ${g.redeemedSaleNumber}`
+                      : ''}
+                    {g.grantNote ? ` · “${g.grantNote}”` : ''}
+                    {g.grantedByName ? ` — ${g.grantedByName}` : ''}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${meta.cls}`}
+                  >
+                    {meta.label}
+                  </span>
+                  {g.status === 'active' && (
+                    <button
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            `¿Revocar el derecho de ${g.productCode}? El distribuidor ya no podrá canjearlo.`,
+                          )
+                        ) {
+                          revokeMutation.mutate(g.id, {
+                            onSuccess: () => toast.success('Derecho revocado'),
+                            onError: () => toast.error('No se pudo revocar'),
+                          });
+                        }
+                      }}
+                      className="text-xs font-medium text-red-600 hover:underline"
+                    >
+                      Revocar
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Modal Otorgar */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-gray-900">
+              Otorgar promoción por excepción
+            </h3>
+            <p className="mt-1 text-xs text-gray-500">
+              Habilita el derecho de canje aunque la ventana de la promo ya
+              haya vencido. Vigencia y consumo de puntos: los de la regla del
+              país del distribuidor (la vigencia se puede cambiar abajo).
+            </p>
+
+            <div className="mt-4 max-h-64 space-y-1.5 overflow-y-auto rounded-lg border p-2">
+              {promosQuery.isLoading ? (
+                <p className="py-3 text-center text-sm text-gray-400">
+                  Cargando promociones…
+                </p>
+              ) : (
+                (promosQuery.data?.data ?? []).map((p) => {
+                  const anyCurrent = (p.promotionRuleCountries ?? []).some(
+                    (r) => r.isActive && r.isCurrent !== false,
+                  );
+                  return (
+                    <label
+                      key={p.id}
+                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-gray-50"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected.has(p.id)}
+                        onChange={() => toggle(p.id)}
+                        className="h-4 w-4 rounded"
+                      />
+                      <span className="font-mono text-xs bg-gray-100 rounded px-1.5 py-0.5">
+                        {p.code}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-sm text-gray-800">
+                        {p.name}
+                      </span>
+                      {!anyCurrent && (
+                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-700">
+                          no vigente
+                        </span>
+                      )}
+                    </label>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">
+                  Vigencia del derecho (días)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={validityDays}
+                  onChange={(e) => setValidityDays(e.target.value)}
+                  placeholder="La de la regla"
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
+                />
+              </div>
+            </div>
+
+            <div className="mt-3">
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Autorización <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={2}
+                placeholder="Autorizó Operaciones — nombre / ticket / correo"
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
+              />
+            </div>
+
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setModalOpen(false)}
+                className="rounded-lg px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleGrant}
+                disabled={grantMutation.isPending}
+                className="rounded-lg bg-[#3E667D] px-4 py-1.5 text-sm font-medium text-white hover:bg-[#2f5165] disabled:opacity-50"
+              >
+                {grantMutation.isPending ? 'Otorgando…' : 'Otorgar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function PaymentReadinessSection({ customerId }: { customerId: string }) {
   const queryClient = useQueryClient();

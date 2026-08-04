@@ -17,6 +17,9 @@ import {
 import type {
   AvailablePromotionForCustomer,
   BulkReplacePromotionComponentsDto,
+  CustomerPromotionGrant,
+  ManualGrantRequest,
+  ManualGrantResult,
   Promotion,
   PromotionComponent,
   PromotionEligibility,
@@ -86,6 +89,38 @@ class PromotionsService {
       dto,
     );
     return response.data;
+  }
+
+  // ============================================================
+  // Derechos por distribuidor (otorgamiento manual, mig 111)
+  // ============================================================
+
+  /** Historial de derechos de promoción del distribuidor (admin). */
+  async getCustomerGrants(customerId: string): Promise<CustomerPromotionGrant[]> {
+    const response = await api.get<CustomerPromotionGrant[]>(
+      `/promotions/customers/${customerId}/grants`,
+    );
+    return response.data;
+  }
+
+  /**
+   * Otorga promociones MANUALMENTE (excepción autorizada por Operaciones).
+   * Permite habilitar promos con ventana vencida; nota obligatoria.
+   */
+  async grantManual(
+    customerId: string,
+    dto: ManualGrantRequest,
+  ): Promise<ManualGrantResult[]> {
+    const response = await api.post<ManualGrantResult[]>(
+      `/promotions/customers/${customerId}/grants`,
+      dto,
+    );
+    return response.data;
+  }
+
+  /** Revoca un derecho ACTIVO otorgado por error. */
+  async revokeGrant(grantId: string): Promise<void> {
+    await api.patch(`/promotions/grants/${grantId}/revoke`);
   }
 
   // ============================================================
