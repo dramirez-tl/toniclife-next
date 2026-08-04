@@ -177,28 +177,50 @@ export function PromocionesTab() {
         if (rules.length > 0) {
           return (
             <div className="flex flex-col gap-1">
-              {rules.map((r) => (
-                <span
-                  key={r.code}
-                  className={`inline-flex w-fit items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${
-                    r.isActive
-                      ? 'bg-gray-100 text-gray-700'
-                      : 'bg-gray-50 text-gray-400 line-through'
-                  }`}
-                  title={`${r.name}: ${formatNumber(Number(r.minPoints))} puntos mínimos${r.isActive ? '' : ' (regla inactiva)'}${r.imageUrl ? ' — con imagen propia' : ' — SIN imagen propia (usa la base)'}`}
-                >
-                  {flagMap[r.code] || '🏳️'} {r.code}
-                  <span className={r.isActive ? 'font-normal text-gray-500' : 'font-normal'}>
-                    · {formatNumber(Number(r.minPoints))} pts
-                  </span>
-                  {/* La imagen se sube POR PAÍS: marca qué países ya la tienen */}
-                  <PhotoIcon
-                    className={`h-3.5 w-3.5 ${
-                      r.imageUrl ? 'text-emerald-600' : 'text-amber-400'
+              {rules.map((r) => {
+                // Estado del país: inactiva (apagada a mano) > vencida/futura
+                // (ventana de fechas fuera de hoy) > vigente.
+                const vigente = r.isActive && r.isCurrent !== false;
+                const vencida = r.isActive && r.isCurrent === false;
+                const ventana =
+                  r.availableFrom || r.availableTo
+                    ? ` · ventana ${r.availableFrom ?? '…'} → ${r.availableTo ?? '…'}`
+                    : '';
+                return (
+                  <span
+                    key={r.code}
+                    className={`inline-flex w-fit items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${
+                      !r.isActive
+                        ? 'bg-gray-50 text-gray-400 line-through'
+                        : vencida
+                          ? 'bg-amber-50 text-amber-700'
+                          : 'bg-emerald-50 text-emerald-800'
                     }`}
-                  />
-                </span>
-              ))}
+                    title={`${r.name}: ${formatNumber(Number(r.minPoints))} puntos mínimos${!r.isActive ? ' (regla inactiva)' : vencida ? ' (FUERA de vigencia)' : ' (vigente hoy)'}${ventana}${r.imageUrl ? ' — con imagen propia' : ' — SIN imagen propia (usa la base)'}`}
+                  >
+                    {flagMap[r.code] || '🏳️'} {r.code}
+                    <span className="font-normal opacity-80">
+                      · {formatNumber(Number(r.minPoints))} pts
+                    </span>
+                    {vencida && (
+                      <span className="rounded bg-amber-200/70 px-1 text-[10px] font-semibold uppercase text-amber-800">
+                        no vigente
+                      </span>
+                    )}
+                    {vigente && (
+                      <span className="rounded bg-emerald-200/60 px-1 text-[10px] font-semibold uppercase text-emerald-800">
+                        vigente
+                      </span>
+                    )}
+                    {/* La imagen se sube POR PAÍS: marca qué países ya la tienen */}
+                    <PhotoIcon
+                      className={`h-3.5 w-3.5 ${
+                        r.imageUrl ? 'text-emerald-600' : 'text-amber-400'
+                      }`}
+                    />
+                  </span>
+                );
+              })}
             </div>
           );
         }

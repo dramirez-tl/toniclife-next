@@ -127,6 +127,10 @@ export interface Product {
     name: string;
     minPoints: string;
     isActive: boolean;
+    /** Vigente HOY (ventana available_from/to, fecha de negocio CDMX). */
+    isCurrent?: boolean;
+    availableFrom?: string | null;
+    availableTo?: string | null;
     /** Imagen por país (mig 107); null/ausente = sin imagen propia en ese país. */
     imageUrl?: string | null;
   }[];
