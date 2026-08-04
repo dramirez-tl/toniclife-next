@@ -136,8 +136,27 @@ export function PilotLiveTab() {
     );
   }
 
-  const totalHoy = data.branches.reduce((s, b) => s + b.salesTotal, 0);
   const ventasHoy = data.branches.reduce((s, b) => s + b.salesCount, 0);
+
+  // Totales POR MONEDA (sumar USD con MXN a secas es basura) + consolidado
+  // en MXN con la tasa del periodo (viene del API; MXN = 1).
+  const fx = data.exchangeRates ?? { MXN: 1 };
+  const porMoneda = new Map<string, number>();
+  for (const b of data.branches) {
+    const cur = (b.currencyCode ?? 'MXN').toUpperCase();
+    porMoneda.set(cur, (porMoneda.get(cur) ?? 0) + b.salesTotal);
+  }
+  const monedas = [...porMoneda.entries()].sort(
+    // MXN primero, luego por monto convertido descendente
+    (a, b) =>
+      (a[0] === 'MXN' ? -1 : 0) - (b[0] === 'MXN' ? -1 : 0) ||
+      b[1] * (fx[b[0]] ?? 0) - a[1] * (fx[a[0]] ?? 0),
+  );
+  const sinTasa = monedas.filter(([cur, monto]) => monto > 0 && fx[cur] == null);
+  const totalMxn = monedas.reduce(
+    (s, [cur, monto]) => s + monto * (fx[cur] ?? 0),
+    0,
+  );
 
   return (
     <div className="space-y-4">
@@ -299,21 +318,55 @@ export function PilotLiveTab() {
             </CardContent>
           </Card>
         ))}
-        {/* Total consolidado */}
+        {/* Total consolidado: desglose por moneda + total en MXN con la
+            tasa del periodo (sumar USD+MXN a secas engañaba) */}
         <Card className="bg-slate-50">
           <CardContent className="p-4">
-            <p className="text-sm font-semibold text-gray-900">
-              {isToday ? 'Total del piloto (hoy)' : 'Total del piloto (día)'}
-            </p>
-            <div className="mt-3 flex items-end justify-between">
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{ventasHoy}</p>
-                <p className="text-[11px] text-muted-foreground">ventas</p>
-              </div>
+            <div className="flex items-baseline justify-between">
               <p className="text-sm font-semibold text-gray-900">
-                {money(totalHoy)}
+                {isToday ? 'Total del piloto (hoy)' : 'Total del piloto (día)'}
+              </p>
+              <p className="text-2xl font-bold leading-none text-gray-900">
+                {ventasHoy}
+                <span className="ml-1 text-[11px] font-normal text-muted-foreground">
+                  ventas
+                </span>
               </p>
             </div>
+            <div className="mt-3 space-y-1">
+              {monedas.map(([cur, monto]) => (
+                <div
+                  key={cur}
+                  className="flex items-baseline justify-between text-sm"
+                >
+                  <span className="text-muted-foreground">
+                    {cur}
+                    {cur !== 'MXN' && fx[cur] != null && (
+                      <span className="ml-1 text-[10px]">
+                        (TC {fx[cur].toFixed(4)})
+                      </span>
+                    )}
+                  </span>
+                  <span className="font-medium tabular-nums text-gray-900">
+                    {money(monto, cur)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-2 flex items-baseline justify-between border-t pt-2">
+              <span className="text-xs font-medium text-muted-foreground">
+                Total en MXN (TC del periodo)
+              </span>
+              <span className="text-base font-bold tabular-nums text-gray-900">
+                {money(totalMxn)}
+              </span>
+            </div>
+            {sinTasa.length > 0 && (
+              <p className="mt-1 text-[11px] font-medium text-amber-600">
+                ⚠ Sin tipo de cambio del periodo:{' '}
+                {sinTasa.map(([c]) => c).join(', ')} (no suma al total MXN)
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

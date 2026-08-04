@@ -41,6 +41,8 @@ export interface PilotLiveResponse {
   /** Día efectivo consultado (YYYY-MM-DD, corte CDMX). */
   date: string;
   serverTime: string;
+  /** Tasas X→MXN del periodo que contiene el día (mig 091). MXN = 1. */
+  exchangeRates?: Record<string, number>;
   branches: PilotBranchLive[];
   recentSales: PilotRecentSale[];
 }
