@@ -311,6 +311,11 @@
       "mustAcceptTerms": "You must accept the terms & conditions",
       "orderCreated": "Order created successfully!",
       "orderError": "Failed to process the order"
+    },
+    "pilot": {
+      "bannerTitle": "Online purchases coming soon",
+      "bannerBody": "We're putting the final touches on the store. You can build your cart and review your order; checkout will be enabled shortly.",
+      "blocked": "Online purchases will be available very soon. Thank you for your patience."
     }
   },
   "quiz": {

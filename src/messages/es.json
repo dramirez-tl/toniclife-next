@@ -311,6 +311,11 @@
       "mustAcceptTerms": "Debes aceptar los términos y condiciones",
       "orderCreated": "¡Pedido creado exitosamente!",
       "orderError": "Error al procesar el pedido"
+    },
+    "pilot": {
+      "bannerTitle": "Compras en línea muy pronto",
+      "bannerBody": "Estamos afinando los últimos detalles de la tienda. Puedes armar tu carrito y revisar tu pedido; el pago se habilitará en breve.",
+      "blocked": "Las compras en línea estarán disponibles muy pronto. Gracias por tu paciencia."
     }
   },
   "quiz": {

@@ -177,6 +177,7 @@ function DistributorSearchCard() {
   const [error, setError] = useState<string | null>(null);
 
   async function handleSearch() {
+    if (searching) return;
     const num = number.trim();
     if (!num) return;
     setSearching(true);
@@ -220,7 +221,7 @@ function DistributorSearchCard() {
                 setError(null);
               }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
+                if (e.key === 'Enter' && !searching) {
                   e.preventDefault();
                   void handleSearch();
                 }
@@ -251,7 +252,7 @@ function DistributorSearchCard() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function ReleasedDistributorsList() {
-  const { data, isLoading } = usePilotDistributors();
+  const { data, isLoading, isError, refetch } = usePilotDistributors();
 
   return (
     <Card>
@@ -269,6 +270,13 @@ function ReleasedDistributorsList() {
         </div>
         {isLoading ? (
           <Skeleton className="h-24 w-full" />
+        ) : isError ? (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+            No se pudo cargar la lista.{' '}
+            <button className="underline" onClick={() => void refetch()}>
+              Reintentar
+            </button>
+          </div>
         ) : !data || data.length === 0 ? (
           <p className="rounded-lg border-2 border-dashed p-6 text-center text-sm text-muted-foreground">
             Aún no has liberado funciones a ningún distribuidor. Busca uno
@@ -302,12 +310,8 @@ function DistributorFeatureRow({
   highlight?: boolean;
 }) {
   const setFeature = useSetPilotFeature();
-  const [pendingFeature, setPendingFeature] = useState<PilotFeature | null>(
-    null,
-  );
 
   const toggle = (feature: PilotFeature, flag: boolean) => {
-    setPendingFeature(feature);
     setFeature.mutate(
       { customerId: row.customerId, feature, enabled: !flag },
       {
@@ -320,7 +324,6 @@ function DistributorFeatureRow({
           onChanged?.(r.features);
         },
         onError: (e) => toast.error(apiError(e, 'No se pudo actualizar')),
-        onSettled: () => setPendingFeature(null),
       },
     );
   };
@@ -358,7 +361,9 @@ function DistributorFeatureRow({
             >
               <Switch
                 checked={flag}
-                disabled={pendingFeature === meta.key && setFeature.isPending}
+                // Fila completa bloqueada mientras hay un toggle en vuelo:
+                // dos mutaciones concurrentes de la misma fila se pisan.
+                disabled={setFeature.isPending}
                 onCheckedChange={() => toggle(meta.key, flag)}
                 aria-label={`${meta.label} para ${row.name}`}
               />

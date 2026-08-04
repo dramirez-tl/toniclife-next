@@ -27,7 +27,8 @@ export interface RegisterDistributorDto {
 export interface RegisterDistributorResponse {
   message: string;
   customerId: string;
-  referralCode: string;
+  /** Número de distribuidor asignado (el API responde customerNumber). */
+  customerNumber: string;
   sponsorName: string;
 }
 

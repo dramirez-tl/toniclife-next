@@ -19,6 +19,7 @@ import {
   useSharedCartCheckout,
 } from '@/hooks/useSharedCart';
 import { usePickupBranches } from '@/hooks/useCart';
+import { usePilotPublicState } from '@/hooks/usePilot';
 import type { SharedCartDeliveryMethod } from '@/services/sharedCart.service';
 
 export default function CarritoCompartidoPage() {
@@ -28,6 +29,9 @@ export default function CarritoCompartidoPage() {
   const { data: cart, isLoading, isError } = useSharedCartByToken(token);
   const checkoutMutation = useSharedCartCheckout(token);
   const { data: pickupBranches = [] } = usePickupBranches();
+  // Piloto: compras bloqueadas globalmente (el server también rechaza).
+  const { data: pilotState } = usePilotPublicState();
+  const checkoutEnabled = pilotState?.checkoutEnabled ?? false;
 
   const [clientName, setClientName] = useState('');
   const [clientEmail, setClientEmail] = useState('');
@@ -72,6 +76,12 @@ export default function CarritoCompartidoPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!checkoutEnabled) {
+      toast.error(
+        'Las compras en línea estarán disponibles muy pronto. Gracias por tu paciencia.',
+      );
+      return;
+    }
     if (!clientName.trim() || !clientEmail.trim()) {
       toast.error('Captura tu nombre y correo');
       return;
@@ -379,11 +389,20 @@ export default function CarritoCompartidoPage() {
             </CardContent>
           </Card>
 
+          {!checkoutEnabled && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              <p className="font-semibold">Compras en línea muy pronto</p>
+              <p className="text-xs">
+                Estamos afinando los últimos detalles. El pago se habilitará en
+                breve; tu carrito seguirá disponible con este mismo link.
+              </p>
+            </div>
+          )}
           <Button
             type="submit"
             className="w-full"
             size="lg"
-            disabled={checkoutMutation.isPending}
+            disabled={!checkoutEnabled || checkoutMutation.isPending}
           >
             {checkoutMutation.isPending && (
               <Loader2 className="mr-2 size-4 animate-spin" />

@@ -134,16 +134,19 @@ function SistemaContent() {
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {isLoading && <SistemaSkeleton />}
         {isError && (
-          <Card>
+          <Card className="mb-6">
             <CardContent className="p-6 text-sm text-destructive">
-              No se pudo cargar el estado del sistema. Verifica que el API esté
-              disponible y que tu sesión sea de super administrador.
+              No se pudo cargar el estado de limpieza/carga. Las pestañas de
+              POS y Piloto siguen disponibles; verifica el API para Limpieza y
+              Carga masiva.
             </CardContent>
           </Card>
         )}
-        {data && (
+        {/* Las pestañas NO dependen del overview de mantenimiento: si esa
+            carga falla, POS / Piloto / Liberaciones deben seguir usables. */}
+        {(data || isError) && (
           <>
-            {!data.superuser.exists && (
+            {data && !data.superuser.exists && (
               <div className="mb-6 flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
                 <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0" />
                 <p>
@@ -207,7 +210,7 @@ function SistemaContent() {
                   superusuario se conservan.
                 </p>
                 <div className="space-y-3">
-                  {data.cleanup.map((block) => (
+                  {(data?.cleanup ?? []).map((block) => (
                     <CleanupBlockCard key={block.id} block={block} />
                   ))}
                 </div>
@@ -222,7 +225,7 @@ function SistemaContent() {
                   todo-o-nada: si una fila es inválida, no se inserta ninguna.
                 </p>
                 <div className="space-y-3">
-                  {data.load.map((phase) => (
+                  {(data?.load ?? []).map((phase) => (
                     <LoadPhaseCard key={phase.key} phase={phase} />
                   ))}
                 </div>

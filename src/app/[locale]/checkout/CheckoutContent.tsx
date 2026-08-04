@@ -286,9 +286,7 @@ export default function CheckoutContent() {
 
     // Piloto: compras bloqueadas globalmente (el server también lo valida).
     if (!checkoutEnabled) {
-      toast.error(
-        'Las compras en línea estarán disponibles muy pronto. Gracias por tu paciencia.',
-      );
+      toast.error(t('pilot.blocked'));
       return;
     }
 
@@ -423,12 +421,9 @@ export default function CheckoutContent() {
         {!checkoutEnabled && (
           <div className="mb-8 rounded-xl border border-amber-200 bg-amber-50 p-4">
             <p className="font-semibold text-amber-800">
-              Compras en línea muy pronto
+              {t('pilot.bannerTitle')}
             </p>
-            <p className="text-sm text-amber-700">
-              Estamos afinando los últimos detalles de la tienda. Puedes armar
-              tu carrito y revisar tu pedido; el pago se habilitará en breve.
-            </p>
+            <p className="text-sm text-amber-700">{t('pilot.bannerBody')}</p>
           </div>
         )}
 
@@ -871,11 +866,7 @@ export default function CheckoutContent() {
                           authenticatedCheckout.isPending ||
                           guestCheckout.isPending
                         }
-                        title={
-                          !checkoutEnabled
-                            ? 'Las compras en línea estarán disponibles muy pronto'
-                            : undefined
-                        }
+                        title={!checkoutEnabled ? t('pilot.blocked') : undefined}
                       >
                         {(authenticatedCheckout.isPending || guestCheckout.isPending) && (
                           <Loader2 className="mr-2 size-4 animate-spin" />

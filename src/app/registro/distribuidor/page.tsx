@@ -316,7 +316,7 @@ function RegistroDistribuidorContent() {
       toast.success(result.message);
 
       // Redirect to success page with info
-      router.push(`/registro/distribuidor/exitoso?referralCode=${result.referralCode}&sponsor=${encodeURIComponent(result.sponsorName)}`);
+      router.push(`/registro/distribuidor/exitoso?referralCode=${result.customerNumber}&sponsor=${encodeURIComponent(result.sponsorName)}`);
     } catch (error: unknown) {
       const err = error as { response?: { data?: { message?: string } } };
       const message = err.response?.data?.message || 'Error al registrar. Intenta de nuevo.';
@@ -407,7 +407,18 @@ function RegistroDistribuidorContent() {
                         <Input
                           placeholder="Ej: ABC123XY"
                           value={formData.sponsorCode}
-                          onChange={(e) => setFormData({ ...formData, sponsorCode: e.target.value.toUpperCase() })}
+                          onChange={(e) => {
+                            // Invalida al instante el sponsor previo: sin
+                            // esto, borrar/cambiar el código dejaba el badge
+                            // verde y el Continuar habilitado con datos
+                            // viejos hasta el debounce.
+                            setFormData({
+                              ...formData,
+                              sponsorCode: e.target.value.toUpperCase(),
+                            });
+                            setSponsorInfo(null);
+                            setSponsorError(null);
+                          }}
                           className="pl-9"
                           aria-invalid={(errors.sponsorCode || sponsorError || undefined) ? true : undefined}
                         />

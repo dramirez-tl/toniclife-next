@@ -57,11 +57,15 @@ function RedContent() {
   // (usado desde el dashboard para que el alta sea fácil de encontrar).
   const router = useRouter();
   const searchParams = useSearchParams();
+  // El deep-link NO abre el panel directo: queda pendiente hasta conocer las
+  // features del piloto (gate más abajo, cuando ya cargaron).
+  const [pendingAlta, setPendingAlta] = useState<'socio' | 'preferente' | null>(
+    null,
+  );
   useEffect(() => {
     const alta = searchParams.get('alta');
     if (alta !== 'socio' && alta !== 'preferente') return;
-    if (alta === 'socio') setIsEnrollOpen(true);
-    else setIsPreferredOpen(true);
+    setPendingAlta(alta);
     const params = new URLSearchParams(Array.from(searchParams.entries()));
     params.delete('alta');
     router.replace(
@@ -78,8 +82,23 @@ function RedContent() {
   // Piloto: el alta de socios/preferentes se libera POR DISTRIBUIDOR desde
   // el admin. Sin liberar, los botones avisan y no abren el panel.
   const tGate = useTranslations('distributor.pilotGate');
-  const { data: pilotFeatures } = useMyPilotFeatures();
+  const { data: pilotFeatures, isPlaceholderData: pilotLoading } =
+    useMyPilotFeatures();
   const registerMemberEnabled = pilotFeatures?.registerMember ?? false;
+
+  // Resolver el deep-link pendiente cuando ya conocemos las features.
+  useEffect(() => {
+    if (!pendingAlta || pilotLoading) return;
+    if (!registerMemberEnabled) {
+      toast.error(tGate('registerMember'));
+    } else if (pendingAlta === 'socio') {
+      setIsEnrollOpen(true);
+    } else {
+      setIsPreferredOpen(true);
+    }
+    setPendingAlta(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAlta, pilotLoading, registerMemberEnabled]);
   const openEnroll = () => {
     if (!registerMemberEnabled) {
       toast.error(tGate('registerMember'));
