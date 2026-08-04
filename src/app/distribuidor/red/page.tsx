@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import { selectUser } from '@/store/slices/authSlice';
 import { useNetworkDownlines, useNetworkDirectLines } from '@/hooks/useNetwork';
+import { useMyPilotFeatures } from '@/hooks/usePilot';
 import { useCurrentPeriod, useCommissionPeriods, periodsUpToCurrent } from '@/hooks/useCommissions';
 import { networkApi } from '@/services/networkApi';
 import {
@@ -73,6 +74,26 @@ function RedContent() {
 
   const copyLinkMutation = useCopyReferralLink();
   const shareLinkMutation = useShareReferralLink();
+
+  // Piloto: el alta de socios/preferentes se libera POR DISTRIBUIDOR desde
+  // el admin. Sin liberar, los botones avisan y no abren el panel.
+  const tGate = useTranslations('distributor.pilotGate');
+  const { data: pilotFeatures } = useMyPilotFeatures();
+  const registerMemberEnabled = pilotFeatures?.registerMember ?? false;
+  const openEnroll = () => {
+    if (!registerMemberEnabled) {
+      toast.error(tGate('registerMember'));
+      return;
+    }
+    setIsEnrollOpen(true);
+  };
+  const openPreferred = () => {
+    if (!registerMemberEnabled) {
+      toast.error(tGate('registerMember'));
+      return;
+    }
+    setIsPreferredOpen(true);
+  };
 
   const referralCode = useMemo(() => {
     if (distributorProfile?.referralCode) return distributorProfile.referralCode;
@@ -173,16 +194,22 @@ function RedContent() {
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
-                onClick={() => setIsEnrollOpen(true)}
-                className="bg-white text-[#3E667D] hover:bg-white/90 shadow-md shadow-black/10"
+                onClick={openEnroll}
+                title={!registerMemberEnabled ? tGate('registerMember') : undefined}
+                className={`bg-white text-[#3E667D] hover:bg-white/90 shadow-md shadow-black/10 ${
+                  !registerMemberEnabled ? 'opacity-60' : ''
+                }`}
               >
                 <UserPlusIcon className="h-4 w-4" />
                 {t('grow.enrollPartner')}
               </Button>
               <Button
                 variant="outline"
-                onClick={() => setIsPreferredOpen(true)}
-                className="border-white/40 bg-white/10 text-white hover:bg-white/20"
+                onClick={openPreferred}
+                title={!registerMemberEnabled ? tGate('registerMember') : undefined}
+                className={`border-white/40 bg-white/10 text-white hover:bg-white/20 ${
+                  !registerMemberEnabled ? 'opacity-60' : ''
+                }`}
               >
                 <UserPlusIcon className="h-4 w-4" />
                 {t('grow.preferredCustomer')}
@@ -206,7 +233,7 @@ function RedContent() {
         </Tabs>
 
         {/* Clientes preferentes */}
-        <PreferredCustomersSection onAdd={() => setIsPreferredOpen(true)} />
+        <PreferredCustomersSection onAdd={openPreferred} />
 
         {/* Help CTA */}
         <Card className="mt-8 border-0 bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white shadow-lg">
@@ -218,7 +245,8 @@ function RedContent() {
             <Button
               variant="secondary"
               size="lg"
-              onClick={() => setIsEnrollOpen(true)}
+              onClick={openEnroll}
+              title={!registerMemberEnabled ? tGate('registerMember') : undefined}
             >
               <UserPlusIcon className="h-5 w-5" />
               {t('helpCta.enrollNewMember')}

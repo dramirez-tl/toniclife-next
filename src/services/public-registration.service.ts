@@ -5,6 +5,8 @@ export interface SponsorInfo {
   firstName: string;
   lastName: string;
   referralCode: string;
+  /** Piloto (mig 110): el registro con ESTE patrocinador está liberado. */
+  registrationEnabled?: boolean;
 }
 
 export interface RegisterDistributorDto {

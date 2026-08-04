@@ -26,6 +26,8 @@ import {
   useCreateSharedCart,
   useCancelSharedCart,
 } from '@/hooks/useSharedCart';
+import { useMyPilotFeatures } from '@/hooks/usePilot';
+import { LockClosedIcon } from '@heroicons/react/24/solid';
 
 interface Line {
   productId: string;
@@ -86,6 +88,10 @@ function CompartirCarritoContent() {
   const createMutation = useCreateSharedCart();
   const cancelMutation = useCancelSharedCart();
   const { data: sharedCarts = [], isLoading: cartsLoading } = useSharedCarts();
+  // Piloto: generar el link se libera POR DISTRIBUIDOR desde el admin.
+  const tGate = useTranslations('distributor.pilotGate');
+  const { data: pilotFeatures } = useMyPilotFeatures();
+  const shareCartEnabled = pilotFeatures?.shareCart ?? false;
 
   const products = productsData?.data ?? [];
   const qtyOf = (productId: string) =>
@@ -122,6 +128,10 @@ function CompartirCarritoContent() {
     : '';
 
   const handleCreate = async () => {
+    if (!shareCartEnabled) {
+      toast.error(tGate('shareCart'));
+      return;
+    }
     if (!lines.length) {
       toast.error(t('toast.addProduct'));
       return;
@@ -423,9 +433,21 @@ function CompartirCarritoContent() {
                 />
               </div>
 
+              {/* Piloto: sin la feature liberada no se puede generar el link */}
+              {!shareCartEnabled && (
+                <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  <LockClosedIcon className="mt-0.5 h-4 w-4 shrink-0" />
+                  <div>
+                    <p className="font-medium">{tGate('title')}</p>
+                    <p className="text-xs">{tGate('shareCart')}</p>
+                  </div>
+                </div>
+              )}
               <Button
                 onClick={handleCreate}
-                disabled={!lines.length || createMutation.isPending}
+                disabled={
+                  !shareCartEnabled || !lines.length || createMutation.isPending
+                }
                 className="mt-4 w-full"
               >
                 {createMutation.isPending && (

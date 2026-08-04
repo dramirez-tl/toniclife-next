@@ -1867,6 +1867,11 @@
         "cartCancelled": "Carrito cancelado",
         "cancelError": "No se pudo cancelar"
       }
+    },
+    "pilotGate": {
+      "title": "Función aún no disponible",
+      "shareCart": "Compartir carrito aún no está habilitado para tu cuenta durante el piloto. Te avisaremos cuando se libere.",
+      "registerMember": "El alta de nuevos socios aún no está habilitada para tu cuenta durante el piloto. Te avisaremos cuando se libere."
     }
   }
 }

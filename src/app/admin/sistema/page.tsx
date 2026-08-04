@@ -53,6 +53,7 @@ import {
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Switch } from '@/components/ui/switch';
 import { PilotLiveTab } from './PilotLiveTab';
+import { PilotGatingTab } from './PilotGatingTab';
 import type { CleanupBlockStatus, LoadPhaseStatus } from '@/types/maintenance';
 import type { PosLicense } from '@/types/posLicense';
 
@@ -90,7 +91,14 @@ function SistemaSkeleton() {
   );
 }
 
-const SISTEMA_TABS = ['pos', 'piloto', 'limpieza', 'carga', 'reset'];
+const SISTEMA_TABS = [
+  'pos',
+  'piloto',
+  'liberaciones',
+  'limpieza',
+  'carga',
+  'reset',
+];
 
 function SistemaContent() {
   const { data, isLoading, isError } = useMaintenanceOverview();
@@ -161,6 +169,9 @@ function SistemaContent() {
                   </span>
                   Piloto en vivo
                 </TabsTrigger>
+                <TabsTrigger value="liberaciones">
+                  Piloto Distribuidores
+                </TabsTrigger>
                 <TabsTrigger value="limpieza">Limpieza</TabsTrigger>
                 <TabsTrigger value="carga">Carga masiva</TabsTrigger>
                 <TabsTrigger value="reset">Reset por periodo</TabsTrigger>
@@ -168,6 +179,10 @@ function SistemaContent() {
 
               <TabsContent value="piloto" className="mt-6">
                 <PilotLiveTab />
+              </TabsContent>
+
+              <TabsContent value="liberaciones" className="mt-6">
+                <PilotGatingTab />
               </TabsContent>
 
               <TabsContent value="pos" className="mt-6">

@@ -34,6 +34,7 @@ import {
   usePickupBranches,
 } from '@/hooks/useCart';
 import { useReferralCode } from '@/hooks/useReferralCode';
+import { usePilotPublicState } from '@/hooks/usePilot';
 import { formatCurrency } from '@/lib/currency';
 import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { useAppSelector } from '@/store/hooks';
@@ -176,6 +177,9 @@ export default function CheckoutContent() {
   const authenticatedCheckout = useAuthenticatedCheckout();
   const { data: savedAddresses } = useCustomerAddresses();
   const { data: pickupBranches } = usePickupBranches();
+  // Piloto: compras del checkout gateadas globalmente desde /admin/sistema.
+  const { data: pilotState } = usePilotPublicState();
+  const checkoutEnabled = pilotState?.checkoutEnabled ?? false;
 
   // Referral code from URL or localStorage
   const { referralCode: storedReferralCode } = useReferralCode();
@@ -279,6 +283,14 @@ export default function CheckoutContent() {
 
   const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Piloto: compras bloqueadas globalmente (el server también lo valida).
+    if (!checkoutEnabled) {
+      toast.error(
+        'Las compras en línea estarán disponibles muy pronto. Gracias por tu paciencia.',
+      );
+      return;
+    }
 
     if (!acceptTerms) {
       toast.error(t('toasts.mustAcceptTerms'));
@@ -405,6 +417,20 @@ export default function CheckoutContent() {
           </Link>
           <h1 className="text-3xl font-bold text-[#3E667D]">{t('title')}</h1>
         </div>
+
+        {/* Piloto: aviso de compras deshabilitadas (el botón de pagar
+            también queda apagado; el server rechaza igualmente). */}
+        {!checkoutEnabled && (
+          <div className="mb-8 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <p className="font-semibold text-amber-800">
+              Compras en línea muy pronto
+            </p>
+            <p className="text-sm text-amber-700">
+              Estamos afinando los últimos detalles de la tienda. Puedes armar
+              tu carrito y revisar tu pedido; el pago se habilitará en breve.
+            </p>
+          </div>
+        )}
 
         {/* Progress Steps */}
         <div className="mb-8">
@@ -841,7 +867,14 @@ export default function CheckoutContent() {
                         size="lg"
                         className="flex-1"
                         disabled={
-                          authenticatedCheckout.isPending || guestCheckout.isPending
+                          !checkoutEnabled ||
+                          authenticatedCheckout.isPending ||
+                          guestCheckout.isPending
+                        }
+                        title={
+                          !checkoutEnabled
+                            ? 'Las compras en línea estarán disponibles muy pronto'
+                            : undefined
                         }
                       >
                         {(authenticatedCheckout.isPending || guestCheckout.isPending) && (

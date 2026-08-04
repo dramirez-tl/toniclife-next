@@ -1867,6 +1867,11 @@
         "cartCancelled": "Cart cancelled",
         "cancelError": "Could not cancel"
       }
+    },
+    "pilotGate": {
+      "title": "Feature not available yet",
+      "shareCart": "Cart sharing isn't enabled for your account yet during the pilot. We'll let you know when it's released.",
+      "registerMember": "Registering new members isn't enabled for your account yet during the pilot. We'll let you know when it's released."
     }
   }
 }

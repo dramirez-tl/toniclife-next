@@ -286,6 +286,14 @@ function RegistroDistribuidorContent() {
     if (!validateStep(4)) {
       return;
     }
+    // Piloto: defensa en profundidad (el server también lo valida).
+    if (!sponsorInfo?.registrationEnabled) {
+      setSponsorError(
+        'El registro en línea con este patrocinador aún no está disponible.',
+      );
+      setCurrentStep(1);
+      return;
+    }
 
     setIsLoading(true);
 
@@ -425,16 +433,78 @@ function RegistroDistribuidorContent() {
                     )}
                   </div>
 
-                  {/* Kit selection temporarily disabled */}
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
-                    <ExclamationTriangleIcon className="h-10 w-10 text-yellow-500 mx-auto mb-3" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      Registro temporalmente no disponible
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      La selección de kits de inicio se encuentra en mantenimiento. Por favor, intenta más tarde.
-                    </p>
-                  </div>
+                  {/* Piloto: la selección de kit solo aparece cuando el
+                      registro con ESTE patrocinador está liberado desde
+                      /admin/sistema (sponsorInfo.registrationEnabled). */}
+                  {sponsorInfo && sponsorInfo.registrationEnabled ? (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                        Elige tu kit de inicio
+                      </h3>
+                      <div className="grid gap-4 sm:grid-cols-3">
+                        {kitOptions.map((kit) => {
+                          const selected = formData.kitType === kit.id;
+                          return (
+                            <button
+                              key={kit.id}
+                              type="button"
+                              onClick={() =>
+                                setFormData({ ...formData, kitType: kit.id })
+                              }
+                              className={`relative rounded-xl border p-4 text-left transition-colors ${
+                                selected
+                                  ? 'border-[#3E667D] bg-[#C8DDF2]/20 ring-1 ring-[#3E667D]'
+                                  : 'border-gray-200 bg-white hover:border-gray-300'
+                              }`}
+                            >
+                              {kit.popular && (
+                                <span className="absolute -top-2 right-3 rounded-full bg-[#3E667D] px-2 py-0.5 text-[10px] font-semibold text-white">
+                                  Más vendido
+                                </span>
+                              )}
+                              <p className="font-semibold text-gray-900">
+                                {kit.name}
+                              </p>
+                              <p className="text-sm font-bold text-[#3E667D]">
+                                {kit.price}
+                              </p>
+                              <p className="mt-1 text-xs text-gray-500">
+                                {kit.description}
+                              </p>
+                              <ul className="mt-2 space-y-1">
+                                {kit.features.slice(0, 3).map((f) => (
+                                  <li
+                                    key={f}
+                                    className="flex items-start gap-1.5 text-xs text-gray-600"
+                                  >
+                                    <CheckCircleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                                    {f}
+                                  </li>
+                                ))}
+                              </ul>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {errors.kitType && (
+                        <p className="mt-2 text-sm text-destructive">
+                          {errors.kitType}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+                      <ExclamationTriangleIcon className="h-10 w-10 text-yellow-500 mx-auto mb-3" />
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        Registro temporalmente no disponible
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {sponsorInfo
+                          ? 'El registro en línea con este patrocinador aún no está disponible. Por favor, intenta más tarde.'
+                          : 'Valida primero el código de tu patrocinador para continuar.'}
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -761,7 +831,13 @@ function RegistroDistribuidorContent() {
                     type="button"
                     variant="default"
                     onClick={handleNextStep}
-                    disabled={currentStep === 1}
+                    // Piloto: en el paso 1 solo se avanza cuando el registro
+                    // con este patrocinador está liberado (y hay kit elegido
+                    // vía validateStep).
+                    disabled={
+                      currentStep === 1 &&
+                      !(sponsorInfo && sponsorInfo.registrationEnabled)
+                    }
                   >
                     Continuar
                   </Button>
