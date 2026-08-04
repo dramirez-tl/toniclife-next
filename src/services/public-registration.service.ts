@@ -32,6 +32,14 @@ export interface RegisterDistributorResponse {
   sponsorName: string;
 }
 
+/** Precio "desde" por posición de kit (precio real de distribuidor por país). */
+export interface PublicKitTier {
+  position: 'basic' | 'premium' | 'preferred';
+  fromPrice: number;
+  currencyCode: string;
+  kitCount: number;
+}
+
 export const publicRegistrationService = {
   /**
    * Validate sponsor code and get sponsor info
@@ -44,6 +52,22 @@ export const publicRegistrationService = {
       return response.data;
     } catch {
       return null;
+    }
+  },
+
+  /**
+   * Precios reales de los kits por posición (precio de distribuidor del país
+   * del patrocinador; fallback México). [] si falla — la UI usa fallback.
+   */
+  async getKitTiers(sponsorCode?: string): Promise<PublicKitTier[]> {
+    try {
+      const response = await api.get<PublicKitTier[]>(
+        '/public/register/kit-tiers',
+        { params: sponsorCode ? { sponsor: sponsorCode } : undefined },
+      );
+      return response.data ?? [];
+    } catch {
+      return [];
     }
   },
 

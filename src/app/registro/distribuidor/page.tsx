@@ -24,23 +24,26 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { publicRegistrationService, SponsorInfo } from '@/services';
+import type { PublicKitTier } from '@/services/public-registration.service';
 
 type KitType = 'basic' | 'premium' | 'preferred';
 
 interface KitOption {
   id: KitType;
   name: string;
-  price: string;
   description: string;
   features: string[];
   popular?: boolean;
 }
 
+// Copy estático por posición. El PRECIO ya NO está hardcodeado: viene del API
+// (/public/register/kit-tiers — mínimo real entre los kits vigentes, con
+// precio de distribuidor del país del patrocinador). El kit exacto se elige
+// después, en el onboarding del nuevo distribuidor.
 const kitOptions: KitOption[] = [
   {
     id: 'basic',
     name: 'Kit Básico',
-    price: '$1,500 MXN',
     description: 'Ideal para comenzar tu negocio',
     features: [
       'Productos de demostración',
@@ -52,7 +55,6 @@ const kitOptions: KitOption[] = [
   {
     id: 'premium',
     name: 'Kit Premium',
-    price: '$3,500 MXN',
     description: 'El más vendido',
     features: [
       'Productos de demostración ampliados',
@@ -66,7 +68,6 @@ const kitOptions: KitOption[] = [
   {
     id: 'preferred',
     name: 'Kit Preferente',
-    price: '$6,000 MXN',
     description: 'Para emprendedores serios',
     features: [
       'Todos los productos principales',
@@ -78,6 +79,13 @@ const kitOptions: KitOption[] = [
     ],
   },
 ];
+
+const formatKitPrice = (tier?: PublicKitTier): string | null =>
+  tier
+    ? `Desde $${tier.fromPrice.toLocaleString('es-MX', {
+        minimumFractionDigits: 2,
+      })} ${tier.currencyCode}`
+    : null;
 
 function RegistroDistribuidorContent() {
   const router = useRouter();
@@ -96,6 +104,10 @@ function RegistroDistribuidorContent() {
   // Email validation
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
   const [emailChecking, setEmailChecking] = useState(false);
+
+  // Precios reales de los kits (por país del patrocinador). null = cargando.
+  const [kitTiers, setKitTiers] = useState<PublicKitTier[] | null>(null);
+  const tierFor = (id: string) => kitTiers?.find((t) => t.position === id);
 
   const [formData, setFormData] = useState({
     // Step 1: Sponsor & Kit
@@ -169,6 +181,27 @@ function RegistroDistribuidorContent() {
 
     return () => clearTimeout(timer);
   }, [formData.sponsorCode, validateSponsorCode]);
+
+  // Cargar precios reales de los kits cuando el registro está liberado para
+  // este patrocinador (los precios dependen de SU país).
+  useEffect(() => {
+    if (!sponsorInfo?.registrationEnabled) {
+      setKitTiers(null);
+      return;
+    }
+    let cancelled = false;
+    setKitTiers(null);
+    void publicRegistrationService
+      .getKitTiers(formData.sponsorCode)
+      .then((tiers) => {
+        if (!cancelled) setKitTiers(tiers);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // formData.sponsorCode cambia junto con sponsorInfo; basta sponsorInfo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sponsorInfo]);
 
   // Check email availability
   const checkEmail = useCallback(async (email: string) => {
@@ -453,8 +486,15 @@ function RegistroDistribuidorContent() {
                         Elige tu kit de inicio
                       </h3>
                       <div className="grid gap-4 sm:grid-cols-3">
-                        {kitOptions.map((kit) => {
+                        {kitOptions
+                          // Con precios cargados, solo se ofrecen posiciones
+                          // con kits vigentes vendibles en el país.
+                          .filter(
+                            (kit) => kitTiers === null || tierFor(kit.id),
+                          )
+                          .map((kit) => {
                           const selected = formData.kitType === kit.id;
+                          const priceLabel = formatKitPrice(tierFor(kit.id));
                           return (
                             <button
                               key={kit.id}
@@ -477,7 +517,10 @@ function RegistroDistribuidorContent() {
                                 {kit.name}
                               </p>
                               <p className="text-sm font-bold text-[#3E667D]">
-                                {kit.price}
+                                {priceLabel ??
+                                  (kitTiers === null
+                                    ? 'Consultando precio…'
+                                    : 'Precio al elegir tu kit')}
                               </p>
                               <p className="mt-1 text-xs text-gray-500">
                                 {kit.description}
@@ -810,7 +853,7 @@ function RegistroDistribuidorContent() {
                       <div className="flex justify-between border-t pt-2 mt-2">
                         <dt className="text-gray-500">Total a pagar:</dt>
                         <dd className="font-bold text-[#3E667D]">
-                          {kitOptions.find(k => k.id === formData.kitType)?.price || '-'}
+                          {formatKitPrice(tierFor(formData.kitType)) || '-'}
                         </dd>
                       </div>
                     </dl>
