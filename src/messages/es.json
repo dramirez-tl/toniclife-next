@@ -649,6 +649,7 @@
         "clearFilters": "Limpiar filtros",
         "closedPeriodTitle": "Tus comisiones se calculan al cierre del periodo",
         "closedPeriodBody": "El monto de comisiones de {period} se mostrará cuando cierre el periodo. Mientras tanto sigue sumando puntos y ventas; aquí podrás consultar el detalle de los periodos ya cerrados.",
+        "prevPeriodTotal": "Tu comisión de {period}:",
         "thisPeriod": "este periodo",
         "historyTitle": "Historial de Comisiones",
         "showTaxDetails": "Mostrar detalles de impuestos",

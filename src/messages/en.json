@@ -649,6 +649,7 @@
         "clearFilters": "Clear filters",
         "closedPeriodTitle": "Your commissions are calculated at the end of the period",
         "closedPeriodBody": "The commission amount for {period} will be shown when the period closes. In the meantime keep adding points and sales; here you can review the detail of periods that are already closed.",
+        "prevPeriodTotal": "Your {period} commission:",
         "thisPeriod": "this period",
         "historyTitle": "Commission History",
         "showTaxDetails": "Show tax details",

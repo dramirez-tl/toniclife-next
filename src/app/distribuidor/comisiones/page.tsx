@@ -151,6 +151,22 @@ function ComisionesContent() {
   const isActivePeriod = currentPeriod?.status === 'open';
   const hasActiveFilters = filterType !== 'all' || filterStatus !== 'all';
 
+  // Comisión del PERIODO ANTERIOR: en el periodo en curso el empty-state
+  // muestra lo del último cierre (las del actual no existen hasta cerrar).
+  // sortedPeriods va descendente → el anterior es el siguiente en la lista.
+  const selectedIdx = sortedPeriods.findIndex(
+    (p: any) => p?.id === selectedPeriodId,
+  );
+  const prevPeriod = selectedIdx >= 0 ? sortedPeriods[selectedIdx + 1] : undefined;
+  const { data: prevCommissionsData } = useCustomerCommissions(
+    user?.customerId || '',
+    { periodId: prevPeriod?.id },
+    !!user?.customerId && !!prevPeriod?.id && isActivePeriod,
+  );
+  const prevSummaryNet = prevCommissionsData?.summary
+    ? parseFloat(prevCommissionsData.summary.totalNetMxn || '0')
+    : null;
+
   // Porcentajes reales por nivel (panel "Consejo Pro"), no hardcodeados.
   const fmtPct = (v?: string) => `${Math.round(parseFloat(v || '0') * 100)}%`;
   const topLevels = [...(commissionStructure?.levels ?? [])]
@@ -427,6 +443,20 @@ function ComisionesContent() {
                 <p className="max-w-md text-sm text-gray-500">
                   {t('closedPeriodBody', { period: currentPeriod?.name ?? t('thisPeriod') })}
                 </p>
+                {/* Lo COBRADO del último cierre, para dar contexto mientras
+                    corre el periodo actual. */}
+                {prevSummaryNet != null && prevPeriod && (
+                  <div className="mt-1 flex items-center gap-2 rounded-full bg-[#3E667D]/10 px-4 py-2">
+                    <SparklesIcon className="h-4 w-4 text-[#3E667D]" />
+                    <span className="text-sm text-gray-600">
+                      {t('prevPeriodTotal', { period: prevPeriod?.name ?? '' })}
+                    </span>
+                    <span className="text-base font-bold text-[#3E667D]">
+                      {new Intl.NumberFormat(currencyCode === 'USD' ? 'en-US' : 'es-MX', { style: 'currency', currency: currencyCode, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(prevSummaryNet)}
+                    </span>
+                    <span className="text-[10px] font-semibold bg-[#3E667D]/15 text-[#3E667D] px-1.5 py-0.5 rounded">{currencyCode}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ) : (
