@@ -297,6 +297,8 @@ export interface ProductQueryParams {
   isFeatured?: boolean;
   availableInPos?: boolean;
   productType?: ProductType;
+  /** Excluir un tipo del listado (ej. promotional: las promos tienen su propia pestaña). */
+  excludeProductType?: ProductType;
   kitPosition?: KitPosition;
   isEnrollmentKit?: boolean;
   brand?: string;

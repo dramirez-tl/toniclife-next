@@ -352,7 +352,7 @@ export default function NuevoProductoAdminPage() {
                       options={[
                         { value: 'finished_good', label: 'Producto Terminado' },
                         { value: 'raw_material', label: 'Materia Prima' },
-                        { value: 'kit', label: 'Kit' },
+                        { value: 'kit', label: 'Kit / Paquete (con componentes)' },
                         { value: 'promotional', label: 'Promocional' },
                         { value: 'virtual', label: 'Virtual' },
                         { value: 'service', label: 'Servicio' },
@@ -396,6 +396,12 @@ export default function NuevoProductoAdminPage() {
                         className="w-full"
                       />
                     </div>
+                  )}
+                  {formData.productType === 'kit' && (
+                    <p className="col-span-2 text-xs text-gray-500">
+                      Guarda el producto y carga su composición en la pestaña{' '}
+                      <strong>Componentes</strong> al editarlo.
+                    </p>
                   )}
                 </div>
               </CardContent>

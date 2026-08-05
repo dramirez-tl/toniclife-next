@@ -22,6 +22,7 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { ProductPricesSection } from '@/components/admin/products/ProductPricesSection';
 import { ProductInventoryByBranch } from '@/components/admin/products/ProductInventoryByBranch';
 import { ProductMediaSection } from '@/components/admin/products/ProductMediaSection';
+import { ProductComponentsSection } from '@/components/admin/products/ProductComponentsSection';
 import { selectUser } from '@/store/slices/authSlice';
 
 // Confirmation info for sensitive toggles
@@ -102,7 +103,7 @@ export default function EditarProductoAdminPage() {
     sortOrder: '0',
   });
 
-  const [activeTab, setActiveTab] = useState<'general' | 'media' | 'precios' | 'inventario'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'componentes' | 'media' | 'precios' | 'inventario'>('general');
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Confirmation modal for sensitive toggles (tracksInventory / tracksLots)
@@ -345,8 +346,17 @@ export default function EditarProductoAdminPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Tab Navigation */}
         <div className="flex gap-1 mb-6 border-b border-gray-200">
-          {(['general', 'media', 'precios', 'inventario'] as const).map((tab) => {
-            const labels = { general: 'General', media: 'Imágenes y ficha', precios: 'Precios y Fiscal', inventario: 'Inventario' };
+          {([
+            'general',
+            // Kits/paquetes y promos llevan composición (BoM); el resto no.
+            ...(formData.productType === 'kit' || formData.productType === 'promotional'
+              ? (['componentes'] as const)
+              : []),
+            'media',
+            'precios',
+            'inventario',
+          ] as const).map((tab) => {
+            const labels = { general: 'General', componentes: 'Componentes', media: 'Imágenes y ficha', precios: 'Precios y Fiscal', inventario: 'Inventario' };
             return (
               <Button
                 key={tab}
@@ -515,7 +525,7 @@ export default function EditarProductoAdminPage() {
                           options={[
                             { value: 'finished_good', label: 'Producto Terminado' },
                             { value: 'raw_material', label: 'Materia Prima' },
-                            { value: 'kit', label: 'Kit' },
+                            { value: 'kit', label: 'Kit / Paquete (con componentes)' },
                             { value: 'promotional', label: 'Promocional' },
                             { value: 'virtual', label: 'Virtual' },
                             { value: 'service', label: 'Servicio' },
@@ -571,9 +581,14 @@ export default function EditarProductoAdminPage() {
                             className="h-4 w-4 text-[#3E667D] focus:ring-[#3E667D] border-gray-300 rounded"
                           />
                           <label htmlFor="kitDeductsInventory" className="ml-2 text-sm text-gray-700">
-                            El kit deduce inventario de componentes
+                            El kit/paquete deduce inventario de componentes
                           </label>
                         </div>
+                      )}
+                      {formData.productType === 'kit' && (
+                        <p className="col-span-2 text-xs text-gray-500">
+                          La composición se carga en la pestaña <strong>Componentes</strong> (arriba).
+                        </p>
                       )}
                     </div>
                   </CardContent>
@@ -664,6 +679,35 @@ export default function EditarProductoAdminPage() {
                   </Card>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* ===== TAB: COMPONENTES (kits/paquetes; promos editan en su módulo) ===== */}
+          {activeTab === 'componentes' && product && (
+            <div className="max-w-4xl">
+              {formData.productType === 'promotional' ? (
+                <Card className="p-0">
+                  <CardContent className="p-6 space-y-3">
+                    <h2 className="text-lg font-semibold">Componentes de la promoción</h2>
+                    <p className="text-sm text-gray-600">
+                      Las promociones se administran en su propio módulo, donde la composición se
+                      puede definir global o por país, junto con sus reglas de canje y vigencias.
+                    </p>
+                    <Link
+                      href={`/admin/promociones/${id}`}
+                      className="inline-flex items-center gap-2 text-sm font-medium text-[#3E667D] hover:underline"
+                    >
+                      Abrir editor de la promoción →
+                    </Link>
+                  </CardContent>
+                </Card>
+              ) : (
+                <ProductComponentsSection
+                  productId={id}
+                  deductsInventory={formData.kitDeductsInventory}
+                  noun="paquete"
+                />
+              )}
             </div>
           )}
 

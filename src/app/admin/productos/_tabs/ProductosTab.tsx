@@ -28,6 +28,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useProducts, useCategories, useDeleteProduct } from '@/hooks/useProducts';
 import type { Product, ProductQueryParams } from '@/types/product';
+import { ProductType } from '@/types/product';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 
@@ -62,6 +63,8 @@ export function ProductosTab() {
       limit: pageSize,
       sortBy: 'createdAt',
       sortDir: 'desc',
+      // Las promociones se administran en su propia pestaña.
+      excludeProductType: ProductType.PROMOTIONAL,
     };
     if (searchQuery) params.search = searchQuery;
     if (filterCode) params.sku = filterCode;
@@ -72,7 +75,7 @@ export function ProductosTab() {
   }, [searchQuery, filterCode, filterCategoryId, filterStatus, currentPage, pageSize]);
 
   const activeStatsParams: ProductQueryParams = useMemo(() => {
-    const p: ProductQueryParams = { sortBy: 'createdAt', sortDir: 'desc', limit: 1, page: 1, isActive: true };
+    const p: ProductQueryParams = { sortBy: 'createdAt', sortDir: 'desc', limit: 1, page: 1, isActive: true, excludeProductType: ProductType.PROMOTIONAL };
     if (searchQuery) p.search = searchQuery;
     if (filterCode) p.sku = filterCode;
     if (filterCategoryId) p.categoryId = filterCategoryId;
@@ -80,7 +83,7 @@ export function ProductosTab() {
   }, [searchQuery, filterCode, filterCategoryId]);
 
   const featuredStatsParams: ProductQueryParams = useMemo(() => {
-    const p: ProductQueryParams = { sortBy: 'createdAt', sortDir: 'desc', limit: 1, page: 1, isFeatured: true };
+    const p: ProductQueryParams = { sortBy: 'createdAt', sortDir: 'desc', limit: 1, page: 1, isFeatured: true, excludeProductType: ProductType.PROMOTIONAL };
     if (searchQuery) p.search = searchQuery;
     if (filterCode) p.sku = filterCode;
     if (filterCategoryId) p.categoryId = filterCategoryId;
@@ -168,6 +171,7 @@ export function ProductosTab() {
       const baseQuery: ProductQueryParams = {
         sortBy: 'createdAt',
         sortDir: 'desc',
+        excludeProductType: ProductType.PROMOTIONAL,
       };
       if (searchQuery) baseQuery.search = searchQuery;
       if (filterCategoryId) baseQuery.categoryId = filterCategoryId;

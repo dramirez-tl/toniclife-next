@@ -5,38 +5,24 @@ import Link from 'next/link';
 import {
   ArrowLeftIcon,
   GiftIcon,
-  PlusIcon,
-  TrashIcon,
   CheckIcon,
-  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-  useKit,
-  useKitComponents,
-  useReplaceKitComponents,
-} from '@/hooks/useKits';
+import { useKit } from '@/hooks/useKits';
 import { useProducts, useUpdateProduct } from '@/hooks/useProducts';
 import {
-  ProductType,
   KitType,
   KitPosition,
   KIT_POSITION_LABEL,
 } from '@/types/product';
-import type { Product } from '@/types/product';
-import type { BulkComponentItem } from '@/types/kit';
 import { ProductPricesSection } from '@/components/admin/products/ProductPricesSection';
 import { ProductInventoryByBranch } from '@/components/admin/products/ProductInventoryByBranch';
 import { ProductMediaSection } from '@/components/admin/products/ProductMediaSection';
 import { KitBonusesSection } from '@/components/admin/products/KitBonusesSection';
-
-type CompRow = BulkComponentItem & {
-  productName: string;
-  productCode: string;
-};
+import { ProductComponentsSection } from '@/components/admin/products/ProductComponentsSection';
 
 type Tab =
   | 'general'
@@ -63,9 +49,7 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
   const { id } = use(params);
 
   const { data: kit, isLoading: kitLoading } = useKit(id);
-  const { data: components, isLoading: compsLoading } = useKitComponents(id);
   const updateProduct = useUpdateProduct();
-  const replaceComponents = useReplaceKitComponents(id);
 
   const [activeTab, setActiveTab] = useState<Tab>('general');
 
@@ -121,58 +105,6 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
       : undefined;
   const codeTaken = !!codeConflict;
 
-  // -------- componentes (compositor) --------
-  const [rows, setRows] = useState<CompRow[]>([]);
-  const [productSearch, setProductSearch] = useState('');
-
-  useEffect(() => {
-    if (components) {
-      setRows(
-        components.map((c) => ({
-          componentProductId: c.componentProductId ?? '',
-          productName: c.componentProductName ?? '',
-          productCode: c.componentProductCode ?? '',
-          quantity: Number(c.quantity),
-          sortOrder: c.sortOrder,
-        })),
-      );
-    }
-  }, [components]);
-
-  const { data: productSearchResults } = useProducts(
-    productSearch.trim().length >= 2
-      ? { search: productSearch, isActive: true, limit: 10, productType: ProductType.FINISHED_GOOD }
-      : { limit: 0 },
-  );
-
-  const addComponent = (p: Product) => {
-    if (rows.some((r) => r.componentProductId === p.id)) {
-      toast.warning('Ese producto ya está en el kit');
-      return;
-    }
-    setRows((prev) => [
-      ...prev,
-      {
-        componentProductId: p.id,
-        productName: p.name,
-        productCode: p.code,
-        quantity: 1,
-        sortOrder: prev.length,
-      },
-    ]);
-    setProductSearch('');
-  };
-
-  const removeRow = (productId: string) => {
-    setRows((prev) => prev.filter((r) => r.componentProductId !== productId));
-  };
-
-  const updateQty = (productId: string, qty: number) => {
-    setRows((prev) =>
-      prev.map((r) => (r.componentProductId === productId ? { ...r, quantity: qty } : r)),
-    );
-  };
-
   const handleSaveDetails = async () => {
     if (!kit) return;
     if (!code.trim()) {
@@ -216,22 +148,6 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
       toast.success('Datos del kit actualizados');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Error al actualizar';
-      toast.error(msg);
-    }
-  };
-
-  const handleSaveComponents = async () => {
-    try {
-      await replaceComponents.mutateAsync({
-        components: rows.map((r, i) => ({
-          componentProductId: r.componentProductId,
-          quantity: r.quantity,
-          sortOrder: i,
-        })),
-      });
-      toast.success('Composición del kit guardada');
-    } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Error al guardar componentes';
       toast.error(msg);
     }
   };
@@ -501,97 +417,13 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
           </div>
         )}
 
-        {/* ===== COMPONENTES ===== */}
+        {/* ===== COMPONENTES (compositor compartido con el editor de producto) ===== */}
         {activeTab === 'componentes' && (
-          <Card>
-            <CardContent className="p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Componentes del kit ({rows.length})</h2>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={handleSaveComponents}
-                  disabled={replaceComponents.isPending || compsLoading}
-                >
-                  {replaceComponents.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-                  <CheckIcon className="h-4 w-4" />
-                  Guardar composición
-                </Button>
-              </div>
-
-              <div className="relative">
-                <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  value={productSearch}
-                  onChange={(e) => setProductSearch(e.target.value)}
-                  placeholder="Buscar producto para agregar (mínimo 2 caracteres)..."
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
-                />
-                {productSearch.trim().length >= 2 && productSearchResults?.data && productSearchResults.data.length > 0 && (
-                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-72 overflow-y-auto">
-                    {productSearchResults.data.map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => addComponent(p)}
-                        className="w-full text-left px-4 py-2 hover:bg-gray-50 flex items-center justify-between"
-                      >
-                        <div>
-                          <div className="text-sm font-medium">{p.name}</div>
-                          <div className="text-xs text-gray-500 font-mono">{p.code}</div>
-                        </div>
-                        <PlusIcon className="h-4 w-4 text-[#3E667D]" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {rows.length === 0 ? (
-                <div className="text-center py-12 text-gray-500 border-2 border-dashed rounded-lg">
-                  <p className="text-sm">No hay componentes. Busca productos arriba para agregarlos al kit.</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {rows.map((row) => (
-                    <div
-                      key={row.componentProductId}
-                      className="flex items-center gap-3 p-3 border border-gray-200 rounded-md hover:bg-gray-50"
-                    >
-                      <div className="flex-1">
-                        <div className="text-sm font-medium">{row.productName}</div>
-                        <div className="text-xs text-gray-500 font-mono">{row.productCode}</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <label className="text-xs text-gray-500">Cant:</label>
-                        <input
-                          type="number"
-                          min={0.0001}
-                          step={0.0001}
-                          value={row.quantity}
-                          onChange={(e) => updateQty(row.componentProductId, Number(e.target.value))}
-                          className="w-24 px-2 py-1 border border-gray-300 rounded text-sm text-right"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeRow(row.componentProductId)}
-                        className="text-red-500 hover:text-red-700 p-1"
-                        title="Quitar"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <p className="text-xs text-gray-500 border-t pt-3">
-                Con &quot;descontar inventario&quot; activo, al vender el kit se descuenta stock de cada producto listado aquí.
-              </p>
-            </CardContent>
-          </Card>
+          <ProductComponentsSection
+            productId={id}
+            deductsInventory={kitDeductsInventory}
+            noun="kit"
+          />
         )}
 
         {/* ===== PRECIOS Y FISCAL ===== */}
