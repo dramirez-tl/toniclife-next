@@ -529,7 +529,11 @@ export default function EditarProductoAdminPage() {
                             { value: 'raw_material', label: 'Materia Prima' },
                             { value: 'kit', label: 'Kit (inscripción de distribuidores)' },
                             { value: 'pack', label: 'Paquete (con componentes)' },
-                            { value: 'promotional', label: 'Promocional' },
+                            // 'promotional' solo se muestra si el producto YA lo es
+                            // (las promos se administran en /admin/promociones).
+                            ...(formData.productType === 'promotional'
+                              ? [{ value: 'promotional', label: 'Promocional' }]
+                              : []),
                             { value: 'virtual', label: 'Virtual' },
                             { value: 'service', label: 'Servicio' },
                           ]}

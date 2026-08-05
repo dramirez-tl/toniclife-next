@@ -355,7 +355,7 @@ export default function NuevoProductoAdminPage() {
                         { value: 'raw_material', label: 'Materia Prima' },
                         { value: 'kit', label: 'Kit (inscripción de distribuidores)' },
                         { value: 'pack', label: 'Paquete (con componentes)' },
-                        { value: 'promotional', label: 'Promocional' },
+                        // Sin 'promotional': las promos se crean en /admin/promociones.
                         { value: 'virtual', label: 'Virtual' },
                         { value: 'service', label: 'Servicio' },
                       ]}
