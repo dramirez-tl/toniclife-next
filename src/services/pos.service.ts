@@ -22,6 +22,7 @@ import type {
   CancelSaleInput,
   SaleQueryParams,
   SaleListResponse,
+  SalesStatsResponse,
   DailySalesSummary,
   // Payment
   ProcessPaymentInput,
@@ -152,6 +153,17 @@ class PosService {
    */
   async getSales(params?: SaleQueryParams): Promise<SaleListResponse> {
     const response = await api.get<SaleListResponse>('/pos/sales', { params });
+    return response.data;
+  }
+
+  /**
+   * Totales agregados server-side por moneda y estado con los mismos filtros
+   * del listado (dictamen 3.3.1: sin tope de 5000 filas ni sumas en cliente).
+   */
+  async getSalesStats(params?: SaleQueryParams): Promise<SalesStatsResponse> {
+    const response = await api.get<SalesStatsResponse>('/pos/sales/stats', {
+      params,
+    });
     return response.data;
   }
 

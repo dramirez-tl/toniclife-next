@@ -169,6 +169,19 @@ export const useSales = (params?: SaleQueryParams, enabled = true) => {
 };
 
 /**
+ * Totales agregados server-side (dictamen 3.3.1): SUM/COUNT por moneda y
+ * estado con los mismos filtros del listado — sin tope de filas.
+ */
+export const useSalesStats = (params?: SaleQueryParams, enabled = true) => {
+  return useQuery({
+    queryKey: [...posKeys.saleList(params), 'stats'] as const,
+    queryFn: () => posService.getSalesStats(params),
+    staleTime: 1 * 60 * 1000,
+    enabled,
+  });
+};
+
+/**
  * Get daily sales summary
  */
 export const useDailySalesSummary = (branchId: string, date?: string) => {

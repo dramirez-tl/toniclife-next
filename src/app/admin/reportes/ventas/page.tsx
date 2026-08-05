@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { useActiveBranches } from '@/hooks/useBranches';
-import { useSales, useSale, useUpdateSalePaymentMethod } from '@/hooks/usePos';
+import { useSales, useSalesStats, useSale, useUpdateSalePaymentMethod } from '@/hooks/usePos';
 import { useAppSelector } from '@/store';
 import { selectUserRoles } from '@/store';
 import type { Sale, SaleItem, SaleQueryParams, PosSaleStatus, PosPaymentMethod } from '@/types/pos';
@@ -789,7 +789,9 @@ function VentasReportesContent() {
     sortOrder: 'desc',
   }), [selectedBranch, selectedStatus, selectedPaymentMethod, selectedCustomerNumber, dateFrom, dateTo, currentPage, pageSize]);
 
-  // Query separado para stats — mismos filtros, sin paginación
+  // Stats server-side (dictamen 3.3.1): SUM/COUNT por moneda y estado con los
+  // MISMOS filtros — antes se bajaban hasta 5000 filas y se sumaban en el
+  // cliente, subreportando en silencio cuando el filtro excedía el tope.
   const statsQueryParams = useMemo<SaleQueryParams>(() => ({
     branchId: selectedBranch !== 'all' ? selectedBranch : undefined,
     status: selectedStatus !== 'all' ? (selectedStatus as PosSaleStatus) : undefined,
@@ -797,43 +799,40 @@ function VentasReportesContent() {
     customerNumber: selectedCustomerNumber || undefined,
     fromDate: dateFrom,
     toDate: dateTo,
-    page: 1,
-    limit: 5000,
-    sortBy: 'createdAt',
-    sortOrder: 'desc',
   }), [selectedBranch, selectedStatus, selectedPaymentMethod, selectedCustomerNumber, dateFrom, dateTo]);
 
   const { data: salesData, isLoading, isFetching } = useSales(queryParams);
-  const { data: statsData, isLoading: isStatsLoading } = useSales(statsQueryParams);
+  const { data: statsData, isLoading: isStatsLoading } = useSalesStats(statsQueryParams);
 
   const sales = salesData?.data ?? [];
-  const allFilteredSales = statsData?.data ?? [];
   const totalCount = salesData?.total ?? 0;
 
-  // Summary stats — calculados sobre TODOS los resultados del filtro (no solo la página actual)
+  // Summary stats — agregados del servidor sobre TODAS las filas del filtro.
   const pageStats = useMemo(() => {
-    const activeSales = allFilteredSales.filter(s => s.status !== 'cancelled' && s.status !== 'refunded');
-    const cancelledSales = allFilteredSales.filter(s => s.status === 'cancelled' || s.status === 'refunded');
+    const rows = statsData?.byCurrencyStatus ?? [];
+    const isCancelled = (s: string) => s === 'cancelled' || s === 'refunded';
 
-    // Totales activos por moneda
     const totals: Record<string, number> = {};
-    for (const s of activeSales) {
-      const c = s.currencyCode || 'MXN';
-      totals[c] = (totals[c] || 0) + s.total;
-    }
-
-    // Totales cancelados por moneda
     const cancelledTotals: Record<string, number> = {};
-    for (const s of cancelledSales) {
-      const c = s.currencyCode || 'MXN';
-      cancelledTotals[c] = (cancelledTotals[c] || 0) + s.total;
+    let activeCount = 0;
+    let cancelledCount = 0;
+    let mxnActiveCount = 0;
+
+    for (const r of rows) {
+      const c = r.currencyCode || 'MXN';
+      if (isCancelled(r.status)) {
+        cancelledTotals[c] = (cancelledTotals[c] || 0) + r.total;
+        cancelledCount += r.count;
+      } else {
+        totals[c] = (totals[c] || 0) + r.total;
+        activeCount += r.count;
+        if (c === 'MXN') mxnActiveCount += r.count;
+      }
     }
 
-    // Ticket promedio MXN activo
-    const mxnActive = activeSales.filter(s => (s.currencyCode || 'MXN') === 'MXN');
-    const avgTicketMXN = mxnActive.length > 0 ? (totals['MXN'] || 0) / mxnActive.length : 0;
+    const avgTicketMXN =
+      mxnActiveCount > 0 ? (totals['MXN'] || 0) / mxnActiveCount : 0;
 
-    // Monedas presentes (primero MXN, luego el resto)
     const allCurrencies = Array.from(
       new Set([...Object.keys(totals), ...Object.keys(cancelledTotals)])
     ).sort((a, b) => (a === 'MXN' ? -1 : b === 'MXN' ? 1 : a.localeCompare(b)));
@@ -841,12 +840,12 @@ function VentasReportesContent() {
     return {
       totals,
       cancelledTotals,
-      activeCount: activeSales.length,
-      cancelledCount: cancelledSales.length,
+      activeCount,
+      cancelledCount,
       avgTicketMXN,
       currencies: allCurrencies,
     };
-  }, [allFilteredSales]);
+  }, [statsData]);
 
   // ================================
   // Table columns

@@ -43,6 +43,50 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '2mb',
     },
   },
+
+  // Cabeceras de seguridad (dictamen SIWEB 3.2.3). La CSP arranca en
+  // Report-Only para no romper Stripe/Analytics en producción: se endurece a
+  // enforcing cuando los reportes salgan limpios.
+  async headers() {
+    const apiOrigin = (
+      process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1'
+    ).replace(/\/api\/v1\/?$/, '');
+    const csp = [
+      "default-src 'self'",
+      // Next inyecta scripts inline (hydration) y Stripe carga su JS.
+      "script-src 'self' 'unsafe-inline' https://js.stripe.com https://va.vercel-scripts.com",
+      "style-src 'self' 'unsafe-inline'",
+      `img-src 'self' data: blob: https:`,
+      "font-src 'self' data:",
+      `connect-src 'self' ${apiOrigin} https://api.stripe.com https://vitals.vercel-insights.com wss:`,
+      'frame-src https://js.stripe.com https://hooks.stripe.com',
+      "object-src 'none'",
+      "base-uri 'self'",
+      "frame-ancestors 'none'",
+    ].join('; ');
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()',
+          },
+          {
+            key: 'Strict-Transport-Security',
+            value: 'max-age=31536000; includeSubDomains',
+          },
+          { key: 'Content-Security-Policy-Report-Only', value: csp },
+        ],
+      },
+    ];
+  },
 };
 
 export default withNextIntl(nextConfig);

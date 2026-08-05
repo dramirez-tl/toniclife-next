@@ -69,18 +69,47 @@ function KardexContent() {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      // Fetch ALL movements with current filters but no pagination limit
-      const allData = await inventoryService.getKardex(productId, {
+      // Exportar TODO paginando (dictamen 3.3.2: antes una sola llamada con
+      // limit=10000 truncaba en silencio kardex más largos).
+      const baseQuery = {
         branchId: branchFilter || undefined,
         movementType: movementTypeFilter || undefined,
         fromDate: fromDate || undefined,
         toDate: toDate || undefined,
-        limit: 10000,
+      };
+      const PAGE_SIZE = 1000;
+      const firstPage = await inventoryService.getKardex(productId, {
+        ...baseQuery,
+        page: 1,
+        limit: PAGE_SIZE,
       });
+      const allMovements = [...(firstPage?.movements ?? [])];
+      const expectedTotal = firstPage?.total ?? allMovements.length;
+      let pageNum = 2;
+      while (
+        allMovements.length < expectedTotal &&
+        pageNum <= Math.ceil(expectedTotal / PAGE_SIZE)
+      ) {
+        const next = await inventoryService.getKardex(productId, {
+          ...baseQuery,
+          page: pageNum,
+          limit: PAGE_SIZE,
+        });
+        if (!next?.movements?.length) break;
+        allMovements.push(...next.movements);
+        pageNum += 1;
+      }
+      const allData = { ...firstPage, movements: allMovements };
 
       if (!allData?.movements?.length) {
         toast.warning('No hay movimientos para exportar');
         return;
+      }
+      if (allMovements.length < expectedTotal) {
+        toast.warning(
+          `Exportación parcial: ${allMovements.length} de ${expectedTotal} movimientos`,
+          { description: 'Acota el rango de fechas y vuelve a exportar.' },
+        );
       }
 
       const name = productName || allData.product?.name || 'Producto';

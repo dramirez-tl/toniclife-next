@@ -314,6 +314,20 @@ export interface SaleListResponse {
   totalPages: number;
 }
 
+/** Fila de GET /pos/sales/stats (agregados server-side — dictamen 3.3.1). */
+export interface SalesStatsRow {
+  currencyCode: string;
+  status: string;
+  count: number;
+  subtotal: number;
+  taxAmount: number;
+  total: number;
+}
+
+export interface SalesStatsResponse {
+  byCurrencyStatus: SalesStatsRow[];
+}
+
 export interface DailySalesSummary {
   date: string;
   totalSales: number;
