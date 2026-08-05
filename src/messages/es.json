@@ -548,6 +548,8 @@
         "atClose": "Al cierre",
         "commissions": "Comisiones",
         "commissionsAtClose": "se calcula al cierre del periodo",
+        "commissionsPrevPeriod": "Comisiones {period}",
+        "currentAtCloseHint": "las de este periodo se mostrarán al cierre",
         "thisPeriodCurrency": "este periodo · {currency}",
         "inNetwork": "En tu red",
         "activeCount": "{count} activos",

@@ -35,11 +35,12 @@ export const distributorKeys = {
 /**
  * Hook para obtener el dashboard completo del distribuidor
  */
-export function useDashboard(periodId?: string) {
+export function useDashboard(periodId?: string, enabled = true) {
   return useQuery<DashboardResponse>({
     queryKey: distributorKeys.dashboard(periodId),
     queryFn: () => distributorApi.getDashboard(periodId),
     staleTime: 2 * 60 * 1000, // 2 minutos
+    enabled,
   });
 }
 

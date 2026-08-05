@@ -34,6 +34,7 @@ import type { RankType } from '@/types/network';
 import { usePaymentData } from '@/hooks/usePaymentData';
 import {
   useDistributorDashboard,
+  useDashboard,
   useCopyReferralLink,
   useShareReferralLink,
 } from '@/hooks/useDistributor';
@@ -105,6 +106,24 @@ export default function DistribuidorDashboard() {
   });
   const isCurrentSelected =
     !!currentPeriodData?.id && selectedPeriodId === currentPeriodData.id;
+
+  // Comisión del PERIODO ANTERIOR (lo cobrado en el último cierre): con el
+  // periodo actual seleccionado, la tarjeta de comisiones muestra ese monto
+  // — las del periodo en curso no existen hasta el cierre. sortedPeriods va
+  // descendente, así que el anterior es el siguiente al actual en la lista.
+  const currentIdx = sortedPeriods.findIndex(
+    (p: any) => p?.id === currentPeriodData?.id,
+  );
+  const prevPeriod = currentIdx >= 0 ? sortedPeriods[currentIdx + 1] : undefined;
+  const { data: prevPeriodDashboard } = useDashboard(
+    prevPeriod?.id,
+    isCurrentSelected && !!prevPeriod?.id,
+  );
+  const prevNetRaw =
+    prevPeriodDashboard?.dashboard?.commissionsSummary?.totalNet;
+  const prevPeriodNet = prevNetRaw != null ? Number(prevNetRaw) : null;
+  const prevPeriodName: string =
+    prevPeriod?.name ?? prevPeriod?.period_name ?? '';
 
   // React Query hooks
   const {
@@ -488,11 +507,27 @@ export default function DistribuidorDashboard() {
             <div className="p-4 text-center">
               <CurrencyDollarIcon className="h-5 w-5 text-[#3E667D] mx-auto mb-1" />
               {isCurrentSelected ? (
-                <>
-                  <p className="text-base font-bold text-gray-400 leading-tight mt-0.5">{t('stats.atClose')}</p>
-                  <p className="text-[11px] font-medium text-gray-600">{t('stats.commissions')}</p>
-                  <p className="text-[10px] text-gray-400">{t('stats.commissionsAtClose')}</p>
-                </>
+                prevPeriodNet != null && prevPeriodName ? (
+                  <>
+                    {/* Lo COBRADO del último cierre; lo del periodo en curso
+                        no existe hasta cerrar (leyenda sutil abajo). */}
+                    <p className="text-lg font-bold text-[#3E667D] leading-tight">
+                      {formatMoney(prevPeriodNet)}
+                    </p>
+                    <p className="text-[11px] font-medium text-gray-600">
+                      {t('stats.commissionsPrevPeriod', { period: prevPeriodName })}
+                    </p>
+                    <p className="text-[10px] text-gray-400">
+                      {t('stats.currentAtCloseHint')}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-base font-bold text-gray-400 leading-tight mt-0.5">{t('stats.atClose')}</p>
+                    <p className="text-[11px] font-medium text-gray-600">{t('stats.commissions')}</p>
+                    <p className="text-[10px] text-gray-400">{t('stats.commissionsAtClose')}</p>
+                  </>
+                )
               ) : (
                 <>
                   <p className="text-lg font-bold text-[#3E667D] leading-tight">

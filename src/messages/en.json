@@ -548,6 +548,8 @@
         "atClose": "At close",
         "commissions": "Commissions",
         "commissionsAtClose": "calculated at period close",
+        "commissionsPrevPeriod": "{period} commissions",
+        "currentAtCloseHint": "this period's will show at close",
         "thisPeriodCurrency": "this period · {currency}",
         "inNetwork": "In your network",
         "activeCount": "{count} active",
