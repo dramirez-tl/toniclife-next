@@ -1162,6 +1162,7 @@
         "countryLabel": "Country of residence",
         "countryInherit": "Same country as mine (default)",
         "countryLoading": "Loading countries...",
+        "addressTitle": "Address",
         "countryHelp": "Sets the currency and product catalog they will see in the portal."
       },
       "preferred": {

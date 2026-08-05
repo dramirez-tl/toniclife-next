@@ -24,10 +24,17 @@ import {
   ClipboardDocumentIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import api from '@/lib/axios';
 import { kitsService } from '@/services/kits.service';
 import { networkApi } from '@/services/networkApi';
 import { configService } from '@/services/config.service';
 import { useRegisterMember } from '@/hooks/useDistributor';
+import {
+  getAddressForm,
+  validateAddress,
+  buildAddressPayload,
+  type AddressFieldSpec,
+} from '@/lib/address-forms';
 import type {
   RegisterMemberResult,
   KitPayerMode,
@@ -149,12 +156,42 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
     [countriesQuery.data],
   );
 
+  // Domicilio ESTRUCTURADO por país (MX/US/GT/CO): campos según país de
+  // residencia; el estado/departamento sale del catálogo GET /states (público).
+  const [address, setAddress] = useState<
+    Partial<Record<AddressFieldSpec['key'], string>>
+  >({});
+  const [addressStateName, setAddressStateName] = useState('');
+  // País efectivo para el domicilio: el elegido, o (al heredar) el que
+  // corresponde al código resuelto (MX default — mismo criterio que CURP).
+  const addressCountryId = useMemo(() => {
+    if (countryId) return countryId;
+    return (
+      (countriesQuery.data ?? []).find(
+        (c) => c.code?.trim().toUpperCase() === 'MX',
+      )?.id ?? ''
+    );
+  }, [countryId, countriesQuery.data]);
+  const statesQuery = useQuery({
+    queryKey: ['states', addressCountryId],
+    queryFn: async () =>
+      (
+        await api.get<Array<{ id: string; name: string }>>('/states', {
+          params: { countryId: addressCountryId },
+        })
+      ).data,
+    enabled: !!addressCountryId,
+    staleTime: 10 * 60 * 1000,
+  });
+
   const resetAll = () => {
     setForm({ ...EMPTY });
     setUplineCustomerId('');
     setCountryId('');
     setKitProductId('');
     setPayerMode('invite');
+    setAddress({});
+    setAddressStateName('');
   };
 
   const handleClose = () => {
@@ -176,6 +213,7 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
     : 'MX';
   const showCurp = selectedCountryCode === 'MX' || selectedCountryCode === 'FN';
   const todayIso = new Date().toISOString().slice(0, 10);
+  const addressForm = getAddressForm(selectedCountryCode);
 
   const canSubmit =
     form.firstName.trim() &&
@@ -191,6 +229,12 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
     e.preventDefault();
     if (payerMode === 'sponsor' && !kitProductId) {
       toast.error(t('member.errChooseKit'));
+      return;
+    }
+    // Domicilio: obligatorio, con los campos del país del nuevo miembro.
+    const addrError = validateAddress(addressForm, address, addressStateName);
+    if (addrError) {
+      toast.error(addrError);
       return;
     }
     try {
@@ -211,6 +255,7 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
         countryId: countryId || undefined,
         kitProductId: kitProductId || undefined,
         payerMode,
+        address: buildAddressPayload(address, addressStateName),
       });
       setResult(res);
       toast.success(t('member.createdSuccess'));
@@ -385,7 +430,12 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
                   <SearchableSelect
                     options={countryOptions}
                     value={countryId}
-                    onChange={setCountryId}
+                    onChange={(v) => {
+                      setCountryId(v);
+                      // El formulario de domicilio cambia por país: limpiar.
+                      setAddress({});
+                      setAddressStateName('');
+                    }}
                     allLabel={t('member.countryInherit')}
                     allValue=""
                     placeholder={
@@ -398,6 +448,52 @@ export function MemberEnrollmentPanel({ isOpen, onClose }: Props) {
                     {t('member.countryHelp')}
                   </p>
                 </Field>
+
+                {/* Domicilio ESTRUCTURADO según el país (MX/US/GT/CO) — los
+                    campos vienen de lib/address-forms.ts (espejo del POS) y el
+                    estado/departamento del catálogo del API. Al cambiar el país
+                    de residencia, el formulario se re-arma. */}
+                <div className="rounded-lg border border-dashed border-gray-300 p-3">
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
+                    {t('member.addressTitle')}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {addressForm.fields.map((f) => (
+                      <div key={f.key} className={f.half ? '' : 'col-span-2'}>
+                        <Field label={f.required ? `${f.label} *` : f.label}>
+                          <input
+                            className={inputCls}
+                            value={address[f.key] ?? ''}
+                            onChange={(e) =>
+                              setAddress((a) => ({
+                                ...a,
+                                [f.key]: e.target.value,
+                              }))
+                            }
+                            maxLength={f.maxLength}
+                            placeholder={f.placeholder}
+                          />
+                        </Field>
+                      </div>
+                    ))}
+                    <Field label={`${addressForm.stateLabel} *`}>
+                      <SearchableSelect
+                        options={(statesQuery.data ?? []).map((s) => ({
+                          value: s.name,
+                          label: s.name,
+                        }))}
+                        value={addressStateName}
+                        onChange={setAddressStateName}
+                        showAllOption={false}
+                        placeholder={
+                          statesQuery.isLoading
+                            ? t('member.countryLoading')
+                            : addressForm.stateLabel
+                        }
+                      />
+                    </Field>
+                  </div>
+                </div>
 
                 {/* Colocación en la red */}
                 <Field label={t('member.uplineLabel')}>

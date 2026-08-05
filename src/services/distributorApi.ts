@@ -40,6 +40,8 @@ export interface RegisterMemberRequest {
   uplineCustomerId?: string;
   kitProductId?: string;
   payerMode: KitPayerMode;
+  /** Domicilio ESTRUCTURADO por país (ver lib/address-forms.ts). */
+  address?: import('@/lib/address-forms').RegistrationAddress;
 }
 
 export interface RegisterMemberResult {

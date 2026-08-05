@@ -1162,6 +1162,7 @@
         "countryLabel": "País de residencia",
         "countryInherit": "Mismo país que el mío (por defecto)",
         "countryLoading": "Cargando países...",
+        "addressTitle": "Domicilio",
         "countryHelp": "Define la moneda y el catálogo de productos con el que verá el portal."
       },
       "preferred": {
