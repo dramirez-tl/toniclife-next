@@ -254,7 +254,12 @@ export function CommissionBreakdown({
               )}
               {companyWh > 0 && (
                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
-                  <span className="text-sm text-gray-600">{t('step4CompanyWithholding')}</span>
+                  <span className="text-sm text-gray-600">
+                    {t('step4CompanyWithholding')}
+                    {summary.withholdingsProjected && (
+                      <span className="ml-1 text-xs text-gray-400">({t('step4WithholdingPending')})</span>
+                    )}
+                  </span>
                   <span className="text-sm font-semibold text-red-500 tabular-nums">- {fmt(companyWh)}</span>
                 </div>
               )}

@@ -627,6 +627,7 @@
         "totalNet": "Total Neto:",
         "retentions": "Retenciones:",
         "companyWithholding": "Convenio empresa:",
+        "companyWithholdingPending": "por aplicar",
         "downloadStatement": "Estado de cuenta",
         "downloadStatementTitleActive": "Disponible al cierre del periodo",
         "downloadStatementTitle": "Descargar tu estado de cuenta del periodo en PDF",
@@ -683,6 +684,7 @@
         "isr": "ISR",
         "resico": "RESICO",
         "companyWithholding": "Retención por convenio con la empresa",
+        "companyWithholdingPending": "por aplicar",
         "netToDeposit": "Neto a depositar",
         "transactions": "{count} transacciones",
         "grossCommission": "Comisión bruta",
@@ -778,6 +780,7 @@
         "step4Isr": "ISR",
         "step4Resico": "RESICO",
         "step4CompanyWithholding": "Retención por convenio con la empresa",
+        "step4WithholdingPending": "se descuenta al pagarte",
         "step4Net": "Neto a pagar"
       },
       "percentages": {

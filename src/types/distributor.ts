@@ -125,6 +125,10 @@ export interface CommissionsSummary {
   /** Retención de convenios de Tesorería aplicada en el periodo (mig 115). */
   companyWithholdings?: number;
 
+  /** true si companyWithholdings incluye retención proyectada al cierre
+   *  (aún sin cobrar por Tesorería). */
+  companyWithholdingsProjected?: boolean;
+
   /** Moneda REAL de los montos (el API convierte a la moneda del distribuidor
    *  cuando hay tasa del periodo; 'MXN' si no pudo convertir). */
   currencyCode?: string;

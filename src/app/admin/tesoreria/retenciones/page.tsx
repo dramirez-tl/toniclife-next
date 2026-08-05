@@ -2,8 +2,9 @@
 
 // Tesorería → Retenciones: convenios de retención sobre comisiones
 // (préstamos personales con saldo + conceptos ad-hoc por distribuidor).
-// La retención se aplica automáticamente al "Marcar como Pagadas" las
-// comisiones del periodo (con preview en la página de Comisiones).
+// Desde el CIERRE del periodo la retención se PROYECTA en los desgloses
+// (distribuidor y admin) junto al total de comisiones; se hace efectiva en
+// automático al "Marcar como Pagadas" (con preview en Comisiones).
 // Diseño: DISENO_RETENCIONES_COMISIONES.md.
 
 import { Suspense, useState } from 'react';
@@ -29,6 +30,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { PermissionGuard } from '@/components/auth';
 import {
@@ -311,7 +319,7 @@ function RetencionesContent() {
       </div>
 
       {showCreate && (
-        <CreateWithholdingDialog onClose={() => setShowCreate(false)} />
+        <CreateWithholdingSheet onClose={() => setShowCreate(false)} />
       )}
       {historyFor && (
         <ApplicationsDialog
@@ -324,12 +332,13 @@ function RetencionesContent() {
 }
 
 // ============================================================
-// Alta de convenio
+// Alta de convenio (panel lateral)
 // ============================================================
-function CreateWithholdingDialog({ onClose }: { onClose: () => void }) {
+function CreateWithholdingSheet({ onClose }: { onClose: () => void }) {
   const createMutation = useCreateWithholding();
 
   const [customerSearch, setCustomerSearch] = useState('');
+  const [exactNumber, setExactNumber] = useState('');
   const [selected, setSelected] = useState<{
     id: string;
     name: string;
@@ -342,13 +351,41 @@ function CreateWithholdingDialog({ onClose }: { onClose: () => void }) {
   const [maxPct, setMaxPct] = useState('30');
   const [notes, setNotes] = useState('');
 
+  // Búsqueda por NOMBRE (parcial, con sugerencias en vivo).
   const { data: searchResults } = useQuery({
     queryKey: ['withholdings', 'customer-search', customerSearch],
     queryFn: () =>
-      customersService.getAll({ search: customerSearch, limit: 10 } as any),
+      customersService.getAll({ search: customerSearch, limit: 10 }),
     enabled: customerSearch.trim().length >= 2 && !selected,
     staleTime: 30 * 1000,
   });
+
+  // Búsqueda por NÚMERO DE DISTRIBUIDOR exacto (input separado; el API
+  // filtra customer_number = <valor>, sin parciales).
+  const exactQuery = exactNumber.trim();
+  const { data: exactData, isFetching: exactFetching } = useQuery({
+    queryKey: ['withholdings', 'customer-exact', exactQuery],
+    queryFn: () =>
+      customersService.getAll({ customerNumber: exactQuery, limit: 1 }),
+    enabled: exactQuery.length >= 1 && !selected,
+    staleTime: 30 * 1000,
+  });
+  const exactMatch = exactData?.data?.[0];
+
+  const selectCustomer = (c: {
+    id: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    customerNumber?: string | null;
+  }) => {
+    setSelected({
+      id: c.id,
+      name: `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim(),
+      number: c.customerNumber ?? '',
+    });
+    setCustomerSearch('');
+    setExactNumber('');
+  };
 
   const handleSubmit = async () => {
     if (!selected) return toast.error('Selecciona un distribuidor');
@@ -387,13 +424,17 @@ function CreateWithholdingDialog({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Nueva retención</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          {/* Distribuidor */}
+    <Sheet open onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-md">
+        <SheetHeader className="pb-0">
+          <SheetTitle>Nueva retención</SheetTitle>
+          <SheetDescription>
+            Convenio de Tesorería que se descuenta de las comisiones de cada
+            periodo hasta liquidarse.
+          </SheetDescription>
+        </SheetHeader>
+        <div className="space-y-4 px-4 pb-6">
+          {/* Distribuidor: buscador por nombre + número exacto */}
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               Distribuidor *
@@ -413,41 +454,75 @@ function CreateWithholdingDialog({ onClose }: { onClose: () => void }) {
                 </button>
               </div>
             ) : (
-              <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <Input
-                  value={customerSearch}
-                  onChange={(e) => setCustomerSearch(e.target.value)}
-                  placeholder="Nombre o número de distribuidor…"
-                  className="pl-9"
-                />
-                {customerSearch.trim().length >= 2 &&
-                  (searchResults as any)?.data?.length > 0 && (
-                    <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg">
-                      {(searchResults as any).data.map((c: any) => (
+              <div className="space-y-2">
+                <div className="relative">
+                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <Input
+                    value={customerSearch}
+                    onChange={(e) => setCustomerSearch(e.target.value)}
+                    placeholder="Buscar por nombre…"
+                    className="pl-9"
+                  />
+                  {customerSearch.trim().length >= 2 &&
+                    searchResults &&
+                    searchResults.data.length > 0 && (
+                      <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                        {searchResults.data.map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => selectCustomer(c)}
+                            className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50"
+                          >
+                            <span>
+                              {c.firstName} {c.lastName}
+                            </span>
+                            <span className="font-mono text-xs text-gray-400">
+                              #{c.customerNumber}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                </div>
+                <div>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
+                      #
+                    </span>
+                    <Input
+                      value={exactNumber}
+                      onChange={(e) => setExactNumber(e.target.value)}
+                      inputMode="numeric"
+                      placeholder="No. de distribuidor (exacto)"
+                      className="pl-8"
+                    />
+                  </div>
+                  {exactQuery.length >= 1 && (
+                    <div className="mt-1">
+                      {exactFetching ? (
+                        <p className="text-xs text-gray-400">Buscando…</p>
+                      ) : exactMatch ? (
                         <button
-                          key={c.id}
                           type="button"
-                          onClick={() => {
-                            setSelected({
-                              id: c.id,
-                              name: `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim(),
-                              number: c.customerNumber ?? '',
-                            });
-                            setCustomerSearch('');
-                          }}
-                          className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50"
+                          onClick={() => selectCustomer(exactMatch)}
+                          className="flex w-full items-center justify-between rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-left text-sm hover:bg-emerald-100"
                         >
                           <span>
-                            {c.firstName} {c.lastName}
+                            {exactMatch.firstName} {exactMatch.lastName}
                           </span>
-                          <span className="font-mono text-xs text-gray-400">
-                            #{c.customerNumber}
+                          <span className="font-mono text-xs font-medium text-emerald-700">
+                            #{exactMatch.customerNumber} · usar
                           </span>
                         </button>
-                      ))}
+                      ) : (
+                        <p className="text-xs text-amber-600">
+                          Sin coincidencia con el número exacto “{exactQuery}”.
+                        </p>
+                      )}
                     </div>
                   )}
+                </div>
               </div>
             )}
             <p className="mt-1 text-xs text-gray-400">
@@ -540,10 +615,11 @@ function CreateWithholdingDialog({ onClose }: { onClose: () => void }) {
           </div>
 
           <div className="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700">
-            La retención se aplica automáticamente al <strong>Marcar como
-            Pagadas</strong> las comisiones del periodo, respetando el tope %
-            del neto. Si el neto no alcanza, se retiene lo disponible y el
-            resto permanece en el saldo.
+            Desde el <strong>cierre del periodo</strong> el distribuidor ya ve
+            la retención proyectada junto a su total de comisiones; se hace
+            efectiva en automático al <strong>Marcar como Pagadas</strong>,
+            respetando el tope % del neto. Si el neto no alcanza, se retiene
+            lo disponible y el resto permanece en el saldo.
           </div>
 
           <div className="flex justify-end gap-2 pt-1">
@@ -562,8 +638,8 @@ function CreateWithholdingDialog({ onClose }: { onClose: () => void }) {
             </Button>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
 

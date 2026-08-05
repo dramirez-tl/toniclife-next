@@ -179,7 +179,12 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                         etiqueta genérica por decisión de negocio. */}
                     {parseFloat(summary.companyWithholdings || '0') > 0 && (
                       <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-white/70">{t('companyWithholding')}</span>
+                        <span className="text-white/70">
+                          {t('companyWithholding')}
+                          {summary.withholdingsProjected && (
+                            <span className="ml-1 text-xs text-white/50">({t('companyWithholdingPending')})</span>
+                          )}
+                        </span>
                         <span className="text-white font-medium">
                           -{formatCurrency(summary.companyWithholdings || '0')}<Badge light />
                         </span>
@@ -417,7 +422,12 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
             )}
             {parseFloat(summary.companyWithholdings || '0') > 0 && (
               <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-                <span className="text-sm text-gray-600">{t('companyWithholding')}</span>
+                <span className="text-sm text-gray-600">
+                  {t('companyWithholding')}
+                  {summary.withholdingsProjected && (
+                    <span className="ml-1 text-xs text-gray-400">({t('companyWithholdingPending')})</span>
+                  )}
+                </span>
                 <span className="text-sm font-semibold text-red-500 tabular-nums">- {formatCurrency(summary.companyWithholdings || '0')}</span>
               </div>
             )}

@@ -627,6 +627,7 @@
         "totalNet": "Total Net:",
         "retentions": "Withholdings:",
         "companyWithholding": "Company agreement:",
+        "companyWithholdingPending": "to be applied",
         "downloadStatement": "Account statement",
         "downloadStatementTitleActive": "Available at the end of the period",
         "downloadStatementTitle": "Download your period account statement as PDF",
@@ -683,6 +684,7 @@
         "isr": "ISR",
         "resico": "RESICO",
         "companyWithholding": "Company agreement withholding",
+        "companyWithholdingPending": "to be applied",
         "netToDeposit": "Net to deposit",
         "transactions": "{count} transactions",
         "grossCommission": "Gross commission",
@@ -778,6 +780,7 @@
         "step4Isr": "ISR",
         "step4Resico": "RESICO",
         "step4CompanyWithholding": "Company agreement withholding",
+        "step4WithholdingPending": "deducted when you get paid",
         "step4Net": "Net to pay"
       },
       "percentages": {

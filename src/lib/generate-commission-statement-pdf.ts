@@ -131,9 +131,10 @@ export function generateCommissionStatementPdf(
   if (parseFloat(s.totalRetentions || '0') > 0)
     rows.push(['Retenciones (impuestos)', `- ${money(s.totalRetentions)}`]);
   // Retención por convenio con la empresa (Tesorería) — etiqueta genérica.
+  // "(por aplicar)" cuando es proyección al cierre (aún sin pagar).
   if (parseFloat(s.companyWithholdings || '0') > 0)
     rows.push([
-      'Retención por convenio con la empresa',
+      `Retención por convenio con la empresa${s.withholdingsProjected ? ' (por aplicar)' : ''}`,
       `- ${money(s.companyWithholdings)}`,
     ]);
 

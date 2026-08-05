@@ -245,7 +245,12 @@ function ComisionesContent() {
                   {parseFloat(commissionsData.summary.companyWithholdings || '0') > 0 && (
                     <div className="flex items-center gap-2 bg-orange-500/20 backdrop-blur-sm rounded-full px-4 py-2 border border-orange-400/30">
                       <BanknotesIcon className="h-4 w-4 text-orange-300" />
-                      <span className="text-white/80 text-sm">{t('companyWithholding')}</span>
+                      <span className="text-white/80 text-sm">
+                        {t('companyWithholding')}
+                        {commissionsData.summary.withholdingsProjected && (
+                          <span className="ml-1 text-[10px] text-orange-200/80">({t('companyWithholdingPending')})</span>
+                        )}
+                      </span>
                       <span className="text-orange-300 font-bold">
                         -{new Intl.NumberFormat(currencyCode === 'USD' ? 'en-US' : 'es-MX', { style: 'currency', currency: currencyCode, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(parseFloat(commissionsData.summary.companyWithholdings || '0'))}
                       </span>

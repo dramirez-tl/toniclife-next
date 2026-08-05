@@ -64,6 +64,9 @@ export interface CommissionSummary {
   companyWithholdings?: string;
   /** Neto DESPUÉS de retenciones de Tesorería (lo dispersado). */
   netAfterWithholdings?: string;
+  /** true si companyWithholdings incluye retención PROYECTADA (periodo
+   *  cerrado, aún sin pagar): se hará efectiva al marcar como pagadas. */
+  withholdingsProjected?: boolean;
   transactionCount: number;
   personalSales?: string;
   networkSalesVolume?: string;

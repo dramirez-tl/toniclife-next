@@ -772,16 +772,22 @@ function ComisionesContent() {
                   <span className="text-sm font-bold tabular-nums text-primary">{formatCurrency(summary.totalNetMxn)}</span>
                 </div>
                 {/* Retenciones de Tesorería (convenios de préstamo/ad-hoc,
-                    mig 115) aplicadas al pagar — para que el desglose cuadre
-                    con lo realmente dispersado. */}
+                    mig 115). Desde el cierre incluye la parte PROYECTADA
+                    (aún sin pagar) para que el desglose enseñe el
+                    dispersable real; al pagar deja de decir "por aplicar". */}
                 {parseFloat(summary.companyWithholdings || '0') > 0 && (
                   <>
                     <div className="flex items-center justify-between border-t border-border px-5 py-3">
-                      <span className="text-sm text-muted-foreground">Retenciones de empresa (convenios)</span>
+                      <span className="text-sm text-muted-foreground">
+                        Retenciones de empresa (convenios)
+                        {summary.withholdingsProjected && (
+                          <span className="ml-1 text-xs text-amber-600">— por aplicar al pagar</span>
+                        )}
+                      </span>
                       <span className="text-sm font-semibold tabular-nums text-destructive">- {formatCurrency(summary.companyWithholdings || '0')}</span>
                     </div>
                     <div className="flex items-center justify-between border-t border-border bg-emerald-500/5 px-5 py-3">
-                      <span className="text-sm font-bold text-emerald-700">DISPERSADO</span>
+                      <span className="text-sm font-bold text-emerald-700">{summary.withholdingsProjected ? 'A DISPERSAR' : 'DISPERSADO'}</span>
                       <span className="text-sm font-bold tabular-nums text-emerald-700">{formatCurrency(summary.netAfterWithholdings || summary.totalNetMxn)}</span>
                     </div>
                   </>
