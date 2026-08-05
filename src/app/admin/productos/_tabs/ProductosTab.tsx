@@ -384,10 +384,11 @@ export function ProductosTab() {
       render: (product) => (
         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
           product.productType === 'kit' ? 'bg-purple-100 text-purple-700' :
+          product.productType === 'pack' ? 'bg-sky-100 text-sky-700' :
           product.productType === 'promotional' ? 'bg-orange-100 text-orange-700' :
           'bg-gray-100 text-gray-700'
         }`}>
-          {product.productType}
+          {product.productType === 'pack' ? 'paquete' : product.productType}
         </span>
       ),
     },

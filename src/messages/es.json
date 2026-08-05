@@ -135,6 +135,7 @@
     "earnPoints": "Gana {points} puntos con esta compra",
     "reviews": "({count} reseñas)",
     "kitIncludes": "Este kit incluye:",
+    "packIncludes": "Este paquete incluye:",
     "quantity": "Cantidad",
     "inStock": "En stock",
     "onlyAvailable": "Solo {count} disponibles",

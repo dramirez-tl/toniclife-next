@@ -8,6 +8,8 @@ export enum ProductType {
   FINISHED_GOOD = 'finished_good',
   RAW_MATERIAL = 'raw_material',
   KIT = 'kit',
+  // Paquete comercial con componentes (BoM) — distinto del kit de inscripción.
+  PACK = 'pack',
   PROMOTIONAL = 'promotional',
   VIRTUAL = 'virtual',
   SERVICE = 'service',

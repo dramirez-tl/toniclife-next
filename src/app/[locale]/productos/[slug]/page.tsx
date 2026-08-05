@@ -109,10 +109,10 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     error,
   } = useProductBySlug(slug, true, countryId);
 
-  // Obtener componentes si es kit
+  // Obtener componentes si es kit o paquete
   const { data: components } = useProductComponents(
     apiProduct?.id || '',
-    apiProduct?.productType === 'kit'
+    apiProduct?.productType === 'kit' || apiProduct?.productType === 'pack'
   );
 
   // Producto del API
@@ -352,7 +352,9 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
             {/* Kit Components (if applicable) */}
             {components && components.length > 0 && (
               <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                <h4 className="font-semibold text-gray-900 mb-3">{t('kitIncludes')}</h4>
+                <h4 className="font-semibold text-gray-900 mb-3">
+                  {apiProduct?.productType === 'pack' ? t('packIncludes') : t('kitIncludes')}
+                </h4>
                 <ul className="space-y-2">
                   {components.map((comp) => (
                     <li key={comp.id} className="flex items-center gap-2">

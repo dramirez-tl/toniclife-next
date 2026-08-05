@@ -348,8 +348,10 @@ export default function EditarProductoAdminPage() {
         <div className="flex gap-1 mb-6 border-b border-gray-200">
           {([
             'general',
-            // Kits/paquetes y promos llevan composición (BoM); el resto no.
-            ...(formData.productType === 'kit' || formData.productType === 'promotional'
+            // Kits, paquetes y promos llevan composición (BoM); el resto no.
+            ...(formData.productType === 'kit' ||
+            formData.productType === 'pack' ||
+            formData.productType === 'promotional'
               ? (['componentes'] as const)
               : []),
             'media',
@@ -525,7 +527,8 @@ export default function EditarProductoAdminPage() {
                           options={[
                             { value: 'finished_good', label: 'Producto Terminado' },
                             { value: 'raw_material', label: 'Materia Prima' },
-                            { value: 'kit', label: 'Kit / Paquete (con componentes)' },
+                            { value: 'kit', label: 'Kit (inscripción de distribuidores)' },
+                            { value: 'pack', label: 'Paquete (con componentes)' },
                             { value: 'promotional', label: 'Promocional' },
                             { value: 'virtual', label: 'Virtual' },
                             { value: 'service', label: 'Servicio' },
@@ -535,7 +538,8 @@ export default function EditarProductoAdminPage() {
                             setFormData(prev => ({
                               ...prev,
                               productType: val,
-                              kitDeductsInventory: val === 'kit' ? prev.kitDeductsInventory : false,
+                              kitDeductsInventory:
+                                val === 'kit' || val === 'pack' ? prev.kitDeductsInventory : false,
                             }));
                           }}
                           showAllOption={false}
@@ -570,7 +574,7 @@ export default function EditarProductoAdminPage() {
                           />
                         </div>
                       )}
-                      {formData.productType === 'kit' && (
+                      {(formData.productType === 'kit' || formData.productType === 'pack') && (
                         <div className="col-span-2 flex items-center">
                           <input
                             type="checkbox"
@@ -585,7 +589,7 @@ export default function EditarProductoAdminPage() {
                           </label>
                         </div>
                       )}
-                      {formData.productType === 'kit' && (
+                      {(formData.productType === 'kit' || formData.productType === 'pack') && (
                         <p className="col-span-2 text-xs text-gray-500">
                           La composición se carga en la pestaña <strong>Componentes</strong> (arriba).
                         </p>
@@ -705,7 +709,7 @@ export default function EditarProductoAdminPage() {
                 <ProductComponentsSection
                   productId={id}
                   deductsInventory={formData.kitDeductsInventory}
-                  noun="paquete"
+                  noun={formData.productType === 'kit' ? 'kit' : 'paquete'}
                 />
               )}
             </div>

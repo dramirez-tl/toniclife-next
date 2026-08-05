@@ -89,7 +89,8 @@ export default function NuevoProductoAdminPage() {
     if (name === 'productType') {
       setFormData(prev => ({
         ...prev,
-        kitDeductsInventory: value === 'kit' ? prev.kitDeductsInventory : false,
+        kitDeductsInventory:
+          value === 'kit' || value === 'pack' ? prev.kitDeductsInventory : false,
       }));
     }
   };
@@ -352,7 +353,8 @@ export default function NuevoProductoAdminPage() {
                       options={[
                         { value: 'finished_good', label: 'Producto Terminado' },
                         { value: 'raw_material', label: 'Materia Prima' },
-                        { value: 'kit', label: 'Kit / Paquete (con componentes)' },
+                        { value: 'kit', label: 'Kit (inscripción de distribuidores)' },
+                        { value: 'pack', label: 'Paquete (con componentes)' },
                         { value: 'promotional', label: 'Promocional' },
                         { value: 'virtual', label: 'Virtual' },
                         { value: 'service', label: 'Servicio' },
@@ -362,7 +364,8 @@ export default function NuevoProductoAdminPage() {
                         setFormData(prev => ({
                           ...prev,
                           productType: val,
-                          kitDeductsInventory: val === 'kit' ? prev.kitDeductsInventory : false,
+                          kitDeductsInventory:
+                            val === 'kit' || val === 'pack' ? prev.kitDeductsInventory : false,
                         }));
                       }}
                       showAllOption={false}
@@ -397,7 +400,7 @@ export default function NuevoProductoAdminPage() {
                       />
                     </div>
                   )}
-                  {formData.productType === 'kit' && (
+                  {(formData.productType === 'kit' || formData.productType === 'pack') && (
                     <p className="col-span-2 text-xs text-gray-500">
                       Guarda el producto y carga su composición en la pestaña{' '}
                       <strong>Componentes</strong> al editarlo.
@@ -473,7 +476,7 @@ export default function NuevoProductoAdminPage() {
                       </label>
                     </div>
                   </div>
-                  {formData.productType === 'kit' && (
+                  {(formData.productType === 'kit' || formData.productType === 'pack') && (
                     <div className="col-span-2">
                       <div className="flex items-center">
                         <input
@@ -485,7 +488,7 @@ export default function NuevoProductoAdminPage() {
                           className="h-4 w-4 text-[#3E667D] focus:ring-[#3E667D] border-gray-300 rounded"
                         />
                         <label htmlFor="kitDeductsInventory" className="ml-2 text-sm text-gray-700">
-                          El kit deduce inventario de componentes
+                          El kit/paquete deduce inventario de componentes
                         </label>
                       </div>
                     </div>
