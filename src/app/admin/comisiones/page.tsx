@@ -23,6 +23,7 @@ import {
   EyeIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
+import { withholdingsService } from '@/services/withholdings.service';
 import {
   useAllCommissions,
   useApproveCommissions,
@@ -210,6 +211,31 @@ function ComisionesContent() {
     if (approvedIds.length === 0) {
       toast.info('No hay comisiones aprobadas para marcar como pagadas');
       return;
+    }
+
+    // Preview de retenciones de Tesorería (convenios de préstamo/ad-hoc):
+    // se muestran ANTES de dispersar para que Tesorería confirme cuánto se
+    // retendrá a quién. Si la mig 115 no está aplicada, se paga sin retención.
+    try {
+      if (effectivePeriodId) {
+        const preview = await withholdingsService.preview(effectivePeriodId);
+        if (preview.items.length > 0) {
+          const totals = Object.entries(preview.totalByCurrency)
+            .map(([cur, v]) => `${formatCurrency(String(v))} ${cur}`)
+            .join(' + ');
+          const names = preview.items
+            .slice(0, 5)
+            .map(i => `• ${i.customerName} (#${i.customerNumber}): -${formatCurrency(String(i.totalWithheld))} ${i.currencyCode}`)
+            .join('\n');
+          const extra = preview.items.length > 5 ? `\n…y ${preview.items.length - 5} más` : '';
+          const ok = window.confirm(
+            `Se aplicarán retenciones de Tesorería por ${totals} a ${preview.items.length} distribuidor(es):\n\n${names}${extra}\n\n¿Continuar con el pago? (el detalle queda en Tesorería → Retenciones)`,
+          );
+          if (!ok) return;
+        }
+      }
+    } catch {
+      // preview no disponible (mig 115 sin aplicar / permiso): pagar sin retención
     }
 
     try {
@@ -745,6 +771,21 @@ function ComisionesContent() {
                   <span className="text-sm font-bold text-primary">NETO</span>
                   <span className="text-sm font-bold tabular-nums text-primary">{formatCurrency(summary.totalNetMxn)}</span>
                 </div>
+                {/* Retenciones de Tesorería (convenios de préstamo/ad-hoc,
+                    mig 115) aplicadas al pagar — para que el desglose cuadre
+                    con lo realmente dispersado. */}
+                {parseFloat(summary.companyWithholdings || '0') > 0 && (
+                  <>
+                    <div className="flex items-center justify-between border-t border-border px-5 py-3">
+                      <span className="text-sm text-muted-foreground">Retenciones de empresa (convenios)</span>
+                      <span className="text-sm font-semibold tabular-nums text-destructive">- {formatCurrency(summary.companyWithholdings || '0')}</span>
+                    </div>
+                    <div className="flex items-center justify-between border-t border-border bg-emerald-500/5 px-5 py-3">
+                      <span className="text-sm font-bold text-emerald-700">DISPERSADO</span>
+                      <span className="text-sm font-bold tabular-nums text-emerald-700">{formatCurrency(summary.netAfterWithholdings || summary.totalNetMxn)}</span>
+                    </div>
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>

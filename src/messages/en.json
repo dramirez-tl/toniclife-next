@@ -626,6 +626,7 @@
         "calculatedAtClose": "Your commissions are calculated at the end of the period",
         "totalNet": "Total Net:",
         "retentions": "Withholdings:",
+        "companyWithholding": "Company agreement:",
         "downloadStatement": "Account statement",
         "downloadStatementTitleActive": "Available at the end of the period",
         "downloadStatementTitle": "Download your period account statement as PDF",
@@ -681,6 +682,7 @@
         "ivaWithholding": "VAT Withholding 10.6667%",
         "isr": "ISR",
         "resico": "RESICO",
+        "companyWithholding": "Company agreement withholding",
         "netToDeposit": "Net to deposit",
         "transactions": "{count} transactions",
         "grossCommission": "Gross commission",
@@ -775,6 +777,7 @@
         "step4IvaWithholding": "VAT Withholding",
         "step4Isr": "ISR",
         "step4Resico": "RESICO",
+        "step4CompanyWithholding": "Company agreement withholding",
         "step4Net": "Net to pay"
       },
       "percentages": {

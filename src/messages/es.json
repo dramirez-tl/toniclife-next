@@ -626,6 +626,7 @@
         "calculatedAtClose": "Tus comisiones se calculan al cierre del periodo",
         "totalNet": "Total Neto:",
         "retentions": "Retenciones:",
+        "companyWithholding": "Convenio empresa:",
         "downloadStatement": "Estado de cuenta",
         "downloadStatementTitleActive": "Disponible al cierre del periodo",
         "downloadStatementTitle": "Descargar tu estado de cuenta del periodo en PDF",
@@ -681,6 +682,7 @@
         "ivaWithholding": "Ret. IVA 10.6667%",
         "isr": "ISR",
         "resico": "RESICO",
+        "companyWithholding": "Retención por convenio con la empresa",
         "netToDeposit": "Neto a depositar",
         "transactions": "{count} transacciones",
         "grossCommission": "Comisión bruta",
@@ -775,6 +777,7 @@
         "step4IvaWithholding": "Retención IVA",
         "step4Isr": "ISR",
         "step4Resico": "RESICO",
+        "step4CompanyWithholding": "Retención por convenio con la empresa",
         "step4Net": "Neto a pagar"
       },
       "percentages": {

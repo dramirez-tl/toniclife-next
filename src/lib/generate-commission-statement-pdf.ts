@@ -123,11 +123,19 @@ export function generateCommissionStatementPdf(
     rows.push(['Bonos CEDEA', money(s.cedeaBonusesMxn)]);
   if (parseFloat(s.autoBonusesMxn || '0') > 0)
     rows.push(['Bonos automáticos', money(s.autoBonusesMxn)]);
-  if (parseFloat(s.adjustmentsMxn || '0') > 0)
+  // !== 0 (no > 0): un ajuste NEGATIVO también debe listarse — antes quedaba
+  // oculto del resumen aunque sí restaba en el neto (trampa del dictamen).
+  if (parseFloat(s.adjustmentsMxn || '0') !== 0)
     rows.push(['Ajustes', money(s.adjustmentsMxn)]);
   rows.push(['Subtotal', money(s.totalSubtotalMxn)]);
   if (parseFloat(s.totalRetentions || '0') > 0)
     rows.push(['Retenciones (impuestos)', `- ${money(s.totalRetentions)}`]);
+  // Retención por convenio con la empresa (Tesorería) — etiqueta genérica.
+  if (parseFloat(s.companyWithholdings || '0') > 0)
+    rows.push([
+      'Retención por convenio con la empresa',
+      `- ${money(s.companyWithholdings)}`,
+    ]);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
@@ -149,7 +157,7 @@ export function generateCommissionStatementPdf(
   doc.text('TOTAL NETO', MARGIN_X + 4, y + 8);
   doc.setFontSize(13);
   doc.text(
-    `${money(s.totalNetMxn)} ${currencyCode}`,
+    `${money(s.netAfterWithholdings ?? s.totalNetMxn)} ${currencyCode}`,
     PAGE_WIDTH - MARGIN_X - 4,
     y + 8,
     { align: 'right' },

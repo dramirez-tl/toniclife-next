@@ -55,6 +55,11 @@ export function CommissionBreakdown({
   const ivaWh = parseFloat(summary.totalIvaWithholding || '0');
   const isr = parseFloat(summary.totalIsr || '0');
   const resico = parseFloat(summary.totalResico || '0');
+  // Retención por convenio con la empresa (Tesorería, mig 115).
+  const companyWh = parseFloat(summary.companyWithholdings || '0');
+  const netFinal = companyWh > 0
+    ? parseFloat(summary.netAfterWithholdings || String(net - companyWh))
+    : net;
 
   const types = [
     { key: 'mlm', label: t('typeMlm'), amount: parseFloat(summary.mlmCommissionsMxn || '0'), color: 'text-blue-600' },
@@ -247,10 +252,16 @@ export function CommissionBreakdown({
                   <span className="text-sm font-semibold text-red-500 tabular-nums">- {fmt(resico)}</span>
                 </div>
               )}
+              {companyWh > 0 && (
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
+                  <span className="text-sm text-gray-600">{t('step4CompanyWithholding')}</span>
+                  <span className="text-sm font-semibold text-red-500 tabular-nums">- {fmt(companyWh)}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between px-4 py-3 bg-[#3E667D]/5">
                 <span className="text-sm font-bold text-[#3E667D]">{t('step4Net')}</span>
                 <span className="text-base font-bold text-[#3E667D] tabular-nums">
-                  {fmt(net)} <span className="text-[10px] font-semibold text-[#3E667D]/60">{currencyCode}</span>
+                  {fmt(netFinal)} <span className="text-[10px] font-semibold text-[#3E667D]/60">{currencyCode}</span>
                 </span>
               </div>
             </div>

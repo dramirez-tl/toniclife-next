@@ -60,6 +60,10 @@ export interface CommissionSummary {
   totalIsr?: string;
   totalResico?: string;
   totalNetMxn: string;
+  /** Retenciones de Tesorería aplicadas en el periodo (convenios mig 115). */
+  companyWithholdings?: string;
+  /** Neto DESPUÉS de retenciones de Tesorería (lo dispersado). */
+  netAfterWithholdings?: string;
   transactionCount: number;
   personalSales?: string;
   networkSalesVolume?: string;

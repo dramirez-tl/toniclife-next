@@ -86,6 +86,7 @@ const navigation: NavItem[] = [
     permissions: ['commissions', 'commissions.history', 'customers:read'],
     children: [
       { name: 'Comisiones', href: '/admin/comisiones' },
+      { name: 'Retenciones', href: '/admin/tesoreria/retenciones' },
       { name: 'Validación de Datos', href: '/admin/tesoreria/validacion-datos' },
     ],
   },

@@ -175,10 +175,20 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                         </span>
                       </div>
                     )}
+                    {/* Retención por convenio con la empresa (Tesorería) —
+                        etiqueta genérica por decisión de negocio. */}
+                    {parseFloat(summary.companyWithholdings || '0') > 0 && (
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <span className="text-white/70">{t('companyWithholding')}</span>
+                        <span className="text-white font-medium">
+                          -{formatCurrency(summary.companyWithholdings || '0')}<Badge light />
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between border-t border-white/20 pt-2.5 mt-2.5">
                       <span className="text-sm font-semibold text-white">{t('netToDeposit')}</span>
                       <span className="text-lg font-bold text-white">
-                        {formatCurrency(summary.totalNetMxn)}<Badge light />
+                        {formatCurrency(summary.netAfterWithholdings ?? summary.totalNetMxn)}<Badge light />
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-xs text-white/60 mt-2">
@@ -405,9 +415,15 @@ export function CommissionSummaryCards({ summary, isLoading, currencyCode = 'MXN
                 <span className="text-sm font-semibold text-red-500 tabular-nums">- {formatCurrency(summary.totalResico || '0')}</span>
               </div>
             )}
+            {parseFloat(summary.companyWithholdings || '0') > 0 && (
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+                <span className="text-sm text-gray-600">{t('companyWithholding')}</span>
+                <span className="text-sm font-semibold text-red-500 tabular-nums">- {formatCurrency(summary.companyWithholdings || '0')}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between px-5 py-3 bg-[#3E667D]/5 border-t border-gray-200">
               <span className="text-sm font-bold text-[#3E667D]">{t('net')}</span>
-              <span className="text-sm font-bold text-[#3E667D] tabular-nums">{formatCurrency(summary.totalNetMxn)}</span>
+              <span className="text-sm font-bold text-[#3E667D] tabular-nums">{formatCurrency(summary.netAfterWithholdings ?? summary.totalNetMxn)}</span>
             </div>
           </div>
         </CardContent>
