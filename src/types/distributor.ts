@@ -121,6 +121,10 @@ export interface CommissionsSummary {
 
   // Comparación
   changeFromLastPeriod: number;
+
+  /** Moneda REAL de los montos (el API convierte a la moneda del distribuidor
+   *  cuando hay tasa del periodo; 'MXN' si no pudo convertir). */
+  currencyCode?: string;
 }
 
 export interface RecentActivity {

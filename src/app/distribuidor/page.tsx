@@ -79,6 +79,15 @@ export default function DistribuidorDashboard() {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(amount);
+  // Para montos cuya moneda REAL la dicta el API (comisiones: convertidas a
+  // la moneda del distribuidor cuando hay tasa; MXN si no la hubo).
+  const formatMoneyIn = (amount: number, cur: string) =>
+    new Intl.NumberFormat(cur === 'USD' ? 'en-US' : 'es-MX', {
+      style: 'currency',
+      currency: cur || 'MXN',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
 
   const [showPointsDetail, setShowPointsDetail] = useState(false);
 
@@ -124,6 +133,11 @@ export default function DistribuidorDashboard() {
   const prevPeriodNet = prevNetRaw != null ? Number(prevNetRaw) : null;
   const prevPeriodName: string =
     prevPeriod?.name ?? prevPeriod?.period_name ?? '';
+  // Moneda REAL del monto según el API (moneda del distribuidor si hubo
+  // tasa del periodo; MXN si no se pudo convertir).
+  const prevPeriodCurrency: string =
+    prevPeriodDashboard?.dashboard?.commissionsSummary?.currencyCode ||
+    currencyCode;
 
   // React Query hooks
   const {
@@ -512,7 +526,7 @@ export default function DistribuidorDashboard() {
                     {/* Lo COBRADO del último cierre; lo del periodo en curso
                         no existe hasta cerrar (leyenda sutil abajo). */}
                     <p className="text-lg font-bold text-[#3E667D] leading-tight">
-                      {formatMoney(prevPeriodNet)}
+                      {formatMoneyIn(prevPeriodNet, prevPeriodCurrency)}
                     </p>
                     <p className="text-[11px] font-medium text-gray-600">
                       {t('stats.commissionsPrevPeriod', { period: prevPeriodName })}
@@ -531,10 +545,13 @@ export default function DistribuidorDashboard() {
               ) : (
                 <>
                   <p className="text-lg font-bold text-[#3E667D] leading-tight">
-                    {formatMoney(commissionsSummary?.totalNet || 0)}
+                    {formatMoneyIn(
+                      commissionsSummary?.totalNet || 0,
+                      commissionsSummary?.currencyCode || currencyCode,
+                    )}
                   </p>
                   <p className="text-[11px] font-medium text-gray-600">{t('stats.commissions')}</p>
-                  <p className="text-[10px] text-gray-400">{t('stats.thisPeriodCurrency', { currency: currencyCode })}</p>
+                  <p className="text-[10px] text-gray-400">{t('stats.thisPeriodCurrency', { currency: commissionsSummary?.currencyCode || currencyCode })}</p>
                 </>
               )}
             </div>
