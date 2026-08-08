@@ -48,44 +48,24 @@ const authOnlyRoutes = [
   '/registro',
 ];
 
-// Admin roles that can access /admin/* routes
-// Includes both canonical codes and legacy-migration codes (e.g. 'ventas' = Administrador)
-const ADMIN_ROLES = [
-  // Canonical codes
-  'administrador', 'super_admin', 'subadmin', 'almacen', 'ventas_mostrador',
-  'rh', 'contabilidad', 'auditor', 'viewer', 'call_center',
-  // Operational roles
-  'operaciones', 'sucursales', 'supervisor', 'auxiliar_sucursal', 'auxiliar',
-  // 'sistemas' es el código vigente (la migración 019 renombró 'soporte' → 'sistemas');
-  // 'soporte' se conserva por si quedara algún usuario con el código viejo.
-  'sistemas', 'soporte', 'cedea', 'cedea_two', 'cedeas', 'cedeas2', 'comisiones',
-  'comercial', 'produccion', 'laboratorio', 'compras',
-  // Legacy-migration codes (role.code came from legacy module names)
-  'ventas',                   // Administrador (54 users)
-  'asistencia',               // Sucursales (88)
-  'clientes',                 // Operaciones (23)
-  'solicitud-viaticos',       // Supervisor (20)
-  'productos',                // Soporte (13)
-  'ventas-totales-sucursal',  // Comercial Two (12)
-  'documentos',               // Contabilidad (9)
-  'aprobacion-viaticos',      // Viaticos (4)
-  'corte-caja-sucursal',      // Help (3)
-  'inventario',               // Almacen (2)
-  'rrhh-trabajadores',        // RH (2)
-  'puntos-periodo',           // Comercial USA (2)
-  'factura-libre',            // Aux Contabilidad (1)
-];
+// ── Portal de la sesión ────────────────────────────────────────────────────
+// El ruteo se decide por el PORTAL ('admin' | 'distributor'), que el cliente
+// escribe en la cookie authPortal derivándolo de la CATEGORÍA del rol
+// (roles.category en el JWT: colaborador→admin, cliente→distributor). Las
+// listas legacy de auth-roles.ts solo cubren sesiones con token viejo.
+// Un portal 'unknown' NUNCA se queda ciclando: se le limpian las cookies y se
+// le deja ver /login (antes, un rol fuera de las listas quemadas quedaba
+// atrapado en /login→/distribuidor→/ durante 7 días y el usuario tenía que
+// borrar caché — bug de roles corporativos, ago-2026).
+import { resolvePortal, type Portal } from './lib/auth-roles';
 
-// Distributor roles for /distribuidor/* routes
-const DISTRIBUTOR_ROLES = ['distribuidor', 'customer', 'dashboard', 'cliente-dashboard'];
+const AUTH_COOKIES = ['accessToken', 'authRole', 'authPortal'];
 
-// Legacy migration created generic role codes "role1" through "role46" for distributors.
-// ~170k users have these codes, so we match the pattern instead of listing all 46.
-const LEGACY_ROLE_PATTERN = /^role\d+$/;
-
-function isDistributorRole(role: string | null): boolean {
-  if (!role) return false;
-  return DISTRIBUTOR_ROLES.includes(role) || LEGACY_ROLE_PATTERN.test(role);
+/** Redirige limpiando las cookies de sesión (el escape de la trampa). */
+function redirectClearingSession(request: NextRequest, to: string): NextResponse {
+  const res = NextResponse.redirect(new URL(to, request.url));
+  for (const c of AUTH_COOKIES) res.cookies.delete(c);
+  return res;
 }
 
 export function middleware(request: NextRequest) {
@@ -122,13 +102,19 @@ export function middleware(request: NextRequest) {
     return intlMiddleware(request);
   }
 
-  // The client stores two small cookies for the middleware:
-  //   accessToken = "1"          → indicates the user is logged-in
-  //   authRole    = "administrador" (or other role code)
-  // The full JWT lives only in localStorage (it can exceed the 4 KB cookie
+  // The client stores three small cookies for the middleware:
+  //   accessToken = "1"                    → the user is logged-in
+  //   authPortal  = "admin"|"distributor"  → portal por CATEGORÍA del rol
+  //   authRole    = "administrador" (…)    → solo fallback de sesiones viejas
+  // The full JWT lives only in web storage (it can exceed the 4 KB cookie
   // limit when it embeds many permissions).
   const isLoggedIn = !!request.cookies.get('accessToken')?.value;
   const role = request.cookies.get('authRole')?.value || null;
+  const portalCookie = request.cookies.get('authPortal')?.value || null;
+  const portal: Portal =
+    portalCookie === 'admin' || portalCookie === 'distributor'
+      ? portalCookie
+      : resolvePortal(null, role);
 
   // Check if the current path is protected
   const isProtectedRoute = protectedRoutes.some((route) =>
@@ -158,31 +144,37 @@ export function middleware(request: NextRequest) {
   // If already authenticated and trying to access auth routes, redirect to dashboard
   // But allow public registration routes (like /registro/distribuidor for referrals)
   if ((isAuthRoute || isAuthOnlyRoute) && isLoggedIn && !isPublicRegistrationRoute) {
-    // Redirect admin roles to /admin, distributors to /distribuidor
-    if (role && ADMIN_ROLES.includes(role)) {
+    if (portal === 'admin') {
       return NextResponse.redirect(new URL('/admin', request.url));
     }
-    return NextResponse.redirect(new URL('/distribuidor', request.url));
+    if (portal === 'distributor') {
+      return NextResponse.redirect(new URL('/distribuidor', request.url));
+    }
+    // Sesión inclasificable: DEJAR VER el login y soltar las cookies para que
+    // pueda re-loguearse (con el token nuevo llegará roleCategory y el portal
+    // quedará bien clasificado). Jamás redirigir: eso era la trampa.
+    const res = NextResponse.next();
+    for (const c of AUTH_COOKIES) res.cookies.delete(c);
+    return res;
   }
 
-  // ── Role-based access control ──────────────────────────────────────────
+  // ── Portal-based access control ────────────────────────────────────────
   if (isLoggedIn && (pathname.startsWith('/admin') || pathname.startsWith('/distribuidor'))) {
-    // /admin/* — only admin roles may enter
+    // /admin/* — colaboradores (portal admin)
     if (pathname.startsWith('/admin')) {
-      if (!role || !ADMIN_ROLES.includes(role)) {
-        // If the user is a distribuidor/customer, send them to their dashboard
-        if (isDistributorRole(role)) {
-          return NextResponse.redirect(new URL('/distribuidor', request.url));
-        }
-        // Otherwise redirect to the homepage
-        return NextResponse.redirect(new URL('/', request.url));
+      if (portal === 'distributor') {
+        return NextResponse.redirect(new URL('/distribuidor', request.url));
+      }
+      if (portal !== 'admin') {
+        // Sesión inclasificable → a re-loguear con cookies limpias.
+        return redirectClearingSession(request, '/login');
       }
     }
 
-    // /distribuidor/* — only distributor roles (and admin roles for impersonation)
+    // /distribuidor/* — clientes, y colaboradores para impersonación/soporte
     if (pathname.startsWith('/distribuidor')) {
-      if (!role || (!isDistributorRole(role) && !ADMIN_ROLES.includes(role))) {
-        return NextResponse.redirect(new URL('/', request.url));
+      if (portal !== 'distributor' && portal !== 'admin') {
+        return redirectClearingSession(request, '/login');
       }
     }
   }

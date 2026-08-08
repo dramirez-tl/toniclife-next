@@ -22,22 +22,14 @@ import {
   isEmailLinkRequired,
   type InvitationStatus,
 } from '@/services/auth.service';
+import { resolvePortal } from '@/lib/auth-roles';
 
-// Códigos de rol de distribuidor (mismos que el middleware): determinan a qué
-// panel mandar tras el auto-login. Todo lo demás (colaboradores) va a /admin.
-const DISTRIBUTOR_ROLE_CODES = [
-  'distribuidor',
-  'distributor',
-  'customer',
-  'cliente',
-  'dashboard',
-  'cliente-dashboard',
-];
-function homeForRole(roleCode?: string): string {
-  if (!roleCode) return '/distribuidor';
-  const isDistributor =
-    DISTRIBUTOR_ROLE_CODES.includes(roleCode) || /^role\d+$/.test(roleCode);
-  return isDistributor ? '/distribuidor' : '/admin';
+// Portal tras el auto-login: por CATEGORÍA del rol vía el clasificador único
+// (lib/auth-roles.ts) — sin listas locales de códigos de rol. Un set-password
+// de distribuidor (el caso normal de esta página) va a /distribuidor.
+function homeForUser(user?: { roleCategory?: string; roles?: string[] }): string {
+  const portal = resolvePortal(user?.roleCategory, user?.roles?.[0]);
+  return portal === 'admin' ? '/admin' : '/distribuidor';
 }
 
 // Reglas de contraseña (mismas que reset-password / backend)
@@ -208,7 +200,7 @@ function SetPasswordForm() {
         // el estado de auth desde storage. El gating del panel decide si el
         // distribuidor debe ir a inscripción (comprar kit) o al panel.
         toast.success('¡Cuenta activada! Bienvenid@ a Tonic Life.');
-        window.location.href = homeForRole(loginResult.user?.roles?.[0]);
+        window.location.href = homeForUser(loginResult.user);
         return;
       } catch {
         // El auto-login falló (red/credenciales): la cuenta SÍ quedó activa,

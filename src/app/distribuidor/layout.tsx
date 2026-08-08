@@ -61,7 +61,13 @@ export default function DistributorLayout({
     : undefined;
 
   return (
-    <AuthGuard requiredRoles={DISTRIBUTOR_ROLES}>
+    // Acceso por CATEGORÍA: clientes, y colaboradores para impersonación/
+    // soporte. La lista legacy solo rescata tokens sin roleCategory.
+    <AuthGuard
+      requiredCategory="cliente"
+      allowColaborador
+      requiredRoles={DISTRIBUTOR_ROLES}
+    >
       {/* Aplica el idioma guardado en la cuenta (users.language) al panel */}
       <DistributorLocaleSync />
       {/* Tour guiado de primera vez (omitible + repetible desde "Ver tutorial") */}

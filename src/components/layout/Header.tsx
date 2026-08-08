@@ -20,6 +20,7 @@ import { CountryLanguageSelector } from '@/components/public/CountryLanguageSele
 import { DEFAULT_LOCALE, buildLocale, countryMeta, localeCountry, localeLanguage } from '@/i18n/config';
 import { getStoredLocale, setStoredLocale } from '@/lib/store-locale';
 import { readyAccountCountry } from '@/hooks/useStoreCountry';
+import { resolvePortal } from '@/lib/auth-roles';
 
 interface NavItem {
   name: string;
@@ -79,23 +80,12 @@ export function Header() {
     : locale;
   const currentCountry = countryMeta(localeCountry(effectiveLocale));
 
-  // Determine the correct dashboard URL based on user roles
+  // Portal por CATEGORÍA del rol (ver lib/auth-roles.ts) — sin listas quemadas.
   const dashboardUrl = useMemo(() => {
     if (!isAuthenticated) return '/login';
-
-    // Admin roles that should access the admin panel (database role codes)
-    const adminRoles = [
-      'super_admin', 'administrador', 'subadmin',
-      'almacen', 'ventas_mostrador', 'rh', 'contabilidad', 'auditor', 'viewer',
-      'comercial', 'comercial_two', 'comercial_three', 'comercial_usa', 'dircomer',
-      'call_center', 'sucursales', 'auxiliar_sucursal', 'supervisor', 'auxiliar',
-      'cedea', 'cedea_two', 'cedeas', 'cedeas2', 'compras',
-    ];
-    if (userRoles.some(role => adminRoles.includes(role))) return '/admin';
-
-    // All authenticated users go to distributor dashboard
-    return '/distribuidor';
-  }, [isAuthenticated, userRoles]);
+    const portal = resolvePortal(user?.roleCategory, userRoles[0]);
+    return portal === 'admin' ? '/admin' : '/distribuidor';
+  }, [isAuthenticated, user?.roleCategory, userRoles]);
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';

@@ -9,8 +9,14 @@
 //   • "Recordarme" OFF → tokens in sessionStorage → session cookie (clears on
 //     browser close), so the middleware never believes you're logged in after
 //     the token itself is already gone.
+import { resolvePortal } from './auth-roles';
+
 const AUTH_COOKIE = 'accessToken';
 const ROLE_COOKIE = 'authRole';
+// Portal de la sesión ('admin' | 'distributor'), derivado de la CATEGORÍA del
+// rol que viene en el JWT (roleCategory). Es lo que el middleware usa para
+// rutear; authRole se conserva solo como fallback para sesiones viejas.
+const PORTAL_COOKIE = 'authPortal';
 const REMEMBER_KEY = 'rememberMe';
 
 // Matches the backend refresh-token lifetime (JWT_REFRESH_EXPIRES_IN = 7d).
@@ -33,6 +39,16 @@ export function writeAuthCookies(accessToken: string): void {
       ? payload.roles[0]
       : payload.role || '';
     document.cookie = `${ROLE_COOKIE}=${role}; path=/${maxAge}; SameSite=Lax`;
+    // Portal por CATEGORÍA del rol (colaborador→admin, cliente→distributor);
+    // si el token aún no trae roleCategory, cae a la clasificación legacy por
+    // código. 'unknown' no se escribe: el middleware mandará a re-loguear con
+    // limpieza de cookies (nunca más el ciclo que obligaba a borrar caché).
+    const portal = resolvePortal(payload.roleCategory, role);
+    if (portal !== 'unknown') {
+      document.cookie = `${PORTAL_COOKIE}=${portal}; path=/${maxAge}; SameSite=Lax`;
+    } else {
+      document.cookie = `${PORTAL_COOKIE}=; path=/; max-age=0`;
+    }
   } catch {
     // Token not decodable — leave the flag cookie; middleware will allow through.
   }
@@ -43,4 +59,5 @@ export function clearAuthCookies(): void {
   if (typeof window === 'undefined') return;
   document.cookie = `${AUTH_COOKIE}=; path=/; max-age=0`;
   document.cookie = `${ROLE_COOKIE}=; path=/; max-age=0`;
+  document.cookie = `${PORTAL_COOKIE}=; path=/; max-age=0`;
 }

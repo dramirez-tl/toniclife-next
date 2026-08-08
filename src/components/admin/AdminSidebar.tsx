@@ -57,7 +57,7 @@ const navigation: NavItem[] = [
     name: 'Inventario',
     href: '/admin/inventario',
     icon: CubeIcon,
-    permissions: ['inventory', 'inventory.stock'],
+    permissions: ['inventory', 'inventory.stock', 'inventory:read'],
     children: [
       { name: 'Existencias General', href: '/admin/inventario' },
       { name: 'Entradas', href: '/admin/inventario/entradas' },
@@ -83,7 +83,9 @@ const navigation: NavItem[] = [
     name: 'Tesorería',
     href: '/admin/tesoreria',
     icon: CurrencyDollarIcon,
-    permissions: ['commissions', 'commissions.history', 'customers:read'],
+    // Incluye los códigos module:action REALES de la BD: conceder
+    // commissions:read o mlm:withhold en Seguridad → Roles revela el módulo.
+    permissions: ['commissions', 'commissions.history', 'commissions:read', 'commissions:manage', 'mlm:withhold', 'customers:read'],
     children: [
       { name: 'Comisiones', href: '/admin/comisiones' },
       { name: 'Retenciones', href: '/admin/tesoreria/retenciones' },
@@ -131,7 +133,7 @@ const navigation: NavItem[] = [
     name: 'RRHH',
     href: '/admin/rrhh',
     icon: BriefcaseIcon,
-    permissions: ['hr', 'hr.workers.read'],
+    permissions: ['hr', 'hr.workers.read', 'hr:read', 'hr:manage'],
     children: [
       { name: 'Panel Principal', href: '/admin/rrhh' },
       { name: 'Empleados', href: '/admin/rrhh/empleados' },
@@ -171,7 +173,10 @@ const navigation: NavItem[] = [
     name: 'Auditoría',
     href: '/admin/auditoria',
     icon: ShieldCheckIcon,
-    permissions: ['config'],
+    // audit:read/manage son los códigos reales del módulo audit en BD; sin
+    // ellos, Auditoría solo se revelaba con 'config' (que destapa media
+    // configuración) y un rol Auditor con permisos de audit no la veía.
+    permissions: ['config', 'audit:read', 'audit:manage'],
     children: [
       { name: 'Panel Principal', href: '/admin/auditoria' },
       { name: 'Logs', href: '/admin/auditoria/logs' },
@@ -260,24 +265,13 @@ export function AdminSidebar({ mobile = false, collapsed = false, onNavigate }: 
   const userPermissions = useAppSelector(selectUserPermissions);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
-  // Roles con acceso al sidebar filtrado por permisos
-  // 'sistemas' es el código vigente del rol del departamento de Sistemas
-  // (la migración 019 renombró 'soporte' → 'sistemas'). Sin él, esos usuarios
-  // caerían en isWorkerUser y solo verían el Panel Principal.
-  const FULL_ACCESS_ROLES = ['super_admin', 'administrador', 'sistemas', 'viewer', 'subadmin', 'sucursales', 'auxiliar_sucursal', 'contabilidad', 'call_center', 'cedea', 'cedea_two', 'cedeas', 'cedeas2', 'comercial', 'comercial_two', 'comercial_three', 'comercial_usa', 'dircomer'];
-
-  const isWorkerUser = useMemo(() => {
-    if (!user?.roles?.length) return true;
-    return !user.roles.some((r) => FULL_ACCESS_ROLES.includes(r));
-  }, [user?.roles]);
-
-  // Filtrar navegación según permisos
+  // Los MÓDULOS visibles los deciden los PERMISOS del rol — sin listas de
+  // roles. (Antes existía un candado FULL_ACCESS_ROLES por nombre de rol que
+  // dejaba a roles legítimos, p.ej. OPERACIONES, viendo solo "Panel
+  // Principal" aunque tuvieran permisos concedidos — reporte ago-2026.)
+  // Conceder un permiso en Seguridad → Roles hace aparecer el módulo aquí
+  // automáticamente; no se requiere tocar código.
   const filteredNavigation = useMemo(() => {
-    // Trabajadores solo ven Panel Principal
-    if (isWorkerUser) {
-      return navigation.filter((item) => item.href === '/admin');
-    }
-
     // Super admin ve todo (incluidos los items superAdminOnly)
     if (user?.roles?.includes('super_admin')) {
       return navigation;
@@ -286,7 +280,10 @@ export function AdminSidebar({ mobile = false, collapsed = false, onNavigate }: 
     return navigation.filter(
       (item) => !item.superAdminOnly && hasAnyPermission(userPermissions, item.permissions),
     );
-  }, [user?.roles, userPermissions, isWorkerUser]);
+  }, [user?.roles, userPermissions]);
+
+  // Rol sin ningún módulo concedido: solo verá Panel Principal + aviso.
+  const hasNoModules = filteredNavigation.length <= 1;
 
   const handleLogout = async () => {
     try {
@@ -492,12 +489,16 @@ export function AdminSidebar({ mobile = false, collapsed = false, onNavigate }: 
           })}
         </ul>
 
-        {/* Mensaje para trabajadores */}
-        {isWorkerUser && (
+        {/* Rol sin módulos concedidos todavía */}
+        {hasNoModules && (
           <div className="mt-4 mx-1 rounded-lg bg-white/10 p-4 text-center">
             <Cog6ToothIcon className="mx-auto h-8 w-8 text-white/40 mb-2" />
             <p className="text-xs font-medium text-white/70">
-              Los módulos de tu área se habilitarán en breve.
+              Tu rol aún no tiene módulos asignados.
+            </p>
+            <p className="mt-1 text-[11px] text-white/50">
+              Un administrador puede habilitarlos en Seguridad → Roles y
+              Permisos.
             </p>
           </div>
         )}

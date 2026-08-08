@@ -7,38 +7,11 @@ import { Bars3Icon, ChevronDoubleLeftIcon } from '@heroicons/react/24/outline';
 import { NotificationBell } from '@/components/admin/NotificationBell';
 import { ThemeToggle } from '@/components/admin/ThemeToggle';
 import { cn } from '@/lib/utils';
+import { LEGACY_ADMIN_ROLE_CODES } from '@/lib/auth-roles';
 
 const THEME_KEY = 'admin-theme';
 const SIDEBAR_KEY = 'admin-sidebar-collapsed';
 type Theme = 'light' | 'dark';
-
-// Roles que tienen acceso al panel de administración
-const ADMIN_ROLES = [
-  // Core admin roles
-  'super_admin', 'administrador', 'subadmin',
-  // Operational roles
-  'operaciones', 'ventas_mostrador', 'call_center', 'sucursales', 'supervisor',
-  'auxiliar_sucursal', 'auxiliar',
-  // Finance & accounting
-  'contabilidad', 'contabilidad_two', 'contabilidad_viaticos', 'aux_contabilidad',
-  'comisiones', 'comercial', 'comercial_two', 'comercial_three', 'comercial_usa',
-  // Warehouse & production
-  'almacen', 'laboratorio', 'materia_prima', 'aux_materia_prima', 'produccion',
-  // 'sistemas' = código vigente del depto. de Sistemas (mig. 019 renombró 'soporte').
-  'sistemas', 'soporte', 'mantenimiento',
-  // Distribution centers
-  'cedea', 'cedea_two', 'cedeas', 'cedeas2', 'cedeas_viaticos', 'cedis',
-  // HR & admin support
-  'rh', 'rh_viaticos', 'viaticos', 'solicitud_viaticos', 'asistente_direccion',
-  // Audit & special
-  'auditor', 'auditor_two', 'checador', 'dircomer',
-  // Other
-  'help', 'jc', 'neo', 'usa_admin', 'compras', 'viewer',
-  // Legacy-migration codes (default_module values used as role codes during migration)
-  'ventas', 'asistencia', 'clientes', 'solicitud-viaticos', 'productos',
-  'ventas-totales-sucursal', 'documentos', 'aprobacion-viaticos',
-  'corte-caja-sucursal', 'inventario', 'rrhh-trabajadores', 'puntos-periodo', 'factura-libre',
-];
 
 export default function AdminLayout({
   children,
@@ -75,8 +48,14 @@ export default function AdminLayout({
     });
   };
 
+  // Acceso por CATEGORÍA del rol (colaborador); la lista legacy solo rescata
+  // sesiones cuyo token aún no trae roleCategory. Los MÓDULOS visibles los
+  // deciden los PERMISOS del rol (AdminSidebar).
   return (
-    <AuthGuard requiredRoles={ADMIN_ROLES}>
+    <AuthGuard
+      requiredCategory="colaborador"
+      requiredRoles={LEGACY_ADMIN_ROLE_CODES}
+    >
     {/* La clase `dark` solo envuelve el admin: el sitio público no se afecta.
         Va en un wrapper externo porque el variant shadcn es `&:is(.dark *)`. */}
     <div className={cn(theme === 'dark' && 'dark')}>

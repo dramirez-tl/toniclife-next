@@ -21,6 +21,7 @@ import {
   setUser,
 } from '@/store/slices/authSlice';
 import { authService } from '@/services/auth.service';
+import { resolvePortal } from '@/lib/auth-roles';
 
 export default function VincularCorreoPage() {
   const dispatch = useAppDispatch();
@@ -150,21 +151,12 @@ export default function VincularCorreoPage() {
       dispatch(setUser(response.user));
       dispatch(clearEmailLinkRequired());
 
-      // Redirect based on role
-      const role = response.user.roles?.[0];
-      const adminRoles = [
-        'super_admin', 'administrador', 'subadmin', 'almacen', 'ventas_mostrador',
-        'rh', 'contabilidad', 'auditor', 'viewer',
-        'ventas', 'asistencia', 'clientes', 'solicitud-viaticos', 'productos',
-        'ventas-totales-sucursal', 'documentos', 'aprobacion-viaticos',
-        'corte-caja-sucursal', 'inventario', 'rrhh-trabajadores', 'puntos-periodo', 'factura-libre',
-      ];
-
-      if (role && adminRoles.includes(role)) {
-        window.location.href = '/admin';
-      } else {
-        window.location.href = '/distribuidor';
-      }
+      // Portal por CATEGORÍA del rol (ver lib/auth-roles.ts) — sin listas quemadas.
+      const portal = resolvePortal(
+        response.user.roleCategory,
+        response.user.roles?.[0],
+      );
+      window.location.href = portal === 'admin' ? '/admin' : '/distribuidor';
     } catch (error: any) {
       const msg = error?.response?.data?.message || 'Código incorrecto o expirado';
       toast.error(msg);

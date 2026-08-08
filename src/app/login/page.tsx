@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { CountryLanguageSelector } from '@/components/public/CountryLanguageSelector';
 import { DEFAULT_LOCALE, countryMeta, localeCountry, localeLanguage } from '@/i18n/config';
 import { getStoredLocale, setStoredLocale } from '@/lib/store-locale';
+import { resolvePortal } from '@/lib/auth-roles';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { isEmailLinkRequired } from '@/services/auth.service';
 import {
@@ -90,19 +91,11 @@ export default function LoginPage() {
     }
   }, [emailLinkRequired]);
 
-  const navigateAfterLogin = (roleCode?: string) => {
-    // Admin roles that should access the admin panel (canonical + legacy-migration codes)
-    const adminRoles = [
-      'super_admin', 'administrador', 'subadmin', 'almacen', 'ventas_mostrador',
-      'rh', 'contabilidad', 'auditor', 'viewer', 'call_center',
-      'operaciones', 'sucursales', 'supervisor', 'auxiliar_sucursal', 'auxiliar',
-      'soporte', 'cedea', 'cedea_two', 'cedeas', 'cedeas2', 'comisiones',
-      'comercial', 'produccion', 'laboratorio', 'compras',
-      'ventas', 'asistencia', 'clientes', 'solicitud-viaticos', 'productos',
-      'ventas-totales-sucursal', 'documentos', 'aprobacion-viaticos',
-      'corte-caja-sucursal', 'inventario', 'rrhh-trabajadores', 'puntos-periodo', 'factura-libre',
-    ];
-    const isAdmin = roleCode && adminRoles.includes(roleCode);
+  const navigateAfterLogin = (roleCode?: string, roleCategory?: string) => {
+    // El portal se decide por la CATEGORÍA del rol (colaborador→admin,
+    // cliente→distribuidor); el código solo es fallback de tokens viejos.
+    // Ver lib/auth-roles.ts — aquí NO hay listas de roles quemadas.
+    const isAdmin = resolvePortal(roleCategory, roleCode) === 'admin';
 
     // Read redirect param directly from the URL (avoids useSearchParams/Suspense)
     const params = new URLSearchParams(window.location.search);
@@ -181,7 +174,7 @@ export default function LoginPage() {
       }
 
       toast.success(t('toast.welcome'));
-      navigateAfterLogin(result.user.roles?.[0]);
+      navigateAfterLogin(result.user.roles?.[0], result.user.roleCategory);
     } catch {
       // Error is handled via authError state
     }

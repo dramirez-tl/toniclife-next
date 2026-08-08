@@ -50,6 +50,10 @@ export interface UserResponse {
   emailVerifiedAt: string | null;
   roles: string[];
   permissions: string[];
+  /** Categoría del rol ('colaborador' = panel admin, 'cliente' = portal
+   *  distribuidor). El front rutea por esta categoría; ausente solo en
+   *  respuestas del API previas a ago-2026. */
+  roleCategory?: string;
   customerId?: string;
   countryCode?: string;
   currencyCode?: string;

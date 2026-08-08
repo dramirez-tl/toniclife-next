@@ -176,6 +176,13 @@ api.interceptors.response.use(
           if (newRefresh) setToken(REFRESH_TOKEN_KEY, newRefresh);
           // Renew routing cookies (lifetime matches the storage mode + the new role)
           writeAuthCookies(accessToken);
+          // Persistir también el user actualizado del refresh: así una sesión
+          // iniciada ANTES de que el API incluyera roleCategory converge sola
+          // (el AuthGuard lee el user de storage; sin esto, cookie y user
+          // podían discrepar hasta un logout manual).
+          if (response.data.user) {
+            setToken('user', JSON.stringify(response.data.user));
+          }
         }
 
         processQueue(null, accessToken);
