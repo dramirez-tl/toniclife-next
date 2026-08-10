@@ -15,8 +15,16 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { posService } from '@/services/pos.service';
-import type { PilotRecentSale } from '@/types/pilotLive';
+import type { PilotBranchLive, PilotRecentSale } from '@/types/pilotLive';
 
 // Leaflet toca window: solo en cliente.
 const PilotLiveMap = dynamic(() => import('./PilotLiveMap'), {
@@ -85,6 +93,11 @@ export function PilotLiveTab() {
   // anterior es una foto cerrada — sin polling ni toasts de venta nueva.
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const isToday = selectedDate === null || selectedDate === todayCdmx();
+
+  // Paralelo total (10-ago): el API devuelve TODAS las sucursales POS.
+  // Por defecto la tabla muestra solo las que tienen actividad del día;
+  // el botón "Ver todas" despliega el resto (sin ventas) cuando haga falta.
+  const [showAll, setShowAll] = useState(false);
 
   const { data, isLoading, isError, dataUpdatedAt, refetch, isFetching } =
     useQuery({
@@ -157,6 +170,20 @@ export function PilotLiveTab() {
     (s, [cur, monto]) => s + monto * (fx[cur] ?? 0),
     0,
   );
+
+  // Sucursales con actividad del día primero (por monto convertido a MXN,
+  // descendente); las quietas después, por clave.
+  const aMxn = (b: PilotBranchLive) =>
+    b.salesTotal * (fx[(b.currencyCode ?? 'MXN').toUpperCase()] ?? 0);
+  const conActividad = data.branches
+    .filter((b) => b.salesCount > 0 || b.pendingCount > 0 || b.cancelledCount > 0)
+    .sort((a, b) => aMxn(b) - aMxn(a) || b.salesCount - a.salesCount);
+  const sinActividad = data.branches
+    .filter(
+      (b) => !(b.salesCount > 0 || b.pendingCount > 0 || b.cancelledCount > 0),
+    )
+    .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
+  const visibles = showAll ? [...conActividad, ...sinActividad] : conActividad;
 
   return (
     <div className="space-y-4">
@@ -262,83 +289,27 @@ export function PilotLiveTab() {
         </div>
       </div>
 
-      {/* Tarjetas por sucursal */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {data.branches.map((b) => (
-          <Card key={b.id}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between gap-2">
-                <p className="truncate text-sm font-semibold text-gray-900">
-                  {b.name}
-                </p>
-                <div className="flex shrink-0 items-center gap-1">
-                  <Badge variant="outline" className="font-mono text-[11px]">
-                    {b.code}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="border-emerald-200 bg-emerald-50 font-mono text-[11px] text-emerald-700"
-                    title="Moneda de la sucursal"
-                  >
-                    {b.currencyCode ?? 'MXN'}
-                  </Badge>
-                </div>
-              </div>
-              <p className="mt-1 truncate text-[11px] text-muted-foreground">
-                {b.address}
-              </p>
-              <div className="mt-3 flex items-end justify-between">
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {b.salesCount}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {isToday ? 'ventas hoy' : 'ventas del día'}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-gray-900">
-                    {money(b.salesTotal, b.currencyCode)}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    última: {horaCdmx(b.lastSaleAt)}
-                  </p>
-                </div>
-              </div>
-              <p className="mt-2 border-t pt-2 text-[11px] text-muted-foreground">
-                🖥 {b.terminalsActive ?? 0} terminal(es)
-                {b.terminalVersions ? ` · POS v${b.terminalVersions}` : ''}
-              </p>
-              {b.pendingCount > 0 && (
-                <p className="mt-1 text-[11px] font-medium text-amber-600">
-                  ⚠ {b.pendingCount} venta(s) pendiente(s) de cobro (traban
-                  stock)
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-        {/* Total consolidado: desglose por moneda + total en MXN con la
-            tasa del periodo (sumar USD+MXN a secas engañaba) */}
-        <Card className="bg-slate-50">
-          <CardContent className="p-4">
-            <div className="flex items-baseline justify-between">
-              <p className="text-sm font-semibold text-gray-900">
-                {isToday ? 'Total del piloto (hoy)' : 'Total del piloto (día)'}
-              </p>
-              <p className="text-2xl font-bold leading-none text-gray-900">
-                {ventasHoy}
-                <span className="ml-1 text-[11px] font-normal text-muted-foreground">
-                  ventas
-                </span>
-              </p>
-            </div>
-            <div className="mt-3 space-y-1">
-              {monedas.map(([cur, monto]) => (
-                <div
-                  key={cur}
-                  className="flex items-baseline justify-between text-sm"
-                >
+      {/* Franja de totales: conteo, sucursales activas, desglose por moneda
+          y consolidado en MXN con la tasa del periodo */}
+      <Card className="bg-slate-50">
+        <CardContent className="flex flex-wrap items-center gap-x-8 gap-y-3 p-4">
+          <div>
+            <p className="text-3xl font-bold leading-none text-gray-900">
+              {ventasHoy}
+              <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                {isToday ? 'ventas hoy' : 'ventas del día'}
+              </span>
+            </p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {conActividad.length} de {data.branches.length} sucursales con
+              actividad
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-1">
+            {monedas
+              .filter(([cur, monto]) => monto > 0 || cur === 'MXN')
+              .map(([cur, monto]) => (
+                <div key={cur} className="text-sm">
                   <span className="text-muted-foreground">
                     {cur}
                     {cur !== 'MXN' && fx[cur] != null && (
@@ -346,30 +317,160 @@ export function PilotLiveTab() {
                         (TC {fx[cur].toFixed(4)})
                       </span>
                     )}
-                  </span>
+                  </span>{' '}
                   <span className="font-medium tabular-nums text-gray-900">
                     {money(monto, cur)}
                   </span>
                 </div>
               ))}
-            </div>
-            <div className="mt-2 flex items-baseline justify-between border-t pt-2">
-              <span className="text-xs font-medium text-muted-foreground">
-                Total en MXN (TC del periodo)
-              </span>
-              <span className="text-base font-bold tabular-nums text-gray-900">
-                {money(totalMxn)}
-              </span>
-            </div>
+          </div>
+          <div className="ml-auto text-right">
+            <p className="text-[11px] font-medium text-muted-foreground">
+              Total en MXN (TC del periodo)
+            </p>
+            <p className="text-xl font-bold tabular-nums text-gray-900">
+              {money(totalMxn)}
+            </p>
             {sinTasa.length > 0 && (
-              <p className="mt-1 text-[11px] font-medium text-amber-600">
-                ⚠ Sin tipo de cambio del periodo:{' '}
-                {sinTasa.map(([c]) => c).join(', ')} (no suma al total MXN)
+              <p className="text-[11px] font-medium text-amber-600">
+                ⚠ Sin TC: {sinTasa.map(([c]) => c).join(', ')} (no suma)
               </p>
             )}
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tabla compacta de sucursales: activas primero (por monto MXN desc);
+          las quietas se despliegan bajo demanda */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-gray-900">
+              Sucursales{' '}
+              <span className="font-normal text-muted-foreground">
+                ({conActividad.length} con actividad
+                {showAll ? ` · ${sinActividad.length} sin actividad` : ''})
+              </span>
+            </p>
+            {sinActividad.length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowAll((v) => !v)}
+              >
+                {showAll
+                  ? 'Solo con actividad'
+                  : `Ver todas (${data.branches.length})`}
+              </Button>
+            )}
+          </div>
+          {visibles.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              {isToday
+                ? 'Aún no hay ventas hoy en ninguna sucursal.'
+                : 'No hubo ventas nativas ese día.'}
+              {sinActividad.length > 0 &&
+                ` Usa "Ver todas" para revisar las ${sinActividad.length} sucursales.`}
+            </p>
+          ) : (
+            <div className="rounded-md border [&_[data-slot=table-container]]:max-h-[420px] [&_[data-slot=table-container]]:overflow-y-auto">
+              {/* El scroll vertical vive en el wrapper interno de la Table
+                  (data-slot="table-container", ya scroll container por su
+                  overflow-x): si viviera en el div exterior, el sticky del
+                  thead se anclaría al wrapper y no se pegaría. */}
+              <Table>
+                <TableHeader className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_theme(colors.border)]">
+                  <TableRow>
+                    <TableHead>Sucursal</TableHead>
+                    <TableHead className="text-right">Ventas</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                    <TableHead className="text-right">Última</TableHead>
+                    <TableHead>Terminales</TableHead>
+                    <TableHead className="text-right">Pend.</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visibles.map((b) => {
+                    const quieta =
+                      b.salesCount === 0 &&
+                      b.pendingCount === 0 &&
+                      b.cancelledCount === 0;
+                    return (
+                      <TableRow
+                        key={b.id}
+                        className={quieta ? 'text-muted-foreground' : ''}
+                      >
+                        <TableCell className="max-w-[260px]">
+                          <div className="flex items-center gap-1.5">
+                            <Badge
+                              variant="outline"
+                              className="shrink-0 font-mono text-[10px]"
+                            >
+                              {b.code}
+                            </Badge>
+                            <span
+                              className={`truncate text-sm ${quieta ? '' : 'font-medium text-gray-900'}`}
+                              title={b.address}
+                            >
+                              {b.name}
+                            </span>
+                            <span className="shrink-0 text-[10px] text-muted-foreground">
+                              {b.currencyCode ?? 'MXN'}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums">
+                          {b.salesCount}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {b.salesCount > 0
+                            ? money(b.salesTotal, b.currencyCode)
+                            : '—'}
+                        </TableCell>
+                        <TableCell className="text-right text-xs tabular-nums">
+                          {horaCdmx(b.lastSaleAt)}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {(b.terminalsActive ?? 0) > 0 ? (
+                            <>
+                              {b.terminalsActive}
+                              {b.terminalVersions
+                                ? ` · v${b.terminalVersions}`
+                                : ''}
+                            </>
+                          ) : (
+                            <span className="text-red-600">sin terminal</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right text-xs">
+                          {b.pendingCount > 0 ? (
+                            <span
+                              className="font-medium text-amber-600"
+                              title="Ventas pendientes de cobro (traban stock)"
+                            >
+                              ⚠ {b.pendingCount}
+                            </span>
+                          ) : (
+                            '—'
+                          )}
+                          {b.cancelledCount > 0 && (
+                            <span
+                              className="ml-1 text-red-500"
+                              title="Ventas canceladas del día"
+                            >
+                              ({b.cancelledCount} canc.)
+                            </span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Mapa + feed */}
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
