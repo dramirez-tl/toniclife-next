@@ -320,6 +320,7 @@ const initialFormState: CreateBranchDto = {
   isPickupPoint: false,
   isPosEnabled: false,
   isEcommerceEnabled: false,
+  isCedea: false,
   ticketName: '',
   ticketHeader: '',
   ticketFooter: '',
@@ -502,6 +503,7 @@ function SucursalesContent() {
       isPickupPoint: branch.isPickupPoint,
       isPosEnabled: branch.isPosEnabled,
       isEcommerceEnabled: branch.isEcommerceEnabled,
+      isCedea: branch.isCedea ?? false,
       ticketName: branch.ticketName || '',
       ticketHeader: branch.ticketHeader || '',
       ticketFooter: branch.ticketFooter || '',
@@ -1268,6 +1270,12 @@ function SucursalesContent() {
             description="Vende a traves de la tienda en linea"
             checked={formData.isEcommerceEnabled ?? false}
             onChange={(val) => handleFormChange('isEcommerceEnabled', val)}
+          />
+          <CheckboxField
+            label="CEDEA"
+            description="Centro de distribucion CEDEA (se distingue en listados y filtros)"
+            checked={formData.isCedea ?? false}
+            onChange={(val) => handleFormChange('isCedea', val)}
           />
         </FormSection>
 

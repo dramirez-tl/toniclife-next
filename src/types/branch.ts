@@ -154,6 +154,7 @@ export interface CreateBranchDto {
   isPickupPoint?: boolean;
   isPosEnabled?: boolean;
   isEcommerceEnabled?: boolean;
+  isCedea?: boolean;
   botName?: string;
   botEnabled?: boolean;
   isActive?: boolean;
@@ -190,6 +191,7 @@ export interface UpdateBranchDto {
   isPickupPoint?: boolean;
   isPosEnabled?: boolean;
   isEcommerceEnabled?: boolean;
+  isCedea?: boolean;
   botName?: string;
   botEnabled?: boolean;
   isActive?: boolean;
