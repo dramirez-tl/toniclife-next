@@ -9,6 +9,8 @@ export interface PilotBranchLive {
   latitude: number | null;
   longitude: number | null;
   currencyCode: string | null;
+  /** Clasificación CEDEA (branches.is_cedea) — pin morado en el mapa. */
+  isCedea?: boolean;
   /** Ventas COMPLETADAS de hoy (día CDMX, solo nativas POS v2). */
   salesCount: number;
   salesTotal: number;

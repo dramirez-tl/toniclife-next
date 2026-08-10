@@ -27,13 +27,14 @@ const CLUSTER_MAX_ZOOM = 11; // desde este zoom ya no se agrupa: todo individual
 
 function markerIcon(branch: PilotBranchLive): L.DivIcon {
   const active = branch.salesCount > 0;
+  const cedea = branch.isCedea === true;
   return L.divIcon({
     className: '',
     html: `
-      <div class="pilot-pin ${active ? 'pilot-pin--active' : ''}">
+      <div class="pilot-pin ${active ? 'pilot-pin--active' : ''} ${cedea ? 'pilot-pin--cedea' : ''}">
         ${active ? '<span class="pilot-pin__pulse"></span>' : ''}
         <span class="pilot-pin__dot">${branch.salesCount}</span>
-        <span class="pilot-pin__label">${branch.code}</span>
+        <span class="pilot-pin__label">${branch.code}${cedea ? ' · CEDEA' : ''}</span>
       </div>`,
     iconSize: [44, 56],
     iconAnchor: [22, 22],
@@ -41,15 +42,19 @@ function markerIcon(branch: PilotBranchLive): L.DivIcon {
   });
 }
 
-function clusterIcon(branchCount: number, ventas: number): L.DivIcon {
+function clusterIcon(
+  branchCount: number,
+  ventas: number,
+  cedeaCount: number,
+): L.DivIcon {
   const active = ventas > 0;
   return L.divIcon({
     className: '',
     html: `
-      <div class="pilot-cluster ${active ? 'pilot-cluster--active' : ''}" title="Clic para acercar">
+      <div class="pilot-cluster ${active ? 'pilot-cluster--active' : ''} ${cedeaCount > 0 ? 'pilot-cluster--cedea' : ''}" title="Clic para acercar">
         ${active ? '<span class="pilot-cluster__pulse"></span>' : ''}
         <span class="pilot-cluster__dot">${ventas}</span>
-        <span class="pilot-cluster__label">${branchCount} suc.</span>
+        <span class="pilot-cluster__label">${branchCount} suc.${cedeaCount > 0 ? ` · ${cedeaCount} CEDEA` : ''}</span>
       </div>`,
     iconSize: [56, 70],
     iconAnchor: [28, 28],
@@ -79,6 +84,11 @@ function BranchMarker({ b }: { b: PilotBranchLive }) {
           <p className="mb-0.5 font-semibold">
             {b.name}{' '}
             <span className="font-mono text-xs text-gray-500">({b.code})</span>
+            {b.isCedea && (
+              <span className="ml-1 rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">
+                CEDEA
+              </span>
+            )}
           </p>
           <p className="mb-2 text-xs text-gray-600">{b.address}</p>
           <p>
@@ -149,11 +159,12 @@ function ClusteredMarkers({ branches }: { branches: PilotBranchLive[] }) {
         const lng =
           group.reduce((s, g) => s + g.longitude!, 0) / group.length;
         const ventas = group.reduce((s, g) => s + g.salesCount, 0);
+        const cedeas = group.filter((g) => g.isCedea === true).length;
         return (
           <Marker
             key={group.map((g) => g.code).join('-')}
             position={[lat, lng]}
-            icon={clusterIcon(group.length, ventas)}
+            icon={clusterIcon(group.length, ventas, cedeas)}
             eventHandlers={{
               // Clic en la burbuja: acercar hasta que el grupo se abra.
               click: () => {
@@ -216,6 +227,11 @@ export default function PilotLiveMap({
           background: #1e293b; color: #fff; font: 600 10px/1 sans-serif;
           padding: 2px 6px; border-radius: 6px; white-space: nowrap;
         }
+        /* CEDEA: morado (sin ventas = morado claro, con ventas = morado intenso) */
+        .pilot-pin--cedea .pilot-pin__dot { background: #a78bfa; }
+        .pilot-pin--cedea.pilot-pin--active .pilot-pin__dot { background: #7c3aed; }
+        .pilot-pin--cedea .pilot-pin__pulse { background: rgba(124,58,237,.45); }
+        .pilot-pin--cedea .pilot-pin__label { background: #5b21b6; }
         .pilot-cluster { position: relative; width: 56px; height: 56px; cursor: pointer; }
         .pilot-cluster__dot {
           position: absolute; inset: 3px; border-radius: 9999px;
@@ -233,6 +249,11 @@ export default function PilotLiveMap({
           background: #1e293b; color: #fff; font: 600 10px/1 sans-serif;
           padding: 2px 7px; border-radius: 6px; white-space: nowrap;
         }
+        /* Burbuja que contiene al menos una CEDEA: anillo morado */
+        .pilot-cluster--cedea .pilot-cluster__dot {
+          border: 4px double #7c3aed;
+          box-shadow: 0 0 0 2px rgba(124,58,237,.35), 0 2px 8px rgba(0,0,0,.4);
+        }
         @keyframes pilot-pulse {
           0% { transform: scale(.6); opacity: .9; }
           100% { transform: scale(1.9); opacity: 0; }
@@ -245,6 +266,21 @@ export default function PilotLiveMap({
         />
         <ClusteredMarkers branches={branches} />
       </MapContainer>
+      {/* Leyenda (encima del mapa; Leaflet usa z-index ~400 en sus panes) */}
+      <div className="absolute bottom-3 left-3 z-[500] flex flex-col gap-1 rounded-md border bg-white/90 px-2.5 py-2 text-[11px] text-gray-700 shadow">
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-3 w-3 rounded-full border-2 border-white bg-[#16a34a] shadow" />
+          Con ventas hoy
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-3 w-3 rounded-full border-2 border-white bg-[#64748b] shadow" />
+          Sin ventas
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-block h-3 w-3 rounded-full border-2 border-white bg-[#7c3aed] shadow" />
+          CEDEA
+        </span>
+      </div>
     </div>
   );
 }

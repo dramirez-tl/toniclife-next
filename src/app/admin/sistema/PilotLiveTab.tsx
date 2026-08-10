@@ -414,6 +414,11 @@ export function PilotLiveTab() {
                             >
                               {b.name}
                             </span>
+                            {b.isCedea && (
+                              <span className="shrink-0 rounded bg-violet-100 px-1 py-0.5 text-[9px] font-semibold text-violet-700">
+                                CEDEA
+                              </span>
+                            )}
                             <span className="shrink-0 text-[10px] text-muted-foreground">
                               {b.currencyCode ?? 'MXN'}
                             </span>
