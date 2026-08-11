@@ -225,6 +225,9 @@ export interface Sale {
   customerRfc?: string;
   sellerId: string;
   sellerName: string;
+  /** Canal de captura: 'terminal' = caja de la sucursal; 'usuario' = cuenta
+   *  personal (modo staff/call center o admin web). */
+  capturedVia?: 'terminal' | 'usuario';
   status: PosSaleStatus;
   subtotal: number;
   discountAmount: number;

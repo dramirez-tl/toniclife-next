@@ -466,6 +466,21 @@ function SaleDetailModal({ sale, onClose, branchTz = DEFAULT_TIMEZONE }: { sale:
               <div className="flex items-center gap-2">
                 <UserIcon className="h-4 w-4 text-gray-400" />
                 <p className="font-medium text-gray-900 text-sm">{sale.sellerName}</p>
+                {/* Canal de captura: terminal de la sucursal (firma con su
+                    licencia) vs cuenta personal (modo staff / call center). */}
+                {sale.saleNumber?.startsWith('M-') ? (
+                  <span className="rounded bg-gray-200 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600">
+                    Migrada
+                  </span>
+                ) : sale.capturedVia === 'usuario' ? (
+                  <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">
+                    Call center / corporativo
+                  </span>
+                ) : sale.capturedVia === 'terminal' ? (
+                  <span className="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700">
+                    Terminal de sucursal
+                  </span>
+                ) : null}
               </div>
             </div>
             <div className="bg-gray-50 rounded-xl p-4">
