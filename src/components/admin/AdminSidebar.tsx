@@ -163,6 +163,7 @@ const navigation: NavItem[] = [
       { name: 'Capacitación', href: '/admin/comercial/capacitacion' },
       { name: 'Materiales', href: '/admin/comercial/materiales' },
       { name: 'Simulaciones', href: '/admin/comercial/simulaciones' },
+      { name: 'Formularios', href: '/admin/comercial/formularios' },
     ],
   },
   { name: 'Cupones', href: '/admin/cupones', icon: TagIcon, permissions: ['customers.promos', 'config'] },

@@ -71,6 +71,20 @@ function redirectClearingSession(request: NextRequest, to: string): NextResponse
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // ── Subdominio del formulario público de marketing ────────────────────
+  // formulario.<dominio> sirve SOLO el formulario "Oportunidad de Negocio"
+  // (app/formulario), sin gate de mantenimiento ni auth: cualquier ruta del
+  // subdominio se reescribe a /formulario. En el dominio principal,
+  // /formulario también es público (útil para probar sin DNS).
+  const host = (request.headers.get('host') ?? '').toLowerCase();
+  if (host.startsWith('formulario.')) {
+    if (pathname === '/formulario') return NextResponse.next();
+    return NextResponse.rewrite(new URL('/formulario', request.url));
+  }
+  if (pathname === '/formulario' || pathname.startsWith('/formulario/')) {
+    return NextResponse.next();
+  }
+
   // ── Maintenance gate ──────────────────────────────────────────────────
   // Redirect all visitors to /mantenimiento UNLESS:
   //   1. They're on /mantenimiento or /config_sistemas (always allowed)
