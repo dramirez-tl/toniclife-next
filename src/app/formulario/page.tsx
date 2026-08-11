@@ -7,7 +7,6 @@
 // respuestas se analizan en /admin/comercial/formularios.
 
 import { useState } from 'react';
-import Image from 'next/image';
 import { ArrowRight, CheckCircle2, Loader2 } from 'lucide-react';
 
 const API_BASE =
@@ -109,22 +108,27 @@ export default function FormularioOportunidadPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-sky-100 via-sky-50 to-sky-100">
-      {/* Hojas de fondo (esquinas), detrás de todo */}
+      {/* Hojas SOLO en las esquinas: superior derecha + inferior izquierda
+          (girada 180°) — sutiles (opacidad baja) y difuminadas (blur). */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-cover bg-center opacity-90"
+        className="pointer-events-none absolute -right-16 -top-16 h-64 w-72 bg-cover bg-center opacity-45 blur-[3px] sm:-right-24 sm:-top-24 sm:h-[420px] sm:w-[520px]"
+        style={{ backgroundImage: "url('/images/form/leaves-form-background.png')" }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -bottom-16 -left-16 h-64 w-72 rotate-180 bg-cover bg-center opacity-45 blur-[3px] sm:-bottom-24 sm:-left-24 sm:h-[420px] sm:w-[520px]"
         style={{ backgroundImage: "url('/images/form/leaves-form-background.png')" }}
       />
 
       <div className="relative mx-auto flex min-h-screen w-full max-w-2xl flex-col items-center px-4 py-10 sm:py-14">
-        {/* Encabezado */}
-        <Image
-          src="/images/logo/png/logo-text-dark.png"
+        {/* Encabezado — mismo logo y tamaño que el navbar de la página
+            principal (logo-text-blue.svg, 160/200/220px por breakpoint). */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/logo/svg/logo-text-blue.svg"
           alt="Tonic Life"
-          width={220}
-          height={52}
-          priority
-          className="h-12 w-auto"
+          className="h-auto w-[160px] lg:w-[200px] xl:w-[220px]"
         />
         <h1 className="mt-4 text-center text-4xl font-extrabold leading-tight text-[#274b63] sm:text-5xl">
           Oportunidad de Negocio
