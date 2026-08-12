@@ -4,7 +4,7 @@
 // público "Oportunidad de Negocio" (formulario.<dominio>). Métricas, tabla
 // con filtros y export CSV. Datos: /marketing/leads (+/stats).
 
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +28,8 @@ import {
 import {
   useMarketingLeads,
   useMarketingLeadStats,
+  useMarketingFormConfig,
+  useUpdateMarketingFormConfig,
 } from '@/hooks/useMarketingLeads';
 import { marketingService } from '@/services/marketing.service';
 
@@ -77,6 +79,28 @@ function FormulariosContent() {
   );
   const { data: leads, isLoading, isError, error } = useMarketingLeads(params);
   const { data: stats } = useMarketingLeadStats('oportunidad');
+
+  // Enlace de la reunión (paso "Sí, ya estoy afiliado" del formulario).
+  const { data: formConfig } = useMarketingFormConfig();
+  const updateConfig = useUpdateMarketingFormConfig();
+  const [meetingUrl, setMeetingUrl] = useState('');
+  useEffect(() => {
+    if (formConfig) setMeetingUrl(formConfig.meetingUrl ?? '');
+  }, [formConfig]);
+
+  async function handleSaveMeetingUrl() {
+    const url = meetingUrl.trim();
+    if (url && !/^https?:\/\/\S+$/.test(url)) {
+      toast.error('El enlace debe iniciar con http:// o https://');
+      return;
+    }
+    try {
+      await updateConfig.mutateAsync(url);
+      toast.success(url ? 'Enlace de la reunión guardado' : 'Enlace eliminado');
+    } catch {
+      toast.error('No se pudo guardar el enlace');
+    }
+  }
   // 403 = el rol no está autorizado para leer respuestas (la sección
   // Comercial del sidebar se gatea por permisos, no por este rol).
   const isForbidden =
@@ -210,6 +234,40 @@ function FormulariosContent() {
             </CardContent>
           </Card>
         )}
+
+        {/* Enlace de la reunión (afiliados verificados van directo aquí) */}
+        <Card>
+          <CardContent className="p-5">
+            <div className="mb-1 flex items-center gap-2">
+              <LinkIcon className="h-4 w-4 text-[#3E667D]" />
+              <p className="text-sm font-semibold text-gray-900">
+                Enlace de la reunión / transmisión
+              </p>
+            </div>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Los afiliados que verifiquen su número de ID en el formulario son
+              enviados directo a este enlace. Déjalo vacío para desactivarlo
+              (verán un aviso de “se publicará pronto”).
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <Input
+                value={meetingUrl}
+                onChange={(e) => setMeetingUrl(e.target.value)}
+                placeholder="https://us02web.zoom.us/j/…"
+                className="min-w-64 flex-1"
+              />
+              <Button
+                onClick={handleSaveMeetingUrl}
+                disabled={
+                  updateConfig.isPending ||
+                  meetingUrl.trim() === (formConfig?.meetingUrl ?? '')
+                }
+              >
+                {updateConfig.isPending ? 'Guardando…' : 'Guardar'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Filtros */}
         <Card>

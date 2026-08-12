@@ -38,6 +38,11 @@ export interface MarketingLeadQueryParams {
   limit?: number;
 }
 
+export interface MarketingFormConfig {
+  /** URL de la reunión/transmisión a la que se manda a los afiliados. */
+  meetingUrl: string | null;
+}
+
 class MarketingService {
   async getLeads(params: MarketingLeadQueryParams = {}): Promise<MarketingLeadList> {
     const response = await api.get<MarketingLeadList>('/marketing/leads', {
@@ -49,6 +54,18 @@ class MarketingService {
   async getStats(formSlug = 'oportunidad'): Promise<MarketingLeadStats> {
     const response = await api.get<MarketingLeadStats>('/marketing/leads/stats', {
       params: { formSlug },
+    });
+    return response.data;
+  }
+
+  async getFormConfig(): Promise<MarketingFormConfig> {
+    const response = await api.get<MarketingFormConfig>('/marketing/forms/config');
+    return response.data;
+  }
+
+  async updateFormConfig(meetingUrl: string): Promise<MarketingFormConfig> {
+    const response = await api.put<MarketingFormConfig>('/marketing/forms/config', {
+      meetingUrl,
     });
     return response.data;
   }
