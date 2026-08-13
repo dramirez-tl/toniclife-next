@@ -16,7 +16,7 @@ import {
   selectCustomersPagination,
   deleteCustomer,
 } from '@/store/slices/customersSlice';
-import { selectUserRoles } from '@/store/slices/authSlice';
+import { selectUserRoles, selectUserPermissions } from '@/store/slices/authSlice';
 import type { Customer, CustomerStatus } from '@/types/customer';
 import { customersService } from '@/services/customers.service';
 import {
@@ -66,6 +66,16 @@ export function DistribuidoresTab() {
   const pagination = useAppSelector(selectCustomersPagination);
   const userRoles = useAppSelector(selectUserRoles);
   const isSuperAdmin = userRoles.includes('super_admin');
+  // Matriz por departamento (mig 120): con solo customers:read la pestaña es
+  // de LECTURA — ver detalles sí; editar/reenviar invitación/eliminar no.
+  const userPermissions = useAppSelector(selectUserPermissions);
+  const hasPerm = (p: string) =>
+    isSuperAdmin ||
+    userPermissions.includes(p) ||
+    userPermissions.includes(`${p.split(':')[0]}:*`) ||
+    userPermissions.includes('*');
+  const canEditCustomers = hasPerm('customers:update');
+  const canResendInvite = hasPerm('users:create');
 
   // Estado interno (no URL) para no chocar con los filtros del tab de usuarios
   const [searchInput, setSearchInput] = useState('');
@@ -326,30 +336,34 @@ export function DistribuidoresTab() {
           >
             <EyeIcon className="h-4 w-4 text-primary" />
           </Link>
-          <Link
-            href={`/admin/distribuidores/${customer.id}/editar`}
-            className="rounded-lg p-2 transition-colors hover:bg-muted"
-            title="Editar"
-          >
-            <PencilIcon className="h-4 w-4 text-muted-foreground" />
-          </Link>
-          <button
-            onClick={() => void handleResendInvite(customer)}
-            className="rounded-lg p-2 transition-colors hover:bg-muted disabled:opacity-40"
-            title={
-              customer.email
-                ? 'Reenviar invitación de acceso (correo para crear contraseña)'
-                : 'El cliente no tiene email registrado'
-            }
-            disabled={!customer.email || resendingInviteId === customer.id}
-            aria-label={`Reenviar invitación a ${customer.firstName}`}
-          >
-            {resendingInviteId === customer.id ? (
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            ) : (
-              <EnvelopeIcon className="h-4 w-4 text-primary" />
-            )}
-          </button>
+          {canEditCustomers && (
+            <Link
+              href={`/admin/distribuidores/${customer.id}/editar`}
+              className="rounded-lg p-2 transition-colors hover:bg-muted"
+              title="Editar"
+            >
+              <PencilIcon className="h-4 w-4 text-muted-foreground" />
+            </Link>
+          )}
+          {canResendInvite && (
+            <button
+              onClick={() => void handleResendInvite(customer)}
+              className="rounded-lg p-2 transition-colors hover:bg-muted disabled:opacity-40"
+              title={
+                customer.email
+                  ? 'Reenviar invitación de acceso (correo para crear contraseña)'
+                  : 'El cliente no tiene email registrado'
+              }
+              disabled={!customer.email || resendingInviteId === customer.id}
+              aria-label={`Reenviar invitación a ${customer.firstName}`}
+            >
+              {resendingInviteId === customer.id ? (
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              ) : (
+                <EnvelopeIcon className="h-4 w-4 text-primary" />
+              )}
+            </button>
+          )}
           {isSuperAdmin && (
             <button
               onClick={() => {

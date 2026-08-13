@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable, type DataTableColumn } from '@/components/ui';
 import { cn } from '@/lib/utils';
+import { PermissionGuard } from '@/components/auth';
 import { useDashboardKPIs } from '@/hooks/useReports';
 import type { RecentOrder } from '@/types/reports';
 import {
@@ -228,12 +229,16 @@ export default function AdminDashboard() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button asChild variant="outline" size="sm" className="gap-2">
-            <Link href="/admin/reportes">
-              <EyeIcon className="h-4 w-4" />
-              Ver reportes
-            </Link>
-          </Button>
+          {/* Matriz mig 120: Jurídico y RRHH ven el panel SIN la opción de
+              reportes (no tienen reports:read). fallback <></> = ocultar. */}
+          <PermissionGuard permissions={['reports:read', 'reports:*']} fallback={<></>}>
+            <Button asChild variant="outline" size="sm" className="gap-2">
+              <Link href="/admin/reportes">
+                <EyeIcon className="h-4 w-4" />
+                Ver reportes
+              </Link>
+            </Button>
+          </PermissionGuard>
           <Button
             variant="ghost"
             size="sm"

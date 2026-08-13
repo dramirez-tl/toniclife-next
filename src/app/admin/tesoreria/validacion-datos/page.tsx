@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { DataTablePagination } from '@/components/ui';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
+import { PermissionGuard } from '@/components/auth';
 import type { PaymentReadinessResponse, DocumentValidation } from '@/types/payment-data';
 import {
   ShieldCheckIcon,
@@ -406,7 +407,13 @@ interface DistributorRow {
 }
 
 export default function ValidacionDatosPage() {
-  return <Suspense><ValidacionDatosContent /></Suspense>;
+  // Guard (mig 120): la página no tenía ninguno y era accesible por URL a
+  // cualquier colaborador. Tesorería entra con mlm:withhold/commissions:read.
+  return (
+    <PermissionGuard permissions={['mlm:withhold', 'commissions:read', 'commissions:*']}>
+      <Suspense><ValidacionDatosContent /></Suspense>
+    </PermissionGuard>
+  );
 }
 
 function ValidacionDatosContent() {

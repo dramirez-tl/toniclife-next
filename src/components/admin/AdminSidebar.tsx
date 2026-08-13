@@ -49,10 +49,14 @@ interface NavItem {
 // Navegación con permisos requeridos
 const navigation: NavItem[] = [
   { name: 'Panel Principal', href: '/admin', icon: HomeIcon }, // Todos pueden ver el panel principal
-  { name: 'Sucursales', href: '/admin/sucursales', icon: BuildingStorefrontIcon, permissions: ['config.branches', 'config.branches.read'] },
-  { name: 'Usuarios', href: '/admin/usuarios', icon: UserGroupIcon, permissions: ['users:read', 'config.users', 'config.users.read'] },
-  { name: 'Productos', href: '/admin/productos', icon: ShoppingBagIcon, permissions: ['config.products', 'config.products.read'] },
-  { name: 'Pedidos', href: '/admin/pedidos', icon: ClipboardDocumentListIcon, permissions: ['sales.orders', 'sales.orders.read'] },
+  // mig 120: cada ítem acepta también el código colon CANÓNICO que exige la
+  // página (antes el menú y el guard usaban vocabularios distintos y un rol
+  // podía ver el módulo pero recibir "Acceso denegado" al entrar).
+  { name: 'Sucursales', href: '/admin/sucursales', icon: BuildingStorefrontIcon, permissions: ['branches:read', 'config.branches', 'config.branches.read'] },
+  // customers:read (matriz): abre Usuarios solo con la pestaña Distribuidores.
+  { name: 'Usuarios', href: '/admin/usuarios', icon: UserGroupIcon, permissions: ['users:read', 'customers:read', 'config.users', 'config.users.read'] },
+  { name: 'Productos', href: '/admin/productos', icon: ShoppingBagIcon, permissions: ['products:read', 'config.products', 'config.products.read'] },
+  { name: 'Pedidos', href: '/admin/pedidos', icon: ClipboardDocumentListIcon, permissions: ['orders:read', 'sales.orders', 'sales.orders.read'] },
   {
     name: 'Inventario',
     href: '/admin/inventario',
@@ -83,9 +87,9 @@ const navigation: NavItem[] = [
     name: 'Tesorería',
     href: '/admin/tesoreria',
     icon: CurrencyDollarIcon,
-    // Incluye los códigos module:action REALES de la BD: conceder
-    // commissions:read o mlm:withhold en Seguridad → Roles revela el módulo.
-    permissions: ['commissions', 'commissions.history', 'commissions:read', 'commissions:manage', 'mlm:withhold', 'customers:read'],
+    // mig 120: se quitó customers:read de esta lista (revelaba Tesorería a
+    // cualquier rol con clientes, p.ej. call center o los de la matriz).
+    permissions: ['commissions', 'commissions.history', 'commissions:read', 'commissions:manage', 'mlm:withhold'],
     children: [
       { name: 'Comisiones', href: '/admin/comisiones' },
       { name: 'Retenciones', href: '/admin/tesoreria/retenciones' },
@@ -108,7 +112,7 @@ const navigation: NavItem[] = [
     name: 'Facturación',
     href: '/admin/facturacion',
     icon: DocumentTextIcon,
-    permissions: ['reports.invoices', 'config'],
+    permissions: ['billing:read', 'reports.invoices', 'config'],
     children: [
       { name: 'Facturas', href: '/admin/facturacion' },
       { name: 'Reporte Folios', href: '/admin/facturacion/reporte-folios' },
@@ -121,7 +125,7 @@ const navigation: NavItem[] = [
     name: 'Reportes',
     href: '/admin/reportes',
     icon: ChartBarIcon,
-    permissions: ['reports', 'reports.sales'],
+    permissions: ['reports:read', 'reports', 'reports.sales'],
     children: [
       { name: 'Ventas', href: '/admin/reportes/ventas' },
       { name: 'Ventas por Sucursal', href: '/admin/reportes/ventas-sucursal' },
@@ -148,9 +152,11 @@ const navigation: NavItem[] = [
     name: 'Comercial',
     href: '/admin/comercial',
     icon: AcademicCapIcon,
+    // mig 120: se quitó customers:read (revelaba Comercial a cualquier rol
+    // con clientes); el módulo se abre con el permiso 'comercial' o los
+    // granulares de cursos/materiales.
     permissions: [
       'config',
-      'customers:read',
       'comercial',
       'courses',
       'courses:read',

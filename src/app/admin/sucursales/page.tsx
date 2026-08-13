@@ -28,6 +28,8 @@ import {
 import type { PosLicense } from '@/types/posLicense';
 import { PosLicensesModal } from '@/components/pos-licenses/PosLicensesModal';
 import { useStates } from '@/hooks/useStates';
+import { useAppSelector } from '@/store/hooks';
+import { selectUserRoles, selectUserPermissions } from '@/store/slices/authSlice';
 import { useBranchTaxRules, useAssignBranchTaxRule, useRemoveBranchTaxRule, useActiveTaxRules } from '@/hooks/useTaxRules';
 import type { BranchTaxRule } from '@/services/tax-rules.service';
 import { ReceiptPercentIcon } from '@heroicons/react/24/outline';
@@ -336,6 +338,19 @@ export default function SucursalesPage() {
 }
 
 function SucursalesContent() {
+  // Matriz por departamento (mig 120): crear/editar/desactivar viaja con
+  // branches:*; ELIMINAR y LICENCIAS POS son permisos aparte que los roles
+  // de departamento no reciben.
+  const sucUserRoles = useAppSelector(selectUserRoles);
+  const sucUserPermissions = useAppSelector(selectUserPermissions);
+  const sucHasPerm = (p: string) =>
+    sucUserRoles.includes('super_admin') ||
+    sucUserPermissions.includes(p) ||
+    sucUserPermissions.includes(`${p.split(':')[0]}:*`) ||
+    sucUserPermissions.includes('*');
+  const canDeleteBranches = sucHasPerm('branches:delete');
+  const canManageLicenses = sucHasPerm('pos_licenses:manage');
+
   const { get, getNumber, setParams } = useQueryFilters({
     type: 'all',
     status: 'all',
@@ -849,7 +864,9 @@ function SucursalesContent() {
           >
             <PencilIcon className="h-4 w-4 text-blue-600" />
           </button>
-          {branch.isPosEnabled && (
+          {/* Licencias: SOLO con pos_licenses:manage (los roles de la matriz
+              pueden crear/editar sucursales, pero no tocar licencias POS). */}
+          {branch.isPosEnabled && canManageLicenses && (
             <button
               onClick={() => setLicensesBranch(branch)}
               className="rounded-lg p-2 transition-colors hover:bg-primary/10"
@@ -880,22 +897,25 @@ function SucursalesContent() {
               <CheckCircleIcon className="h-4 w-4 text-green-600" />
             </button>
           )}
-          <button
-            onClick={() => handleDeleteBranch(branch)}
-            className="rounded-lg p-2 transition-colors hover:bg-muted"
-            title="Eliminar sucursal"
-            disabled={deleteBranch.isPending}
-            aria-label={`Eliminar ${branch.name}`}
-          >
-            <TrashIcon className="h-4 w-4 text-red-600" />
-          </button>
+          {/* Eliminar: exige branches:delete (fuera de la matriz de deptos). */}
+          {canDeleteBranches && (
+            <button
+              onClick={() => handleDeleteBranch(branch)}
+              className="rounded-lg p-2 transition-colors hover:bg-muted"
+              title="Eliminar sucursal"
+              disabled={deleteBranch.isPending}
+              aria-label={`Eliminar ${branch.name}`}
+            >
+              <TrashIcon className="h-4 w-4 text-red-600" />
+            </button>
+          )}
         </div>
       ),
     },
   ];
 
   return (
-    <PermissionGuard permissions={['settings:read', 'settings:*']}>
+    <PermissionGuard permissions={['branches:read', 'branches:*', 'config.branches', 'config.branches.read']}>
     <div className="min-h-screen">
       {/* Header (banda de marca, slim) */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
@@ -1643,8 +1663,9 @@ function SucursalesContent() {
           </div>
         )}
 
-        {/* POS Licenses Section (Electron terminals) */}
-        {isPosEnabledForLicenses && editingBranch && (
+        {/* POS Licenses Section (Electron terminals) — solo con
+            pos_licenses:manage (fuera de la matriz por departamento). */}
+        {isPosEnabledForLicenses && editingBranch && canManageLicenses && (
           <div className="mb-6">
             <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-3 border-b border-border pb-2 flex items-center gap-2">
               <KeyIcon className="h-4 w-4" />

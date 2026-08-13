@@ -47,7 +47,7 @@ import { getUserTypeConfig, SELECTABLE_USER_TYPES } from '@/lib/userType';
 import type { Role } from '@/types/role';
 import { PermissionGuard } from '@/components/auth';
 import { useAppSelector } from '@/store/hooks';
-import { selectUserRoles } from '@/store/slices/authSlice';
+import { selectUserRoles, selectUserPermissions } from '@/store/slices/authSlice';
 import { useRoles } from '@/hooks/useRoles';
 import { useDepartments } from '@/hooks/useHR';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -72,6 +72,17 @@ export default function UsuariosPage() {
 function UsuariosContent() {
   const userRoles = useAppSelector(selectUserRoles);
   const isSuperAdmin = userRoles.includes('super_admin');
+  // Matriz por departamento (mig 120): con users:* se ven las pestañas de
+  // CUENTAS; con customers:read solo "Distribuidores y clientes" (lectura).
+  const userPermissions = useAppSelector(selectUserPermissions);
+  const hasPerm = (p: string) =>
+    isSuperAdmin ||
+    userPermissions.includes(p) ||
+    userPermissions.includes(`${p.split(':')[0]}:*`) ||
+    userPermissions.includes('*');
+  const canSeeAccounts = hasPerm('users:read');
+  const canManageUsers = hasPerm('users:update');
+  const canInvite = hasPerm('users:create');
 
   const { get, getNumber, setParams } = useQueryFilters({
     role: 'all',
@@ -81,7 +92,9 @@ function UsuariosContent() {
     limit: '20',
   });
 
-  const activeTab = get('tab') as TabKey;
+  let activeTab = get('tab') as TabKey;
+  // Sin users:read, la única pestaña disponible es Distribuidores y clientes.
+  if (!canSeeAccounts) activeTab = 'distribuidores';
   // La pestaña "Colaboradores" es la misma vista de usuarios filtrada por tipo.
   const isColabTab = activeTab === 'colaboradores';
   const forcedUserType = isColabTab ? 'colaborador' : undefined;
@@ -573,32 +586,38 @@ function UsuariosContent() {
       cellClassName: 'text-right',
       render: (user) => (
         <div className="flex items-center justify-end gap-2">
-          <button
-            onClick={() => openEditModal(user)}
-            className="rounded-lg p-2 transition-colors hover:bg-muted"
-            title="Editar usuario"
-            aria-label={`Editar ${user.firstName} ${user.lastName}`}
-          >
-            <PencilIcon className="h-4 w-4 text-blue-600" />
-          </button>
-          <button
-            onClick={async () => {
-              try {
-                const r = await usersService.resendInvitation(user.id);
-                toast.success(r.message);
-              } catch (e: any) {
-                toast.error(
-                  e.response?.data?.message || 'Error al reenviar la invitación',
-                );
-              }
-            }}
-            className="rounded-lg p-2 transition-colors hover:bg-muted"
-            title="Reenviar invitación para definir contraseña"
-            aria-label={`Reenviar invitación a ${user.firstName}`}
-          >
-            <EnvelopeIcon className="h-4 w-4 text-primary" />
-          </button>
-          {user.isActive ? (
+          {/* Acciones gateadas por permiso (matriz mig 120): editar y
+              activar/desactivar → users:update; reenviar → users:create. */}
+          {canManageUsers && (
+            <button
+              onClick={() => openEditModal(user)}
+              className="rounded-lg p-2 transition-colors hover:bg-muted"
+              title="Editar usuario"
+              aria-label={`Editar ${user.firstName} ${user.lastName}`}
+            >
+              <PencilIcon className="h-4 w-4 text-blue-600" />
+            </button>
+          )}
+          {canInvite && (
+            <button
+              onClick={async () => {
+                try {
+                  const r = await usersService.resendInvitation(user.id);
+                  toast.success(r.message);
+                } catch (e: any) {
+                  toast.error(
+                    e.response?.data?.message || 'Error al reenviar la invitación',
+                  );
+                }
+              }}
+              className="rounded-lg p-2 transition-colors hover:bg-muted"
+              title="Reenviar invitación para definir contraseña"
+              aria-label={`Reenviar invitación a ${user.firstName}`}
+            >
+              <EnvelopeIcon className="h-4 w-4 text-primary" />
+            </button>
+          )}
+          {canManageUsers && (user.isActive ? (
             <button
               onClick={() => confirmDeactivateUser(user)}
               className="rounded-lg p-2 transition-colors hover:bg-muted"
@@ -618,7 +637,7 @@ function UsuariosContent() {
             >
               <CheckCircleIcon className="h-4 w-4 text-green-600" />
             </button>
-          )}
+          ))}
           {isSuperAdmin && (
             <button
               onClick={() => handleViewPassword(user)}
@@ -655,7 +674,9 @@ function UsuariosContent() {
   ];
 
   return (
-    <PermissionGuard permissions={['users:read', 'users:*']}>
+    // customers:read (matriz mig 120): acceso SOLO a la pestaña de
+    // Distribuidores y clientes en modo lectura.
+    <PermissionGuard permissions={['users:read', 'users:*', 'customers:read']}>
     <div className="min-h-screen">
       {/* Header (banda de marca, slim) */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
@@ -678,10 +699,12 @@ function UsuariosContent() {
               >
                 <Link href="/admin">Volver al Panel</Link>
               </Button>
-              <Button onClick={openCreateModal} className="bg-card text-primary hover:bg-card/90">
-                <PlusIcon className="h-5 w-5" />
-                Nuevo Usuario
-              </Button>
+              {canInvite && (
+                <Button onClick={openCreateModal} className="bg-card text-primary hover:bg-card/90">
+                  <PlusIcon className="h-5 w-5" />
+                  Nuevo Usuario
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -689,30 +712,36 @@ function UsuariosContent() {
 
       {/* Main Content */}
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Tabs */}
+        {/* Tabs — las pestañas de CUENTAS requieren users:read; con solo
+            customers:read (matriz por departamento) queda únicamente
+            "Distribuidores y clientes" en modo lectura. */}
         <div className="mb-6 flex w-fit flex-wrap gap-1 rounded-xl border border-border bg-card p-1">
-          <button
-            onClick={() => setParams({ tab: 'users' })}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'users'
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-muted'
-            }`}
-          >
-            <UserGroupIcon className="h-4 w-4" />
-            Cuentas de sistema
-          </button>
-          <button
-            onClick={() => setParams({ tab: 'colaboradores' })}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'colaboradores'
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-muted'
-            }`}
-          >
-            <BriefcaseIcon className="h-4 w-4" />
-            Colaboradores
-          </button>
+          {canSeeAccounts && (
+            <>
+              <button
+                onClick={() => setParams({ tab: 'users' })}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'users'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                <UserGroupIcon className="h-4 w-4" />
+                Cuentas de sistema
+              </button>
+              <button
+                onClick={() => setParams({ tab: 'colaboradores' })}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'colaboradores'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                <BriefcaseIcon className="h-4 w-4" />
+                Colaboradores
+              </button>
+            </>
+          )}
           <button
             onClick={() => setParams({ tab: 'distribuidores' })}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -724,17 +753,19 @@ function UsuariosContent() {
             <BuildingStorefrontIcon className="h-4 w-4" />
             Distribuidores y clientes
           </button>
-          <button
-            onClick={() => setParams({ tab: 'verification' })}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === 'verification'
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:bg-muted'
-            }`}
-          >
-            <EnvelopeIcon className="h-4 w-4" />
-            Verificación Email
-          </button>
+          {canSeeAccounts && (
+            <button
+              onClick={() => setParams({ tab: 'verification' })}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === 'verification'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              <EnvelopeIcon className="h-4 w-4" />
+              Verificación Email
+            </button>
+          )}
         </div>
 
         {/* Tab: Distribuidores y clientes (dominio customers) */}
@@ -1428,14 +1459,23 @@ function UserFormModal({
   const isCliente = (formData.userType ?? 'colaborador') === 'cliente';
   const { data: departmentsCatalog } = useDepartments();
   const { data: activeCountries } = useActiveCountries();
-  // Roles de PERMISOS de colaborador: categoría colaborador, activos, y que NO
-  // sean roles-departamento (esos se asignan vía el campo Departamento).
+  // FUSIÓN rol↔departamento (mig 120): los roles vinculados a un departamento
+  // SÍ se asignan como rol — al elegirlos, el departamento se fija solo.
   const colaboradorRoles = roles.filter(
     (r) =>
-      (r.category ?? 'colaborador') === 'colaborador' &&
-      r.isActive !== false &&
-      !r.isDepartmentRole,
+      (r.category ?? 'colaborador') === 'colaborador' && r.isActive !== false,
   );
+  // Rol seleccionado con departamento vinculado → campo Departamento fijo.
+  const selectedRole = roles.find((r) => r.id === formData.roleId);
+  const roleDepartmentId = selectedRole?.departmentId ?? null;
+  // Sincroniza el form: sin esto, la validación "departamento obligatorio"
+  // fallaría aunque el rol ya lo traiga (el API lo fuerza de cualquier modo).
+  useEffect(() => {
+    if (roleDepartmentId && formData.departmentId !== roleDepartmentId) {
+      handleChange('departmentId', roleDepartmentId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roleDepartmentId]);
 
   const inputClassName =
     'w-full rounded-lg border border-input bg-background px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40';
@@ -1616,14 +1656,17 @@ function UserFormModal({
                 </label>
                 <SearchableSelect
                   options={(departmentsCatalog ?? []).map((d) => ({ value: d.id, label: d.name }))}
-                  value={formData.departmentId ?? ''}
+                  value={roleDepartmentId ?? formData.departmentId ?? ''}
                   onChange={(val) => handleChange('departmentId', val)}
                   showAllOption={false}
                   placeholder="Seleccionar departamento..."
                   className="w-full"
+                  disabled={!!roleDepartmentId}
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Área del colaborador. Independiente del rol (permisos).
+                  {roleDepartmentId
+                    ? 'Fijado por el rol seleccionado (rol y departamento están fusionados).'
+                    : 'Área del colaborador (para roles sin departamento vinculado).'}
                 </p>
               </div>
             </div>

@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
+import { useDepartments } from '@/hooks/useHR';
 import { PermissionGuard } from '@/components/auth';
 import {
   useRoles,
@@ -86,9 +87,11 @@ function RoleFormModal({
     defaultModule: role?.defaultModule || '',
     requiresCashClose: role?.requiresCashClose || false,
     category: (role?.category as 'colaborador' | 'cliente') || 'colaborador',
-    isDepartmentRole: role?.isDepartmentRole || false,
+    departmentId: role?.departmentId || '',
     isActive: role?.isActive ?? true,
   });
+  // Fusión rol↔departamento: catálogo RRHH para el vínculo opcional.
+  const { data: departmentsCatalog } = useDepartments();
 
   const createMutation = useCreateRole();
   const updateMutation = useUpdateRole();
@@ -110,7 +113,8 @@ function RoleFormModal({
             defaultModule: formData.defaultModule || undefined,
             requiresCashClose: formData.requiresCashClose,
             category: formData.category,
-            isDepartmentRole: formData.isDepartmentRole,
+            // Fusión rol↔departamento: '' = desvincular (null).
+            departmentId: formData.departmentId || null,
             isActive: formData.isActive,
           },
         });
@@ -127,7 +131,7 @@ function RoleFormModal({
           defaultModule: formData.defaultModule || undefined,
           requiresCashClose: formData.requiresCashClose,
           category: formData.category,
-          isDepartmentRole: formData.isDepartmentRole,
+          departmentId: formData.departmentId || undefined,
         });
         toast.success('Rol creado correctamente');
       }
@@ -277,18 +281,34 @@ function RoleFormModal({
                   <p className="text-[11px] text-gray-400">El usuario debe hacer corte de caja al finalizar su turno</p>
                 </div>
               </label>
-              <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors">
-                <input
-                  type="checkbox"
-                  checked={formData.isDepartmentRole || false}
-                  onChange={(e) => setFormData({ ...formData, isDepartmentRole: e.target.checked })}
-                  className="h-4 w-4 text-[#3E667D] border-gray-300 rounded focus:ring-[#3E667D]"
+              {/* FUSIÓN rol↔departamento (mig 120): un solo lugar que editar.
+                  Al vincular un departamento, asignar este rol a un usuario
+                  fija su departamento automáticamente. */}
+              <div className="p-3 rounded-lg border border-gray-200">
+                <p className="text-sm font-medium text-gray-700 mb-1">
+                  Departamento vinculado (opcional)
+                </p>
+                <p className="text-[11px] text-gray-400 mb-2">
+                  Si lo vinculas, los usuarios con este rol quedan en ese
+                  departamento automáticamente — rol y departamento se editan
+                  aquí como una sola cosa. Déjalo en &quot;Sin departamento&quot;
+                  para roles generales (Administrador, Auditor…).
+                </p>
+                <SearchableSelect
+                  options={(departmentsCatalog ?? []).map((d) => ({
+                    value: d.id,
+                    label: d.name,
+                  }))}
+                  value={formData.departmentId || ''}
+                  onChange={(val) =>
+                    setFormData({ ...formData, departmentId: val })
+                  }
+                  showAllOption={true}
+                  allValue=""
+                  allLabel="Sin departamento"
+                  placeholder="Buscar departamento…"
                 />
-                <div>
-                  <p className="text-sm font-medium text-gray-700">Es departamento (no rol de permisos)</p>
-                  <p className="text-[11px] text-gray-400">Se oculta del selector de rol al crear usuarios; el departamento se asigna aparte.</p>
-                </div>
-              </label>
+              </div>
             </div>
           </fieldset>
 
@@ -741,7 +761,9 @@ function RolesContent() {
             <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">Corte</span>
           )}
           {role.isDepartmentRole && (
-            <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-700" title="Es un departamento, no un rol de permisos">Departamento</span>
+            <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-700" title="Rol vinculado a un departamento: asignarlo fija el departamento del usuario">
+              {role.departmentName ?? 'Departamento'}
+            </span>
           )}
         </div>
       ),
@@ -751,18 +773,15 @@ function RolesContent() {
       header: 'Acciones',
       render: (role) => (
         <div className="flex items-center justify-end gap-0.5">
-          {/* Los departamentos no llevan permisos: sin botón de llave. */}
-          {!role.isDepartmentRole && (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() => { setPermissionsRoleId(role.id); setPermissionsRoleName(role.name); }}
-              title="Gestionar permisos"
-              className="text-gray-400 hover:text-[#3E667D] hover:bg-[#3E667D]/5"
-            >
-              <KeyIcon className="h-4 w-4" />
-            </Button>
-          )}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => { setPermissionsRoleId(role.id); setPermissionsRoleName(role.name); }}
+            title="Gestionar permisos"
+            className="text-gray-400 hover:text-[#3E667D] hover:bg-[#3E667D]/5"
+          >
+            <KeyIcon className="h-4 w-4" />
+          </Button>
           <Button
             variant="ghost"
             size="icon-sm"
@@ -863,9 +882,10 @@ function RolesContent() {
         </div>
         {viewFilter === 'departamentos' && (
           <p className="text-xs text-muted-foreground -mt-3">
-            Los departamentos son el área del colaborador (se asignan en el
-            campo Departamento del usuario). No dan permisos y no aparecen en
-            el selector de Rol.
+            Roles VINCULADOS a un departamento (fusión rol+departamento):
+            asignarlos a un usuario fija su departamento automáticamente y sus
+            permisos se configuran aquí mismo con la llave 🔑 — una sola cosa
+            que editar.
           </p>
         )}
 

@@ -11,8 +11,12 @@ export interface Role {
   isActive: boolean;
   /** 'colaborador' (departamento interno) | 'cliente'. */
   category?: string;
-  /** true = el rol es en realidad un departamento; se oculta del selector de rol. */
+  /** true = rol VINCULADO a un departamento (fusión mig 120): asignarlo fija
+   *  el departamento del usuario automáticamente. */
   isDepartmentRole?: boolean;
+  /** Departamento RRHH vinculado (null = rol sin departamento). */
+  departmentId?: string | null;
+  departmentName?: string | null;
   userCount: number;
   createdAt: string;
   updatedAt: string;
@@ -59,6 +63,8 @@ export interface CreateRoleDto {
   requiresCashClose?: boolean;
   category?: RoleCategory;
   isDepartmentRole?: boolean;
+  /** Departamento RRHH vinculado (fusión rol↔departamento). */
+  departmentId?: string;
 }
 
 export interface UpdateRoleDto {
@@ -68,6 +74,8 @@ export interface UpdateRoleDto {
   requiresCashClose?: boolean;
   category?: RoleCategory;
   isDepartmentRole?: boolean;
+  /** Departamento vinculado; null = desvincular. */
+  departmentId?: string | null;
   isActive?: boolean;
 }
 
