@@ -70,7 +70,7 @@ export default function RegistroPage() {
     { text: 'Una letra mayúscula', met: /[A-Z]/.test(formData.password) },
     { text: 'Una letra minúscula', met: /[a-z]/.test(formData.password) },
     { text: 'Un número', met: /[0-9]/.test(formData.password) },
-    { text: 'Un carácter especial (!@#$%^&*)', met: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(formData.password) },
+    { text: 'Un carácter especial (ej. !@#$%.)', met: /[^A-Za-z0-9]/.test(formData.password) },
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {

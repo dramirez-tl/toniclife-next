@@ -31,7 +31,7 @@ const passwordRules = [
   { label: 'Una letra mayúscula', test: (p: string) => /[A-Z]/.test(p) },
   { label: 'Una letra minúscula', test: (p: string) => /[a-z]/.test(p) },
   { label: 'Un número', test: (p: string) => /[0-9]/.test(p) },
-  { label: 'Un carácter especial (!@#$%^&*)', test: (p: string) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p) },
+  { label: 'Un carácter especial (ej. !@#$%.)', test: (p: string) => /[^A-Za-z0-9]/.test(p) },
 ];
 
 function ResetPasswordForm() {

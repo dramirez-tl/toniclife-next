@@ -39,8 +39,11 @@ const passwordRules = [
   { label: 'Una letra minúscula', test: (p: string) => /[a-z]/.test(p) },
   { label: 'Un número', test: (p: string) => /[0-9]/.test(p) },
   {
-    label: 'Un carácter especial (!@#$%^&*)',
-    test: (p: string) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(p),
+    // Igual que el API: CUALQUIER carácter no alfanumérico cuenta (antes la
+    // pantalla aceptaba más caracteres que el servidor y el submit fallaba
+    // con todo palomeado en verde).
+    label: 'Un carácter especial (ej. !@#$%.)',
+    test: (p: string) => /[^A-Za-z0-9]/.test(p),
   },
 ];
 
