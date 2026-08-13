@@ -566,11 +566,16 @@ function RolesContent() {
     limit: '20',
     type: 'all',
     category: 'all',
+    view: 'roles',
   });
 
   const searchQuery = get('search');
   const typeFilter = get('type');
   const categoryFilter = get('category');
+  // Vista dividida: 'roles' = roles de PERMISOS; 'departamentos' = roles
+  // marcados como departamento (área del colaborador, sin permisos). Se
+  // separan para que la tabla no mezcle los dos conceptos.
+  const viewFilter = get('view') === 'departamentos' ? 'departamentos' : 'roles';
   const currentPage = getNumber('page') || 1;
   const pageSize = getNumber('limit') || 20;
 
@@ -585,9 +590,16 @@ function RolesContent() {
 
   const roles = data?.data || [];
 
+  const departmentCount = useMemo(
+    () => roles.filter((r) => r.isDepartmentRole).length,
+    [roles],
+  );
+
   // Client-side filtering
   const filteredRoles = useMemo(() => {
-    let result = roles;
+    let result = roles.filter((r) =>
+      viewFilter === 'departamentos' ? !!r.isDepartmentRole : !r.isDepartmentRole,
+    );
     if (searchQuery) {
       const lower = searchQuery.toLowerCase();
       result = result.filter(
@@ -603,7 +615,7 @@ function RolesContent() {
       result = result.filter((r) => (r.category ?? 'colaborador') === categoryFilter);
     }
     return result;
-  }, [roles, searchQuery, typeFilter, categoryFilter]);
+  }, [roles, viewFilter, searchQuery, typeFilter, categoryFilter]);
 
   // Client-side pagination
   const totalItems = filteredRoles.length;
@@ -739,15 +751,18 @@ function RolesContent() {
       header: 'Acciones',
       render: (role) => (
         <div className="flex items-center justify-end gap-0.5">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => { setPermissionsRoleId(role.id); setPermissionsRoleName(role.name); }}
-            title="Gestionar permisos"
-            className="text-gray-400 hover:text-[#3E667D] hover:bg-[#3E667D]/5"
-          >
-            <KeyIcon className="h-4 w-4" />
-          </Button>
+          {/* Los departamentos no llevan permisos: sin botón de llave. */}
+          {!role.isDepartmentRole && (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => { setPermissionsRoleId(role.id); setPermissionsRoleName(role.name); }}
+              title="Gestionar permisos"
+              className="text-gray-400 hover:text-[#3E667D] hover:bg-[#3E667D]/5"
+            >
+              <KeyIcon className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon-sm"
@@ -818,6 +833,41 @@ function RolesContent() {
             <p className="text-2xl font-bold text-emerald-700">{roles.filter((r) => !r.isSystemRole).length}</p>
           </button>
         </div>
+
+        {/* Vista: roles de permisos vs departamentos (dos conceptos distintos:
+            el ROL da permisos; el DEPARTAMENTO solo es el área del colaborador
+            y se asigna aparte en el formulario de usuario). */}
+        <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
+          <button
+            type="button"
+            onClick={() => setParams({ view: 'roles', page: '1' })}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+              viewFilter === 'roles'
+                ? 'bg-[#3E667D] text-white'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            Roles de permisos ({roles.length - departmentCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setParams({ view: 'departamentos', page: '1' })}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+              viewFilter === 'departamentos'
+                ? 'bg-[#3E667D] text-white'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            Departamentos ({departmentCount})
+          </button>
+        </div>
+        {viewFilter === 'departamentos' && (
+          <p className="text-xs text-muted-foreground -mt-3">
+            Los departamentos son el área del colaborador (se asignan en el
+            campo Departamento del usuario). No dan permisos y no aparecen en
+            el selector de Rol.
+          </p>
+        )}
 
         {/* Table Card */}
         <Card>
