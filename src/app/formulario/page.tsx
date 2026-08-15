@@ -257,7 +257,7 @@ export default function FormularioOportunidadPage() {
             {/* ── Paso 1: ¿Ya estás afiliado? ── */}
             <div className="mt-6 w-full rounded-2xl bg-white/85 p-5 shadow-md backdrop-blur-sm">
               <p className="text-lg font-bold leading-snug text-[#274b63]">
-                ¿Ya estás afiliado a Tonic Life?
+                ¿Ya estás afiliado?
               </p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <button
