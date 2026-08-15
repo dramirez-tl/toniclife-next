@@ -52,7 +52,7 @@ const QUESTIONS = [
   {
     key: 'invitedBy' as const,
     number: 4,
-    label: '¿Quién te hizo el favor de invitarte a esta sesión?',
+    label: '¿Quién te invitó a esta sesión?',
     helper:
       '(Escribe el nombre de tu patrocinador o pon "Redes Sociales Oficiales" si llegaste por nuestra página)',
     required: false,
@@ -208,7 +208,7 @@ export default function FormularioOportunidadPage() {
           className="h-auto w-[160px] lg:w-[200px] xl:w-[220px]"
         />
         <h1 className="mt-4 text-center text-4xl font-extrabold leading-tight text-[#274b63] sm:text-5xl">
-          Presentación de Oportunidad Tonic Life
+          Presentación de Oportunidad
         </h1>
         <p className="mt-2 text-center text-lg font-semibold text-[#3E667D] sm:text-xl">
           Acceso exclusivo para nuestra red de distribuidores y nuevos invitados.
@@ -247,7 +247,7 @@ export default function FormularioOportunidadPage() {
             {/* ── Descripción de bienvenida ── */}
             <p className="mx-auto mt-5 max-w-xl text-center text-[15px] leading-relaxed text-[#3E667D]">
               <span className="font-bold text-[#274b63]">
-                ¡Nos da muchísimo gusto saludarte!
+                ¡Nos da muchísimo gusto recibirte!
               </span>{' '}
               Para brindarte acceso a nuestra transmisión en vivo y asegurarnos
               de que recibas la mejor atención y material exclusivo, por favor
@@ -384,7 +384,7 @@ export default function FormularioOportunidadPage() {
                             onChange={(e) => setAnswer(q.key, e.target.value)}
                             required={q.required}
                             maxLength={('maxLength' in q ? q.maxLength : undefined) ?? 200}
-                            placeholder="Texto de respuesta breve"
+                            placeholder="(Escribe aquí tu respuesta.)"
                             className="mt-3 w-full rounded-lg border border-[#c8ddf2] bg-white px-3.5 py-2.5 text-[15px] text-[#274b63] placeholder:text-[#9db8cd] focus:border-[#3E667D] focus:outline-none focus:ring-2 focus:ring-[#c8ddf2]"
                           />
                         </div>
