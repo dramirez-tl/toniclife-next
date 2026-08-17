@@ -65,6 +65,9 @@ type Affiliation = 'yes' | 'no' | null;
 export default function FormularioOportunidadPage() {
   // ── Paso 1: gate de afiliación ──
   const [affiliation, setAffiliation] = useState<Affiliation>(null);
+  // Términos y condiciones: obligatorio palomear para poder avanzar a
+  // capturar cualquier dato (resguardo legal de la empresa).
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [memberId, setMemberId] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
@@ -92,6 +95,10 @@ export default function FormularioOportunidadPage() {
     e.preventDefault();
     const num = memberId.trim();
     if (verifying) return;
+    if (!acceptedTerms) {
+      setVerifyError('Para continuar debes aceptar los Términos y Condiciones.');
+      return;
+    }
     if (!/^\d{1,20}$/.test(num)) {
       setVerifyError('Escribe tu número de ID (solo dígitos).');
       return;
@@ -138,6 +145,10 @@ export default function FormularioOportunidadPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (sending || sent) return;
+    if (!acceptedTerms) {
+      setError('Para continuar debes aceptar los Términos y Condiciones.');
+      return;
+    }
     if (answers.fullName.trim().length < 2) {
       setError('Por favor escribe tu nombre completo.');
       return;
@@ -254,8 +265,56 @@ export default function FormularioOportunidadPage() {
               completa este breve registro de dos pasos. ¡Comenzamos!
             </p>
 
-            {/* ── Paso 1: ¿Ya estás afiliado? ── */}
+            {/* ── Términos y condiciones (obligatorio para avanzar) ── */}
             <div className="mt-6 w-full rounded-2xl bg-white/85 p-5 shadow-md backdrop-blur-sm">
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => {
+                    setAcceptedTerms(e.target.checked);
+                    setError(null);
+                    setVerifyError(null);
+                  }}
+                  className="mt-0.5 size-5 shrink-0 cursor-pointer rounded border-[#c8ddf2] accent-[#3E667D]"
+                />
+                <span className="text-sm leading-relaxed text-[#3E667D]">
+                  He leído y acepto los{' '}
+                  <a
+                    href="/terminos"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-bold text-[#274b63] underline underline-offset-2 hover:text-[#3E667D]"
+                  >
+                    Términos y Condiciones
+                  </a>{' '}
+                  y el{' '}
+                  <a
+                    href="/privacidad"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-bold text-[#274b63] underline underline-offset-2 hover:text-[#3E667D]"
+                  >
+                    Aviso de Privacidad
+                  </a>{' '}
+                  de Tonic Life, y autorizo el uso de mis datos para darme
+                  acceso y seguimiento a esta presentación.
+                </span>
+              </label>
+              {!acceptedTerms && (
+                <p className="mt-2 pl-8 text-xs font-medium text-[#3E667D]/70">
+                  Palomea esta casilla para poder continuar con tu registro.
+                </p>
+              )}
+            </div>
+
+            {/* ── Paso 1: ¿Ya estás afiliado? ── */}
+            <div
+              className={`mt-4 w-full rounded-2xl bg-white/85 p-5 shadow-md backdrop-blur-sm transition-opacity ${
+                acceptedTerms ? '' : 'pointer-events-none select-none opacity-50'
+              }`}
+              aria-disabled={!acceptedTerms}
+            >
               <p className="text-lg font-bold leading-snug text-[#274b63]">
                 ¿Ya estás afiliado?
               </p>
@@ -348,7 +407,13 @@ export default function FormularioOportunidadPage() {
 
             {/* ── Paso 2: registro del invitado/prospecto ── */}
             {affiliation === 'no' && (
-              <form onSubmit={handleSubmit} className="mt-6 w-full">
+              <form
+                onSubmit={handleSubmit}
+                className={`mt-6 w-full transition-opacity ${
+                  acceptedTerms ? '' : 'pointer-events-none select-none opacity-50'
+                }`}
+                aria-disabled={!acceptedTerms}
+              >
                 <p className="mx-auto max-w-xl text-center text-[15px] leading-relaxed text-[#3E667D]">
                   Para brindarte la mejor experiencia en nuestra Presentación de
                   Oportunidad y asegurarnos de que recibas toda la información y
@@ -403,7 +468,7 @@ export default function FormularioOportunidadPage() {
                 <div className="mt-7 flex flex-col items-center gap-4">
                   <button
                     type="submit"
-                    disabled={sending}
+                    disabled={sending || !acceptedTerms}
                     className="inline-flex items-center gap-2 rounded-xl bg-[#33566d] px-8 py-3.5 text-base font-bold uppercase tracking-wide text-white shadow-lg transition-colors hover:bg-[#274b63] disabled:opacity-60"
                   >
                     {sending ? (
