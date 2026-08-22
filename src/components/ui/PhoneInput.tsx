@@ -37,12 +37,20 @@ export function PhoneInput({
   const [number, setNumber] = useState<string>(parsed.number);
 
   // Sincroniza cuando el valor externo cambia (p. ej. al abrir un modal de
-  // edición) sin pisar lo que el usuario está escribiendo.
+  // edición) sin pisar lo que el usuario está escribiendo. Además NORMALIZA
+  // hacia arriba los valores legacy ('7442738206' sin lada): el input los
+  // MOSTRABA bien (MX +52 | 10 dígitos) pero el form guardaba el crudo si no
+  // se tocaba el campo, y el API (E.164 estricto) lo rechazaba aunque los
+  // dígitos fueran correctos (caso real: editar distribuidor 1784011).
   useEffect(() => {
     if (toE164(country, number) !== (value || '')) {
       const p = parsePhone(value);
       setCountry(p.country);
       setNumber(p.number);
+      const normalized = toE164(p.country, p.number);
+      if ((value || '') !== normalized) {
+        onChange(normalized);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
