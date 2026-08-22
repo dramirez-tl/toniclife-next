@@ -214,6 +214,7 @@ export default function NuevoProductoAdminPage() {
                       type="text"
                       name="name"
                       required
+                      maxLength={200}
                       value={formData.name}
                       onChange={handleChange}
                       className={inputClass}
@@ -227,6 +228,7 @@ export default function NuevoProductoAdminPage() {
                         type="text"
                         name="code"
                         required
+                        maxLength={50}
                         value={formData.code}
                         onChange={handleChange}
                         className={inputClass}
@@ -250,11 +252,11 @@ export default function NuevoProductoAdminPage() {
                     <input
                       type="text"
                       name="shortName"
-                      maxLength={100}
+                      maxLength={50}
                       value={formData.shortName}
                       onChange={handleChange}
                       className={inputClass}
-                      placeholder="Nombre breve para listados y tickets"
+                      placeholder="Nombre breve para listados y tickets (máx. 50)"
                     />
                   </div>
                   <div>

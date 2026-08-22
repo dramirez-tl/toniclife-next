@@ -393,6 +393,7 @@ export default function EditarProductoAdminPage() {
                           type="text"
                           name="name"
                           required
+                          maxLength={200}
                           value={formData.name}
                           onChange={handleChange}
                           placeholder="Ej: Proteina Vegana Chocolate"
@@ -426,10 +427,10 @@ export default function EditarProductoAdminPage() {
                         <Input
                           type="text"
                           name="shortName"
-                          maxLength={100}
+                          maxLength={50}
                           value={formData.shortName}
                           onChange={handleChange}
-                          placeholder="Nombre breve para listados y tickets"
+                          placeholder="Nombre breve para listados y tickets (máx. 50)"
                         />
                       </div>
                       <div>
