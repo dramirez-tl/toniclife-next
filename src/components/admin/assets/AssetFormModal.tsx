@@ -240,12 +240,14 @@ export function AssetFormModal({
         status: asset.status,
         condition: asset.condition,
         purchaseId: asset.purchaseId ?? '',
-        purchaseDate: asset.purchaseDate ?? '',
+        // .slice(0,10): si la fecha llegara como timestamp ISO, el input
+        // type="date" la mostraría vacía y al guardar la borraría.
+        purchaseDate: (asset.purchaseDate ?? '').slice(0, 10),
         purchaseCost: asset.purchaseCost !== null ? String(asset.purchaseCost) : '',
         currencyCode: asset.currencyCode ?? 'MXN',
         usefulLifeMonths:
           asset.usefulLifeMonths !== null ? String(asset.usefulLifeMonths) : '',
-        warrantyUntil: asset.warrantyUntil ?? '',
+        warrantyUntil: (asset.warrantyUntil ?? '').slice(0, 10),
         warrantyProvider: asset.warrantyProvider ?? '',
         branchId: asset.branchId ?? '',
         locationId: asset.locationId ?? '',
@@ -313,7 +315,7 @@ export function AssetFormModal({
     const p = purchases.find((x) => x.id === purchaseId);
     set({
       purchaseId,
-      purchaseDate: form.purchaseDate || p?.invoiceDate || '',
+      purchaseDate: (form.purchaseDate || p?.invoiceDate || '').slice(0, 10),
       currencyCode: form.currencyCode || p?.currencyCode || 'MXN',
     });
   };
@@ -373,7 +375,7 @@ export function AssetFormModal({
 
       set({
         purchaseId: created.id,
-        purchaseDate: form.purchaseDate || created.invoiceDate || '',
+        purchaseDate: (form.purchaseDate || created.invoiceDate || '').slice(0, 10),
         currencyCode: form.currencyCode || created.currencyCode || 'MXN',
       });
       setNewInvoiceOpen(false);
