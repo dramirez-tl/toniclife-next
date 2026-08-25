@@ -379,10 +379,16 @@ export function LifeBar({ pct }: { pct: number | null }) {
   );
 }
 
-/** Fecha corta en español, tolerante a null. */
+/** Fecha corta en español, tolerante a null.
+ *  OJO: una fecha PURA ('2026-08-04') new Date la toma como medianoche UTC y
+ *  el navegador en México la pinta el día ANTERIOR (04→03). Se construye en
+ *  hora local; los timestamps completos sí se convierten normal. */
 export function shortDate(value: string | null | undefined): string {
   if (!value) return '—';
-  const d = new Date(value);
+  const soloFecha = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  const d = soloFecha
+    ? new Date(Number(soloFecha[1]), Number(soloFecha[2]) - 1, Number(soloFecha[3]))
+    : new Date(value);
   if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 }
