@@ -5,13 +5,10 @@ import { AuthGuard } from '@/components/auth/AuthGuard';
 import { useEffect, useState } from 'react';
 import { Bars3Icon, ChevronDoubleLeftIcon } from '@heroicons/react/24/outline';
 import { NotificationBell } from '@/components/admin/NotificationBell';
-import { ThemeToggle } from '@/components/admin/ThemeToggle';
 import { cn } from '@/lib/utils';
 import { LEGACY_ADMIN_ROLE_CODES } from '@/lib/auth-roles';
 
-const THEME_KEY = 'admin-theme';
 const SIDEBAR_KEY = 'admin-sidebar-collapsed';
-type Theme = 'light' | 'dark';
 
 export default function AdminLayout({
   children,
@@ -20,25 +17,14 @@ export default function AdminLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [theme, setTheme] = useState<Theme>('light');
 
-  // Cargar preferencias guardadas (tema + sidebar colapsado).
+  // Cargar preferencias guardadas (sidebar colapsado).
   useEffect(() => {
-    const saved = localStorage.getItem(THEME_KEY) as Theme | null;
-    const initial =
-      saved ??
-      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    setTheme(initial);
     setCollapsed(localStorage.getItem(SIDEBAR_KEY) === '1');
+    // El modo oscuro se retiró por decisión de producto (ago-2026): el admin
+    // es SOLO claro. Se limpia la preferencia vieja para quien lo tenía.
+    localStorage.removeItem('admin-theme');
   }, []);
-
-  const toggleTheme = () => {
-    setTheme((prev) => {
-      const next: Theme = prev === 'dark' ? 'light' : 'dark';
-      localStorage.setItem(THEME_KEY, next);
-      return next;
-    });
-  };
 
   const toggleCollapsed = () => {
     setCollapsed((prev) => {
@@ -56,10 +42,7 @@ export default function AdminLayout({
       requiredCategory="colaborador"
       requiredRoles={LEGACY_ADMIN_ROLE_CODES}
     >
-    {/* La clase `dark` solo envuelve el admin: el sitio público no se afecta.
-        Va en un wrapper externo porque el variant shadcn es `&:is(.dark *)`. */}
-    <div className={cn(theme === 'dark' && 'dark')}>
-    <div className="min-h-screen bg-muted dark:bg-background">
+    <div className="min-h-screen bg-muted">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
@@ -99,7 +82,6 @@ export default function AdminLayout({
           <div className="flex-1">
             <span className="font-semibold text-primary">Tonic Life Admin</span>
           </div>
-          <ThemeToggle theme={theme} onToggle={toggleTheme} />
           <NotificationBell />
         </header>
 
@@ -118,7 +100,6 @@ export default function AdminLayout({
             )}
           </button>
           <div className="flex items-center gap-3">
-            <ThemeToggle theme={theme} onToggle={toggleTheme} />
             <NotificationBell />
           </div>
         </div>
@@ -128,7 +109,6 @@ export default function AdminLayout({
           {children}
         </main>
       </div>
-    </div>
     </div>
     </AuthGuard>
   );
