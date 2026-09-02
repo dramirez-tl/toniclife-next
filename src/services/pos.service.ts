@@ -294,7 +294,9 @@ class PosService {
     });
     // Map to QuickProduct format (API returns code, price, not sku/basePrice)
     return response.data.data?.map((p: any) => {
-      const isKit = p.productType === 'kit';
+      // 'pack' cuenta igual que 'kit' (misma semántica de inventario) — el
+      // POS Electron ya lo hacía así (posApi.ts); aquí faltaba.
+      const isKit = p.productType === 'kit' || p.productType === 'pack';
       return {
         id: p.id,
         sku: p.code,
@@ -345,7 +347,7 @@ class PosService {
       // Reject products not available in POS
       if (!p.availableInPos) return null;
 
-      const isKit = p.productType === 'kit';
+      const isKit = p.productType === 'kit' || p.productType === 'pack';
 
       return {
         id: p.id,

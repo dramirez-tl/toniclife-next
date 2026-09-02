@@ -148,6 +148,19 @@ export function ProductComponentsSection({
           </div>
         )}
 
+        {!deductsInventory && !compsLoading && rows.length > 0 && (
+          <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <ExclamationTriangleIcon className="h-5 w-5 shrink-0 mt-0.5" />
+            <p>
+              Este {noun} tiene componentes pero <strong>NO está marcado para descontar
+              inventario de componentes</strong>: el POS validará y descontará el stock del{' '}
+              {noun} mismo (no el de sus componentes) y marcará &quot;Stock insuficiente&quot; si
+              esa fila está en cero. Si debe armarse al vender, activa la casilla
+              &quot;deduce inventario de componentes&quot; en los datos del producto.
+            </p>
+          </div>
+        )}
+
         <div className="relative">
           <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input

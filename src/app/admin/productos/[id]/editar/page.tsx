@@ -180,11 +180,14 @@ export default function EditarProductoAdminPage() {
       setFormData(prev => ({ ...prev, slug }));
     }
 
-    // Auto-set kitDeductsInventory based on productType
+    // Auto-set kitDeductsInventory based on productType ('pack' TAMBIÉN
+    // conserva el flag — omitirlo lo apagaba en silencio al editar un
+    // paquete y el POS dejaba de descontar componentes).
     if (name === 'productType') {
       setFormData(prev => ({
         ...prev,
-        kitDeductsInventory: value === 'kit' ? prev.kitDeductsInventory : false,
+        kitDeductsInventory:
+          value === 'kit' || value === 'pack' ? prev.kitDeductsInventory : false,
       }));
     }
   };

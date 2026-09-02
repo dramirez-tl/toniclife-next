@@ -85,12 +85,15 @@ export default function NuevoProductoAdminPage() {
       setFormData(prev => ({ ...prev, slug }));
     }
 
-    // Auto-set kitDeductsInventory based on productType
+    // Auto-set kitDeductsInventory based on productType.
+    // Kits y paquetes arrancan DESCONTANDO componentes (default seguro):
+    // con el flag apagado el POS valida el stock del kit/paquete mismo (que
+    // el almacén no maneja) y truena con "Stock insuficiente" — incidente
+    // 02-sep-2026 con 32 packs. Desmarcar aplica solo a pre-armados.
     if (name === 'productType') {
       setFormData(prev => ({
         ...prev,
-        kitDeductsInventory:
-          value === 'kit' || value === 'pack' ? prev.kitDeductsInventory : false,
+        kitDeductsInventory: value === 'kit' || value === 'pack',
       }));
     }
   };
