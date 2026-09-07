@@ -84,6 +84,8 @@ export interface PeriodSalesPreview {
   posSalesTotal: number;
   totalSales: number;
   totalAmount: number;
+  /** Movimientos de inventario aplicados (ventas POS/ecommerce) que el reset tendria que revertir. */
+  inventoryMovementsToRevert?: number;
 }
 
 /** Resultado del reset de ventas de un periodo. */
@@ -94,5 +96,11 @@ export interface PeriodSalesResetResult {
   endDate: string;
   deletedOrders: number;
   deletedPosSales: number;
+  /** Movimientos de inventario ligados a las ventas borradas (se conservan con nota). */
+  inventoryMovementsLinked?: number;
+  /** De esos, los aplicados cuyo stock se devolvio con un movimiento inverso. */
+  inventoryMovementsReverted?: number;
+  /** Unidades netas devueltas al stock por las reversas. */
+  stockUnitsNet?: number;
   durationMs: number;
 }

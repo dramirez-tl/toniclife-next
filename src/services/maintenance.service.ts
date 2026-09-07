@@ -91,9 +91,13 @@ class MaintenanceService {
   }
 
   /** Borra TODAS las ventas (orders + pos_sales) del periodo por rango de fecha. */
-  async resetPeriodSales(periodId: string): Promise<PeriodSalesResetResult> {
+  async resetPeriodSales(
+    periodId: string,
+    opts: { revertStock?: boolean } = {},
+  ): Promise<PeriodSalesResetResult> {
     const { data } = await api.post<PeriodSalesResetResult>(
       `/maintenance/reset-period-sales/${periodId}`,
+      { revertStock: opts.revertStock === true },
     );
     return data;
   }

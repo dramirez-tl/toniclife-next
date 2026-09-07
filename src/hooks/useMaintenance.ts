@@ -108,8 +108,13 @@ export const usePeriodSalesPreview = (periodId: string | null) =>
 export const useResetPeriodSales = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (periodId: string) =>
-      maintenanceService.resetPeriodSales(periodId),
+    mutationFn: ({
+      periodId,
+      revertStock,
+    }: {
+      periodId: string;
+      revertStock?: boolean;
+    }) => maintenanceService.resetPeriodSales(periodId, { revertStock }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: maintenanceKeys.all });
     },

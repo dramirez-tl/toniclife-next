@@ -1320,6 +1320,10 @@ function ResetPeriodSalesCard() {
     useCommissionPeriods();
   const [periodId, setPeriodId] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // Auditoria de inventario 04-sep-2026 (fase 1): el reset ya no deja stock
+  // fantasma. Si las ventas descontaron inventario, el API aborta (409) salvo
+  // que se autorice revertirlo con movimientos inversos.
+  const [revertStock, setRevertStock] = useState(false);
   const preview = usePeriodSalesPreview(periodId || null);
   const reset = useResetPeriodSales();
 
@@ -1338,11 +1342,16 @@ function ResetPeriodSalesCard() {
   const handleReset = async () => {
     if (!periodId) return;
     try {
-      const r = await reset.mutateAsync(periodId);
+      const r = await reset.mutateAsync({ periodId, revertStock });
       setConfirmOpen(false);
+      setRevertStock(false);
+      const kardex =
+        (r.inventoryMovementsReverted ?? 0) > 0
+          ? ` Stock devuelto: ${nf.format(r.inventoryMovementsReverted ?? 0)} movimientos revertidos (${nf.format(r.stockUnitsNet ?? 0)} uds netas).`
+          : '';
       toast.success(
         `Periodo "${r.periodName}" reseteado: ${nf.format(r.deletedOrders)} pedidos y ` +
-          `${nf.format(r.deletedPosSales)} ventas de sucursal borradas en ${(r.durationMs / 1000).toFixed(1)}s.`,
+          `${nf.format(r.deletedPosSales)} ventas de sucursal borradas en ${(r.durationMs / 1000).toFixed(1)}s.${kardex}`,
       );
     } catch (error: unknown) {
       const message =
@@ -1479,6 +1488,29 @@ function ResetPeriodSalesCard() {
                   Comisiones, puntos, rangos y red NO se tocan. Después podrás
                   re-correr la migración del periodo.
                 </p>
+                {(pv?.inventoryMovementsToRevert ?? 0) > 0 ? (
+                  <label className="flex cursor-pointer items-start gap-2 rounded border border-amber-300 bg-amber-50 p-2 text-xs text-amber-900">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={revertStock}
+                      disabled={reset.isPending}
+                      onChange={(e) => setRevertStock(e.target.checked)}
+                    />
+                    <span>
+                      Estas ventas descontaron inventario en{' '}
+                      <strong>{nf.format(pv?.inventoryMovementsToRevert ?? 0)}</strong>{' '}
+                      movimientos aplicados. Marca esta casilla para{' '}
+                      <strong>devolver ese stock</strong> con movimientos inversos
+                      (los originales se conservan con nota). Sin marcarla, el
+                      reset se rechaza para no dejar existencias fantasma.
+                    </span>
+                  </label>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Estas ventas no descontaron inventario: el kardex no se toca.
+                  </p>
+                )}
               </div>
             </DialogDescription>
           </DialogHeader>
@@ -1493,7 +1525,10 @@ function ResetPeriodSalesCard() {
             <Button
               variant="destructive"
               onClick={handleReset}
-              disabled={reset.isPending}
+              disabled={
+                reset.isPending ||
+                ((pv?.inventoryMovementsToRevert ?? 0) > 0 && !revertStock)
+              }
             >
               {reset.isPending ? 'Reseteando…' : 'Sí, borrar las ventas'}
             </Button>
