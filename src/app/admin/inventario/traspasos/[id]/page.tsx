@@ -196,6 +196,9 @@ export default function TransferDetailPage() {
   const destTz = useMemo(() => branches?.find(b => b.code === transfer?.destinationBranch?.code)?.timezone || DEFAULT_TIMEZONE, [branches, transfer?.destinationBranch?.code]);
   const approveTransfer = useApproveTransfer();
   const applyTransfer = useApplyTransfer();
+  // Recepcion PARCIAL (auditoria 04-sep-2026, hallazgo G): cantidad recibida
+  // por linea; default = enviada. Solo se manda lo que difiere.
+  const [received, setReceived] = useState<Record<string, number>>({});
   const rejectTransfer = useRejectTransfer();
   const cancelTransfer = useCancelTransfer();
 
@@ -254,8 +257,16 @@ export default function TransferDetailPage() {
 
   const handleApply = async () => {
     try {
-      await applyTransfer.mutateAsync(id);
-      toast.success('Traspaso aplicado — inventario movido correctamente');
+      const items = (transfer?.items ?? [])
+        .filter((it) => (received[it.id] ?? it.quantity) !== it.quantity)
+        .map((it) => ({ detailId: it.id, quantityReceived: received[it.id] ?? it.quantity }));
+      await applyTransfer.mutateAsync({ id, payload: items.length ? { items } : undefined });
+      toast.success(
+        items.length
+          ? `Traspaso recibido con ${items.length} diferencia(s) registrada(s) para Operación`
+          : 'Traspaso aplicado — inventario movido correctamente',
+      );
+      setReceived({});
       setActionModal(null);
     } catch (err: any) {
       const msg = err?.response?.data?.message || 'Error al aplicar el traspaso';
@@ -441,6 +452,9 @@ export default function TransferDetailPage() {
                       <TableHead className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Producto</TableHead>
                       <TableHead className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Codigo</TableHead>
                       <TableHead className="text-center py-3 px-4 text-sm font-semibold text-gray-600">Cantidad</TableHead>
+                      {transfer.status === 'applied' && transfer.items.some((i) => i.quantityReceived !== undefined) && (
+                        <TableHead className="text-center py-3 px-4 text-sm font-semibold text-gray-600">Recibido</TableHead>
+                      )}
                       <TableHead className="text-left py-3 px-4 text-sm font-semibold text-gray-600">Lote / CAD</TableHead>
                       {transfer.status === 'applied' && (
                         <>
@@ -456,6 +470,11 @@ export default function TransferDetailPage() {
                         <TableCell className="py-3 px-4 font-medium text-gray-900">{item.productName}</TableCell>
                         <TableCell className="py-3 px-4 text-sm text-gray-500 font-mono">{item.productCode}</TableCell>
                         <TableCell className="py-3 px-4 text-center font-semibold text-[#3E667D]">{item.quantity}</TableCell>
+                        {transfer.status === 'applied' && transfer.items.some((i) => i.quantityReceived !== undefined) && (
+                          <TableCell className={`py-3 px-4 text-center font-semibold ${item.quantityReceived !== undefined && item.quantityReceived !== item.quantity ? 'text-amber-600' : 'text-gray-700'}`}>
+                            {item.quantityReceived ?? '—'}
+                          </TableCell>
+                        )}
                         <TableCell className="py-3 px-4 text-xs">
                           {item.lotNumber
                             ? <><p className="font-mono text-gray-700">{item.lotNumber}</p>{item.expirationDate && <p className="text-gray-400">CAD: {item.expirationDate}</p>}</>
@@ -697,6 +716,43 @@ export default function TransferDetailPage() {
       )}
 
       {/* Approve / Apply Confirmation Modal (ambos mueven stock) */}
+      {transfer.discrepancies && transfer.discrepancies.length > 0 && (
+        <div className="bg-white rounded-2xl shadow-sm border border-amber-200 p-6 mt-6">
+          <h2 className="text-lg font-bold text-amber-800 mb-3 flex items-center gap-2">
+            <ExclamationTriangleIcon className="h-5 w-5" />
+            Diferencias al recibir ({transfer.discrepancies.length})
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-amber-50 text-xs text-amber-900">
+                <tr>
+                  <th className="px-3 py-2 text-left">Producto</th>
+                  <th className="px-3 py-2 text-left">Tipo</th>
+                  <th className="px-3 py-2 text-right">Enviado</th>
+                  <th className="px-3 py-2 text-right">Recibido</th>
+                  <th className="px-3 py-2 text-right">Diferencia</th>
+                  <th className="px-3 py-2 text-left">Estado</th>
+                  <th className="px-3 py-2 text-left">Notas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transfer.discrepancies.map((dsc) => (
+                  <tr key={dsc.id} className="border-t border-amber-100">
+                    <td className="px-3 py-2"><div className="text-gray-900">{dsc.productName}</div><div className="font-mono text-[11px] text-gray-400">{dsc.productCode}</div></td>
+                    <td className="px-3 py-2">{{ missing: 'Faltante', damaged: 'Dañado', excess: 'Excedente', wrong_product: 'Producto equivocado' }[dsc.discrepancyType] ?? dsc.discrepancyType}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{dsc.quantityExpected}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{dsc.quantityActual}</td>
+                    <td className={`px-3 py-2 text-right tabular-nums font-semibold ${dsc.quantityActual < dsc.quantityExpected ? 'text-red-600' : 'text-amber-700'}`}>{dsc.quantityActual - dsc.quantityExpected > 0 ? '+' : ''}{dsc.quantityActual - dsc.quantityExpected}</td>
+                    <td className="px-3 py-2">{{ reported: 'Reportada', investigating: 'En investigación', resolved: 'Resuelta', written_off: 'Dada de baja' }[dsc.status] ?? dsc.status}</td>
+                    <td className="px-3 py-2 text-gray-500">{dsc.notes ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {(actionModal === 'apply' || actionModal === 'approve') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={closeModal} />
@@ -724,6 +780,59 @@ export default function TransferDetailPage() {
                 <p><span className="text-gray-500">Destino:</span> <span className="font-medium">{transfer.destinationBranch.name}</span></p>
                 <p><span className="text-gray-500">Productos:</span> <span className="font-medium">{transfer.totalItems} producto{transfer.totalItems === 1 ? '' : 's'}, {transfer.totalQuantity} unidad{transfer.totalQuantity === 1 ? '' : 'es'}</span></p>
               </div>
+              {actionModal === 'apply' && (
+                <div className="mb-4">
+                  <p className="text-xs text-gray-500 mb-2">
+                    Captura lo realmente recibido. Lo que difiera de lo enviado se registra como faltante o excedente.
+                  </p>
+                  <div className="max-h-56 overflow-y-auto rounded-lg border border-gray-200">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50 text-xs text-gray-500">
+                        <tr>
+                          <th className="px-3 py-1.5 text-left">Producto</th>
+                          <th className="px-3 py-1.5 text-right">Enviado</th>
+                          <th className="px-3 py-1.5 text-right">Recibido</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {transfer.items.map((it) => {
+                          const rq = received[it.id] ?? it.quantity;
+                          const diff = rq - it.quantity;
+                          return (
+                            <tr key={it.id} className="border-t border-gray-100">
+                              <td className="px-3 py-1.5">
+                                <div className="text-gray-900">{it.productName}</div>
+                                <div className="font-mono text-[11px] text-gray-400">{it.productCode}</div>
+                              </td>
+                              <td className="px-3 py-1.5 text-right tabular-nums">{it.quantity}</td>
+                              <td className="px-3 py-1.5 text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step={1}
+                                    value={rq}
+                                    disabled={isMutating}
+                                    onChange={(e) => {
+                                      const v = Math.max(0, Math.floor(Number(e.target.value) || 0));
+                                      setReceived((prev) => ({ ...prev, [it.id]: v }));
+                                    }}
+                                    className={`h-8 w-20 rounded-md border px-2 text-right text-sm tabular-nums ${diff !== 0 ? 'border-amber-500 text-amber-700' : 'border-gray-300'}`}
+                                    aria-label={`Cantidad recibida de ${it.productName}`}
+                                  />
+                                  {diff !== 0 && (
+                                    <span className="w-10 text-[11px] font-medium text-amber-700 tabular-nums">{diff > 0 ? `+${diff}` : diff}</span>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
               <p className="text-sm text-amber-600 flex items-start gap-2">
                 <ExclamationTriangleIcon className="h-4 w-4 mt-0.5 flex-shrink-0" />
                 {actionModal === 'apply'

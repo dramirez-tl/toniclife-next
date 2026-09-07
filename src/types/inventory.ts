@@ -298,6 +298,8 @@ export interface KardexQueryDto {
 
 export interface TransferItemDto {
   id: string;
+  /** Cantidad realmente recibida (solo traspasos aplicados; recepcion parcial). */
+  quantityReceived?: number;
   productId: string;
   productCode: string;
   productName: string;
@@ -313,8 +315,35 @@ export interface TransferItemDto {
   notes?: string;
 }
 
+export interface TransferDiscrepancyDto {
+  id: string;
+  productId: string;
+  productCode: string;
+  productName: string;
+  discrepancyType: 'missing' | 'damaged' | 'excess' | 'wrong_product' | string;
+  quantityExpected: number;
+  quantityActual: number;
+  status: 'reported' | 'investigating' | 'resolved' | 'written_off' | string;
+  notes?: string;
+  createdAt: string;
+}
+
+/** Recepcion parcial: cantidad recibida por linea (las omitidas se reciben completas). */
+export interface ReceiveTransferItem {
+  detailId: string;
+  quantityReceived: number;
+  discrepancyType?: 'missing' | 'damaged' | 'excess' | 'wrong_product';
+  notes?: string;
+}
+
+export interface ApplyTransferPayload {
+  items?: ReceiveTransferItem[];
+  notes?: string;
+}
+
 export interface TransferDto {
   id: string;
+  discrepancies?: TransferDiscrepancyDto[];
   movementNumber: string;
   branch: BranchInfo;           // source branch
   destinationBranch: BranchInfo;

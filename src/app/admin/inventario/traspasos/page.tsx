@@ -154,7 +154,7 @@ function TraspasosContent() {
   const handleApplyConfirm = async () => {
     if (!actionModal || actionModal.type !== 'apply') return;
     try {
-      await applyTransfer.mutateAsync(actionModal.transfer.id);
+      await applyTransfer.mutateAsync({ id: actionModal.transfer.id });
       toast.success('Traspaso aplicado — inventario recibido en el destino');
       setActionModal(null);
     } catch (err: any) {

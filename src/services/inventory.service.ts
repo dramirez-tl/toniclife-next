@@ -9,8 +9,7 @@ import {
   AdjustmentType,
   CountType,
   MovementType,
-  LotStatus,
-} from '@/types/inventory';
+  LotStatus, ApplyTransferPayload } from '@/types/inventory';
 import type {
   BranchStockResponseDto,
   BranchStockQueryDto,
@@ -468,9 +467,13 @@ class InventoryService {
     return response.data;
   }
 
-  async applyTransfer(id: string): Promise<TransferDto> {
+  async applyTransfer(
+    id: string,
+    payload?: ApplyTransferPayload,
+  ): Promise<TransferDto> {
     const response = await api.post<TransferDto>(
-      `/inventory/transfers/${id}/apply`
+      `/inventory/transfers/${id}/apply`,
+      payload ?? {},
     );
     return response.data;
   }

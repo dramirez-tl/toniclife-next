@@ -19,8 +19,7 @@ import type {
   ApplyAdjustmentDto,
   UpdateStockSettingsDto,
   MovementQueryDto,
-  CreateMovementDto,
-} from '@/types/inventory';
+  CreateMovementDto, ApplyTransferPayload } from '@/types/inventory';
 
 // ================================
 // QUERY KEYS
@@ -232,8 +231,9 @@ export function useApplyTransfer() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => inventoryService.applyTransfer(id),
-    onSuccess: (_, id) => {
+    mutationFn: ({ id, payload }: { id: string; payload?: ApplyTransferPayload }) =>
+      inventoryService.applyTransfer(id, payload),
+    onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({
         queryKey: inventoryKeys.transferDetail(id),
       });
