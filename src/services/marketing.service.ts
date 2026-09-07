@@ -19,10 +19,10 @@ export interface MarketingLead {
   phone?: string;
   invitedBy?: string;
   sourceHost?: string;
-  /** Solo formulario 'induccion' (mig 128): número del patrocinador capturado. */
-  sponsorNumber?: string;
-  /** Solo formulario 'induccion': nombre completo del patrocinador resuelto por el API. */
-  sponsorName?: string;
+  /** Solo formulario 'induccion' (mig 128/129): número de distribuidor del asistente. */
+  memberNumber?: string;
+  /** Solo formulario 'induccion': nombre completo del asistente resuelto por el API. */
+  memberName?: string;
   createdAt: string;
 }
 

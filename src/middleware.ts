@@ -79,8 +79,9 @@ export function middleware(request: NextRequest) {
   // formulario.<dominio> sirve SOLO "Oportunidad de Negocio" (app/formulario)
   // e induccion.<dominio> SOLO "Taller de Inducción" (app/induccion), sin gate
   // de mantenimiento ni auth: cualquier ruta del subdominio se reescribe a su
-  // página CONSERVANDO el query (la invitación por WhatsApp trae ?p=NUMERO
-  // para prellenar el patrocinador). En el dominio principal, /formulario e
+  // página CONSERVANDO el query (la invitación por WhatsApp al taller trae
+  // ?id=NUMERO (o ?p= legado) para prellenar el número de distribuidor del
+  // asistente). En el dominio principal, /formulario e
   // /induccion también son públicos (útil para probar sin DNS).
   const host = (request.headers.get('host') ?? '').toLowerCase();
   const publicFormBySubdomain = host.startsWith('formulario.')

@@ -3,7 +3,7 @@
 // Formulario público "Taller de Inducción" (pedido de Marketing, sep-2026).
 // Se sirve en induccion.<dominio> (rewrite por host en middleware.ts) y en
 // /induccion del dominio principal. SIN autenticación. Lo renderiza
-// app/induccion/page.tsx (server component que lee ?p= y fija el viewport).
+// app/induccion/page.tsx (server component que lee ?id= y fija el viewport).
 //
 // MOBILE FIRST: la invitación llega por WhatsApp y casi todos la abren en el
 // celular. Por eso: una sola columna, inputs de 16px (evita el zoom de iOS),
@@ -11,9 +11,10 @@
 // (sticky abajo + safe-area) y foco automático al siguiente paso.
 //
 // Flujo de DOS pasos:
-//   Paso 1: aceptar Términos y Condiciones + número de PATROCINADOR
-//           (?p=NUMERO lo prellena y se verifica solo al aceptar términos)
-//           -> POST /marketing/verify-sponsor (público, throttle, honeypot).
+//   Paso 1: aceptar Términos y Condiciones + número de distribuidor del PROPIO
+//           asistente (su ID de Tonic Life; ?id=NUMERO lo prellena y se
+//           verifica solo al aceptar términos)
+//           -> POST /marketing/verify-member (público, throttle, honeypot).
 //   Paso 2: las 4 preguntas -> POST /marketing/leads {formSlug:'induccion'}
 //           -> si hay enlace configurado (admin Comercial > Formularios >
 //              Inducción) se le manda al taller (Zoom u otro).
@@ -107,9 +108,9 @@ const QUESTIONS: readonly Question[] = [
 
 type Answers = Record<QuestionKey, string>;
 type Step = 1 | 2;
-type FocusTarget = 'terms' | 'sponsor' | 'fullName';
+type FocusTarget = 'terms' | 'member' | 'fullName';
 
-const SPONSOR_RE = /^\d{1,20}$/;
+const MEMBER_RE = /^\d{1,20}$/;
 
 // Inputs de 16px (text-base) y 48px de alto: sin zoom de iOS y fáciles de
 // tocar con el pulgar. Con aria-invalid se marcan en rojo (el error de texto
@@ -162,22 +163,22 @@ function StepIndicator({ step }: { step: Step }) {
 }
 
 type InduccionFormProps = {
-  /** Número de patrocinador que viene en la invitación (?p=NUMERO), ya
-   *  saneado (solo dígitos, máx 20). Vacío si no vino. */
-  initialSponsorNumber?: string;
+  /** Número de distribuidor del asistente que viene en la invitación
+   *  (?id=NUMERO), ya saneado (solo dígitos, máx 20). Vacío si no vino. */
+  initialMemberNumber?: string;
 };
 
-export function InduccionForm({ initialSponsorNumber = '' }: InduccionFormProps) {
-  const prefilled = SPONSOR_RE.test(initialSponsorNumber);
+export function InduccionForm({ initialMemberNumber = '' }: InduccionFormProps) {
+  const prefilled = MEMBER_RE.test(initialMemberNumber);
 
-  // ── Paso 1: términos + patrocinador ──
+  // ── Paso 1: términos + número de distribuidor del asistente ──
   const [step, setStep] = useState<Step>(1);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [sponsorNumber, setSponsorNumber] = useState(
-    prefilled ? initialSponsorNumber : '',
+  const [memberNumber, setMemberNumber] = useState(
+    prefilled ? initialMemberNumber : '',
   );
-  // Nombre de mínima divulgación que regresa la API ("María G.").
-  const [sponsorName, setSponsorName] = useState<string | null>(null);
+  // Nombre de mínima divulgación que regresa la API ("Diego R.").
+  const [memberName, setMemberName] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
 
@@ -206,7 +207,7 @@ export function InduccionForm({ initialSponsorNumber = '' }: InduccionFormProps)
   const verifyingRef = useRef(false);
   const pendingFocusRef = useRef<FocusTarget | null>(null);
   const termsRef = useRef<HTMLInputElement>(null);
-  const sponsorInputRef = useRef<HTMLInputElement>(null);
+  const memberInputRef = useRef<HTMLInputElement>(null);
   const fullNameRef = useRef<HTMLInputElement>(null);
   const stepsRef = useRef<HTMLDivElement>(null);
 
@@ -217,12 +218,13 @@ export function InduccionForm({ initialSponsorNumber = '' }: InduccionFormProps)
     if (!target) return;
     pendingFocusRef.current = null;
     if (target === 'fullName') {
-      // Muestra "Paso 2 de 2" + patrocinador y deja el cursor en el nombre.
+      // Muestra "Paso 2 de 2" + saludo al asistente y deja el cursor en el
+      // nombre.
       stepsRef.current?.scrollIntoView({ block: 'start' });
       fullNameRef.current?.focus({ preventScroll: true });
       return;
     }
-    const el = target === 'terms' ? termsRef.current : sponsorInputRef.current;
+    const el = target === 'terms' ? termsRef.current : memberInputRef.current;
     el?.focus();
   });
 
@@ -245,13 +247,13 @@ export function InduccionForm({ initialSponsorNumber = '' }: InduccionFormProps)
     verifyingRef.current = true;
     setVerifying(true);
     setVerifyError(null);
-    setLiveMessage('Verificando el número de patrocinador.');
+    setLiveMessage('Verificando tu número de distribuidor.');
     try {
-      const res = await fetch(`${API_BASE}/marketing/verify-sponsor`, {
+      const res = await fetch(`${API_BASE}/marketing/verify-member`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          sponsorNumber: num,
+          customerNumber: num,
           website: website || undefined,
         }),
       });
@@ -264,19 +266,20 @@ export function InduccionForm({ initialSponsorNumber = '' }: InduccionFormProps)
       }
       const data = (await res.json()) as {
         valid: boolean;
-        sponsorName: string | null;
+        displayName: string | null;
       };
       if (!data.valid) {
         setLiveMessage('');
         setVerifyError(
-          'No encontramos ese número de patrocinador. Verifícalo con quien te invitó e intenta de nuevo.',
+          'No encontramos ese número de distribuidor. Revísalo o pídeselo a tu patrocinador.',
         );
-        pendingFocusRef.current = 'sponsor';
+        pendingFocusRef.current = 'member';
         return;
       }
-      setSponsorName(data.sponsorName);
+      setMemberName(data.displayName);
+      // displayName ya termina en punto ("Diego R."), por eso no se agrega otro.
       setLiveMessage(
-        `Patrocinador verificado${data.sponsorName ? `: ${data.sponsorName}` : ''}. Paso 2 de 2.`,
+        `Número de distribuidor confirmado${data.displayName ? `. Hola, ${data.displayName}` : '.'} Paso 2 de 2.`,
       );
       pendingFocusRef.current = 'fullName';
       setStep(2);
@@ -285,7 +288,7 @@ export function InduccionForm({ initialSponsorNumber = '' }: InduccionFormProps)
       setVerifyError(
         err instanceof FormError ? err.message : NETWORK_ERROR_MESSAGE,
       );
-      pendingFocusRef.current = 'sponsor';
+      pendingFocusRef.current = 'member';
     } finally {
       verifyingRef.current = false;
       setVerifying(false);
@@ -296,19 +299,19 @@ export function InduccionForm({ initialSponsorNumber = '' }: InduccionFormProps)
     setAcceptedTerms(checked);
     setVerifyError(null);
     if (!checked) return;
-    // Si el número vino en la invitación (?p=), se verifica solo UNA vez al
+    // Si el número vino en la invitación (?id=), se verifica solo UNA vez al
     // aceptar términos (sin obligar a reescribirlo); si falla, el usuario lo
     // corrige a mano y toca Continuar.
     if (
       prefilled &&
       !autoVerifiedRef.current &&
-      SPONSOR_RE.test(sponsorNumber)
+      MEMBER_RE.test(memberNumber)
     ) {
       autoVerifiedRef.current = true;
-      void runVerification(sponsorNumber);
+      void runVerification(memberNumber);
       return;
     }
-    pendingFocusRef.current = 'sponsor';
+    pendingFocusRef.current = 'member';
   }
 
   function handleVerify(e: FormEvent<HTMLFormElement>) {
@@ -318,21 +321,21 @@ export function InduccionForm({ initialSponsorNumber = '' }: InduccionFormProps)
       termsRef.current?.focus();
       return;
     }
-    const num = sponsorNumber.trim();
-    if (!SPONSOR_RE.test(num)) {
-      setVerifyError('Escribe el número de tu patrocinador (solo dígitos).');
-      sponsorInputRef.current?.focus();
+    const num = memberNumber.trim();
+    if (!MEMBER_RE.test(num)) {
+      setVerifyError('Escribe tu número de distribuidor (solo dígitos).');
+      memberInputRef.current?.focus();
       return;
     }
     void runVerification(num);
   }
 
-  function handleChangeSponsor() {
+  function handleChangeMember() {
     autoVerifiedRef.current = true;
-    setSponsorName(null);
+    setMemberName(null);
     setVerifyError(null);
     setError(null);
-    pendingFocusRef.current = 'sponsor';
+    pendingFocusRef.current = 'member';
     setStep(1);
   }
 
@@ -362,7 +365,7 @@ export function InduccionForm({ initialSponsorNumber = '' }: InduccionFormProps)
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           formSlug: 'induccion',
-          sponsorNumber,
+          customerNumber: memberNumber,
           fullName: answers.fullName.trim(),
           cityCountry: answers.cityCountry.trim() || undefined,
           phone: answers.phone.trim() || undefined,
@@ -372,13 +375,13 @@ export function InduccionForm({ initialSponsorNumber = '' }: InduccionFormProps)
       });
       if (res.status === 400) {
         const message = extractApiMessage(await res.json().catch(() => null));
-        if (/patrocinador/i.test(message)) {
+        if (/distribuidor/i.test(message)) {
           // El número dejó de ser válido entre la verificación y el envío:
           // regresa al paso 1 con el mensaje, conservando lo ya capturado.
           setLiveMessage('');
-          setSponsorName(null);
+          setMemberName(null);
           setVerifyError(message);
-          pendingFocusRef.current = 'sponsor';
+          pendingFocusRef.current = 'member';
           setStep(1);
           return;
         }
@@ -386,7 +389,7 @@ export function InduccionForm({ initialSponsorNumber = '' }: InduccionFormProps)
       }
       if (!res.ok) {
         // 503 = el API avisa que el taller aún no está habilitado (migración
-        // 128 pendiente): se muestra su mensaje tal cual.
+        // 129 pendiente): se muestra su mensaje tal cual.
         const apiMessage =
           res.status === 503
             ? extractApiMessage(await res.json().catch(() => null))
@@ -497,7 +500,7 @@ export function InduccionForm({ initialSponsorNumber = '' }: InduccionFormProps)
             <StepIndicator step={step} />
 
             {step === 1 ? (
-              /* ── Paso 1: términos + número de patrocinador ── */
+              /* ── Paso 1: términos + número de distribuidor del asistente ── */
               <form onSubmit={handleVerify} noValidate className="mt-5 w-full">
                 <p className="mx-auto max-w-xl text-center text-base leading-relaxed text-[#3E667D]">
                   <span className="font-bold text-[#274b63]">
@@ -554,7 +557,7 @@ export function InduccionForm({ initialSponsorNumber = '' }: InduccionFormProps)
                   )}
                 </div>
 
-                {/* Número de patrocinador */}
+                {/* Número de distribuidor del asistente (su ID de Tonic Life) */}
                 <div
                   className={`mt-4 w-full rounded-2xl bg-white/85 p-5 shadow-md backdrop-blur-sm transition-opacity ${
                     acceptedTerms ? '' : 'opacity-50'
@@ -562,32 +565,30 @@ export function InduccionForm({ initialSponsorNumber = '' }: InduccionFormProps)
                   aria-disabled={!acceptedTerms}
                 >
                   <label
-                    htmlFor="sponsor-number"
+                    htmlFor="member-number"
                     className="block text-lg font-bold leading-snug text-[#274b63]"
                   >
-                    Número de tu patrocinador
+                    Tu número de distribuidor
                   </label>
-                  <p id="sponsor-hint" className="mt-0.5 text-sm text-[#3E667D]">
-                    {prefilled
-                      ? '(Lo tomamos de tu invitación; solo confirma que sea correcto)'
-                      : '(Es el número de ID de la persona que te invitó al taller)'}
+                  <p id="member-hint" className="mt-0.5 text-sm text-[#3E667D]">
+                    (Es tu número de ID de Tonic Life; te lo dieron al inscribirte)
                   </p>
                   <input
-                    ref={sponsorInputRef}
-                    id="sponsor-number"
+                    ref={memberInputRef}
+                    id="member-number"
                     type="text"
                     inputMode="numeric"
                     autoComplete="off"
                     enterKeyHint="go"
-                    value={sponsorNumber}
+                    value={memberNumber}
                     onChange={(e) => {
-                      setSponsorNumber(e.target.value.replace(/\D/g, '').slice(0, 20));
+                      setMemberNumber(e.target.value.replace(/\D/g, '').slice(0, 20));
                       setVerifyError(null);
                     }}
                     maxLength={20}
                     disabled={!acceptedTerms}
                     placeholder="Ej. 1234567"
-                    aria-describedby="sponsor-hint"
+                    aria-describedby="member-hint"
                     aria-invalid={verifyError && acceptedTerms ? true : undefined}
                     className={`${INPUT_CLASS} tracking-wider`}
                   />
@@ -617,23 +618,25 @@ export function InduccionForm({ initialSponsorNumber = '' }: InduccionFormProps)
             ) : (
               /* ── Paso 2: las 4 preguntas ── */
               <form onSubmit={handleSubmit} noValidate className="mt-5 w-full">
-                {/* Patrocinador verificado (mínima divulgación: "María G.") */}
+                {/* Asistente verificado (mínima divulgación: "Diego R.") */}
                 <div className="flex items-center gap-3 rounded-2xl border-2 border-[#3E667D]/30 bg-white/85 p-4 shadow-md backdrop-blur-sm">
                   <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#c8ddf2] text-[#274b63]">
                     <UserCheck className="size-5" aria-hidden />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold uppercase tracking-widest text-[#3E667D]">
-                      Patrocinador
-                    </p>
                     <p className="truncate text-lg font-bold leading-snug text-[#274b63]">
-                      {sponsorName ?? 'Verificado'}
+                      ¡Hola{memberName ? `, ${memberName}` : ''}!
                     </p>
-                    <p className="text-sm text-[#3E667D]">No. {sponsorNumber}</p>
+                    <p className="text-sm text-[#3E667D]">
+                      Confirmamos tu número de distribuidor
+                    </p>
+                    <p className="text-sm font-semibold tracking-wider text-[#274b63]">
+                      No. {memberNumber}
+                    </p>
                   </div>
                   <button
                     type="button"
-                    onClick={handleChangeSponsor}
+                    onClick={handleChangeMember}
                     className="inline-flex min-h-12 shrink-0 items-center gap-1.5 rounded-xl border border-[#c8ddf2] bg-white px-3.5 text-sm font-bold text-[#274b63] transition-colors hover:bg-[#c8ddf2]/40 active:bg-[#c8ddf2]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#c8ddf2]"
                   >
                     <Pencil className="size-4" aria-hidden />

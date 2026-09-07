@@ -47,8 +47,8 @@ interface FormCopy {
   searchPlaceholder: string;
   emptyText: string;
   csvPrefix: string;
-  /** Columna "Patrocinador" (solo inducción, mig 128). */
-  showSponsor: boolean;
+  /** Columna "Distribuidor" (asistente del taller; solo inducción, mig 128/129). */
+  showMember: boolean;
 }
 
 const FORM_COPY: Record<MarketingFormSlug, FormCopy> = {
@@ -65,7 +65,7 @@ const FORM_COPY: Record<MarketingFormSlug, FormCopy> = {
     emptyText:
       'Sin respuestas con estos filtros. Comparte el formulario para empezar a recibirlas.',
     csvPrefix: 'oportunidad-respuestas',
-    showSponsor: false,
+    showMember: false,
   },
   induccion: {
     label: 'Taller de Inducción',
@@ -75,12 +75,12 @@ const FORM_COPY: Record<MarketingFormSlug, FormCopy> = {
       'terminar su registro. Déjalo vacío para desactivarlo (verán un aviso ' +
       'de “se publicará pronto”).',
     meetingSavedToast: 'Enlace del taller guardado',
-    searchLabel: 'Buscar (nombre, ciudad, teléfono, invitado por, patrocinador)',
-    searchPlaceholder: 'Ej. Monterrey, 811234…, 12345, Redes Sociales',
+    searchLabel: 'Buscar (nombre, ciudad, teléfono, invitado por, distribuidor)',
+    searchPlaceholder: 'Ej. Monterrey, 811234…, 12345 (distribuidor), Redes Sociales',
     emptyText:
       'Sin respuestas con estos filtros. Comparte la invitación al taller para empezar a recibirlas.',
     csvPrefix: 'induccion-respuestas',
-    showSponsor: true,
+    showMember: true,
   },
 };
 
@@ -157,7 +157,7 @@ export default function FormResponses({ slug }: FormResponsesProps) {
     ?.response?.status;
   const isForbidden = isError && errorStatus === 403;
   // 503 = el API avisa que el formulario aún no está habilitado (p. ej. la
-  // migración 128 del Taller de Inducción sin aplicar): se muestra su mensaje.
+  // migración 128/129 del Taller de Inducción sin aplicar): se muestra su mensaje.
   const unavailableMessage =
     isError && errorStatus === 503
       ? (error as { response?: { data?: { message?: unknown } } } | null)
@@ -193,8 +193,8 @@ export default function FormResponses({ slug }: FormResponsesProps) {
         'Ciudad y país',
         'Teléfono/WhatsApp',
         'Invitado por',
-        ...(copy.showSponsor
-          ? ['Patrocinador (número)', 'Patrocinador (nombre)']
+        ...(copy.showMember
+          ? ['Distribuidor (número)', 'Distribuidor (nombre)']
           : []),
         'Origen',
       ];
@@ -207,7 +207,7 @@ export default function FormResponses({ slug }: FormResponsesProps) {
             esc(l.cityCountry),
             esc(l.phone),
             esc(l.invitedBy),
-            ...(copy.showSponsor ? [esc(l.sponsorNumber), esc(l.sponsorName)] : []),
+            ...(copy.showMember ? [esc(l.memberNumber), esc(l.memberName)] : []),
             esc(l.sourceHost),
           ].join(','),
         ),
@@ -431,7 +431,7 @@ export default function FormResponses({ slug }: FormResponsesProps) {
                     <TableHead>Ciudad y país</TableHead>
                     <TableHead>Teléfono / WhatsApp</TableHead>
                     <TableHead>Invitado por</TableHead>
-                    {copy.showSponsor && <TableHead>Patrocinador</TableHead>}
+                    {copy.showMember && <TableHead>Distribuidor</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -480,16 +480,16 @@ export default function FormResponses({ slug }: FormResponsesProps) {
                             l.invitedBy || '—'
                           )}
                         </TableCell>
-                        {copy.showSponsor && (
+                        {copy.showMember && (
                           <TableCell className="text-sm">
-                            {l.sponsorNumber ? (
+                            {l.memberNumber ? (
                               <span className="inline-flex flex-wrap items-baseline gap-x-2">
                                 <span className="font-mono text-xs font-semibold text-gray-900">
-                                  {l.sponsorNumber}
+                                  {l.memberNumber}
                                 </span>
-                                {l.sponsorName && (
+                                {l.memberName && (
                                   <span className="text-muted-foreground">
-                                    {l.sponsorName}
+                                    {l.memberName}
                                   </span>
                                 )}
                               </span>

@@ -1,8 +1,10 @@
 // Página pública "Taller de Inducción" (/induccion e induccion.<dominio>).
 // Server component delgado: fija título y viewport (viewport-fit=cover para
 // que el botón sticky respete la safe-area del iPhone), toma el número de
-// patrocinador de la invitación (?p=NUMERO) y renderiza el formulario cliente.
-// La lógica del formulario vive en components/public-forms/InduccionForm.tsx.
+// distribuidor del asistente de la invitación (?id=NUMERO; ?p= se acepta como
+// alias por compatibilidad con enlaces ya compartidos) y renderiza el
+// formulario cliente. La lógica del formulario vive en
+// components/public-forms/InduccionForm.tsx.
 
 import type { Metadata, Viewport } from 'next';
 import { InduccionForm } from '@/components/public-forms/InduccionForm';
@@ -28,11 +30,18 @@ type InduccionPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+/** Primer valor de un query param (Next entrega arreglo si viene repetido). */
+const firstParam = (v: string | string[] | undefined) =>
+  Array.isArray(v) ? v[0] : v;
+
 export default async function InduccionPage({ searchParams }: InduccionPageProps) {
   const params = await searchParams;
-  const raw = Array.isArray(params.p) ? params.p[0] : params.p;
+  // ?id= es el parámetro oficial; ?p= se conserva como alias para los enlaces
+  // que ya se compartieron antes del cambio. Se usa || (no ??) para que un
+  // ?id= vacío no tape un ?p= con valor.
+  const raw = firstParam(params.id) || firstParam(params.p);
   // Saneado en el servidor: solo dígitos, máximo 20 (mismo límite que la API).
-  const initialSponsorNumber = (raw ?? '').replace(/\D/g, '').slice(0, 20);
+  const initialMemberNumber = (raw ?? '').replace(/\D/g, '').slice(0, 20);
 
-  return <InduccionForm initialSponsorNumber={initialSponsorNumber} />;
+  return <InduccionForm initialMemberNumber={initialMemberNumber} />;
 }
