@@ -43,6 +43,7 @@ import { useActiveBranches } from '@/hooks/useBranches';
 import { inventoryService } from '@/services/inventory.service';
 import {
   MovementType,
+  MovementCategory,
   type MovementQueryDto,
   type MovementDto,
 } from '@/types/inventory';
@@ -82,6 +83,25 @@ export interface MovementsListPageProps {
   basePath: string; // e.g. /admin/inventario/entradas
   noun: string; // "entrada" | "salida"
   emptyLabel: string;
+  /**
+   * Muestra el filtro "Origen" (manuales / solo ventas POS / todas). Solo tiene
+   * sentido en Salidas: las ventas POS generan salidas automáticas
+   * (movement_category='sale', ~16k) que tapaban las capturadas a mano.
+   * Default: manuales (excludeCategory=sale).
+   */
+  originFilter?: boolean;
+}
+
+const ORIGIN_OPTIONS = [
+  { value: 'manual', label: 'Manuales (sin ventas POS)' },
+  { value: 'pos', label: 'Solo ventas POS' },
+  { value: 'all', label: 'Todas (incluye ventas POS)' },
+];
+
+function originToQuery(origin: string): Pick<MovementQueryDto, 'movementCategory' | 'excludeCategory'> {
+  if (origin === 'pos') return { movementCategory: MovementCategory.SALE };
+  if (origin === 'all') return {};
+  return { excludeCategory: MovementCategory.SALE };
 }
 
 export function MovementsListPage(props: MovementsListPageProps) {
@@ -102,10 +122,12 @@ function MovementsListContent({
   basePath,
   noun,
   emptyLabel,
+  originFilter = false,
 }: MovementsListPageProps) {
   const { get, getNumber, setParams } = useQueryFilters({
     status: 'all',
     branch: 'all',
+    origin: 'manual',
     page: '1',
     limit: '20',
   });
@@ -113,12 +135,15 @@ function MovementsListContent({
   const searchQuery = get('search');
   const statusFilter = get('status');
   const branchFilter = get('branch');
+  const originValue = originFilter ? get('origin') : 'all';
   const page = getNumber('page') || 1;
   const limit = getNumber('limit') || 20;
 
   const [searchInput, setSearchInput] = useState(searchQuery);
   const [rejectTarget, setRejectTarget] = useState<MovementDto | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  // Aprobar mueve stock: confirmación explícita (auditoría 04-sep, hallazgo L)
+  const [approveTarget, setApproveTarget] = useState<MovementDto | null>(null);
 
   const { data: branches } = useActiveBranches();
   const approveMovement = useApproveMovement();
@@ -131,10 +156,11 @@ function MovementsListContent({
       status: statusFilter !== 'all' ? (statusFilter as any) : undefined,
       branchId: branchFilter !== 'all' ? branchFilter : undefined,
       movementType,
+      ...originToQuery(originValue),
       page,
       limit,
     }),
-    [searchQuery, statusFilter, branchFilter, movementType, page, limit],
+    [searchQuery, statusFilter, branchFilter, movementType, originValue, page, limit],
   );
 
   const statsParams: MovementQueryDto = useMemo(
@@ -142,8 +168,9 @@ function MovementsListContent({
       search: searchQuery || undefined,
       branchId: branchFilter !== 'all' ? branchFilter : undefined,
       movementType,
+      ...originToQuery(originValue),
     }),
-    [searchQuery, branchFilter, movementType],
+    [searchQuery, branchFilter, movementType, originValue],
   );
 
   const { data: movementsData, isLoading, isFetching } = useMovements(query);
@@ -161,10 +188,12 @@ function MovementsListContent({
 
   const handleSearch = () => setParams({ search: searchInput?.trim() || null, page: null });
 
-  const handleApprove = async (id: string) => {
+  const handleConfirmApprove = async () => {
+    if (!approveTarget) return;
     try {
-      await approveMovement.mutateAsync({ id });
-      toast.success(`${capitalize(noun)} aprobada correctamente`);
+      await approveMovement.mutateAsync({ id: approveTarget.id });
+      toast.success(`${capitalize(noun)} aprobada — inventario actualizado`);
+      setApproveTarget(null);
     } catch (err: any) {
       toast.error(err?.response?.data?.message || `Error al aprobar la ${noun}`);
     }
@@ -293,7 +322,7 @@ function MovementsListContent({
                   size="icon-sm"
                   title="Aprobar"
                   className="text-green-600 hover:bg-green-50"
-                  onClick={() => handleApprove(m.id)}
+                  onClick={() => setApproveTarget(m)}
                   disabled={approveMovement.isPending}
                 >
                   <CheckIcon className="h-4 w-4" />
@@ -484,7 +513,23 @@ function MovementsListContent({
                 allValue="all"
                 className="w-[220px]"
               />
+
+              {originFilter && (
+                <SearchableSelect
+                  value={originValue}
+                  onChange={(val) => setParams({ origin: val, page: null })}
+                  options={ORIGIN_OPTIONS}
+                  showAllOption={false}
+                  className="w-[240px]"
+                />
+              )}
             </div>
+            {originFilter && originValue === 'manual' && (
+              <p className="mt-3 text-xs text-muted-foreground">
+                Se muestran solo las salidas capturadas a mano. Las salidas automáticas de ventas
+                POS se consultan con el filtro de origen.
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -519,6 +564,57 @@ function MovementsListContent({
           pageSizeOptions={[10, 20, 50, 100]}
         />
       </div>
+
+      {/* Approve confirmation dialog (mueve stock) */}
+      <Dialog
+        open={!!approveTarget}
+        onOpenChange={(open) => {
+          if (!open && !approveMovement.isPending) setApproveTarget(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Aprobar {noun}</DialogTitle>
+            <DialogDescription>
+              Al aprobar, el movimiento se aplica al inventario de la sucursal. El sistema
+              recalcula la existencia con el stock actual (no con el del momento de captura).
+            </DialogDescription>
+          </DialogHeader>
+          {approveTarget && (
+            <div className="rounded-lg bg-muted/50 border p-3 text-sm space-y-1.5">
+              <p>
+                <span className="text-muted-foreground">Folio:</span>{' '}
+                <span className="font-mono font-semibold">{approveTarget.movementNumber}</span>
+              </p>
+              <p>
+                <span className="text-muted-foreground">Sucursal:</span>{' '}
+                <span className="font-medium">{approveTarget.branchName}</span>
+              </p>
+              <p>
+                <span className="text-muted-foreground">Contenido:</span>{' '}
+                <span className="font-medium">
+                  {approveTarget.totalItems} producto{approveTarget.totalItems === 1 ? '' : 's'},{' '}
+                  {formatNumber(approveTarget.totalQuantity)} unidad
+                  {approveTarget.totalQuantity === 1 ? '' : 'es'}
+                </span>
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setApproveTarget(null)}
+              disabled={approveMovement.isPending}
+            >
+              Volver
+            </Button>
+            <Button onClick={handleConfirmApprove} disabled={approveMovement.isPending}>
+              <CheckIcon className="h-4 w-4" />
+              {approveMovement.isPending ? 'Aprobando...' : 'Aprobar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Reject dialog */}
       <Dialog

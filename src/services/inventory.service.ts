@@ -153,6 +153,7 @@ class InventoryService {
 
     if (query.branchId) params.append('branchId', query.branchId);
     if (query.movementType) params.append('movementType', query.movementType);
+    if (query.movementCategory) params.append('movementCategory', query.movementCategory);
     if (query.fromDate) params.append('fromDate', query.fromDate);
     if (query.toDate) params.append('toDate', query.toDate);
     if (query.page) params.append('page', String(query.page));
@@ -229,6 +230,7 @@ class InventoryService {
     if (query.countType) params.append('countType', query.countType);
     if (query.fromDate) params.append('fromDate', query.fromDate);
     if (query.toDate) params.append('toDate', query.toDate);
+    if (query.search) params.append('search', query.search);
     if (query.page) params.append('page', String(query.page));
     if (query.limit) params.append('limit', String(query.limit));
 
@@ -366,6 +368,7 @@ class InventoryService {
     if (query.branchId) params.append('branchId', query.branchId);
     if (query.movementType) params.append('movementType', query.movementType);
     if (query.movementCategory) params.append('movementCategory', query.movementCategory);
+    if (query.excludeCategory) params.append('excludeCategory', query.excludeCategory);
     if (query.search) params.append('search', query.search);
     if (query.fromDate) params.append('fromDate', query.fromDate);
     if (query.toDate) params.append('toDate', query.toDate);
@@ -383,6 +386,7 @@ class InventoryService {
     if (query.branchId) params.append('branchId', query.branchId);
     if (query.movementType) params.append('movementType', query.movementType);
     if (query.movementCategory) params.append('movementCategory', query.movementCategory);
+    if (query.excludeCategory) params.append('excludeCategory', query.excludeCategory);
     if (query.status) params.append('status', query.status);
     if (query.search) params.append('search', query.search);
     if (query.fromDate) params.append('fromDate', query.fromDate);
@@ -486,6 +490,7 @@ class InventoryService {
     if (query.branchId) params.append('branchId', query.branchId);
     if (query.movementType) params.append('movementType', query.movementType);
     if (query.movementCategory) params.append('movementCategory', query.movementCategory);
+    if (query.excludeCategory) params.append('excludeCategory', query.excludeCategory);
     if (query.status) params.append('status', query.status);
     if (query.search) params.append('search', query.search);
     if (query.fromDate) params.append('fromDate', query.fromDate);
@@ -636,6 +641,13 @@ class InventoryService {
     const labels: Record<MovementType, string> = {
       [MovementType.ENTRY]: 'Entrada',
       [MovementType.EXIT]: 'Salida',
+      [MovementType.TRANSFER_OUT]: 'Traspaso (salida)',
+      [MovementType.TRANSFER_IN]: 'Traspaso (entrada)',
+      [MovementType.ADJUSTMENT_POSITIVE]: 'Ajuste (+)',
+      [MovementType.ADJUSTMENT_NEGATIVE]: 'Ajuste (−)',
+      [MovementType.INITIAL_LOAD]: 'Carga inicial',
+      [MovementType.PHYSICAL_COUNT]: 'Conteo físico',
+      // Alias de creación (no llegan del API como tipo guardado)
       [MovementType.TRANSFER]: 'Traspaso',
       [MovementType.ADJUSTMENT]: 'Ajuste',
       [MovementType.RETURN]: 'Devolución',

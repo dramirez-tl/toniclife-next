@@ -118,35 +118,47 @@ function TraspasosContent() {
     [statsData],
   );
 
-  // Reject/cancel dialog
+  // Un solo modal para las 4 acciones. approve/apply = confirmación simple
+  // (mueven stock: antes se ejecutaban al primer clic en un icono, auditoría
+  // 04-sep-2026 hallazgo L); reject/cancel = piden motivo.
   const [actionModal, setActionModal] = useState<{
-    type: 'reject' | 'cancel';
+    type: 'approve' | 'apply' | 'reject' | 'cancel';
     transfer: TransferDto;
   } | null>(null);
   const [actionReason, setActionReason] = useState('');
 
+  const isActionPending =
+    approveTransfer.isPending ||
+    applyTransfer.isPending ||
+    rejectTransfer.isPending ||
+    cancelTransfer.isPending;
+
   const closeActionModal = () => {
-    if (!rejectTransfer.isPending && !cancelTransfer.isPending) {
+    if (!isActionPending) {
       setActionModal(null);
       setActionReason('');
     }
   };
 
-  const handleApprove = async (transfer: TransferDto) => {
+  const handleApproveConfirm = async () => {
+    if (!actionModal || actionModal.type !== 'approve') return;
     try {
-      await approveTransfer.mutateAsync({ id: transfer.id });
-      toast.success('Traspaso aprobado correctamente');
+      await approveTransfer.mutateAsync({ id: actionModal.transfer.id });
+      toast.success('Traspaso aprobado — stock descontado del origen (en tránsito)');
+      setActionModal(null);
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Error al aprobar el traspaso');
     }
   };
 
-  const handleApply = async (transfer: TransferDto) => {
+  const handleApplyConfirm = async () => {
+    if (!actionModal || actionModal.type !== 'apply') return;
     try {
-      await applyTransfer.mutateAsync(transfer.id);
-      toast.success('Traspaso aplicado — inventario movido correctamente');
-    } catch {
-      toast.error('Error al aplicar el traspaso');
+      await applyTransfer.mutateAsync(actionModal.transfer.id);
+      toast.success('Traspaso aplicado — inventario recibido en el destino');
+      setActionModal(null);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Error al aplicar el traspaso');
     }
   };
 
@@ -163,11 +175,12 @@ function TraspasosContent() {
       }
       setActionModal(null);
       setActionReason('');
-    } catch {
+    } catch (err: any) {
       toast.error(
-        actionModal.type === 'reject'
-          ? 'Error al rechazar el traspaso'
-          : 'Error al cancelar el traspaso',
+        err?.response?.data?.message ||
+          (actionModal.type === 'reject'
+            ? 'Error al rechazar el traspaso'
+            : 'Error al cancelar el traspaso'),
       );
     }
   };
@@ -282,7 +295,7 @@ function TraspasosContent() {
                   variant="ghost"
                   size="icon-sm"
                   className="text-green-600 hover:bg-green-50 disabled:opacity-40"
-                  onClick={() => handleApprove(transfer)}
+                  onClick={() => setActionModal({ type: 'approve', transfer })}
                   title={
                     currentUser?.id === transfer.requestedBy?.id
                       ? 'No puedes aprobar tu propio traspaso'
@@ -328,7 +341,7 @@ function TraspasosContent() {
                   variant="ghost"
                   size="icon-sm"
                   className="text-green-600 hover:bg-green-50"
-                  onClick={() => handleApply(transfer)}
+                  onClick={() => setActionModal({ type: 'apply', transfer })}
                   title="Aplicar Traspaso"
                   disabled={applyTransfer.isPending}
                 >
@@ -577,8 +590,55 @@ function TraspasosContent() {
         />
       </div>
 
-      {/* Reject/Cancel Dialog */}
-      <Dialog open={!!actionModal} onOpenChange={(open) => !open && closeActionModal()}>
+      {/* Approve/Apply confirmation dialog (mueven stock) */}
+      <Dialog
+        open={actionModal?.type === 'approve' || actionModal?.type === 'apply'}
+        onOpenChange={(open) => !open && closeActionModal()}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {actionModal?.type === 'approve' ? 'Aprobar traspaso' : 'Aplicar traspaso'}
+            </DialogTitle>
+            <DialogDescription>
+              {actionModal?.type === 'approve'
+                ? 'Al aprobar, el stock se descuenta del origen y queda en tránsito. Se valida la existencia disponible.'
+                : 'Al aplicar, el inventario se recibe en la sucursal destino. Esta acción no se puede deshacer.'}
+            </DialogDescription>
+          </DialogHeader>
+          {actionModal && (
+            <TransferSummary transfer={actionModal.transfer} />
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={closeActionModal} disabled={isActionPending}>
+              Volver
+            </Button>
+            <Button
+              variant={actionModal?.type === 'approve' ? 'default' : 'success'}
+              onClick={actionModal?.type === 'approve' ? handleApproveConfirm : handleApplyConfirm}
+              disabled={isActionPending}
+            >
+              {actionModal?.type === 'approve' ? (
+                <>
+                  <CheckIcon className="h-4 w-4" />
+                  {approveTransfer.isPending ? 'Aprobando...' : 'Aprobar'}
+                </>
+              ) : (
+                <>
+                  <PlayIcon className="h-4 w-4" />
+                  {applyTransfer.isPending ? 'Aplicando...' : 'Aplicar'}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reject/Cancel Dialog (con motivo) */}
+      <Dialog
+        open={actionModal?.type === 'reject' || actionModal?.type === 'cancel'}
+        onOpenChange={(open) => !open && closeActionModal()}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
@@ -586,11 +646,18 @@ function TraspasosContent() {
             </DialogTitle>
             <DialogDescription>
               {actionModal?.type === 'reject'
-                ? 'El traspaso será rechazado y el stock reservado se liberará.'
-                : 'El traspaso será cancelado permanentemente y el stock reservado se liberará.'}
-              {actionModal ? ` Movimiento ${actionModal.transfer.movementNumber}.` : ''}
+                ? 'El traspaso será rechazado y el stock reservado en el origen se liberará.'
+                : actionModal?.transfer.status === 'approved'
+                  ? 'El traspaso está en tránsito: el stock ya salió del origen. Al cancelar se creará un traspaso de DEVOLUCIÓN (destino → origen) que deberá recibirse en la sucursal origen para que el stock regrese.'
+                  : 'El traspaso será cancelado permanentemente y el stock reservado en el origen se liberará.'}
             </DialogDescription>
           </DialogHeader>
+          {actionModal && (
+            <TransferSummary
+              transfer={actionModal.transfer}
+              reverse={actionModal.type === 'cancel' && actionModal.transfer.status === 'approved'}
+            />
+          )}
           <div className="space-y-2">
             <Label htmlFor="action-reason">Motivo</Label>
             <Textarea
@@ -607,21 +674,13 @@ function TraspasosContent() {
             />
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={closeActionModal}
-              disabled={rejectTransfer.isPending || cancelTransfer.isPending}
-            >
+            <Button variant="outline" onClick={closeActionModal} disabled={isActionPending}>
               Volver
             </Button>
             <Button
               variant="destructive"
               onClick={handleActionConfirm}
-              disabled={
-                !actionReason.trim() ||
-                rejectTransfer.isPending ||
-                cancelTransfer.isPending
-              }
+              disabled={!actionReason.trim() || isActionPending}
             >
               {rejectTransfer.isPending || cancelTransfer.isPending
                 ? 'Procesando...'
@@ -632,6 +691,37 @@ function TraspasosContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+/**
+ * Resumen del traspaso dentro de los diálogos de confirmación: folio,
+ * origen → destino, productos y unidades. `reverse` pinta la ruta de la
+ * devolución (destino → origen) al cancelar uno en tránsito.
+ */
+function TransferSummary({ transfer, reverse = false }: { transfer: TransferDto; reverse?: boolean }) {
+  const from = reverse ? transfer.destinationBranch : transfer.branch;
+  const to = reverse ? transfer.branch : transfer.destinationBranch;
+  return (
+    <div className="rounded-lg bg-muted/50 border p-3 text-sm space-y-1.5">
+      <p>
+        <span className="text-muted-foreground">Folio:</span>{' '}
+        <span className="font-mono font-semibold">{transfer.movementNumber}</span>
+      </p>
+      <p className="flex items-center gap-2">
+        <span className="text-muted-foreground">{reverse ? 'Devolución:' : 'Ruta:'}</span>
+        <span className="font-medium">{from.name}</span>
+        <ArrowsRightLeftIcon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+        <span className="font-medium">{to.name}</span>
+      </p>
+      <p>
+        <span className="text-muted-foreground">Contenido:</span>{' '}
+        <span className="font-medium">
+          {transfer.totalItems} producto{transfer.totalItems === 1 ? '' : 's'},{' '}
+          {formatNumber(transfer.totalQuantity)} unidad{transfer.totalQuantity === 1 ? '' : 'es'}
+        </span>
+      </p>
     </div>
   );
 }

@@ -25,9 +25,168 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useKardex, useProductStock } from '@/hooks/useInventory';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { inventoryService } from '@/services/inventory.service';
-import { MovementType, type KardexQueryDto, type KardexEntryDto } from '@/types/inventory';
+import {
+  type MovementType,
+  type MovementCategory,
+  type KardexQueryDto,
+  type KardexEntryDto,
+} from '@/types/inventory';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { DEFAULT_TIMEZONE, getTimezoneShortLabel, resolveTimeZone } from '@/lib/timezone-utils';
+
+// ── Taxonomía REAL de BD (auditoría 04-sep-2026, M2/M13/M27) ─────────────────
+// movement_type (CHECK): entry | exit | transfer_out | transfer_in |
+//   adjustment_positive | adjustment_negative | initial_load | physical_count
+// movement_category (CHECK): purchase | production | return_from_customer |
+//   return_to_supplier | sale | sample | donation | damage | expiration | theft |
+//   transfer | adjustment | initial | count
+// El select anterior mandaba transfer/adjustment/return/loss, que no existen
+// en BD: el kardex "filtraba" y no devolvía nada.
+
+/** Opciones del filtro de tipo: 'type:<movement_type>' o 'cat:<movement_category>'. */
+const TYPE_FILTER_OPTIONS: { value: string; label: string }[] = [
+  { value: 'type:entry', label: 'Entrada' },
+  { value: 'type:exit', label: 'Salida' },
+  { value: 'cat:sale', label: 'Venta POS' },
+  { value: 'cat:return_from_customer', label: 'Devolución de cliente' },
+  { value: 'cat:purchase', label: 'Compra a proveedor' },
+  { value: 'cat:transfer', label: 'Traspasos (ambos sentidos)' },
+  { value: 'type:transfer_out', label: 'Traspaso — salida' },
+  { value: 'type:transfer_in', label: 'Traspaso — entrada' },
+  { value: 'type:physical_count', label: 'Conteo físico' },
+  { value: 'type:adjustment_positive', label: 'Ajuste (+)' },
+  { value: 'type:adjustment_negative', label: 'Ajuste (−)' },
+  { value: 'type:initial_load', label: 'Carga inicial' },
+  { value: 'cat:damage', label: 'Daño / merma' },
+  { value: 'cat:expiration', label: 'Caducidad' },
+];
+
+/** Valores del select anterior (enum del API sin existencia en BD) → equivalente real. */
+const LEGACY_TYPE_FILTER: Record<string, string> = {
+  entry: 'type:entry',
+  exit: 'type:exit',
+  transfer: 'cat:transfer',
+  adjustment: 'type:physical_count',
+  return: 'cat:return_from_customer',
+  production: 'cat:production',
+  loss: 'cat:damage',
+};
+
+interface TypeFilter {
+  value: string;
+  label: string;
+  movementType?: MovementType;
+  movementCategory?: MovementCategory;
+}
+
+function parseTypeFilter(raw: string): TypeFilter {
+  const value = LEGACY_TYPE_FILTER[raw] ?? raw;
+  const label = TYPE_FILTER_OPTIONS.find((o) => o.value === value)?.label ?? value;
+  if (value.startsWith('type:')) {
+    return { value, label, movementType: value.slice(5) as MovementType };
+  }
+  if (value.startsWith('cat:')) {
+    return { value, label, movementCategory: value.slice(4) as MovementCategory };
+  }
+  return { value: '', label: '' };
+}
+
+const ENTRY_TYPES = new Set<string>(['entry', 'transfer_in', 'adjustment_positive', 'initial_load']);
+
+/**
+ * Cantidad con signo REAL. physical_count guarda quantity = |discrepancia| y el
+ * sentido vive en quantity_before/after (el 99% son ganancias que se pintaban
+ * como "Salida -N"; auditoría 04-sep, M3/M28). El resto se decide por tipo.
+ */
+function getSignedQuantity(m: KardexEntryDto): number {
+  const t = m.movementType as string;
+  if (t === 'physical_count') {
+    const delta = m.quantityAfter - m.quantityBefore;
+    return delta !== 0 ? delta : m.quantity;
+  }
+  return ENTRY_TYPES.has(t) ? m.quantity : -m.quantity;
+}
+
+const isEntryRow = (m: KardexEntryDto) => getSignedQuantity(m) >= 0;
+const getDirectionLabel = (m: KardexEntryDto) => (isEntryRow(m) ? 'Entrada' : 'Salida');
+const formatSigned = (n: number) =>
+  `${n >= 0 ? '+' : '−'}${Math.abs(n).toLocaleString('es-MX')}`;
+
+const TYPE_LABELS: Record<string, string> = {
+  entry: 'Entrada',
+  exit: 'Salida',
+  transfer_in: 'Traspaso Entrada',
+  transfer_out: 'Traspaso Salida',
+  adjustment_positive: 'Ajuste (+)',
+  adjustment_negative: 'Ajuste (−)',
+  initial_load: 'Carga Inicial',
+  physical_count: 'Conteo Físico',
+};
+const TYPE_COLORS: Record<string, string> = {
+  entry: 'bg-green-100 text-green-700',
+  exit: 'bg-red-100 text-red-700',
+  transfer_in: 'bg-blue-100 text-blue-700',
+  transfer_out: 'bg-blue-100 text-blue-700',
+  adjustment_positive: 'bg-green-100 text-green-700',
+  adjustment_negative: 'bg-red-100 text-red-700',
+  initial_load: 'bg-gray-100 text-gray-700',
+  physical_count: 'bg-yellow-100 text-yellow-700',
+};
+/** En entradas/salidas genéricas la categoría dice más que el tipo. */
+const CATEGORY_LABELS: Record<string, string> = {
+  sale: 'Venta POS',
+  return_from_customer: 'Devolución Venta',
+  purchase: 'Compra',
+  return_to_supplier: 'Devolución a proveedor',
+  damage: 'Daño / merma',
+  expiration: 'Caducidad',
+  theft: 'Robo',
+  sample: 'Muestra',
+  donation: 'Donación',
+  production: 'Producción',
+};
+const CATEGORY_COLORS: Record<string, string> = {
+  sale: 'bg-orange-100 text-orange-700',
+  return_from_customer: 'bg-purple-100 text-purple-700',
+};
+const categoryApplies = (type: string, category?: string) =>
+  !!category && (type === 'entry' || type === 'exit') && !!CATEGORY_LABELS[category];
+
+function getMovementTypeText(type: string, category?: string): string {
+  if (categoryApplies(type, category)) return CATEGORY_LABELS[category!];
+  return TYPE_LABELS[type] || inventoryService.getMovementTypeLabel(type as MovementType);
+}
+
+const REFERENCE_TYPE_LABELS: Record<string, string> = {
+  count: 'Conteo',
+  transfer: 'Traspaso',
+  sale: 'Venta',
+  order: 'Pedido',
+  purchase: 'Compra',
+  return: 'Devolución',
+};
+const referenceTypeLabel = (t?: string) => (t ? (REFERENCE_TYPE_LABELS[t] ?? t) : '');
+
+/**
+ * URL del conteo referido (reference_type='count'): por id si el API lo manda
+ * (referenceId); si no, el listado de ajustes filtrado por # de conteo.
+ */
+function getCountUrl(m: KardexEntryDto): string | null {
+  if (m.referenceId) return `/admin/inventario/ajustes/${m.referenceId}`;
+  if (m.referenceNumber) {
+    return `/admin/inventario/ajustes?search=${encodeURIComponent(m.referenceNumber)}`;
+  }
+  return null;
+}
+
+function getDetailUrl(m: KardexEntryDto): string | null {
+  const t = m.movementType as string;
+  if (t === 'transfer_in' || t === 'transfer_out') return `/admin/inventario/traspasos/${m.movementId}`;
+  if (t === 'entry') return `/admin/inventario/entradas/${m.movementId}`;
+  if (t === 'exit') return `/admin/inventario/salidas/${m.movementId}`;
+  if (m.referenceType === 'count') return getCountUrl(m);
+  return null;
+}
 
 export default function KardexPage() {
   return <Suspense><KardexContent /></Suspense>;
@@ -42,7 +201,9 @@ function KardexContent() {
   });
 
   const branchFilter = get('branch');
-  const movementTypeFilter = get('movementType') as MovementType | '';
+  // Se conserva la clave 'movementType' en la URL (bookmarks); los valores
+  // viejos del enum se traducen en parseTypeFilter.
+  const typeFilter = parseTypeFilter(get('movementType'));
   const fromDate = get('fromDate');
   const toDate = get('toDate');
   const page = getNumber('page') || 1;
@@ -55,7 +216,8 @@ function KardexContent() {
 
   const query: KardexQueryDto = {
     branchId: branchFilter || undefined,
-    movementType: movementTypeFilter || undefined,
+    movementType: typeFilter.movementType,
+    movementCategory: typeFilter.movementCategory,
     fromDate: fromDate || undefined,
     toDate: toDate || undefined,
     page,
@@ -73,7 +235,8 @@ function KardexContent() {
       // limit=10000 truncaba en silencio kardex más largos).
       const baseQuery = {
         branchId: branchFilter || undefined,
-        movementType: movementTypeFilter || undefined,
+        movementType: typeFilter.movementType,
+        movementCategory: typeFilter.movementCategory,
         fromDate: fromDate || undefined,
         toDate: toDate || undefined,
       };
@@ -128,28 +291,10 @@ function KardexContent() {
         const bName = branches?.find((b) => b.id === branchFilter)?.name;
         if (bName) filterParts.push(`Sucursal: ${bName}`);
       }
-      if (movementTypeFilter) filterParts.push(`Tipo: ${inventoryService.getMovementTypeLabel(movementTypeFilter as MovementType)}`);
+      if (typeFilter.value) filterParts.push(`Tipo: ${typeFilter.label}`);
       if (fromDate) filterParts.push(`Desde: ${fromDate}`);
       if (toDate) filterParts.push(`Hasta: ${toDate}`);
       const filterDesc = filterParts.length ? filterParts.join(' | ') : 'Todos los movimientos';
-
-      // Direction helper
-      const getDirection = (category: string, type: string) =>
-        isEntryMovement(category, type) ? 'Entrada' : 'Salida';
-
-      // Movement type label map
-      const typeLabels: Record<string, string> = {
-        transfer_in: 'Traspaso Entrada',
-        transfer_out: 'Traspaso Salida',
-        adjustment_positive: 'Ajuste (+)',
-        adjustment_negative: 'Ajuste (-)',
-        initial_load: 'Carga Inicial',
-        physical_count: 'Conteo Físico',
-        sale: 'Venta POS',
-        return_from_customer: 'Devolución Venta',
-      };
-      const getTypeLabel = (type: string, category?: string) =>
-        (category && typeLabels[category]) || typeLabels[type] || inventoryService.getMovementTypeLabel(type as MovementType);
 
       // CSV helper: escape cell (wrap in quotes if it contains commas/quotes/newlines)
       const esc = (val: string | number | undefined | null) => {
@@ -204,14 +349,14 @@ function KardexContent() {
         rows.push([
           esc(m.movementNumber),
           esc(inventoryService.formatDateTime(m.createdAt, branches?.find(b => b.name === m.branchName)?.timezone || DEFAULT_TIMEZONE)),
-          esc(getTypeLabel(m.movementType, m.movementCategory)),
-          esc(getDirection(m.movementCategory, m.movementType)),
-          esc(isEntryMovement(m.movementCategory, m.movementType) ? `+${m.quantity}` : `-${m.quantity}`),
+          esc(getMovementTypeText(m.movementType, m.movementCategory)),
+          esc(getDirectionLabel(m)),
+          esc(formatSigned(getSignedQuantity(m))),
           esc(m.quantityBefore),
           esc(m.quantityAfter),
           esc(m.branchName),
           esc(m.destinationBranchName),
-          esc(m.referenceType),
+          esc(referenceTypeLabel(m.referenceType)),
           esc(m.referenceNumber),
           esc(m.lotNumber) || 'NA',
           expirationLabel,
@@ -257,71 +402,39 @@ function KardexContent() {
     ? branches?.find((b) => b.id === branchFilter)?.name
     : null;
 
-  /** Determina si un movimiento es entrada considerando category + type */
-  const isEntryMovement = (category: string, type: string) =>
-    category === 'inbound' || category === 'return_from_customer' || type === 'entry' || type === 'transfer_in' || type === 'adjustment_positive' || type === 'initial_load';
-
-  const getCategoryBadge = (category: string, type: string) => {
-    if (isEntryMovement(category, type)) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-          <ArrowUpIcon className="h-3 w-3" />
-          Entrada
-        </span>
-      );
-    }
-    return (
+  const getCategoryBadge = (m: KardexEntryDto) =>
+    isEntryRow(m) ? (
+      <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+        <ArrowUpIcon className="h-3 w-3" />
+        Entrada
+      </span>
+    ) : (
       <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
         <ArrowDownIcon className="h-3 w-3" />
         Salida
       </span>
     );
-  };
 
   const getMovementTypeBadge = (type: string, category?: string) => {
-    const colors: Record<string, string> = {
-      [MovementType.ENTRY]: 'bg-green-100 text-green-700',
-      [MovementType.EXIT]: 'bg-red-100 text-red-700',
-      [MovementType.TRANSFER]: 'bg-blue-100 text-blue-700',
-      transfer_in: 'bg-blue-100 text-blue-700',
-      transfer_out: 'bg-blue-100 text-blue-700',
-      [MovementType.ADJUSTMENT]: 'bg-yellow-100 text-yellow-700',
-      adjustment_positive: 'bg-green-100 text-green-700',
-      adjustment_negative: 'bg-red-100 text-red-700',
-      [MovementType.RETURN]: 'bg-purple-100 text-purple-700',
-      [MovementType.PRODUCTION]: 'bg-indigo-100 text-indigo-700',
-      [MovementType.LOSS]: 'bg-red-100 text-red-700',
-      initial_load: 'bg-gray-100 text-gray-700',
-      physical_count: 'bg-yellow-100 text-yellow-700',
-    };
-
-    const categoryColors: Record<string, string> = {
-      sale: 'bg-orange-100 text-orange-700',
-      return_from_customer: 'bg-purple-100 text-purple-700',
-    };
-
-    const categoryLabels: Record<string, string> = {
-      sale: 'Venta POS',
-      return_from_customer: 'Devolución Venta',
-    };
-
-    const labels: Record<string, string> = {
-      transfer_in: 'Traspaso Entrada',
-      transfer_out: 'Traspaso Salida',
-      adjustment_positive: 'Ajuste (+)',
-      adjustment_negative: 'Ajuste (-)',
-      initial_load: 'Carga Inicial',
-      physical_count: 'Conteo Físico',
-    };
-
-    // Prefer category-specific label/color when available
-    const label = (category && categoryLabels[category]) || labels[type] || inventoryService.getMovementTypeLabel(type as MovementType);
-    const color = (category && categoryColors[category]) || colors[type] || 'bg-gray-100 text-gray-700';
-
+    const label = getMovementTypeText(type, category);
+    const color =
+      (categoryApplies(type, category) && CATEGORY_COLORS[category!]) ||
+      TYPE_COLORS[type] ||
+      'bg-gray-100 text-gray-700';
     return (
       <span className={`inline-flex items-center px-2 py-1 ${color} rounded-full text-xs font-medium`}>
         {label}
       </span>
+    );
+  };
+
+  const detailLink = (m: KardexEntryDto, children: React.ReactNode, className: string) => {
+    const href = getDetailUrl(m);
+    if (!href) return <span className={className.replace('hover:underline', '')}>{children}</span>;
+    return (
+      <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
+        {children}
+      </a>
     );
   };
 
@@ -332,35 +445,12 @@ function KardexContent() {
       header: '# Movimiento',
       sortable: true,
       sortValue: (m) => m.movementNumber,
-      render: (m) => {
-        const detailUrl = (() => {
-          const t = m.movementType;
-          if ((t as string) === 'transfer' || (t as string) === 'transfer_in' || (t as string) === 'transfer_out') {
-            return `/admin/inventario/traspasos/${m.movementId}`;
-          }
-          if (t === 'entry') return `/admin/inventario/entradas/${m.movementId}`;
-          if (t === 'exit')  return `/admin/inventario/salidas/${m.movementId}`;
-          return null;
-        })();
-
-        if (detailUrl) {
-          return (
-            <a
-              href={detailUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-mono text-sm text-[#3E667D] font-medium whitespace-nowrap hover:underline hover:text-[#2f5165] transition-colors"
-            >
-              {m.movementNumber}
-            </a>
-          );
-        }
-        return (
-          <span className="font-mono text-sm text-[#3E667D] font-medium whitespace-nowrap">
-            {m.movementNumber}
-          </span>
-        );
-      },
+      render: (m) =>
+        detailLink(
+          m,
+          m.movementNumber,
+          'font-mono text-sm text-[#3E667D] font-medium whitespace-nowrap hover:underline hover:text-[#2f5165] transition-colors',
+        ),
     },
     {
       key: 'createdAt',
@@ -385,7 +475,7 @@ function KardexContent() {
     {
       key: 'movementCategory',
       header: 'Dirección',
-      render: (m) => getCategoryBadge(m.movementCategory, m.movementType),
+      render: (m) => getCategoryBadge(m),
     },
     {
       key: 'quantity',
@@ -393,13 +483,15 @@ function KardexContent() {
       headerClassName: 'text-center',
       cellClassName: 'text-center',
       sortable: true,
-      sortValue: (m) => m.quantity,
-      render: (m) => (
-        <span className={`font-bold font-mono ${isEntryMovement(m.movementCategory, m.movementType) ? 'text-green-600' : 'text-red-600'}`}>
-          {isEntryMovement(m.movementCategory, m.movementType) ? '+' : '-'}
-          {m.quantity.toLocaleString('es-MX')}
-        </span>
-      ),
+      sortValue: (m) => getSignedQuantity(m),
+      render: (m) => {
+        const signed = getSignedQuantity(m);
+        return (
+          <span className={`font-bold font-mono ${signed >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {formatSigned(signed)}
+          </span>
+        );
+      },
     },
     {
       key: 'quantityBefore',
@@ -427,31 +519,25 @@ function KardexContent() {
       key: 'reference',
       header: 'Referencia',
       render: (m) => {
-        const t = m.movementType;
-        const detailUrl = (() => {
-          if ((t as string) === 'transfer' || (t as string) === 'transfer_in' || (t as string) === 'transfer_out') {
-            return `/admin/inventario/traspasos/${m.movementId}`;
-          }
-          if (t === 'entry') return `/admin/inventario/entradas/${m.movementId}`;
-          if (t === 'exit')  return `/admin/inventario/salidas/${m.movementId}`;
-          return null;
-        })();
+        // reference_type='count' → detalle del conteo (M3/M28); el resto → detalle del movimiento
+        const href = m.referenceType === 'count' ? getCountUrl(m) : getDetailUrl(m);
 
         const content = m.referenceType ? (
           <div className="text-sm whitespace-nowrap">
-            <span className="text-gray-500 capitalize">{m.referenceType}:</span>{' '}
+            <span className="text-gray-500">{referenceTypeLabel(m.referenceType)}:</span>{' '}
             <span className="font-mono">{m.referenceNumber || m.movementNumber}</span>
           </div>
         ) : (
           <span className="font-mono text-sm">{m.movementNumber}</span>
         );
 
-        if (detailUrl) {
+        if (href) {
           return (
             <a
-              href={detailUrl}
+              href={href}
               target="_blank"
               rel="noopener noreferrer"
+              title={m.referenceType === 'count' ? 'Ver el conteo de inventario' : 'Ver detalle'}
               className="text-[#3E667D] hover:underline hover:text-[#2f5165] transition-colors"
             >
               {content}
@@ -647,17 +733,11 @@ function KardexContent() {
               </div>
 
               <SearchableSelect
-                options={[
-                  { value: MovementType.ENTRY, label: 'Entrada' },
-                  { value: MovementType.EXIT, label: 'Salida' },
-                  { value: MovementType.TRANSFER, label: 'Traspaso' },
-                  { value: MovementType.ADJUSTMENT, label: 'Ajuste' },
-                  { value: MovementType.RETURN, label: 'Devolución' },
-                  { value: MovementType.LOSS, label: 'Pérdida' },
-                ]}
-                value={movementTypeFilter}
+                options={TYPE_FILTER_OPTIONS}
+                value={typeFilter.value}
                 onChange={(val) => setParams({ movementType: val, page: '1' })}
                 allLabel="Todos los Tipos"
+                className="w-[240px]"
               />
 
               <div className="flex items-center gap-2">

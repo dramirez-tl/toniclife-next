@@ -205,8 +205,8 @@ export default function TransferDetailPage() {
     [currentUser, transfer?.requestedBy],
   );
 
-  // Modal state
-  const [actionModal, setActionModal] = useState<'reject' | 'cancel' | 'apply' | null>(null);
+  // Modal state. approve/apply piden confirmación (mueven stock; hallazgo L).
+  const [actionModal, setActionModal] = useState<'reject' | 'cancel' | 'apply' | 'approve' | null>(null);
   const [actionReason, setActionReason] = useState('');
 
   const isMutating = approveTransfer.isPending || applyTransfer.isPending || rejectTransfer.isPending || cancelTransfer.isPending;
@@ -244,7 +244,8 @@ export default function TransferDetailPage() {
   const handleApprove = async () => {
     try {
       await approveTransfer.mutateAsync({ id });
-      toast.success('Traspaso aprobado correctamente');
+      toast.success('Traspaso aprobado — stock descontado del origen (en tránsito)');
+      setActionModal(null);
     } catch (err: any) {
       const msg = err?.response?.data?.message || 'Error al aprobar el traspaso';
       toast.error(msg);
@@ -268,8 +269,8 @@ export default function TransferDetailPage() {
       await rejectTransfer.mutateAsync({ id, data: { reason: actionReason.trim() } });
       toast.success('Traspaso rechazado');
       closeModal();
-    } catch {
-      toast.error('Error al rechazar el traspaso');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Error al rechazar el traspaso');
     }
   };
 
@@ -280,13 +281,13 @@ export default function TransferDetailPage() {
       const result = await cancelTransfer.mutateAsync({ id, data: { reason: actionReason.trim() } });
       closeModal();
       if (wasInTransit && result.relatedMovementId) {
-        toast.success('Traspaso cancelado — se creó devolución automática');
+        toast.success('Traspaso cancelado — se creó la devolución; recíbela en la sucursal origen');
         router.push(`/admin/inventario/traspasos/${result.relatedMovementId}`);
       } else {
         toast.success('Traspaso cancelado');
       }
-    } catch {
-      toast.error('Error al cancelar el traspaso');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Error al cancelar el traspaso');
     }
   };
 
@@ -358,7 +359,7 @@ export default function TransferDetailPage() {
                 <>
                   <div className="relative group">
                     <Button
-                      onClick={handleApprove}
+                      onClick={() => setActionModal('approve')}
                       disabled={isMutating || isSelfRequester}
                     >
                       <CheckIcon className="h-4 w-4" />
@@ -599,7 +600,9 @@ export default function TransferDetailPage() {
                   href={`/admin/inventario/traspasos/${transfer.relatedMovementId}`}
                   className="text-sm text-[#3E667D] hover:underline font-mono"
                 >
-                  Ver movimiento de entrada
+                  {transfer.status === 'cancelled'
+                    ? 'Ver traspaso de devolución'
+                    : 'Ver movimiento relacionado (recepción / origen)'}
                 </Link>
               </div>
             )}
@@ -607,8 +610,8 @@ export default function TransferDetailPage() {
         </div>
       </div>
 
-      {/* Action Modals */}
-      {actionModal && actionModal !== 'apply' && (
+      {/* Action Modals (reject/cancel: piden motivo) */}
+      {(actionModal === 'reject' || actionModal === 'cancel') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={closeModal} />
           <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full mx-4">
@@ -626,10 +629,10 @@ export default function TransferDetailPage() {
 
               <p className="text-sm text-gray-600 mb-2">
                 {actionModal === 'reject'
-                  ? 'El traspaso será rechazado y el stock reservado se liberará.'
+                  ? 'El traspaso será rechazado y el stock reservado en el origen se liberará.'
                   : transfer.status === 'approved'
-                    ? 'El traspaso será cancelado y se creará automáticamente un traspaso de devolución para regresar los productos a la sucursal origen.'
-                    : 'El traspaso será cancelado permanentemente y el stock reservado se liberará.'}
+                    ? 'El traspaso está en tránsito: el stock ya salió del origen y NO se libera ninguna reserva. Al cancelar se crea un traspaso de DEVOLUCIÓN (destino → origen).'
+                    : 'El traspaso será cancelado permanentemente y el stock reservado en el origen se liberará.'}
               </p>
               {actionModal === 'cancel' && transfer.status === 'approved' && (
                 <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700 flex items-start gap-2">
@@ -638,6 +641,10 @@ export default function TransferDetailPage() {
                     <p className="font-medium">Se generará un traspaso de devolución</p>
                     <p className="text-blue-600 mt-0.5">
                       {transfer.destinationBranch.name} → {transfer.branch.name}
+                    </p>
+                    <p className="text-blue-600 mt-1">
+                      El stock regresa al origen solo cuando esa devolución se RECIBE (se aplica) en{' '}
+                      {transfer.branch.name}.
                     </p>
                   </div>
                 </div>
@@ -689,30 +696,39 @@ export default function TransferDetailPage() {
         </div>
       )}
 
-      {/* Apply Confirmation Modal */}
-      {actionModal === 'apply' && (
+      {/* Approve / Apply Confirmation Modal (ambos mueven stock) */}
+      {(actionModal === 'apply' || actionModal === 'approve') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/50" onClick={closeModal} />
           <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full mx-4">
             <div className="p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-green-100 rounded-full">
-                  <PlayIcon className="h-6 w-6 text-green-600" />
+                <div className={`p-2 rounded-full ${actionModal === 'apply' ? 'bg-green-100' : 'bg-[#3E667D]/10'}`}>
+                  {actionModal === 'apply'
+                    ? <PlayIcon className="h-6 w-6 text-green-600" />
+                    : <CheckIcon className="h-6 w-6 text-[#3E667D]" />}
                 </div>
-                <h3 className="text-lg font-bold text-gray-900">Aplicar Traspaso</h3>
+                <h3 className="text-lg font-bold text-gray-900">
+                  {actionModal === 'apply' ? 'Aplicar Traspaso' : 'Aprobar Traspaso'}
+                </h3>
               </div>
 
               <p className="text-sm text-gray-600 mb-2">
-                Esta accion movera el inventario entre sucursales:
+                {actionModal === 'apply'
+                  ? 'Esta acción recibe el inventario en la sucursal destino:'
+                  : 'Al aprobar, el stock se descuenta del origen y queda en tránsito (se valida la existencia disponible):'}
               </p>
               <div className="bg-gray-50 rounded-lg p-3 mb-4 text-sm">
+                <p><span className="text-gray-500">Folio:</span> <span className="font-mono font-medium">{transfer.movementNumber}</span></p>
                 <p><span className="text-gray-500">Origen:</span> <span className="font-medium">{transfer.branch.name}</span></p>
                 <p><span className="text-gray-500">Destino:</span> <span className="font-medium">{transfer.destinationBranch.name}</span></p>
-                <p><span className="text-gray-500">Productos:</span> <span className="font-medium">{transfer.totalItems} items, {transfer.totalQuantity} unidades</span></p>
+                <p><span className="text-gray-500">Productos:</span> <span className="font-medium">{transfer.totalItems} producto{transfer.totalItems === 1 ? '' : 's'}, {transfer.totalQuantity} unidad{transfer.totalQuantity === 1 ? '' : 'es'}</span></p>
               </div>
               <p className="text-sm text-amber-600 flex items-start gap-2">
                 <ExclamationTriangleIcon className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                Esta accion no se puede deshacer.
+                {actionModal === 'apply'
+                  ? 'Esta acción no se puede deshacer.'
+                  : 'Para revertir un traspaso en tránsito habrá que cancelarlo y recibir la devolución en el origen.'}
               </p>
 
               <div className="flex gap-3 mt-6">
@@ -724,14 +740,20 @@ export default function TransferDetailPage() {
                 >
                   Volver
                 </Button>
-                <Button
-                  variant="success"
-                  onClick={handleApply}
-                  disabled={isMutating}
-                  className="flex-1 bg-green-600 hover:bg-green-700"
-                >
-                  {isMutating ? 'Aplicando...' : 'Confirmar y Aplicar'}
-                </Button>
+                {actionModal === 'apply' ? (
+                  <Button
+                    variant="success"
+                    onClick={handleApply}
+                    disabled={isMutating}
+                    className="flex-1 bg-green-600 hover:bg-green-700"
+                  >
+                    {isMutating ? 'Aplicando...' : 'Aplicar'}
+                  </Button>
+                ) : (
+                  <Button onClick={handleApprove} disabled={isMutating} className="flex-1">
+                    {isMutating ? 'Aprobando...' : 'Aprobar'}
+                  </Button>
+                )}
               </div>
             </div>
           </div>

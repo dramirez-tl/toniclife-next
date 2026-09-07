@@ -16,6 +16,7 @@ export default function SalidasPage() {
       basePath="/admin/inventario/salidas"
       noun="salida"
       emptyLabel="No hay salidas registradas"
+      originFilter
     />
   );
 }

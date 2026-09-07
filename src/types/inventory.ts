@@ -5,9 +5,23 @@
 // ENUMS
 // ================================
 
+/**
+ * Tipo de movimiento. Los 8 primeros son los valores REALES de BD
+ * (CHECK inventory_movements_movement_type_check) y son los únicos que el
+ * API acepta para FILTRAR (kardex/listados/export). Los alias del bloque
+ * final solo sirven para CREAR movimientos genéricos (el API los normaliza
+ * a entry/exit); nunca se guardan tal cual, así que no filtran nada.
+ */
 export enum MovementType {
   ENTRY = 'entry',
   EXIT = 'exit',
+  TRANSFER_OUT = 'transfer_out',
+  TRANSFER_IN = 'transfer_in',
+  ADJUSTMENT_POSITIVE = 'adjustment_positive',
+  ADJUSTMENT_NEGATIVE = 'adjustment_negative',
+  INITIAL_LOAD = 'initial_load',
+  PHYSICAL_COUNT = 'physical_count',
+  // --- Alias de creación (NO existen en BD; no filtran) ---
   TRANSFER = 'transfer',
   ADJUSTMENT = 'adjustment',
   RETURN = 'return',
@@ -33,11 +47,26 @@ export enum MovementReason {
   ADJUSTMENT = 'adjustment',
 }
 
+/**
+ * Categoría del movimiento — espeja el CHECK
+ * inventory_movements_movement_category_check y el enum del API.
+ * (Antes decía inbound/outbound/internal, valores que nunca existieron en BD.)
+ */
 export enum MovementCategory {
-  INBOUND = 'inbound',
-  OUTBOUND = 'outbound',
-  INTERNAL = 'internal',
+  PURCHASE = 'purchase',
+  PRODUCTION = 'production',
+  RETURN_FROM_CUSTOMER = 'return_from_customer',
+  RETURN_TO_SUPPLIER = 'return_to_supplier',
+  SALE = 'sale',
+  SAMPLE = 'sample',
+  DONATION = 'donation',
+  DAMAGE = 'damage',
+  EXPIRATION = 'expiration',
+  THEFT = 'theft',
+  TRANSFER = 'transfer',
   ADJUSTMENT = 'adjustment',
+  INITIAL = 'initial',
+  COUNT = 'count',
 }
 
 export enum MovementStatus {
@@ -225,7 +254,10 @@ export interface KardexEntryDto {
   lotExpirationDate?: string;
   unitId?: string;
   locationId?: string;
+  /** 'count' | 'transfer' | 'sale' | ... (reference_type en BD) */
   referenceType?: string;
+  /** ID del documento referido (count id, etc.). Hoy el kardex NO lo devuelve; se usa si llega. */
+  referenceId?: string;
   referenceNumber?: string;
   unitCost?: string;
   totalCost?: string;
@@ -428,13 +460,19 @@ export interface AdjustmentQueryDto {
   countType?: CountType;
   fromDate?: string;
   toDate?: string;
+  /** Búsqueda por número de conteo (CNT-…). */
+  search?: string;
   page?: number;
   limit?: number;
 }
 
+/**
+ * Renglón de un conteo nuevo. NO lleva systemQuantity: desde 04-sep-2026 la
+ * existencia del sistema la lee SIEMPRE el servidor al guardar (el API la
+ * ignora si se manda).
+ */
 export interface CreateAdjustmentItemDto {
   productId: string;
-  systemQuantity?: number;
   countedQuantity: number;
   lotId?: string;
   lotNumber?: string;
@@ -507,6 +545,13 @@ export interface MovementDto {
   notes?: string;
   requestedBy?: { id: string; name: string };
   createdAt: string;
+  /** Auditoría del workflow (solo el detalle GET /inventory/movements/:id los trae). */
+  approvedBy?: { id: string; name: string };
+  approvedAt?: string;
+  appliedAt?: string;
+  rejectedBy?: { id: string; name: string };
+  rejectedAt?: string;
+  rejectionReason?: string;
   items: MovementItemDto[];
 }
 
@@ -522,6 +567,8 @@ export interface MovementQueryDto {
   branchId?: string;
   movementType?: MovementType;
   movementCategory?: MovementCategory;
+  /** Excluye una categoría (ej. SALE: oculta las salidas automáticas de ventas POS). */
+  excludeCategory?: MovementCategory;
   status?: MovementStatus;
   search?: string;
   fromDate?: string;

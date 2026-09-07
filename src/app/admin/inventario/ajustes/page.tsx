@@ -6,6 +6,7 @@ import { Suspense, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
@@ -19,6 +20,7 @@ import {
 import {
   ClipboardDocumentCheckIcon,
   FunnelIcon,
+  MagnifyingGlassIcon,
   PlusIcon,
   EyeIcon,
   CheckIcon,
@@ -55,6 +57,8 @@ import {
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { DEFAULT_TIMEZONE, getTimezoneShortLabel } from '@/lib/timezone-utils';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
+import { useAppSelector } from '@/store/hooks';
+import { selectUserRoles } from '@/store/slices/authSlice';
 
 export default function AjustesPage() {
   return <Suspense><AjustesContent /></Suspense>;
@@ -72,8 +76,14 @@ function AjustesContent() {
   const statusFilter = get('status');
   const typeFilter = get('type');
   const branchFilter = get('branch');
+  // Búsqueda por # de conteo (también destino del enlace desde el kardex)
+  const searchQuery = get('search');
   const page = getNumber('page') || 1;
   const limit = getNumber('limit') || 20;
+
+  // Cancelar es exclusivo de Super Administrador (misma regla que el detalle).
+  const roles = useAppSelector(selectUserRoles);
+  const isSuperAdmin = roles.includes('super_admin');
 
   // Reject dialog
   const [rejectTarget, setRejectTarget] = useState<AdjustmentDto | null>(null);
@@ -86,18 +96,20 @@ function AjustesContent() {
       status: statusFilter !== 'all' ? (statusFilter as AdjustmentStatus) : undefined,
       countType: typeFilter !== 'all' ? (typeFilter as CountType) : undefined,
       branchId: branchFilter !== 'all' ? branchFilter : undefined,
+      search: searchQuery || undefined,
       page,
       limit,
     }),
-    [statusFilter, typeFilter, branchFilter, page, limit],
+    [statusFilter, typeFilter, branchFilter, searchQuery, page, limit],
   );
 
   const statsParams: AdjustmentQueryDto = useMemo(
     () => ({
       countType: typeFilter !== 'all' ? (typeFilter as CountType) : undefined,
       branchId: branchFilter !== 'all' ? branchFilter : undefined,
+      search: searchQuery || undefined,
     }),
-    [typeFilter, branchFilter],
+    [typeFilter, branchFilter, searchQuery],
   );
 
   const { data: adjustmentsData, isLoading, isFetching } = useAdjustments(query);
@@ -175,7 +187,9 @@ function AjustesContent() {
   };
 
   const handleCancel = async (adjustment: AdjustmentDto) => {
-    const ok = await confirmAction('¿Estás seguro de cancelar este ajuste?');
+    const ok = await confirmAction(
+      `¿Cancelar el conteo ${readNumber(adjustment)}? Quedará marcado como Cancelado y ya no podrá usarse.`,
+    );
     if (!ok) return;
     try {
       await cancelAdjustment.mutateAsync(adjustment.id);
@@ -360,27 +374,29 @@ function AjustesContent() {
               </Button>
             )}
 
-            {(a.status === AdjustmentStatus.DRAFT ||
-              a.status === AdjustmentStatus.PENDING_APPROVAL ||
-              a.status === ('planned' as AdjustmentStatus) ||
-              a.status === ('in_progress' as AdjustmentStatus)) && (
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                title="Cancelar"
-                className="text-red-600 hover:bg-red-50"
-                onClick={() => handleCancel(a)}
-                disabled={cancelAdjustment.isPending}
-              >
-                <XMarkIcon className="h-4 w-4" />
-              </Button>
-            )}
+            {/* Cancelar: exclusivo de Super Administrador, cualquier estado salvo
+                aplicado/cancelado (alineado con el detalle del conteo). */}
+            {isSuperAdmin &&
+              a.status !== AdjustmentStatus.APPLIED &&
+              a.status !== AdjustmentStatus.CANCELLED && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  title="Cancelar conteo (solo Super Admin)"
+                  className="text-red-600 hover:bg-red-50"
+                  onClick={() => handleCancel(a)}
+                  disabled={cancelAdjustment.isPending}
+                >
+                  <XMarkIcon className="h-4 w-4" />
+                </Button>
+              )}
           </div>
         ),
       },
     ],
     [
       branches,
+      isSuperAdmin,
       approveAdjustment.isPending,
       rejectAdjustment.isPending,
       applyAdjustment.isPending,
@@ -574,6 +590,16 @@ function AjustesContent() {
         <Card className="mb-6">
           <CardContent className="p-6">
             <div className="flex flex-col lg:flex-row gap-4">
+              <div className="relative flex-1 min-w-[200px]">
+                <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 z-10" />
+                <Input
+                  type="text"
+                  placeholder="Buscar por # de conteo (CNT-…)"
+                  value={searchQuery}
+                  onChange={(e) => setParams({ search: e.target.value, page: null })}
+                  className="w-full pl-10"
+                />
+              </div>
               <div className="flex items-center gap-2">
                 <FunnelIcon className="h-5 w-5 text-gray-400 shrink-0" />
                 <SearchableSelect

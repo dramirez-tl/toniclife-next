@@ -52,6 +52,7 @@ function EntradaDetailContent() {
   const id = params.id as string;
 
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showApproveModal, setShowApproveModal] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
 
   const { data: movement, isLoading, isError, refetch } = useMovement(id);
@@ -62,7 +63,8 @@ function EntradaDetailContent() {
   const handleApprove = async () => {
     try {
       await approveMovement.mutateAsync({ id });
-      toast.success('Entrada aprobada correctamente');
+      toast.success('Entrada aprobada — inventario actualizado');
+      setShowApproveModal(false);
       refetch();
     } catch (err: any) {
       toast.error(err?.response?.data?.message || 'Error al aprobar la entrada');
@@ -141,6 +143,13 @@ function EntradaDetailContent() {
   }
 
   const hasCostData = (movement.items ?? []).some(i => i.unitCost || i.totalCost);
+  const tz = branches?.find((b) => b.name === movement.branchName)?.timezone || DEFAULT_TIMEZONE;
+  const fmtAt = (d?: string) =>
+    d ? `${inventoryService.formatDateTime(d, tz)} · ${getTimezoneShortLabel(tz)}` : null;
+  // Pendiente: before/after son los del momento de CAPTURA; el backend los
+  // recalcula con la existencia real al aprobar (auditoría 04-sep, M30).
+  const isPending = movement.status === 'pending_approval';
+  const stockSuffix = isPending ? ' (al capturar)' : '';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -173,7 +182,7 @@ function EntradaDetailContent() {
               {movement.status === 'pending_approval' && (
                 <>
                   <button
-                    onClick={handleApprove}
+                    onClick={() => setShowApproveModal(true)}
                     disabled={approveMovement.isPending}
                     className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                   >
@@ -227,6 +236,43 @@ function EntradaDetailContent() {
                 <div>
                   <p className="text-gray-500">Registrado por</p>
                   <p className="font-medium">{movement.requestedBy.name}</p>
+                  {fmtAt(movement.createdAt) && (
+                    <p className="text-xs text-gray-400">{fmtAt(movement.createdAt)}</p>
+                  )}
+                </div>
+              )}
+              {movement.approvedBy && (
+                <div>
+                  <p className="text-gray-500">Aprobado por</p>
+                  <p className="font-medium">{movement.approvedBy.name}</p>
+                  {fmtAt(movement.approvedAt) && (
+                    <p className="text-xs text-gray-400">{fmtAt(movement.approvedAt)}</p>
+                  )}
+                </div>
+              )}
+              {movement.appliedAt && (
+                <div>
+                  <p className="text-gray-500">Aplicado al inventario</p>
+                  <p className="font-medium">{fmtAt(movement.appliedAt)}</p>
+                </div>
+              )}
+              {movement.rejectedBy && (
+                <div>
+                  <p className="text-gray-500">
+                    {movement.status === 'cancelled' ? 'Cancelado por' : 'Rechazado por'}
+                  </p>
+                  <p className="font-medium text-red-700">{movement.rejectedBy.name}</p>
+                  {fmtAt(movement.rejectedAt) && (
+                    <p className="text-xs text-gray-400">{fmtAt(movement.rejectedAt)}</p>
+                  )}
+                </div>
+              )}
+              {movement.rejectionReason && (
+                <div className="col-span-2 md:col-span-4 rounded-lg border border-red-200 bg-red-50 p-3">
+                  <p className="text-red-600 text-xs font-semibold uppercase tracking-wide">
+                    Motivo del rechazo
+                  </p>
+                  <p className="text-red-800 mt-0.5">{movement.rejectionReason}</p>
                 </div>
               )}
               {movement.notes && (
@@ -253,8 +299,8 @@ function EntradaDetailContent() {
                     <TableHead className="px-3 py-2 text-center font-medium text-gray-600">Cantidad</TableHead>
                     {hasCostData && <TableHead className="px-3 py-2 text-center font-medium text-gray-600">Costo Unit.</TableHead>}
                     {hasCostData && <TableHead className="px-3 py-2 text-center font-medium text-gray-600">Costo Total</TableHead>}
-                    <TableHead className="px-3 py-2 text-center font-medium text-gray-600">Stock Antes</TableHead>
-                    <TableHead className="px-3 py-2 text-center font-medium text-gray-600">Stock Después</TableHead>
+                    <TableHead className="px-3 py-2 text-center font-medium text-gray-600">Stock Antes{stockSuffix}</TableHead>
+                    <TableHead className="px-3 py-2 text-center font-medium text-gray-600">Stock Después{stockSuffix}</TableHead>
                     <TableHead className="px-3 py-2 text-left font-medium text-gray-600">Lote / CAD</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -305,9 +351,62 @@ function EntradaDetailContent() {
                 </TableFooter>
               </Table>
             </div>
+            {isPending && (
+              <p className="mt-3 text-xs text-gray-500">
+                Movimiento pendiente: las existencias mostradas son las del momento de captura.
+                Al aprobar, el sistema recalcula con la existencia real de la sucursal.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
+
+      {/* Approve confirmation dialog (mueve stock) */}
+      <Dialog
+        open={showApproveModal}
+        onOpenChange={(open) => {
+          if (!open && !approveMovement.isPending) setShowApproveModal(false);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Aprobar entrada</DialogTitle>
+            <DialogDescription>
+              Al aprobar, la entrada se aplica al inventario de la sucursal con la existencia actual.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg bg-muted/50 border p-3 text-sm space-y-1.5">
+            <p>
+              <span className="text-muted-foreground">Folio:</span>{' '}
+              <span className="font-mono font-semibold">{movement.movementNumber}</span>
+            </p>
+            <p>
+              <span className="text-muted-foreground">Sucursal:</span>{' '}
+              <span className="font-medium">{movement.branchName}</span>
+            </p>
+            <p>
+              <span className="text-muted-foreground">Contenido:</span>{' '}
+              <span className="font-medium">
+                {movement.totalItems} producto{movement.totalItems === 1 ? '' : 's'},{' '}
+                +{movement.totalQuantity} unidad{movement.totalQuantity === 1 ? '' : 'es'}
+              </span>
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowApproveModal(false)}
+              disabled={approveMovement.isPending}
+            >
+              Volver
+            </Button>
+            <Button onClick={handleApprove} disabled={approveMovement.isPending}>
+              <CheckIcon className="h-4 w-4" />
+              {approveMovement.isPending ? 'Aprobando...' : 'Aprobar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Reject Dialog */}
       <Dialog

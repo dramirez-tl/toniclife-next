@@ -13,10 +13,12 @@ import {
   ArrowPathIcon,
   LockClosedIcon,
   LockOpenIcon,
+  InformationCircleIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { DataTable, type DataTableColumn } from '@/components/ui';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   useCreateAdjustment,
   useAllBranchStock,
@@ -80,8 +82,10 @@ export default function NuevoAjustePage() {
   };
 
   const handleUnlockPos = async () => {
+    // Único desbloqueo disponible aquí = FORZADO: cancela TODOS los conteos
+    // activos de la sucursal (no solo el de quien desbloquea).
     const ok = await confirmAction(
-      'Esto desbloqueará el POS y cancelará cualquier conteo de inventario activo de esta sucursal. Los conteos en progreso se descartarán. ¿Continuar?',
+      `Desbloqueo forzado de ${branchName}: se reactivará el POS y se CANCELARÁN TODOS los conteos activos de esta sucursal (planeados, en progreso o pendientes de aprobación), incluidos los de otros usuarios. No se puede deshacer. ¿Continuar?`,
     );
     if (!ok) return;
     try {
@@ -283,11 +287,12 @@ export default function NuevoAjustePage() {
       branchId: formData.branchId,
       countType: formData.countType,
       notes: formData.notes || undefined,
+      // Sin systemQuantity: la existencia del sistema la lee el servidor al
+      // guardar (el valor cargado aquí es solo referencia para el capturista).
       items: items
         .filter((item) => item.difference !== 0)
         .map((item) => ({
           productId: item.productId,
-          systemQuantity: item.currentQuantity,
           countedQuantity: item.newQuantity,
           notes: item.reason,
         })),
@@ -297,11 +302,13 @@ export default function NuevoAjustePage() {
       await createAdjustment.mutateAsync(adjustmentData);
       // Informe PDF del conteo al finalizar
       handleDownloadPdf();
-      toast.success('Ajuste creado correctamente');
+      toast.success('Conteo creado. La diferencia se calculó con la existencia del sistema al guardar.');
       router.push('/admin/inventario/ajustes');
     } catch (error) {
       console.error('Error creating adjustment:', error);
-      toast.error('Error al crear el ajuste');
+      const msg = (error as { response?: { data?: { message?: string | string[] } } })
+        ?.response?.data?.message;
+      toast.error(Array.isArray(msg) ? msg.join(' ') : msg || 'Error al crear el ajuste');
     }
   };
 
@@ -447,15 +454,20 @@ export default function NuevoAjustePage() {
                 </div>
               </div>
               {lockState?.locked ? (
-                <button
-                  type="button"
-                  onClick={handleUnlockPos}
-                  disabled={forceUnlockMut.isPending}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
-                >
-                  <LockOpenIcon className="h-5 w-5" />
-                  Desbloquear POS
-                </button>
+                <div className="flex flex-col items-start sm:items-end gap-1">
+                  <button
+                    type="button"
+                    onClick={handleUnlockPos}
+                    disabled={forceUnlockMut.isPending}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2 border border-red-300 rounded-lg text-red-700 hover:bg-red-50 transition-colors disabled:opacity-50"
+                  >
+                    <LockOpenIcon className="h-5 w-5" />
+                    Desbloqueo forzado del POS
+                  </button>
+                  <p className="text-xs text-red-600">
+                    Cancela TODOS los conteos activos de la sucursal.
+                  </p>
+                </div>
               ) : (
                 <button
                   type="button"
@@ -492,6 +504,18 @@ export default function NuevoAjustePage() {
           </div>
 
           {errors.items && <p className="mb-4 text-sm text-red-500">{errors.items}</p>}
+
+          {formData.branchId && items.length > 0 && (
+            <Alert className="mb-4">
+              <InformationCircleIcon className="h-4 w-4" />
+              <AlertTitle>La existencia del sistema se toma al guardar</AlertTitle>
+              <AlertDescription>
+                La columna «Existencias en Sistema» es la lectura de cuando cargaste la sucursal.
+                Si hubo ventas o movimientos mientras contabas, el servidor calcula la diferencia
+                con la existencia real en el momento de crear el conteo, no con la que ves aquí.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Estados */}
           {!formData.branchId ? (
