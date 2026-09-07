@@ -12,6 +12,10 @@ const LOCALE_PREFIX_RE = new RegExp(`^/(${LOCALES.join('|')})(/|$)`);
 // Bases públicas que SÍ se localizan (home, productos, quiz, carrito, checkout).
 // El resto (faq, admin, distribuidor, etc.) NO pasa por i18n.
 const LOCALIZABLE_BASE_RE = /^\/(productos|quiz|carrito|checkout)(\/|$)/;
+// Rutas que los subdominios de formularios (formulario.* / induccion.*) sirven
+// tal cual en vez de reescribirlas al formulario: las páginas legales que
+// enlaza el bloque de consentimiento y los archivos de rastreo.
+const SUBDOMAIN_PASSTHROUGH_RE = /^\/(terminos|privacidad|robots\.txt|sitemap\.xml)(\/|$)/;
 
 // ── Maintenance / Countdown gate ───────────────────────────────────────────
 // Set LAUNCH_DATE in .env to enable the maintenance gate.
@@ -71,17 +75,34 @@ function redirectClearingSession(request: NextRequest, to: string): NextResponse
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // ── Subdominio del formulario público de marketing ────────────────────
-  // formulario.<dominio> sirve SOLO el formulario "Oportunidad de Negocio"
-  // (app/formulario), sin gate de mantenimiento ni auth: cualquier ruta del
-  // subdominio se reescribe a /formulario. En el dominio principal,
-  // /formulario también es público (útil para probar sin DNS).
+  // ── Subdominios de los formularios públicos de marketing ──────────────
+  // formulario.<dominio> sirve SOLO "Oportunidad de Negocio" (app/formulario)
+  // e induccion.<dominio> SOLO "Taller de Inducción" (app/induccion), sin gate
+  // de mantenimiento ni auth: cualquier ruta del subdominio se reescribe a su
+  // página CONSERVANDO el query (la invitación por WhatsApp trae ?p=NUMERO
+  // para prellenar el patrocinador). En el dominio principal, /formulario e
+  // /induccion también son públicos (útil para probar sin DNS).
   const host = (request.headers.get('host') ?? '').toLowerCase();
-  if (host.startsWith('formulario.')) {
-    if (pathname === '/formulario') return NextResponse.next();
-    return NextResponse.rewrite(new URL('/formulario', request.url));
+  const publicFormBySubdomain = host.startsWith('formulario.')
+    ? '/formulario'
+    : host.startsWith('induccion.')
+      ? '/induccion'
+      : null;
+  if (publicFormBySubdomain) {
+    // /terminos y /privacidad (href relativos con target=_blank en el bloque
+    // de consentimiento) deben abrir las páginas legales, no otra copia del
+    // formulario.
+    if (
+      pathname === publicFormBySubdomain ||
+      SUBDOMAIN_PASSTHROUGH_RE.test(pathname)
+    ) {
+      return NextResponse.next();
+    }
+    const target = request.nextUrl.clone();
+    target.pathname = publicFormBySubdomain;
+    return NextResponse.rewrite(target);
   }
-  if (pathname === '/formulario' || pathname.startsWith('/formulario/')) {
+  if (/^\/(formulario|induccion)(\/|$)/.test(pathname)) {
     return NextResponse.next();
   }
 
