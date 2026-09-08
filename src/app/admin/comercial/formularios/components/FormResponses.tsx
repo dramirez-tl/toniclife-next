@@ -35,6 +35,7 @@ import {
   marketingService,
   type MarketingFormSlug,
 } from '@/services/marketing.service';
+import InduccionCampaignPanel from './InduccionCampaignPanel';
 
 /** Textos que cambian según el formulario. */
 interface FormCopy {
@@ -233,6 +234,10 @@ export default function FormResponses({ slug }: FormResponsesProps) {
 
   return (
     <div className="space-y-6">
+      {/* Campaña de WhatsApp del Taller de Inducción (solo induccion), arriba
+          de las métricas de respuestas. */}
+      {slug === 'induccion' && <InduccionCampaignPanel />}
+
       {/* Métricas + mini gráfica de 14 días */}
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
