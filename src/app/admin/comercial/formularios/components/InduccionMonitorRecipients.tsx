@@ -14,6 +14,7 @@
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInput } from '@/components/ui/PhoneInput';
 import {
   Dialog,
   DialogContent,
@@ -155,7 +156,7 @@ export default function InduccionMonitorRecipients({
                 <th className="px-3 py-2 text-left font-medium">#</th>
                 <th className="px-3 py-2 text-left font-medium">Nombre</th>
                 <th className="px-3 py-2 text-left font-medium">
-                  Teléfono (E.164)
+                  Teléfono (lada + número)
                 </th>
                 <th className="px-3 py-2 text-left font-medium">
                   Núm. distribuidor (opcional)
@@ -171,7 +172,7 @@ export default function InduccionMonitorRecipients({
                   ? savedByPhone.get(normalizeE164(r.phone))
                   : undefined;
                 const testTitle = !phoneOk
-                  ? 'Captura un teléfono E.164 válido'
+                  ? 'Elige la lada y captura el número completo'
                   : !savedRow
                     ? 'Guarda la configuración para poder enviar la prueba a este número'
                     : 'Manda la invitación del próximo taller a este celular (con el nombre y número guardados)';
@@ -189,23 +190,18 @@ export default function InduccionMonitorRecipients({
                       />
                     </td>
                     <td className="px-3 py-2">
-                      <Input
-                        type="tel"
-                        inputMode="tel"
+                      {/* Lada en un select + numero local aparte (10 digitos en
+                          MX/US, 8 en Guatemala); se guarda en E.164. */}
+                      <PhoneInput
                         value={r.phone}
-                        onChange={(e) =>
-                          update(i, { phone: normalizeE164(e.target.value) })
-                        }
-                        placeholder="+52 477 581 3450"
-                        className={`h-8 w-44 font-mono ${
-                          phoneInvalid ? 'border-red-400' : ''
-                        }`}
-                        aria-invalid={phoneInvalid}
+                        onChange={(e164) => update(i, { phone: e164 })}
                         disabled={busy}
+                        showHint={false}
+                        className="w-72"
                       />
                       {phoneInvalid && (
                         <p className="mt-1 text-[11px] text-red-600">
-                          + y de 11 a 15 dígitos.
+                          Elige la lada y captura el número completo.
                         </p>
                       )}
                     </td>
