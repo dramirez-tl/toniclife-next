@@ -3,7 +3,8 @@
 // InduccionMessagesTab - Seccion "Mensajes": plantilla de invitacion (solo
 // las APROBADAS en Meta) con vista previa del BODY real y las variables
 // resueltas para el proximo taller, video del encabezado (path actual +
-// subir nuevo) y nota sobre la URL del boton de la plantilla.
+// subir nuevo), nota sobre la URL del boton de la plantilla y los numeros
+// de monitoreo del corporativo (InduccionMonitorRecipients).
 
 import { useMemo, useRef, useState } from 'react';
 import type { UseQueryResult } from '@tanstack/react-query';
@@ -27,10 +28,12 @@ import {
 import { toast } from 'sonner';
 import { useUploadWhatsAppMedia } from '@/hooks/useInduction';
 import type {
+  InductionSettingsResponse,
   WhatsAppTemplate,
   WhatsAppTemplatesResponse,
 } from '@/services/induction.service';
 import type { SettingsTabProps } from './InduccionCampaignPanel';
+import InduccionMonitorRecipients from './InduccionMonitorRecipients';
 import {
   apiErrorInfo,
   apiErrorMessage,
@@ -44,6 +47,11 @@ import {
 } from './induccion-utils';
 
 interface Props extends SettingsTabProps {
+  /**
+   * Configuracion GUARDADA (GET/PUT settings): la prueba de monitoreo solo
+   * admite numeros ya guardados y el proximo taller lo calcula el API.
+   */
+  saved: InductionSettingsResponse;
   templatesQuery: UseQueryResult<WhatsAppTemplatesResponse>;
   approvedTemplates: WhatsAppTemplate[];
 }
@@ -59,6 +67,7 @@ export default function InduccionMessagesTab({
   save,
   saving,
   dirty,
+  saved,
   templatesQuery,
   approvedTemplates,
 }: Props) {
@@ -359,6 +368,16 @@ export default function InduccionMessagesTab({
           ) : null}
         </div>
       </div>
+
+      {/* Numeros de monitoreo (corporativo) */}
+      <InduccionMonitorRecipients
+        recipients={draft.monitorRecipients ?? []}
+        saved={saved.monitorRecipients ?? []}
+        onChange={(monitorRecipients) => patch({ monitorRecipients })}
+        dirty={dirty}
+        disabled={saving}
+        workshopDate={saved.nextWorkshop?.workshopDate || workshopDate}
+      />
 
       <div className="flex items-center justify-end gap-3">
         {dirty && (

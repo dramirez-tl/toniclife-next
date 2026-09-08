@@ -132,6 +132,31 @@ export function formatTime12(hhmm: string): string {
 
 export const isValidHhmm = (s: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(s);
 
+// ---------------------------------------------------------------------------
+// Telefonos de monitoreo (E.164 estricto, espejo de la validacion del API)
+// ---------------------------------------------------------------------------
+
+/**
+ * '+' seguido de 11 a 15 digitos, sin espacios (espejo de MONITOR_PHONE_RE
+ * del API). Minimo 11: el canal antepone la lada 52 a cualquier cadena de 10
+ * digitos, asi que '+1234567890' saldria a otro numero.
+ */
+export const E164_RE = /^\+\d{11,15}$/;
+
+export const isValidE164 = (s: string) => E164_RE.test(s);
+
+/**
+ * Lo tecleado/pegado ('+52 (477) 581-3450', '52 477...') -> '+524775813450'.
+ * Solo digitos con '+' al frente; '' si no hay digitos (deja borrar).
+ */
+export function normalizeE164(raw: string): string {
+  const digits = (raw || '').replace(/\D/g, '');
+  return digits ? `+${digits.slice(0, 15)}` : '';
+}
+
+/** Solo digitos (numero de distribuidor del monitor). */
+export const digitsOnly = (raw: string) => (raw || '').replace(/\D/g, '');
+
 /** Primer nombre para {{1}}. */
 export function firstName(fullName?: string | null): string {
   const n = (fullName || '').trim();
@@ -226,8 +251,12 @@ export const CAMPAIGN_KIND_LABELS: Record<string, string> = {
   manual: 'Manual',
   induccion_invitacion: 'Invitación',
   induccion_recordatorio: 'Recordatorio',
+  induccion_monitor: 'Monitoreo',
   inbound: 'Entrante',
 };
+
+/** Copia corporativa de un envio de la campana (numeros de monitoreo). */
+export const MONITOR_KIND = 'induccion_monitor';
 
 export const KIT_LABELS: Record<string, string> = {
   basic: 'Básico',

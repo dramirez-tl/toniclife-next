@@ -1,9 +1,11 @@
 'use client';
 
 // InduccionDeliveriesTab - Seccion "Envios": metricas por tipo de campana
-// (invitacion / recordatorio / manual) desde /whatsapp/messages/stats y
-// tabla paginada de /whatsapp/messages con filtros (tipo, estado, busqueda)
-// y export CSV con neutralizacion de formulas.
+// (invitacion / recordatorio / monitoreo / manual) desde
+// /whatsapp/messages/stats y tabla paginada de /whatsapp/messages con filtros
+// (tipo, estado, busqueda) y export CSV con neutralizacion de formulas. Las
+// copias de monitoreo (kind 'induccion_monitor') no tienen cliente: se
+// etiquetan con el nombre del monitor ({{1}} de la copia).
 
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -48,6 +50,7 @@ import {
   csvCell,
   downloadCsvFile,
   formatDateTimeCdmx,
+  MONITOR_KIND,
   statusMeta,
   todayCdmx,
 } from './induccion-utils';
@@ -58,8 +61,13 @@ const PAGE_SIZE = 20;
 const STATS_KINDS: Array<{ kind: string; label: string }> = [
   { kind: 'induccion_invitacion', label: 'Invitaciones' },
   { kind: 'induccion_recordatorio', label: 'Recordatorios' },
+  { kind: MONITOR_KIND, label: 'Monitoreo' },
   { kind: 'manual', label: 'Manuales' },
 ];
+
+/** Nombre del monitor en una copia de monitoreo ({{1}} del body). */
+const monitorNameOf = (m: WhatsAppMessage): string =>
+  m.campaignKind === MONITOR_KIND ? (m.bodyParams?.[0] ?? '').trim() : '';
 
 export default function InduccionDeliveriesTab() {
   const [kind, setKind] = useState<string>(ALL);
@@ -123,7 +131,12 @@ export default function InduccionDeliveriesTab() {
             csvCell(m.campaignKey),
             csvCell(m.direction === 'in' ? 'Entrante' : 'Saliente'),
             csvCell(m.customerNumber),
-            csvCell(m.customerName),
+            csvCell(
+              m.customerName ??
+                (m.campaignKind === MONITOR_KIND
+                  ? `Monitoreo: ${monitorNameOf(m)}`
+                  : null),
+            ),
             csvCell(m.phoneE164),
             csvCell(m.templateName),
             csvCell(statusMeta(m.status).label),
@@ -154,7 +167,7 @@ export default function InduccionDeliveriesTab() {
   return (
     <div className="space-y-4">
       {/* Metricas por tipo */}
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {STATS_KINDS.map((s) => (
           <StatsCard key={s.kind} kind={s.kind} label={s.label} />
         ))}
@@ -307,6 +320,8 @@ export default function InduccionDeliveriesTab() {
 function MessageRow({ m }: { m: WhatsAppMessage }) {
   const meta = statusMeta(m.status);
   const error = m.errorDetail ?? m.errorTitle;
+  const isMonitor = m.campaignKind === MONITOR_KIND;
+  const monitorName = monitorNameOf(m);
   return (
     <TableRow>
       <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
@@ -330,6 +345,13 @@ function MessageRow({ m }: { m: WhatsAppMessage }) {
             )}
             {m.customerName && (
               <span className="text-muted-foreground">{m.customerName}</span>
+            )}
+          </span>
+        ) : isMonitor ? (
+          <span className="inline-flex flex-wrap items-center gap-x-1.5">
+            <Badge variant="info">Monitoreo</Badge>
+            {monitorName && (
+              <span className="text-muted-foreground">{monitorName}</span>
             )}
           </span>
         ) : (

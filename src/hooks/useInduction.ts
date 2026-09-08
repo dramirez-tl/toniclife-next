@@ -7,6 +7,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   inductionService,
+  type MonitorTestInput,
   type SendInvitationsInput,
   type SendReminderInput,
   type SetExclusionInput,
@@ -103,6 +104,24 @@ export const useSendReminder = () => {
   return useMutation({
     mutationFn: (input: SendReminderInput) => inductionService.sendReminder(input),
     onSettled: () => invalidate(),
+  });
+};
+
+/**
+ * Prueba de monitoreo: manda la invitacion del proximo taller a uno de los
+ * numeros de monitoreo guardados (kind 'manual', repetible). Solo toca el
+ * historial de mensajes, no la cohorte.
+ */
+export const useSendMonitorTest = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: MonitorTestInput) =>
+      inductionService.sendMonitorTest(input),
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: [...whatsappKeys.all, 'messages'],
+      });
+    },
   });
 };
 

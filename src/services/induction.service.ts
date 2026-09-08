@@ -22,6 +22,26 @@ export interface InductionReminder {
   template: string;
 }
 
+/**
+ * Numero corporativo de monitoreo: recibe una copia de cada invitacion y
+ * recordatorio que sale a la cohorte (una sola vez por envio, kind
+ * 'induccion_monitor'). No cuenta en las metricas de la cohorte.
+ */
+export interface InductionMonitorRecipient {
+  /** 1-80 caracteres; el primer nombre va en {{1}} de la copia. */
+  name: string;
+  /** E.164: '+' + 11 a 15 digitos (p. ej. +524775813450). */
+  phone: string;
+  /**
+   * Numero de distribuidor propio (solo digitos, opcional) para el boton
+   * dinamico de la plantilla; sin el, el API manda '0'.
+   */
+  customerNumber?: string;
+}
+
+/** Tope de numeros de monitoreo (espejo del ArrayMaxSize del API). */
+export const MAX_MONITOR_RECIPIENTS = 10;
+
 export interface InductionSettings {
   /** Dia del taller (0=domingo ... 6=sabado). Default 2 (martes). */
   workshopWeekday: number;
@@ -42,6 +62,8 @@ export interface InductionSettings {
   requireKit: boolean;
   /** Incluir clientes preferentes ademas de distribuidores. */
   includePreferred: boolean;
+  /** Numeros corporativos que reciben copia de cada envio (maximo 10). */
+  monitorRecipients: InductionMonitorRecipient[];
 }
 
 export type UpdateInductionSettingsInput = Partial<InductionSettings>;
@@ -94,11 +116,12 @@ export interface InductionSettingsResponse extends InductionSettings {
 }
 
 /**
- * Recorta cualquier objeto a las 10 claves que acepta
+ * Recorta cualquier objeto a las 11 claves que acepta
  * UpdateInductionSettingsDto. El ValidationPipe del API corre con whitelist +
  * forbidNonWhitelisted: si el borrador (que es el response completo del GET)
  * se mandara tal cual, meetingUrl/nextWorkshop/template/... darian 400
- * "property X should not exist".
+ * "property X should not exist". Lo mismo aplica dentro de cada
+ * monitorRecipient (solo name, phone y customerNumber cuando existe).
  */
 export function toSettingsPayload(
   input: UpdateInductionSettingsInput,
@@ -124,7 +147,45 @@ export function toSettingsPayload(
   if (input.requireKit !== undefined) out.requireKit = input.requireKit;
   if (input.includePreferred !== undefined)
     out.includePreferred = input.includePreferred;
+  if (input.monitorRecipients !== undefined) {
+    out.monitorRecipients = input.monitorRecipients.map((m) => {
+      const customerNumber = (m.customerNumber ?? '').trim();
+      return {
+        name: (m.name ?? '').trim(),
+        phone: (m.phone ?? '').trim(),
+        ...(customerNumber ? { customerNumber } : {}),
+      };
+    });
+  }
   return out;
+}
+
+/**
+ * Lista de monitoreo tal como la manda el API, o [] si aun no la incluye
+ * (API sin desplegar / fila JSONB vieja): la UI siempre itera un arreglo.
+ */
+function normalizeMonitorRecipients(raw: unknown): InductionMonitorRecipient[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((x): x is Record<string, unknown> => !!x && typeof x === 'object')
+    .map((x) => ({
+      name: typeof x.name === 'string' ? x.name : '',
+      phone: typeof x.phone === 'string' ? x.phone : '',
+      ...(typeof x.customerNumber === 'string' && x.customerNumber
+        ? { customerNumber: x.customerNumber }
+        : {}),
+    }));
+}
+
+function normalizeSettingsResponse(
+  data: InductionSettingsResponse,
+): InductionSettingsResponse {
+  return {
+    ...data,
+    monitorRecipients: normalizeMonitorRecipients(
+      (data as { monitorRecipients?: unknown }).monitorRecipients,
+    ),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -146,6 +207,8 @@ export const WHATSAPP_CAMPAIGN_KINDS = [
   'manual',
   'induccion_invitacion',
   'induccion_recordatorio',
+  /** Copia corporativa de un envio de la campana (mig 132). */
+  'induccion_monitor',
   'inbound',
 ] as const;
 export type WhatsAppCampaignKind = (typeof WHATSAPP_CAMPAIGN_KINDS)[number];
@@ -341,11 +404,24 @@ export interface InductionSendDetail {
   wamid?: string;
 }
 
+/**
+ * Copias de monitoreo de una corrida (solo en lotes: invitaciones sin
+ * customerIds y recordatorios). No entran en sent/failed/skipped ni en details.
+ */
+export interface InductionMonitorSendResult {
+  sent: number;
+  failed: number;
+  /** Ya tenia copia de este envio, opt-out o migracion 132 pendiente. */
+  skipped: number;
+}
+
 export interface InductionSendResult {
   sent: number;
   failed: number;
   skipped: number;
   details: InductionSendDetail[];
+  /** Ausente en reenvios individuales y en un API anterior al monitoreo. */
+  monitor?: InductionMonitorSendResult;
 }
 
 export interface SendInvitationsInput {
@@ -356,6 +432,32 @@ export interface SendInvitationsInput {
 export interface SendReminderInput {
   workshopDate?: string;
   reminderKey?: string;
+}
+
+/**
+ * POST /marketing/induccion/monitor-test: prueba a uno de los numeros de
+ * monitoreo GUARDADOS (el API responde 400 si el telefono no esta guardado;
+ * nombre y numero de distribuidor salen de lo guardado).
+ */
+export interface MonitorTestInput {
+  /** E.164 ('+' + 11 a 15 digitos) de un numero de monitoreo guardado. */
+  phone: string;
+}
+
+/**
+ * Respuesta de monitor-test. Sale como campaignKind 'manual' (sin unique, se
+ * puede repetir). El API puede reportar el fallo con success=false o con
+ * result='failed'; los demas campos son informativos.
+ */
+export interface MonitorTestResult {
+  success?: boolean;
+  result?: string;
+  phone?: string;
+  wamid?: string | null;
+  template?: string;
+  workshopDate?: string;
+  error?: string | null;
+  reason?: string | null;
 }
 
 export interface SetExclusionInput {
@@ -453,10 +555,10 @@ class InductionService {
     const { data } = await api.get<InductionSettingsResponse>(
       '/marketing/induccion/settings',
     );
-    return data;
+    return normalizeSettingsResponse(data);
   }
 
-  /** Solo viajan las 10 claves del DTO (ver toSettingsPayload). */
+  /** Solo viajan las 11 claves del DTO (ver toSettingsPayload). */
   async updateSettings(
     input: UpdateInductionSettingsInput,
   ): Promise<InductionSettingsResponse> {
@@ -464,7 +566,7 @@ class InductionService {
       '/marketing/induccion/settings',
       toSettingsPayload(input),
     );
-    return data;
+    return normalizeSettingsResponse(data);
   }
 
   // --- Cohorte ---
@@ -500,6 +602,18 @@ class InductionService {
   async setExclusion(input: SetExclusionInput): Promise<unknown> {
     const { data } = await api.post('/marketing/induccion/exclusions', input);
     return data;
+  }
+
+  /**
+   * Manda la invitacion del proximo taller a ese telefono como mensaje
+   * 'manual' (boton "Enviar prueba" de los numeros de monitoreo).
+   */
+  async sendMonitorTest(input: MonitorTestInput): Promise<MonitorTestResult> {
+    const { data } = await api.post<MonitorTestResult>(
+      '/marketing/induccion/monitor-test',
+      input,
+    );
+    return data ?? {};
   }
 
   // --- WhatsApp: plantillas y video ---

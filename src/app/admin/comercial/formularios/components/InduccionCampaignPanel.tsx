@@ -6,7 +6,7 @@
 // Recordatorios, Cohorte y Envios. Un solo borrador de configuracion
 // (draft) compartido por las tres primeras; cada una tiene su boton Guardar
 // que manda el borrador a PUT /marketing/induccion/settings (el servicio lo
-// recorta a las 10 claves del DTO; el resto del GET es de solo lectura).
+// recorta a las 11 claves del DTO; el resto del GET es de solo lectura).
 
 import { useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,14 +21,18 @@ import {
   useWhatsAppTemplates,
 } from '@/hooks/useInduction';
 import { useMarketingFormConfig } from '@/hooks/useMarketingLeads';
-import type {
-  InductionSettings,
-  WhatsAppTemplate,
+import {
+  MAX_MONITOR_RECIPIENTS,
+  type InductionMonitorRecipient,
+  type InductionSettings,
+  type UpdateInductionSettingsInput,
+  type WhatsAppTemplate,
 } from '@/services/induction.service';
 import {
   apiErrorInfo,
   apiErrorMessage,
   isApprovedTemplate,
+  isValidE164,
   isValidHhmm,
   WEEKDAY_LABELS,
 } from './induccion-utils';
@@ -54,6 +58,22 @@ export interface SettingsTabProps {
 const isWeekday = (n: unknown) =>
   typeof n === 'number' && Number.isInteger(n) && n >= 0 && n <= 6;
 
+/** Misma lista de monitoreo (orden y campos, ignorando espacios). */
+function sameMonitors(
+  a: InductionMonitorRecipient[] | undefined,
+  b: InductionMonitorRecipient[] | undefined,
+): boolean {
+  const norm = (list: InductionMonitorRecipient[] | undefined) =>
+    JSON.stringify(
+      (list ?? []).map((m) => [
+        (m.name ?? '').trim(),
+        (m.phone ?? '').trim(),
+        (m.customerNumber ?? '').trim(),
+      ]),
+    );
+  return norm(a) === norm(b);
+}
+
 /** Validacion local (espejo de la del API) para avisar antes del PUT. */
 function validateSettings(s: InductionSettings): string[] {
   const problems: string[] = [];
@@ -74,6 +94,26 @@ function validateSettings(s: InductionSettings): string[] {
     if (!r.template?.trim())
       problems.push(`Recordatorio ${i + 1}: selecciona la plantilla.`);
   });
+  const monitors = s.monitorRecipients ?? [];
+  if (monitors.length > MAX_MONITOR_RECIPIENTS)
+    problems.push(
+      `Máximo ${MAX_MONITOR_RECIPIENTS} números de monitoreo (hay ${monitors.length}).`,
+    );
+  monitors.forEach((m, i) => {
+    const name = (m.name ?? '').trim();
+    if (!name || name.length > 80)
+      problems.push(`Monitoreo ${i + 1}: el nombre debe tener de 1 a 80 caracteres.`);
+    if (!isValidE164((m.phone ?? '').trim()))
+      problems.push(
+        `Monitoreo ${i + 1}: el teléfono debe ser E.164 (+ y 11 a 15 dígitos, p. ej. +524775813450).`,
+      );
+    const cn = (m.customerNumber ?? '').trim();
+    if (cn && !/^\d+$/.test(cn))
+      problems.push(`Monitoreo ${i + 1}: el número de distribuidor solo admite dígitos.`);
+  });
+  const phones = monitors.map((m) => (m.phone ?? '').trim()).filter(Boolean);
+  if (new Set(phones).size !== phones.length)
+    problems.push('Hay teléfonos de monitoreo repetidos.');
   return problems;
 }
 
@@ -117,8 +157,15 @@ export default function InduccionCampaignPanel() {
     }
     setLocalDraft(next);
     setDirty(true);
+    // monitorRecipients solo viaja si cambio: con un API anterior al
+    // monitoreo (sin la clave en su DTO) el ValidationPipe rechazaria TODO el
+    // PUT con 400 aunque el usuario solo tocara el dia del taller.
+    const payload: UpdateInductionSettingsInput = { ...next };
+    if (sameMonitors(next.monitorRecipients, settings?.monitorRecipients)) {
+      delete payload.monitorRecipients;
+    }
     try {
-      await updateSettings.mutateAsync(next);
+      await updateSettings.mutateAsync(payload);
       // La respuesta del PUT ya quedo en cache (setQueryData): vuelve a mandar.
       setDirty(false);
       toast.success('Configuración del taller guardada');
@@ -200,6 +247,7 @@ export default function InduccionCampaignPanel() {
             {tabProps ? (
               <InduccionMessagesTab
                 {...tabProps}
+                saved={settings}
                 templatesQuery={templatesQuery}
                 approvedTemplates={approvedTemplates}
               />

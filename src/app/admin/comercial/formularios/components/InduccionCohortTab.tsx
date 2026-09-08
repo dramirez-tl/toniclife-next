@@ -84,6 +84,16 @@ type ConfirmState =
   | { kind: 'reminder' }
   | null;
 
+/**
+ * Copias de monitoreo de la corrida (solo lotes): ' · Monitoreo: 2 copias
+ * enviadas, 0 omitidas, 0 fallidas'; '' si el API no las reporto.
+ */
+function monitorSummary(r: InductionSendResult): string {
+  const m = r.monitor;
+  if (!m) return '';
+  return ` · Monitoreo: ${m.sent} ${m.sent === 1 ? 'copia enviada' : 'copias enviadas'}, ${m.skipped} omitidas, ${m.failed} fallidas`;
+}
+
 /** '2026-09-08#rec-3-1400' -> 'Mié 14:00'. */
 function reminderKeyLabel(key: string): string {
   const m = /#rec-(\d)-(\d{2})(\d{2})$/.exec(key);
@@ -167,6 +177,10 @@ export default function InduccionCohortTab({
     [rows, activeReminderKey],
   );
 
+  // Numeros corporativos que reciben copia en cada envio por lote (Mensajes >
+  // Numeros de monitoreo). No entran en los contadores de la cohorte.
+  const monitorCount = (settings.monitorRecipients ?? []).length;
+
   const pendingCount =
     cohort?.counts.porInvitar ??
     rows.filter(
@@ -188,7 +202,7 @@ export default function InduccionCohortTab({
       });
       setLastResult({ title: 'Invitaciones', result });
       toast.success(
-        `Invitaciones: ${result.sent} enviadas, ${result.failed} fallidas, ${result.skipped} omitidas`,
+        `Invitaciones: ${result.sent} enviadas, ${result.failed} fallidas, ${result.skipped} omitidas${monitorSummary(result)}`,
       );
     } catch (e) {
       toast.error(apiErrorMessage(e, 'No se pudieron enviar las invitaciones'));
@@ -206,7 +220,7 @@ export default function InduccionCohortTab({
       });
       setLastResult({ title: 'Recordatorio', result });
       toast.success(
-        `Recordatorio: ${result.sent} enviados, ${result.failed} fallidos, ${result.skipped} omitidos`,
+        `Recordatorio: ${result.sent} enviados, ${result.failed} fallidos, ${result.skipped} omitidos${monitorSummary(result)}`,
       );
     } catch (e) {
       toast.error(apiErrorMessage(e, 'No se pudo enviar el recordatorio'));
@@ -375,6 +389,7 @@ export default function InduccionCohortTab({
               {lastResult.title}: {lastResult.result.sent} enviados,{' '}
               {lastResult.result.failed} fallidos, {lastResult.result.skipped}{' '}
               omitidos
+              {monitorSummary(lastResult.result)}
             </span>
             <button
               type="button"
@@ -656,6 +671,17 @@ export default function InduccionCohortTab({
                 Saldrán <strong>{reminderTargets}</strong> mensajes (a quienes
                 tienen invitación vigente y aún no reciben este recordatorio).
                 Quien ya lo recibió no vuelve a recibirlo.
+                {monitorCount > 0 && (
+                  <>
+                    {' '}
+                    <strong>+ {monitorCount}</strong>{' '}
+                    {monitorCount === 1
+                      ? 'copia de monitoreo'
+                      : 'copias de monitoreo'}{' '}
+                    a los números corporativos (una por envío, solo si sale al
+                    menos un mensaje real; no cuentan en la cohorte).
+                  </>
+                )}
               </p>
             </div>
           ) : confirm ? (
@@ -665,6 +691,17 @@ export default function InduccionCohortTab({
               la plantilla{' '}
               <span className="font-mono">{settings.invitationTemplate}</span>.
               Quien ya tiene invitación vigente se omite.
+              {!confirm.customerIds && monitorCount > 0 && (
+                <>
+                  {' '}
+                  <strong>+ {monitorCount}</strong>{' '}
+                  {monitorCount === 1
+                    ? 'copia de monitoreo'
+                    : 'copias de monitoreo'}{' '}
+                  a los números corporativos (una por envío, solo si sale al
+                  menos un mensaje real; no cuentan en la cohorte).
+                </>
+              )}
             </p>
           ) : null}
 
