@@ -1,4 +1,5 @@
 import api from '@/lib/axios';
+import { saveBlob } from '@/lib/download';
 import {
   Customer,
   CustomerListResponse,
@@ -12,6 +13,41 @@ import {
   CreateBankAccountDto,
   UpdateBankAccountDto,
 } from '@/types/customer';
+import type { NetworkExportJob } from '@/services/networkApi';
+
+export type { NetworkExportJob };
+
+/** Fila de GET /customers/payment-readiness/list (estatus de datos para pago). */
+export interface PaymentReadinessListRow {
+  id: string;
+  customerNumber: string | null;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  overallStatus: string;
+  documentsValidated: boolean;
+  missingCount: number;
+  completedCount: number;
+  documents: {
+    ine: { uploaded: boolean; status: string | null };
+    taxId: { uploaded: boolean; status: string | null };
+    bankStatement: { uploaded: boolean; status: string | null };
+  };
+  updatedAt: string;
+}
+
+export interface PaymentReadinessListResponse {
+  data: PaymentReadinessListRow[];
+  total: number;
+  page?: number;
+  limit?: number;
+  stats: {
+    totalWithData: number;
+    pendingValidation: number;
+    validated: number;
+    incomplete: number;
+  };
+}
 
 class CustomersService {
   private basePath = '/customers';
@@ -263,7 +299,7 @@ class CustomersService {
   }
 
   // Referral Info
-  async getReferralInfo(id: string): Promise<any> {
+  async getReferralInfo(id: string): Promise<unknown> {
     const response = await api.get(`${this.basePath}/${id}/referral-info`);
     return response.data;
   }
@@ -275,8 +311,11 @@ class CustomersService {
     search?: string;
     page?: number;
     limit?: number;
-  }): Promise<any> {
-    const response = await api.get(`${this.basePath}/payment-readiness/list`, { params });
+  }): Promise<PaymentReadinessListResponse> {
+    const response = await api.get<PaymentReadinessListResponse>(
+      `${this.basePath}/payment-readiness/list`,
+      { params },
+    );
     return response.data;
   }
 
@@ -291,6 +330,46 @@ class CustomersService {
   ): Promise<{ success: boolean; documentsValidated: boolean }> {
     const response = await api.post(`${this.basePath}/${customerId}/validate-documents`, { validations });
     return response.data;
+  }
+
+  // ===== Exportación de red (descendencia) por periodo (Admin) =====
+
+  /**
+   * Inicia en SEGUNDO PLANO el CSV de descendencia de red del distribuidor con
+   * los puntos del periodo indicado (sin periodId = periodo actual). Mismo
+   * archivo que descarga el panel del distribuidor. Devuelve el jobId para
+   * seguir el avance. Backend: POST /customers/:id/network/export
+   */
+  async startNetworkExport(
+    customerId: string,
+    periodId?: string | null,
+  ): Promise<{ jobId: string }> {
+    const response = await api.post<{ jobId: string }>(
+      `${this.basePath}/${customerId}/network/export`,
+      periodId ? { periodId } : {},
+    );
+    return response.data;
+  }
+
+  /** Estado/progreso del job. Backend: GET /customers/:id/network/export-job/:jobId */
+  async getNetworkExportJob(customerId: string, jobId: string): Promise<NetworkExportJob> {
+    const response = await api.get<NetworkExportJob>(
+      `${this.basePath}/${customerId}/network/export-job/${jobId}`,
+    );
+    return response.data;
+  }
+
+  /** Descarga el CSV ya generado del job y dispara el save-as en el navegador. */
+  async downloadNetworkExportFile(
+    customerId: string,
+    jobId: string,
+    filename: string,
+  ): Promise<void> {
+    const response = await api.get(
+      `${this.basePath}/${customerId}/network/export-job/${jobId}/file`,
+      { responseType: 'blob' },
+    );
+    saveBlob(response.data as BlobPart, filename || 'descendencia-red.csv');
   }
 }
 

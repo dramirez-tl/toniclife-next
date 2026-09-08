@@ -1,6 +1,8 @@
 // csv-export.ts - Helper compartido para exportar reportes a CSV desde el cliente.
 // Los reportes ya vienen agregados del backend; el CSV se arma en el front.
 
+import { saveBlob } from '@/lib/download';
+
 type CsvCell = string | number | null | undefined;
 
 const BOM = String.fromCharCode(0xfeff); // BOM UTF-8 para que Excel respete acentos
@@ -23,15 +25,7 @@ export function buildCsv(headers: string[], rows: CsvCell[][]): string {
 
 /** Dispara la descarga de un CSV en el navegador. */
 export function downloadCsv(filename: string, content: string): void {
-  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename.endsWith('.csv') ? filename : `${filename}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
+  saveBlob(content, filename.endsWith('.csv') ? filename : `${filename}.csv`);
 }
 
 /** Atajo: arma y descarga un CSV. */

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import {
   TrophyIcon,
   BoltIcon,
@@ -11,14 +11,60 @@ import {
   ShoppingCartIcon,
   CalendarDaysIcon,
   CheckBadgeIcon,
+  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
+import { toast } from 'sonner';
 import {
   usePeriodsForSelector,
   useCustomerStatsForPeriod,
 } from '@/hooks/useDistributorPeriodStats';
+import { customersService, type NetworkExportJob } from '@/services/customers.service';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface DistributorPeriodActivityProps {
   customerId: string;
+  /** Muestra "Descargar Excel de red" (solo distribuidores con red). */
+  canExportNetwork?: boolean;
+}
+
+/** Persistencia del job de exportación en curso (sobrevive recargas). */
+interface StoredExportJob {
+  jobId: string;
+  periodId: string | null;
+}
+
+const EXPORT_STORAGE_PREFIX = 'tl_admin_red_export_';
+/** Errores consecutivos de polling (no 404) tolerados antes de rendirse. */
+const MAX_POLL_FAILURES = 5;
+const EXPORT_HELP_TEXT =
+  'Descendencia completa de la red con puntos del periodo seleccionado (CSV compatible con Excel)';
+
+function readStoredExportJob(key: string): StoredExportJob | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StoredExportJob>;
+    if (!parsed || typeof parsed.jobId !== 'string' || !parsed.jobId) return null;
+    return {
+      jobId: parsed.jobId,
+      periodId: typeof parsed.periodId === 'string' ? parsed.periodId : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function extractApiError(err: unknown, fallback: string): string {
+  const data = (err as { response?: { data?: { message?: string | string[] } } })?.response?.data;
+  const msg = data?.message;
+  if (Array.isArray(msg)) return msg.join(', ') || fallback;
+  if (typeof msg === 'string' && msg.trim()) return msg;
+  return fallback;
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -57,9 +103,20 @@ function formatNumber(value: number): string {
   return value.toLocaleString('es-MX');
 }
 
-export function DistributorPeriodActivity({ customerId }: DistributorPeriodActivityProps) {
+export function DistributorPeriodActivity({
+  customerId,
+  canExportNetwork = false,
+}: DistributorPeriodActivityProps) {
   const { data: periods = [], isLoading: loadingPeriods } = usePeriodsForSelector();
   const [periodId, setPeriodId] = useState<string | null>(null);
+
+  // Exportación de red en segundo plano (mismo CSV que el panel del distribuidor)
+  const exportStorageKey = `${EXPORT_STORAGE_PREFIX}${customerId}`;
+  const [exportJobId, setExportJobId] = useState<string | null>(null);
+  const [exportPeriodId, setExportPeriodId] = useState<string | null>(null);
+  const [exportPct, setExportPct] = useState(0);
+  const [startingExport, setStartingExport] = useState(false);
+  const exportHelpId = useId();
 
   // Selección por defecto: el periodo abierto, si no el más reciente
   useEffect(() => {
@@ -68,6 +125,123 @@ export function DistributorPeriodActivity({ customerId }: DistributorPeriodActiv
       setPeriodId(open?.id || periods[0].id);
     }
   }, [periods, periodId]);
+
+  // Reconectar a un job de exportación en curso tras recargar/navegar. El
+  // periodo del job se guarda aparte (exportPeriodId) para mostrarlo en el
+  // botón; el selector queda libre para consultar las tarjetas de otros
+  // periodos mientras se genera (un export grande puede tardar minutos).
+  useEffect(() => {
+    const saved = readStoredExportJob(exportStorageKey);
+    setExportJobId(saved?.jobId ?? null);
+    setExportPeriodId(saved?.periodId ?? null);
+    setExportPct(0);
+  }, [exportStorageKey]);
+
+  // Polling del job: avanza %, auto-descarga al terminar. Solo un 404 significa
+  // que el job expiró (TTL del servidor) o no existe; cualquier otro error
+  // (caída de red, 401 con refresh fallido, 500 transitorio) se reintenta
+  // hasta MAX_POLL_FAILURES veces consecutivas antes de rendirse, porque el
+  // servidor sigue generando el archivo. Sobrevive recargas porque el job
+  // corre en el servidor.
+  useEffect(() => {
+    if (!exportJobId) return;
+    let active = true;
+    let settled = false;
+    let failures = 0;
+    const clearStored = () => {
+      try {
+        localStorage.removeItem(exportStorageKey);
+      } catch {
+        // sin storage disponible: no pasa nada
+      }
+    };
+    const finish = (msg: string, isError = false) => {
+      if (!active) return;
+      setExportJobId(null);
+      setExportPeriodId(null);
+      setExportPct(0);
+      if (isError) toast.error(msg);
+      else toast.success(msg);
+    };
+    const poll = async () => {
+      if (settled) return;
+      let st: NetworkExportJob;
+      try {
+        st = await customersService.getNetworkExportJob(customerId, exportJobId);
+      } catch (err) {
+        if (!active || settled) return;
+        const status = (err as { response?: { status?: number } })?.response?.status;
+        if (status === 404) {
+          settled = true;
+          clearStored();
+          finish('La exportación expiró o ya no está disponible. Vuelve a intentarlo.', true);
+        } else if (++failures >= MAX_POLL_FAILURES) {
+          settled = true;
+          clearStored();
+          finish('No se pudo consultar el avance de la exportación. Vuelve a intentarlo.', true);
+        }
+        return;
+      }
+      if (!active || settled) return;
+      failures = 0;
+      setExportPct(Math.max(0, Math.min(100, Math.round(st.percent || 0))));
+      if (st.status === 'done') {
+        settled = true;
+        // La clave se quita ANTES de descargar: si el usuario navega mientras
+        // baja el archivo, al volver no se reconecta ni se descarga dos veces.
+        clearStored();
+        try {
+          await customersService.downloadNetworkExportFile(customerId, exportJobId, st.filename);
+          finish(
+            `Excel de red descargado (${(st.total || 0).toLocaleString('es-MX')} registros)`,
+          );
+        } catch {
+          finish('No se pudo descargar el Excel de red. Vuelve a intentarlo.', true);
+        }
+      } else if (st.status === 'error') {
+        settled = true;
+        clearStored();
+        finish(st.error || 'No se pudo generar el Excel de red', true);
+      }
+    };
+    void poll();
+    const intervalId = window.setInterval(() => void poll(), 1800);
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, [exportJobId, customerId, exportStorageKey]);
+
+  const handleExportNetwork = useCallback(async () => {
+    if (!periodId || exportJobId || startingExport) return;
+    setStartingExport(true);
+    try {
+      const { jobId } = await customersService.startNetworkExport(customerId, periodId);
+      const stored: StoredExportJob = { jobId, periodId };
+      try {
+        localStorage.setItem(exportStorageKey, JSON.stringify(stored));
+      } catch {
+        // sin storage: el job sigue, solo no sobrevive a una recarga
+      }
+      setExportPct(0);
+      setExportPeriodId(periodId);
+      setExportJobId(jobId);
+      toast.info('Generando el Excel de red. Se descargará automáticamente al terminar.');
+    } catch (err) {
+      toast.error(extractApiError(err, 'No se pudo iniciar la exportación de la red'));
+    } finally {
+      setStartingExport(false);
+    }
+  }, [customerId, periodId, exportJobId, startingExport, exportStorageKey]);
+
+  const exportBusy = !!exportJobId || startingExport;
+
+  // Periodo que se está generando (para el botón): el del job, no el del selector.
+  const exportPeriodLabel = useMemo(() => {
+    if (!exportJobId) return null;
+    const p = exportPeriodId ? periods.find((x) => x.id === exportPeriodId) : undefined;
+    return p?.name || p?.code || 'periodo actual';
+  }, [exportJobId, exportPeriodId, periods]);
 
   const { data: stats, isLoading: loadingStats } = useCustomerStatsForPeriod(
     customerId,
@@ -113,7 +287,7 @@ export function DistributorPeriodActivity({ customerId }: DistributorPeriodActiv
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <label className="text-xs text-gray-500 whitespace-nowrap">Periodo:</label>
           <select
             value={periodId || ''}
@@ -131,6 +305,43 @@ export function DistributorPeriodActivity({ customerId }: DistributorPeriodActiv
               ))
             )}
           </select>
+
+          {canExportNetwork && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  {/* span envolvente: el tooltip sigue funcionando con el botón deshabilitado */}
+                  <span className="inline-flex">
+                    <button
+                      type="button"
+                      onClick={() => void handleExportNetwork()}
+                      disabled={exportBusy || !periodId}
+                      aria-busy={exportBusy}
+                      aria-describedby={exportHelpId}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#3E667D] bg-white px-3 py-1.5 text-xs font-medium text-[#3E667D] hover:bg-[#3E667D]/5 focus:outline-none focus:ring-1 focus:ring-[#3E667D] disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap transition-colors"
+                    >
+                      <ArrowDownTrayIcon
+                        className={`h-4 w-4 ${exportJobId ? 'animate-pulse' : ''}`}
+                      />
+                      {exportJobId
+                        ? `Generando ${exportPeriodLabel} ${exportPct}%`
+                        : startingExport
+                          ? 'Iniciando...'
+                          : 'Descargar Excel de red'}
+                    </button>
+                    {/* Ayuda para lectores de pantalla: el nombre accesible sigue
+                        siendo el contenido visible del botón */}
+                    <span id={exportHelpId} className="sr-only">
+                      {EXPORT_HELP_TEXT}
+                    </span>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-xs">
+                  {EXPORT_HELP_TEXT}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       </div>
 

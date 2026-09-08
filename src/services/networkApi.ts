@@ -2,6 +2,7 @@
 // Usa endpoints de /distributor/network/ (JWT only, sin permisos admin)
 
 import api from '@/lib/axios';
+import { saveBlob } from '@/lib/download';
 import type {
   NetworkTreeResponse,
   NetworkChildrenResponse,
@@ -279,17 +280,7 @@ class NetworkApi {
     const res = await api.get(`/distributor/network/export-job/${jobId}/file`, {
       responseType: 'blob',
     });
-    const blob = new Blob([res.data as BlobPart], {
-      type: 'text/csv;charset=utf-8;',
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename || 'descendencia-red.csv';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    saveBlob(res.data as BlobPart, filename || 'descendencia-red.csv');
   }
 
   /**
@@ -320,7 +311,7 @@ class NetworkApi {
    * Backend: POST /mlm/network/:customerId/add
    */
   async addToNetwork(customerId: string, body: { sponsorId: string; position?: string }): Promise<{ success: boolean }> {
-    const { data } = await api.post<{ message: string }>(`/mlm/network/${customerId}/add`, body);
+    await api.post<{ message: string }>(`/mlm/network/${customerId}/add`, body);
     return { success: true };
   }
 
@@ -329,7 +320,7 @@ class NetworkApi {
    * Backend: PUT /mlm/network/:customerId/move
    */
   async moveInNetwork(customerId: string, body: { newSponsorId: string; reason?: string }): Promise<{ success: boolean }> {
-    const { data } = await api.put<{ message: string }>(`/mlm/network/${customerId}/move`, {
+    await api.put<{ message: string }>(`/mlm/network/${customerId}/move`, {
       newUplineId: body.newSponsorId,
     });
     return { success: true };
@@ -344,9 +335,17 @@ class NetworkApi {
       params: { search: query, limit: '10' },
     });
 
-    const customers = result.data || result;
+    // Forma mínima del cliente que devuelve GET /customers (lista paginada o arreglo).
+    interface SearchCustomer {
+      id: string;
+      customerNumber?: string | null;
+      firstName?: string | null;
+      lastName?: string | null;
+      rank?: { code?: string | null } | null;
+    }
+    const customers: SearchCustomer[] = result.data || result;
 
-    return customers.map((customer: any) => {
+    return customers.map((customer) => {
       const rankType = customer.rank?.code
         ? rankCodeToType[customer.rank.code] || 'distribuidor'
         : 'distribuidor';

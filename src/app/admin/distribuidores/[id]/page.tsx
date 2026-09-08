@@ -240,7 +240,10 @@ export default function DetalleDistribuidorPage() {
             </div>
 
             {/* Actividad por Periodo */}
-            <DistributorPeriodActivity customerId={customer.id} />
+            <DistributorPeriodActivity
+              customerId={customer.id}
+              canExportNetwork={customer.customerType === 'distributor'}
+            />
 
             {/* Promociones (derechos + otorgamiento manual) */}
             {customer.customerType === 'distributor' && (
