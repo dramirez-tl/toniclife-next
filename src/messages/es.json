@@ -884,7 +884,7 @@
         "legVolumeLabel": "Su línea",
         "capTitle": "Tope: {amount} pts",
         "legContributes": "aporta {points} a tu grupo",
-        "legRollsOver": "{points} sobre el tope (no cuentan)",
+        "legRollsOver": "{points} Rollover",
         "legHeadroom": "puede aportar {points} más",
         "legAtCap": "tope alcanzado",
         "legsEmptyTitle": "Aún no tienes directos",
