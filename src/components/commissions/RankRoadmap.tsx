@@ -11,6 +11,14 @@ import { useLocale, useTranslations } from 'next-intl';
 import confetti from 'canvas-confetti';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Tooltip,
@@ -34,12 +42,11 @@ import {
   BoltIcon,
   CalendarDaysIcon,
   ChartBarIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
   CurrencyDollarIcon,
   ExclamationTriangleIcon,
   FlagIcon,
   InformationCircleIcon,
+  MagnifyingGlassIcon,
   SparklesIcon,
   TrophyIcon,
   UserGroupIcon,
@@ -1127,24 +1134,22 @@ function InfoTip({ text }: { text: string }) {
 // Tus patas (líneas directas)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const LEGS_PREVIEW = 6;
-
 interface LegsSectionProps {
   data: RankRoadmapResponse;
   fmt: PointsFormatter;
   t: Translate;
 }
 
+/**
+ * Resumen de las patas en la card (totales + tope) y botón que abre el panel
+ * lateral con la lista completa. La lista NO va inline para que la escalera
+ * de rangos quede a la vista sin desplazar toda la página.
+ */
 function LegsSection({ data, fmt, t }: LegsSectionProps) {
-  const [showAll, setShowAll] = useState(false);
+  const [open, setOpen] = useState(false);
   const legs = data.legs;
   const cap = data.currentRank.rollOverLimit;
   const hasCap = cap > 0;
-  // Misma escala para todas las barras de pata (como en Mi Red).
-  const maxBar = Math.max(1, cap, ...legs.map((l) => l.legVolume));
-  // "Más cerca": la primera sin calificar con puntos (la API ya ordena así).
-  const closestId = legs.find((l) => !l.isQualified && l.personalPoints > 0)?.memberId ?? null;
-  const visible = showAll ? legs : legs.slice(0, LEGS_PREVIEW);
 
   return (
     <section>
@@ -1197,57 +1202,150 @@ function LegsSection({ data, fmt, t }: LegsSectionProps) {
               <p className="min-w-0 break-all text-base font-bold tabular-nums text-amber-700 sm:text-lg">{fmt(data.groupRolledOver)}</p>
             </div>
           </div>
-          {hasCap && (
-            <p className="mb-3 flex items-start gap-1.5 text-xs text-gray-500">
-              <InformationCircleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>
-                {t('legsCapHint', { cap: fmt(cap), rank: data.currentRank.name })}{' '}
-                {t('legsOrderHint')}
-              </span>
-            </p>
-          )}
-
-          <div className="space-y-2">
-            {visible.map((leg) => (
-              <LegCard
-                key={leg.memberId}
-                leg={leg}
-                threshold={data.qualificationThreshold}
-                cap={cap}
-                maxBar={maxBar}
-                isClosest={leg.memberId === closestId}
-                fmt={fmt}
-                t={t}
-              />
-            ))}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {hasCap ? (
+              <p className="flex items-start gap-1.5 text-xs text-gray-500">
+                <InformationCircleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>{t('legsCapHint', { cap: fmt(cap), rank: data.currentRank.name })}</span>
+              </p>
+            ) : (
+              <span />
+            )}
+            <Button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="w-full shrink-0 bg-[#3E667D] text-white hover:bg-[#2f5165] sm:w-auto"
+            >
+              <UserGroupIcon className="h-4 w-4" />
+              {t('legsOpen', { count: legs.length })}
+            </Button>
           </div>
-
-          {legs.length > LEGS_PREVIEW && (
-            <div className="mt-3 text-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAll((v) => !v)}
-                aria-expanded={showAll}
-                className="text-[#3E667D] hover:bg-[#3E667D]/5 hover:text-[#2f5165]"
-              >
-                {showAll ? (
-                  <>
-                    <ChevronUpIcon className="h-4 w-4" />
-                    {t('showLessLegs')}
-                  </>
-                ) : (
-                  <>
-                    <ChevronDownIcon className="h-4 w-4" />
-                    {t('showAllLegs', { count: legs.length })}
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
+          <LegsSheet open={open} onOpenChange={setOpen} data={data} fmt={fmt} t={t} />
         </>
       )}
     </section>
+  );
+}
+
+type LegsFilter = 'all' | 'pending' | 'qualified';
+const LEGS_FILTERS: LegsFilter[] = ['all', 'pending', 'qualified'];
+
+interface LegsSheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  data: RankRoadmapResponse;
+  fmt: PointsFormatter;
+  t: Translate;
+}
+
+/** Panel lateral con TODAS las patas, con búsqueda y filtro por calificación. */
+function LegsSheet({ open, onOpenChange, data, fmt, t }: LegsSheetProps) {
+  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<LegsFilter>('all');
+  const legs = data.legs;
+  const cap = data.currentRank.rollOverLimit;
+  const hasCap = cap > 0;
+  // Misma escala para todas las barras de pata (como en Mi Red).
+  const maxBar = Math.max(1, cap, ...legs.map((l) => l.legVolume));
+  // "Más cerca": la primera sin calificar con puntos (la API ya ordena así).
+  const closestId = legs.find((l) => !l.isQualified && l.personalPoints > 0)?.memberId ?? null;
+  const pendingCount = legs.length - data.qualifiedFirstLevel;
+
+  const q = query.trim().toLowerCase();
+  const visible = legs.filter((l) => {
+    if (filter === 'pending' && l.isQualified) return false;
+    if (filter === 'qualified' && !l.isQualified) return false;
+    if (!q) return true;
+    return (
+      l.name.toLowerCase().includes(q) ||
+      l.customerNumber.toLowerCase().includes(q)
+    );
+  });
+
+  const filterLabel = (f: LegsFilter) =>
+    f === 'all'
+      ? t('legsFilterAll', { count: legs.length })
+      : f === 'pending'
+        ? t('legsFilterPending', { count: pendingCount })
+        : t('legsFilterQualified', { count: data.qualifiedFirstLevel });
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-xl">
+        <SheetHeader className="border-b border-gray-100 px-5 pb-4 pr-12 pt-5 text-left">
+          <SheetTitle className="flex items-center gap-2 text-gray-900">
+            <UserGroupIcon className="h-5 w-5 text-[#3E667D]" />
+            {t('legsTitle')}
+          </SheetTitle>
+          <SheetDescription>{t('legsSubtitle')}</SheetDescription>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center rounded-full bg-[#3E667D]/10 px-3 py-1 text-xs font-semibold text-[#3E667D]">
+              {t('legsQualified', {
+                qualified: data.qualifiedFirstLevel,
+                total: data.directCount,
+              })}
+            </span>
+            {hasCap && (
+              <span className="text-xs text-gray-500">
+                {t('legsCapHint', { cap: fmt(cap), rank: data.currentRank.name })}
+              </span>
+            )}
+          </div>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
+              <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t('legsSearch')}
+                aria-label={t('legsSearch')}
+                className="pl-9"
+              />
+            </div>
+            <div className="flex flex-wrap gap-1" role="group" aria-label={t('legsFilterAria')}>
+              {LEGS_FILTERS.map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setFilter(f)}
+                  aria-pressed={filter === f}
+                  className={cn(
+                    'rounded-full px-3 py-1 text-xs font-semibold transition-colors',
+                    filter === f
+                      ? 'bg-[#3E667D] text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+                  )}
+                >
+                  {filterLabel(f)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-gray-400">{t('legsOrderHint')}</p>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+          {visible.length === 0 ? (
+            <p className="py-10 text-center text-sm text-gray-500">{t('legsNoResults')}</p>
+          ) : (
+            <div className="space-y-2">
+              {visible.map((leg) => (
+                <LegCard
+                  key={leg.memberId}
+                  leg={leg}
+                  threshold={data.qualificationThreshold}
+                  cap={cap}
+                  maxBar={maxBar}
+                  isClosest={leg.memberId === closestId}
+                  fmt={fmt}
+                  t={t}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
