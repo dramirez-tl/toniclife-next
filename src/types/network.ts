@@ -151,6 +151,12 @@ export interface DirectLineVolume {
   atCap: boolean;
   memberCount: number;
   activeCount: number;
+  /** Puntos personales del FRONTAL en el periodo (opcional; lo expone rank-roadmap). */
+  headPersonalPoints?: number;
+  /** TRUE si el frontal alcanza el umbral de calificación (3300). */
+  headIsQualified?: boolean;
+  /** Puntos que le faltan al frontal para calificar. */
+  headPointsToQualify?: number;
 }
 
 export interface DirectLinesVolumeResponse {

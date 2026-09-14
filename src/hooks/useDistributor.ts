@@ -15,6 +15,7 @@ import {
   TopPerformer,
   DashboardResponse,
   Goal,
+  RankRoadmapResponse,
 } from '@/types/distributor';
 
 // Query keys
@@ -24,6 +25,7 @@ export const distributorKeys = {
   profile: () => [...distributorKeys.all, 'profile'] as const,
   points: () => [...distributorKeys.all, 'points'] as const,
   rankProgress: () => [...distributorKeys.all, 'rankProgress'] as const,
+  rankRoadmap: (periodId?: string) => [...distributorKeys.all, 'rankRoadmap', periodId ?? 'current'] as const,
   networkSummary: () => [...distributorKeys.all, 'networkSummary'] as const,
   activity: (limit: number) => [...distributorKeys.all, 'activity', limit] as const,
   topPerformers: (limit: number) => [...distributorKeys.all, 'topPerformers', limit] as const,
@@ -74,6 +76,19 @@ export function useRankProgress() {
     queryKey: distributorKeys.rankProgress(),
     queryFn: () => distributorApi.getRankProgress(),
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * Camino de rango del periodo (misiones del siguiente rango + patas).
+ * periodId vacío = periodo actual en el backend.
+ */
+export function useRankRoadmap(periodId?: string, enabled = true) {
+  return useQuery<RankRoadmapResponse>({
+    queryKey: distributorKeys.rankRoadmap(periodId),
+    queryFn: () => distributorApi.getRankRoadmap(periodId),
+    staleTime: 5 * 60 * 1000,
+    enabled,
   });
 }
 

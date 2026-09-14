@@ -6,13 +6,11 @@ import type {
   PeriodPoints,
   RankProgress,
   NetworkSummary,
-  SalesSummary,
-  CommissionsSummary,
   RecentActivity,
   TopPerformer,
-  DashboardStats,
   DashboardResponse,
   Goal,
+  RankRoadmapResponse,
 } from '@/types/distributor';
 
 // ===== Alta de miembro en la red (Ruta A: sponsor paga / Ruta B: invitación) =====
@@ -249,6 +247,18 @@ class DistributorApi {
    */
   async getRankProgress(): Promise<RankProgress> {
     const { data } = await api.get<RankProgress>('/distributor/rank-progress');
+    return data;
+  }
+
+  /**
+   * Camino de rango: misiones (requisitos) del siguiente rango, patas y lo que
+   * le falta a cada una. Solo lectura, acotado al cliente del usuario.
+   * Backend: GET /distributor/rank-roadmap?periodId=<uuid opcional>
+   */
+  async getRankRoadmap(periodId?: string): Promise<RankRoadmapResponse> {
+    const { data } = await api.get<RankRoadmapResponse>('/distributor/rank-roadmap', {
+      params: periodId ? { periodId } : undefined,
+    });
     return data;
   }
 

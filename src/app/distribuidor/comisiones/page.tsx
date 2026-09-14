@@ -11,7 +11,7 @@ import {
   CommissionChart,
   CommissionPercentagesTable,
   CommissionBreakdown,
-  RankProgressStepper,
+  RankRoadmap,
 } from '@/components/commissions';
 import {
   useCustomerCommissions,
@@ -27,7 +27,6 @@ import { selectUser } from '@/store/slices/authSlice';
 import { CommissionType, CommissionStatus } from '@/types/commissions';
 import { generateCommissionStatementPdf } from '@/lib/generate-commission-statement-pdf';
 import {
-  CurrencyDollarIcon,
   ArrowDownTrayIcon,
   ChartBarIcon,
   ArrowPathIcon,
@@ -432,16 +431,14 @@ function ComisionesContent() {
           </CardContent>
         </Card>
 
-        {/* Rank progression stepper - Prominente arriba */}
-        {commissionStructure?.ranks && commissionStructure.ranks.length > 0 && (
-          <div className="mb-6">
-            <RankProgressStepper
-              ranks={commissionStructure.ranks}
-              currentRankNumber={commissionStructure.userRankNumber ?? 1}
-              currencyCode={currencyCode}
-            />
-          </div>
-        )}
+        {/* Camino de rango (misiones + patas) - Prominente arriba. Se alimenta
+            de /distributor/rank-roadmap con el periodo seleccionado. */}
+        <div className="mb-6">
+          <RankRoadmap
+            periodId={selectedPeriodId || undefined}
+            currencyCode={currencyCode}
+          />
+        </div>
 
         {/* Content based on view mode. En periodo EN CURSO se muestra el mensaje
             "al cierre" SIN importar el viewMode (table/chart no se renderizan, ni
