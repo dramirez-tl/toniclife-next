@@ -17,6 +17,7 @@ import {
   ArrowRightIcon,
   CheckCircleIcon,
   ReceiptPercentIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 
 interface CommissionBreakdownProps {
@@ -25,6 +26,37 @@ interface CommissionBreakdownProps {
   levelBreakdown?: CommissionLevelBreakdown | null;
   currencyCode?: string;
   isActivePeriod?: boolean;
+}
+
+// Paso numerado de la explicación (a nivel de módulo: no se recrea por render).
+function Step({
+  n,
+  icon: Icon,
+  title,
+  children,
+}: {
+  n: number;
+  icon: typeof TrophyIcon;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex gap-4">
+      <div className="flex flex-col items-center">
+        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#3E667D] text-sm font-bold text-white">
+          {n}
+        </div>
+        <div className="mt-1 w-px flex-1 bg-gray-200 last:hidden" />
+      </div>
+      <div className="flex-1 pb-6">
+        <div className="mb-2 flex items-center gap-2">
+          <Icon className="h-4 w-4 text-[#3E667D]" />
+          <h4 className="font-semibold text-gray-900">{title}</h4>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
 }
 
 export function CommissionBreakdown({
@@ -61,13 +93,6 @@ export function CommissionBreakdown({
     ? parseFloat(summary.netAfterWithholdings || String(net - companyWh))
     : net;
 
-  const types = [
-    { key: 'mlm', label: t('typeMlm'), amount: parseFloat(summary.mlmCommissionsMxn || '0'), color: 'text-blue-600' },
-    { key: 'cedea', label: t('typeCedea'), amount: parseFloat(summary.cedeaBonusesMxn || '0'), color: 'text-yellow-600' },
-    { key: 'auto', label: t('typeAuto'), amount: parseFloat(summary.autoBonusesMxn || '0'), color: 'text-purple-600' },
-    { key: 'adj', label: t('typeAdjustment'), amount: parseFloat(summary.adjustmentsMxn || '0'), color: 'text-gray-600' },
-  ].filter((tp) => tp.amount !== 0);
-
   const userLevelMax = structure?.userLevelMax ?? 2;
   const userQualifiedCount = structure?.userQualifiedCount ?? 0;
   const userRankName = structure?.userRankName ?? 'Distribuidor';
@@ -81,33 +106,49 @@ export function CommissionBreakdown({
   const hasLevelAmounts =
     !!levelBreakdown && parseFloat(levelBreakdown.totalMlm || '0') > 0;
 
-  const Step = ({
-    n,
-    icon: Icon,
-    title,
-    children,
-  }: {
-    n: number;
-    icon: typeof TrophyIcon;
-    title: string;
-    children: React.ReactNode;
-  }) => (
-    <div className="flex gap-4">
-      <div className="flex flex-col items-center">
-        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[#3E667D] text-sm font-bold text-white">
-          {n}
-        </div>
-        <div className="mt-1 w-px flex-1 bg-gray-200 last:hidden" />
-      </div>
-      <div className="flex-1 pb-6">
-        <div className="mb-2 flex items-center gap-2">
-          <Icon className="h-4 w-4 text-[#3E667D]" />
-          <h4 className="font-semibold text-gray-900">{title}</h4>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
+  // La comisión MLM guardada (commission_type 'mlm') trae NIVEL + GENERACIÓN en
+  // la misma fila (motor v2 y migraciones legacy). El desglose por nivel
+  // recalcula SOLO la parte de niveles, así que la diferencia es el bono por
+  // generación. Se separa únicamente cuando los números son consistentes
+  // (niveles <= MLM); si no, un solo renglón "MLM (nivel + generación)".
+  const mlmTotal = parseFloat(summary.mlmCommissionsMxn || '0');
+  const levelsTotal = hasLevelAmounts
+    ? parseFloat(levelBreakdown!.totalMlm || '0')
+    : 0;
+  const canSplitMlm =
+    userGenerationMax > 0 &&
+    hasLevelAmounts &&
+    mlmTotal > 0 &&
+    levelsTotal <= mlmTotal + 0.01;
+  const generationTotal = canSplitMlm ? Math.max(0, mlmTotal - levelsTotal) : 0;
+  const splitMlm = canSplitMlm && generationTotal >= 0.01;
+
+  const mlmRows = splitMlm
+    ? [
+        { key: 'mlm-levels', label: t('typeMlmLevels'), amount: levelsTotal, color: 'text-blue-600' },
+        { key: 'mlm-generations', label: t('typeMlmGenerations'), amount: generationTotal, color: 'text-teal-600' },
+      ]
+    : [
+        {
+          key: 'mlm',
+          // Sin generaciones (Distribuidor/Bronce) la comisión MLM es solo niveles.
+          label: userGenerationMax > 0 ? t('typeMlm') : t('typeMlmLevels'),
+          amount: mlmTotal,
+          color: 'text-blue-600',
+        },
+      ];
+  const types = [
+    ...mlmRows,
+    { key: 'cedea', label: t('typeCedea'), amount: parseFloat(summary.cedeaBonusesMxn || '0'), color: 'text-yellow-600' },
+    { key: 'auto', label: t('typeAuto'), amount: parseFloat(summary.autoBonusesMxn || '0'), color: 'text-purple-600' },
+    { key: 'adj', label: t('typeAdjustment'), amount: parseFloat(summary.adjustmentsMxn || '0'), color: 'text-gray-600' },
+  ].filter((tp) => tp.amount !== 0);
+
+  // Numeración de pasos: el de generación solo existe para rangos Plata+.
+  const showGenerationStep = userGenerationMax > 0;
+  const stepGen = 3;
+  const stepTypes = showGenerationStep ? 4 : 3;
+  const stepNet = showGenerationStep ? 5 : 4;
 
   return (
     <Card className="border-0 shadow-md overflow-hidden">
@@ -199,8 +240,38 @@ export function CommissionBreakdown({
             )}
           </Step>
 
-          {/* Paso 3: desglose por tipo */}
-          <Step n={3} icon={ReceiptPercentIcon} title={t('step3Title')}>
+          {/* Paso 3 (Plata+): bonos por generación, distintos de los niveles */}
+          {showGenerationStep && (
+            <Step n={stepGen} icon={SparklesIcon} title={t('stepGenTitle')}>
+              <p className="text-sm text-gray-600">
+                {t.rich('stepGenBody', {
+                  rank: userRankName,
+                  generation: userGenerationMax,
+                  strong: (chunks) => <span className="font-semibold text-gray-900">{chunks}</span>,
+                })}
+              </p>
+              {splitMlm ? (
+                <div className="mt-3 flex items-center justify-between rounded-lg bg-[#3E667D]/5 px-4 py-2.5">
+                  <span className="text-sm font-semibold text-[#3E667D]">
+                    {t('stepGenTotal')}
+                  </span>
+                  <span className="text-sm font-bold text-[#3E667D] tabular-nums">
+                    {fmt(generationTotal)}{' '}
+                    <span className="text-[10px] font-semibold text-[#3E667D]/60">
+                      {currencyCode}
+                    </span>
+                  </span>
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-gray-400">
+                  {isActivePeriod ? t('stepGenPending') : t('stepGenNoAmounts')}
+                </p>
+              )}
+            </Step>
+          )}
+
+          {/* Desglose por tipo */}
+          <Step n={stepTypes} icon={ReceiptPercentIcon} title={t('step3Title')}>
             {types.length > 0 ? (
               <div className="rounded-xl border border-gray-200 overflow-hidden">
                 {types.map((tp) => (
@@ -221,8 +292,8 @@ export function CommissionBreakdown({
             )}
           </Step>
 
-          {/* Paso 4: bruto → impuestos → neto */}
-          <Step n={4} icon={ArrowRightIcon} title={t('step4Title')}>
+          {/* Bruto → impuestos → neto */}
+          <Step n={stepNet} icon={ArrowRightIcon} title={t('step4Title')}>
             <div className="rounded-xl border border-gray-200 overflow-hidden">
               <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
                 <span className="text-sm text-gray-600">{t('step4Gross')}</span>
