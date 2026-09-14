@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -9,6 +10,7 @@ import {
   ArrowRightOnRectangleIcon,
   QuestionMarkCircleIcon,
   ClipboardDocumentIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutAsync, selectUser } from '@/store/slices/authSlice';
@@ -52,6 +54,9 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
   const t = useTranslations('distributor');
 
   const { networkSummary, profile, points } = useDistributorDashboard();
+  // "Próximamente" colapsado por defecto: son 12 filas deshabilitadas que en
+  // pantallas bajas dejaban sin espacio a la navegación real.
+  const [comingSoonOpen, setComingSoonOpen] = useState(false);
 
   // Progreso hacia el mínimo personal para calificar (3,300 pts por defecto).
   const qualifyProgress = Math.min(
@@ -95,9 +100,9 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
     );
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-gradient-to-b from-[#3E667D] to-[#002a5c] text-white flex flex-col">
-      {/* Logo */}
-      <div className="flex h-16 items-center justify-center border-b border-white/10 px-4">
+    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col bg-gradient-to-b from-[#3E667D] to-[#002a5c] text-white">
+      {/* Logo (fijo) */}
+      <div className="flex h-16 shrink-0 items-center justify-center border-b border-white/10 px-4">
         <Link
           href="/distribuidor"
           className="flex items-center"
@@ -113,8 +118,12 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
         </Link>
       </div>
 
+      {/* Perfil + navegación + pie en UNA sola zona de scroll: en pantallas
+          bajas (o con zoom) se desplazan juntos en vez de aplastar el menú;
+          en pantallas altas el pie se queda abajo (mt-auto). */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-color:rgba(255,255,255,0.25)_transparent] [scrollbar-width:thin]">
       {/* User Card */}
-      <div className="px-3 py-4 border-b border-white/10">
+      <div className="shrink-0 border-b border-white/10 px-3 py-3">
         <div className="bg-white/5 rounded-xl p-3" data-tour="d-profile">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
@@ -148,8 +157,8 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
           )}
           {/* Quick Stats */}
           <div className="space-y-2 mt-3">
-            {/* Network breakdown */}
-            <div className="bg-white/5 rounded-lg p-2">
+            {/* Network breakdown (oculto en pantallas bajas; está en el dashboard) */}
+            <div className="bg-white/5 rounded-lg p-2 [@media(max-height:760px)]:hidden">
               <p className="text-[10px] text-white/60 uppercase tracking-wide text-center mb-1.5">{t('sidebar.myNetwork')}</p>
               <div className="grid grid-cols-3 gap-1">
                 <div className="text-center">
@@ -198,7 +207,7 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
+      <nav className="shrink-0 px-3 py-3">
         {/* Núcleo */}
         <ul className="space-y-1">
           {CORE_NAV.map((item) => (
@@ -240,29 +249,41 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
           </div>
         ))}
 
-        {/* Próximamente */}
+        {/* Próximamente (colapsado por defecto) */}
         <div className="mt-5">
-          <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-white/40">
-            {t('groups.comingSoon')}
-          </p>
-          <ul className="space-y-1">
-            {COMING_SOON.map((item) => (
-              <li key={item.key}>
-                <div
-                  className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/25 cursor-not-allowed select-none"
-                  title={t('groups.soon')}
-                >
-                  <item.icon className="h-5 w-5 flex-shrink-0" />
-                  <span>{t(`comingSoonItems.${item.key}`)}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
+          <button
+            type="button"
+            onClick={() => setComingSoonOpen((v) => !v)}
+            aria-expanded={comingSoonOpen}
+            className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-white/40 transition-colors hover:bg-white/5 hover:text-white/70"
+          >
+            <span>
+              {t('groups.comingSoon')} ({COMING_SOON.length})
+            </span>
+            <ChevronDownIcon
+              className={cn('h-3.5 w-3.5 transition-transform', comingSoonOpen && 'rotate-180')}
+            />
+          </button>
+          {comingSoonOpen && (
+            <ul className="mt-1 space-y-1">
+              {COMING_SOON.map((item) => (
+                <li key={item.key}>
+                  <div
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-white/25 cursor-not-allowed select-none"
+                    title={t('groups.soon')}
+                  >
+                    <item.icon className="h-5 w-5 flex-shrink-0" />
+                    <span>{t(`comingSoonItems.${item.key}`)}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </nav>
 
-      {/* Footer Actions */}
-      <div className="border-t border-white/10 p-3">
+      {/* Footer Actions (al fondo cuando sobra altura) */}
+      <div className="mt-auto shrink-0 border-t border-white/10 p-3">
         {/* Selector de idioma ES/EN (visible; persiste en la cuenta) */}
         <DistributorLanguageToggle tone="dark" className="mb-1" />
         <div className="space-y-1">
@@ -300,6 +321,7 @@ export function DistributorSidebar({ onNavigate }: DistributorSidebarProps) {
             <span>{t('footer.logout')}</span>
           </button>
         </div>
+      </div>
       </div>
     </aside>
   );
