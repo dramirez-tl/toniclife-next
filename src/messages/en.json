@@ -825,7 +825,6 @@
         "periodDaysRemaining": "{days, plural, =0 {Last day of the period} =1 {1 day left} other {# days left}}",
         "periodFinal": "Final period result",
         "missionsDone": "{count} of 3 missions",
-        "overallProgress": "Overall progress toward the goal",
         "currentRankLabel": "Current rank",
         "targetRankLabel": "Goal",
         "maxRankReached": "You reached the top rank!",

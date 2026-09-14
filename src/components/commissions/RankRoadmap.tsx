@@ -236,9 +236,10 @@ function RoadmapBody({ data, currencyCode, isFetching }: RoadmapBodyProps) {
       ? selectedStep
       : data.nextRank;
 
-  // Orden del cuerpo: lo que FALTA primero (misiones y patas, el "juego"), y al
-  // final la escalera de medallas con el detalle del rango (requisitos
-  // estáticos + beneficios) que solo se abre al tocar una medalla.
+  // Orden: el encabezado azul concentra el "juego" (riel de progreso + las 3
+  // misiones de la meta); debajo, las patas (resumen + panel lateral) y la
+  // escalera de medallas con el detalle del rango, que solo se abre al tocar
+  // una medalla.
   return (
     <Card
       className={cn(
@@ -246,21 +247,9 @@ function RoadmapBody({ data, currencyCode, isFetching }: RoadmapBodyProps) {
         isFetching && 'opacity-70',
       )}
     >
-      <RoadmapHeader data={data} target={targetStep} t={t} />
+      <RoadmapHeader data={data} target={targetStep} fmt={fmt} t={t} />
 
       <CardContent className="space-y-6 p-4 sm:p-6">
-        {targetStep ? (
-          <MissionCards data={data} target={targetStep} fmt={fmt} t={t} />
-        ) : (
-          <div className="flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-            <TrophyIcon className="h-6 w-6 shrink-0 text-emerald-600" />
-            <div>
-              <p className="font-bold text-emerald-800">{t('maxRankReached')}</p>
-              <p className="text-sm text-emerald-700">{t('maxRankBody')}</p>
-            </div>
-          </div>
-        )}
-
         <LegsSection data={data} fmt={fmt} t={t} />
 
         <RankLadder
@@ -297,10 +286,11 @@ function RoadmapBody({ data, currencyCode, isFetching }: RoadmapBodyProps) {
 interface RoadmapHeaderProps {
   data: RankRoadmapResponse;
   target: RankRoadmapRankStep | null;
+  fmt: PointsFormatter;
   t: Translate;
 }
 
-function RoadmapHeader({ data, target, t }: RoadmapHeaderProps) {
+function RoadmapHeader({ data, target, fmt, t }: RoadmapHeaderProps) {
   const { period, currentRank, projectedRank } = data;
   const overallPct = target
     ? Math.round(
@@ -310,9 +300,6 @@ function RoadmapHeader({ data, target, t }: RoadmapHeaderProps) {
           3,
       )
     : 100;
-  const missions: RankRoadmapRequirement[] = target
-    ? [target.personal, target.qualifiers, target.group]
-    : [];
   const showProjection =
     !!projectedRank && projectedRank.rankNumber > currentRank.rankNumber;
 
@@ -381,23 +368,11 @@ function RoadmapHeader({ data, target, t }: RoadmapHeaderProps) {
                     style={{ width: `${barWidth(overallPct)}%` }}
                   />
                 </div>
-                {/* Pips: una por misión */}
-                <div className="mt-2 flex items-center gap-1.5" aria-hidden="true">
-                  {missions.map((m, i) => (
-                    <span
-                      key={i}
-                      className={cn(
-                        'h-1.5 flex-1 rounded-full transition-colors',
-                        m.met ? 'bg-emerald-300' : 'bg-white/20',
-                      )}
-                    />
-                  ))}
-                </div>
-                <p className="mt-1.5 text-[11px] text-white/60">{t('overallProgress')}</p>
               </>
             ) : (
               <div className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm">
                 <p className="font-semibold">{t('maxRankReached')}</p>
+                <p className="text-xs text-white/70">{t('maxRankBody')}</p>
               </div>
             )}
           </div>
@@ -416,6 +391,9 @@ function RoadmapHeader({ data, target, t }: RoadmapHeaderProps) {
             </div>
           )}
         </div>
+
+        {/* Las 3 misiones de la meta, dentro del mismo bloque (compacto) */}
+        {target && <MissionCards data={data} target={target} fmt={fmt} t={t} />}
 
         {showProjection && (
           <div className="mt-4 flex items-start gap-2 rounded-xl border border-emerald-300/30 bg-emerald-500/20 px-3 py-2">
@@ -857,6 +835,8 @@ interface MissionCardsProps {
   t: Translate;
 }
 
+// Las misiones viven DENTRO del encabezado azul (fondo oscuro): riel de
+// progreso + 3 misiones en un solo bloque compacto.
 function MissionCards({ data, target, fmt, t }: MissionCardsProps) {
   const prevRank = previousLadderStep(data.ranks, target);
   const blockedBy =
@@ -871,35 +851,32 @@ function MissionCards({ data, target, fmt, t }: MissionCardsProps) {
   const qualifiersGap = Math.ceil(Math.max(0, target.qualifiers.gap));
 
   return (
-    <section>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <section className="mt-5">
+      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <FlagIcon className="h-5 w-5 text-[#3E667D]" />
-          <h4 className="font-bold text-gray-900">{t('missionsTitle', { rank: target.name })}</h4>
+          <FlagIcon className="h-5 w-5 text-[#C8DDF2]" />
+          <h4 className="text-sm font-bold text-white">
+            {t('missionsTitle', { rank: target.name })}
+          </h4>
         </div>
-        <div className="flex items-center gap-2">
-          {target.isReachableNow && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
-              <SparklesIcon className="h-3.5 w-3.5" />
-              {t('reachableNow')}
-            </span>
-          )}
-          <span className="text-xs font-semibold text-gray-500">
-            {t('missionsDone', { count: target.metCount })}
+        {target.isReachableNow && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/25 px-2.5 py-0.5 text-xs font-semibold text-emerald-100">
+            <SparklesIcon className="h-3.5 w-3.5" />
+            {t('reachableNow')}
           </span>
-        </div>
+        )}
       </div>
 
       {blockedBy && (
-        <div className="mb-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-          <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
+        <div className="mb-2.5 flex items-start gap-2 rounded-xl border border-amber-300/40 bg-amber-400/20 px-3 py-2 text-sm text-amber-50">
+          <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-200" />
           <span>
             <strong>{t('blockedBy', { rank: blockedBy.name })}.</strong> {t('blockedByBody')}
           </span>
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-3">
         {/* Misión 1: puntos personales */}
         <MissionCard
           index={1}
@@ -914,12 +891,12 @@ function MissionCards({ data, target, fmt, t }: MissionCardsProps) {
           }
           badge={
             data.isQualified ? (
-              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-400/25 px-2 py-0.5 text-[11px] font-semibold text-emerald-100">
                 <CheckIcon className="h-3 w-3" />
                 {t('qualifiedBadge')}
               </span>
             ) : (
-              <span className="inline-flex shrink-0 items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+              <span className="inline-flex shrink-0 items-center rounded-full bg-amber-400/25 px-2 py-0.5 text-[11px] font-semibold text-amber-100">
                 {t('notQualifiedBadge')}
               </span>
             )
@@ -928,7 +905,7 @@ function MissionCards({ data, target, fmt, t }: MissionCardsProps) {
           t={t}
         >
           {!data.isQualified && (
-            <p className="text-xs text-amber-700">
+            <p className="text-xs text-amber-100/90">
               {t('toQualify', {
                 points: fmt(data.pointsToQualify),
                 threshold: fmt(data.qualificationThreshold),
@@ -954,18 +931,18 @@ function MissionCards({ data, target, fmt, t }: MissionCardsProps) {
           {!target.qualifiers.met &&
             (closest.length > 0 ? (
               <div>
-                <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">
+                <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-white/50">
                   {t('closestTitle')}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {closest.map((leg) => (
                     <span
                       key={leg.memberId}
-                      className="inline-flex max-w-full items-center gap-1 rounded-full border border-[#a7c1e2]/40 bg-[#C8DDF2]/20 px-2 py-0.5 text-[11px] text-[#2f5165]"
+                      className="inline-flex max-w-full items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[11px] text-white"
                       title={`${leg.name} #${leg.customerNumber}`}
                     >
                       <span className="truncate font-medium">{leg.name}</span>
-                      <span className="shrink-0 text-[#3E667D]/70">
+                      <span className="shrink-0 text-white/60">
                         {t('closestChipGap', { points: fmt(leg.pointsToQualify) })}
                       </span>
                     </span>
@@ -973,7 +950,7 @@ function MissionCards({ data, target, fmt, t }: MissionCardsProps) {
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-gray-500">{t('noClosest')}</p>
+              <p className="text-xs text-white/60">{t('noClosest')}</p>
             ))}
         </MissionCard>
 
@@ -996,14 +973,14 @@ function MissionCards({ data, target, fmt, t }: MissionCardsProps) {
           {!target.group.met && target.capApplied > 0 && (
             <>
               {target.groupHeadroom > 0 ? (
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-white/70">
                   {t('groupHeadroom', { points: fmt(target.groupHeadroom) })}
                 </p>
               ) : data.legs.length > 0 ? (
-                <p className="text-xs text-gray-600">{t('groupNoHeadroom')}</p>
+                <p className="text-xs text-white/70">{t('groupNoHeadroom')}</p>
               ) : null}
               {target.newLegsNeeded > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/25 px-2 py-0.5 text-[11px] font-semibold text-amber-100">
                   <UserPlusIcon className="h-3 w-3" />
                   {t('newLegsNeeded', { count: target.newLegsNeeded })}
                 </span>
@@ -1030,6 +1007,7 @@ interface MissionCardProps {
   t: Translate;
 }
 
+// Tarjeta de misión sobre el degradado azul (blancos translúcidos).
 function MissionCard({
   index,
   icon,
@@ -1046,49 +1024,49 @@ function MissionCard({
   const met = requirement.met;
   const pct = met ? 100 : safePct(requirement.percent);
   const barColor = met
-    ? 'bg-emerald-500'
+    ? 'bg-emerald-300'
     : pct >= 40
-      ? 'bg-gradient-to-r from-[#3E667D] to-[#a7c1e2]'
-      : 'bg-gradient-to-r from-amber-400 to-yellow-400';
+      ? 'bg-gradient-to-r from-[#C8DDF2] to-white'
+      : 'bg-gradient-to-r from-amber-300 to-yellow-200';
 
   return (
     <div
       className={cn(
-        'flex flex-col rounded-2xl border p-4 transition-shadow',
-        met ? 'border-emerald-200 bg-emerald-50/60' : 'border-gray-200 bg-white hover:shadow-md',
+        'flex flex-col rounded-xl border p-3.5',
+        met ? 'border-emerald-300/40 bg-emerald-400/15' : 'border-white/15 bg-white/10',
       )}
     >
       <div className="flex items-center gap-2">
         <div
           className={cn(
-            'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-            met ? 'bg-emerald-500 text-white' : 'bg-[#3E667D]/10 text-[#3E667D]',
+            'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg',
+            met ? 'bg-emerald-300 text-[#1f3a4a]' : 'bg-white/15 text-white',
           )}
         >
           {met ? <CheckIcon className="h-4 w-4" /> : icon}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-white/60">
             {t('missionN', { n: index })}
           </p>
-          <p className="flex items-start gap-1 text-sm font-bold leading-tight text-gray-900">
+          <p className="flex items-start gap-1 text-sm font-bold leading-tight text-white">
             <span className="min-w-0">{title}</span>
             {tooltip && <InfoTip text={tooltip} />}
           </p>
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-baseline gap-x-1">
-        <span className={cn('text-2xl font-bold', met ? 'text-emerald-700' : 'text-gray-900')}>
+      <div className="mt-2.5 flex flex-wrap items-baseline gap-x-1">
+        <span className={cn('text-xl font-bold tabular-nums', met ? 'text-emerald-200' : 'text-white')}>
           {fmt(requirement.current)}
         </span>
-        <span className="text-sm text-gray-400">
+        <span className="text-xs text-white/60">
           / {fmt(requirement.required)}
           {unit ? ` ${unit}` : ''}
         </span>
       </div>
       <div
-        className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-gray-100"
+        className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-white/15"
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={100}
@@ -1100,13 +1078,13 @@ function MissionCard({
           style={{ width: `${barWidth(pct)}%` }}
         />
       </div>
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-        <p className={cn('text-sm font-semibold', met ? 'text-emerald-700' : 'text-gray-700')}>
+      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+        <p className={cn('text-sm font-semibold', met ? 'text-emerald-200' : 'text-white')}>
           {statusText}
         </p>
         {badge}
       </div>
-      {children && <div className="mt-2 space-y-1.5">{children}</div>}
+      {children && <div className="mt-1.5 space-y-1">{children}</div>}
     </div>
   );
 }
@@ -1117,7 +1095,7 @@ function InfoTip({ text }: { text: string }) {
       <TooltipTrigger asChild>
         <button
           type="button"
-          className="inline-flex shrink-0 rounded-full text-gray-400 outline-none hover:text-[#3E667D] focus-visible:ring-2 focus-visible:ring-[#a7c1e2]"
+          className="inline-flex shrink-0 rounded-full text-white/60 outline-none hover:text-white focus-visible:ring-2 focus-visible:ring-white/50"
           aria-label={text}
         >
           <InformationCircleIcon className="h-4 w-4" />
@@ -1496,16 +1474,16 @@ function RoadmapSkeleton() {
           </div>
           <Skeleton className="h-14 w-14 shrink-0 rounded-full bg-white/20 sm:h-20 sm:w-20" />
         </div>
-      </div>
-      <CardContent className="space-y-6 p-4 sm:p-6">
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+        <div className="mt-5 grid grid-cols-1 gap-2.5 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-36 rounded-2xl" />
+            <Skeleton key={i} className="h-28 rounded-xl bg-white/15" />
           ))}
         </div>
-        <div className="space-y-2">
+      </div>
+      <CardContent className="space-y-6 p-4 sm:p-6">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
+            <Skeleton key={i} className="h-16 rounded-xl" />
           ))}
         </div>
         <div className="flex gap-6 overflow-hidden">
