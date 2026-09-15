@@ -557,7 +557,7 @@
         "commissions": "Comisiones",
         "commissionsAtClose": "se calcula al cierre del periodo",
         "commissionsPrevPeriod": "Comisiones {period}",
-        "currentAtCloseHint": "las de este periodo, al cierre",
+        "currentAtCloseHint": "se muestran al cierre",
         "thisPeriodCurrency": "este periodo · {currency}",
         "inNetwork": "En tu red",
         "activeCount": "{count, plural, =1 {1 con puntos este periodo} other {# con puntos este periodo}}",

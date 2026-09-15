@@ -97,6 +97,145 @@ const safePct = (v: number) =>
 /** Ancho de barra: mínimo visible cuando hay avance > 0. */
 const barWidth = (pct: number) => (pct <= 0 ? 0 : Math.max(pct, 2));
 
+/** Rejilla de la home: una columna en móvil/tablet y dos desde xl (principal
+ *  + lateral de 360px, sin sticky). La comparte el skeleton para que el
+ *  contenido aparezca en su sitio sin reacomodos. */
+// Dos columnas solo desde xl (1280px): en lg (1024px) la columna izquierda quedaba
+// en ~276px con el sidebar de 256px, mas angosta que en telefono.
+const DASHBOARD_GRID =
+  'grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start';
+
+/** Skeleton de primera carga: espeja la rejilla y las tarjetas reales (hero,
+ *  tira de números, CTA de compra, acciones rápidas y Comparte y gana). Los
+ *  banners son condicionales, por eso no se dibujan aquí. */
+function DashboardSkeleton() {
+  return (
+    <div className={DASHBOARD_GRID} aria-hidden="true">
+      {/* Columna principal */}
+      <div className="min-w-0 space-y-5">
+        {/* Hero */}
+        <Card className="border-0 shadow-lg overflow-hidden p-0">
+          <div className="bg-gradient-to-br from-[#3E667D] via-[#2f5165] to-[#3E667D] p-6">
+            <div className="flex items-center gap-4">
+              <Skeleton className="h-20 w-20 shrink-0 rounded-full bg-white/20" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-3 w-20 bg-white/20" />
+                <Skeleton className="h-6 w-40 max-w-full bg-white/20" />
+                <Skeleton className="h-5 w-28 rounded-full bg-white/20" />
+              </div>
+            </div>
+            <div className="mt-6">
+              <div className="mb-2 flex items-center justify-between">
+                <Skeleton className="h-4 w-36 bg-white/20" />
+                <Skeleton className="h-3 w-20 bg-white/20" />
+              </div>
+              <Skeleton className="h-3 w-full rounded-full bg-white/20" />
+              <Skeleton className="mt-3 h-4 w-48 max-w-full bg-white/20" />
+            </div>
+            {/* Siguiente rango */}
+            <div className="mt-6 rounded-xl bg-white/10 p-3.5">
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-12 w-12 shrink-0 rounded-full bg-white/20" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <Skeleton className="h-3 w-24 bg-white/20" />
+                  <Skeleton className="h-4 w-32 bg-white/20" />
+                </div>
+                <Skeleton className="h-6 w-12 bg-white/20" />
+              </div>
+              <Skeleton className="mt-2.5 h-1.5 w-full rounded-full bg-white/20" />
+              <div className="mt-3 space-y-2">
+                <Skeleton className="h-5 w-full bg-white/20" />
+                <Skeleton className="h-5 w-full bg-white/20" />
+                <Skeleton className="h-5 w-full bg-white/20" />
+              </div>
+            </div>
+            <Skeleton className="mt-5 h-9 w-full rounded-lg bg-white/20 sm:w-48" />
+          </div>
+        </Card>
+
+        {/* Tira de 3 números */}
+        <Card className="p-0">
+          <CardContent className="p-0">
+            <div className="grid grid-cols-1 divide-y sm:grid-cols-3 sm:divide-y-0 sm:divide-x divide-gray-100">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between gap-3 p-4 sm:flex-col sm:items-center sm:gap-2"
+                >
+                  <Skeleton className="h-5 w-5 shrink-0 rounded-full" />
+                  <div className="min-w-0 flex-1 space-y-1.5 sm:flex-none">
+                    <Skeleton className="h-3 w-24" />
+                    <Skeleton className="h-3 w-32 max-w-full" />
+                  </div>
+                  <Skeleton className="h-6 w-20 shrink-0" />
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-gray-100 px-4 py-2.5">
+              <Skeleton className="mx-auto h-3 w-36" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* CTA comprar */}
+        <Card className="overflow-hidden border-0 bg-gradient-to-br from-[#3E667D] to-[#0A4B94] shadow-lg">
+          <CardContent className="flex items-center gap-4 p-5">
+            <Skeleton className="h-12 w-12 shrink-0 rounded-xl bg-white/20" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton className="h-4 w-48 max-w-full bg-white/20" />
+              <Skeleton className="h-3 w-64 max-w-full bg-white/20" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Columna lateral */}
+      <div className="min-w-0 space-y-5">
+        {/* Acciones rápidas */}
+        <Card>
+          <CardHeader className="pb-2">
+            <Skeleton className="h-4 w-36" />
+          </CardHeader>
+          <CardContent className="pt-2">
+            <div className="grid grid-cols-2 gap-3">
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <div
+                  key={i}
+                  className="flex flex-col items-center gap-2 rounded-xl border-2 border-gray-100 p-4"
+                >
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Comparte y gana */}
+        <Card className="overflow-hidden border-0 shadow-md p-0">
+          <div className="bg-gradient-to-br from-[#3E667D] to-[#0A4B94] px-5 py-5">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-11 w-11 shrink-0 rounded-xl bg-white/20" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Skeleton className="h-5 w-40 max-w-full bg-white/20" />
+                <Skeleton className="h-3 w-56 max-w-full bg-white/20" />
+              </div>
+            </div>
+            <Skeleton className="mt-4 h-16 w-full rounded-xl bg-white/20" />
+          </div>
+          <CardContent className="p-5">
+            <Skeleton className="h-10 w-full rounded-lg" />
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <Skeleton className="h-9 rounded-lg" />
+              <Skeleton className="h-9 rounded-lg" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 export default function DistribuidorDashboard() {
   const t = useTranslations('distributor.dashboard');
   // Claves compartidas con "Tu camino al siguiente rango" (misiones, proyección).
@@ -168,6 +307,16 @@ export default function DistribuidorDashboard() {
     error,
     refetch,
   } = useDistributorDashboard(selectedPeriodId || undefined);
+
+  // Con placeholderData (keepPreviousData) las tarjetas siguen mostrando el
+  // payload del periodo elegido ANTES mientras llega el nuevo; las ramas
+  // actual/pasado del hero y de la tira de numeros se deciden por el periodo
+  // que realmente se muestra (points.periodId = commission_periods.id, el
+  // mismo que devuelve useCurrentPeriod), no por el selector. isPastPeriod
+  // (selector) se conserva solo para el pill "Periodo pasado" del encabezado.
+  const shownPeriodId = points?.periodId || selectedPeriodId;
+  const isCurrentShown = !!currentPeriodId && shownPeriodId === currentPeriodId;
+  const isPastShown = !!shownPeriodId && !isCurrentShown;
 
   // Siguiente rango y sus 3 misiones: misma fuente que "Tu camino al siguiente
   // rango" en Comisiones (GET /distributor/rank-roadmap del periodo elegido).
@@ -306,77 +455,69 @@ export default function DistribuidorDashboard() {
     window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener');
   };
 
-  // Loading skeleton
-  if (isLoading) {
-    return (
-      <div className="max-w-3xl mx-auto animate-pulse space-y-5">
-        <div className="h-56 bg-gray-200 rounded-2xl" />
-        <div className="h-24 bg-gray-200 rounded-2xl" />
-        <div className="h-40 bg-gray-200 rounded-2xl" />
-        <div className="h-64 bg-gray-200 rounded-2xl" />
-      </div>
-    );
-  }
+  // Skeleton SOLO en la primera carga (sin datos). Al cambiar de periodo el
+  // hook conserva el payload anterior (placeholderData), así que isLoading se
+  // queda en false y las tarjetas solo se atenúan mientras llega el nuevo.
+  const showSkeleton = isLoading;
 
-  // Error state
-  if (isError) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <Card className="max-w-lg w-full mx-4 overflow-hidden border-0 shadow-xl">
-          <div className="bg-gradient-to-r from-red-500 to-orange-500 p-6 text-center">
-            <div className="w-20 h-20 bg-white/20 backdrop-blur rounded-full flex items-center justify-center mx-auto mb-4">
-              <ServerIcon className="h-10 w-10 text-white" />
-            </div>
-            <h2 className="text-xl font-bold text-white">{t('error.title')}</h2>
+  // Estado de error: se pinta debajo del encabezado para no perder el
+  // selector de periodo ni el botón de refrescar.
+  const renderError = () => (
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <Card className="max-w-lg w-full mx-4 overflow-hidden border-0 shadow-xl">
+        <div className="bg-gradient-to-r from-red-500 to-orange-500 p-6 text-center">
+          <div className="w-20 h-20 bg-white/20 backdrop-blur rounded-full flex items-center justify-center mx-auto mb-4">
+            <ServerIcon className="h-10 w-10 text-white" />
           </div>
-          <CardContent className="p-6 text-center">
-            <div className="space-y-4">
-              <div className="flex items-center justify-center gap-2 text-gray-500">
-                <WifiIcon className="h-5 w-5" />
-                <span className="text-sm">{t('error.offline')}</span>
+          <h2 className="text-xl font-bold text-white">{t('error.title')}</h2>
+        </div>
+        <CardContent className="p-6 text-center">
+          <div className="space-y-4">
+            <div className="flex items-center justify-center gap-2 text-gray-500">
+              <WifiIcon className="h-5 w-5" />
+              <span className="text-sm">{t('error.offline')}</span>
+            </div>
+            <p className="text-gray-600">{t('error.body')}</p>
+            {process.env.NODE_ENV === 'development' && error && (
+              <div className="bg-gray-50 rounded-lg p-3 text-left">
+                <p className="text-xs font-mono text-gray-500 break-all">
+                  {error instanceof Error ? error.message : 'Error desconocido'}
+                </p>
               </div>
-              <p className="text-gray-600">{t('error.body')}</p>
-              {process.env.NODE_ENV === 'development' && error && (
-                <div className="bg-gray-50 rounded-lg p-3 text-left">
-                  <p className="text-xs font-mono text-gray-500 break-all">
-                    {error instanceof Error ? error.message : 'Error desconocido'}
-                  </p>
-                </div>
-              )}
-              <div className="pt-4 space-y-3">
-                <Button
-                  variant="default"
-                  className="w-full bg-[#3E667D] hover:bg-[#002a5c]"
-                  onClick={() => refetch()}
-                >
-                  <ArrowPathIcon className="h-5 w-5" />
-                  {t('error.retry')}
-                </Button>
-                <div className="flex gap-3">
-                  <Link href="/" className="flex-1">
-                    <Button variant="outline" className="w-full">{t('error.goHome')}</Button>
-                  </Link>
-                </div>
-              </div>
-              <div className="mt-6 pt-4 border-t border-gray-100">
-                <p className="text-xs text-gray-400 mb-2">{t('error.suggestions')}</p>
-                <ul className="text-xs text-gray-500 space-y-1">
-                  <li className="flex items-center gap-2">
-                    <ExclamationCircleIcon className="h-3 w-3 text-gray-400" />
-                    {t('error.checkConnection')}
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <ExclamationCircleIcon className="h-3 w-3 text-gray-400" />
-                    {t('error.reloadLater')}
-                  </li>
-                </ul>
+            )}
+            <div className="pt-4 space-y-3">
+              <Button
+                variant="default"
+                className="w-full bg-[#3E667D] hover:bg-[#002a5c]"
+                onClick={() => refetch()}
+              >
+                <ArrowPathIcon className="h-5 w-5" />
+                {t('error.retry')}
+              </Button>
+              <div className="flex gap-3">
+                <Link href="/" className="flex-1">
+                  <Button variant="outline" className="w-full">{t('error.goHome')}</Button>
+                </Link>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+            <div className="mt-6 pt-4 border-t border-gray-100">
+              <p className="text-xs text-gray-400 mb-2">{t('error.suggestions')}</p>
+              <ul className="text-xs text-gray-500 space-y-1">
+                <li className="flex items-center gap-2">
+                  <ExclamationCircleIcon className="h-3 w-3 text-gray-400" />
+                  {t('error.checkConnection')}
+                </li>
+                <li className="flex items-center gap-2">
+                  <ExclamationCircleIcon className="h-3 w-3 text-gray-400" />
+                  {t('error.reloadLater')}
+                </li>
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 
   // ── Calificación personal del periodo ──
   const personalPoints = points?.personalPoints || 0;
@@ -413,7 +554,7 @@ export default function DistribuidorDashboard() {
   const paceRatio = personalPoints / Math.max(1, expectedSoFar);
   const pace: 'good' | 'ok' | 'low' =
     expectedSoFar <= 0 ? 'good' : paceRatio >= 1 ? 'good' : paceRatio >= 0.7 ? 'ok' : 'low';
-  const showPace = !isPastPeriod && expectedSoFar > 0;
+  const showPace = !isPastShown && expectedSoFar > 0;
   const progressColor = {
     good: 'from-emerald-400 to-emerald-500',
     ok: 'from-amber-400 to-yellow-400',
@@ -477,11 +618,48 @@ export default function DistribuidorDashboard() {
   const actionBox =
     'flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-gray-100 hover:border-[#a7c1e2] hover:bg-[#C8DDF2]/5 transition-all cursor-pointer text-center';
 
+  // Tira de números: en móvil cada celda es un renglón (ícono + etiqueta a la
+  // izquierda, número a la derecha); desde sm vuelve al bloque centrado
+  // (ícono, número, etiqueta). El orden visual móvil se resuelve con order-*
+  // para que el DOM siga leyendo número → etiqueta.
+  const statCell =
+    'flex items-center justify-between gap-3 p-4 sm:flex-col sm:items-center sm:justify-center sm:gap-0 sm:text-center';
+  const statIcon = 'h-5 w-5 shrink-0 text-[#3E667D] sm:mb-1';
+  const statValue =
+    'order-3 shrink-0 text-lg font-bold leading-tight tabular-nums text-[#3E667D] sm:order-none';
+  const statValueMuted =
+    'order-3 shrink-0 text-base font-bold leading-tight text-gray-500 sm:order-none sm:mt-0.5';
+  const statText = 'order-2 min-w-0 flex-1 sm:order-none sm:flex-none';
+  const statLabel = 'text-xs font-medium text-gray-600';
+  const statHint = 'text-xs text-gray-600';
+
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-5">
+      {/* Encabezado (siempre visible, también mientras carga): título, selector
+          de periodo (default: actual) y refrescar. En móvil/tablet el selector
+          baja a su propio renglón; desde lg cabe todo en una línea. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+        <h1 className="mr-auto text-lg font-bold text-gray-900">{t('title')}</h1>
+        <div className="order-3 flex w-full flex-wrap items-center gap-2 lg:order-none lg:w-auto">
+          <CalendarDaysIcon className="h-4 w-4 shrink-0 text-[#3E667D]" />
+          <div className="w-[260px] max-w-full">
+            <SearchableSelect
+              options={periodsUpToCurrent(sortedPeriods).map((period: any) => ({
+                value: period.id,
+                label: `${period.name}${period.isCurrent ? ` (${t('current')})` : ''}`,
+              }))}
+              value={selectedPeriodId}
+              onChange={setSelectedPeriodId}
+              placeholder={t('selectPeriod')}
+              showAllOption={false}
+            />
+          </div>
+          {isPastPeriod && (
+            <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full whitespace-nowrap">
+              {t('pastPeriod')}
+            </span>
+          )}
+        </div>
         <Button
           variant="ghost"
           size="icon"
@@ -494,531 +672,532 @@ export default function DistribuidorDashboard() {
         </Button>
       </div>
 
-      {/* ══════════════ Selector de periodo (default: actual) ══════════════ */}
-      <div className="flex flex-wrap items-center gap-2">
-        <CalendarDaysIcon className="h-4 w-4 shrink-0 text-[#3E667D]" />
-        <div className="w-full max-w-[260px]">
-          <SearchableSelect
-            options={periodsUpToCurrent(sortedPeriods).map((period: any) => ({
-              value: period.id,
-              label: `${period.name}${period.isCurrent ? ` (${t('current')})` : ''}`,
-            }))}
-            value={selectedPeriodId}
-            onChange={setSelectedPeriodId}
-            placeholder={t('selectPeriod')}
-            showAllOption={false}
-          />
-        </div>
-        {isPastPeriod && (
-          <span className="text-[11px] font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full whitespace-nowrap">
-            {t('pastPeriod')}
-          </span>
-        )}
-      </div>
+      {showSkeleton ? (
+        <DashboardSkeleton />
+      ) : isError ? (
+        renderError()
+      ) : (
+        <div
+          className={`${DASHBOARD_GRID} transition-opacity duration-200 ${isRefreshing ? 'opacity-70' : ''}`}
+          aria-busy={isRefreshing}
+        >
+          {/* Columna principal: hero → números clave → comprar */}
+          <div className="min-w-0 space-y-5">
+            {/* ══════════════ HERO — Rango, periodo, calificación y siguiente rango ══════════════ */}
+            <Card className="border-0 shadow-lg overflow-hidden p-0">
+              <div className="bg-gradient-to-br from-[#3E667D] via-[#2f5165] to-[#3E667D] p-6 text-white">
+                {/* Rango actual con medalla + chip de periodo (siempre visible) */}
+                <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+                  <div className="flex items-center gap-4">
+                    <RankMedal rank={currentRankCode} size="lg" glow zoomable />
+                    <div className="min-w-0">
+                      <p className="text-white/80 text-xs uppercase tracking-wide">{t('hero.level')}</p>
+                      <h2 className="text-2xl font-bold leading-tight">{currentRankLabel}</h2>
+                      {points?.isPersonalQualified ? (
+                        <span className="inline-flex items-center gap-1 mt-1 text-xs font-medium text-emerald-100 bg-emerald-500/25 px-2 py-0.5 rounded-full">
+                          <CheckCircleIcon className="h-3.5 w-3.5" />
+                          {t('hero.qualified')}
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 mt-1 text-xs font-medium text-amber-100 bg-amber-400/25 px-2 py-0.5 rounded-full">
+                          {isPastShown ? t('hero.notQualifiedPast') : t('hero.inProgress')}
+                        </span>
+                      )}
+                    </div>
+                  </div>
 
-      {/* ══════════════ HERO — Rango, periodo, calificación y siguiente rango ══════════════ */}
-      <Card className="border-0 shadow-lg overflow-hidden p-0">
-        <div className="bg-gradient-to-br from-[#3E667D] via-[#2f5165] to-[#3E667D] p-6 text-white">
-          {/* Rango actual con medalla + chip de periodo (siempre visible) */}
-          <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
-            <div className="flex items-center gap-4">
-              <RankMedal rank={currentRankCode} size="lg" glow zoomable />
-              <div className="min-w-0">
-                <p className="text-white/60 text-xs uppercase tracking-wide">{t('hero.level')}</p>
-                <h2 className="text-2xl font-bold leading-tight">{currentRankLabel}</h2>
-                {points?.isPersonalQualified ? (
-                  <span className="inline-flex items-center gap-1 mt-1 text-xs font-medium text-emerald-100 bg-emerald-500/25 px-2 py-0.5 rounded-full">
-                    <CheckCircleIcon className="h-3.5 w-3.5" />
-                    {t('hero.qualified')}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 mt-1 text-xs font-medium text-amber-100 bg-amber-400/25 px-2 py-0.5 rounded-full">
-                    {isPastPeriod ? t('hero.notQualifiedPast') : t('hero.inProgress')}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {points && (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium">
-                  <CalendarDaysIcon className="h-4 w-4 text-white/80" />
-                  {points.periodName}
-                </span>
-                {isPastPeriod ? (
-                  <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold">
-                    {tr('periodFinal')}
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-emerald-500/25 px-3 py-1 text-xs font-semibold text-emerald-100">
-                    {t('hero.periodDays', { days: daysRemaining })}
-                  </span>
-                )}
-                {endDateLabel && (
-                  <span className="text-xs text-white/70">
-                    {isPastPeriod
-                      ? t('hero.closed', { date: endDateLabel })
-                      : t('hero.closes', { date: endDateLabel })}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Calificación del periodo (en pasado si el periodo ya cerró) */}
-          <div className="mt-6">
-            {points?.isPersonalQualified ? (
-              <p className="text-white/80 text-sm">
-                {isPastPeriod
-                  ? t('hero.qualifiedBodyPast', { current: fmt(personalPoints) })
-                  : t('hero.qualifiedBody', { points: fmt(personalRequired) })}
-              </p>
-            ) : (
-              <>
-                <div className="flex justify-between items-baseline mb-2">
-                  <span className="text-sm font-semibold">{t('hero.goal')}</span>
-                  <span className="text-xs text-white/70">
-                    {t('hero.pts', {
-                      current: fmt(personalPoints),
-                      required: fmt(personalRequired),
-                    })}
-                  </span>
-                </div>
-                <div className="h-3 bg-white/15 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full bg-gradient-to-r ${progressColor} rounded-full transition-all duration-500`}
-                    style={{ width: `${barWidth(progressPercent)}%` }}
-                  />
-                </div>
-                <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 mt-2 text-xs text-white/70">
-                  {/* El ritmo solo tiene sentido con el periodo en curso y
-                      cuando ya hay algo contra qué comparar (no el día 26) */}
-                  {showPace && (
-                    <span className="flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${progressDot}`} />
-                      {progressLabel}
-                    </span>
-                  )}
-                  <span className="ml-auto">{t('hero.pctOfQualification', { pct: progressPercent })}</span>
-                </div>
-                <p className="mt-3 text-sm font-medium text-white">
-                  {isPastPeriod
-                    ? t('hero.gapPast', {
-                        current: fmt(personalPoints),
-                        required: fmt(personalRequired),
-                      })
-                    : t('hero.gap', { points: fmt(personalPointsGap) })}
-                </p>
-              </>
-            )}
-          </div>
-
-          {/* Siguiente rango: medalla bloqueada + las 3 misiones (camino de rango) */}
-          {roadmap.isPending ? (
-            <Skeleton className="mt-6 h-32 w-full rounded-xl bg-white/10" />
-          ) : roadmap.isError || !roadmapData ? null : nextRank ? (
-            <Link
-              href="/distribuidor/comisiones"
-              className="group mt-6 block rounded-xl bg-white/10 p-3.5 transition-colors hover:bg-white/15"
-            >
-              <div className="flex items-center gap-3">
-                <RankMedal rank={nextRank.code} size="md" locked label={nextRank.name} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-white/60">
-                    {t('hero.nextGoal')}
-                  </p>
-                  <p className="font-semibold leading-tight truncate">{nextRank.name}</p>
-                  <p className="text-xs text-white/70">
-                    {tr('missionsDone', { count: nextRank.metCount })}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  <span className="text-lg font-bold tabular-nums">{nextRankPercent}%</span>
-                  <ChevronRightIcon className="h-4 w-4 text-white/50" />
-                </div>
-              </div>
-              <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/15">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-[#C8DDF2] to-emerald-300 transition-all duration-700"
-                  style={{ width: `${barWidth(nextRankPercent)}%` }}
-                />
-              </div>
-
-              {/* items-start + sin truncate: en 375px la etiqueta baja a dos
-                  líneas en vez de perder "(con tope)" / "1er nivel". */}
-              <ul className="mt-3 space-y-1.5">
-                {missions.map(({ key, icon: Icon, label, req, unit }) => (
-                  <li key={key} className="flex items-start gap-2 text-sm">
-                    <span
-                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${
-                        req.met ? 'bg-emerald-300 text-[#1f3a4a]' : 'bg-white/15 text-white'
-                      }`}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                    </span>
-                    <span className="min-w-0 flex-1 pt-[3px] leading-tight text-white/85">{label}</span>
-                    {req.met ? (
-                      <span className="inline-flex shrink-0 items-center gap-0.5 pt-1 text-xs font-semibold text-emerald-200">
-                        <CheckIcon className="h-3.5 w-3.5" />
-                        {t('hero.missionReady')}
+                  {points && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium">
+                        <CalendarDaysIcon className="h-4 w-4 text-white/80" />
+                        {points.periodName}
                       </span>
-                    ) : (
-                      <span className="shrink-0 pt-1 text-xs font-semibold text-amber-100">
-                        {unit === 'qualifiers'
-                          ? tr('missingQualifiers', { count: Math.ceil(Math.max(0, req.gap)) })
-                          : tr('missingPoints', { points: fmt(req.gap) })}
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-
-              {projectedRank && (
-                <p className="mt-3 flex items-start gap-1.5 text-xs font-medium text-emerald-100">
-                  <SparklesIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-200" />
-                  <span>{tr('projectedRank', { rank: projectedRank.name })}</span>
-                </p>
-              )}
-
-              <p className="mt-3 flex items-center justify-end gap-0.5 text-xs font-semibold text-white/80 group-hover:text-white">
-                {t('hero.viewPath')}
-                <ChevronRightIcon className="h-3.5 w-3.5" />
-              </p>
-            </Link>
-          ) : (
-            <p className="mt-6 flex items-center gap-2 rounded-xl bg-white/10 px-3.5 py-3 text-sm font-semibold">
-              <TrophyIcon className="h-5 w-5 shrink-0 text-yellow-300" />
-              {t('hero.maxRank')}
-            </p>
-          )}
-
-          {/* CTA: en un periodo cerrado ya no hay nada que vender/lograr, así
-              que la única acción es volver al periodo actual. */}
-          <div className="mt-5">
-            {isPastPeriod ? (
-              currentPeriodId ? (
-                <Button
-                  type="button"
-                  variant="default"
-                  className="bg-white text-[#3E667D] hover:bg-white/90 font-semibold w-full sm:w-auto"
-                  onClick={() => setSelectedPeriodId(currentPeriodId)}
-                >
-                  {t('hero.ctaCurrentPeriod')}
-                  <ChevronRightIcon className="h-4 w-4 ml-1" />
-                </Button>
-              ) : null
-            ) : (
-              <Button
-                asChild
-                variant="default"
-                className="bg-white text-[#3E667D] hover:bg-white/90 font-semibold w-full sm:w-auto"
-              >
-                <Link
-                  href={
-                    points?.isPersonalQualified
-                      ? '/distribuidor/compartir-carrito'
-                      : '/distribuidor/comisiones'
-                  }
-                >
-                  {points?.isPersonalQualified ? t('hero.ctaQualified') : t('hero.ctaProgress')}
-                  <ChevronRightIcon className="h-4 w-4 ml-1" />
-                </Link>
-              </Button>
-            )}
-          </div>
-        </div>
-      </Card>
-
-      {/* ══════════════ Tira de 3 números clave ══════════════ */}
-      <Card className="p-0">
-        <CardContent className="p-0">
-          <div className="grid grid-cols-3 divide-x divide-gray-100">
-            <div className="p-4 text-center">
-              <CurrencyDollarIcon className="h-5 w-5 text-[#3E667D] mx-auto mb-1" />
-              {isCurrentSelected ? (
-                prevPeriodNet != null && prevPeriodName ? (
-                  <>
-                    {/* Lo COBRADO del último cierre (neto tras retenciones);
-                        lo del periodo en curso no existe hasta cerrar. */}
-                    <p className="text-lg font-bold text-[#3E667D] leading-tight">
-                      {formatMoneyIn(prevPeriodNet, prevPeriodCurrency)}
-                    </p>
-                    <p className="text-[11px] font-medium text-gray-600">
-                      {t('stats.commissionsPrevPeriod', { period: prevPeriodName })}
-                    </p>
-                    <p className="text-[10px] text-gray-400">
-                      {t('stats.currentAtCloseHint')}
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-base font-bold text-gray-400 leading-tight mt-0.5">{t('stats.atClose')}</p>
-                    <p className="text-[11px] font-medium text-gray-600">{t('stats.commissions')}</p>
-                    <p className="text-[10px] text-gray-400">{t('stats.commissionsAtClose')}</p>
-                  </>
-                )
-              ) : (
-                <>
-                  <p className="text-lg font-bold text-[#3E667D] leading-tight">
-                    {formatMoneyIn(
-                      pastPeriodNet,
-                      commissionsSummary?.currencyCode || currencyCode,
-                    )}
-                  </p>
-                  <p className="text-[11px] font-medium text-gray-600">{t('stats.commissions')}</p>
-                  <p className="text-[10px] text-gray-400">{t('stats.thisPeriodCurrency', { currency: commissionsSummary?.currencyCode || currencyCode })}</p>
-                </>
-              )}
-            </div>
-            <div className="p-4 text-center">
-              <UsersIcon className="h-5 w-5 text-[#3E667D] mx-auto mb-1" />
-              <p className="text-lg font-bold text-[#3E667D] leading-tight">
-                {fmt(networkSummary?.totalDistributors)}
-              </p>
-              <p className="text-[11px] font-medium text-gray-600">{t('stats.inNetwork')}</p>
-              <p className="text-[10px] text-gray-400">
-                {t('stats.activeCount', { count: networkSummary?.activeDistributors || 0 })}
-              </p>
-            </div>
-            <div className="p-4 text-center">
-              <ChartBarIcon className="h-5 w-5 text-[#3E667D] mx-auto mb-1" />
-              <p className="text-lg font-bold text-[#3E667D] leading-tight">
-                {fmt(groupCounted)}
-              </p>
-              <p className="text-[11px] font-medium text-gray-600">{t('stats.points')}</p>
-              <p className="text-[10px] text-gray-400">
-                {t('stats.personalHint', { personal: fmt(personalPoints) })}
-              </p>
-            </div>
-          </div>
-
-          {points && (
-            <>
-              <Button
-                variant="ghost"
-                onClick={() => setShowPointsDetail((v) => !v)}
-                className="w-full h-auto border-t border-gray-100 py-2 text-xs font-medium text-[#3E667D] flex items-center justify-center gap-1 hover:bg-gray-50 rounded-none"
-              >
-                {showPointsDetail ? t('stats.hideBreakdown') : t('stats.showBreakdown')}
-                {showPointsDetail ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />}
-              </Button>
-              {showPointsDetail && (
-                <div className="border-t border-gray-100 p-4 space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">{t('stats.pointsFromSales')}</span>
-                    <span className="font-semibold text-[#3E667D]">{fmt(personalPoints)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">{t('stats.pointsFromTeam')}</span>
-                    <span className="font-semibold text-[#3E667D]">{fmt(groupPoints)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">{t('stats.groupCounted')}</span>
-                    <span className="font-semibold text-emerald-600">{fmt(groupCounted)}</span>
-                  </div>
-                  {groupRolledOver > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">{t('stats.groupRolledOver')}</span>
-                      <span className="font-semibold text-amber-600">{fmt(groupRolledOver)}</span>
+                      {isPastShown ? (
+                        <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold">
+                          {tr('periodFinal')}
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-emerald-500/25 px-3 py-1 text-xs font-semibold text-emerald-100">
+                          {t('hero.periodDays', { days: daysRemaining })}
+                        </span>
+                      )}
+                      {endDateLabel && (
+                        <span className="text-xs text-white/80">
+                          {isPastShown
+                            ? t('hero.closed', { date: endDateLabel })
+                            : t('hero.closes', { date: endDateLabel })}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* ══════════════ CTA: comprar a precio de distribuidor ══════════════ */}
-      <Link href="/productos" className="block">
-        <Card className="overflow-hidden border-0 bg-gradient-to-br from-[#3E667D] to-[#0A4B94] text-white shadow-lg transition-transform hover:-translate-y-0.5">
-          <CardContent className="flex items-center gap-4 p-5">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15">
-              <ShoppingBagIcon className="h-6 w-6 text-white" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-base font-bold">{t('buyCta.title')}</p>
-              <p className="text-sm text-white/80">{t('buyCta.body')}</p>
-            </div>
-            <ChevronRightIcon className="h-5 w-5 shrink-0 text-white/70" />
-          </CardContent>
-        </Card>
-      </Link>
+                {/* Calificación del periodo (en pasado si el periodo ya cerró) */}
+                <div className="mt-6">
+                  {points?.isPersonalQualified ? (
+                    <p className="text-white/80 text-sm">
+                      {isPastShown
+                        ? t('hero.qualifiedBodyPast', { current: fmt(personalPoints) })
+                        : t('hero.qualifiedBody', { points: fmt(personalRequired) })}
+                    </p>
+                  ) : (
+                    <>
+                      <div className="flex justify-between items-baseline mb-2">
+                        <span className="text-sm font-semibold">{t('hero.goal')}</span>
+                        <span className="text-xs text-white/80">
+                          {t('hero.pts', {
+                            current: fmt(personalPoints),
+                            required: fmt(personalRequired),
+                          })}
+                        </span>
+                      </div>
+                      <div className="h-3 bg-white/15 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full bg-gradient-to-r ${progressColor} rounded-full transition-all duration-500`}
+                          style={{ width: `${barWidth(progressPercent)}%` }}
+                        />
+                      </div>
+                      <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 mt-2 text-xs text-white/80">
+                        {/* El ritmo solo tiene sentido con el periodo en curso y
+                            cuando ya hay algo contra qué comparar (no el día 26) */}
+                        {showPace && (
+                          <span className="flex items-center gap-1.5">
+                            <span className={`w-2 h-2 rounded-full ${progressDot}`} />
+                            {progressLabel}
+                          </span>
+                        )}
+                        <span className="ml-auto">{t('hero.pctOfQualification', { pct: progressPercent })}</span>
+                      </div>
+                      <p className="mt-3 text-sm font-medium text-white">
+                        {isPastShown
+                          ? t('hero.gapPast', {
+                              current: fmt(personalPoints),
+                              required: fmt(personalRequired),
+                            })
+                          : t('hero.gap', { points: fmt(personalPointsGap) })}
+                      </p>
+                    </>
+                  )}
+                </div>
 
-      {/* ══════════════ Acciones rápidas ══════════════ */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle>{t('actions.title')}</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-2">
-          <div className="grid grid-cols-2 gap-3">
-            <Link href="/distribuidor/compartir-carrito" className={actionBox}>
-              <div className="w-10 h-10 rounded-full bg-[#abc9ba]/20 flex items-center justify-center">
-                <ShoppingBagIcon className="h-5 w-5 text-[#3E667D]" />
+                {/* Siguiente rango: medalla bloqueada + las 3 misiones (camino de rango) */}
+                {roadmap.isPending ? (
+                  <Skeleton className="mt-6 h-32 w-full rounded-xl bg-white/10" />
+                ) : roadmap.isError || !roadmapData ? null : nextRank ? (
+                  <Link
+                    href="/distribuidor/comisiones"
+                    className="group mt-6 block rounded-xl bg-white/10 p-3.5 transition-colors hover:bg-white/15"
+                  >
+                    <div className="flex items-center gap-3">
+                      <RankMedal rank={nextRank.code} size="md" locked label={nextRank.name} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-white/80">
+                          {t('hero.nextGoal')}
+                        </p>
+                        <p className="font-semibold leading-tight truncate">{nextRank.name}</p>
+                        <p className="text-xs text-white/80">
+                          {tr('missionsDone', { count: nextRank.metCount })}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <span className="text-lg font-bold tabular-nums">{nextRankPercent}%</span>
+                        <ChevronRightIcon className="h-4 w-4 text-white/50" />
+                      </div>
+                    </div>
+                    <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/15">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-[#C8DDF2] to-emerald-300 transition-all duration-700"
+                        style={{ width: `${barWidth(nextRankPercent)}%` }}
+                      />
+                    </div>
+
+                    {/* items-start + sin truncate: en 375px la etiqueta baja a dos
+                        líneas en vez de perder "(con tope)" / "1er nivel". */}
+                    <ul className="mt-3 space-y-1.5">
+                      {missions.map(({ key, icon: Icon, label, req, unit }) => (
+                        <li key={key} className="flex items-start gap-2 text-sm">
+                          <span
+                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${
+                              req.met ? 'bg-emerald-300 text-[#1f3a4a]' : 'bg-white/15 text-white'
+                            }`}
+                          >
+                            <Icon className="h-3.5 w-3.5" />
+                          </span>
+                          <span className="min-w-0 flex-1 pt-[3px] leading-tight text-white/85">{label}</span>
+                          {req.met ? (
+                            <span className="inline-flex shrink-0 items-center gap-0.5 pt-1 text-xs font-semibold text-emerald-200">
+                              <CheckIcon className="h-3.5 w-3.5" />
+                              {t('hero.missionReady')}
+                            </span>
+                          ) : (
+                            <span className="shrink-0 pt-1 text-xs font-semibold text-amber-100">
+                              {unit === 'qualifiers'
+                                ? tr('missingQualifiers', { count: Math.ceil(Math.max(0, req.gap)) })
+                                : tr('missingPoints', { points: fmt(req.gap) })}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+
+                    {projectedRank && (
+                      <p className="mt-3 flex items-start gap-1.5 text-xs font-medium text-emerald-100">
+                        <SparklesIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-200" />
+                        <span>{tr('projectedRank', { rank: projectedRank.name })}</span>
+                      </p>
+                    )}
+
+                    <p className="mt-3 flex items-center justify-end gap-0.5 text-xs font-semibold text-white/80 group-hover:text-white">
+                      {t('hero.viewPath')}
+                      <ChevronRightIcon className="h-3.5 w-3.5" />
+                    </p>
+                  </Link>
+                ) : (
+                  <p className="mt-6 flex items-center gap-2 rounded-xl bg-white/10 px-3.5 py-3 text-sm font-semibold">
+                    <TrophyIcon className="h-5 w-5 shrink-0 text-yellow-300" />
+                    {t('hero.maxRank')}
+                  </p>
+                )}
+
+                {/* CTA: en un periodo cerrado ya no hay nada que vender/lograr, así
+                    que la única acción es volver al periodo actual. */}
+                <div className="mt-5">
+                  {isPastShown ? (
+                    currentPeriodId ? (
+                      <Button
+                        type="button"
+                        variant="default"
+                        className="bg-white text-[#3E667D] hover:bg-white/90 font-semibold w-full sm:w-auto"
+                        onClick={() => setSelectedPeriodId(currentPeriodId)}
+                      >
+                        {t('hero.ctaCurrentPeriod')}
+                        <ChevronRightIcon className="h-4 w-4 ml-1" />
+                      </Button>
+                    ) : null
+                  ) : (
+                    <Button
+                      asChild
+                      variant="default"
+                      className="bg-white text-[#3E667D] hover:bg-white/90 font-semibold w-full sm:w-auto"
+                    >
+                      <Link
+                        href={
+                          points?.isPersonalQualified
+                            ? '/distribuidor/compartir-carrito'
+                            : '/distribuidor/comisiones'
+                        }
+                      >
+                        {points?.isPersonalQualified ? t('hero.ctaQualified') : t('hero.ctaProgress')}
+                        <ChevronRightIcon className="h-4 w-4 ml-1" />
+                      </Link>
+                    </Button>
+                  )}
+                </div>
               </div>
-              <span className="text-sm font-medium text-gray-700">{t('actions.shareCart')}</span>
-            </Link>
-            <Link href="/distribuidor/ventas" className={actionBox}>
-              <div className="w-10 h-10 rounded-full bg-[#C8DDF2]/20 flex items-center justify-center">
-                <ChartBarIcon className="h-5 w-5 text-[#3E667D]" />
-              </div>
-              <span className="text-sm font-medium text-gray-700">{t('actions.newSale')}</span>
-            </Link>
-            <Link href="/distribuidor/red?alta=socio" className={actionBox}>
-              <div className="w-10 h-10 rounded-full bg-[#3E667D]/10 flex items-center justify-center">
-                <UserPlusIcon className="h-5 w-5 text-[#3E667D]" />
-              </div>
-              <span className="text-sm font-medium text-gray-700">{t('actions.enrollPartner')}</span>
-            </Link>
-            <Link href="/distribuidor/red?alta=preferente" className={actionBox}>
-              <div className="w-10 h-10 rounded-full bg-[#abc9ba]/20 flex items-center justify-center">
-                <UserPlusIcon className="h-5 w-5 text-[#3E667D]" />
-              </div>
-              <span className="text-sm font-medium text-gray-700">{t('actions.preferredCustomer')}</span>
-            </Link>
-            <Link href="/distribuidor/red" className={actionBox}>
-              <div className="w-10 h-10 rounded-full bg-[#3E667D]/10 flex items-center justify-center">
-                <UsersIcon className="h-5 w-5 text-[#3E667D]" />
-              </div>
-              <span className="text-sm font-medium text-gray-700">{t('actions.myTeam')}</span>
-            </Link>
-            <Link href="/distribuidor/comisiones" className={actionBox}>
-              <div className="w-10 h-10 rounded-full bg-[#a7c1e2]/20 flex items-center justify-center">
-                <CurrencyDollarIcon className="h-5 w-5 text-[#3E667D]" />
-              </div>
-              <span className="text-sm font-medium text-gray-700">{t('actions.myCommissions')}</span>
+            </Card>
+
+            {/* ══════════════ Tira de 3 números clave ══════════════ */}
+            <Card className="p-0">
+              <CardContent className="p-0">
+                <div className="grid grid-cols-1 divide-y sm:grid-cols-3 sm:divide-y-0 sm:divide-x divide-gray-100">
+                  <div className={statCell}>
+                    <CurrencyDollarIcon className={statIcon} />
+                    {isCurrentShown ? (
+                      prevPeriodNet != null && prevPeriodName ? (
+                        <>
+                          {/* Lo COBRADO del último cierre (neto tras retenciones);
+                              lo del periodo en curso no existe hasta cerrar. */}
+                          <p className={statValue}>
+                            {formatMoneyIn(prevPeriodNet, prevPeriodCurrency)}
+                          </p>
+                          <div className={statText}>
+                            <p className={statLabel}>
+                              {t('stats.commissionsPrevPeriod', { period: prevPeriodName })}
+                            </p>
+                            <p className={statHint}>{t('stats.currentAtCloseHint')}</p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className={statValueMuted}>{t('stats.atClose')}</p>
+                          <div className={statText}>
+                            <p className={statLabel}>{t('stats.commissions')}</p>
+                            <p className={statHint}>{t('stats.commissionsAtClose')}</p>
+                          </div>
+                        </>
+                      )
+                    ) : (
+                      <>
+                        <p className={statValue}>
+                          {formatMoneyIn(
+                            pastPeriodNet,
+                            commissionsSummary?.currencyCode || currencyCode,
+                          )}
+                        </p>
+                        <div className={statText}>
+                          <p className={statLabel}>{t('stats.commissions')}</p>
+                          <p className={statHint}>
+                            {t('stats.thisPeriodCurrency', { currency: commissionsSummary?.currencyCode || currencyCode })}
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <div className={statCell}>
+                    <UsersIcon className={statIcon} />
+                    <p className={statValue}>{fmt(networkSummary?.totalDistributors)}</p>
+                    <div className={statText}>
+                      <p className={statLabel}>{t('stats.inNetwork')}</p>
+                      <p className={statHint}>
+                        {t('stats.activeCount', { count: networkSummary?.activeDistributors || 0 })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className={statCell}>
+                    <ChartBarIcon className={statIcon} />
+                    <p className={statValue}>{fmt(groupCounted)}</p>
+                    <div className={statText}>
+                      <p className={statLabel}>{t('stats.points')}</p>
+                      <p className={statHint}>
+                        {t('stats.personalHint', { personal: fmt(personalPoints) })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {points && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      onClick={() => setShowPointsDetail((v) => !v)}
+                      className="w-full h-auto border-t border-gray-100 py-2 text-xs font-medium text-[#3E667D] flex items-center justify-center gap-1 hover:bg-gray-50 rounded-none"
+                    >
+                      {showPointsDetail ? t('stats.hideBreakdown') : t('stats.showBreakdown')}
+                      {showPointsDetail ? <ChevronUpIcon className="h-4 w-4" /> : <ChevronDownIcon className="h-4 w-4" />}
+                    </Button>
+                    {showPointsDetail && (
+                      <div className="border-t border-gray-100 p-4 space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">{t('stats.pointsFromSales')}</span>
+                          <span className="font-semibold tabular-nums text-[#3E667D]">{fmt(personalPoints)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">{t('stats.pointsFromTeam')}</span>
+                          <span className="font-semibold tabular-nums text-[#3E667D]">{fmt(groupPoints)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">{t('stats.groupCounted')}</span>
+                          <span className="font-semibold tabular-nums text-emerald-600">{fmt(groupCounted)}</span>
+                        </div>
+                        {groupRolledOver > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">{t('stats.groupRolledOver')}</span>
+                            <span className="font-semibold tabular-nums text-amber-600">{fmt(groupRolledOver)}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* ══════════════ CTA: comprar a precio de distribuidor ══════════════ */}
+            <Link href="/productos" className="block">
+              <Card className="overflow-hidden border-0 bg-gradient-to-br from-[#3E667D] to-[#0A4B94] text-white shadow-lg transition-transform hover:-translate-y-0.5">
+                <CardContent className="flex items-center gap-4 p-5">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/15">
+                    <ShoppingBagIcon className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-base font-bold">{t('buyCta.title')}</p>
+                    <p className="text-sm text-white/80">{t('buyCta.body')}</p>
+                  </div>
+                  <ChevronRightIcon className="h-5 w-5 shrink-0 text-white/70" />
+                </CardContent>
+              </Card>
             </Link>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* ══════════════ Banners contextuales ══════════════ */}
-      {paymentData && paymentData.overallStatus === 'incomplete' && (
-        <Link
-          href="/distribuidor/pagos"
-          className="block rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4 hover:shadow-md transition-shadow group"
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-              <ExclamationTriangleIcon className="h-5 w-5 text-amber-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-amber-800">
-                {t('banners.completeData')}
-              </p>
-              <p className="text-xs text-amber-600 mt-0.5">
-                {t('banners.completeDataBody')}
-              </p>
-            </div>
-            <ChevronRightIcon className="h-5 w-5 text-amber-400 group-hover:text-amber-600 transition-colors flex-shrink-0" />
-          </div>
-        </Link>
-      )}
+          {/* Columna lateral (sin sticky): acciones → avisos → comparte */}
+          <div className="min-w-0 space-y-5">
+            {/* ══════════════ Acciones rápidas ══════════════ */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle>{t('actions.title')}</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-2">
+                <div className="grid grid-cols-2 gap-3">
+                  <Link href="/distribuidor/compartir-carrito" className={actionBox}>
+                    <div className="w-10 h-10 rounded-full bg-[#abc9ba]/20 flex items-center justify-center">
+                      <ShoppingBagIcon className="h-5 w-5 text-[#3E667D]" />
+                    </div>
+                    <span className="text-sm font-medium text-gray-700">{t('actions.shareCart')}</span>
+                  </Link>
+                  <Link href="/distribuidor/ventas" className={actionBox}>
+                    <div className="w-10 h-10 rounded-full bg-[#C8DDF2]/20 flex items-center justify-center">
+                      <ChartBarIcon className="h-5 w-5 text-[#3E667D]" />
+                    </div>
+                    <span className="text-sm font-medium text-gray-700">{t('actions.newSale')}</span>
+                  </Link>
+                  <Link href="/distribuidor/red?alta=socio" className={actionBox}>
+                    <div className="w-10 h-10 rounded-full bg-[#3E667D]/10 flex items-center justify-center">
+                      <UserPlusIcon className="h-5 w-5 text-[#3E667D]" />
+                    </div>
+                    <span className="text-sm font-medium text-gray-700">{t('actions.enrollPartner')}</span>
+                  </Link>
+                  <Link href="/distribuidor/red?alta=preferente" className={actionBox}>
+                    <div className="w-10 h-10 rounded-full bg-[#abc9ba]/20 flex items-center justify-center">
+                      <UserPlusIcon className="h-5 w-5 text-[#3E667D]" />
+                    </div>
+                    <span className="text-sm font-medium text-gray-700">{t('actions.preferredCustomer')}</span>
+                  </Link>
+                  <Link href="/distribuidor/red" className={actionBox}>
+                    <div className="w-10 h-10 rounded-full bg-[#3E667D]/10 flex items-center justify-center">
+                      <UsersIcon className="h-5 w-5 text-[#3E667D]" />
+                    </div>
+                    <span className="text-sm font-medium text-gray-700">{t('actions.myTeam')}</span>
+                  </Link>
+                  <Link href="/distribuidor/comisiones" className={actionBox}>
+                    <div className="w-10 h-10 rounded-full bg-[#a7c1e2]/20 flex items-center justify-center">
+                      <CurrencyDollarIcon className="h-5 w-5 text-[#3E667D]" />
+                    </div>
+                    <span className="text-sm font-medium text-gray-700">{t('actions.myCommissions')}</span>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
 
-      {myCourses.length > 0 && (
-        <Link
-          href="/distribuidor/capacitacion"
-          className="block rounded-xl border border-[#a7c1e2] bg-gradient-to-r from-[#C8DDF2]/40 to-[#abc9ba]/30 p-4 hover:shadow-md transition-shadow group"
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#3E667D]/10 flex items-center justify-center">
-              <AcademicCapIcon className="h-5 w-5 text-[#3E667D]" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[#2f5165]">
-                {t('banners.courses', { count: myCourses.length })}
-              </p>
-              <p className="text-xs text-[#3E667D]/80 mt-0.5 line-clamp-1">
-                {myCourses.length === 1
-                  ? myCourses[0].title
-                  : t('banners.coursesBody')}
-              </p>
-            </div>
-            <ChevronRightIcon className="h-5 w-5 text-[#3E667D]/50 group-hover:text-[#3E667D] transition-colors flex-shrink-0" />
-          </div>
-        </Link>
-      )}
+            {/* ══════════════ Banners contextuales ══════════════ */}
+            {paymentData && paymentData.overallStatus === 'incomplete' && (
+              <Link
+                href="/distribuidor/pagos"
+                className="block rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4 hover:shadow-md transition-shadow group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                    <ExclamationTriangleIcon className="h-5 w-5 text-amber-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-amber-800">
+                      {t('banners.completeData')}
+                    </p>
+                    <p className="text-xs text-amber-600 mt-0.5">
+                      {t('banners.completeDataBody')}
+                    </p>
+                  </div>
+                  <ChevronRightIcon className="h-5 w-5 text-amber-400 group-hover:text-amber-600 transition-colors flex-shrink-0" />
+                </div>
+              </Link>
+            )}
 
-      {/* ══════════════ Comparte y gana ══════════════ */}
-      <Card className="overflow-hidden border-0 shadow-md p-0">
-        {/* Encabezado cálido + código de referido */}
-        <div className="bg-gradient-to-br from-[#3E667D] to-[#0A4B94] px-5 py-5 text-white">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15">
-              <GiftIcon className="h-6 w-6" />
-            </div>
-            <div className="min-w-0">
-              <h3 className="text-lg font-bold leading-tight">{t('share.title')}</h3>
-              <p className="text-sm text-white/80">{t('share.body')}</p>
-            </div>
-          </div>
+            {myCourses.length > 0 && (
+              <Link
+                href="/distribuidor/capacitacion"
+                className="block rounded-xl border border-[#a7c1e2] bg-gradient-to-r from-[#C8DDF2]/40 to-[#abc9ba]/30 p-4 hover:shadow-md transition-shadow group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 w-10 h-10 rounded-full bg-[#3E667D]/10 flex items-center justify-center">
+                    <AcademicCapIcon className="h-5 w-5 text-[#3E667D]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-[#2f5165]">
+                      {t('banners.courses', { count: myCourses.length })}
+                    </p>
+                    <p className="text-xs text-[#3E667D]/80 mt-0.5 line-clamp-1">
+                      {myCourses.length === 1
+                        ? myCourses[0].title
+                        : t('banners.coursesBody')}
+                    </p>
+                  </div>
+                  <ChevronRightIcon className="h-5 w-5 text-[#3E667D]/50 group-hover:text-[#3E667D] transition-colors flex-shrink-0" />
+                </div>
+              </Link>
+            )}
 
-          <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-white/10 px-4 py-3">
-            <div className="min-w-0">
-              <p className="text-[11px] uppercase tracking-wide text-white/60">{t('share.yourCode')}</p>
-              <p className="text-xl font-bold tracking-wider truncate">
-                {referralCode || '—'}
-              </p>
-            </div>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleCopyCode}
-              disabled={!referralCode}
-              className="shrink-0"
-            >
-              <ClipboardDocumentIcon className="h-4 w-4" />
-              {t('share.copyCode')}
-            </Button>
+            {/* ══════════════ Comparte y gana ══════════════ */}
+            <Card className="overflow-hidden border-0 shadow-md p-0">
+              {/* Encabezado cálido + código de referido */}
+              <div className="bg-gradient-to-br from-[#3E667D] to-[#0A4B94] px-5 py-5 text-white">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15">
+                    <GiftIcon className="h-6 w-6" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-lg font-bold leading-tight">{t('share.title')}</h3>
+                    <p className="text-sm text-white/80">{t('share.body')}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-white/10 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] uppercase tracking-wide text-white/80">{t('share.yourCode')}</p>
+                    <p className="text-xl font-bold tracking-wider truncate">
+                      {referralCode || '—'}
+                    </p>
+                  </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleCopyCode}
+                    disabled={!referralCode}
+                    className="shrink-0"
+                  >
+                    <ClipboardDocumentIcon className="h-4 w-4" />
+                    {t('share.copyCode')}
+                  </Button>
+                </div>
+              </div>
+
+              <CardContent className="p-5">
+                {/* Acción principal: WhatsApp */}
+                <Button
+                  size="lg"
+                  onClick={handleShareWhatsApp}
+                  disabled={!dynamicStoreLink}
+                  className="w-full bg-[#15803d] text-white hover:bg-[#166534]"
+                >
+                  <ShareIcon className="h-5 w-5" />
+                  {t('share.whatsapp')}
+                </Button>
+
+                {/* Secundarias */}
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleCopyStoreLink}
+                    disabled={copyLinkMutation.isPending}
+                    className="border-[#a7c1e2] text-[#3E667D] hover:bg-[#C8DDF2]/10"
+                  >
+                    <ClipboardDocumentIcon className="h-4 w-4" />
+                    {t('share.copyLink')}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleDownloadQr(dynamicStoreLink)}
+                    disabled={!dynamicStoreLink}
+                    className="border-[#a7c1e2] text-[#3E667D] hover:bg-[#C8DDF2]/10"
+                  >
+                    <ArrowDownTrayIcon className="h-4 w-4" />
+                    {t('share.qr')}
+                  </Button>
+                </div>
+
+                {/* Invitar socios (enlace de registro) */}
+                <button
+                  type="button"
+                  onClick={handleShareLink}
+                  disabled={shareLinkMutation.isPending}
+                  className="mt-4 flex w-full items-center justify-center gap-1.5 text-sm font-medium text-[#3E667D] hover:underline disabled:opacity-50"
+                >
+                  <UsersIcon className="h-4 w-4" />
+                  {t('share.invitePartners')}
+                </button>
+              </CardContent>
+            </Card>
           </div>
         </div>
-
-        <CardContent className="p-5">
-          {/* Acción principal: WhatsApp */}
-          <Button
-            size="lg"
-            onClick={handleShareWhatsApp}
-            disabled={!dynamicStoreLink}
-            className="w-full bg-[#15803d] text-white hover:bg-[#166534]"
-          >
-            <ShareIcon className="h-5 w-5" />
-            {t('share.whatsapp')}
-          </Button>
-
-          {/* Secundarias */}
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <Button
-              variant="outline"
-              onClick={handleCopyStoreLink}
-              disabled={copyLinkMutation.isPending}
-              className="border-[#a7c1e2] text-[#3E667D] hover:bg-[#C8DDF2]/10"
-            >
-              <ClipboardDocumentIcon className="h-4 w-4" />
-              {t('share.copyLink')}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => handleDownloadQr(dynamicStoreLink)}
-              disabled={!dynamicStoreLink}
-              className="border-[#a7c1e2] text-[#3E667D] hover:bg-[#C8DDF2]/10"
-            >
-              <ArrowDownTrayIcon className="h-4 w-4" />
-              {t('share.qr')}
-            </Button>
-          </div>
-
-          {/* Invitar socios (enlace de registro) */}
-          <button
-            type="button"
-            onClick={handleShareLink}
-            disabled={shareLinkMutation.isPending}
-            className="mt-4 flex w-full items-center justify-center gap-1.5 text-sm font-medium text-[#3E667D] hover:underline disabled:opacity-50"
-          >
-            <UsersIcon className="h-4 w-4" />
-            {t('share.invitePartners')}
-          </button>
-        </CardContent>
-      </Card>
+      )}
 
       {/* "Lo que ha pasado" (actividad reciente) OCULTA TEMPORALMENTE: mostraba
           montos de comisión acreditada. Restaurar quitando este envoltorio de

@@ -1,6 +1,11 @@
 // hooks/useDistributor.ts - React Query hooks para Centro de Negocio
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+} from '@tanstack/react-query';
 import { distributorApi } from '@/services/distributorApi';
 import type {
   RegisterMemberRequest,
@@ -42,6 +47,9 @@ export function useDashboard(periodId?: string, enabled = true) {
     queryKey: distributorKeys.dashboard(periodId),
     queryFn: () => distributorApi.getDashboard(periodId),
     staleTime: 2 * 60 * 1000, // 2 minutos
+    // Al cambiar de periodo se conserva el payload anterior mientras llega el
+    // nuevo (la home atenúa las tarjetas en vez de volver al skeleton).
+    placeholderData: keepPreviousData,
     enabled,
   });
 }
@@ -88,6 +96,10 @@ export function useRankRoadmap(periodId?: string, enabled = true) {
     queryKey: distributorKeys.rankRoadmap(periodId),
     queryFn: () => distributorApi.getRankRoadmap(periodId),
     staleTime: 5 * 60 * 1000,
+    // Igual que useDashboard: al cambiar de periodo se conserva el payload
+    // anterior (la home y RankRoadmap ya atenuan con isFetching) en vez de
+    // colapsar el bloque "siguiente rango" a skeleton.
+    placeholderData: keepPreviousData,
     enabled,
   });
 }
