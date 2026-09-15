@@ -40,13 +40,19 @@ export interface PeriodPoints {
   businessPointsMxn: number;
   businessPointsUsd: number;
 
-  // Puntos de grupo (red)
+  // Puntos de grupo (red): suma CRUDA de las líneas (cps.points_group)
   groupPoints: number;
 
-  // Roll-over del periodo anterior
+  /** Puntos de grupo CON tope: lo que realmente cuenta para el rango
+   *  (cps.points_group_roll_over cuando > 0; si no, points_group). */
+  groupCounted: number;
+  /** Lo que se pasó del tope y NO cuenta: max(0, groupPoints - groupCounted). */
+  groupRolledOver: number;
+
+  // LEGACY: cps.points_group_roll_over tal cual (la home ya no lo usa)
   rolloverPoints: number;
 
-  // Totales
+  // LEGACY: suma doble-contada (compatibilidad; la home ya no lo usa)
   totalPoints: number;
 }
 
@@ -73,11 +79,14 @@ export interface RankRequirement {
 }
 
 export interface NetworkSummary {
+  /** Miembros activos (network_members.is_active) del subárbol. */
   totalDistributors: number;
   inactiveDistributors: number;
   totalNetwork: number;
+  /** Miembros del subárbol con puntos personales > 0 en el periodo resuelto. */
   activeDistributors: number;
   directDistributors: number;
+  /** Miembros del subárbol con puntos personales >= 3300 en el periodo. */
   qualifiedDistributors: number;
   maxDepth: number;
 
@@ -128,6 +137,9 @@ export interface CommissionsSummary {
   /** true si companyWithholdings incluye retención proyectada al cierre
    *  (aún sin cobrar por Tesorería). */
   companyWithholdingsProjected?: boolean;
+
+  /** Neto después de retenciones (totalNet - companyWithholdings). */
+  netAfterWithholdings?: number;
 
   /** Moneda REAL de los montos (el API convierte a la moneda del distribuidor
    *  cuando hay tasa del periodo; 'MXN' si no pudo convertir). */
@@ -183,11 +195,24 @@ export interface DashboardStats {
   qualificationStatus: 'qualified' | 'at_risk' | 'not_qualified';
 }
 
+/** Resumen de comisiones del periodo ANTERIOR al resuelto (lo cobrado en el
+ *  último cierre). Montos como string decimal, en la moneda de currencyCode. */
+export interface PreviousPeriodCommissions {
+  periodId: string;
+  periodName: string;
+  totalNet: string;
+  companyWithholdings: string;
+  netAfterWithholdings: string;
+  currencyCode: string;
+}
+
 // Tipos para respuestas de API
 export interface DashboardResponse {
   dashboard: DistributorDashboard;
   stats: DashboardStats;
   lastUpdated: string;
+  /** null cuando no existe periodo anterior. */
+  previousPeriodCommissions: PreviousPeriodCommissions | null;
 }
 
 export interface ProfileUpdateRequest {

@@ -223,6 +223,9 @@ export function useDistributorDashboard(periodId?: string) {
     recentActivity: dashboard?.recentActivity || activityQuery.data,
     topPerformers: dashboard?.topPerformers || topPerformersQuery.data,
     stats: dashboardQuery.data?.stats,
+    // Comisiones del periodo anterior al resuelto (viene en el mismo payload;
+    // evita una segunda llamada a /dashboard desde la home).
+    previousPeriodCommissions: dashboardQuery.data?.previousPeriodCommissions ?? null,
     goals: goalsQuery.data,
     lastUpdated: dashboardQuery.data?.lastUpdated,
 

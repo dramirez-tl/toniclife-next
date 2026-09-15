@@ -2,12 +2,14 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   ChartBarIcon,
   UsersIcon,
+  UserGroupIcon,
   CurrencyDollarIcon,
-  // TrophyIcon, // solo lo usaba activityIcons (tarjeta "Lo que ha pasado", oculta temporalmente)
+  TrophyIcon,
+  SparklesIcon,
   ArrowDownTrayIcon,
   ShareIcon,
   GiftIcon,
@@ -26,29 +28,32 @@ import {
   WifiIcon,
   ServerIcon,
 } from '@heroicons/react/24/outline';
+import { CheckIcon } from '@heroicons/react/24/solid';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { RankMedal } from '@/components/distributor/RankMedal';
-import { RANK_ORDER, RANK_LABELS, getRankIndex } from '@/constants/ranks';
+import { RANK_LABELS } from '@/constants/ranks';
 import type { RankType } from '@/types/network';
 import { usePaymentData } from '@/hooks/usePaymentData';
 import {
   useDistributorDashboard,
-  useDashboard,
+  useRankRoadmap,
   useCopyReferralLink,
   useShareReferralLink,
 } from '@/hooks/useDistributor';
 import { useMyCourses } from '@/hooks/useCourses';
 import { useCurrentPeriod, useCommissionPeriods, periodsUpToCurrent } from '@/hooks/useCommissions';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { localeLanguage } from '@/i18n/config';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
 import { toast } from 'sonner';
 
 // Mapas de íconos/colores de la actividad reciente. OCULTOS TEMPORALMENTE junto
 // con la tarjeta "Lo que ha pasado" (mostraba montos de comisión). Restaurar
-// descomentando esto, la entrada `recentActivity` del destructuring, el import
-// de TrophyIcon y la tarjeta más abajo.
+// descomentando esto, la entrada `recentActivity` del destructuring y la
+// tarjeta más abajo.
 /*
 const activityIcons: Record<string, typeof ChartBarIcon> = {
   sale: ChartBarIcon,
@@ -67,8 +72,40 @@ const activityColors: Record<string, string> = {
 };
 */
 
+/** 'YYYY-MM-DD' → Date LOCAL (nunca new Date('YYYY-MM-DD'), que cae en UTC y
+ *  recorre un día en México). Tolera un sufijo de hora por si acaso. */
+function parseYmd(value?: string | null): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value ?? ''));
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
+/** Días enteros de a → b (redondeo por cambios de horario). */
+function daysBetween(a: Date, b: Date): number {
+  return Math.round((b.getTime() - a.getTime()) / 86_400_000);
+}
+
+/** Número finito seguro (los montos del API pueden venir como string decimal). */
+function toNumber(value: unknown): number {
+  const n = Number(value ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+const safePct = (v: number) =>
+  Number.isFinite(v) ? Math.max(0, Math.min(100, v)) : 0;
+
+/** Ancho de barra: mínimo visible cuando hay avance > 0. */
+const barWidth = (pct: number) => (pct <= 0 ? 0 : Math.max(pct, 2));
+
 export default function DistribuidorDashboard() {
   const t = useTranslations('distributor.dashboard');
+  // Claves compartidas con "Tu camino al siguiente rango" (misiones, proyección).
+  const tr = useTranslations('distributor.commissions.rankStepper');
+  const locale = useLocale();
+  // Formato de números/fechas según el idioma de la cuenta (no el del navegador).
+  const numLocale = localeLanguage(locale) === 'en' ? 'en-US' : 'es-MX';
+  const fmt = (n: number | string | null | undefined) =>
+    toNumber(n).toLocaleString(numLocale, { maximumFractionDigits: 0 });
   const user = useAppSelector(selectUser);
   const currencyCode = user?.currencyCode || 'MXN';
   const isUsd = currencyCode === 'USD';
@@ -113,39 +150,17 @@ export default function DistribuidorDashboard() {
       Number(a?.periodNumber ?? a?.period_number ?? 0)
     );
   });
-  const isCurrentSelected =
-    !!currentPeriodData?.id && selectedPeriodId === currentPeriodData.id;
-
-  // Comisión del PERIODO ANTERIOR (lo cobrado en el último cierre): con el
-  // periodo actual seleccionado, la tarjeta de comisiones muestra ese monto
-  // — las del periodo en curso no existen hasta el cierre. sortedPeriods va
-  // descendente, así que el anterior es el siguiente al actual en la lista.
-  const currentIdx = sortedPeriods.findIndex(
-    (p: any) => p?.id === currentPeriodData?.id,
-  );
-  const prevPeriod = currentIdx >= 0 ? sortedPeriods[currentIdx + 1] : undefined;
-  const { data: prevPeriodDashboard } = useDashboard(
-    prevPeriod?.id,
-    isCurrentSelected && !!prevPeriod?.id,
-  );
-  const prevNetRaw =
-    prevPeriodDashboard?.dashboard?.commissionsSummary?.totalNet;
-  const prevPeriodNet = prevNetRaw != null ? Number(prevNetRaw) : null;
-  const prevPeriodName: string =
-    prevPeriod?.name ?? prevPeriod?.period_name ?? '';
-  // Moneda REAL del monto según el API (moneda del distribuidor si hubo
-  // tasa del periodo; MXN si no se pudo convertir).
-  const prevPeriodCurrency: string =
-    prevPeriodDashboard?.dashboard?.commissionsSummary?.currencyCode ||
-    currencyCode;
+  const currentPeriodId = currentPeriodData?.id ?? '';
+  const isCurrentSelected = !!currentPeriodId && selectedPeriodId === currentPeriodId;
+  const isPastPeriod = !!selectedPeriodId && !isCurrentSelected;
 
   // React Query hooks
   const {
     profile,
     points,
-    rankProgress,
     networkSummary,
     commissionsSummary,
+    previousPeriodCommissions,
     // recentActivity, // oculto temporalmente (tarjeta "Lo que ha pasado")
     isLoading,
     isRefreshing,
@@ -153,6 +168,39 @@ export default function DistribuidorDashboard() {
     error,
     refetch,
   } = useDistributorDashboard(selectedPeriodId || undefined);
+
+  // Siguiente rango y sus 3 misiones: misma fuente que "Tu camino al siguiente
+  // rango" en Comisiones (GET /distributor/rank-roadmap del periodo elegido).
+  // Sin periodId el API resuelve el periodo actual en el servidor (igual que
+  // /dashboard): la query NO se gatea por selectedPeriodId, así un fallo o
+  // demora de /mlm/periods/current degrada al periodo actual en vez de dejar
+  // el bloque en skeleton permanente.
+  const roadmap = useRankRoadmap(selectedPeriodId || undefined);
+
+  // Comisión del PERIODO ANTERIOR (lo cobrado en el último cierre): con el
+  // periodo actual seleccionado, la tarjeta de comisiones muestra ese monto
+  // — las del periodo en curso no existen hasta el cierre. Viene en el mismo
+  // payload del dashboard (previousPeriodCommissions); ya no se pide un
+  // segundo dashboard. Moneda REAL según el API (moneda del distribuidor si
+  // hubo tasa del periodo; MXN si no se pudo convertir).
+  const prevPeriodNet = previousPeriodCommissions
+    ? toNumber(
+        previousPeriodCommissions.netAfterWithholdings ??
+          previousPeriodCommissions.totalNet,
+      )
+    : null;
+  const prevPeriodName = previousPeriodCommissions?.periodName ?? '';
+  const prevPeriodCurrency =
+    previousPeriodCommissions?.currencyCode || currencyCode;
+  // Periodo pasado seleccionado: neto después de retenciones. Si el payload
+  // no trae netAfterWithholdings se calcula aquí (totalNet - retenciones),
+  // igual que lo hace el API para previousPeriodCommissions: el mismo periodo
+  // debe mostrar el MISMO monto venga de donde venga.
+  const pastPeriodNet =
+    commissionsSummary?.netAfterWithholdings != null
+      ? toNumber(commissionsSummary.netAfterWithholdings)
+      : toNumber(commissionsSummary?.totalNet) -
+        toNumber(commissionsSummary?.companyWithholdings);
 
   const copyLinkMutation = useCopyReferralLink();
   const shareLinkMutation = useShareReferralLink();
@@ -216,6 +264,7 @@ export default function DistribuidorDashboard() {
 
   const handleRefresh = () => {
     refetch();
+    roadmap.refetch();
     toast.success(t('refreshing'));
   };
 
@@ -329,40 +378,100 @@ export default function DistribuidorDashboard() {
     );
   }
 
-  const personalPointsGap = Math.max(0, (points?.personalPointsRequired || 0) - (points?.personalPoints || 0));
-  const progressPercent = points?.personalPointsRequired
-    ? Math.min(100, Math.round(((points?.personalPoints || 0) / points.personalPointsRequired) * 100))
-    : 0;
+  // ── Calificación personal del periodo ──
+  const personalPoints = points?.personalPoints || 0;
+  const personalRequired = points?.personalPointsRequired || 3300;
+  const personalPointsGap = Math.max(0, personalRequired - personalPoints);
+  const progressPercent = Math.min(
+    100,
+    Math.round((personalPoints / personalRequired) * 100),
+  );
 
-  // Semáforo: verde ≥ 75%, amarillo ≥ 40%, rojo < 40%
-  const progressColor = progressPercent >= 75
-    ? 'from-emerald-400 to-emerald-500'
-    : progressPercent >= 40
-    ? 'from-amber-400 to-yellow-400'
-    : 'from-red-400 to-orange-400';
-  const progressLabel = progressPercent >= 75
-    ? t('hero.statusGood')
-    : progressPercent >= 40
-    ? t('hero.statusOk')
-    : t('hero.statusLow');
-  const progressDot = progressPercent >= 75
-    ? 'bg-emerald-400'
-    : progressPercent >= 40
-    ? 'bg-amber-400'
-    : 'bg-red-400';
+  // ── Fechas del periodo (26→25) ──
+  // startDate/endDate llegan como 'YYYY-MM-DD' y daysRemaining lo calcula
+  // Postgres con la fecha de México: aquí NO se usa la hora del navegador.
+  const periodStart = parseYmd(points?.startDate);
+  const periodEnd = parseYmd(points?.endDate);
+  const daysRemaining = Math.max(0, points?.daysRemaining ?? 0);
+  const totalDays =
+    periodStart && periodEnd ? Math.max(1, daysBetween(periodStart, periodEnd)) : 0;
+  // Fracción transcurrida del periodo (0 el día 26, 1 el día 25).
+  const elapsedFraction =
+    totalDays > 0
+      ? Math.min(1, Math.max(0, (totalDays - daysRemaining) / totalDays))
+      : 1;
+  const endDateLabel = periodEnd
+    ? new Intl.DateTimeFormat(numLocale, { day: 'numeric', month: 'short' }).format(periodEnd)
+    : '';
+
+  // Semáforo por RITMO: compara los puntos que llevas con los que "deberías"
+  // llevar a estas alturas del periodo (no contra el total del periodo).
+  // El día 26 aún no se espera nada (expectedSoFar = 0): ahí el ritmo es
+  // "bien" por definición y el semáforo NO se muestra (solo el % de
+  // calificación) hasta que haya al menos un día contra qué comparar.
+  const expectedSoFar = personalRequired * elapsedFraction;
+  const paceRatio = personalPoints / Math.max(1, expectedSoFar);
+  const pace: 'good' | 'ok' | 'low' =
+    expectedSoFar <= 0 ? 'good' : paceRatio >= 1 ? 'good' : paceRatio >= 0.7 ? 'ok' : 'low';
+  const showPace = !isPastPeriod && expectedSoFar > 0;
+  const progressColor = {
+    good: 'from-emerald-400 to-emerald-500',
+    ok: 'from-amber-400 to-yellow-400',
+    low: 'from-red-400 to-orange-400',
+  }[pace];
+  const progressDot = {
+    good: 'bg-emerald-400',
+    ok: 'bg-amber-400',
+    low: 'bg-red-400',
+  }[pace];
+  const progressLabel = {
+    good: t('hero.statusGood'),
+    ok: t('hero.statusOk'),
+    low: t('hero.statusLow'),
+  }[pace];
 
   // El rango actual sale del PERFIL (fuente de verdad): un distribuidor que aún no
-  // califica es "Distribuidor", no "Bronce". El siguiente rango se deriva del orden real.
+  // califica es "Distribuidor", no "Bronce".
   const currentRankCode = (profile?.rank || 'distribuidor') as RankType;
   const currentRankLabel = profile?.rankLabel || RANK_LABELS[currentRankCode] || t('distributor');
-  const currentIndex = getRankIndex(currentRankCode);
-  const nextRankCode: RankType | null =
-    currentIndex >= 0 && currentIndex < RANK_ORDER.length - 1 ? RANK_ORDER[currentIndex + 1] : null;
-  const nextRankLabel = nextRankCode ? RANK_LABELS[nextRankCode] : null;
-  // El % de rankProgress solo es confiable cuando coincide con el rango del perfil;
-  // si no, usamos el avance de puntos personales (la calificación del mes).
-  const nextRankPercent =
-    rankProgress?.currentRank === currentRankCode ? (rankProgress?.progressPercentage || 0) : progressPercent;
+
+  // ── Siguiente rango (camino de rango del periodo) ──
+  const roadmapData = roadmap.data;
+  const nextRank = roadmapData?.nextRank ?? null;
+  // Avance global = promedio de las 3 misiones (igual que RoadmapHeader).
+  const nextRankPercent = nextRank
+    ? Math.round(
+        (safePct(nextRank.personal.percent) +
+          safePct(nextRank.qualifiers.percent) +
+          safePct(nextRank.group.percent)) /
+          3,
+      )
+    : 0;
+  const projectedRank =
+    roadmapData?.projectedRank &&
+    roadmapData.projectedRank.rankNumber > roadmapData.currentRank.rankNumber
+      ? roadmapData.projectedRank
+      : null;
+  // Cada misión declara su unidad para que el "te faltan" use la misma copy
+  // que RankRoadmap en Comisiones (pts vs calificados, con plural correcto).
+  const missions = nextRank
+    ? [
+        { key: 'personal', icon: ChartBarIcon, label: tr('personalPoints'), req: nextRank.personal, unit: 'points' as const },
+        { key: 'qualifiers', icon: UserGroupIcon, label: tr('qualifiersFirstLevel'), req: nextRank.qualifiers, unit: 'qualifiers' as const },
+        { key: 'group', icon: UsersIcon, label: tr('groupPointsCapped'), req: nextRank.group, unit: 'points' as const },
+      ]
+    : [];
+
+  // ── Puntos de grupo con tope ──
+  // El API manda groupCounted/groupRolledOver; el fallback replica su regla
+  // (points_group_roll_over cuando > 0, si no points_group) por si el payload
+  // viejo aún no los trae.
+  const groupPoints = points?.groupPoints || 0;
+  const groupCounted =
+    points?.groupCounted ??
+    ((points?.rolloverPoints || 0) > 0 ? points?.rolloverPoints || 0 : groupPoints);
+  const groupRolledOver =
+    points?.groupRolledOver ?? Math.max(0, groupPoints - groupCounted);
 
   // Estilo compartido de las tarjetas de acción rápida
   const actionBox =
@@ -386,7 +495,7 @@ export default function DistribuidorDashboard() {
       </div>
 
       {/* ══════════════ Selector de periodo (default: actual) ══════════════ */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <CalendarDaysIcon className="h-4 w-4 shrink-0 text-[#3E667D]" />
         <div className="w-full max-w-[260px]">
           <SearchableSelect
@@ -400,55 +509,69 @@ export default function DistribuidorDashboard() {
             showAllOption={false}
           />
         </div>
-        {!isCurrentSelected && selectedPeriodId && (
+        {isPastPeriod && (
           <span className="text-[11px] font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full whitespace-nowrap">
             {t('pastPeriod')}
           </span>
         )}
-        {profile?.code && (
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard?.writeText(String(profile.code));
-              toast.success(t('numberCopied'));
-            }}
-            className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-sm transition-colors hover:bg-gray-50 whitespace-nowrap"
-            title={t('copyNumber')}
-          >
-            <span className="text-xs text-gray-500">{t('distributor')}</span>
-            <span className="font-semibold text-[#3E667D]">#{profile.code}</span>
-            <ClipboardDocumentIcon className="h-4 w-4 text-gray-400" />
-          </button>
-        )}
       </div>
 
-      {/* ══════════════ HERO — Medalla + Meta del mes ══════════════ */}
+      {/* ══════════════ HERO — Rango, periodo, calificación y siguiente rango ══════════════ */}
       <Card className="border-0 shadow-lg overflow-hidden p-0">
         <div className="bg-gradient-to-br from-[#3E667D] via-[#2f5165] to-[#3E667D] p-6 text-white">
-          {/* Rango actual con medalla */}
-          <div className="flex items-center gap-4">
-            <RankMedal rank={currentRankCode} size="lg" glow zoomable />
-            <div className="min-w-0">
-              <p className="text-white/60 text-xs uppercase tracking-wide">{t('hero.level')}</p>
-              <h2 className="text-2xl font-bold leading-tight">{currentRankLabel}</h2>
-              {points?.isPersonalQualified ? (
-                <span className="inline-flex items-center gap-1 mt-1 text-xs font-medium text-emerald-100 bg-emerald-500/25 px-2 py-0.5 rounded-full">
-                  <CheckCircleIcon className="h-3.5 w-3.5" />
-                  {t('hero.qualified')}
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 mt-1 text-xs font-medium text-amber-100 bg-amber-400/25 px-2 py-0.5 rounded-full">
-                  {t('hero.inProgress')}
-                </span>
-              )}
+          {/* Rango actual con medalla + chip de periodo (siempre visible) */}
+          <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+            <div className="flex items-center gap-4">
+              <RankMedal rank={currentRankCode} size="lg" glow zoomable />
+              <div className="min-w-0">
+                <p className="text-white/60 text-xs uppercase tracking-wide">{t('hero.level')}</p>
+                <h2 className="text-2xl font-bold leading-tight">{currentRankLabel}</h2>
+                {points?.isPersonalQualified ? (
+                  <span className="inline-flex items-center gap-1 mt-1 text-xs font-medium text-emerald-100 bg-emerald-500/25 px-2 py-0.5 rounded-full">
+                    <CheckCircleIcon className="h-3.5 w-3.5" />
+                    {t('hero.qualified')}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 mt-1 text-xs font-medium text-amber-100 bg-amber-400/25 px-2 py-0.5 rounded-full">
+                    {isPastPeriod ? t('hero.notQualifiedPast') : t('hero.inProgress')}
+                  </span>
+                )}
+              </div>
             </div>
+
+            {points && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium">
+                  <CalendarDaysIcon className="h-4 w-4 text-white/80" />
+                  {points.periodName}
+                </span>
+                {isPastPeriod ? (
+                  <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold">
+                    {tr('periodFinal')}
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-emerald-500/25 px-3 py-1 text-xs font-semibold text-emerald-100">
+                    {t('hero.periodDays', { days: daysRemaining })}
+                  </span>
+                )}
+                {endDateLabel && (
+                  <span className="text-xs text-white/70">
+                    {isPastPeriod
+                      ? t('hero.closed', { date: endDateLabel })
+                      : t('hero.closes', { date: endDateLabel })}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Meta del mes */}
+          {/* Calificación del periodo (en pasado si el periodo ya cerró) */}
           <div className="mt-6">
             {points?.isPersonalQualified ? (
               <p className="text-white/80 text-sm">
-                {t('hero.qualifiedBody', { points: (points?.personalPointsRequired || 3300).toLocaleString() })}
+                {isPastPeriod
+                  ? t('hero.qualifiedBodyPast', { current: fmt(personalPoints) })
+                  : t('hero.qualifiedBody', { points: fmt(personalRequired) })}
               </p>
             ) : (
               <>
@@ -456,60 +579,152 @@ export default function DistribuidorDashboard() {
                   <span className="text-sm font-semibold">{t('hero.goal')}</span>
                   <span className="text-xs text-white/70">
                     {t('hero.pts', {
-                      current: (points?.personalPoints || 0).toLocaleString(),
-                      required: (points?.personalPointsRequired || 3300).toLocaleString(),
+                      current: fmt(personalPoints),
+                      required: fmt(personalRequired),
                     })}
                   </span>
                 </div>
                 <div className="h-3 bg-white/15 rounded-full overflow-hidden">
                   <div
                     className={`h-full bg-gradient-to-r ${progressColor} rounded-full transition-all duration-500`}
-                    style={{ width: `${Math.max(progressPercent, 2)}%` }}
+                    style={{ width: `${barWidth(progressPercent)}%` }}
                   />
                 </div>
-                <div className="flex justify-between mt-2 text-xs text-white/70">
-                  <span className="flex items-center gap-1.5">
-                    <span className={`w-2 h-2 rounded-full ${progressDot}`} />
-                    {progressLabel} — {progressPercent}%
-                  </span>
-                  <span>{t('hero.daysRemaining', { days: points?.daysRemaining ?? '--' })}</span>
+                <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 mt-2 text-xs text-white/70">
+                  {/* El ritmo solo tiene sentido con el periodo en curso y
+                      cuando ya hay algo contra qué comparar (no el día 26) */}
+                  {showPace && (
+                    <span className="flex items-center gap-1.5">
+                      <span className={`w-2 h-2 rounded-full ${progressDot}`} />
+                      {progressLabel}
+                    </span>
+                  )}
+                  <span className="ml-auto">{t('hero.pctOfQualification', { pct: progressPercent })}</span>
                 </div>
                 <p className="mt-3 text-sm font-medium text-white">
-                  {t('hero.gap', { points: personalPointsGap.toLocaleString() })}
+                  {isPastPeriod
+                    ? t('hero.gapPast', {
+                        current: fmt(personalPoints),
+                        required: fmt(personalRequired),
+                      })
+                    : t('hero.gap', { points: fmt(personalPointsGap) })}
                 </p>
               </>
             )}
           </div>
 
-          {/* Siguiente nivel con medalla bloqueada */}
-          {nextRankCode && (
+          {/* Siguiente rango: medalla bloqueada + las 3 misiones (camino de rango) */}
+          {roadmap.isPending ? (
+            <Skeleton className="mt-6 h-32 w-full rounded-xl bg-white/10" />
+          ) : roadmap.isError || !roadmapData ? null : nextRank ? (
             <Link
               href="/distribuidor/comisiones"
-              className="mt-6 flex items-center gap-3 bg-white/10 rounded-xl p-3 hover:bg-white/15 transition-colors"
+              className="group mt-6 block rounded-xl bg-white/10 p-3.5 transition-colors hover:bg-white/15"
             >
-              <RankMedal rank={nextRankCode} size="md" locked />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-white/60">{t('hero.nextGoal')}</p>
-                <p className="font-semibold truncate">{nextRankLabel}</p>
+              <div className="flex items-center gap-3">
+                <RankMedal rank={nextRank.code} size="md" locked label={nextRank.name} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-white/60">
+                    {t('hero.nextGoal')}
+                  </p>
+                  <p className="font-semibold leading-tight truncate">{nextRank.name}</p>
+                  <p className="text-xs text-white/70">
+                    {tr('missionsDone', { count: nextRank.metCount })}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <span className="text-lg font-bold tabular-nums">{nextRankPercent}%</span>
+                  <ChevronRightIcon className="h-4 w-4 text-white/50" />
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <span className="font-bold">{nextRankPercent}%</span>
-                <ChevronRightIcon className="h-4 w-4 text-white/50" />
+              <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/15">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-[#C8DDF2] to-emerald-300 transition-all duration-700"
+                  style={{ width: `${barWidth(nextRankPercent)}%` }}
+                />
               </div>
+
+              {/* items-start + sin truncate: en 375px la etiqueta baja a dos
+                  líneas en vez de perder "(con tope)" / "1er nivel". */}
+              <ul className="mt-3 space-y-1.5">
+                {missions.map(({ key, icon: Icon, label, req, unit }) => (
+                  <li key={key} className="flex items-start gap-2 text-sm">
+                    <span
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${
+                        req.met ? 'bg-emerald-300 text-[#1f3a4a]' : 'bg-white/15 text-white'
+                      }`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="min-w-0 flex-1 pt-[3px] leading-tight text-white/85">{label}</span>
+                    {req.met ? (
+                      <span className="inline-flex shrink-0 items-center gap-0.5 pt-1 text-xs font-semibold text-emerald-200">
+                        <CheckIcon className="h-3.5 w-3.5" />
+                        {t('hero.missionReady')}
+                      </span>
+                    ) : (
+                      <span className="shrink-0 pt-1 text-xs font-semibold text-amber-100">
+                        {unit === 'qualifiers'
+                          ? tr('missingQualifiers', { count: Math.ceil(Math.max(0, req.gap)) })
+                          : tr('missingPoints', { points: fmt(req.gap) })}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+
+              {projectedRank && (
+                <p className="mt-3 flex items-start gap-1.5 text-xs font-medium text-emerald-100">
+                  <SparklesIcon className="mt-0.5 h-4 w-4 shrink-0 text-emerald-200" />
+                  <span>{tr('projectedRank', { rank: projectedRank.name })}</span>
+                </p>
+              )}
+
+              <p className="mt-3 flex items-center justify-end gap-0.5 text-xs font-semibold text-white/80 group-hover:text-white">
+                {t('hero.viewPath')}
+                <ChevronRightIcon className="h-3.5 w-3.5" />
+              </p>
             </Link>
+          ) : (
+            <p className="mt-6 flex items-center gap-2 rounded-xl bg-white/10 px-3.5 py-3 text-sm font-semibold">
+              <TrophyIcon className="h-5 w-5 shrink-0 text-yellow-300" />
+              {t('hero.maxRank')}
+            </p>
           )}
 
-          {/* CTA */}
+          {/* CTA: en un periodo cerrado ya no hay nada que vender/lograr, así
+              que la única acción es volver al periodo actual. */}
           <div className="mt-5">
-            <Link href="/distribuidor/ventas">
+            {isPastPeriod ? (
+              currentPeriodId ? (
+                <Button
+                  type="button"
+                  variant="default"
+                  className="bg-white text-[#3E667D] hover:bg-white/90 font-semibold w-full sm:w-auto"
+                  onClick={() => setSelectedPeriodId(currentPeriodId)}
+                >
+                  {t('hero.ctaCurrentPeriod')}
+                  <ChevronRightIcon className="h-4 w-4 ml-1" />
+                </Button>
+              ) : null
+            ) : (
               <Button
+                asChild
                 variant="default"
                 className="bg-white text-[#3E667D] hover:bg-white/90 font-semibold w-full sm:w-auto"
               >
-                {points?.isPersonalQualified ? t('hero.ctaQualified') : t('hero.ctaProgress')}
-                <ChevronRightIcon className="h-4 w-4 ml-1" />
+                <Link
+                  href={
+                    points?.isPersonalQualified
+                      ? '/distribuidor/compartir-carrito'
+                      : '/distribuidor/comisiones'
+                  }
+                >
+                  {points?.isPersonalQualified ? t('hero.ctaQualified') : t('hero.ctaProgress')}
+                  <ChevronRightIcon className="h-4 w-4 ml-1" />
+                </Link>
               </Button>
-            </Link>
+            )}
           </div>
         </div>
       </Card>
@@ -523,8 +738,8 @@ export default function DistribuidorDashboard() {
               {isCurrentSelected ? (
                 prevPeriodNet != null && prevPeriodName ? (
                   <>
-                    {/* Lo COBRADO del último cierre; lo del periodo en curso
-                        no existe hasta cerrar (leyenda sutil abajo). */}
+                    {/* Lo COBRADO del último cierre (neto tras retenciones);
+                        lo del periodo en curso no existe hasta cerrar. */}
                     <p className="text-lg font-bold text-[#3E667D] leading-tight">
                       {formatMoneyIn(prevPeriodNet, prevPeriodCurrency)}
                     </p>
@@ -546,7 +761,7 @@ export default function DistribuidorDashboard() {
                 <>
                   <p className="text-lg font-bold text-[#3E667D] leading-tight">
                     {formatMoneyIn(
-                      commissionsSummary?.totalNet || 0,
+                      pastPeriodNet,
                       commissionsSummary?.currencyCode || currencyCode,
                     )}
                   </p>
@@ -558,18 +773,22 @@ export default function DistribuidorDashboard() {
             <div className="p-4 text-center">
               <UsersIcon className="h-5 w-5 text-[#3E667D] mx-auto mb-1" />
               <p className="text-lg font-bold text-[#3E667D] leading-tight">
-                {(networkSummary?.totalDistributors || 0).toLocaleString()}
+                {fmt(networkSummary?.totalDistributors)}
               </p>
               <p className="text-[11px] font-medium text-gray-600">{t('stats.inNetwork')}</p>
-              <p className="text-[10px] text-gray-400">{t('stats.activeCount', { count: (networkSummary?.activeDistributors || 0).toLocaleString() })}</p>
+              <p className="text-[10px] text-gray-400">
+                {t('stats.activeCount', { count: networkSummary?.activeDistributors || 0 })}
+              </p>
             </div>
             <div className="p-4 text-center">
               <ChartBarIcon className="h-5 w-5 text-[#3E667D] mx-auto mb-1" />
               <p className="text-lg font-bold text-[#3E667D] leading-tight">
-                {(points?.totalPoints || 0).toLocaleString()}
+                {fmt(groupCounted)}
               </p>
               <p className="text-[11px] font-medium text-gray-600">{t('stats.points')}</p>
-              <p className="text-[10px] text-gray-400">{t('stats.thisPeriod')}</p>
+              <p className="text-[10px] text-gray-400">
+                {t('stats.personalHint', { personal: fmt(personalPoints) })}
+              </p>
             </div>
           </div>
 
@@ -587,22 +806,22 @@ export default function DistribuidorDashboard() {
                 <div className="border-t border-gray-100 p-4 space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-600">{t('stats.pointsFromSales')}</span>
-                    <span className="font-semibold text-[#3E667D]">{points.personalPoints.toLocaleString()}</span>
+                    <span className="font-semibold text-[#3E667D]">{fmt(personalPoints)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">{t('stats.pointsFromTeam')}</span>
-                    <span className="font-semibold text-[#3E667D]">{points.groupPoints.toLocaleString()}</span>
+                    <span className="font-semibold text-[#3E667D]">{fmt(groupPoints)}</span>
                   </div>
-                  {points.rolloverPoints > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">{t('stats.groupCounted')}</span>
+                    <span className="font-semibold text-emerald-600">{fmt(groupCounted)}</span>
+                  </div>
+                  {groupRolledOver > 0 && (
                     <div className="flex justify-between">
-                      <span className="text-gray-600">{t('stats.rollover')}</span>
-                      <span className="font-semibold text-emerald-600">+{points.rolloverPoints.toLocaleString()}</span>
+                      <span className="text-gray-600">{t('stats.groupRolledOver')}</span>
+                      <span className="font-semibold text-amber-600">{fmt(groupRolledOver)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between pt-2 border-t border-gray-100">
-                    <span className="font-semibold text-gray-800">{t('stats.total')}</span>
-                    <span className="font-bold text-[#3E667D]">{points.totalPoints.toLocaleString()}</span>
-                  </div>
                 </div>
               )}
             </>
