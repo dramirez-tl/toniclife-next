@@ -56,28 +56,6 @@ export interface PeriodPoints {
   totalPoints: number;
 }
 
-export interface RankProgress {
-  currentRank: RankType;
-  currentRankLabel: string;
-  nextRank: RankType | null;
-  nextRankLabel: string | null;
-  progressPercentage: number;
-
-  requirements: RankRequirement[];
-  allRequirementsMet: boolean;
-}
-
-export interface RankRequirement {
-  id: string;
-  name: string;
-  description: string;
-  currentValue: number;
-  requiredValue: number;
-  isMet: boolean;
-  percentComplete: number;
-  unit: string;
-}
-
 export interface NetworkSummary {
   /** Miembros activos (network_members.is_active) del subárbol. */
   totalDistributors: number;
@@ -98,20 +76,12 @@ export interface NetworkSummary {
   byLevel: { level: number; count: number; active: number }[];
 }
 
+/** Bloque de ventas del agregado /dashboard. Solo lo lee /distribuidor/ventas. */
 export interface SalesSummary {
-  periodId: string;
   personalSales: number;
   teamSales: number;
   totalSales: number;
   orderCount?: number;
-
-  // Comparación con periodo anterior
-  personalSalesChange: number;
-  teamSalesChange: number;
-  totalSalesChange: number;
-
-  // Desglose
-  byCategory: { category: string; amount: number }[];
   topProducts: { productId: string; productName: string; quantity: number; amount: number }[];
 }
 
@@ -146,53 +116,28 @@ export interface CommissionsSummary {
   currencyCode?: string;
 }
 
-export interface RecentActivity {
-  id: string;
-  type: 'sale' | 'recruit' | 'commission' | 'rank_change' | 'qualification';
-  title: string;
-  description: string;
-  amount?: number;
-  personName?: string;
-  personId?: string;
-  timestamp: string;
-  relativeTime: string;
-}
-
+/** Top de la red en el agregado /dashboard. Solo lo lee /distribuidor/ventas
+ *  (id, name, sales); el detalle por integrante es opcional. */
 export interface TopPerformer {
   id: string;
   name: string;
-  code: string;
-  rank: RankType;
-  level: number;
   sales: number;
-  newRecruits: number;
+  code?: string;
+  rank?: RankType;
+  level?: number;
+  newRecruits?: number;
   avatarUrl?: string;
 }
 
 export interface DistributorDashboard {
   profile: DistributorProfile;
   points: PeriodPoints;
-  rankProgress: RankProgress;
   networkSummary: NetworkSummary;
-  salesSummary: SalesSummary;
   commissionsSummary: CommissionsSummary;
-  recentActivity: RecentActivity[];
-  topPerformers: TopPerformer[];
-}
-
-// Quick stats para cards principales
-export interface DashboardStats {
-  monthlyCommission: number;
-  monthlyCommissionChange: number;
-  totalSales: number;
-  totalSalesChange: number;
-  activeDownline: number;
-  totalDownline: number;
-  rankProgress: number;
-  currentRank: string;
-  nextRank: string;
-  daysUntilPeriodEnd: number;
-  qualificationStatus: 'qualified' | 'at_risk' | 'not_qualified';
+  /** Solo lo lee /distribuidor/ventas. */
+  salesSummary?: SalesSummary;
+  /** Solo lo lee /distribuidor/ventas. */
+  topPerformers?: TopPerformer[];
 }
 
 /** Resumen de comisiones del periodo ANTERIOR al resuelto (lo cobrado en el
@@ -206,11 +151,9 @@ export interface PreviousPeriodCommissions {
   currencyCode: string;
 }
 
-// Tipos para respuestas de API
+// Tipos para respuestas de API (GET /distributor/dashboard?periodId=)
 export interface DashboardResponse {
   dashboard: DistributorDashboard;
-  stats: DashboardStats;
-  lastUpdated: string;
   /** null cuando no existe periodo anterior. */
   previousPeriodCommissions: PreviousPeriodCommissions | null;
 }
@@ -220,20 +163,6 @@ export interface ProfileUpdateRequest {
   lastName?: string;
   phone?: string;
   avatarUrl?: string;
-}
-
-// Goals/Metas
-export interface Goal {
-  id: string;
-  type: 'sales' | 'recruits' | 'rank' | 'points' | 'custom';
-  title: string;
-  description?: string;
-  targetValue: number;
-  currentValue: number;
-  unit: string;
-  deadline?: string;
-  status: 'in_progress' | 'completed' | 'failed' | 'upcoming';
-  createdAt: string;
 }
 
 // ===== Camino de rango (GET /distributor/rank-roadmap) =====

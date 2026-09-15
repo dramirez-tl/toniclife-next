@@ -293,6 +293,15 @@ export default function DistribuidorDashboard() {
   const isCurrentSelected = !!currentPeriodId && selectedPeriodId === currentPeriodId;
   const isPastPeriod = !!selectedPeriodId && !isCurrentSelected;
 
+  // Periodo actual => SIN periodId: el API lo resuelve en el servidor y la
+  // clave queda ['distributor','dashboard','current'], la misma que usan el
+  // sidebar/topnav (montados sin periodo). Así el arranque en frío pide el
+  // periodo actual UNA sola vez y no hay segundo skeleton cuando
+  // useCurrentPeriod resuelve. Solo un periodo pasado viaja con su uuid.
+  const dashboardPeriodId = isCurrentSelected
+    ? undefined
+    : selectedPeriodId || undefined;
+
   // React Query hooks
   const {
     profile,
@@ -306,7 +315,7 @@ export default function DistribuidorDashboard() {
     isError,
     error,
     refetch,
-  } = useDistributorDashboard(selectedPeriodId || undefined);
+  } = useDistributorDashboard(dashboardPeriodId);
 
   // Con placeholderData (keepPreviousData) las tarjetas siguen mostrando el
   // payload del periodo elegido ANTES mientras llega el nuevo; las ramas
@@ -323,8 +332,9 @@ export default function DistribuidorDashboard() {
   // Sin periodId el API resuelve el periodo actual en el servidor (igual que
   // /dashboard): la query NO se gatea por selectedPeriodId, así un fallo o
   // demora de /mlm/periods/current degrada al periodo actual en vez de dejar
-  // el bloque en skeleton permanente.
-  const roadmap = useRankRoadmap(selectedPeriodId || undefined);
+  // el bloque en skeleton permanente. Misma normalización de clave que el
+  // dashboard: periodo actual => 'current' (una sola entrada en caché).
+  const roadmap = useRankRoadmap(dashboardPeriodId);
 
   // Comisión del PERIODO ANTERIOR (lo cobrado en el último cierre): con el
   // periodo actual seleccionado, la tarjeta de comisiones muestra ese monto

@@ -50,6 +50,15 @@ export default function VentasPage() {
   const isCurrentSelected =
     !!currentPeriodData?.id && selectedPeriodId === currentPeriodData.id;
 
+  // Periodo actual => SIN periodId: la clave queda
+  // ['distributor','dashboard','current'], la misma que usan sidebar/topnav,
+  // así no se dispara un segundo GET /distributor/dashboard?periodId=<uuid>
+  // (ni un isRefreshing) cuando useCurrentPeriod resuelve. Solo un periodo
+  // pasado viaja con su uuid. Misma normalización que el home.
+  const dashboardPeriodId = isCurrentSelected
+    ? undefined
+    : selectedPeriodId || undefined;
+
   const {
     salesSummary,
     topPerformers,
@@ -59,7 +68,7 @@ export default function VentasPage() {
     isError,
     error,
     refetch,
-  } = useDistributorDashboard(selectedPeriodId || undefined);
+  } = useDistributorDashboard(dashboardPeriodId);
 
   const currencyCode = user?.currencyCode || 'MXN';
   const isUsd = currencyCode === 'USD';

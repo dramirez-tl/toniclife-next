@@ -4,12 +4,8 @@ import api from '@/lib/axios';
 import type {
   DistributorProfile,
   PeriodPoints,
-  RankProgress,
   NetworkSummary,
-  RecentActivity,
-  TopPerformer,
   DashboardResponse,
-  Goal,
   RankRoadmapResponse,
 } from '@/types/distributor';
 
@@ -242,15 +238,6 @@ class DistributorApi {
   }
 
   /**
-   * Obtiene el progreso de rango
-   * Backend: GET /distributor/rank-progress
-   */
-  async getRankProgress(): Promise<RankProgress> {
-    const { data } = await api.get<RankProgress>('/distributor/rank-progress');
-    return data;
-  }
-
-  /**
    * Camino de rango: misiones (requisitos) del siguiente rango, patas y lo que
    * le falta a cada una. Solo lectura, acotado al cliente del usuario.
    * Backend: GET /distributor/rank-roadmap?periodId=<uuid opcional>
@@ -268,37 +255,6 @@ class DistributorApi {
    */
   async getNetworkSummary(): Promise<NetworkSummary> {
     const { data } = await api.get<NetworkSummary>('/distributor/network-summary');
-    return data;
-  }
-
-  /**
-   * Obtiene la actividad reciente
-   * Backend: GET /distributor/activity
-   */
-  async getRecentActivity(limit: number = 10): Promise<RecentActivity[]> {
-    const { data } = await api.get<RecentActivity[]>('/distributor/activity', {
-      params: { limit: limit.toString() },
-    });
-    return data;
-  }
-
-  /**
-   * Obtiene los top performers de la red
-   * TODO: Endpoint not implemented in backend
-   */
-  async getTopPerformers(limit: number = 5): Promise<TopPerformer[]> {
-    const { data } = await api.get<TopPerformer[]>('/distributor/top-performers', {
-      params: { limit: limit.toString() },
-    });
-    return data;
-  }
-
-  /**
-   * Obtiene las metas del distribuidor
-   * Backend: GET /distributor/goals
-   */
-  async getGoals(): Promise<Goal[]> {
-    const { data } = await api.get<Goal[]>('/distributor/goals');
     return data;
   }
 

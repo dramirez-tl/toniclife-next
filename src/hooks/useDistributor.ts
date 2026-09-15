@@ -14,12 +14,8 @@ import type {
 import {
   DistributorProfile,
   PeriodPoints,
-  RankProgress,
   NetworkSummary,
-  RecentActivity,
-  TopPerformer,
   DashboardResponse,
-  Goal,
   RankRoadmapResponse,
 } from '@/types/distributor';
 
@@ -29,12 +25,8 @@ export const distributorKeys = {
   dashboard: (periodId?: string) => [...distributorKeys.all, 'dashboard', periodId ?? 'current'] as const,
   profile: () => [...distributorKeys.all, 'profile'] as const,
   points: () => [...distributorKeys.all, 'points'] as const,
-  rankProgress: () => [...distributorKeys.all, 'rankProgress'] as const,
   rankRoadmap: (periodId?: string) => [...distributorKeys.all, 'rankRoadmap', periodId ?? 'current'] as const,
   networkSummary: () => [...distributorKeys.all, 'networkSummary'] as const,
-  activity: (limit: number) => [...distributorKeys.all, 'activity', limit] as const,
-  topPerformers: (limit: number) => [...distributorKeys.all, 'topPerformers', limit] as const,
-  goals: () => [...distributorKeys.all, 'goals'] as const,
   referralLink: () => [...distributorKeys.all, 'referralLink'] as const,
   preferences: () => [...distributorKeys.all, 'preferences'] as const,
 };
@@ -55,35 +47,28 @@ export function useDashboard(periodId?: string, enabled = true) {
 }
 
 /**
- * Hook para obtener el perfil del distribuidor
+ * Hook para obtener el perfil del distribuidor (periodo actual).
+ * `enabled` permite usarlo solo como respaldo del agregado /dashboard.
  */
-export function useDistributorProfile() {
+export function useDistributorProfile(enabled = true) {
   return useQuery<DistributorProfile>({
     queryKey: distributorKeys.profile(),
     queryFn: () => distributorApi.getProfile(),
     staleTime: 5 * 60 * 1000, // 5 minutos
+    enabled,
   });
 }
 
 /**
- * Hook para obtener los puntos del periodo actual
+ * Hook para obtener los puntos del periodo actual.
+ * `enabled` permite usarlo solo como respaldo del agregado /dashboard.
  */
-export function usePeriodPoints() {
+export function usePeriodPoints(enabled = true) {
   return useQuery<PeriodPoints>({
     queryKey: distributorKeys.points(),
     queryFn: () => distributorApi.getPeriodPoints(),
     staleTime: 2 * 60 * 1000,
-  });
-}
-
-/**
- * Hook para obtener el progreso de rango
- */
-export function useRankProgress() {
-  return useQuery<RankProgress>({
-    queryKey: distributorKeys.rankProgress(),
-    queryFn: () => distributorApi.getRankProgress(),
-    staleTime: 5 * 60 * 1000,
+    enabled,
   });
 }
 
@@ -105,46 +90,15 @@ export function useRankRoadmap(periodId?: string, enabled = true) {
 }
 
 /**
- * Hook para obtener resumen de la red
+ * Hook para obtener resumen de la red (periodo actual).
+ * `enabled` permite usarlo solo como respaldo del agregado /dashboard.
  */
-export function useNetworkSummary() {
+export function useNetworkSummary(enabled = true) {
   return useQuery<NetworkSummary>({
     queryKey: distributorKeys.networkSummary(),
     queryFn: () => distributorApi.getNetworkSummary(),
     staleTime: 5 * 60 * 1000,
-  });
-}
-
-/**
- * Hook para obtener actividad reciente
- */
-export function useRecentActivity(limit: number = 10) {
-  return useQuery<RecentActivity[]>({
-    queryKey: distributorKeys.activity(limit),
-    queryFn: () => distributorApi.getRecentActivity(limit),
-    staleTime: 1 * 60 * 1000, // 1 minuto
-  });
-}
-
-/**
- * Hook para obtener top performers
- */
-export function useTopPerformers(limit: number = 5) {
-  return useQuery<TopPerformer[]>({
-    queryKey: distributorKeys.topPerformers(limit),
-    queryFn: () => distributorApi.getTopPerformers(limit),
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
-/**
- * Hook para obtener las metas del distribuidor
- */
-export function useGoals() {
-  return useQuery<Goal[]>({
-    queryKey: distributorKeys.goals(),
-    queryFn: () => distributorApi.getGoals(),
-    staleTime: 5 * 60 * 1000,
+    enabled,
   });
 }
 
@@ -206,60 +160,65 @@ export function useRegisterPreferred() {
 }
 
 /**
- * Hook combinado para obtener todos los datos del dashboard de una vez
- * Útil para la página principal del Centro de Negocio
+ * Hook combinado del dashboard del distribuidor (home, chrome del panel,
+ * /red y /ventas). Dispara SOLO el agregado GET /distributor/dashboard.
+ *
+ * Los endpoints individuales (/profile, /points, /network-summary) quedan como
+ * RESPALDO y se piden únicamente cuando el agregado falló (antes se pedían
+ * siempre y sus 7 payloads se descartaban en cada montaje). El respaldo es
+ * del periodo actual (sin periodId), igual que antes.
+ *
+ * Sin periodId la clave es ['distributor','dashboard','current']: la home
+ * debe pasar undefined cuando el periodo elegido es el actual para compartir
+ * esa entrada con el sidebar/topnav y no pedir el mismo periodo dos veces.
  */
 export function useDistributorDashboard(periodId?: string) {
   const dashboardQuery = useDashboard(periodId);
-  const profileQuery = useDistributorProfile();
-  const pointsQuery = usePeriodPoints();
-  const rankProgressQuery = useRankProgress();
-  const networkQuery = useNetworkSummary();
-  const activityQuery = useRecentActivity(5);
-  const topPerformersQuery = useTopPerformers(5);
-  const goalsQuery = useGoals();
 
-  // Si el dashboard completo está disponible, usamos esos datos
-  // De lo contrario, combinamos las queries individuales
+  // Respaldo solo con el agregado en error (fail-over real, no en paralelo).
+  const fallbackEnabled = dashboardQuery.isError;
+  const profileQuery = useDistributorProfile(fallbackEnabled);
+  const pointsQuery = usePeriodPoints(fallbackEnabled);
+  const networkQuery = useNetworkSummary(fallbackEnabled);
+
   const dashboard = dashboardQuery.data?.dashboard;
   const hasDashboardData = !!dashboard;
 
   return {
-    // Datos del dashboard
+    // Datos del dashboard (agregado primero; respaldo individual si falló)
     profile: dashboard?.profile || profileQuery.data,
     points: dashboard?.points || pointsQuery.data,
-    rankProgress: dashboard?.rankProgress || rankProgressQuery.data,
     networkSummary: dashboard?.networkSummary || networkQuery.data,
-    salesSummary: dashboard?.salesSummary,
     commissionsSummary: dashboard?.commissionsSummary,
-    recentActivity: dashboard?.recentActivity || activityQuery.data,
-    topPerformers: dashboard?.topPerformers || topPerformersQuery.data,
-    stats: dashboardQuery.data?.stats,
+    // Solo los lee /distribuidor/ventas; vienen únicamente en el agregado
+    // (ya no hay respaldo /top-performers).
+    salesSummary: dashboard?.salesSummary,
+    topPerformers: dashboard?.topPerformers,
     // Comisiones del periodo anterior al resuelto (viene en el mismo payload;
     // evita una segunda llamada a /dashboard desde la home).
     previousPeriodCommissions: dashboardQuery.data?.previousPeriodCommissions ?? null,
-    goals: goalsQuery.data,
-    lastUpdated: dashboardQuery.data?.lastUpdated,
 
-    // Estados de carga: si el dashboard ya tiene datos, no bloquear por queries individuales
+    // Estados de carga: con placeholderData (keepPreviousData) el cambio de
+    // periodo conserva el payload anterior => isLoading false + isRefreshing.
+    // Las queries de respaldo deshabilitadas reportan isLoading=false.
     isLoading: hasDashboardData
       ? false
       : dashboardQuery.isLoading || profileQuery.isLoading || pointsQuery.isLoading,
     isRefreshing: dashboardQuery.isFetching,
 
-    // Errores: solo mostrar error si el dashboard Y los fallbacks fallan
+    // Errores: solo mostrar error si el agregado Y el respaldo fallan
     isError: dashboardQuery.isError && profileQuery.isError,
     error: dashboardQuery.error,
 
-    // Funciones de refetch
+    // refetch() de React Query ignora `enabled`: los respaldos solo se
+    // reintentan si ya estaban activos (agregado en error).
     refetch: () => {
       dashboardQuery.refetch();
-      profileQuery.refetch();
-      pointsQuery.refetch();
-      rankProgressQuery.refetch();
-      networkQuery.refetch();
-      activityQuery.refetch();
-      topPerformersQuery.refetch();
+      if (fallbackEnabled) {
+        profileQuery.refetch();
+        pointsQuery.refetch();
+        networkQuery.refetch();
+      }
     },
   };
 }
