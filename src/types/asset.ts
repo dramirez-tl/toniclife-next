@@ -199,10 +199,14 @@ export interface AssetCategory {
   specTemplate: SpecFieldDef[];
   defaultUsefulLifeMonths: number | null;
   requiresSerial: boolean;
+  /** true = categoría de INSUMO: se controla por cantidad (it_supplies), no pieza por pieza. */
+  isSupply?: boolean;
   icon: string | null;
   sortOrder: number;
   isActive: boolean;
   assetCount: number;
+  /** Insumos activos en la categoría; solo tiene sentido con isSupply. */
+  supplyCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -215,6 +219,7 @@ export interface CreateAssetCategoryDto {
   specTemplate?: SpecFieldDef[];
   defaultUsefulLifeMonths?: number | null;
   requiresSerial?: boolean;
+  isSupply?: boolean;
   icon?: string | null;
   sortOrder?: number;
   isActive?: boolean;
@@ -226,6 +231,8 @@ export interface AssetCategoryQueryParams {
   includeInactive?: string;
   leafOnly?: string;
   search?: string;
+  /** 'true' = solo categorías de insumo; 'false' = solo de equipo. */
+  isSupply?: 'true' | 'false';
 }
 
 // ================================
@@ -655,9 +662,13 @@ export interface AssetLabel {
   status: LabelStatus;
   batchId: string | null;
   batchNumber: string | null;
+  /** A qué está pegada: un equipo (it_assets) o un insumo (it_supplies). */
+  linkedKind?: 'asset' | 'supply' | null;
   assetId: string | null;
   assetName: string | null;
   assetSerial: string | null;
+  supplyId?: string | null;
+  supplyName?: string | null;
   categoryName: string | null;
   linkedAt: string | null;
   printedAt: string | null;

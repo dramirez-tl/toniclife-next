@@ -31,6 +31,7 @@ import { LifeBar } from '@/components/admin/assets/AssignAssetModal';
 import { AssetImportDialog } from '@/components/admin/assets/AssetImportDialog';
 import { BarcodeScannerDialog } from '@/components/admin/assets/BarcodeScannerDialog';
 import { assetsService } from '@/services/assets.service';
+import { suppliesService } from '@/services/supplies.service';
 import {
   ASSET_CONDITION_LABELS,
   ASSET_STATUSES,
@@ -80,16 +81,26 @@ function ActivosContent() {
 
   /**
    * Escanear para BUSCAR: vas caminando con el celular, apuntas a la etiqueta y
-   * caes en la ficha del equipo. Si el código no está vinculado a nada, se
-   * ofrece darlo de alta con esa etiqueta ya puesta.
+   * caes en la ficha del equipo. La misma etiqueta puede estar pegada en el
+   * estante de un INSUMO, así que si no es equipo se prueba ahí. Si el código no
+   * está vinculado a nada, se ofrece darlo de alta con esa etiqueta ya puesta.
    */
   const handleScanSearch = async (code: string) => {
     setScanLookup(true);
     try {
-      const asset = await assetsService.getAssetByTag(code);
-      router.push(`/admin/activos/${asset.id}`);
+      try {
+        const asset = await assetsService.getAssetByTag(code);
+        router.push(`/admin/activos/${asset.id}`);
+        return;
+      } catch {
+        /* no es equipo: se prueba como insumo antes de rendirse */
+      }
+      const supply = await suppliesService.getSupplyByTag(code);
+      router.push(`/admin/activos/insumos/${supply.id}`);
     } catch {
-      toast.info(`La etiqueta ${code} no está vinculada a ningún equipo. Dala de alta.`);
+      toast.info(
+        `La etiqueta ${code} no está vinculada a ningún equipo ni insumo. Dala de alta.`,
+      );
       setScanCode(code);
       setFormOpen(true);
     } finally {
@@ -107,7 +118,9 @@ function ActivosContent() {
   const limit = getNumber('limit') || 20;
 
   const { data: stats } = useAssetStats();
-  const { data: categories = [] } = useAssetCategories({ leafOnly: 'true' });
+  // Solo categorías de EQUIPO: las de insumo también pasan el filtro leafOnly
+  // (viven sin padre) y aquí no filtrarían nada.
+  const { data: categories = [] } = useAssetCategories({ leafOnly: 'true', isSupply: 'false' });
   const { data: branchesData } = useBranches({ limit: 200, isActive: true });
 
   const { data, isLoading, isFetching } = useAssets({

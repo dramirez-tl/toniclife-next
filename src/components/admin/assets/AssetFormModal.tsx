@@ -173,7 +173,8 @@ export function AssetFormModal({
   // Snapshot para saber si hay cambios sin guardar
   const initialSnapshot = useRef('');
 
-  const { data: categories = [] } = useAssetCategories({ leafOnly: 'true' });
+  // Solo categorías de EQUIPO: las de insumo se capturan en SupplyFormModal.
+  const { data: categories = [] } = useAssetCategories({ leafOnly: 'true', isSupply: 'false' });
   const { data: branchesData } = useBranches({ limit: 200, isActive: true });
   // Todas las ubicaciones: hay que poder elegir las que NO son de sucursal
   // (corporativo) aunque no se haya elegido sucursal.
@@ -215,7 +216,7 @@ export function AssetFormModal({
 
   /** Las categorías raíz encabezan; sus tipos de equipo van debajo. */
   const categoryOptions = useMemo(
-    () => groupByRoot(categories, (root) => root.name),
+    () => groupByRoot(categories.filter((c) => !c.isSupply), (root) => root.name),
     [categories],
   );
 

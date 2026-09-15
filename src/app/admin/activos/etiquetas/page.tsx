@@ -159,10 +159,20 @@ function EtiquetasContent() {
       ),
     },
     {
+      // La misma etiqueta puede estar pegada en un equipo o en el estante de un
+      // INSUMO: el API dice cuál de los dos con linkedKind.
       key: 'asset',
-      header: 'Equipo vinculado',
+      header: 'Vinculada a',
       render: (l) =>
-        l.assetId ? (
+        l.linkedKind === 'supply' && l.supplyId ? (
+          <Link
+            href={`/admin/activos/insumos/${l.supplyId}`}
+            className="text-sm text-primary hover:underline"
+          >
+            {l.supplyName ?? 'Insumo'}
+            <span className="block text-xs text-muted-foreground">Insumo</span>
+          </Link>
+        ) : l.assetId ? (
           <Link
             href={`/admin/activos/${l.assetId}`}
             className="text-sm text-primary hover:underline"
@@ -240,7 +250,7 @@ function EtiquetasContent() {
             <h1 className="text-2xl font-bold sm:text-4xl">Etiquetas</h1>
           </div>
           <p className="text-base text-white/80 sm:text-lg">
-            Se imprimen por lote y se vinculan a un equipo al capturarlo
+            Se imprimen por lote y se vinculan a un equipo o al estante de un insumo
           </p>
         </div>
       </div>
@@ -438,6 +448,7 @@ function EtiquetasContent() {
             <DialogDescription>
               {preview ? LABEL_STATUS_LABELS[preview.status] : ''}
               {preview?.assetName ? ` · ${preview.assetName}` : ''}
+              {preview?.supplyName ? ` · ${preview.supplyName} (insumo)` : ''}
             </DialogDescription>
           </DialogHeader>
           {preview ? (

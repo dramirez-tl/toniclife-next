@@ -77,6 +77,7 @@ const navigation: NavItem[] = [
     permissions: ['assets', 'assets:read'],
     children: [
       { name: 'Inventario', href: '/admin/activos' },
+      { name: 'Insumos', href: '/admin/activos/insumos' },
       { name: 'Categorías', href: '/admin/activos/categorias' },
       { name: 'Ubicaciones', href: '/admin/activos/ubicaciones' },
       { name: 'Facturas de compra', href: '/admin/activos/facturas' },
