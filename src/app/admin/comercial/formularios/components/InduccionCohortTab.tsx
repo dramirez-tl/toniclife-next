@@ -40,6 +40,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   MagnifyingGlassIcon,
+  MegaphoneIcon,
   NoSymbolIcon,
   PaperAirplaneIcon,
 } from '@heroicons/react/24/outline';
@@ -63,9 +64,11 @@ import {
   formatLongDateYearEs,
   formatShortDateEs,
   formatTime12,
+  isLiveKey,
   isValidYmd,
   KIT_LABELS,
   LIVE_STATUSES,
+  liveKey,
   nextWorkshopDate,
   reminderKey,
   reminderLabel,
@@ -82,6 +85,7 @@ interface Props {
 type ConfirmState =
   | { kind: 'invitations'; customerIds?: string[]; count: number; label: string }
   | { kind: 'reminder' }
+  | { kind: 'live' }
   | null;
 
 /**
@@ -96,6 +100,7 @@ function monitorSummary(r: InductionSendResult): string {
 
 /** '2026-09-08#rec-3-1400' -> 'Mié 14:00'. */
 function reminderKeyLabel(key: string): string {
+  if (isLiveKey(key)) return 'En vivo';
   const m = /#rec-(\d)-(\d{2})(\d{2})$/.exec(key);
   if (!m) return key;
   const wd = WEEKDAY_LABELS[Number(m[1])] ?? '?';
@@ -177,6 +182,22 @@ export default function InduccionCohortTab({
     [rows, activeReminderKey],
   );
 
+  /** Quienes recibirian el aviso "ya empezamos" (una vez por taller). */
+  const liveKeyForDate = liveKey(shownDate);
+  const liveTargets = useMemo(
+    () =>
+      rows.filter(
+        (r) =>
+          canReceive(r) &&
+          !!r.invitation &&
+          LIVE_STATUSES.has(r.invitation.status) &&
+          !r.reminders.some(
+            (x) => x.key === liveKeyForDate && x.status !== 'failed',
+          ),
+      ).length,
+    [rows, liveKeyForDate],
+  );
+
   // Numeros corporativos que reciben copia en cada envio por lote (Mensajes >
   // Numeros de monitoreo). No entran en los contadores de la cohorte.
   const monitorCount = (settings.monitorRecipients ?? []).length;
@@ -224,6 +245,23 @@ export default function InduccionCohortTab({
       );
     } catch (e) {
       toast.error(apiErrorMessage(e, 'No se pudo enviar el recordatorio'));
+    } finally {
+      setConfirm(null);
+    }
+  };
+
+  const runLive = async () => {
+    try {
+      const result = await sendReminder.mutateAsync({
+        workshopDate: shownDate,
+        live: true,
+      });
+      setLastResult({ title: 'Aviso en vivo', result });
+      toast.success(
+        `Aviso "ya empezamos": ${result.sent} enviados, ${result.failed} fallidos, ${result.skipped} omitidos${monitorSummary(result)}`,
+      );
+    } catch (e) {
+      toast.error(apiErrorMessage(e, 'No se pudo enviar el aviso'));
     } finally {
       setConfirm(null);
     }
@@ -373,6 +411,19 @@ export default function InduccionCohortTab({
           }
         >
           Enviar recordatorio ahora
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => setConfirm({ kind: 'live' })}
+          disabled={busy || !cohort || !settings.liveTemplate}
+          title={
+            !settings.liveTemplate
+              ? 'Configura la plantilla del aviso "ya empezamos" en la pestaña Mensajes'
+              : undefined
+          }
+        >
+          <MegaphoneIcon className="h-4 w-4" />
+          Avisar que ya empezamos
         </Button>
         {!settings.invitationTemplate && (
           <span className="text-xs text-amber-700">
@@ -635,9 +686,11 @@ export default function InduccionCohortTab({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {confirm?.kind === 'reminder'
-                ? 'Enviar recordatorio ahora'
-                : 'Enviar invitaciones'}
+              {confirm?.kind === 'live'
+                ? 'Avisar que ya empezamos'
+                : confirm?.kind === 'reminder'
+                  ? 'Enviar recordatorio ahora'
+                  : 'Enviar invitaciones'}
             </DialogTitle>
             <DialogDescription>
               Se enviarán mensajes de WhatsApp reales para el taller del{' '}
@@ -645,7 +698,26 @@ export default function InduccionCohortTab({
             </DialogDescription>
           </DialogHeader>
 
-          {confirm?.kind === 'reminder' ? (
+          {confirm?.kind === 'live' ? (
+            <p className="text-sm">
+              Saldrán <strong>{liveTargets}</strong>{' '}
+              {liveTargets === 1 ? 'mensaje' : 'mensajes'} con la plantilla{' '}
+              <span className="font-mono">{settings.liveTemplate}</span> a
+              quienes tienen invitación vigente y aún no reciben este aviso.
+              Se manda una sola vez por taller.
+              {monitorCount > 0 && (
+                <>
+                  {' '}
+                  <strong>+ {monitorCount}</strong>{' '}
+                  {monitorCount === 1
+                    ? 'copia de monitoreo'
+                    : 'copias de monitoreo'}{' '}
+                  a los números corporativos (una por envío, solo si sale al
+                  menos un mensaje real; no cuentan en la cohorte).
+                </>
+              )}
+            </p>
+          ) : confirm?.kind === 'reminder' ? (
             <div className="space-y-3">
               <div>
                 <Label className="mb-1 text-xs text-muted-foreground">
@@ -709,7 +781,11 @@ export default function InduccionCohortTab({
             <Button variant="outline" onClick={() => setConfirm(null)} disabled={busy}>
               Cancelar
             </Button>
-            {confirm?.kind === 'reminder' ? (
+            {confirm?.kind === 'live' ? (
+              <Button onClick={runLive} disabled={busy || liveTargets === 0}>
+                {sendReminder.isPending ? 'Enviando…' : 'Enviar aviso'}
+              </Button>
+            ) : confirm?.kind === 'reminder' ? (
               <Button
                 onClick={runReminder}
                 disabled={busy || !activeReminderKey || reminderTargets === 0}

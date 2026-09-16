@@ -61,6 +61,9 @@ const SAMPLE_NAME = 'María';
 /** WhatsApp acepta video hasta 16 MB. */
 const MAX_VIDEO_MB = 16;
 
+/** Valor centinela del select (Radix no admite value=''). */
+const LIVE_NONE = '__none__';
+
 export default function InduccionMessagesTab({
   draft,
   patch,
@@ -111,6 +114,21 @@ export default function InduccionMessagesTab({
     }
     return list;
   }, [approvedTemplates, draft.invitationTemplate]);
+
+  // Aviso "ya empezamos": misma lista; la guardada se lista aunque no este
+  // aprobada para que se vea el problema.
+  const liveOptions = useMemo(() => {
+    const list = [...approvedTemplates];
+    if (draft.liveTemplate && !list.some((t) => t.name === draft.liveTemplate)) {
+      list.push({
+        name: draft.liveTemplate,
+        status: 'UNKNOWN',
+        language: '',
+        category: '',
+      });
+    }
+    return list;
+  }, [approvedTemplates, draft.liveTemplate]);
 
   const selected = options.find((t) => t.name === draft.invitationTemplate);
   const selectedApproved =
@@ -233,6 +251,47 @@ export default function InduccionMessagesTab({
                 No se pudo verificar la aprobación de la plantilla en Meta.
               </p>
             )}
+          </div>
+
+          {/* Aviso "ya empezamos" (boton manual en Cohorte) */}
+          <div>
+            <Label className="mb-1 block text-xs text-muted-foreground">
+              Plantilla del aviso &ldquo;ya empezamos&rdquo; (botón en Cohorte)
+            </Label>
+            {templatesQuery.isLoading ? (
+              <Skeleton className="h-9 w-full" />
+            ) : (
+              <Select
+                value={draft.liveTemplate || LIVE_NONE}
+                onValueChange={(v) =>
+                  patch({ liveTemplate: v === LIVE_NONE ? '' : v })
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Sin aviso" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={LIVE_NONE}>
+                    Sin aviso (botón deshabilitado)
+                  </SelectItem>
+                  {liveOptions.map((t) => (
+                    <SelectItem key={t.name} value={t.name}>
+                      {t.name}
+                      {t.language ? ` (${t.language})` : ''}
+                      {(t.status || '').toUpperCase() !== 'APPROVED'
+                        ? ' · no aprobada'
+                        : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            <p className="mt-1 text-xs text-muted-foreground">
+              Se manda a mano desde Cohorte → &ldquo;Avisar que ya
+              empezamos&rdquo; a quienes tienen invitación vigente, una sola vez
+              por taller. El cron nunca lo dispara. Mismas variables: nombre, día
+              y hora.
+            </p>
           </div>
 
           {/* Video */}

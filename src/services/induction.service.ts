@@ -57,6 +57,8 @@ export interface InductionSettings {
   invitationTemplate: string;
   /** Path en GCS del video del encabezado (p. ej. whatsapp/bienvenida_nuevo_distribuidor.mp4). */
   invitationVideoPath: string;
+  /** Plantilla del aviso "ya empezamos" (boton manual en Cohorte). '' = sin aviso. */
+  liveTemplate: string;
   reminders: InductionReminder[];
   /** Solo distribuidores con kit (kit_type no nulo). */
   requireKit: boolean;
@@ -137,6 +139,7 @@ export function toSettingsPayload(
     out.invitationTemplate = input.invitationTemplate;
   if (input.invitationVideoPath !== undefined)
     out.invitationVideoPath = input.invitationVideoPath;
+  if (input.liveTemplate !== undefined) out.liveTemplate = input.liveTemplate;
   if (input.reminders !== undefined) {
     out.reminders = input.reminders.map((r) => ({
       weekday: r.weekday,
@@ -432,6 +435,8 @@ export interface SendInvitationsInput {
 export interface SendReminderInput {
   workshopDate?: string;
   reminderKey?: string;
+  /** true = aviso "ya empezamos" (plantilla liveTemplate, clave <workshopDate>#live). */
+  live?: boolean;
 }
 
 /**

@@ -346,3 +346,15 @@ export function downloadCsvFile(filename: string, lines: string[]): void {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+// ---------------------------------------------------------------------------
+// Aviso "ya empezamos" (clave '<workshopDate>#live', misma que el API)
+// ---------------------------------------------------------------------------
+
+export const LIVE_KEY_SUFFIX = '#live';
+
+export function liveKey(workshopDate: string): string {
+  return `${workshopDate}${LIVE_KEY_SUFFIX}`;
+}
+
+export const isLiveKey = (key: string): boolean => key.endsWith(LIVE_KEY_SUFFIX);
