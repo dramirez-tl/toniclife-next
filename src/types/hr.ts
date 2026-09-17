@@ -392,8 +392,8 @@ export interface EmployeeImportSampleRow {
   action?: string;
   employeeNumber?: string | null;
   noiNumber?: string | null;
-  name?: string | null;
-  message?: string | null;
+  /** Nombre resuelto por el API (COALESCE workers/employees o el del CSV). */
+  fullName?: string | null;
 }
 
 export interface EmployeeImportResult {

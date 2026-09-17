@@ -192,10 +192,7 @@ export function EmployeeImportDialog({
                       >
                         <span className="min-w-0 truncate">
                           <span className="font-mono text-muted-foreground">#{row.row}</span>{' '}
-                          {row.name || row.employeeNumber || row.noiNumber || 'Sin nombre'}
-                          {row.message ? (
-                            <span className="text-muted-foreground"> · {row.message}</span>
-                          ) : null}
+                          {row.fullName || row.employeeNumber || row.noiNumber || 'Sin nombre'}
                         </span>
                         {row.action ? (
                           <Badge

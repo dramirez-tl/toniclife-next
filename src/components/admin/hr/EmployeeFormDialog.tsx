@@ -459,10 +459,14 @@ function EmployeeForm({
             <div className="grid gap-1.5">
               <Label>Estado</Label>
               <SearchableSelect
-                options={EMPLOYEE_STATUSES.map((s) => ({
-                  value: s,
-                  label: EMPLOYEE_STATUS_LABELS[s],
-                }))}
+                // En el alta no se ofrece "Baja": la fecha de baja solo se
+                // captura al editar (y el API exige terminationDate).
+                options={EMPLOYEE_STATUSES.filter((s) => isEdit || s !== 'terminated').map(
+                  (s) => ({
+                    value: s,
+                    label: EMPLOYEE_STATUS_LABELS[s],
+                  }),
+                )}
                 value={form.status}
                 onChange={(v) => set('status', v as EmployeeStatus)}
                 showAllOption={false}

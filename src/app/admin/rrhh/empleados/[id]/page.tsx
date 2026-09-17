@@ -215,7 +215,7 @@ export default function EmployeeDetailPage({
             <TabsTrigger value="asistencia">Asistencia</TabsTrigger>
             <TabsTrigger value="gafete">Gafete</TabsTrigger>
             {canManage && <TabsTrigger value="nomina">Nómina</TabsTrigger>}
-            <TabsTrigger value="vacaciones">Vacaciones</TabsTrigger>
+            {canManage && <TabsTrigger value="vacaciones">Vacaciones</TabsTrigger>}
           </TabsList>
 
           {/* Datos */}
@@ -386,10 +386,12 @@ export default function EmployeeDetailPage({
             </TabsContent>
           )}
 
-          {/* Vacaciones */}
-          <TabsContent value="vacaciones">
-            <VacationsTab employeeId={employee.id} />
-          </TabsContent>
+          {/* Vacaciones: sin hr:manage el API responde 403 para expedientes ajenos */}
+          {canManage && (
+            <TabsContent value="vacaciones">
+              <VacationsTab employeeId={employee.id} />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 
