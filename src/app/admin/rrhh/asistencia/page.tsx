@@ -65,6 +65,13 @@ import type { Branch } from '@/types/branch';
 /** Tope de renglones que se bajan para el CSV (el listado es paginado). */
 const MAX_CSV_ROWS = 2000;
 
+/**
+ * Tamaño de página al bajar el CSV. El API tope `limit` en 200
+ * (AttendanceQueryDto), así que el export pide páginas de 200 y las concatena
+ * en vez de pedir MAX_CSV_ROWS de un jalón (eso devolvía 400).
+ */
+const CSV_PAGE_SIZE = 200;
+
 // ---------------------------------------------------------------------------
 // Utilidades locales
 // ---------------------------------------------------------------------------
@@ -411,11 +418,26 @@ function EventosTab({
   const handleExport = async () => {
     setExporting(true);
     try {
-      // El listado es paginado: para el CSV se vuelve a pedir el rango completo.
-      const full = await hrService.getAttendance({ ...query, page: 1, limit: MAX_CSV_ROWS });
-      if (full.total > MAX_CSV_ROWS) {
+      // El listado es paginado y el API no acepta `limit` mayor a 200: para el
+      // CSV se recorre el rango en páginas de CSV_PAGE_SIZE hasta juntar el
+      // total o llegar al tope de renglones.
+      const rows: AttendanceEvent[] = [];
+      let total = 0;
+      for (let p = 1; rows.length < MAX_CSV_ROWS; p++) {
+        const chunk = await hrService.getAttendance({
+          ...query,
+          page: p,
+          limit: CSV_PAGE_SIZE,
+        });
+        total = chunk.total;
+        rows.push(...chunk.data);
+        // Última página (o respuesta vacía): corta el bucle.
+        if (chunk.data.length < CSV_PAGE_SIZE || rows.length >= chunk.total) break;
+      }
+      const exported = rows.slice(0, MAX_CSV_ROWS);
+      if (total > exported.length) {
         toast.info(
-          `Se exportaron los primeros ${MAX_CSV_ROWS} de ${full.total} registros. Acota el rango de fechas.`,
+          `Se exportaron los primeros ${exported.length} de ${total} registros. Acota el rango de fechas.`,
         );
       }
       exportToCsv(
@@ -433,7 +455,7 @@ function EventosTab({
           'Notas',
           'Foto',
         ],
-        full.data.map((ev) => [
+        exported.map((ev) => [
           ev.localDate,
           ev.localTime,
           csvSafe(ev.employeeNumber),
