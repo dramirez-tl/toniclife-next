@@ -47,6 +47,8 @@ import { selectUserPermissions, selectUserRoles } from '@/store/slices/authSlice
 import {
   addDays,
   apiErrorMessage,
+  dayOverrideEntries,
+  dayOverrideSummary,
   formatDateOnly,
   formatMoney,
   hasManagePermission,
@@ -67,6 +69,7 @@ import {
   employeeDisplayName,
   type AttendanceEvent,
   type Vacation,
+  type WorkScheduleSummary,
 } from '@/types/hr';
 
 /** Formatos y tamaño que acepta el API para la foto del gafete. */
@@ -311,6 +314,7 @@ export default function EmployeeDetailPage({
                         label="Tolerancia de entrada"
                         value={`${employee.workSchedule.lateToleranceMinutes} min`}
                       />
+                      <ScheduleDayOverrides schedule={employee.workSchedule} />
                     </>
                   ) : (
                     <p className="text-sm text-muted-foreground sm:col-span-2">
@@ -816,6 +820,27 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
     <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
       {children}
     </p>
+  );
+}
+
+/**
+ * Días con horario distinto del horario asignado (decisión del cliente del
+ * 17-sep-2026: en corporativo los sábados son de 9:00 a 14:00, sin comida).
+ */
+function ScheduleDayOverrides({ schedule }: { schedule: WorkScheduleSummary }) {
+  const overrides = dayOverrideEntries(schedule.dayOverrides);
+  if (overrides.length === 0) return null;
+  return (
+    <div className="border-b border-border pb-2 sm:col-span-2">
+      <p className="text-sm text-muted-foreground">Días con horario distinto</p>
+      <ul className="mt-1 space-y-0.5">
+        {overrides.map(({ day, override }) => (
+          <li key={day} className="text-sm font-medium">
+            {dayOverrideSummary(day, override, schedule, 'long')}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

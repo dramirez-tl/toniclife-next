@@ -119,14 +119,14 @@ export type ExpenseCategory =
 // checador calcula retardos, comida excedida, salida anticipada y faltas.
 
 /** Días laborables en ISO: 1 = lunes … 7 = domingo. */
-export const WORK_DAYS: { value: number; short: string; label: string }[] = [
-  { value: 1, short: 'L', label: 'Lunes' },
-  { value: 2, short: 'M', label: 'Martes' },
-  { value: 3, short: 'M', label: 'Miércoles' },
-  { value: 4, short: 'J', label: 'Jueves' },
-  { value: 5, short: 'V', label: 'Viernes' },
-  { value: 6, short: 'S', label: 'Sábado' },
-  { value: 7, short: 'D', label: 'Domingo' },
+export const WORK_DAYS: { value: number; short: string; abbr: string; label: string }[] = [
+  { value: 1, short: 'L', abbr: 'Lun', label: 'Lunes' },
+  { value: 2, short: 'M', abbr: 'Mar', label: 'Martes' },
+  { value: 3, short: 'M', abbr: 'Mié', label: 'Miércoles' },
+  { value: 4, short: 'J', abbr: 'Jue', label: 'Jueves' },
+  { value: 5, short: 'V', abbr: 'Vie', label: 'Viernes' },
+  { value: 6, short: 'S', abbr: 'Sáb', label: 'Sábado' },
+  { value: 7, short: 'D', abbr: 'Dom', label: 'Domingo' },
 ];
 
 /**
@@ -140,6 +140,29 @@ export const WORK_SCHEDULE_BREAK_MODE_LABELS: Record<WorkScheduleBreakMode, stri
   flexible: 'Libre',
   fixed: 'Fija',
 };
+
+/**
+ * Excepción de UN día de la semana (decisión del cliente, 17-sep-2026: en
+ * corporativo los sábados son de 9:00 a 14:00, sin comida).
+ *
+ * Lo que no venga aquí hereda del horario base; en un día con excepción la
+ * comida SIEMPRE es libre con esa duración (0 = ese día no hay comida) y las
+ * tolerancias son las del horario base.
+ */
+export interface WorkScheduleDayOverride {
+  /** 'HH:MM' */
+  checkInTime?: string;
+  /** 'HH:MM' */
+  checkOutTime?: string;
+  /** Duración MÁXIMA de la comida ese día (0 = sin comida). */
+  breakMinutes?: number;
+}
+
+/**
+ * Excepciones por día ISO: la llave es '1'..'7' (1 = lunes … 7 = domingo) y
+ * solo puede ser un día laborable del propio horario.
+ */
+export type WorkScheduleDayOverrides = Record<string, WorkScheduleDayOverride>;
 
 export interface WorkSchedule {
   id: string;
@@ -158,6 +181,8 @@ export interface WorkSchedule {
   breakToleranceMinutes: number;
   /** ISO: 1 = lunes … 7 = domingo. */
   workDays: number[];
+  /** Excepciones por día (objeto vacío si el horario es igual todos los días). */
+  dayOverrides: WorkScheduleDayOverrides;
   /** null = horario global (sirve para cualquier sucursal). */
   branchId: string | null;
   branchName?: string | null;
@@ -180,6 +205,7 @@ export interface WorkScheduleSummary {
   lateToleranceMinutes: number;
   breakToleranceMinutes: number;
   workDays: number[];
+  dayOverrides: WorkScheduleDayOverrides;
 }
 
 export interface CreateWorkScheduleDto {
@@ -195,6 +221,8 @@ export interface CreateWorkScheduleDto {
   lateToleranceMinutes?: number;
   breakToleranceMinutes?: number;
   workDays?: number[];
+  /** Reemplaza TODAS las excepciones: mandar {} las borra. */
+  dayOverrides?: WorkScheduleDayOverrides;
   branchId?: string | null;
 }
 
@@ -770,6 +798,8 @@ export interface AttendanceDaySummaryRow {
   scheduleBreakMode: WorkScheduleBreakMode | null;
   /** Minutos de comida permitidos por el horario (null sin horario). */
   scheduleBreakMinutes: number | null;
+  /** true si ese día de la semana tenía excepción (los expected* ya la aplican). */
+  scheduleDayOverride: boolean;
   /** Minutos de retardo ya descontada la tolerancia (0 si llegó a tiempo). */
   lateMinutes: number | null;
   /** Minutos de comida por encima de lo permitido + tolerancia. */

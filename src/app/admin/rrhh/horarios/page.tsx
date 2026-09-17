@@ -5,6 +5,11 @@
 // o FIJA (hora de salida y de regreso). Decisión del cliente del 17-sep-2026:
 // las comidas no son fijas, por eso 'flexible' es el modo por omisión.
 //
+// Un horario puede traer EXCEPCIONES POR DÍA (misma decisión del 17-sep-2026:
+// "en corporativo los sábados son de 9 a 2:00 pm"): ese día corre con otra
+// entrada/salida y con comida libre de la duración capturada (0 = sin comida);
+// lo que no se capture hereda del horario base y las tolerancias nunca cambian.
+//
 // Es la referencia contra la que el checador calcula retardos, comida excedida,
 // salida anticipada y FALTAS: un empleado sin horario no puede evaluarse.
 
@@ -50,6 +55,9 @@ import {
   apiErrorMessage,
   apiErrorStatus,
   breakSummary,
+  dayLabel,
+  dayOverrideEntries,
+  dayOverrideSummary,
   hasManagePermission,
   shortTime,
 } from '../hr-utils';
@@ -59,6 +67,7 @@ import {
   type UpdateWorkScheduleDto,
   type WorkSchedule,
   type WorkScheduleBreakMode,
+  type WorkScheduleDayOverrides,
 } from '@/types/hr';
 import type { Branch } from '@/types/branch';
 
@@ -104,12 +113,21 @@ export default function HorariosPage() {
     {
       key: 'name',
       header: 'Horario',
-      render: (s) => (
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">{s.name}</p>
-          <p className="font-mono text-xs text-muted-foreground">{s.code}</p>
-        </div>
-      ),
+      render: (s) => {
+        const overrides = dayOverrideEntries(s.dayOverrides);
+        return (
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">{s.name}</p>
+            <p className="font-mono text-xs text-muted-foreground">{s.code}</p>
+            {overrides.length > 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                Excepciones:{' '}
+                {overrides.map((o) => dayOverrideSummary(o.day, o.override, s)).join('; ')}
+              </p>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: 'times',
@@ -137,23 +155,30 @@ export default function HorariosPage() {
     {
       key: 'days',
       header: 'Días',
-      render: (s) => (
-        <div className="flex gap-1">
-          {WORK_DAYS.map((d) => (
-            <span
-              key={d.value}
-              title={d.label}
-              className={`flex h-5 w-5 items-center justify-center rounded text-[10px] font-semibold ${
-                (s.workDays ?? []).includes(d.value)
-                  ? 'bg-[#C8DDF2] text-[#2f5165]'
-                  : 'bg-muted text-muted-foreground/60'
-              }`}
-            >
-              {d.short}
-            </span>
-          ))}
-        </div>
-      ),
+      render: (s) => {
+        const overrides = dayOverrideEntries(s.dayOverrides);
+        return (
+          <div className="flex gap-1">
+            {WORK_DAYS.map((d) => {
+              const override = overrides.find((o) => o.day === d.value);
+              return (
+                <span
+                  key={d.value}
+                  // El día con excepción se distingue con un anillo y dice su horario.
+                  title={override ? dayOverrideSummary(d.value, override.override, s) : d.label}
+                  className={`flex h-5 w-5 items-center justify-center rounded text-[10px] font-semibold ${
+                    (s.workDays ?? []).includes(d.value)
+                      ? 'bg-[#C8DDF2] text-[#2f5165]'
+                      : 'bg-muted text-muted-foreground/60'
+                  } ${override ? 'ring-1 ring-primary ring-offset-1' : ''}`}
+                >
+                  {d.short}
+                </span>
+              );
+            })}
+          </div>
+        );
+      },
     },
     {
       key: 'branch',
@@ -307,6 +332,14 @@ export default function HorariosPage() {
 // Alta / edición
 // ---------------------------------------------------------------------------
 
+/** Una excepción mientras se captura (los inputs manejan texto). */
+interface DayOverrideForm {
+  checkInTime: string;
+  checkOutTime: string;
+  /** Duración máxima de la comida ese día ('0' = sin comida). */
+  breakMinutes: string;
+}
+
 interface ScheduleForm {
   code: string;
   name: string;
@@ -321,6 +354,8 @@ interface ScheduleForm {
   lateToleranceMinutes: string;
   breakToleranceMinutes: string;
   workDays: number[];
+  /** Excepciones por día ISO; solo puede haber de días laborables. */
+  dayOverrides: Record<number, DayOverrideForm>;
   branchId: string;
   isActive: boolean;
 }
@@ -349,6 +384,7 @@ function WorkScheduleDialog({
     lateToleranceMinutes: String(schedule?.lateToleranceMinutes ?? 10),
     breakToleranceMinutes: String(schedule?.breakToleranceMinutes ?? 10),
     workDays: schedule?.workDays ?? [1, 2, 3, 4, 5, 6],
+    dayOverrides: initialDayOverrides(schedule),
     branchId: schedule?.branchId ?? '',
     isActive: schedule?.isActive ?? true,
   }));
@@ -361,12 +397,52 @@ function WorkScheduleDialog({
     setForm((prev) => ({ ...prev, [key]: value }));
 
   const toggleDay = (day: number) =>
-    setForm((prev) => ({
-      ...prev,
-      workDays: prev.workDays.includes(day)
-        ? prev.workDays.filter((d) => d !== day)
-        : [...prev.workDays, day].sort((a, b) => a - b),
-    }));
+    setForm((prev) => {
+      const wasWorkDay = prev.workDays.includes(day);
+      const dayOverrides = { ...prev.dayOverrides };
+      // Un día que deja de ser laborable no puede conservar su excepción.
+      if (wasWorkDay) delete dayOverrides[day];
+      return {
+        ...prev,
+        workDays: wasWorkDay
+          ? prev.workDays.filter((d) => d !== day)
+          : [...prev.workDays, day].sort((a, b) => a - b),
+        dayOverrides,
+      };
+    });
+
+  /** Prende/apaga la excepción de un día; al prenderla copia el horario base. */
+  const toggleDayOverride = (day: number, enabled: boolean) =>
+    setForm((prev) => {
+      const dayOverrides = { ...prev.dayOverrides };
+      if (enabled) {
+        // En un día con excepción la comida SIEMPRE es libre: con horario base
+        // fijo se parte de la duración de esa ventana (si aún no está capturada,
+        // se arranca en cero y el usuario la ajusta).
+        const fixedWindow = minutesBetween(prev.breakOutTime, prev.breakInTime);
+        dayOverrides[day] = {
+          checkInTime: prev.checkInTime,
+          checkOutTime: prev.checkOutTime,
+          breakMinutes:
+            prev.breakMode === 'fixed'
+              ? String(Number.isFinite(fixedWindow) ? Math.max(0, fixedWindow) : 0)
+              : prev.breakMinutes,
+        };
+      } else {
+        delete dayOverrides[day];
+      }
+      return { ...prev, dayOverrides };
+    });
+
+  const setDayOverride = (day: number, key: keyof DayOverrideForm, value: string) =>
+    setForm((prev) => {
+      const current = prev.dayOverrides[day];
+      if (!current) return prev;
+      return {
+        ...prev,
+        dayOverrides: { ...prev.dayOverrides, [day]: { ...current, [key]: value } },
+      };
+    });
 
   const submit = async () => {
     if (!form.code.trim() || !form.name.trim()) {
@@ -428,6 +504,36 @@ function WorkScheduleDialog({
       return;
     }
 
+    // Excepciones por día: solo de días laborables y con su propia jornada válida.
+    const dayOverrides: WorkScheduleDayOverrides = {};
+    for (const day of form.workDays) {
+      const override = form.dayOverrides[day];
+      if (!override) continue;
+      const label = dayLabel(day).toLowerCase();
+      if (!override.checkInTime || !override.checkOutTime) {
+        toast.error(`Captura la entrada y la salida del ${label}`);
+        return;
+      }
+      if (override.checkOutTime <= override.checkInTime) {
+        toast.error(`En ${label} la salida debe ser después de la entrada`);
+        return;
+      }
+      const dayBreak = Number(override.breakMinutes);
+      if (!Number.isFinite(dayBreak) || dayBreak < 0 || dayBreak > 240) {
+        toast.error(`La comida del ${label} va de 0 a 240 minutos`);
+        return;
+      }
+      if (dayBreak >= minutesBetween(override.checkInTime, override.checkOutTime)) {
+        toast.error(`La comida del ${label} no puede durar tanto o más que ese día`);
+        return;
+      }
+      dayOverrides[String(day)] = {
+        checkInTime: override.checkInTime,
+        checkOutTime: override.checkOutTime,
+        breakMinutes: dayBreak,
+      };
+    }
+
     const payload: CreateWorkScheduleDto = {
       code: form.code.trim().toUpperCase(),
       name: form.name.trim(),
@@ -441,6 +547,9 @@ function WorkScheduleDialog({
       lateToleranceMinutes: late,
       breakToleranceMinutes: breakTol,
       workDays: form.workDays,
+      // Se manda completo SIEMPRE: el API reemplaza el objeto, así que {} borra
+      // las excepciones que hubiera.
+      dayOverrides,
       branchId: form.branchId || null,
     };
 
@@ -655,6 +764,83 @@ function WorkScheduleDialog({
             </div>
           </div>
 
+          {/* Excepciones por día: el corporativo trabaja el sábado de 9:00 a
+              14:00 y ese día no hay comida. */}
+          {form.workDays.length > 0 && (
+            <div className="grid gap-2 rounded-lg border border-border p-3">
+              <div>
+                <Label className="text-sm font-semibold">Días con horario distinto</Label>
+                <p className="text-[11px] text-muted-foreground">
+                  Todos los días usan el horario de arriba salvo los que marques aquí. Ese
+                  día la comida es libre con la duración que captures (0 = sin comida); las
+                  tolerancias no cambian.
+                </p>
+              </div>
+              {form.workDays.map((day) => {
+                const override = form.dayOverrides[day];
+                return (
+                  <div key={day} className="rounded-md border border-border/70 p-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-sm font-medium">{dayLabel(day)}</span>
+                      <div className="flex items-center gap-2">
+                        <Label
+                          htmlFor={`excepcion-${day}`}
+                          className="text-xs font-normal text-muted-foreground"
+                        >
+                          Horario distinto este día
+                        </Label>
+                        <Switch
+                          id={`excepcion-${day}`}
+                          checked={!!override}
+                          onCheckedChange={(v) => toggleDayOverride(day, v)}
+                        />
+                      </div>
+                    </div>
+                    {override && (
+                      <div className="mt-2 grid gap-3 sm:grid-cols-3">
+                        <div className="grid gap-1.5">
+                          <Label className="text-xs" htmlFor={`excepcion-${day}-entrada`}>
+                            Entrada
+                          </Label>
+                          <Input
+                            id={`excepcion-${day}-entrada`}
+                            type="time"
+                            value={override.checkInTime}
+                            onChange={(e) => setDayOverride(day, 'checkInTime', e.target.value)}
+                          />
+                        </div>
+                        <div className="grid gap-1.5">
+                          <Label className="text-xs" htmlFor={`excepcion-${day}-salida`}>
+                            Salida
+                          </Label>
+                          <Input
+                            id={`excepcion-${day}-salida`}
+                            type="time"
+                            value={override.checkOutTime}
+                            onChange={(e) => setDayOverride(day, 'checkOutTime', e.target.value)}
+                          />
+                        </div>
+                        <div className="grid gap-1.5">
+                          <Label className="text-xs" htmlFor={`excepcion-${day}-comida`}>
+                            Comida máx. (min)
+                          </Label>
+                          <Input
+                            id={`excepcion-${day}-comida`}
+                            type="number"
+                            min={0}
+                            max={240}
+                            value={override.breakMinutes}
+                            onChange={(e) => setDayOverride(day, 'breakMinutes', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           <div className="grid gap-1.5">
             <Label className="text-xs">Sucursal</Label>
             <SearchableSelect
@@ -693,6 +879,24 @@ function WorkScheduleDialog({
       </DialogContent>
     </Dialog>
   );
+}
+
+/**
+ * Excepciones guardadas → formulario. El API puede traerlas PARCIALES (solo la
+ * salida, por ejemplo); en la captura se muestran completas heredando del
+ * horario base lo que falte.
+ */
+function initialDayOverrides(schedule: WorkSchedule | null): Record<number, DayOverrideForm> {
+  const out: Record<number, DayOverrideForm> = {};
+  if (!schedule) return out;
+  for (const { day, override } of dayOverrideEntries(schedule.dayOverrides)) {
+    out[day] = {
+      checkInTime: shortTimeValue(override.checkInTime ?? schedule.checkInTime, '09:00'),
+      checkOutTime: shortTimeValue(override.checkOutTime ?? schedule.checkOutTime, '18:00'),
+      breakMinutes: String(override.breakMinutes ?? schedule.breakMinutes ?? 60),
+    };
+  }
+  return out;
 }
 
 /** El input type=time necesita 'HH:MM' (el API puede mandar 'HH:MM:SS' o null). */

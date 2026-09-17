@@ -57,7 +57,14 @@ import { useAppSelector } from '@/store/hooks';
 import { selectUserPermissions, selectUserRoles } from '@/store/slices/authSlice';
 import { csvDateStamp, exportToCsv } from '@/lib/csv-export';
 import { DEFAULT_TIMEZONE, formatTimeLocal, resolveTimeZone } from '@/lib/timezone-utils';
-import { addDays, apiErrorMessage, csvSafe, hasManagePermission, todayCdmx } from '../hr-utils';
+import {
+  addDays,
+  apiErrorMessage,
+  csvSafe,
+  dayTimesSummary,
+  hasManagePermission,
+  todayCdmx,
+} from '../hr-utils';
 import {
   ATTENDANCE_DAY_STATUS_LABELS,
   ATTENDANCE_DAY_STATUS_VARIANTS,
@@ -783,7 +790,19 @@ function ResumenTab({
       render: (r) =>
         r.scheduleCode ? (
           <div className="min-w-0">
-            <p className="truncate font-mono text-xs">{r.scheduleCode}</p>
+            <div className="flex items-center gap-1">
+              <p className="truncate font-mono text-xs">{r.scheduleCode}</p>
+              {/* Ese día corrió con una excepción del horario (los expected* ya la traen). */}
+              {r.scheduleDayOverride && (
+                <Badge
+                  variant="info"
+                  className="px-1.5 py-0 text-[10px]"
+                  title={`Horario de ese día: ${scheduleDayText(r)}`}
+                >
+                  día especial
+                </Badge>
+              )}
+            </div>
             <p className="text-[11px] text-muted-foreground tabular-nums">
               {r.expectedCheckIn ?? '—'} - {r.expectedCheckOut ?? '—'}
             </p>
@@ -1019,6 +1038,7 @@ function ResumenTab({
                   <span>Comida esperada: {expectedBreakText(r) || '—'}</span>
                   <span>Retardo: {r.lateMinutes ?? '—'} min</span>
                   <span>Horario: {r.scheduleCode ?? 'sin horario'}</span>
+                  {r.scheduleDayOverride && <span>Día especial: {scheduleDayText(r)}</span>}
                 </div>
               </CardContent>
             </Card>
@@ -1053,6 +1073,15 @@ function ResumenTab({
 // ---------------------------------------------------------------------------
 // Piezas compartidas
 // ---------------------------------------------------------------------------
+
+/** "09:00-14:00 · sin comida": el horario que corrió ese día en particular. */
+function scheduleDayText(r: AttendanceDaySummaryRow): string {
+  return dayTimesSummary({
+    checkInTime: r.expectedCheckIn,
+    checkOutTime: r.expectedCheckOut,
+    breakMinutes: r.scheduleBreakMinutes,
+  });
+}
 
 /**
  * Qué se esperaba de la comida ese día. Con comida LIBRE (decisión del cliente

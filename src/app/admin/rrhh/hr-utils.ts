@@ -4,7 +4,12 @@
 // utilidades locales al módulo, sin textos de otra pantalla.
 
 import { DEFAULT_TIMEZONE } from '@/lib/timezone-utils';
-import type { WorkScheduleBreakMode } from '@/types/hr';
+import {
+  WORK_DAYS,
+  type WorkScheduleBreakMode,
+  type WorkScheduleDayOverride,
+  type WorkScheduleDayOverrides,
+} from '@/types/hr';
 
 /**
  * Mensaje legible de un error del API. NestJS manda `message` como string o
@@ -85,6 +90,95 @@ export function breakSummary(schedule: {
     return `${shortTime(schedule.breakOutTime)} - ${shortTime(schedule.breakInTime)}`;
   }
   return `Libre · ${schedule.breakMinutes} min`;
+}
+
+// ---------------------------------------------------------------------------
+// Excepciones por día
+// ---------------------------------------------------------------------------
+//
+// Decisión del cliente (17-sep-2026): "en corporativo los sábados son de 9 a
+// 2:00 pm". Un horario puede traer excepciones por día ISO ('1'..'7'): lo que
+// no venga en la excepción hereda del horario base y ESE día la comida siempre
+// es libre con la duración de la excepción (0 = sin comida). Las tolerancias
+// nunca cambian: son las del horario base.
+
+/** Horario efectivo de un día (ya resuelta la excepción). */
+export interface ScheduleDayTimes {
+  checkInTime: string;
+  checkOutTime: string;
+  breakMinutes: number;
+}
+
+/** Abreviatura del día ISO: 1 = Lun … 7 = Dom. */
+export function dayAbbr(day: number | string): string {
+  const n = Number(day);
+  return WORK_DAYS.find((d) => d.value === n)?.abbr ?? String(day);
+}
+
+/** Nombre completo del día ISO: 1 = Lunes … 7 = Domingo. */
+export function dayLabel(day: number | string): string {
+  const n = Number(day);
+  return WORK_DAYS.find((d) => d.value === n)?.label ?? String(day);
+}
+
+/** Aplica la excepción sobre el horario base: lo que no venga se hereda. */
+export function resolveDayOverride(
+  base: ScheduleDayTimes,
+  override: WorkScheduleDayOverride,
+): ScheduleDayTimes {
+  return {
+    checkInTime: shortTime(override.checkInTime ?? base.checkInTime),
+    checkOutTime: shortTime(override.checkOutTime ?? base.checkOutTime),
+    breakMinutes: override.breakMinutes ?? base.breakMinutes,
+  };
+}
+
+/**
+ * Cómo se lee el horario de un día:
+ * - 'short': "09:00-14:00 · sin comida" (chips y badges).
+ * - 'long':  "09:00 a 14:00, sin comida" (expediente).
+ */
+export function dayTimesSummary(
+  times: {
+    checkInTime: string | null;
+    checkOutTime: string | null;
+    breakMinutes: number | null;
+  },
+  format: 'short' | 'long' = 'short',
+): string {
+  const range =
+    format === 'long'
+      ? `${shortTime(times.checkInTime)} a ${shortTime(times.checkOutTime)}`
+      : `${shortTime(times.checkInTime)}-${shortTime(times.checkOutTime)}`;
+  // 0 minutos (o sin dato) = ese día no se toma comida.
+  const lunch = times.breakMinutes ? `comida ${times.breakMinutes} min` : 'sin comida';
+  return format === 'long' ? `${range}, ${lunch}` : `${range} · ${lunch}`;
+}
+
+/** "Sáb 09:00-14:00 · sin comida" / "Sábado: 09:00 a 14:00, sin comida". */
+export function dayOverrideSummary(
+  day: number | string,
+  override: WorkScheduleDayOverride,
+  base: ScheduleDayTimes,
+  format: 'short' | 'long' = 'short',
+): string {
+  const times = resolveDayOverride(base, override);
+  return format === 'long'
+    ? `${dayLabel(day)}: ${dayTimesSummary(times, 'long')}`
+    : `${dayAbbr(day)} ${dayTimesSummary(times, 'short')}`;
+}
+
+/**
+ * Excepciones de un horario ordenadas por día ISO. Ignora llaves que no sean
+ * '1'..'7' (el API ya las valida, pero la pantalla no debe romperse por eso).
+ */
+export function dayOverrideEntries(
+  overrides: WorkScheduleDayOverrides | null | undefined,
+): { day: number; override: WorkScheduleDayOverride }[] {
+  return Object.entries(overrides ?? {})
+    .map(([key, override]) => ({ day: Number(key), override }))
+    .filter((e) => Number.isInteger(e.day) && e.day >= 1 && e.day <= 7 && !!e.override)
+    .sort((a, b) => a.day - b.day);
 }
 
 /** hr:manage (con comodines) o super_admin. Misma lógica que PermissionGuard. */
