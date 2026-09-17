@@ -297,17 +297,19 @@ export default function EmployeeDetailPage({
                       />
                       <Field
                         label="Comida"
-                        value={`${shortTime(employee.workSchedule.breakOutTime)} - ${shortTime(
-                          employee.workSchedule.breakInTime,
-                        )}`}
+                        value={
+                          employee.workSchedule.breakMode !== 'flexible' &&
+                          employee.workSchedule.breakOutTime &&
+                          employee.workSchedule.breakInTime
+                            ? `${shortTime(employee.workSchedule.breakOutTime)} - ${shortTime(
+                                employee.workSchedule.breakInTime,
+                              )} (tolerancia ${employee.workSchedule.breakToleranceMinutes})`
+                            : `Libre, máximo ${employee.workSchedule.breakMinutes} min (tolerancia ${employee.workSchedule.breakToleranceMinutes})`
+                        }
                       />
                       <Field
                         label="Tolerancia de entrada"
                         value={`${employee.workSchedule.lateToleranceMinutes} min`}
-                      />
-                      <Field
-                        label="Tolerancia de comida"
-                        value={`${employee.workSchedule.breakToleranceMinutes} min`}
                       />
                     </>
                   ) : (

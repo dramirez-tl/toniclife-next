@@ -4,6 +4,7 @@
 // utilidades locales al módulo, sin textos de otra pantalla.
 
 import { DEFAULT_TIMEZONE } from '@/lib/timezone-utils';
+import type { WorkScheduleBreakMode } from '@/types/hr';
 
 /**
  * Mensaje legible de un error del API. NestJS manda `message` como string o
@@ -65,6 +66,25 @@ export function formatDateOnly(value: string | null | undefined): string {
 export function shortTime(value: string | null | undefined): string {
   if (!value) return '—';
   return value.slice(0, 5);
+}
+
+/**
+ * Cómo se lee la comida de un horario en una línea.
+ *
+ * Desde 17-sep-2026 la comida puede ser LIBRE (cada quien la toma cuando
+ * quiera, con una duración máxima) o FIJA (hora de salida y de regreso).
+ */
+export function breakSummary(schedule: {
+  breakMode: WorkScheduleBreakMode;
+  breakMinutes: number;
+  breakOutTime: string | null;
+  breakInTime: string | null;
+}): string {
+  // Se lee "fija" solo si hay ventana capturada; cualquier otro caso es libre.
+  if (schedule.breakMode !== 'flexible' && schedule.breakOutTime && schedule.breakInTime) {
+    return `${shortTime(schedule.breakOutTime)} - ${shortTime(schedule.breakInTime)}`;
+  }
+  return `Libre · ${schedule.breakMinutes} min`;
 }
 
 /** hr:manage (con comodines) o super_admin. Misma lógica que PermissionGuard. */

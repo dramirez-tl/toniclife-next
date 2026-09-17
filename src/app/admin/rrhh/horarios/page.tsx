@@ -1,7 +1,9 @@
 'use client';
 
-// Horarios de CUATRO tiempos (entrada, salida a comer, regreso y salida) con
-// tolerancias y días laborables.
+// Horarios del checador: entrada y salida con tolerancia, más la comida, que
+// puede ser LIBRE (cada quien la toma cuando quiera, con una duración máxima)
+// o FIJA (hora de salida y de regreso). Decisión del cliente del 17-sep-2026:
+// las comidas no son fijas, por eso 'flexible' es el modo por omisión.
 //
 // Es la referencia contra la que el checador calcula retardos, comida excedida,
 // salida anticipada y FALTAS: un empleado sin horario no puede evaluarse.
@@ -31,6 +33,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { confirmAction } from '@/lib/utils';
@@ -43,12 +46,19 @@ import {
 } from '@/hooks/useHR';
 import { useAppSelector } from '@/store/hooks';
 import { selectUserPermissions, selectUserRoles } from '@/store/slices/authSlice';
-import { apiErrorMessage, apiErrorStatus, hasManagePermission, shortTime } from '../hr-utils';
+import {
+  apiErrorMessage,
+  apiErrorStatus,
+  breakSummary,
+  hasManagePermission,
+  shortTime,
+} from '../hr-utils';
 import {
   WORK_DAYS,
   type CreateWorkScheduleDto,
   type UpdateWorkScheduleDto,
   type WorkSchedule,
+  type WorkScheduleBreakMode,
 } from '@/types/hr';
 import type { Branch } from '@/types/branch';
 
@@ -113,11 +123,7 @@ export default function HorariosPage() {
     {
       key: 'break',
       header: 'Comida',
-      render: (s) => (
-        <span className="text-sm tabular-nums">
-          {shortTime(s.breakOutTime)} - {shortTime(s.breakInTime)}
-        </span>
-      ),
+      render: (s) => <span className="text-sm tabular-nums">{breakSummary(s)}</span>,
     },
     {
       key: 'tolerance',
@@ -212,7 +218,8 @@ export default function HorariosPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Horarios</h1>
           <p className="text-gray-600">
-            Entrada, comida y salida con tolerancia. Es la base de retardos y faltas del checador.
+            Entrada y salida con tolerancia; la comida puede ser libre (duración máxima) o
+            fija. Es la base de retardos y faltas del checador.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -304,9 +311,13 @@ interface ScheduleForm {
   code: string;
   name: string;
   checkInTime: string;
+  checkOutTime: string;
+  /** 'flexible' = comida libre con duración máxima; 'fixed' = horas fijas. */
+  breakMode: WorkScheduleBreakMode;
+  /** Duración máxima de la comida (solo se captura en modo libre). */
+  breakMinutes: string;
   breakOutTime: string;
   breakInTime: string;
-  checkOutTime: string;
   lateToleranceMinutes: string;
   breakToleranceMinutes: string;
   workDays: number[];
@@ -330,9 +341,11 @@ function WorkScheduleDialog({
     code: schedule?.code ?? '',
     name: schedule?.name ?? '',
     checkInTime: shortTimeValue(schedule?.checkInTime, '09:00'),
+    checkOutTime: shortTimeValue(schedule?.checkOutTime, '18:00'),
+    breakMode: schedule?.breakMode ?? 'flexible',
+    breakMinutes: String(schedule?.breakMinutes ?? 60),
     breakOutTime: shortTimeValue(schedule?.breakOutTime, '14:00'),
     breakInTime: shortTimeValue(schedule?.breakInTime, '15:00'),
-    checkOutTime: shortTimeValue(schedule?.checkOutTime, '18:00'),
     lateToleranceMinutes: String(schedule?.lateToleranceMinutes ?? 10),
     breakToleranceMinutes: String(schedule?.breakToleranceMinutes ?? 10),
     workDays: schedule?.workDays ?? [1, 2, 3, 4, 5, 6],
@@ -360,17 +373,43 @@ function WorkScheduleDialog({
       toast.error('La clave y el nombre son obligatorios');
       return;
     }
-    // Los cuatro tiempos deben ir en orden dentro del mismo día.
-    const order = [form.checkInTime, form.breakOutTime, form.breakInTime, form.checkOutTime];
-    if (order.some((t) => !t)) {
-      toast.error('Captura los cuatro horarios');
+    if (!form.checkInTime || !form.checkOutTime) {
+      toast.error('Captura la hora de entrada y la de salida');
       return;
     }
-    for (let i = 1; i < order.length; i++) {
-      if (order[i] <= order[i - 1]) {
-        toast.error(
-          'El orden debe ser entrada < salida a comer < regreso de comer < salida.',
-        );
+    if (form.checkOutTime <= form.checkInTime) {
+      toast.error('La salida debe ser después de la entrada');
+      return;
+    }
+    // Minutos de jornada: ninguna comida puede durar más que el día completo.
+    const shiftMinutes = minutesBetween(form.checkInTime, form.checkOutTime);
+
+    // En comida libre solo importa la duración máxima; en fija, el orden de las horas.
+    let breakMins: number;
+    if (form.breakMode === 'fixed') {
+      if (!form.breakOutTime || !form.breakInTime) {
+        toast.error('Con comida fija captura la hora de salida a comer y la de regreso');
+        return;
+      }
+      const order = [form.checkInTime, form.breakOutTime, form.breakInTime, form.checkOutTime];
+      for (let i = 1; i < order.length; i++) {
+        if (order[i] <= order[i - 1]) {
+          toast.error(
+            'El orden debe ser entrada < salida a comer < regreso de comer < salida.',
+          );
+          return;
+        }
+      }
+      // La duración se deriva de la ventana (el tope de la BD son 240 min).
+      breakMins = Math.min(240, minutesBetween(form.breakOutTime, form.breakInTime));
+    } else {
+      breakMins = Number(form.breakMinutes);
+      if (!Number.isFinite(breakMins) || breakMins < 0 || breakMins > 240) {
+        toast.error('La duración máxima de la comida va de 0 a 240 minutos');
+        return;
+      }
+      if (breakMins >= shiftMinutes) {
+        toast.error('La comida no puede durar tanto o más que la jornada');
         return;
       }
     }
@@ -393,9 +432,12 @@ function WorkScheduleDialog({
       code: form.code.trim().toUpperCase(),
       name: form.name.trim(),
       checkInTime: form.checkInTime,
-      breakOutTime: form.breakOutTime,
-      breakInTime: form.breakInTime,
       checkOutTime: form.checkOutTime,
+      breakMode: form.breakMode,
+      breakMinutes: breakMins,
+      // En comida libre no hay horas que guardar: se mandan en null.
+      breakOutTime: form.breakMode === 'fixed' ? form.breakOutTime : null,
+      breakInTime: form.breakMode === 'fixed' ? form.breakInTime : null,
       lateToleranceMinutes: late,
       breakToleranceMinutes: breakTol,
       workDays: form.workDays,
@@ -423,7 +465,8 @@ function WorkScheduleDialog({
         <DialogHeader>
           <DialogTitle>{isEdit ? 'Editar horario' : 'Nuevo horario'}</DialogTitle>
           <DialogDescription>
-            Los cuatro tiempos del día. La tolerancia es el margen antes de contar retardo.
+            Entrada y salida con tolerancia; la comida puede ser libre (duración máxima) o
+            fija. La tolerancia es el margen antes de contar retardo o excedente.
           </DialogDescription>
         </DialogHeader>
 
@@ -452,45 +495,35 @@ function WorkScheduleDialog({
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-3">
             <div className="grid gap-1.5">
-              <Label className="text-xs">Entrada</Label>
+              <Label className="text-xs" htmlFor="horario-entrada">
+                Entrada
+              </Label>
               <Input
+                id="horario-entrada"
                 type="time"
                 value={form.checkInTime}
                 onChange={(e) => set('checkInTime', e.target.value)}
               />
             </div>
             <div className="grid gap-1.5">
-              <Label className="text-xs">Sale a comer</Label>
+              <Label className="text-xs" htmlFor="horario-salida">
+                Salida
+              </Label>
               <Input
-                type="time"
-                value={form.breakOutTime}
-                onChange={(e) => set('breakOutTime', e.target.value)}
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label className="text-xs">Regresa</Label>
-              <Input
-                type="time"
-                value={form.breakInTime}
-                onChange={(e) => set('breakInTime', e.target.value)}
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label className="text-xs">Salida</Label>
-              <Input
+                id="horario-salida"
                 type="time"
                 value={form.checkOutTime}
                 onChange={(e) => set('checkOutTime', e.target.value)}
               />
             </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-1.5">
-              <Label className="text-xs">Tolerancia de entrada (min)</Label>
+              <Label className="text-xs" htmlFor="horario-tol-entrada">
+                Tolerancia de entrada (min)
+              </Label>
               <Input
+                id="horario-tol-entrada"
                 type="number"
                 min={0}
                 max={120}
@@ -498,16 +531,104 @@ function WorkScheduleDialog({
                 onChange={(e) => set('lateToleranceMinutes', e.target.value)}
               />
             </div>
-            <div className="grid gap-1.5">
-              <Label className="text-xs">Tolerancia de comida (min)</Label>
-              <Input
-                type="number"
-                min={0}
-                max={120}
-                value={form.breakToleranceMinutes}
-                onChange={(e) => set('breakToleranceMinutes', e.target.value)}
-              />
-            </div>
+          </div>
+
+          {/* Comida: libre (duración máxima) o fija (horas de salida y regreso). */}
+          <div className="grid gap-3 rounded-lg border border-border p-3">
+            <Label className="text-sm font-semibold">Comida</Label>
+            <RadioGroup
+              value={form.breakMode}
+              onValueChange={(v) => set('breakMode', v as WorkScheduleBreakMode)}
+              className="gap-2"
+            >
+              <div className="flex items-start gap-2">
+                <RadioGroupItem value="flexible" id="comida-libre" className="mt-0.5" />
+                <Label htmlFor="comida-libre" className="text-sm font-normal leading-snug">
+                  Libre: cada quien la toma cuando quiera
+                </Label>
+              </div>
+              <div className="flex items-start gap-2">
+                <RadioGroupItem value="fixed" id="comida-fija" className="mt-0.5" />
+                <Label htmlFor="comida-fija" className="text-sm font-normal leading-snug">
+                  Fija: misma hora de salida y de regreso
+                </Label>
+              </div>
+            </RadioGroup>
+
+            {form.breakMode === 'flexible' ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-1.5">
+                  <Label className="text-xs" htmlFor="comida-duracion">
+                    Duración máxima (min)
+                  </Label>
+                  <Input
+                    id="comida-duracion"
+                    type="number"
+                    min={0}
+                    max={240}
+                    value={form.breakMinutes}
+                    onChange={(e) => set('breakMinutes', e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label className="text-xs" htmlFor="comida-tolerancia">
+                    Tolerancia de comida (min)
+                  </Label>
+                  <Input
+                    id="comida-tolerancia"
+                    type="number"
+                    min={0}
+                    max={120}
+                    value={form.breakToleranceMinutes}
+                    onChange={(e) => set('breakToleranceMinutes', e.target.value)}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="grid gap-1.5">
+                  <Label className="text-xs" htmlFor="comida-sale">
+                    Sale a comer
+                  </Label>
+                  <Input
+                    id="comida-sale"
+                    type="time"
+                    value={form.breakOutTime}
+                    onChange={(e) => set('breakOutTime', e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label className="text-xs" htmlFor="comida-regresa">
+                    Regresa
+                  </Label>
+                  <Input
+                    id="comida-regresa"
+                    type="time"
+                    value={form.breakInTime}
+                    onChange={(e) => set('breakInTime', e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label className="text-xs" htmlFor="comida-tolerancia-fija">
+                    Tolerancia de comida (min)
+                  </Label>
+                  <Input
+                    id="comida-tolerancia-fija"
+                    type="number"
+                    min={0}
+                    max={120}
+                    value={form.breakToleranceMinutes}
+                    onChange={(e) => set('breakToleranceMinutes', e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            <p className="text-[11px] text-muted-foreground">
+              {form.breakMode === 'flexible'
+                ? 'Lo que pase de la duración máxima más la tolerancia cuenta como comida excedida.'
+                : 'Se compara contra la ventana fija; lo que pase de ella más la tolerancia cuenta como comida excedida.'}
+            </p>
           </div>
 
           <div className="grid gap-2">
@@ -574,7 +695,14 @@ function WorkScheduleDialog({
   );
 }
 
-/** El input type=time necesita 'HH:MM' (el API puede mandar 'HH:MM:SS'). */
-function shortTimeValue(value: string | undefined, fallback: string): string {
+/** El input type=time necesita 'HH:MM' (el API puede mandar 'HH:MM:SS' o null). */
+function shortTimeValue(value: string | null | undefined, fallback: string): string {
   return value ? value.slice(0, 5) : fallback;
+}
+
+/** Minutos entre dos horas 'HH:MM' del mismo día (from < to). */
+function minutesBetween(from: string, to: string): number {
+  const [fh, fm] = from.split(':').map(Number);
+  const [th, tm] = to.split(':').map(Number);
+  return th * 60 + tm - (fh * 60 + fm);
 }

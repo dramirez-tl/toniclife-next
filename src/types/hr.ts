@@ -129,15 +129,31 @@ export const WORK_DAYS: { value: number; short: string; label: string }[] = [
   { value: 7, short: 'D', label: 'Domingo' },
 ];
 
+/**
+ * Cómo se toma la comida (decisión del cliente, 17-sep-2026):
+ * - 'flexible': cada quien la toma cuando quiera, con una duración máxima.
+ * - 'fixed': hora fija de salida y regreso.
+ */
+export type WorkScheduleBreakMode = 'flexible' | 'fixed';
+
+export const WORK_SCHEDULE_BREAK_MODE_LABELS: Record<WorkScheduleBreakMode, string> = {
+  flexible: 'Libre',
+  fixed: 'Fija',
+};
+
 export interface WorkSchedule {
   id: string;
   code: string;
   name: string;
   /** 'HH:MM' */
   checkInTime: string;
-  breakOutTime: string;
-  breakInTime: string;
+  /** null cuando la comida es libre (solo aplica con breakMode = 'fixed'). */
+  breakOutTime: string | null;
+  breakInTime: string | null;
   checkOutTime: string;
+  breakMode: WorkScheduleBreakMode;
+  /** Duración MÁXIMA de la comida en minutos (base del excedente). */
+  breakMinutes: number;
   lateToleranceMinutes: number;
   breakToleranceMinutes: number;
   /** ISO: 1 = lunes … 7 = domingo. */
@@ -150,15 +166,17 @@ export interface WorkSchedule {
   employeesCount?: number;
 }
 
-/** Los 4 tiempos del horario asignado, como vienen en el expediente. */
+/** El horario asignado, como viene en el expediente. */
 export interface WorkScheduleSummary {
   id: string;
   code: string;
   name: string;
   checkInTime: string;
-  breakOutTime: string;
-  breakInTime: string;
+  breakOutTime: string | null;
+  breakInTime: string | null;
   checkOutTime: string;
+  breakMode: WorkScheduleBreakMode;
+  breakMinutes: number;
   lateToleranceMinutes: number;
   breakToleranceMinutes: number;
   workDays: number[];
@@ -168,9 +186,12 @@ export interface CreateWorkScheduleDto {
   code: string;
   name: string;
   checkInTime: string;
-  breakOutTime: string;
-  breakInTime: string;
+  /** Solo con breakMode = 'fixed'; null/omitido cuando la comida es libre. */
+  breakOutTime?: string | null;
+  breakInTime?: string | null;
   checkOutTime: string;
+  breakMode?: WorkScheduleBreakMode;
+  breakMinutes?: number;
   lateToleranceMinutes?: number;
   breakToleranceMinutes?: number;
   workDays?: number[];
@@ -741,9 +762,14 @@ export interface AttendanceDaySummaryRow {
   scheduleCode: string | null;
   /** 'HH:MM' del horario asignado. */
   expectedCheckIn: string | null;
+  /** null cuando la comida es libre: no hay hora esperada que comparar. */
   expectedBreakOut: string | null;
   expectedBreakIn: string | null;
   expectedCheckOut: string | null;
+  /** Cómo se toma la comida en el horario del empleado (null sin horario). */
+  scheduleBreakMode: WorkScheduleBreakMode | null;
+  /** Minutos de comida permitidos por el horario (null sin horario). */
+  scheduleBreakMinutes: number | null;
   /** Minutos de retardo ya descontada la tolerancia (0 si llegó a tiempo). */
   lateMinutes: number | null;
   /** Minutos de comida por encima de lo permitido + tolerancia. */

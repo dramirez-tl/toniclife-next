@@ -729,6 +729,7 @@ function ResumenTab({
         'Retardo (min)',
         'Salida a comer',
         'Regreso de comer',
+        'Comida esperada',
         'Comida (min)',
         'Comida excedida (min)',
         'Salida',
@@ -749,6 +750,7 @@ function ResumenTab({
         r.lateMinutes ?? '',
         r.breakOutTime ?? '',
         r.breakInTime ?? '',
+        csvSafe(expectedBreakText(r)),
         r.breakMinutes ?? '',
         r.breakExcessMinutes ?? '',
         r.checkOutTime ?? '',
@@ -814,9 +816,23 @@ function ResumenTab({
     {
       key: 'breakOut',
       header: 'Salida a comer',
-      render: (r) => <TimeCell value={r.breakOutTime} />,
+      render: (r) => (
+        <div>
+          <TimeCell value={r.breakOutTime} />
+          <ExpectedBreakHint row={r} expected={r.expectedBreakOut} />
+        </div>
+      ),
     },
-    { key: 'breakIn', header: 'Regreso', render: (r) => <TimeCell value={r.breakInTime} /> },
+    {
+      key: 'breakIn',
+      header: 'Regreso',
+      render: (r) => (
+        <div>
+          <TimeCell value={r.breakInTime} />
+          <ExpectedBreakHint row={r} expected={r.expectedBreakIn} />
+        </div>
+      ),
+    },
     {
       key: 'breakMinutes',
       header: 'Comida (min)',
@@ -1000,6 +1016,7 @@ function ResumenTab({
                   <span>Regreso: {r.breakInTime ?? '—'}</span>
                   <span>Horas: {r.hoursWorked === null ? '—' : r.hoursWorked.toFixed(2)}</span>
                   <span>Comida (min): {r.breakMinutes ?? '—'}</span>
+                  <span>Comida esperada: {expectedBreakText(r) || '—'}</span>
                   <span>Retardo: {r.lateMinutes ?? '—'} min</span>
                   <span>Horario: {r.scheduleCode ?? 'sin horario'}</span>
                 </div>
@@ -1036,6 +1053,39 @@ function ResumenTab({
 // ---------------------------------------------------------------------------
 // Piezas compartidas
 // ---------------------------------------------------------------------------
+
+/**
+ * Qué se esperaba de la comida ese día. Con comida LIBRE (decisión del cliente
+ * del 17-sep-2026) no hay horas fijas que comparar: solo la duración máxima.
+ */
+function expectedBreakText(r: AttendanceDaySummaryRow): string {
+  if (r.scheduleBreakMode === 'flexible') {
+    return `Libre (máx. ${r.scheduleBreakMinutes ?? 0})`;
+  }
+  if (r.expectedBreakOut && r.expectedBreakIn) {
+    return `${r.expectedBreakOut} - ${r.expectedBreakIn}`;
+  }
+  return '';
+}
+
+/** Renglón chico debajo del toque real de comida con lo esperado. */
+function ExpectedBreakHint({
+  row,
+  expected,
+}: {
+  row: AttendanceDaySummaryRow;
+  expected: string | null;
+}) {
+  if (row.scheduleBreakMode === 'flexible') {
+    return (
+      <p className="text-[11px] text-muted-foreground tabular-nums">
+        Libre (máx. {row.scheduleBreakMinutes ?? 0})
+      </p>
+    );
+  }
+  if (!expected) return null;
+  return <p className="text-[11px] text-muted-foreground tabular-nums">esperada {expected}</p>;
+}
 
 function TimeCell({ value }: { value: string | null }) {
   return (
