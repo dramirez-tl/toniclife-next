@@ -1,5 +1,9 @@
-// hr.ts - TypeScript types for Human Resources module
-// Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.6 Módulo Recursos Humanos
+// hr.ts - Tipos del módulo de Recursos Humanos (expediente, checador,
+// horarios, vacaciones y viáticos).
+//
+// Convención: el API de RRHH responde en camelCase (el service ya no traduce
+// snake_case salvo en vacaciones, que sigue devolviendo la fila cruda) y los
+// enums viajan en MINÚSCULAS, igual que los CHECK de la base.
 
 import type { BadgeVariant } from './asset';
 
@@ -7,9 +11,88 @@ import type { BadgeVariant } from './asset';
 // ENUMS
 // ================================
 
-export type EmployeeStatus = 'ACTIVE' | 'INACTIVE' | 'ON_LEAVE' | 'TERMINATED';
+export const EMPLOYEE_STATUSES = [
+  'active',
+  'inactive',
+  'on_leave',
+  'terminated',
+] as const;
 
-export type VacationStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+export type EmployeeStatus = (typeof EMPLOYEE_STATUSES)[number];
+
+export const EMPLOYEE_STATUS_LABELS: Record<EmployeeStatus, string> = {
+  active: 'Activo',
+  inactive: 'Inactivo',
+  on_leave: 'En vacaciones',
+  terminated: 'Baja',
+};
+
+export const EMPLOYEE_STATUS_VARIANTS: Record<EmployeeStatus, BadgeVariant> = {
+  active: 'success',
+  inactive: 'secondary',
+  on_leave: 'warning',
+  terminated: 'destructive',
+};
+
+/**
+ * Tipo de colaborador. Decisión del cliente (17-sep-2026): habrá expedientes
+ * dados de alta SOLO para control de RRHH (sin cuenta de acceso), y no todos
+ * están en la nómina de Aspel NOI.
+ */
+export const EMPLOYMENT_TYPES = [
+  'nomina',
+  'externo',
+  'honorarios',
+  'practicante',
+] as const;
+
+export type EmploymentType = (typeof EMPLOYMENT_TYPES)[number];
+
+export const EMPLOYMENT_TYPE_LABELS: Record<EmploymentType, string> = {
+  nomina: 'Nómina',
+  externo: 'Externo',
+  honorarios: 'Honorarios',
+  practicante: 'Practicante',
+};
+
+export const EMPLOYMENT_TYPE_VARIANTS: Record<EmploymentType, BadgeVariant> = {
+  nomina: 'default',
+  externo: 'info',
+  honorarios: 'warning',
+  practicante: 'secondary',
+};
+
+/** De dónde salió/actualizó el expediente. */
+export type SyncSource = 'manual' | 'csv' | 'noi';
+
+export const SYNC_SOURCE_LABELS: Record<SyncSource, string> = {
+  manual: 'Captura manual',
+  csv: 'Carga CSV',
+  noi: 'Aspel NOI',
+};
+
+export type VacationStatus =
+  | 'draft'
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'cancelled';
+
+export const VACATION_STATUS_LABELS: Record<VacationStatus, string> = {
+  draft: 'Borrador',
+  pending: 'Pendiente',
+  approved: 'Aprobada',
+  rejected: 'Rechazada',
+  cancelled: 'Cancelada',
+};
+
+export const VACATION_STATUS_VARIANTS: Record<VacationStatus, BadgeVariant> = {
+  draft: 'secondary',
+  pending: 'warning',
+  approved: 'success',
+  rejected: 'destructive',
+  cancelled: 'secondary',
+};
 
 export type ExpenseStatus =
   | 'DRAFT'
@@ -28,59 +111,148 @@ export type ExpenseCategory =
   | 'OTHER';
 
 // ================================
-// EMPLOYEE TYPES
+// HORARIOS (4 tiempos)
+// ================================
+//
+// Cada empleado tiene un horario de CUATRO tiempos: entrada, salida a comer,
+// regreso de comer y salida, con tolerancias. Con eso el resumen del día del
+// checador calcula retardos, comida excedida, salida anticipada y faltas.
+
+/** Días laborables en ISO: 1 = lunes … 7 = domingo. */
+export const WORK_DAYS: { value: number; short: string; label: string }[] = [
+  { value: 1, short: 'L', label: 'Lunes' },
+  { value: 2, short: 'M', label: 'Martes' },
+  { value: 3, short: 'M', label: 'Miércoles' },
+  { value: 4, short: 'J', label: 'Jueves' },
+  { value: 5, short: 'V', label: 'Viernes' },
+  { value: 6, short: 'S', label: 'Sábado' },
+  { value: 7, short: 'D', label: 'Domingo' },
+];
+
+export interface WorkSchedule {
+  id: string;
+  code: string;
+  name: string;
+  /** 'HH:MM' */
+  checkInTime: string;
+  breakOutTime: string;
+  breakInTime: string;
+  checkOutTime: string;
+  lateToleranceMinutes: number;
+  breakToleranceMinutes: number;
+  /** ISO: 1 = lunes … 7 = domingo. */
+  workDays: number[];
+  /** null = horario global (sirve para cualquier sucursal). */
+  branchId: string | null;
+  branchName?: string | null;
+  isActive: boolean;
+  /** Empleados activos con este horario asignado. */
+  employeesCount?: number;
+}
+
+/** Los 4 tiempos del horario asignado, como vienen en el expediente. */
+export interface WorkScheduleSummary {
+  id: string;
+  code: string;
+  name: string;
+  checkInTime: string;
+  breakOutTime: string;
+  breakInTime: string;
+  checkOutTime: string;
+  lateToleranceMinutes: number;
+  breakToleranceMinutes: number;
+  workDays: number[];
+}
+
+export interface CreateWorkScheduleDto {
+  code: string;
+  name: string;
+  checkInTime: string;
+  breakOutTime: string;
+  breakInTime: string;
+  checkOutTime: string;
+  lateToleranceMinutes?: number;
+  breakToleranceMinutes?: number;
+  workDays?: number[];
+  branchId?: string | null;
+}
+
+export type UpdateWorkScheduleDto = Partial<CreateWorkScheduleDto> & {
+  isActive?: boolean;
+};
+
+// ================================
+// EMPLEADOS
 // ================================
 
+/** Renglón del listado de empleados (GET /hr/employees). */
 export interface Employee {
   id: string;
-  userId: string;
   employeeNumber: string;
-  /** Número de empleado en Aspel NOI (nómina). null si no está en NOI. */
-  noiNumber?: string | null;
-  firstName: string;
-  lastName: string;
-  secondLastName?: string | null;
-  email: string;
-  phone?: string;
-  position: string;
-  department?: string;
-  departmentId?: string;
-  branch?: string;
-  branchId?: string;
-  supervisorId?: string;
-  isManager: boolean;
-  hireDate: string;
-  terminationDate?: string;
-  vacationDaysPerYear?: number;
-  vacationDaysUsed?: number;
-  vacationDaysAvailable?: number;
-  salary?: number;
+  /** Número de nómina en Aspel NOI. null si no está en NOI. */
+  noiNumber: string | null;
+  /** Código del GAFETE (distinto del número de checador). */
+  badgeCode: string | null;
+  employmentType: EmploymentType;
+  /** true si el expediente tiene cuenta de usuario ligada. */
+  hasSystemAccess: boolean;
+  /**
+   * users.id de la cuenta ligada (null en un expediente solo de RRHH).
+   * Lo consume la asignación de activos/insumos, que se hace a un USUARIO.
+   */
+  userId?: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  secondLastName: string | null;
+  fullName: string | null;
+  email: string | null;
+  phone: string | null;
   status: EmployeeStatus;
-  createdAt: string;
-  updatedAt: string;
-  // Relations
-  user?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone?: string;
-  };
-  branchInfo?: {
-    id: string;
-    name: string;
-    code: string;
-  };
-  supervisor?: {
-    id: string;
-    employeeNumber: string;
-    firstName?: string;
-    lastName?: string;
-    user?: {
-      firstName: string;
-      lastName: string;
-    };
-  };
+  isActive: boolean;
+  hireDate: string | null;
+  terminationDate: string | null;
+  branchId: string | null;
+  branchName: string | null;
+  departmentId: string | null;
+  departmentName: string | null;
+  jobPositionId: string | null;
+  jobPositionName: string | null;
+  workScheduleId: string | null;
+  workScheduleName: string | null;
+  /** URL firmada (15 min) de la foto del gafete; null si no tiene. */
+  photoUrl: string | null;
+  photoConsentAt: string | null;
+  syncSource: SyncSource | null;
+  lastSyncedAt: string | null;
+}
+
+/** Expediente completo (GET /hr/employees/:id). */
+export interface EmployeeDetail extends Employee {
+  rfc: string | null;
+  curp: string | null;
+  imssNumber: string | null;
+  birthDate: string | null;
+  gender: string | null;
+  maritalStatus: string | null;
+  address: string | null;
+  zipCode: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  salaryType: string | null;
+  /** Postgres numeric llega como string. */
+  dailySalary: number | string | null;
+  integratedDailySalary: number | string | null;
+  employerRegistration: string | null;
+  contractType: string | null;
+  workSchedule: WorkScheduleSummary | null;
+  supervisor: { id: string; employeeNumber: string; fullName: string | null } | null;
+  notes: string | null;
+  personalEmail: string | null;
+  noiCompany: string | null;
+  badgeIssuedAt: string | null;
+  badgePrintedCount: number;
+  user: { id: string; email: string; isActive: boolean; roleCode: string | null } | null;
+  attendanceToday: { lastEventType: string | null; lastEventAt: string | null } | null;
 }
 
 export interface EmployeeListResponse {
@@ -93,7 +265,178 @@ export interface EmployeeListResponse {
   };
 }
 
-// Catálogo de departamentos (tabla departments en el backend).
+export interface EmployeeQuery {
+  /** Número de empleado, número NOI, gafete o nombre (también "nombre apellido"). */
+  search?: string;
+  branchId?: string;
+  departmentId?: string;
+  employmentType?: EmploymentType;
+  status?: EmployeeStatus;
+  /** true = solo con cuenta de usuario; false = solo expedientes sin acceso. */
+  hasSystemAccess?: boolean;
+  page?: number;
+  limit?: number;
+}
+
+/**
+ * Alta de expediente. `userId` es OPCIONAL: sin él se crea un expediente SOLO
+ * para control de RRHH (sin correo ni rol). El correo de contacto va en
+ * `personalEmail`: `employees.email` NUNCA se escribe desde aquí porque un
+ * trigger (mig 077) lo propaga al correo de acceso.
+ */
+export interface CreateEmployeeDto {
+  userId?: string;
+  /** Si falta y el tipo no es nómina, el API genera un EXT-NNNN. */
+  employeeNumber?: string;
+  noiNumber?: string;
+  noiCompany?: string;
+  employmentType?: EmploymentType;
+  firstName?: string;
+  lastName?: string;
+  secondLastName?: string;
+  phone?: string;
+  personalEmail?: string;
+  branchId?: string;
+  departmentId?: string;
+  jobPositionId?: string;
+  workScheduleId?: string;
+  hireDate?: string;
+  status?: EmployeeStatus;
+  rfc?: string;
+  curp?: string;
+  imssNumber?: string;
+  birthDate?: string;
+  notes?: string;
+}
+
+export interface UpdateEmployeeDto {
+  employeeNumber?: string;
+  noiNumber?: string | null;
+  noiCompany?: string | null;
+  employmentType?: EmploymentType;
+  firstName?: string;
+  lastName?: string;
+  secondLastName?: string;
+  phone?: string;
+  personalEmail?: string | null;
+  branchId?: string | null;
+  departmentId?: string | null;
+  jobPositionId?: string | null;
+  workScheduleId?: string | null;
+  supervisorId?: string | null;
+  hireDate?: string;
+  status?: EmployeeStatus;
+  terminationDate?: string;
+  photoConsentAt?: string | null;
+  rfc?: string;
+  curp?: string;
+  imssNumber?: string;
+  birthDate?: string;
+  notes?: string;
+}
+
+/** Nombre a mostrar: el API arma fullName con COALESCE(workers, employees). */
+export function employeeDisplayName(
+  e: Pick<Employee, 'fullName' | 'firstName' | 'lastName' | 'secondLastName'>,
+): string {
+  const armed = [e.firstName, e.lastName, e.secondLastName]
+    .filter((p): p is string => !!p && p.trim().length > 0)
+    .join(' ')
+    .trim();
+  return e.fullName?.trim() || armed || 'Sin nombre';
+}
+
+/** Iniciales para el avatar local (el módulo ya no usa ui-avatars.com). */
+export function employeeInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  const first = parts[0][0] ?? '';
+  const second = parts.length > 1 ? (parts[1][0] ?? '') : '';
+  return (first + second).toUpperCase();
+}
+
+// ================================
+// IMPORTACIÓN CSV DE EXPEDIENTES
+// ================================
+
+/** Columnas del CSV (todas por nombre, el orden es libre). */
+export const EMPLOYEE_IMPORT_COLUMNS = [
+  'employee_number',
+  'noi_number',
+  'noi_company',
+  'employment_type',
+  'first_name',
+  'last_name',
+  'second_last_name',
+  'phone',
+  'personal_email',
+  'branch_code',
+  'department_code',
+  'job_position_code',
+  'work_schedule_code',
+  'hire_date',
+  'status',
+  'rfc',
+  'curp',
+  'imss_number',
+  'notes',
+] as const;
+
+export interface EmployeeImportError {
+  row: number;
+  message: string;
+}
+
+export interface EmployeeImportSampleRow {
+  row: number;
+  action?: string;
+  employeeNumber?: string | null;
+  noiNumber?: string | null;
+  name?: string | null;
+  message?: string | null;
+}
+
+export interface EmployeeImportResult {
+  dryRun: boolean;
+  total: number;
+  toCreate: number;
+  toUpdate: number;
+  unchanged: number;
+  errors: EmployeeImportError[];
+  sample: EmployeeImportSampleRow[];
+}
+
+// ================================
+// PANEL DE RRHH
+// ================================
+
+export interface HrDashboard {
+  employees: {
+    total: number;
+    active: number;
+    nomina: number;
+    externos: number;
+    withoutSchedule: number;
+    withoutPhoto: number;
+    withoutBadge: number;
+    withoutNoi: number;
+  };
+  attendanceToday: {
+    date: string;
+    present: number;
+    absent: number;
+    openShifts: number;
+    late: number;
+  };
+  vacations: {
+    pending: number;
+  };
+}
+
+// ================================
+// CATÁLOGO DE DEPARTAMENTOS
+// ================================
+
 export interface Department {
   id: string;
   code: string;
@@ -132,42 +475,6 @@ export interface OrgDirector {
   countryName: string;
   directorUserId: string | null;
   directorName: string | null;
-}
-
-export interface EmployeeQuery {
-  branchId?: string;
-  departmentId?: string;
-  status?: EmployeeStatus;
-  search?: string;
-  page?: number;
-  limit?: number;
-}
-
-export interface CreateEmployeeDto {
-  userId: string;
-  employeeNumber: string;
-  position: string;
-  department?: string;
-  branchId: string;
-  supervisorId?: string;
-  isManager?: boolean;
-  hireDate: string;
-  vacationDaysPerYear?: number;
-  salary?: number;
-}
-
-export interface UpdateEmployeeDto {
-  firstName?: string;
-  lastName?: string;
-  secondLastName?: string;
-  noiNumber?: string;
-  phone?: string;
-  departmentId?: string;
-  branchId?: string;
-  supervisorId?: string;
-  hireDate?: string;
-  isManager?: boolean;
-  status?: EmployeeStatus;
 }
 
 // ================================
@@ -274,6 +581,36 @@ export interface AttendanceListResponse {
   totalPages: number;
 }
 
+/**
+ * Estado del día de un empleado contra su horario:
+ * - on_time / late: checó entrada dentro o fuera de la tolerancia.
+ * - absent: tiene horario, el día es laborable y NO hay ningún evento.
+ * - no_schedule: checó pero no tiene horario asignado (no se puede evaluar).
+ * - incomplete: checó pero el día quedó sin cerrar (falta la salida).
+ */
+export type AttendanceDayStatus =
+  | 'on_time'
+  | 'late'
+  | 'absent'
+  | 'no_schedule'
+  | 'incomplete';
+
+export const ATTENDANCE_DAY_STATUS_LABELS: Record<AttendanceDayStatus, string> = {
+  on_time: 'A tiempo',
+  late: 'Retardo',
+  absent: 'Falta',
+  no_schedule: 'Sin horario',
+  incomplete: 'Incompleto',
+};
+
+export const ATTENDANCE_DAY_STATUS_VARIANTS: Record<AttendanceDayStatus, BadgeVariant> = {
+  on_time: 'success',
+  late: 'warning',
+  absent: 'destructive',
+  no_schedule: 'secondary',
+  incomplete: 'info',
+};
+
 /** Un empleado en el resumen de un día: sus cuatro toques, comida y horas. */
 export interface AttendanceDaySummaryRow {
   employeeId: string;
@@ -300,11 +637,34 @@ export interface AttendanceDaySummaryRow {
   openShift: boolean;
   firstPhotoUrl: string | null;
   lastPhotoUrl: string | null;
+  // --- Horario esperado y desviaciones (null sin horario asignado) ---
+  scheduleCode: string | null;
+  /** 'HH:MM' del horario asignado. */
+  expectedCheckIn: string | null;
+  expectedBreakOut: string | null;
+  expectedBreakIn: string | null;
+  expectedCheckOut: string | null;
+  /** Minutos de retardo ya descontada la tolerancia (0 si llegó a tiempo). */
+  lateMinutes: number | null;
+  /** Minutos de comida por encima de lo permitido + tolerancia. */
+  breakExcessMinutes: number | null;
+  /** Minutos que se fue antes de la hora de salida. */
+  earlyLeaveMinutes: number | null;
+  status: AttendanceDayStatus;
+}
+
+export interface AttendanceDaySummaryTotals {
+  present: number;
+  absent: number;
+  late: number;
+  onTime: number;
+  noSchedule: number;
 }
 
 export interface AttendanceDaySummary {
   date: string;
   rows: AttendanceDaySummaryRow[];
+  summary: AttendanceDaySummaryTotals;
 }
 
 export interface AttendanceDayQuery {
@@ -325,43 +685,49 @@ export interface ManualAttendanceInput {
 }
 
 // ================================
-// VACATION TYPES
+// VACACIONES
 // ================================
+//
+// El API responde la fila cruda de vacation_requests (snake_case); el service
+// la normaliza a este tipo.
 
 export interface Vacation {
   id: string;
+  requestNumber: string | null;
   employeeId: string;
+  employeeNumber: string | null;
+  employeeName: string | null;
   startDate: string;
   endDate: string;
-  daysRequested: number;
-  reason?: string;
+  totalCalendarDays: number | null;
+  /** Días hábiles solicitados (es el dato que descuenta el saldo). */
+  totalBusinessDays: number | null;
   status: VacationStatus;
-  reviewedBy?: string;
-  reviewedAt?: string;
-  reviewNotes?: string;
-  rejectionReason?: string;
+  requestComments: string | null;
+  requestedAt: string | null;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  rejectionReason: string | null;
+  rejectedAt: string | null;
+  cancelledAt: string | null;
+  cancellationReason: string | null;
   createdAt: string;
-  updatedAt: string;
-  // Relations
-  employee?: Employee;
-  reviewer?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-  };
 }
 
 export interface VacationListResponse {
   data: Vacation[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    pages: number;
+  };
 }
 
 export interface VacationQuery {
   employeeId?: string;
   status?: VacationStatus;
+  /** 'YYYY-MM-DD' (se mandan como fromDate/toDate). */
   startDate?: string;
   endDate?: string;
   page?: number;
@@ -371,16 +737,16 @@ export interface VacationQuery {
 export interface CreateVacationDto {
   startDate: string;
   endDate: string;
-  reason?: string;
+  /** El API lo llama `comments` (no `reason`). */
+  comments?: string;
 }
 
 export interface ReviewVacationDto {
-  reviewNotes?: string;
-  rejectionReason?: string;
+  notes?: string;
 }
 
 // ================================
-// EXPENSE (VIÁTICOS) TYPES
+// VIÁTICOS (pantalla sin backend — ver AdminSidebar)
 // ================================
 
 export interface ExpenseItem {
@@ -428,7 +794,14 @@ export interface Expense {
   createdAt: string;
   updatedAt: string;
   // Relations
-  employee?: Employee;
+  employee?: {
+    id: string;
+    employeeNumber?: string;
+    department?: string;
+    firstName?: string;
+    lastName?: string;
+    user?: { firstName: string; lastName: string };
+  };
   items?: ExpenseItem[];
   approver?: {
     id: string;

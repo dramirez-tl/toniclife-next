@@ -1,46 +1,93 @@
 'use client';
 
-import { useState, useMemo, Suspense } from 'react';
+// Empleados: listado del expediente de RRHH.
+//
+// Incluye a los colaboradores SIN cuenta de acceso (alta solo para control de
+// RRHH). Los filtros viven en la URL; la búsqueda pega al servidor con 300 ms
+// de retraso y la consulta conserva los datos anteriores (keepPreviousData)
+// para que el input NO pierda el foco mientras carga.
+
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
+import {
+  ArrowDownTrayIcon,
+  ArrowUpTrayIcon,
+  ClockIcon,
+  ExclamationTriangleIcon,
+  EyeIcon,
+  PencilIcon,
+  PlusIcon,
+  UserGroupIcon,
+} from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  UserGroupIcon,
-  MagnifyingGlassIcon,
-  PlusIcon,
-  PencilIcon,
-  CheckCircleIcon,
-  ArrowDownTrayIcon,
-  BuildingOfficeIcon,
-  PhoneIcon,
-  EnvelopeIcon,
-  CalendarIcon,
-  BriefcaseIcon,
-  ExclamationTriangleIcon,
-  XMarkIcon,
-} from '@heroicons/react/24/outline';
-import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import { PhoneInput } from '@/components/ui/PhoneInput';
-import { parsePhone, isValidLocalNumber } from '@/lib/phone';
-import { DataTable, type DataTableColumn } from '@/components/ui';
-import { useEmployees, useCreateEmployee, useUpdateEmployee, useDepartments } from '@/hooks/useHR';
-import { useActiveBranches } from '@/hooks/useBranches';
+import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui/DataTable';
+import { useEmployees, useDepartments } from '@/hooks/useHR';
+import { useBranches } from '@/hooks/useBranches';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
-import type { Employee, EmployeeStatus, CreateEmployeeDto, UpdateEmployeeDto } from '@/types/hr';
+import { useAppSelector } from '@/store/hooks';
+import { selectUserPermissions, selectUserRoles } from '@/store/slices/authSlice';
+import { hrService } from '@/services/hr.service';
+import { csvDateStamp, exportToCsv } from '@/lib/csv-export';
+import { EmployeeAvatar } from '@/components/admin/hr/EmployeeAvatar';
+import { EmployeeFormDialog } from '@/components/admin/hr/EmployeeFormDialog';
+import { EmployeeImportDialog } from '@/components/admin/hr/EmployeeImportDialog';
+import {
+  apiErrorMessage,
+  csvSafe,
+  formatDateOnly,
+  hasManagePermission,
+} from '../hr-utils';
+import {
+  EMPLOYEE_STATUSES,
+  EMPLOYEE_STATUS_LABELS,
+  EMPLOYEE_STATUS_VARIANTS,
+  EMPLOYMENT_TYPES,
+  EMPLOYMENT_TYPE_LABELS,
+  EMPLOYMENT_TYPE_VARIANTS,
+  employeeDisplayName,
+  type Employee,
+  type EmployeeQuery,
+  type EmployeeStatus,
+  type EmploymentType,
+} from '@/types/hr';
+import type { Branch } from '@/types/branch';
 
-const statusConfig: Record<string, { label: string; color: string }> = {
-  ACTIVE: { label: 'Activo', color: 'bg-green-100 text-green-700' },
-  INACTIVE: { label: 'Inactivo', color: 'bg-gray-100 text-gray-700' },
-  ON_LEAVE: { label: 'Vacaciones', color: 'bg-yellow-100 text-yellow-700' },
-  TERMINATED: { label: 'Baja', color: 'bg-red-100 text-red-700' },
-};
+/** Tope de renglones del CSV (el listado es paginado). */
+const MAX_CSV_ROWS = 2000;
+/** El API tope `limit` en 200 (EmployeeQueryDto). */
+const CSV_PAGE_SIZE = 200;
+
+function isEmploymentType(v: string): v is EmploymentType {
+  return (EMPLOYMENT_TYPES as readonly string[]).includes(v);
+}
+
+function isEmployeeStatus(v: string): v is EmployeeStatus {
+  return (EMPLOYEE_STATUSES as readonly string[]).includes(v);
+}
 
 export default function EmpleadosPage() {
   return (
-    <Suspense>
+    <Suspense fallback={<PageSkeleton />}>
       <EmpleadosContent />
     </Suspense>
+  );
+}
+
+function PageSkeleton() {
+  return (
+    <div className="space-y-4 p-6">
+      <Skeleton className="h-10 w-64" />
+      <Skeleton className="h-28 w-full" />
+      <Skeleton className="h-96 w-full" />
+    </div>
   );
 }
 
@@ -49,190 +96,160 @@ function EmpleadosContent() {
     department: 'all',
     branch: 'all',
     status: 'all',
+    type: 'all',
+    access: 'all',
     page: '1',
+    limit: '20',
   });
 
   const filterDepartment = get('department');
   const filterBranch = get('branch');
   const filterStatus = get('status');
+  const filterType = get('type');
+  const filterAccess = get('access');
+  const search = get('search');
   const page = getNumber('page') || 1;
-  const searchQuery = get('search');
+  const limit = getNumber('limit') || 20;
 
-  const [searchInput, setSearchInput] = useState(searchQuery);
+  const [searchDraft, setSearchDraft] = useState(search);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Employee | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
-  // Modal state
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
-  const [formData, setFormData] = useState<Record<string, any>>({});
+  const permissions = useAppSelector(selectUserPermissions);
+  const roles = useAppSelector(selectUserRoles);
+  const canManage = useMemo(() => hasManagePermission(permissions, roles), [permissions, roles]);
 
-  // Mutation hooks
-  const createEmployee = useCreateEmployee();
-  const updateEmployee = useUpdateEmployee();
+  // Búsqueda con retraso: una petición cuando el usuario deja de teclear.
+  useEffect(() => {
+    if (searchDraft === search) return;
+    const t = setTimeout(() => setParams({ search: searchDraft.trim() || null, page: null }), 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchDraft]);
 
-  // Catálogo de departamentos (tabla departments)
-  const { data: departmentsCatalog } = useDepartments();
-  const departmentOptions = useMemo(
-    () => (departmentsCatalog ?? []).map((d) => ({ value: d.id, label: d.name })),
-    [departmentsCatalog],
-  );
+  const { data: branchesData } = useBranches({ limit: 200, isActive: true });
+  const branches: Branch[] = branchesData?.data ?? [];
+  const { data: departments } = useDepartments();
 
-  // Fetch employees from API
-  const { data: employeesData, isLoading, error } = useEmployees({
-    search: searchQuery || undefined,
-    departmentId: filterDepartment !== 'all' ? filterDepartment : undefined,
+  const query: EmployeeQuery = {
+    search: search || undefined,
     branchId: filterBranch !== 'all' ? filterBranch : undefined,
-    status: filterStatus !== 'all' ? (filterStatus as EmployeeStatus) : undefined,
+    departmentId: filterDepartment !== 'all' ? filterDepartment : undefined,
+    employmentType: isEmploymentType(filterType) ? filterType : undefined,
+    status: isEmployeeStatus(filterStatus) ? filterStatus : undefined,
+    hasSystemAccess:
+      filterAccess === 'with' ? true : filterAccess === 'without' ? false : undefined,
     page,
-    limit: 20,
-  });
-
-  const employees = employeesData?.data ?? [];
-  const pagination = employeesData?.pagination;
-
-  const branches = useMemo(() => {
-    const branchSet = new Set(employees.map(e => e.branch).filter((b): b is string => !!b));
-    return Array.from(branchSet);
-  }, [employees]);
-
-  const stats = useMemo(() => ({
-    total: pagination?.total ?? employees.length,
-    active: employees.filter(e => e.status === 'ACTIVE').length,
-    onLeave: employees.filter(e => e.status === 'ON_LEAVE').length,
-    managers: employees.filter(e => e.isManager).length,
-  }), [employees, pagination]);
-
-  const handleExport = () => {
-    toast.success('Exportando datos de empleados...');
+    limit,
   };
 
-  // Modal handlers
-  const openCreateModal = () => {
-    setEditingEmployee(null);
-    setFormData({
-      userId: '',
-      employeeNumber: '',
-      firstName: '',
-      lastName: '',
-      email: '',
-      phone: '',
-      position: '',
-      departmentId: '',
-      branchId: '',
-      hireDate: new Date().toISOString().split('T')[0],
-      status: 'ACTIVE',
-      isManager: false,
-      vacationDaysPerYear: 12,
+  const { data, isLoading, isFetching, error } = useEmployees(query);
+  const employees = data?.data ?? [];
+  const pagination = data?.pagination;
+  const total = pagination?.total ?? 0;
+
+  const hasFilters =
+    !!search ||
+    filterBranch !== 'all' ||
+    filterDepartment !== 'all' ||
+    filterStatus !== 'all' ||
+    filterType !== 'all' ||
+    filterAccess !== 'all';
+
+  const clearFilters = () => {
+    setSearchDraft('');
+    setParams({
+      search: null,
+      branch: 'all',
+      department: 'all',
+      status: 'all',
+      type: 'all',
+      access: 'all',
+      page: null,
     });
-    setIsModalOpen(true);
   };
 
-  const openEditModal = (employee: Employee) => {
-    setEditingEmployee(employee);
-    setFormData({
-      firstName: employee.firstName,
-      lastName: employee.lastName,
-      secondLastName: employee.secondLastName ?? '',
-      noiNumber: employee.noiNumber ?? '',
-      email: employee.email,
-      phone: employee.phone ?? '',
-      position: employee.position,
-      departmentId: employee.departmentId ?? '',
-      branchId: employee.branchId ?? '',
-      hireDate: employee.hireDate ? employee.hireDate.split('T')[0] : '',
-      status: employee.status,
-      isManager: employee.isManager,
-      vacationDaysPerYear: employee.vacationDaysPerYear ?? 12,
-    });
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditingEmployee(null);
-    setFormData({});
-  };
-
-  const handleSubmit = async () => {
-    if (formData.phone) {
-      const p = parsePhone(formData.phone);
-      if (!isValidLocalNumber(p.country, p.number)) {
-        toast.error(`Teléfono incompleto: ${p.country.name} requiere ${p.country.digits} dígitos`);
-        return;
-      }
-    }
+  const handleExport = async () => {
+    setExporting(true);
     try {
-      if (editingEmployee) {
-        const dto: UpdateEmployeeDto = {
-          firstName: formData.firstName || undefined,
-          lastName: formData.lastName || undefined,
-          secondLastName: formData.secondLastName ?? undefined,
-          noiNumber: formData.noiNumber ?? undefined,
-          phone: formData.phone || undefined,
-          departmentId: formData.departmentId || undefined,
-          branchId: formData.branchId || undefined,
-          hireDate: formData.hireDate || undefined,
-          isManager: formData.isManager,
-          status: formData.status as EmployeeStatus,
-        };
-        await updateEmployee.mutateAsync({ id: editingEmployee.id, data: dto });
-        toast.success('Empleado actualizado correctamente');
-      } else {
-        const dto: CreateEmployeeDto = {
-          userId: formData.userId,
-          employeeNumber: formData.employeeNumber,
-          position: formData.position,
-          department: formData.department || undefined,
-          branchId: formData.branchId,
-          isManager: formData.isManager,
-          hireDate: formData.hireDate,
-          vacationDaysPerYear: formData.vacationDaysPerYear ? Number(formData.vacationDaysPerYear) : undefined,
-        };
-        await createEmployee.mutateAsync(dto);
-        toast.success('Empleado creado correctamente');
+      const rows: Employee[] = [];
+      let apiTotal = 0;
+      for (let p = 1; rows.length < MAX_CSV_ROWS; p++) {
+        const chunk = await hrService.listEmployees({ ...query, page: p, limit: CSV_PAGE_SIZE });
+        apiTotal = chunk.pagination.total;
+        rows.push(...chunk.data);
+        if (chunk.data.length < CSV_PAGE_SIZE || rows.length >= apiTotal) break;
       }
-      closeModal();
-    } catch (error: any) {
-      toast.error(
-        error.response?.data?.message ||
-          (editingEmployee ? 'Error al actualizar el empleado' : 'Error al crear el empleado')
+      const exported = rows.slice(0, MAX_CSV_ROWS);
+      if (apiTotal > exported.length) {
+        toast.info(
+          `Se exportaron los primeros ${exported.length} de ${apiTotal} empleados. Acota los filtros.`,
+        );
+      }
+      exportToCsv(
+        `empleados-${csvDateStamp()}`,
+        [
+          'Numero',
+          'NOI',
+          'Gafete',
+          'Nombre',
+          'Tipo',
+          'Acceso al sistema',
+          'Puesto',
+          'Departamento',
+          'Sucursal',
+          'Horario',
+          'Ingreso',
+          'Estado',
+          'Telefono',
+          'Correo',
+        ],
+        exported.map((e) => [
+          csvSafe(e.employeeNumber),
+          csvSafe(e.noiNumber),
+          csvSafe(e.badgeCode),
+          csvSafe(employeeDisplayName(e)),
+          EMPLOYMENT_TYPE_LABELS[e.employmentType] ?? e.employmentType,
+          e.hasSystemAccess ? 'Si' : 'No',
+          csvSafe(e.jobPositionName),
+          csvSafe(e.departmentName),
+          csvSafe(e.branchName),
+          csvSafe(e.workScheduleName),
+          e.hireDate ? e.hireDate.split('T')[0] : '',
+          EMPLOYEE_STATUS_LABELS[e.status] ?? e.status,
+          csvSafe(e.phone),
+          csvSafe(e.email),
+        ]),
       );
+      toast.success('Listado exportado');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'No se pudo exportar el listado'));
+    } finally {
+      setExporting(false);
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    // Parsear la parte de fecha como local para evitar el corrimiento de 1 día
-    // por timezone (un DATE serializado a medianoche UTC se mostraba un día antes).
-    const [y, m, d] = (dateString || '').split('T')[0].split('-').map(Number);
-    if (!y || !m || !d) return dateString;
-    return new Date(y, m - 1, d).toLocaleDateString('es-MX', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  const getAvatarUrl = (name: string) => {
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=003B7A&color=fff`;
   };
 
   const columns: DataTableColumn<Employee>[] = [
     {
       key: 'employee',
       header: 'Empleado',
-      render: (employee) => {
-        const fullName = `${employee.firstName} ${employee.lastName} ${employee.secondLastName ?? ''}`.trim();
+      render: (e) => {
+        const name = employeeDisplayName(e);
         return (
-          <div className="flex items-center gap-3">
-            <img
-              src={getAvatarUrl(fullName)}
-              alt={fullName}
-              className="w-10 h-10 rounded-full"
-            />
-            <div>
-              <p className="font-semibold text-gray-900">{fullName}</p>
-              <p className="text-sm text-gray-500">
-                {employee.employeeNumber}
-                {employee.noiNumber ? ` · NOI: ${employee.noiNumber}` : ''}
+          <div className="flex min-w-0 items-center gap-3">
+            <EmployeeAvatar photoUrl={e.photoUrl} name={name} size={40} />
+            <div className="min-w-0">
+              <Link
+                href={`/admin/rrhh/empleados/${e.id}`}
+                className="truncate font-semibold text-gray-900 hover:text-primary hover:underline"
+              >
+                {name}
+              </Link>
+              <p className="truncate font-mono text-xs text-muted-foreground">
+                {e.employeeNumber}
+                {e.noiNumber ? ` · NOI ${e.noiNumber}` : ''}
               </p>
             </div>
           </div>
@@ -240,678 +257,354 @@ function EmpleadosContent() {
       },
     },
     {
-      key: 'position',
-      header: 'Puesto',
-      render: (employee) => (
-        <div className="flex items-center gap-2">
-          <p className="text-gray-900">{employee.position}</p>
-          {employee.isManager && (
-            <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full">
-              Jefe
-            </span>
+      key: 'employmentType',
+      header: 'Tipo',
+      render: (e) => (
+        <div className="space-y-1">
+          <Badge variant={EMPLOYMENT_TYPE_VARIANTS[e.employmentType] ?? 'secondary'}>
+            {EMPLOYMENT_TYPE_LABELS[e.employmentType] ?? e.employmentType}
+          </Badge>
+          {!e.hasSystemAccess && (
+            <p className="text-[11px] text-muted-foreground">Sin acceso</p>
           )}
         </div>
       ),
     },
     {
+      key: 'jobPosition',
+      header: 'Puesto',
+      cellClassName: 'text-sm text-gray-700',
+      render: (e) => e.jobPositionName || <span className="text-muted-foreground">—</span>,
+    },
+    {
       key: 'department',
       header: 'Departamento',
-      cellClassName: 'text-gray-600',
-      render: (employee) => employee.department || <span className="text-gray-400">Sin asignar</span>,
+      cellClassName: 'text-sm text-gray-700',
+      render: (e) => e.departmentName || <span className="text-muted-foreground">—</span>,
     },
     {
       key: 'branch',
       header: 'Sucursal',
-      render: (employee) => (
-        <div className="flex items-center gap-1 text-gray-600">
-          <BuildingOfficeIcon className="h-4 w-4" />
-          <span>{employee.branch || 'No aplica'}</span>
-        </div>
-      ),
+      cellClassName: 'text-sm text-gray-700',
+      render: (e) =>
+        e.branchName || <span className="text-muted-foreground">Corporativo</span>,
+    },
+    {
+      key: 'schedule',
+      header: 'Horario',
+      render: (e) =>
+        e.workScheduleName ? (
+          <span className="text-sm text-gray-700">{e.workScheduleName}</span>
+        ) : (
+          <span className="text-xs text-amber-600">Sin horario</span>
+        ),
     },
     {
       key: 'hireDate',
       header: 'Ingreso',
       cellClassName: 'text-sm text-gray-600',
-      render: (employee) => formatDate(employee.hireDate),
-    },
-    {
-      key: 'vacation',
-      header: 'Vacaciones',
-      render: (employee) => {
-        const vacationDays = employee.vacationDaysPerYear ?? 12;
-        const vacationUsed = employee.vacationDaysUsed ?? 0;
-        const vacationRemaining = vacationDays - vacationUsed;
-        return (
-          <>
-            <div className="text-sm">
-              <span className="font-semibold text-gray-900">
-                {vacationRemaining}
-              </span>
-              <span className="text-gray-500"> / {vacationDays} días</span>
-            </div>
-            <div className="w-24 h-1.5 bg-gray-200 rounded-full mt-1">
-              <div
-                className="h-full bg-green-500 rounded-full"
-                style={{
-                  width: `${Math.max(0, (vacationRemaining / vacationDays) * 100)}%`,
-                }}
-              />
-            </div>
-          </>
-        );
-      },
+      render: (e) => formatDateOnly(e.hireDate),
     },
     {
       key: 'status',
       header: 'Estado',
-      render: (employee) => (
-        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusConfig[employee.status]?.color || 'bg-gray-100 text-gray-700'}`}>
-          {statusConfig[employee.status]?.label || employee.status}
-        </span>
+      render: (e) => (
+        <Badge variant={EMPLOYEE_STATUS_VARIANTS[e.status] ?? 'secondary'}>
+          {EMPLOYEE_STATUS_LABELS[e.status] ?? e.status}
+        </Badge>
       ),
     },
     {
       key: 'actions',
       header: 'Acciones',
       headerClassName: 'text-right',
-      render: (employee) => (
-        <div className="flex items-center justify-end gap-2">
-          <button
-            onClick={() => openEditModal(employee)}
-            className="p-2 hover:bg-blue-50 rounded-lg transition-colors"
-            title="Editar empleado"
-          >
-            <PencilIcon className="h-4 w-4 text-blue-600" />
-          </button>
-          <a
-            href={`mailto:${employee.email}`}
-            className="p-2 hover:bg-green-50 rounded-lg transition-colors"
-            title="Enviar email"
-          >
-            <EnvelopeIcon className="h-4 w-4 text-green-600" />
-          </a>
-          {employee.phone && (
-            <a
-              href={`tel:${employee.phone}`}
-              className="p-2 hover:bg-purple-50 rounded-lg transition-colors"
-              title="Llamar"
+      cellClassName: 'text-right',
+      render: (e) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button asChild variant="ghost" size="sm" title="Ver expediente">
+            <Link href={`/admin/rrhh/empleados/${e.id}`}>
+              <EyeIcon className="h-4 w-4" />
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm" title="Ver checadas">
+            <Link href={`/admin/rrhh/asistencia?employeeId=${e.id}`}>
+              <ClockIcon className="h-4 w-4" />
+            </Link>
+          </Button>
+          {canManage && (
+            <Button
+              variant="ghost"
+              size="sm"
+              title="Editar expediente"
+              onClick={() => {
+                setEditing(e);
+                setFormOpen(true);
+              }}
             >
-              <PhoneIcon className="h-4 w-4 text-purple-600" />
-            </a>
+              <PencilIcon className="h-4 w-4" />
+            </Button>
           )}
         </div>
       ),
     },
   ];
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="p-6">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Empleados</h1>
-          <p className="text-gray-600">Gestión de personal y expedientes</p>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          {[...Array(4)].map((_, i) => (
-            <Card key={i}>
-              <CardContent className="p-4">
-                <div className="animate-pulse">
-                  <div className="h-8 w-8 bg-gray-200 rounded mb-4" />
-                  <div className="h-4 w-24 bg-gray-200 rounded mb-2" />
-                  <div className="h-8 w-16 bg-gray-200 rounded" />
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        <Card>
-          <CardContent className="p-6">
-            <div className="animate-pulse space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 bg-gray-200 rounded" />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Empleados</h1>
-        </div>
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3 text-red-700">
-              <ExclamationTriangleIcon className="h-6 w-6" />
-              <p>Error al cargar los empleados. Por favor, intenta de nuevo.</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   return (
     <div className="p-6">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Empleados</h1>
-            <p className="text-gray-600">Gestión de personal y expedientes</p>
-          </div>
-          <div className="flex gap-3">
-            <Link href="/admin/rrhh">
-              <Button variant="secondary">
-                Volver a RRHH
+      {/* Encabezado */}
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Empleados</h1>
+          <p className="text-gray-600">
+            Expedientes de RRHH, con y sin cuenta de acceso al sistema.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/admin/rrhh">
+            <Button variant="secondary">Volver a RRHH</Button>
+          </Link>
+          {canManage && (
+            <>
+              <Button variant="outline" onClick={() => setImportOpen(true)}>
+                <ArrowUpTrayIcon className="mr-2 h-4 w-4" />
+                Importar CSV
               </Button>
-            </Link>
-            <Link href="/admin/usuarios">
-              <Button variant="default">
-                <PlusIcon className="h-5 w-5" />
-                Nuevo Colaborador
+              <Button
+                onClick={() => {
+                  setEditing(null);
+                  setFormOpen(true);
+                }}
+              >
+                <PlusIcon className="mr-2 h-4 w-4" />
+                Nuevo empleado
               </Button>
-            </Link>
-          </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Total Empleados</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-                </div>
-                <UserGroupIcon className="h-8 w-8 text-blue-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Activos</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.active}</p>
-                </div>
-                <CheckCircleIcon className="h-8 w-8 text-green-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">En Vacaciones</p>
-                  <p className="text-2xl font-bold text-yellow-600">{stats.onLeave}</p>
-                </div>
-                <CalendarIcon className="h-8 w-8 text-yellow-500" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Jefes</p>
-                  <p className="text-2xl font-bold text-purple-600">{stats.managers}</p>
-                </div>
-                <BriefcaseIcon className="h-8 w-8 text-purple-500" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filters */}
-        <Card className="mb-6">
-          <CardContent className="p-4">
-            <div className="flex flex-col lg:flex-row gap-4">
-              {/* Search */}
-              <div className="flex-1">
-                <div className="relative">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Buscar por nombre, email o número de empleado..."
-                    value={searchInput}
-                    onChange={(e) => {
-                      setSearchInput(e.target.value);
-                      setParams({ search: e.target.value });
-                    }}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              {/* Department Filter (catálogo real) */}
-              <SearchableSelect
-                options={departmentOptions}
-                value={filterDepartment}
-                onChange={(val) => setParams({ department: val })}
-                allLabel="Todos los Departamentos"
-                allValue="all"
-                className="w-full lg:w-56"
+      {/* Filtros */}
+      <Card className="mb-6">
+        <CardContent className="space-y-4 p-4 sm:p-6">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <div className="xl:col-span-2">
+              <Label className="mb-1 block text-xs text-muted-foreground">Buscar</Label>
+              <Input
+                value={searchDraft}
+                onChange={(e) => setSearchDraft(e.target.value)}
+                placeholder="Número, NOI, gafete o nombre"
               />
-
-              {/* Branch Filter */}
+            </div>
+            <div>
+              <Label className="mb-1 block text-xs text-muted-foreground">Sucursal</Label>
               <SearchableSelect
-                options={branches.map(branch => ({
-                  value: branch,
-                  label: branch,
-                }))}
+                options={branches.map((b) => ({ value: b.id, label: b.name, hint: b.code }))}
                 value={filterBranch}
-                onChange={(val) => setParams({ branch: val })}
-                allLabel="Todas las Sucursales"
+                onChange={(v) => setParams({ branch: v, page: null })}
+                allLabel="Todas las sucursales"
                 allValue="all"
-                className="w-full lg:w-52"
               />
+            </div>
+            <div>
+              <Label className="mb-1 block text-xs text-muted-foreground">Departamento</Label>
+              <SearchableSelect
+                options={(departments ?? []).map((d) => ({
+                  value: d.id,
+                  label: d.name,
+                  hint: d.code,
+                }))}
+                value={filterDepartment}
+                onChange={(v) => setParams({ department: v, page: null })}
+                allLabel="Todos los departamentos"
+                allValue="all"
+              />
+            </div>
+            <div>
+              <Label className="mb-1 block text-xs text-muted-foreground">Tipo</Label>
+              <SearchableSelect
+                options={EMPLOYMENT_TYPES.map((t) => ({
+                  value: t,
+                  label: EMPLOYMENT_TYPE_LABELS[t],
+                }))}
+                value={filterType}
+                onChange={(v) => setParams({ type: v, page: null })}
+                allLabel="Todos los tipos"
+                allValue="all"
+              />
+            </div>
+            <div>
+              <Label className="mb-1 block text-xs text-muted-foreground">Estado</Label>
+              <SearchableSelect
+                options={EMPLOYEE_STATUSES.map((s) => ({
+                  value: s,
+                  label: EMPLOYEE_STATUS_LABELS[s],
+                }))}
+                value={filterStatus}
+                onChange={(v) => setParams({ status: v, page: null })}
+                allLabel="Activos (sin bajas)"
+                allValue="all"
+              />
+            </div>
+          </div>
 
-              {/* Status Filter */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="w-full sm:w-64">
+              <Label className="mb-1 block text-xs text-muted-foreground">
+                Acceso al sistema
+              </Label>
               <SearchableSelect
                 options={[
-                  { value: 'ACTIVE', label: 'Activos' },
-                  { value: 'ON_LEAVE', label: 'En Vacaciones' },
-                  { value: 'INACTIVE', label: 'Inactivos' },
+                  { value: 'with', label: 'Con cuenta de usuario' },
+                  { value: 'without', label: 'Sin acceso (solo RRHH)' },
                 ]}
-                value={filterStatus}
-                onChange={(val) => setParams({ status: val })}
-                allLabel="Todos los Estados"
+                value={filterAccess}
+                onChange={(v) => setParams({ access: v, page: null })}
+                allLabel="Con y sin acceso"
                 allValue="all"
-                className="w-full lg:w-48"
               />
-
-              {/* Export Button */}
-              <Button
-                variant="outline"
-                onClick={handleExport}
-              >
-                <ArrowDownTrayIcon className="h-5 w-5" />
-                Exportar
+            </div>
+            <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
+              {hasFilters && (
+                <button type="button" className="text-xs text-primary underline" onClick={clearFilters}>
+                  Limpiar filtros
+                </button>
+              )}
+              <Button variant="outline" onClick={() => void handleExport()} disabled={exporting || total === 0}>
+                {exporting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
+                )}
+                Exportar CSV
               </Button>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {error ? (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="flex items-center gap-3 p-6 text-red-700">
+            <ExclamationTriangleIcon className="h-6 w-6 shrink-0" />
+            <p className="text-sm">No se pudo cargar el listado de empleados.</p>
           </CardContent>
         </Card>
+      ) : (
+        <>
+          <p className="mb-3 text-sm text-muted-foreground">
+            {isLoading && !data ? 'Cargando…' : `${total.toLocaleString('es-MX')} empleados`}
+          </p>
 
-        {/* Employees Table */}
-        <Card>
-          <CardContent className="p-6">
-            <DataTable<Employee>
-              columns={columns}
-              data={employees}
-              getRowKey={(employee) => employee.id}
-              emptyState={
-                <div className="text-center py-12">
-                  <UserGroupIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">
-                    No se encontraron empleados
-                  </h3>
-                  <p className="text-gray-600">
-                    Intenta ajustar los filtros de búsqueda
-                  </p>
-                </div>
-              }
-            />
-
-            {/* Pagination */}
-            {employees.length > 0 && pagination && (
-              <div className="mt-6 flex items-center justify-between">
-                <p className="text-sm text-gray-600">
-                  Mostrando {employees.length} de {pagination.total} empleados
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => setParams({ page: String(Math.max(1, page - 1)) })}
-                  >
-                    Anterior
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= pagination.pages}
-                    onClick={() => setParams({ page: String(page + 1) })}
-                  >
-                    Siguiente
-                  </Button>
-                </div>
-              </div>
+          {/* Celular: tarjetas. Escritorio: tabla. */}
+          <div className="space-y-3 sm:hidden">
+            {isLoading && !data ? (
+              <>
+                <Skeleton className="h-24 w-full" />
+                <Skeleton className="h-24 w-full" />
+              </>
+            ) : employees.length === 0 ? (
+              <EmptyState />
+            ) : (
+              employees.map((e) => {
+                const name = employeeDisplayName(e);
+                return (
+                  <Card key={e.id}>
+                    <CardContent className="flex items-start gap-3 p-4">
+                      <EmployeeAvatar photoUrl={e.photoUrl} name={name} size={44} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <Link
+                            href={`/admin/rrhh/empleados/${e.id}`}
+                            className="truncate text-sm font-semibold hover:underline"
+                          >
+                            {name}
+                          </Link>
+                          <Badge variant={EMPLOYEE_STATUS_VARIANTS[e.status] ?? 'secondary'}>
+                            {EMPLOYEE_STATUS_LABELS[e.status] ?? e.status}
+                          </Badge>
+                        </div>
+                        <p className="font-mono text-xs text-muted-foreground">
+                          {e.employeeNumber}
+                          {e.noiNumber ? ` · NOI ${e.noiNumber}` : ''}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {[
+                            EMPLOYMENT_TYPE_LABELS[e.employmentType] ?? e.employmentType,
+                            e.jobPositionName,
+                            e.branchName ?? 'Corporativo',
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })
             )}
-          </CardContent>
-        </Card>
+            {employees.length > 0 && (
+              <DataTablePagination
+                currentPage={page}
+                pageSize={limit}
+                totalItems={total}
+                isLoading={isLoading || isFetching}
+                onPageChange={(p) => setParams({ page: String(p) })}
+                onPageSizeChange={(size) => setParams({ limit: String(size), page: null })}
+                pageSizeOptions={[20, 50, 100]}
+              />
+            )}
+          </div>
 
-      {/* Employee Create/Edit Modal */}
-      <EmployeeFormModal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        editingEmployee={editingEmployee}
-        formData={formData}
-        setFormData={setFormData}
-        onSubmit={handleSubmit}
-        isSubmitting={createEmployee.isPending || updateEmployee.isPending}
-      />
+          <Card className="hidden sm:block">
+            <CardContent className="p-6">
+              <DataTable
+                columns={columns}
+                data={employees}
+                isLoading={isLoading && !data}
+                getRowKey={(e) => e.id}
+                minWidthClassName="min-w-[1100px]"
+                emptyState={<EmptyState />}
+              />
+              {employees.length > 0 && (
+                <div className="mt-4">
+                  <DataTablePagination
+                    currentPage={page}
+                    pageSize={limit}
+                    totalItems={total}
+                    isLoading={isLoading || isFetching}
+                    onPageChange={(p) => setParams({ page: String(p) })}
+                    onPageSizeChange={(size) => setParams({ limit: String(size), page: null })}
+                    pageSizeOptions={[20, 50, 100]}
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {/* Se montan solo al abrir: el formulario arranca limpio sin efectos. */}
+      {formOpen && (
+        <EmployeeFormDialog
+          open
+          onOpenChange={(open) => {
+            setFormOpen(open);
+            if (!open) setEditing(null);
+          }}
+          employee={editing}
+        />
+      )}
+      {importOpen && <EmployeeImportDialog open onOpenChange={setImportOpen} />}
     </div>
   );
 }
 
-// ================================
-// EMPLOYEE FORM MODAL COMPONENT
-// ================================
-
-interface EmployeeFormModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  editingEmployee: Employee | null;
-  formData: Record<string, any>;
-  setFormData: (data: Record<string, any>) => void;
-  onSubmit: () => void;
-  isSubmitting: boolean;
-}
-
-const STATUS_OPTIONS = [
-  { value: 'ACTIVE', label: 'Activo' },
-  { value: 'INACTIVE', label: 'Inactivo' },
-  { value: 'ON_LEAVE', label: 'En Vacaciones' },
-  { value: 'TERMINATED', label: 'Baja' },
-];
-
-function EmployeeFormModal({
-  isOpen,
-  onClose,
-  editingEmployee,
-  formData,
-  setFormData,
-  onSubmit,
-  isSubmitting,
-}: EmployeeFormModalProps) {
-  const { data: branchesData } = useActiveBranches();
-  const activeBranches = branchesData ?? [];
-  const { data: departmentsCatalog } = useDepartments();
-
-  if (!isOpen) return null;
-
-  const handleChange = (field: string, value: any) => {
-    setFormData({ ...formData, [field]: value });
-  };
-
-  const inputClassName =
-    'w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent';
-
+function EmptyState() {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-
-      {/* Modal Content */}
-      <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">
-            {editingEmployee ? 'Editar Empleado' : 'Nuevo Empleado'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <XMarkIcon className="h-5 w-5 text-gray-500" />
-          </button>
-        </div>
-
-        {/* Form */}
-        <div className="p-6 space-y-4">
-          {/* Nombre(s) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nombre(s) <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.firstName ?? ''}
-              onChange={(e) => handleChange('firstName', e.target.value)}
-              placeholder="Nombre(s)"
-              className={inputClassName}
-              required
-            />
-          </div>
-
-          {/* Apellidos */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Apellido Paterno <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.lastName ?? ''}
-                onChange={(e) => handleChange('lastName', e.target.value)}
-                placeholder="Apellido Paterno"
-                className={inputClassName}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Apellido Materno
-              </label>
-              <input
-                type="text"
-                value={formData.secondLastName ?? ''}
-                onChange={(e) => handleChange('secondLastName', e.target.value)}
-                placeholder="Apellido Materno"
-                className={inputClassName}
-              />
-            </div>
-          </div>
-
-          {/* Número NOI (Aspel) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              N° de empleado Aspel NOI
-            </label>
-            <input
-              type="text"
-              value={formData.noiNumber ?? ''}
-              onChange={(e) => handleChange('noiNumber', e.target.value)}
-              placeholder="Vacío si no está en la nómina de NOI"
-              className={inputClassName}
-            />
-            <p className="mt-1 text-[11px] text-gray-400">
-              Número con el que RRHH lo lleva en Aspel NOI (nómina). Opcional.
-            </p>
-          </div>
-
-          {/* Email */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Correo electrónico <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="email"
-              value={formData.email ?? ''}
-              onChange={(e) => handleChange('email', e.target.value)}
-              placeholder="correo@ejemplo.com"
-              className={inputClassName}
-              required
-            />
-          </div>
-
-          {/* Phone */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Teléfono
-            </label>
-            <PhoneInput
-              value={formData.phone ?? ''}
-              onChange={(v) => handleChange('phone', v)}
-            />
-          </div>
-
-          {/* Only show these fields for create */}
-          {!editingEmployee && (
-            <>
-              {/* User ID */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  ID de Usuario <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.userId ?? ''}
-                  onChange={(e) => handleChange('userId', e.target.value)}
-                  placeholder="ID del usuario en el sistema"
-                  className={inputClassName}
-                  required
-                />
-              </div>
-
-              {/* Employee Number */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Numero de Empleado <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.employeeNumber ?? ''}
-                  onChange={(e) => handleChange('employeeNumber', e.target.value)}
-                  placeholder="EMP-001"
-                  className={inputClassName}
-                  required
-                />
-              </div>
-            </>
-          )}
-
-          {/* Position */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Puesto <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.position ?? ''}
-              onChange={(e) => handleChange('position', e.target.value)}
-              placeholder="Ej: Gerente de Ventas"
-              className={inputClassName}
-              required
-            />
-          </div>
-
-          {/* Department (catálogo) */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Departamento
-            </label>
-            <SearchableSelect
-              options={(departmentsCatalog ?? []).map((d) => ({ value: d.id, label: d.name }))}
-              value={formData.departmentId ?? ''}
-              onChange={(val) => handleChange('departmentId', val)}
-              showAllOption={false}
-              placeholder="Seleccionar departamento..."
-            />
-          </div>
-
-          {/* Branch */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Sucursal {!editingEmployee && <span className="text-red-500">*</span>}
-            </label>
-            <SearchableSelect
-              options={activeBranches.map((branch: any) => ({
-                value: branch.id,
-                label: branch.name,
-              }))}
-              value={formData.branchId ?? ''}
-              onChange={(val) => handleChange('branchId', val)}
-              showAllOption={false}
-              placeholder="Seleccionar sucursal..."
-            />
-          </div>
-
-          {/* Hire Date */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Fecha de Ingreso {!editingEmployee && <span className="text-red-500">*</span>}
-            </label>
-            <input
-              type="date"
-              value={formData.hireDate ?? ''}
-              onChange={(e) => handleChange('hireDate', e.target.value)}
-              className={inputClassName}
-            />
-          </div>
-
-          {/* Vacation Days Per Year */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Dias de Vacaciones por Año
-            </label>
-            <input
-              type="number"
-              min="0"
-              max="60"
-              value={formData.vacationDaysPerYear ?? 12}
-              onChange={(e) => handleChange('vacationDaysPerYear', e.target.value)}
-              className={inputClassName}
-            />
-          </div>
-
-          {/* Status - only for edit */}
-          {editingEmployee && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Estado
-              </label>
-              <SearchableSelect
-                options={STATUS_OPTIONS}
-                value={formData.status ?? 'ACTIVE'}
-                onChange={(val) => handleChange('status', val)}
-                showAllOption={false}
-              />
-            </div>
-          )}
-
-          {/* Is Manager */}
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="isManager"
-              checked={formData.isManager ?? false}
-              onChange={(e) => handleChange('isManager', e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-[#3E667D] focus:ring-[#3E667D]"
-            />
-            <label htmlFor="isManager" className="text-sm font-medium text-gray-700">
-              Es Jefe / Subjefe
-            </label>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
-          <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
-            Cancelar
-          </Button>
-          <Button variant="default" onClick={onSubmit} disabled={isSubmitting}>
-            {isSubmitting
-              ? 'Guardando...'
-              : editingEmployee
-                ? 'Guardar Cambios'
-                : 'Crear Empleado'}
-          </Button>
-        </div>
-      </div>
+    <div className="py-10 text-center">
+      <UserGroupIcon className="mx-auto mb-3 h-12 w-12 text-muted-foreground/50" />
+      <p className="text-sm font-medium">No se encontraron empleados</p>
+      <p className="text-sm text-muted-foreground">Ajusta la búsqueda o los filtros.</p>
     </div>
   );
 }

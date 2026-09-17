@@ -1,13 +1,17 @@
-// hooks/useHR.ts - React Query hooks for HR module
+// hooks/useHR.ts - React Query del módulo de RRHH.
+//
+// Convención del repo: los toasts se disparan en la página, no aquí.
 
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { hrService as hrApi } from '@/services/hr.service';
-import {
+import type {
   EmployeeQuery,
   CreateEmployeeDto,
   UpdateEmployeeDto,
   CreateDepartmentDto,
   UpdateDepartmentDto,
+  CreateWorkScheduleDto,
+  UpdateWorkScheduleDto,
   AttendanceQuery,
   AttendanceDayQuery,
   ManualAttendanceInput,
@@ -24,33 +28,50 @@ import {
 // Query keys
 export const hrKeys = {
   all: ['hr'] as const,
+  dashboard: () => [...hrKeys.all, 'dashboard'] as const,
   employees: () => [...hrKeys.all, 'employees'] as const,
   employeeList: (query: EmployeeQuery) => [...hrKeys.employees(), 'list', query] as const,
   employee: (id: string) => [...hrKeys.employees(), id] as const,
+  employeeAttendance: (id: string, query: Record<string, unknown>) =>
+    [...hrKeys.employees(), id, 'attendance', query] as const,
   myEmployee: () => [...hrKeys.employees(), 'me'] as const,
+  workSchedules: (includeInactive: boolean) =>
+    [...hrKeys.all, 'work-schedules', includeInactive] as const,
   attendance: () => [...hrKeys.all, 'attendance'] as const,
   attendanceList: (query: AttendanceQuery) => [...hrKeys.attendance(), 'list', query] as const,
   attendanceDay: (query: AttendanceDayQuery) => [...hrKeys.attendance(), 'day', query] as const,
   vacations: () => [...hrKeys.all, 'vacations'] as const,
   vacationList: (query: VacationQuery) => [...hrKeys.vacations(), 'list', query] as const,
   vacation: (id: string) => [...hrKeys.vacations(), id] as const,
-  pendingVacations: () => [...hrKeys.vacations(), 'pending'] as const,
   expenses: () => [...hrKeys.all, 'expenses'] as const,
   expenseList: (query: ExpenseQuery) => [...hrKeys.expenses(), 'list', query] as const,
   expense: (id: string) => [...hrKeys.expenses(), id] as const,
-  stats: () => [...hrKeys.all, 'stats'] as const,
-  recentActivity: () => [...hrKeys.all, 'activity'] as const,
-  pendingApprovals: () => [...hrKeys.all, 'pendingApprovals'] as const,
 };
 
 // ================================
-// EMPLOYEE HOOKS
+// PANEL
+// ================================
+
+/** Tarjetas del panel principal de RRHH (GET /hr/dashboard). */
+export function useHrDashboard() {
+  return useQuery({
+    queryKey: hrKeys.dashboard(),
+    queryFn: () => hrApi.getDashboard(),
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+// ================================
+// EMPLEADOS
 // ================================
 
 export function useEmployees(query: EmployeeQuery = {}) {
   return useQuery({
     queryKey: hrKeys.employeeList(query),
     queryFn: () => hrApi.listEmployees(query),
+    // Sin esto la página se desmonta con cada tecla de la búsqueda y el input
+    // pierde el foco.
+    placeholderData: keepPreviousData,
     staleTime: 2 * 60 * 1000,
   });
 }
@@ -58,11 +79,156 @@ export function useEmployees(query: EmployeeQuery = {}) {
 export function useEmployee(id: string) {
   return useQuery({
     queryKey: hrKeys.employee(id),
-    queryFn: () => hrApi.getEmployee(id),
+    queryFn: () => hrApi.getEmployeeById(id),
     enabled: !!id,
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useMyEmployee() {
+  return useQuery({
+    queryKey: hrKeys.myEmployee(),
+    queryFn: () => hrApi.getMyEmployee(),
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+/** Checadas de un empleado (para la pestaña Asistencia del expediente). */
+export function useEmployeeAttendance(
+  id: string,
+  query: { from?: string; to?: string; page?: number; limit?: number } = {},
+) {
+  return useQuery({
+    queryKey: hrKeys.employeeAttendance(id, query),
+    queryFn: () => hrApi.getEmployeeAttendance(id, query),
+    enabled: !!id,
+    placeholderData: keepPreviousData,
+    staleTime: 60 * 1000,
+  });
+}
+
+function useInvalidateEmployees() {
+  const queryClient = useQueryClient();
+  return (id?: string) => {
+    void queryClient.invalidateQueries({ queryKey: hrKeys.employees() });
+    void queryClient.invalidateQueries({ queryKey: hrKeys.dashboard() });
+    if (id) void queryClient.invalidateQueries({ queryKey: hrKeys.employee(id) });
+  };
+}
+
+export function useCreateEmployee() {
+  const invalidate = useInvalidateEmployees();
+  return useMutation({
+    mutationFn: (data: CreateEmployeeDto) => hrApi.createEmployee(data),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useUpdateEmployee() {
+  const invalidate = useInvalidateEmployees();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateEmployeeDto }) =>
+      hrApi.updateEmployee(id, data),
+    onSuccess: (_, { id }) => invalidate(id),
+  });
+}
+
+export function useUploadEmployeePhoto() {
+  const invalidate = useInvalidateEmployees();
+  return useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) =>
+      hrApi.uploadEmployeePhoto(id, file),
+    onSuccess: (_, { id }) => invalidate(id),
+  });
+}
+
+export function useDeleteEmployeePhoto() {
+  const invalidate = useInvalidateEmployees();
+  return useMutation({
+    mutationFn: (id: string) => hrApi.deleteEmployeePhoto(id),
+    onSuccess: (_, id) => invalidate(id),
+  });
+}
+
+/** Genera (o repone con regenerate) el código del gafete. */
+export function useGenerateBadge() {
+  const invalidate = useInvalidateEmployees();
+  return useMutation({
+    mutationFn: ({ id, regenerate }: { id: string; regenerate?: boolean }) =>
+      hrApi.generateBadge(id, regenerate ?? false),
+    onSuccess: (_, { id }) => invalidate(id),
+  });
+}
+
+export function useMarkBadgePrinted() {
+  const invalidate = useInvalidateEmployees();
+  return useMutation({
+    mutationFn: (id: string) => hrApi.markBadgePrinted(id),
+    onSuccess: (_, id) => invalidate(id),
+  });
+}
+
+/** Carga masiva de expedientes (dryRun = vista previa). */
+export function useImportEmployees() {
+  const invalidate = useInvalidateEmployees();
+  return useMutation({
+    mutationFn: ({ file, dryRun }: { file: File; dryRun: boolean }) =>
+      hrApi.importEmployees(file, dryRun),
+    onSuccess: (_, { dryRun }) => {
+      if (!dryRun) invalidate();
+    },
+  });
+}
+
+// ================================
+// HORARIOS (4 tiempos)
+// ================================
+
+export function useWorkSchedules(includeInactive = false) {
+  return useQuery({
+    queryKey: hrKeys.workSchedules(includeInactive),
+    queryFn: () => hrApi.getWorkSchedules(includeInactive),
     staleTime: 5 * 60 * 1000,
   });
 }
+
+function useInvalidateWorkSchedules() {
+  const queryClient = useQueryClient();
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: [...hrKeys.all, 'work-schedules'] });
+    void queryClient.invalidateQueries({ queryKey: hrKeys.employees() });
+    void queryClient.invalidateQueries({ queryKey: hrKeys.dashboard() });
+  };
+}
+
+export function useCreateWorkSchedule() {
+  const invalidate = useInvalidateWorkSchedules();
+  return useMutation({
+    mutationFn: (data: CreateWorkScheduleDto) => hrApi.createWorkSchedule(data),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useUpdateWorkSchedule() {
+  const invalidate = useInvalidateWorkSchedules();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateWorkScheduleDto }) =>
+      hrApi.updateWorkSchedule(id, data),
+    onSuccess: () => invalidate(),
+  });
+}
+
+export function useDeleteWorkSchedule() {
+  const invalidate = useInvalidateWorkSchedules();
+  return useMutation({
+    mutationFn: (id: string) => hrApi.deleteWorkSchedule(id),
+    onSuccess: () => invalidate(),
+  });
+}
+
+// ================================
+// DEPARTAMENTOS
+// ================================
 
 export function useDepartments() {
   return useQuery({
@@ -134,40 +300,6 @@ export function useSetOrgDirector() {
   });
 }
 
-export function useMyEmployee() {
-  return useQuery({
-    queryKey: hrKeys.myEmployee(),
-    queryFn: () => hrApi.getMyEmployee(),
-    staleTime: 10 * 60 * 1000,
-  });
-}
-
-export function useCreateEmployee() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (data: CreateEmployeeDto) => hrApi.createEmployee(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: hrKeys.employees() });
-      queryClient.invalidateQueries({ queryKey: hrKeys.stats() });
-    },
-  });
-}
-
-export function useUpdateEmployee() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateEmployeeDto }) =>
-      hrApi.updateEmployee(id, data),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: hrKeys.employees() });
-      queryClient.invalidateQueries({ queryKey: hrKeys.employee(id) });
-      queryClient.invalidateQueries({ queryKey: hrKeys.stats() });
-    },
-  });
-}
-
 // ================================
 // ASISTENCIA (CHECADOR)
 // ================================
@@ -182,7 +314,7 @@ export function useAttendance(query: AttendanceQuery = {}) {
   });
 }
 
-/** Resumen de un día: un renglón por empleado con sus cuatro toques. */
+/** Resumen de un día: un renglón por empleado, con retardos y faltas. */
 export function useAttendanceDay(query: AttendanceDayQuery = {}, enabled = true) {
   return useQuery({
     queryKey: hrKeys.attendanceDay(query),
@@ -200,20 +332,21 @@ export function useManualAttendance() {
   return useMutation({
     mutationFn: (input: ManualAttendanceInput) => hrApi.registerManualAttendance(input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: hrKeys.attendance() });
-      queryClient.invalidateQueries({ queryKey: hrKeys.stats() });
+      void queryClient.invalidateQueries({ queryKey: hrKeys.attendance() });
+      void queryClient.invalidateQueries({ queryKey: hrKeys.dashboard() });
     },
   });
 }
 
 // ================================
-// VACATION HOOKS
+// VACACIONES
 // ================================
 
 export function useVacations(query: VacationQuery = {}) {
   return useQuery({
     queryKey: hrKeys.vacationList(query),
     queryFn: () => hrApi.listVacations(query),
+    placeholderData: keepPreviousData,
     staleTime: 2 * 60 * 1000,
   });
 }
@@ -227,79 +360,64 @@ export function useVacation(id: string) {
   });
 }
 
-export function usePendingVacations() {
-  return useQuery({
-    queryKey: hrKeys.pendingVacations(),
-    queryFn: () => hrApi.getPendingVacations(),
-    staleTime: 2 * 60 * 1000,
-  });
+function useInvalidateVacations() {
+  const queryClient = useQueryClient();
+  return (id?: string) => {
+    void queryClient.invalidateQueries({ queryKey: hrKeys.vacations() });
+    void queryClient.invalidateQueries({ queryKey: hrKeys.dashboard() });
+    if (id) void queryClient.invalidateQueries({ queryKey: hrKeys.vacation(id) });
+  };
 }
 
 export function useCreateVacation() {
-  const queryClient = useQueryClient();
-
+  const invalidate = useInvalidateVacations();
   return useMutation({
-    mutationFn: (data: CreateVacationDto) => hrApi.createVacation(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: hrKeys.vacations() });
-      queryClient.invalidateQueries({ queryKey: hrKeys.pendingApprovals() });
-      queryClient.invalidateQueries({ queryKey: hrKeys.stats() });
-    },
+    mutationFn: (data: CreateVacationDto) => hrApi.createVacationRequest(data),
+    onSuccess: () => invalidate(),
   });
 }
 
 export function useApproveVacation() {
-  const queryClient = useQueryClient();
-
+  const invalidate = useInvalidateVacations();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data?: ReviewVacationDto }) =>
       hrApi.approveVacation(id, data),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: hrKeys.vacations() });
-      queryClient.invalidateQueries({ queryKey: hrKeys.vacation(id) });
-      queryClient.invalidateQueries({ queryKey: hrKeys.pendingApprovals() });
-      queryClient.invalidateQueries({ queryKey: hrKeys.stats() });
-    },
+    onSuccess: (_, { id }) => invalidate(id),
   });
 }
 
 export function useRejectVacation() {
-  const queryClient = useQueryClient();
-
+  const invalidate = useInvalidateVacations();
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
       hrApi.rejectVacation(id, reason),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: hrKeys.vacations() });
-      queryClient.invalidateQueries({ queryKey: hrKeys.vacation(id) });
-      queryClient.invalidateQueries({ queryKey: hrKeys.pendingApprovals() });
-      queryClient.invalidateQueries({ queryKey: hrKeys.stats() });
-    },
+    onSuccess: (_, { id }) => invalidate(id),
   });
 }
 
 export function useCancelVacation() {
-  const queryClient = useQueryClient();
-
+  const invalidate = useInvalidateVacations();
   return useMutation({
-    mutationFn: (id: string) => hrApi.cancelVacation(id),
-    onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: hrKeys.vacations() });
-      queryClient.invalidateQueries({ queryKey: hrKeys.vacation(id) });
-      queryClient.invalidateQueries({ queryKey: hrKeys.stats() });
-    },
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      hrApi.cancelVacation(id, reason),
+    onSuccess: (_, { id }) => invalidate(id),
   });
 }
 
 // ================================
-// EXPENSE HOOKS
+// VIÁTICOS
 // ================================
+//
+// /hr/expenses NO existe en el API: estos hooks solo los usa la pantalla de
+// Viáticos, que está oculta del menú hasta que haya backend. El panel de RRHH
+// ya NO depende de ellos.
 
 export function useExpenses(query: ExpenseQuery = {}) {
   return useQuery({
     queryKey: hrKeys.expenseList(query),
     queryFn: () => hrApi.listExpenses(query),
     staleTime: 2 * 60 * 1000,
+    retry: false,
   });
 }
 
@@ -309,152 +427,93 @@ export function useExpense(id: string) {
     queryFn: () => hrApi.getExpense(id),
     enabled: !!id,
     staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 }
 
-export function useCreateExpense() {
+function useInvalidateExpenses() {
   const queryClient = useQueryClient();
+  return (id?: string) => {
+    void queryClient.invalidateQueries({ queryKey: hrKeys.expenses() });
+    if (id) void queryClient.invalidateQueries({ queryKey: hrKeys.expense(id) });
+  };
+}
 
+export function useCreateExpense() {
+  const invalidate = useInvalidateExpenses();
   return useMutation({
     mutationFn: (data: CreateExpenseDto) => hrApi.createExpense(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: hrKeys.expenses() });
-      queryClient.invalidateQueries({ queryKey: hrKeys.stats() });
-    },
+    onSuccess: () => invalidate(),
   });
 }
 
 export function useUpdateExpense() {
-  const queryClient = useQueryClient();
-
+  const invalidate = useInvalidateExpenses();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateExpenseDto }) =>
       hrApi.updateExpense(id, data),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: hrKeys.expenses() });
-      queryClient.invalidateQueries({ queryKey: hrKeys.expense(id) });
-    },
+    onSuccess: (_, { id }) => invalidate(id),
   });
 }
 
 export function useAddExpenseItem() {
-  const queryClient = useQueryClient();
-
+  const invalidate = useInvalidateExpenses();
   return useMutation({
     mutationFn: ({ expenseId, data }: { expenseId: string; data: ExpenseItemDto }) =>
       hrApi.addExpenseItem(expenseId, data),
-    onSuccess: (_, { expenseId }) => {
-      queryClient.invalidateQueries({ queryKey: hrKeys.expense(expenseId) });
-    },
+    onSuccess: (_, { expenseId }) => invalidate(expenseId),
   });
 }
 
 export function useRemoveExpenseItem() {
-  const queryClient = useQueryClient();
-
+  const invalidate = useInvalidateExpenses();
   return useMutation({
     mutationFn: ({ expenseId, itemId }: { expenseId: string; itemId: string }) =>
       hrApi.removeExpenseItem(expenseId, itemId),
-    onSuccess: (_, { expenseId }) => {
-      queryClient.invalidateQueries({ queryKey: hrKeys.expense(expenseId) });
-    },
+    onSuccess: (_, { expenseId }) => invalidate(expenseId),
   });
 }
 
 export function useSubmitExpense() {
-  const queryClient = useQueryClient();
-
+  const invalidate = useInvalidateExpenses();
   return useMutation({
     mutationFn: (id: string) => hrApi.submitExpense(id),
-    onSuccess: (_, id) => {
-      queryClient.invalidateQueries({ queryKey: hrKeys.expenses() });
-      queryClient.invalidateQueries({ queryKey: hrKeys.expense(id) });
-      queryClient.invalidateQueries({ queryKey: hrKeys.pendingApprovals() });
-      queryClient.invalidateQueries({ queryKey: hrKeys.stats() });
-    },
+    onSuccess: (_, id) => invalidate(id),
   });
 }
 
 export function useApproveExpense() {
-  const queryClient = useQueryClient();
-
+  const invalidate = useInvalidateExpenses();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data?: ReviewExpenseDto }) =>
       hrApi.approveExpense(id, data),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: hrKeys.expenses() });
-      queryClient.invalidateQueries({ queryKey: hrKeys.expense(id) });
-      queryClient.invalidateQueries({ queryKey: hrKeys.pendingApprovals() });
-      queryClient.invalidateQueries({ queryKey: hrKeys.stats() });
-    },
+    onSuccess: (_, { id }) => invalidate(id),
   });
 }
 
 export function useVerifyExpense() {
-  const queryClient = useQueryClient();
-
+  const invalidate = useInvalidateExpenses();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data?: ReviewExpenseDto }) =>
       hrApi.verifyExpense(id, data),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: hrKeys.expenses() });
-      queryClient.invalidateQueries({ queryKey: hrKeys.expense(id) });
-    },
+    onSuccess: (_, { id }) => invalidate(id),
   });
 }
 
 export function useRefundExpense() {
-  const queryClient = useQueryClient();
-
+  const invalidate = useInvalidateExpenses();
   return useMutation({
     mutationFn: ({ id, refundReference }: { id: string; refundReference?: string }) =>
       hrApi.refundExpense(id, refundReference),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: hrKeys.expenses() });
-      queryClient.invalidateQueries({ queryKey: hrKeys.expense(id) });
-    },
+    onSuccess: (_, { id }) => invalidate(id),
   });
 }
 
 export function useRejectExpense() {
-  const queryClient = useQueryClient();
-
+  const invalidate = useInvalidateExpenses();
   return useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) =>
       hrApi.rejectExpense(id, reason),
-    onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: hrKeys.expenses() });
-      queryClient.invalidateQueries({ queryKey: hrKeys.expense(id) });
-      queryClient.invalidateQueries({ queryKey: hrKeys.pendingApprovals() });
-      queryClient.invalidateQueries({ queryKey: hrKeys.stats() });
-    },
-  });
-}
-
-// ================================
-// DASHBOARD HOOKS
-// ================================
-
-export function useHRStats() {
-  return useQuery({
-    queryKey: hrKeys.stats(),
-    queryFn: () => hrApi.getHRStats(),
-    staleTime: 2 * 60 * 1000,
-  });
-}
-
-export function useHRRecentActivity() {
-  return useQuery({
-    queryKey: hrKeys.recentActivity(),
-    queryFn: () => hrApi.getRecentActivity(),
-    staleTime: 2 * 60 * 1000,
-  });
-}
-
-export function useHRPendingApprovals() {
-  return useQuery({
-    queryKey: hrKeys.pendingApprovals(),
-    queryFn: () => hrApi.getPendingApprovals(),
-    staleTime: 2 * 60 * 1000,
+    onSuccess: (_, { id }) => invalidate(id),
   });
 }

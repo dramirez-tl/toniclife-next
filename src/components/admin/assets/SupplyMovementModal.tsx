@@ -37,6 +37,7 @@ import { assetKeys, useAssetLocations, useAssetPurchases } from '@/hooks/useAsse
 import { useAddSupplyMovement } from '@/hooks/useSupplies';
 import { useBranches } from '@/hooks/useBranches';
 import { useEmployees } from '@/hooks/useHR';
+import { employeeDisplayName } from '@/types/hr';
 import type { Asset } from '@/types/asset';
 import {
   ADJUST_REASONS,
@@ -97,7 +98,7 @@ export function SupplyMovementModal({
   const [movedAt, setMovedAt] = useState('');
   const [notes, setNotes] = useState('');
 
-  const { data: employeesData } = useEmployees({ limit: 200, status: 'ACTIVE' });
+  const { data: employeesData } = useEmployees({ limit: 200, status: 'active' });
   const { data: branchesData } = useBranches({ limit: 200, isActive: true });
   const { data: locations = [] } = useAssetLocations({});
   const { data: purchasesData } = useAssetPurchases({ limit: 100 });
@@ -167,8 +168,8 @@ export function SupplyMovementModal({
       employees
         .filter((e) => !!e.userId)
         .map((e) => ({
-          value: e.userId,
-          label: `${e.firstName} ${e.lastName}${e.secondLastName ? ` ${e.secondLastName}` : ''}`,
+          value: e.userId ?? '',
+          label: employeeDisplayName(e),
           hint: e.employeeNumber,
         })),
     [employees],

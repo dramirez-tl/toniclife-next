@@ -30,6 +30,7 @@ import { groupByRoot } from '@/lib/asset-select-options';
 import { useAssignAsset, useAssetLocations, useReturnAsset, useTransferAsset } from '@/hooks/useAssets';
 import { useBranches } from '@/hooks/useBranches';
 import { useDepartments, useEmployees } from '@/hooks/useHR';
+import { employeeDisplayName } from '@/types/hr';
 import {
   ASSET_CONDITIONS,
   ASSET_CONDITION_LABELS,
@@ -73,7 +74,7 @@ export function AssignAssetModal({
   const [returnStatus, setReturnStatus] = useState('available');
   const [notes, setNotes] = useState('');
 
-  const { data: employeesData } = useEmployees({ limit: 200, status: 'ACTIVE' });
+  const { data: employeesData } = useEmployees({ limit: 200, status: 'active' });
   const { data: branchesData } = useBranches({ limit: 200, isActive: true });
   const { data: departments = [] } = useDepartments();
   const { data: locations = [] } = useAssetLocations(branchId ? { branchId } : {});
@@ -110,8 +111,8 @@ export function AssignAssetModal({
         return employees
           .filter((e) => !!e.userId)
           .map((e) => ({
-            value: e.userId,
-            label: `${e.firstName} ${e.lastName}${e.secondLastName ? ` ${e.secondLastName}` : ''}`,
+            value: e.userId ?? '',
+            label: employeeDisplayName(e),
             hint: e.employeeNumber,
           }));
       case 'branch':

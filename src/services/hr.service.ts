@@ -1,18 +1,25 @@
-// hr.service.ts - Service for Human Resources API
-// Ref: TONIC_LIFE_2.0_MASTER.md - Seccion 5.6 Modulo Recursos Humanos
+// hr.service.ts - Servicio del módulo de Recursos Humanos.
+//
+// El API de RRHH ya responde en camelCase para empleados, horarios, panel y
+// checador; lo único que sigue llegando crudo (snake_case) es la fila de
+// vacation_requests, por eso ahí hay un mapper.
 
 import api from '@/lib/api';
 import type {
-  Employee,
-  EmployeeStatus,
+  EmployeeDetail,
   EmployeeListResponse,
   EmployeeQuery,
+  EmployeeImportResult,
   Department,
   CreateDepartmentDto,
   UpdateDepartmentDto,
   OrgDirector,
   CreateEmployeeDto,
   UpdateEmployeeDto,
+  HrDashboard,
+  WorkSchedule,
+  CreateWorkScheduleDto,
+  UpdateWorkScheduleDto,
   AttendanceEvent,
   AttendanceListResponse,
   AttendanceQuery,
@@ -20,6 +27,7 @@ import type {
   AttendanceDaySummary,
   ManualAttendanceInput,
   Vacation,
+  VacationStatus,
   VacationListResponse,
   VacationQuery,
   CreateVacationDto,
@@ -33,72 +41,214 @@ import type {
   ReviewExpenseDto,
 } from '@/types/hr';
 
-// El backend usa status en minúsculas; el front en MAYÚSCULAS.
-const STATUS_TO_API: Record<string, string> = {
-  ACTIVE: 'active',
-  INACTIVE: 'inactive',
-  ON_LEAVE: 'on_leave',
-  TERMINATED: 'terminated',
-};
-const STATUS_FROM_API: Record<string, EmployeeStatus> = {
-  active: 'ACTIVE',
-  inactive: 'INACTIVE',
-  on_leave: 'ON_LEAVE',
-  terminated: 'TERMINATED',
-};
+const MULTIPART = { headers: { 'Content-Type': 'multipart/form-data' } };
 
-// El backend (mapEmployeeWithRelations) devuelve snake_case + relaciones
-// anidadas; aquí lo normalizamos al tipo Employee (camelCase) del front.
-function mapEmployee(r: any): Employee {
+/** Tope del API para `limit` en los listados de RRHH (EmployeeQueryDto). */
+const EMPLOYEE_PAGE_MAX = 200;
+
+/** Convierte { data, pagination } paginado por offset a los params del API. */
+function pageParams(page?: number, limit?: number) {
+  const safeLimit = Math.min(limit ?? 20, EMPLOYEE_PAGE_MAX);
+  const safePage = page && page > 0 ? page : 1;
+  return { limit: safeLimit, offset: (safePage - 1) * safeLimit, page: safePage };
+}
+
+// El API de vacaciones devuelve la fila cruda de vacation_requests.
+type RawVacation = Record<string, unknown>;
+
+function str(v: unknown): string | null {
+  return typeof v === 'string' && v.length > 0 ? v : null;
+}
+
+function num(v: unknown): number | null {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function mapVacation(r: RawVacation): Vacation {
+  const first = str(r.employee_first_name);
+  const last = str(r.employee_last_name);
+  const name = [first, last].filter(Boolean).join(' ').trim();
   return {
-    id: r.id,
-    userId: r.user_id ?? r.user?.id ?? '',
-    employeeNumber: r.employee_number ?? '',
-    noiNumber: r.noi_number ?? null,
-    firstName: r.first_name ?? r.user?.firstName ?? '',
-    lastName: r.last_name ?? r.user?.lastName ?? '',
-    secondLastName: r.user?.secondLastName ?? r.second_last_name ?? null,
-    email: r.email ?? r.user?.email ?? '',
-    phone: r.phone ?? undefined,
-    position: r.job_position?.name ?? '',
-    department: r.department?.name ?? undefined,
-    departmentId: r.department?.id ?? r.department_id ?? undefined,
-    branch: r.branch?.name ?? undefined,
-    branchId: r.branch?.id ?? r.branch_id ?? undefined,
-    supervisorId: r.supervisor_id ?? undefined,
-    isManager: !!r.is_manager,
-    hireDate: r.hire_date ?? '',
-    terminationDate: r.termination_date ?? undefined,
-    status: STATUS_FROM_API[r.status as string] ?? 'ACTIVE',
-    createdAt: r.created_at ?? '',
-    updatedAt: r.updated_at ?? '',
-    user: r.user
-      ? {
-          id: r.user.id,
-          firstName: r.user.firstName,
-          lastName: r.user.lastName,
-          email: r.user.email,
-        }
-      : undefined,
+    id: String(r.id ?? ''),
+    requestNumber: str(r.request_number),
+    employeeId: String(r.employee_id ?? ''),
+    employeeNumber: str(r.employee_number),
+    employeeName: name || null,
+    startDate: str(r.start_date) ?? '',
+    endDate: str(r.end_date) ?? '',
+    totalCalendarDays: num(r.total_calendar_days),
+    totalBusinessDays: num(r.total_business_days),
+    status: (str(r.status) ?? 'pending') as VacationStatus,
+    requestComments: str(r.request_comments),
+    requestedAt: str(r.requested_at),
+    approvedBy: str(r.approved_by),
+    approvedAt: str(r.approved_at),
+    rejectionReason: str(r.rejection_reason),
+    rejectedAt: str(r.rejected_at),
+    cancelledAt: str(r.cancelled_at),
+    cancellationReason: str(r.cancellation_reason),
+    createdAt: str(r.created_at) ?? '',
   };
 }
 
 class HrService {
   // ================================
-  // EMPLOYEE METHODS
+  // PANEL DE RRHH
   // ================================
 
-  async createEmployee(data: CreateEmployeeDto): Promise<Employee> {
-    const response = await api.post<any>('/hr/employees', data);
-    return mapEmployee(response.data);
+  /** Tarjetas del panel principal, calculadas en SQL por el API. */
+  async getDashboard(): Promise<HrDashboard> {
+    const { data } = await api.get<HrDashboard>('/hr/dashboard');
+    return data;
   }
 
-  async updateEmployee(id: string, data: UpdateEmployeeDto): Promise<Employee> {
-    const payload: Record<string, unknown> = { ...data };
-    if (data.status) payload.status = STATUS_TO_API[data.status] ?? data.status;
-    const response = await api.patch<any>(`/hr/employees/${id}`, payload);
-    return mapEmployee(response.data);
+  // ================================
+  // EMPLEADOS
+  // ================================
+
+  async listEmployees(query: EmployeeQuery = {}): Promise<EmployeeListResponse> {
+    const { limit, offset, page } = pageParams(query.page, query.limit);
+    const { data } = await api.get<EmployeeListResponse>('/hr/employees', {
+      params: {
+        search: query.search || undefined,
+        branchId: query.branchId || undefined,
+        departmentId: query.departmentId || undefined,
+        employmentType: query.employmentType || undefined,
+        status: query.status || undefined,
+        hasSystemAccess: query.hasSystemAccess,
+        limit,
+        offset,
+      },
+    });
+    return {
+      data: data?.data ?? [],
+      pagination: data?.pagination ?? { total: 0, page, limit, pages: 1 },
+    };
   }
+
+  async getEmployeeById(id: string): Promise<EmployeeDetail> {
+    const { data } = await api.get<EmployeeDetail>(`/hr/employees/${id}`);
+    return data;
+  }
+
+  /** Expediente del usuario autenticado (cualquier sesión puede verlo). */
+  async getMyEmployee(): Promise<EmployeeDetail> {
+    const { data } = await api.get<EmployeeDetail>('/hr/employees/me');
+    return data;
+  }
+
+  async createEmployee(dto: CreateEmployeeDto): Promise<EmployeeDetail> {
+    const { data } = await api.post<EmployeeDetail>('/hr/employees', dto);
+    return data;
+  }
+
+  async updateEmployee(id: string, dto: UpdateEmployeeDto): Promise<EmployeeDetail> {
+    const { data } = await api.patch<EmployeeDetail>(`/hr/employees/${id}`, dto);
+    return data;
+  }
+
+  /** Checadas de un empleado (mismo listado del checador, ya filtrado). */
+  async getEmployeeAttendance(
+    id: string,
+    query: { from?: string; to?: string; page?: number; limit?: number } = {},
+  ): Promise<AttendanceListResponse> {
+    const { data } = await api.get<AttendanceListResponse>(
+      `/hr/employees/${id}/attendance`,
+      {
+        params: {
+          from: query.from || undefined,
+          to: query.to || undefined,
+          page: query.page,
+          limit: query.limit,
+        },
+      },
+    );
+    return data;
+  }
+
+  // --- Foto del gafete (GCS privado, URL firmada de 15 min) ---
+
+  async uploadEmployeePhoto(id: string, file: File): Promise<{ photoUrl: string | null }> {
+    const form = new FormData();
+    form.append('photo', file);
+    const { data } = await api.post<{ photoUrl: string | null }>(
+      `/hr/employees/${id}/photo`,
+      form,
+      MULTIPART,
+    );
+    return data;
+  }
+
+  async deleteEmployeePhoto(id: string): Promise<void> {
+    await api.delete(`/hr/employees/${id}/photo`);
+  }
+
+  // --- Gafete (badge_code) ---
+
+  /** Genera el código del gafete; `regenerate` repone un gafete extraviado. */
+  async generateBadge(id: string, regenerate = false): Promise<EmployeeDetail> {
+    const { data } = await api.post<EmployeeDetail>(`/hr/employees/${id}/badge`, {
+      regenerate,
+    });
+    return data;
+  }
+
+  /** Marca que el gafete se imprimió (badge_printed_count++). */
+  async markBadgePrinted(id: string): Promise<void> {
+    await api.post(`/hr/employees/${id}/badge/printed`, {});
+  }
+
+  // --- Carga masiva de expedientes (CSV) ---
+
+  /**
+   * Sube el CSV. Con `dryRun` solo se valida y se devuelve la vista previa;
+   * sin él se aplica todo en UNA transacción (si hay errores no aplica nada).
+   */
+  async importEmployees(file: File, dryRun: boolean): Promise<EmployeeImportResult> {
+    const form = new FormData();
+    form.append('file', file);
+    const { data } = await api.post<EmployeeImportResult>(
+      `/hr/employees/import?dryRun=${dryRun ? 'true' : 'false'}`,
+      form,
+      MULTIPART,
+    );
+    return data;
+  }
+
+  // ================================
+  // HORARIOS (4 tiempos)
+  // ================================
+
+  async getWorkSchedules(includeInactive = false): Promise<WorkSchedule[]> {
+    const { data } = await api.get<WorkSchedule[] | { data: WorkSchedule[] }>(
+      '/hr/work-schedules',
+      { params: { includeInactive: includeInactive || undefined } },
+    );
+    // Tolerante: el catálogo puede venir como arreglo plano (como departamentos)
+    // o envuelto en { data }.
+    return Array.isArray(data) ? data : (data?.data ?? []);
+  }
+
+  async createWorkSchedule(dto: CreateWorkScheduleDto): Promise<WorkSchedule> {
+    const { data } = await api.post<WorkSchedule>('/hr/work-schedules', dto);
+    return data;
+  }
+
+  async updateWorkSchedule(id: string, dto: UpdateWorkScheduleDto): Promise<WorkSchedule> {
+    const { data } = await api.patch<WorkSchedule>(`/hr/work-schedules/${id}`, dto);
+    return data;
+  }
+
+  /** Borrado suave (is_active = false). 409 si tiene empleados asignados. */
+  async deleteWorkSchedule(id: string): Promise<void> {
+    await api.delete(`/hr/work-schedules/${id}`);
+  }
+
+  // ================================
+  // DEPARTAMENTOS
+  // ================================
 
   /** Catálogo de departamentos (activos por defecto; includeInactive para todos). */
   async getDepartments(includeInactive = false): Promise<Department[]> {
@@ -142,51 +292,6 @@ class HrService {
     return response.data;
   }
 
-  async getEmployeeById(id: string): Promise<Employee> {
-    const response = await api.get<Employee>(`/hr/employees/${id}`);
-    return response.data;
-  }
-
-  /** Alias for getEmployeeById for backward compatibility */
-  async getEmployee(id: string): Promise<Employee> {
-    return this.getEmployeeById(id);
-  }
-
-  /** Get current user's employee record */
-  async getMyEmployee(): Promise<Employee> {
-    const response = await api.get<Employee>('/hr/employees/me');
-    return response.data;
-  }
-
-  // TODO: Endpoint not implemented in backend
-  async getEmployeeByUserId(userId: string): Promise<Employee> {
-    const response = await api.get<Employee>(`/hr/employees/user/${userId}`);
-    return response.data;
-  }
-
-  async listEmployees(query: EmployeeQuery = {}): Promise<EmployeeListResponse> {
-    const params = new URLSearchParams();
-    const limit = query.limit ?? 20;
-    const page = query.page ?? 1;
-    const offset = (page - 1) * limit;
-
-    if (query.branchId) params.append('branchId', query.branchId);
-    if (query.departmentId) params.append('departmentId', query.departmentId);
-    if (query.status) params.append('status', STATUS_TO_API[query.status] ?? query.status);
-    if (query.search) params.append('search', query.search);
-    params.append('limit', String(limit));
-    params.append('offset', String(offset));
-
-    const response = await api.get<{ data: any[]; pagination?: EmployeeListResponse['pagination'] }>(
-      `/hr/employees?${params.toString()}`
-    );
-    const raw = response.data;
-    return {
-      data: (raw.data ?? []).map(mapEmployee),
-      pagination: raw.pagination ?? { total: 0, page, limit, pages: 1 },
-    };
-  }
-
   // ================================
   // ASISTENCIA (CHECADOR)
   // ================================
@@ -213,7 +318,11 @@ class HrService {
     return data;
   }
 
-  /** Resumen de un día: un renglón por empleado con sus cuatro toques. */
+  /**
+   * Resumen de un día: un renglón por empleado con sus cuatro toques, el
+   * horario esperado, retardos y las FALTAS (empleados con horario que no
+   * checaron ese día).
+   */
   async getAttendanceDay(query: AttendanceDayQuery = {}): Promise<AttendanceDaySummary> {
     const { data } = await api.get<AttendanceDaySummary>('/hr/attendance/day', {
       params: {
@@ -232,93 +341,73 @@ class HrService {
   }
 
   // ================================
-  // VACATION METHODS
+  // VACACIONES
   // ================================
 
-  async createVacationRequest(data: CreateVacationDto): Promise<Vacation> {
-    const response = await api.post<Vacation>('/hr/vacations', data);
-    return response.data;
-  }
-
-  /** Alias for createVacationRequest */
-  async createVacation(data: CreateVacationDto): Promise<Vacation> {
-    return this.createVacationRequest(data);
-  }
-
-  async approveVacation(vacationId: string, data?: ReviewVacationDto): Promise<Vacation> {
-    const response = await api.patch<Vacation>(
-      `/hr/vacations/${vacationId}/approve`,
-      data || {}
-    );
-    return response.data;
-  }
-
-  async rejectVacation(vacationId: string, reason: string): Promise<Vacation> {
-    const response = await api.patch<Vacation>(
-      `/hr/vacations/${vacationId}/reject`,
-      { rejectionReason: reason }
-    );
-    return response.data;
-  }
-
-  async cancelVacation(vacationId: string): Promise<Vacation> {
-    const response = await api.patch<Vacation>(
-      `/hr/vacations/${vacationId}/cancel`,
-      {}
-    );
-    return response.data;
+  async listVacations(query: VacationQuery = {}): Promise<VacationListResponse> {
+    const { limit, offset, page } = pageParams(query.page, query.limit ?? 50);
+    const { data } = await api.get<{
+      data?: RawVacation[];
+      pagination?: VacationListResponse['pagination'];
+    }>('/hr/vacations', {
+      params: {
+        employeeId: query.employeeId || undefined,
+        status: query.status || undefined,
+        fromDate: query.startDate || undefined,
+        toDate: query.endDate || undefined,
+        limit,
+        offset,
+      },
+    });
+    const rows = data?.data ?? [];
+    return {
+      data: rows.map(mapVacation),
+      pagination: data?.pagination ?? { total: rows.length, page, limit, pages: 1 },
+    };
   }
 
   async getVacation(id: string): Promise<Vacation> {
-    const response = await api.get<Vacation>(`/hr/vacations/${id}`);
-    return response.data;
+    const { data } = await api.get<RawVacation>(`/hr/vacations/${id}`);
+    return mapVacation(data);
   }
 
-  /** Get pending vacations for review */
-  async getPendingVacations(): Promise<Vacation[]> {
-    const response = await api.get<Vacation[]>('/hr/vacations/pending-review');
-    return response.data;
+  async createVacationRequest(dto: CreateVacationDto): Promise<Vacation> {
+    const { data } = await api.post<RawVacation>('/hr/vacations', dto);
+    return mapVacation(data);
   }
 
-  async listVacations(query: VacationQuery = {}): Promise<VacationListResponse> {
-    const params = new URLSearchParams();
-
-    if (query.employeeId) params.append('employeeId', query.employeeId);
-    if (query.status) params.append('status', query.status);
-    if (query.startDate) params.append('fromDate', query.startDate);
-    if (query.endDate) params.append('toDate', query.endDate);
-    if (query.page) params.append('page', String(query.page));
-    if (query.limit) params.append('limit', String(query.limit));
-
-    const response = await api.get<VacationListResponse>(
-      `/hr/vacations?${params.toString()}`
-    );
-    return response.data;
+  async approveVacation(id: string, dto?: ReviewVacationDto): Promise<Vacation> {
+    const { data } = await api.patch<RawVacation>(`/hr/vacations/${id}/approve`, dto ?? {});
+    return mapVacation(data);
   }
 
-  // TODO: Endpoint not implemented in backend
-  async getMyVacations(): Promise<VacationListResponse> {
-    const response = await api.get<VacationListResponse>('/hr/vacations/my');
-    return response.data;
+  async rejectVacation(id: string, rejectionReason: string): Promise<Vacation> {
+    const { data } = await api.patch<RawVacation>(`/hr/vacations/${id}/reject`, {
+      rejectionReason,
+    });
+    return mapVacation(data);
   }
 
-  // TODO: Endpoint not implemented in backend
-  async getPendingVacationsForReview(): Promise<VacationListResponse> {
-    const response = await api.get<VacationListResponse>('/hr/vacations/pending');
-    return response.data;
+  async cancelVacation(id: string, cancellationReason?: string): Promise<Vacation> {
+    const { data } = await api.patch<RawVacation>(`/hr/vacations/${id}/cancel`, {
+      cancellationReason: cancellationReason || undefined,
+    });
+    return mapVacation(data);
   }
 
   // ================================
-  // EXPENSE (VIATICOS) METHODS
+  // VIÁTICOS
   // ================================
+  //
+  // /hr/expenses NO existe en el API: la pantalla de Viáticos está oculta del
+  // menú (AdminSidebar) hasta que exista backend. Estos métodos quedan
+  // AISLADOS a esa pantalla — el panel de RRHH ya no depende de ellos.
 
-  // TODO: Endpoint not implemented in backend
   async createExpense(data: CreateExpenseDto): Promise<Expense> {
     const response = await api.post<Expense>('/hr/expenses', data);
     return response.data;
   }
 
-  // TODO: Endpoint not implemented in backend
   async updateExpense(id: string, data: UpdateExpenseDto): Promise<Expense> {
     const response = await api.patch<Expense>(`/hr/expenses/${id}`, data);
     return response.data;
@@ -329,42 +418,30 @@ class HrService {
     return response.data;
   }
 
-  // TODO: Endpoint not implemented in backend
   async addExpenseItem(expenseId: string, data: ExpenseItemDto): Promise<Expense> {
     const response = await api.post<Expense>(`/hr/expenses/${expenseId}/items`, data);
     return response.data;
   }
 
-  // TODO: Endpoint not implemented in backend
   async removeExpenseItem(expenseId: string, itemId: string): Promise<void> {
     await api.delete(`/hr/expenses/${expenseId}/items/${itemId}`);
   }
 
-  // TODO: Endpoint not implemented in backend
   async submitExpense(id: string): Promise<Expense> {
     const response = await api.patch<Expense>(`/hr/expenses/${id}/submit`, {});
     return response.data;
   }
 
-  // TODO: Endpoint not implemented in backend
   async approveExpense(id: string, data?: ReviewExpenseDto): Promise<Expense> {
-    const response = await api.patch<Expense>(
-      `/hr/expenses/${id}/approve`,
-      data || {}
-    );
+    const response = await api.patch<Expense>(`/hr/expenses/${id}/approve`, data || {});
     return response.data;
   }
 
-  // TODO: Endpoint not implemented in backend
   async verifyExpense(id: string, data?: ReviewExpenseDto): Promise<Expense> {
-    const response = await api.patch<Expense>(
-      `/hr/expenses/${id}/verify`,
-      data || {}
-    );
+    const response = await api.patch<Expense>(`/hr/expenses/${id}/verify`, data || {});
     return response.data;
   }
 
-  // TODO: Endpoint not implemented in backend
   async refundExpense(id: string, refundReference?: string): Promise<Expense> {
     const response = await api.patch<Expense>(`/hr/expenses/${id}/refund`, {
       refundReference,
@@ -372,19 +449,15 @@ class HrService {
     return response.data;
   }
 
-  // TODO: Endpoint not implemented in backend
   async rejectExpense(id: string, reason: string): Promise<Expense> {
-    const response = await api.patch<Expense>(
-      `/hr/expenses/${id}/reject`,
-      { rejectionReason: reason }
-    );
+    const response = await api.patch<Expense>(`/hr/expenses/${id}/reject`, {
+      rejectionReason: reason,
+    });
     return response.data;
   }
 
-  // TODO: Endpoint not implemented in backend
   async listExpenses(query: ExpenseQuery = {}): Promise<ExpenseListResponse> {
     const params = new URLSearchParams();
-
     if (query.employeeId) params.append('employeeId', query.employeeId);
     if (query.status) params.append('status', query.status);
     if (query.startDate) params.append('fromDate', query.startDate);
@@ -393,152 +466,9 @@ class HrService {
     if (query.limit) params.append('limit', String(query.limit));
 
     const response = await api.get<ExpenseListResponse>(
-      `/hr/expenses?${params.toString()}`
+      `/hr/expenses?${params.toString()}`,
     );
     return response.data;
-  }
-
-  // TODO: Endpoint not implemented in backend
-  async getMyExpenses(): Promise<ExpenseListResponse> {
-    const response = await api.get<ExpenseListResponse>('/hr/expenses/my');
-    return response.data;
-  }
-
-  // TODO: Endpoint not implemented in backend
-  async getPendingExpensesForApproval(): Promise<ExpenseListResponse> {
-    const response = await api.get<ExpenseListResponse>('/hr/expenses/pending');
-    return response.data;
-  }
-
-  // ================================
-  // DASHBOARD / STATS
-  // ================================
-
-  /** Get HR stats for dashboard */
-  async getHRStats(): Promise<{
-    totalEmployees: number;
-    activeEmployees: number;
-    onLeave: number;
-    pendingVacations: number;
-    pendingExpenses: number;
-    todayAttendance: number;
-  }> {
-    // Aggregate data from multiple endpoints
-    const [employees, pendingVacations, pendingExpenses] = await Promise.all([
-      this.listEmployees({ limit: 1 }),
-      this.listVacations({ status: 'PENDING', limit: 1 }),
-      this.listExpenses({ status: 'PENDING', limit: 1 }),
-    ]);
-
-    return {
-      totalEmployees: employees.pagination.total,
-      activeEmployees: employees.data.filter(e => e.status === 'ACTIVE').length,
-      onLeave: employees.data.filter(e => e.status === 'ON_LEAVE').length,
-      pendingVacations: pendingVacations.total,
-      pendingExpenses: pendingExpenses.total,
-      todayAttendance: 0, // Will be calculated from attendance report
-    };
-  }
-
-  /** Get recent activity */
-  async getRecentActivity(): Promise<Array<{
-    id: string;
-    type: 'attendance' | 'vacation' | 'expense';
-    message: string;
-    timestamp: string;
-  }>> {
-    const [vacations, expenses] = await Promise.all([
-      this.listVacations({ limit: 5 }),
-      this.listExpenses({ limit: 5 }),
-    ]);
-
-    const activities: Array<{
-      id: string;
-      type: 'attendance' | 'vacation' | 'expense';
-      message: string;
-      timestamp: string;
-    }> = [];
-
-    vacations.data.forEach(v => {
-      const employeeName = v.employee?.user
-        ? `${v.employee.user.firstName} ${v.employee.user.lastName}`
-        : 'Empleado';
-      activities.push({
-        id: v.id,
-        type: 'vacation',
-        message: `${employeeName} - Solicitud de vacaciones (${v.status})`,
-        timestamp: v.createdAt,
-      });
-    });
-
-    expenses.data.forEach(e => {
-      const employeeName = e.employee?.user
-        ? `${e.employee.user.firstName} ${e.employee.user.lastName}`
-        : 'Empleado';
-      activities.push({
-        id: e.id,
-        type: 'expense',
-        message: `${employeeName} - ${e.title} ($${e.totalAmount})`,
-        timestamp: e.createdAt,
-      });
-    });
-
-    return activities.sort((a, b) =>
-      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-    ).slice(0, 10);
-  }
-
-  /** Get pending approvals */
-  async getPendingApprovals(): Promise<Array<{
-    id: string;
-    type: 'vacation' | 'expense';
-    employeeName: string;
-    description: string;
-    date: string;
-    amount?: number;
-  }>> {
-    const [vacations, expenses] = await Promise.all([
-      this.listVacations({ status: 'PENDING' }),
-      this.listExpenses({ status: 'PENDING' }),
-    ]);
-
-    const approvals: Array<{
-      id: string;
-      type: 'vacation' | 'expense';
-      employeeName: string;
-      description: string;
-      date: string;
-      amount?: number;
-    }> = [];
-
-    vacations.data.forEach(v => {
-      const employeeName = v.employee?.user
-        ? `${v.employee.user.firstName} ${v.employee.user.lastName}`
-        : 'Empleado';
-      approvals.push({
-        id: v.id,
-        type: 'vacation',
-        employeeName,
-        description: `${v.daysRequested} dias - ${v.startDate} al ${v.endDate}`,
-        date: v.createdAt,
-      });
-    });
-
-    expenses.data.forEach(e => {
-      const employeeName = e.employee?.user
-        ? `${e.employee.user.firstName} ${e.employee.user.lastName}`
-        : 'Empleado';
-      approvals.push({
-        id: e.id,
-        type: 'expense',
-        employeeName,
-        description: e.title,
-        date: e.createdAt,
-        amount: e.totalAmount,
-      });
-    });
-
-    return approvals;
   }
 }
 
