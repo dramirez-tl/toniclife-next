@@ -22,6 +22,7 @@ import {
   ClockIcon,
   ExclamationTriangleIcon,
   PlusIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -43,18 +44,28 @@ import {
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui/DataTable';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
-import { useAttendance, useAttendanceDay, useEmployees, useManualAttendance } from '@/hooks/useHR';
+import {
+  useAttendance,
+  useAttendanceDay,
+  useEmployee,
+  useEmployees,
+  useManualAttendance,
+} from '@/hooks/useHR';
 import { useBranches } from '@/hooks/useBranches';
 import { hrService } from '@/services/hr.service';
 import { useAppSelector } from '@/store/hooks';
 import { selectUserPermissions, selectUserRoles } from '@/store/slices/authSlice';
 import { csvDateStamp, exportToCsv } from '@/lib/csv-export';
 import { DEFAULT_TIMEZONE, formatTimeLocal, resolveTimeZone } from '@/lib/timezone-utils';
+import { addDays, apiErrorMessage, csvSafe, hasManagePermission, todayCdmx } from '../hr-utils';
 import {
+  ATTENDANCE_DAY_STATUS_LABELS,
+  ATTENDANCE_DAY_STATUS_VARIANTS,
   ATTENDANCE_EVENT_TYPES,
   ATTENDANCE_METHOD_LABELS,
   EVENT_TYPE_LABELS,
   EVENT_TYPE_VARIANTS,
+  employeeDisplayName,
   type AttendanceDaySummaryRow,
   type AttendanceEvent,
   type AttendanceEventType,
@@ -75,40 +86,9 @@ const CSV_PAGE_SIZE = 200;
 // ---------------------------------------------------------------------------
 // Utilidades locales
 // ---------------------------------------------------------------------------
-
-/** 'YYYY-MM-DD' de hoy en CDMX (misma zona que usa el API por defecto). */
-function todayCdmx(): string {
-  return new Date().toLocaleDateString('en-CA', { timeZone: DEFAULT_TIMEZONE });
-}
-
-/** Suma días a una fecha 'YYYY-MM-DD' sin salirse del día calendario. */
-function addDays(date: string, days: number): string {
-  const [y, m, d] = date.split('-').map(Number);
-  const base = new Date(Date.UTC(y, (m || 1) - 1, d || 1));
-  base.setUTCDate(base.getUTCDate() + days);
-  return base.toISOString().slice(0, 10);
-}
-
-/**
- * Mensaje legible de un error del API. NestJS manda `message` como string o
- * como arreglo (errores de validación).
- */
-function apiErrorMessage(err: unknown, fallback: string): string {
-  const e = err as { response?: { data?: { message?: unknown } }; message?: string } | null;
-  const raw = e?.response?.data?.message;
-  const msg = Array.isArray(raw) ? String(raw[0] ?? '') : typeof raw === 'string' ? raw : '';
-  return msg || e?.message || fallback;
-}
-
-/**
- * Neutraliza fórmulas (CWE-1236) en texto capturado por usuarios: Excel
- * ejecutaría una celda que empiece con = + - @. El entrecomillado lo hace
- * exportToCsv, por eso aquí solo se antepone el apóstrofo.
- */
-function csvSafe(v: string | number | null | undefined): string {
-  const s = (v ?? '').toString().replace(/[\r\n\t]/g, ' ');
-  return /^[=+\-@]/.test(s) ? `'${s}` : s;
-}
+//
+// todayCdmx, addDays, apiErrorMessage, csvSafe y hasManagePermission viven en
+// ../hr-utils (las comparten todas las pantallas de RRHH).
 
 /** Desfase (ms) de una zona respecto a UTC en ese instante. */
 function timezoneOffsetMs(instant: Date, timezone: string): number {
@@ -151,12 +131,6 @@ function localInputToIso(date: string, time: string, timezone: string): string |
 
 function isEventType(value: string): value is AttendanceEventType {
   return (ATTENDANCE_EVENT_TYPES as readonly string[]).includes(value);
-}
-
-/** hr:manage (con comodines) o super_admin. Misma lógica que PermissionGuard. */
-function hasManagePermission(permissions: string[], roles: string[]): boolean {
-  if (roles.includes('super_admin')) return true;
-  return permissions.some((p) => p === 'hr:manage' || p === 'hr:*' || p === '*' || p === '*:*');
 }
 
 /** Hora local de la sucursal ("11:45 a.m."), tolerante a timezones basura. */
@@ -203,11 +177,14 @@ function AsistenciaContent() {
 
   const today = todayCdmx();
   const tab = get('tab') === 'resumen' ? 'resumen' : 'eventos';
-  const from = get('from') || today;
-  const to = get('to') || today;
   const branch = get('branch');
   const type = get('type');
   const search = get('search');
+  // Se llega aquí desde el expediente: /asistencia?employeeId=<id>&from=&to=
+  const employeeId = get('employeeId');
+  // Viendo a UNA persona el rango útil no es "hoy" sino su último mes.
+  const from = get('from') || (employeeId ? addDays(today, -29) : today);
+  const to = get('to') || today;
   const page = getNumber('page') || 1;
   const limit = getNumber('limit') || 50;
 
@@ -225,14 +202,30 @@ function AsistenciaContent() {
   const branchId = branch !== 'all' ? branch : undefined;
   const eventType = isEventType(type) ? type : undefined;
 
+  // Nombre del empleado del filtro (para el chip); solo si viene en la URL.
+  const { data: filteredEmployee } = useEmployee(employeeId);
+
   const applySearch = () => setParams({ search: searchDraft.trim() || null, page: null });
 
   const hasFilters =
-    !!search || branch !== 'all' || type !== 'all' || from !== today || to !== today;
+    !!search ||
+    !!employeeId ||
+    branch !== 'all' ||
+    type !== 'all' ||
+    from !== today ||
+    to !== today;
 
   const clearFilters = () => {
     setSearchDraft('');
-    setParams({ search: null, branch: 'all', type: 'all', from: null, to: null, page: null });
+    setParams({
+      search: null,
+      employeeId: null,
+      branch: 'all',
+      type: 'all',
+      from: null,
+      to: null,
+      page: null,
+    });
   };
 
   return (
@@ -317,6 +310,28 @@ function AsistenciaContent() {
             </div>
           </div>
 
+          {employeeId && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-2 rounded-full border border-primary bg-primary/10 px-3 py-1 text-xs text-primary">
+                Empleado:{' '}
+                <strong className="font-semibold">
+                  {filteredEmployee ? employeeDisplayName(filteredEmployee) : employeeId}
+                </strong>
+                <button
+                  type="button"
+                  title="Quitar el filtro de empleado"
+                  onClick={() => setParams({ employeeId: null, page: null })}
+                  className="rounded-full p-0.5 hover:bg-primary/20"
+                >
+                  <XMarkIcon className="h-3.5 w-3.5" />
+                </button>
+              </span>
+              <span className="text-xs text-muted-foreground">
+                Solo se muestran las checadas de esta persona.
+              </span>
+            </div>
+          )}
+
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <FilterChip
               active={from === today && to === today}
@@ -357,6 +372,7 @@ function AsistenciaContent() {
               from,
               to,
               branchId,
+              employeeId: employeeId || undefined,
               search: search || undefined,
               eventType,
               page,
@@ -369,10 +385,12 @@ function AsistenciaContent() {
         </TabsContent>
 
         <TabsContent value="resumen" className="mt-6">
+          {/* El resumen del día no filtra por employeeId: cuando se llega desde
+              un expediente se busca por su número de empleado. */}
           <ResumenTab
             date={from}
             branchId={branchId}
-            search={search || undefined}
+            search={filteredEmployee?.employeeNumber || search || undefined}
             onPhoto={setPhoto}
           />
         </TabsContent>
@@ -690,6 +708,7 @@ function ResumenTab({
 }) {
   const { data, isLoading, error } = useAttendanceDay({ date, branchId, search });
   const rows = data?.rows ?? [];
+  const summary = data?.summary;
 
   const handleExport = () => {
     exportToCsv(
@@ -698,27 +717,41 @@ function ResumenTab({
         'Numero',
         'Empleado',
         'Sucursal',
+        'Horario',
         'Entrada',
+        'Entrada esperada',
+        'Retardo (min)',
         'Salida a comer',
         'Regreso de comer',
-        'Salida',
         'Comida (min)',
+        'Comida excedida (min)',
+        'Salida',
+        'Salida esperada',
+        'Salida anticipada (min)',
         'Horas',
         'Eventos',
         'Turno abierto',
+        'Estado',
       ],
       rows.map((r) => [
         csvSafe(r.employeeNumber),
         csvSafe(r.employeeName),
         csvSafe(r.branchName),
+        csvSafe(r.scheduleCode),
         r.checkInTime ?? '',
+        r.expectedCheckIn ?? '',
+        r.lateMinutes ?? '',
         r.breakOutTime ?? '',
         r.breakInTime ?? '',
-        r.checkOutTime ?? '',
         r.breakMinutes ?? '',
+        r.breakExcessMinutes ?? '',
+        r.checkOutTime ?? '',
+        r.expectedCheckOut ?? '',
+        r.earlyLeaveMinutes ?? '',
         r.hoursWorked ?? '',
         r.eventsCount,
         r.openShift ? 'Si' : 'No',
+        ATTENDANCE_DAY_STATUS_LABELS[r.status] ?? r.status ?? '',
       ]),
     );
     toast.success('Resumen exportado');
@@ -736,20 +769,69 @@ function ResumenTab({
         </div>
       ),
     },
-    { key: 'checkIn', header: 'Entrada', render: (r) => <TimeCell value={r.checkInTime} /> },
+    {
+      key: 'schedule',
+      header: 'Horario',
+      render: (r) =>
+        r.scheduleCode ? (
+          <div className="min-w-0">
+            <p className="truncate font-mono text-xs">{r.scheduleCode}</p>
+            <p className="text-[11px] text-muted-foreground tabular-nums">
+              {r.expectedCheckIn ?? '—'} - {r.expectedCheckOut ?? '—'}
+            </p>
+          </div>
+        ) : (
+          <span className="text-xs text-muted-foreground">Sin horario</span>
+        ),
+    },
+    {
+      key: 'checkIn',
+      header: 'Entrada',
+      render: (r) => (
+        <div>
+          <TimeCell value={r.checkInTime} />
+          {r.expectedCheckIn ? (
+            <p className="text-[11px] text-muted-foreground tabular-nums">
+              esperada {r.expectedCheckIn}
+            </p>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      key: 'lateMinutes',
+      header: 'Retardo (min)',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (r) => <DeviationCell value={r.lateMinutes} />,
+    },
     {
       key: 'breakOut',
       header: 'Salida a comer',
       render: (r) => <TimeCell value={r.breakOutTime} />,
     },
     { key: 'breakIn', header: 'Regreso', render: (r) => <TimeCell value={r.breakInTime} /> },
-    { key: 'checkOut', header: 'Salida', render: (r) => <TimeCell value={r.checkOutTime} /> },
     {
       key: 'breakMinutes',
       header: 'Comida (min)',
       headerClassName: 'text-right',
       cellClassName: 'text-right',
       render: (r) => <span className="text-sm tabular-nums">{r.breakMinutes ?? '—'}</span>,
+    },
+    {
+      key: 'breakExcessMinutes',
+      header: 'Comida excedida',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (r) => <DeviationCell value={r.breakExcessMinutes} />,
+    },
+    { key: 'checkOut', header: 'Salida', render: (r) => <TimeCell value={r.checkOutTime} /> },
+    {
+      key: 'earlyLeaveMinutes',
+      header: 'Salida anticipada',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (r) => <DeviationCell value={r.earlyLeaveMinutes} />,
     },
     {
       key: 'hoursWorked',
@@ -770,10 +852,24 @@ function ResumenTab({
       render: (r) => <span className="text-sm tabular-nums">{r.eventsCount}</span>,
     },
     {
+      key: 'status',
+      header: 'Estado',
+      render: (r) =>
+        r.status ? (
+          <Badge variant={ATTENDANCE_DAY_STATUS_VARIANTS[r.status] ?? 'secondary'}>
+            {ATTENDANCE_DAY_STATUS_LABELS[r.status] ?? r.status}
+          </Badge>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        ),
+    },
+    {
       key: 'openShift',
       header: 'Turno',
       render: (r) =>
-        r.openShift ? (
+        r.eventsCount === 0 ? (
+          <span className="text-xs text-muted-foreground">—</span>
+        ) : r.openShift ? (
           <Badge variant="warning">Abierto</Badge>
         ) : (
           <Badge variant="success">Cerrado</Badge>
@@ -823,13 +919,43 @@ function ResumenTab({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          Día {data?.date ?? date} · {rows.length.toLocaleString('es-MX')} empleados con
-          movimiento (se usa la fecha del filtro &laquo;Desde&raquo;).
+          Día {data?.date ?? date} · {rows.length.toLocaleString('es-MX')} empleados (se usa la
+          fecha del filtro &laquo;Desde&raquo;). Incluye a quienes tenían que checar y no lo
+          hicieron.
         </p>
         <Button variant="outline" onClick={handleExport} disabled={rows.length === 0}>
           <ArrowDownTrayIcon className="mr-2 h-4 w-4" />
           Exportar CSV
         </Button>
+      </div>
+
+      {/* Tarjetas del día: el API ya manda los totales calculados. */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <SummaryTile label="Presentes" value={summary?.present} loading={isLoading && !data} />
+        <SummaryTile
+          label="Faltas"
+          value={summary?.absent}
+          tone="text-red-600"
+          loading={isLoading && !data}
+        />
+        <SummaryTile
+          label="Retardos"
+          value={summary?.late}
+          tone="text-amber-600"
+          loading={isLoading && !data}
+        />
+        <SummaryTile
+          label="A tiempo"
+          value={summary?.onTime}
+          tone="text-emerald-600"
+          loading={isLoading && !data}
+        />
+        <SummaryTile
+          label="Sin horario"
+          value={summary?.noSchedule}
+          tone="text-slate-500"
+          loading={isLoading && !data}
+        />
       </div>
 
       <div className="space-y-3 sm:hidden">
@@ -851,7 +977,11 @@ function ResumenTab({
                     </p>
                     <p className="font-mono text-xs text-muted-foreground">{r.employeeNumber}</p>
                   </div>
-                  {r.openShift ? (
+                  {r.status ? (
+                    <Badge variant={ATTENDANCE_DAY_STATUS_VARIANTS[r.status] ?? 'secondary'}>
+                      {ATTENDANCE_DAY_STATUS_LABELS[r.status] ?? r.status}
+                    </Badge>
+                  ) : r.openShift ? (
                     <Badge variant="warning">Turno abierto</Badge>
                   ) : (
                     <Badge variant="success">Cerrado</Badge>
@@ -864,6 +994,8 @@ function ResumenTab({
                   <span>Regreso: {r.breakInTime ?? '—'}</span>
                   <span>Horas: {r.hoursWorked === null ? '—' : r.hoursWorked.toFixed(2)}</span>
                   <span>Comida (min): {r.breakMinutes ?? '—'}</span>
+                  <span>Retardo: {r.lateMinutes ?? '—'} min</span>
+                  <span>Horario: {r.scheduleCode ?? 'sin horario'}</span>
                 </div>
               </CardContent>
             </Card>
@@ -878,7 +1010,7 @@ function ResumenTab({
             data={rows}
             isLoading={isLoading && !data}
             getRowKey={(r) => r.employeeId}
-            minWidthClassName="min-w-[1100px]"
+            minWidthClassName="min-w-[1600px]"
             emptyState={
               <div className="py-8 text-center">
                 <ClockIcon className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
@@ -904,6 +1036,46 @@ function TimeCell({ value }: { value: string | null }) {
     <span className={value ? 'text-sm tabular-nums' : 'text-sm text-muted-foreground'}>
       {value ?? '—'}
     </span>
+  );
+}
+
+/** Minutos de desviación: 0 o null se ven neutros, >0 en ámbar. */
+function DeviationCell({ value }: { value: number | null | undefined }) {
+  if (value === null || value === undefined) {
+    return <span className="text-sm text-muted-foreground">—</span>;
+  }
+  return (
+    <span
+      className={`text-sm tabular-nums ${value > 0 ? 'font-semibold text-amber-600' : 'text-muted-foreground'}`}
+    >
+      {value}
+    </span>
+  );
+}
+
+/** Tarjeta de total del día (presentes, faltas, retardos…). */
+function SummaryTile({
+  label,
+  value,
+  tone = 'text-gray-900',
+  loading,
+}: {
+  label: string;
+  value: number | undefined;
+  tone?: string;
+  loading: boolean;
+}) {
+  return (
+    <Card>
+      <CardContent className="p-3 text-center">
+        {loading ? (
+          <Skeleton className="mx-auto mb-1 h-7 w-10" />
+        ) : (
+          <p className={`text-xl font-bold ${tone}`}>{(value ?? 0).toLocaleString('es-MX')}</p>
+        )}
+        <p className="text-[11px] text-muted-foreground">{label}</p>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -1015,7 +1187,7 @@ function CapturaManualDialog({
 
   const { data: employeesData, isLoading: loadingEmployees } = useEmployees({
     limit: 200,
-    status: 'ACTIVE',
+    status: 'active',
   });
   const employees = employeesData?.data ?? [];
   const manual = useManualAttendance();
@@ -1069,8 +1241,8 @@ function CapturaManualDialog({
             <SearchableSelect
               options={employees.map((e) => ({
                 value: e.id,
-                label: `${e.employeeNumber} - ${e.firstName} ${e.lastName}`,
-                hint: e.branch,
+                label: `${e.employeeNumber} - ${employeeDisplayName(e)}`,
+                hint: e.branchName ?? undefined,
               }))}
               value={employeeId}
               onChange={setEmployeeId}
