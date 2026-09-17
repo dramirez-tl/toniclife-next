@@ -104,3 +104,15 @@ export const useSetPosLicenseInvoicing = () => {
     },
   });
 };
+
+export const useSetPosLicenseAttendance = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) =>
+      posLicensesService.setAttendance(id, enabled),
+    onSuccess: (license) => {
+      queryClient.invalidateQueries({ queryKey: posLicensesKeys.all });
+      queryClient.invalidateQueries({ queryKey: posLicensesKeys.byBranch(license.branchId) });
+    },
+  });
+};

@@ -62,6 +62,14 @@ class PosLicensesService {
     });
     return response.data;
   }
+
+  /** Habilita/deshabilita el checador de asistencia de una terminal (rollout). */
+  async setAttendance(id: string, enabled: boolean): Promise<PosLicense> {
+    const response = await api.patch<PosLicense>(`/pos-licenses/${id}/attendance`, {
+      enabled,
+    });
+    return response.data;
+  }
 }
 
 export const posLicensesService = new PosLicensesService();

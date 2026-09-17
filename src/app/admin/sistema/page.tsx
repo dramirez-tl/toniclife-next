@@ -49,6 +49,7 @@ import {
   usePosLicenses,
   useSetPosLicenseRelease,
   useSetPosLicenseInvoicing,
+  useSetPosLicenseAttendance,
 } from '@/hooks/usePosLicenses';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Switch } from '@/components/ui/switch';
@@ -475,8 +476,12 @@ function PosLicenseReleaseList({ globalEnabled }: { globalEnabled: boolean }) {
   const { data: licenses = [], isLoading } = usePosLicenses();
   const setRelease = useSetPosLicenseRelease();
   const setInvoicing = useSetPosLicenseInvoicing();
+  const setAttendance = useSetPosLicenseAttendance();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [pendingInvoicingId, setPendingInvoicingId] = useState<string | null>(
+    null,
+  );
+  const [pendingAttendanceId, setPendingAttendanceId] = useState<string | null>(
     null,
   );
 
@@ -525,6 +530,23 @@ function PosLicenseReleaseList({ globalEnabled }: { globalEnabled: boolean }) {
     );
   };
 
+  const handleToggleAttendance = (lic: PosLicense, enabled: boolean) => {
+    setPendingAttendanceId(lic.id);
+    setAttendance.mutate(
+      { id: lic.id, enabled },
+      {
+        onSuccess: () =>
+          toast.success(
+            enabled
+              ? `${lic.branchName ?? lic.licenseKey}: checador habilitado — aparece en el POS en el siguiente latido (≤60 s)`
+              : `${lic.branchName ?? lic.licenseKey}: checador deshabilitado`,
+          ),
+        onError: (err) => apiError(err, 'No se pudo cambiar el checador'),
+        onSettled: () => setPendingAttendanceId(null),
+      },
+    );
+  };
+
   return (
     <div className="space-y-2 border-t pt-4">
       <div className="flex items-center justify-between">
@@ -535,9 +557,11 @@ function PosLicenseReleaseList({ globalEnabled }: { globalEnabled: boolean }) {
           <p className="text-xs text-muted-foreground">
             Activa una terminal para operar aunque el POS global esté bloqueado.
             Ideal para pilotos: instala en todas y prueba en las que elijas. En
-            las terminales liberadas puedes además apagar la{' '}
-            <strong>Facturación</strong> (piloto doble captura: la factura se
-            emite solo en el sistema anterior para no timbrar dos veces).
+            cada terminal puedes prender el <strong>Checador</strong> de
+            asistencia (botón en el POS, se aplica en el siguiente latido, ≤60 s)
+            y apagar la <strong>Facturación</strong> (piloto doble captura: la
+            factura se emite solo en el sistema anterior para no timbrar dos
+            veces).
           </p>
         </div>
       </div>
@@ -594,6 +618,9 @@ function PosLicenseReleaseList({ globalEnabled }: { globalEnabled: boolean }) {
                       Sin facturar
                     </Badge>
                   )}
+                  {lic.attendanceEnabled && (
+                    <Badge variant="info">Checador</Badge>
+                  )}
                 </div>
                 <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
                   <span className="font-mono">{lic.licenseKey}</span>
@@ -602,6 +629,19 @@ function PosLicenseReleaseList({ globalEnabled }: { globalEnabled: boolean }) {
                 </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                {/* Checador por terminal: visible SIEMPRE (no solo en las
+                    liberadas) — la asistencia se registra aunque el POS esté
+                    bloqueado para vender. Default apagado: rollout terminal
+                    por terminal. */}
+                <div className="mr-2 flex items-center gap-2 border-r pr-4">
+                  <span className="text-xs text-muted-foreground">Checador</span>
+                  <Switch
+                    checked={lic.attendanceEnabled}
+                    disabled={pendingAttendanceId === lic.id}
+                    onCheckedChange={(v) => handleToggleAttendance(lic, v)}
+                    aria-label={`Checador de ${lic.branchName ?? lic.licenseKey}`}
+                  />
+                </div>
                 {/* Facturación por terminal: visible solo cuando la terminal
                     puede operar. Apagar durante el piloto de doble captura
                     (la factura se emite en el legacy, no dos veces). */}
