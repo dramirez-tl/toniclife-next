@@ -15,7 +15,7 @@
 //
 // Sin librerías de diagramas: los conectores son CSS (ver OrgTree).
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -62,6 +62,15 @@ import {
 import { hasManagePermission } from '../hr-utils';
 import type { OrgChart } from '@/types/hr';
 
+/** Ancho útil de una hoja carta horizontal con 8mm de margen, en px CSS. */
+const PRINT_SHEET_PX = 1010;
+
+/** Dónde se pega la barra de filtros en escritorio (clase `lg:top-12`). */
+const TOOLBAR_STICKY_TOP_PX = 48;
+
+/** Alto de respaldo de la barra hasta que el ResizeObserver la mide. */
+const TOOLBAR_FALLBACK_HEIGHT_PX = 136;
+
 /** Evita `chart &&` en cada memo mientras carga la consulta. */
 const EMPTY_CHART: OrgChart = {
   generatedAt: '',
@@ -89,6 +98,10 @@ export default function OrganigramaPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
   const [tab, setTab] = useState('jerarquia');
+
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const treeRef = useRef<HTMLDivElement>(null);
+  const [toolbarHeight, setToolbarHeight] = useState(TOOLBAR_FALLBACK_HEIGHT_PX);
 
   const { data, isLoading, isError, isFetching, refetch } = useOrgChart(includeInactive);
   const chart = data ?? EMPTY_CHART;
@@ -141,7 +154,18 @@ export default function OrganigramaPage() {
     });
 
   const expandAll = () => setCollapsed(new Set());
-  const collapseAll = () => setCollapsed(new Set(collectCollapsibleIds(roots)));
+
+  /**
+   * Contraer es una orden, no una sugerencia: la búsqueda y la tarjeta de
+   * resumen activa fuerzan la apertura de todos los ancestros de cada
+   * coincidencia (`forcedOpen` gana sobre `collapsed` en OrgTree), así que sin
+   * soltarlas el botón no cerraría ni un nodo y parecería roto.
+   */
+  const collapseAll = () => {
+    setHighlight(null);
+    setFilters((prev) => (prev.search ? { ...prev, search: '' } : prev));
+    setCollapsed(new Set(collectCollapsibleIds(roots)));
+  };
 
   const openEmployee = (employeeId: string) =>
     router.push(`/admin/rrhh/empleados/${employeeId}`);
@@ -149,14 +173,28 @@ export default function OrganigramaPage() {
   const selectEmployee = (employeeId: string) => setSelectedId(`emp:${employeeId}`);
 
   /**
-   * Imprimir: primero se expande todo y se restablece el zoom (un nodo
-   * colapsado NO está en el DOM, así que ningún @media print podría abrirlo) y
-   * hasta que React repinta se abre el diálogo del navegador.
+   * Imprimir: primero se expande todo (un nodo colapsado NO está en el DOM,
+   * así que ningún @media print podría abrirlo) y, ya repintado, se mide el
+   * ancho REAL del árbol para calcular una escala que quepa en la hoja
+   * horizontal. El zoom del usuario NO se revierte: si él alejó a 50% para que
+   * cupiera todo, se respeta; solo se reduce más si aun así se saldría de la
+   * hoja (los navegadores no paginan en horizontal: lo que sobra se pierde).
    */
   const handlePrint = () => {
     expandAll();
-    setZoom(1);
-    setTimeout(() => window.print(), 150);
+    setTimeout(() => {
+      const zoomEl = treeRef.current?.querySelector<HTMLElement>('.org-zoom');
+      const width = zoomEl?.scrollWidth ?? 0;
+      const fit = width > 0 ? PRINT_SHEET_PX / width : 1;
+      const scale = Math.max(0.2, Math.min(zoom, fit));
+      // Variable global porque la lee el @media print (no hay forma de pasarla
+      // por props a una hoja de estilos).
+      document.documentElement.style.setProperty(
+        '--org-print-scale',
+        String(Number(scale.toFixed(3))),
+      );
+      window.print();
+    }, 150);
   };
 
   const handleExport = () => exportOrgChartCsv(chart, visibleEmployees);
@@ -164,6 +202,22 @@ export default function OrganigramaPage() {
   const stats = chart.stats;
   const isEmpty =
     !isLoading && chart.employees.length === 0 && chart.departments.length === 0;
+
+  // La barra de filtros es pegajosa (z-10, fondo opaco) y su alto cambia con
+  // el contador de coincidencias, así que la ficha lateral —también pegajosa—
+  // se ancla JUSTO debajo: con un `top` fijo la barra le tapaba la etiqueta y
+  // el botón de cerrar.
+  useEffect(() => {
+    const el = toolbarRef.current;
+    if (!el) return;
+    const measure = () => setToolbarHeight(el.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isError, isLoading, isEmpty]);
+
+  const asideTop = TOOLBAR_STICKY_TOP_PX + toolbarHeight + 8;
 
   const cards: {
     id: string;
@@ -261,7 +315,16 @@ export default function OrganigramaPage() {
             padding: 0 !important;
             background: #fff !important;
           }
-          .org-zoom { transform: none !important; width: 100% !important; }
+          /* Se imprime con la escala que calculó handlePrint (la del usuario o
+             la que hace caber el árbol a lo ancho de la hoja), NO forzando el
+             100%. Se usa la propiedad zoom y no transform: scale() porque el
+             transform no encoge la CAJA: el árbol saldría reducido pero
+             dejando su alto original en blanco (y hojas de más). */
+          .org-zoom {
+            transform: none !important;
+            width: 100% !important;
+            zoom: var(--org-print-scale, 1);
+          }
           @page { size: landscape; margin: 8mm; }
         }
       `}</style>
@@ -329,6 +392,7 @@ export default function OrganigramaPage() {
       ) : (
         <>
           <OrgToolbar
+            rootRef={toolbarRef}
             filters={filters}
             onFiltersChange={patchFilters}
             onClearFilters={() => {
@@ -372,7 +436,16 @@ export default function OrganigramaPage() {
               ))}
             </div>
 
-            <Tabs value={tab} onValueChange={setTab}>
+            {/* Al cambiar de pestaña se suelta la selección: si no, el panel
+                lateral (modal abajo de xl y en las otras dos vistas) se abría
+                solo encima de la pestaña recién elegida. */}
+            <Tabs
+              value={tab}
+              onValueChange={(value) => {
+                setTab(value);
+                setSelectedId(null);
+              }}
+            >
               <TabsList className="org-no-print">
                 <TabsTrigger value="jerarquia">Jerarquía</TabsTrigger>
                 <TabsTrigger value="departamentos">Departamentos</TabsTrigger>
@@ -381,7 +454,7 @@ export default function OrganigramaPage() {
 
               <TabsContent value="jerarquia" className="mt-4">
                 <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-4">
-                  <div className="min-w-0">
+                  <div className="min-w-0" ref={treeRef}>
                     {roots.length === 0 ? (
                       <Card>
                         <CardContent className="py-12 text-center text-gray-600">
@@ -406,7 +479,13 @@ export default function OrganigramaPage() {
 
                   {!isBelowXl && (
                     <aside className="org-no-print hidden xl:block">
-                      <div className="sticky top-28 max-h-[calc(100vh-9rem)] overflow-y-auto rounded-xl border border-gray-200 bg-white p-4">
+                      <div
+                        style={{
+                          top: asideTop,
+                          maxHeight: `calc(100vh - ${asideTop + 24}px)`,
+                        }}
+                        className="sticky overflow-y-auto rounded-xl border border-gray-200 bg-white p-4"
+                      >
                         {detail}
                       </div>
                     </aside>

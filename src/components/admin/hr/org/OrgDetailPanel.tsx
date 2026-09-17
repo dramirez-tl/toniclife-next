@@ -141,6 +141,11 @@ function EmployeeDetail({
   const context = useMemo(() => buildPersonContext(chart, employee), [chart, employee]);
   const { department, country } = context;
 
+  // Jefatura y Dirección se guardan como USUARIO (users.id), así que a quien
+  // solo tiene expediente no se le ofrecen: en vez de tres botones grises sin
+  // explicación se muestra una línea que dice qué falta.
+  const canName = employee.hasSystemAccess;
+
   // Opciones de jefe directo: primero su propio departamento. Se excluyen la
   // persona y sus descendientes para no cerrar un ciclo (A jefe de B, B de A).
   const supervisorOptions = useMemo<SearchableSelectOption[]>(() => {
@@ -224,7 +229,12 @@ function EmployeeDetail({
     <div className="space-y-4">
       {/* Identidad */}
       <div className="flex items-start gap-3">
-        <EmployeeAvatar photoUrl={employee.photoUrl} name={employee.fullName} size={72} />
+        <EmployeeAvatar
+          photoUrl={employee.photoUrl}
+          name={employee.fullName}
+          initials={employee.initials}
+          size={72}
+        />
         <div className="min-w-0 flex-1">
           <p className="text-base font-bold text-gray-900">{employee.fullName}</p>
           <p className="font-mono text-xs text-gray-500">{employee.employeeNumber}</p>
@@ -316,6 +326,7 @@ function EmployeeDetail({
                   <EmployeeAvatar
                     photoUrl={report.photoUrl}
                     name={report.fullName}
+                    initials={report.initials}
                     size={24}
                   />
                   <span className="truncate">{report.fullName}</span>
@@ -354,7 +365,7 @@ function EmployeeDetail({
             </p>
           </div>
 
-          {department && (
+          {department && (context.isDepartmentHead || context.isDepartmentSubhead || canName) && (
             <div className="flex flex-wrap gap-2">
               {context.isDepartmentHead ? (
                 <Button
@@ -366,19 +377,16 @@ function EmployeeDetail({
                   Quitar como jefe de {department.name}
                 </Button>
               ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!employee.hasSystemAccess || savingRole === 'head'}
-                  title={
-                    employee.hasSystemAccess
-                      ? undefined
-                      : 'El jefe de departamento se guarda como usuario: esta persona no tiene cuenta'
-                  }
-                  onClick={() => assignDepartmentRole('head')}
-                >
-                  Nombrar jefe de {department.name}
-                </Button>
+                canName && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={savingRole === 'head'}
+                    onClick={() => assignDepartmentRole('head')}
+                  >
+                    Nombrar jefe de {department.name}
+                  </Button>
+                )
               )}
 
               {context.isDepartmentSubhead ? (
@@ -391,24 +399,21 @@ function EmployeeDetail({
                   Quitar como subjefe
                 </Button>
               ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!employee.hasSystemAccess || savingRole === 'subhead'}
-                  title={
-                    employee.hasSystemAccess
-                      ? undefined
-                      : 'El subjefe se guarda como usuario: esta persona no tiene cuenta'
-                  }
-                  onClick={() => assignDepartmentRole('subhead')}
-                >
-                  Nombrar subjefe
-                </Button>
+                canName && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={savingRole === 'subhead'}
+                    onClick={() => assignDepartmentRole('subhead')}
+                  >
+                    Nombrar subjefe
+                  </Button>
+                )
               )}
             </div>
           )}
 
-          {country && (
+          {country && (context.isCountryDirector || canName) && (
             <div>
               {context.isCountryDirector ? (
                 <Button
@@ -423,18 +428,23 @@ function EmployeeDetail({
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={!employee.hasSystemAccess || savingRole === 'director'}
-                  title={
-                    employee.hasSystemAccess
-                      ? undefined
-                      : 'El Director General se guarda como usuario: esta persona no tiene cuenta'
-                  }
+                  disabled={savingRole === 'director'}
                   onClick={() => assignDirector()}
                 >
                   Nombrar Director General de {country.name}
                 </Button>
               )}
             </div>
+          )}
+
+          {/* El motivo se DICE, no se insinúa con un botón gris: un botón
+              deshabilitado no recibe el puntero (disabled:pointer-events-none)
+              ni el foco, así que su `title` no se lee nunca. */}
+          {!canName && (department || country) && (
+            <p className="text-[11px] text-amber-700">
+              Jefatura y Dirección se guardan como usuario: crea la cuenta de acceso de esta
+              persona para poder nombrarla.
+            </p>
           )}
 
           {!department && (

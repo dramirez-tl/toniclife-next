@@ -87,6 +87,11 @@ export function OrgNodeCard({
         onClick={onSelect}
         onDoubleClick={() => onOpen?.()}
         onKeyDown={(e) => {
+          // Solo la tarjeta: sin este corte el preventDefault se comería el
+          // Enter/Espacio del botón "Ver expediente" que vive dentro (su
+          // click ES la acción por defecto de esa tecla) y con teclado no
+          // habría forma de abrir el expediente.
+          if (e.target !== e.currentTarget) return;
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             onSelect();
@@ -100,6 +105,7 @@ export function OrgNodeCard({
               <EmployeeAvatar
                 photoUrl={node.photoUrl}
                 name={node.country.directorName}
+                initials={node.initials}
                 size={44}
                 className="ring-2 ring-white/40"
               />
@@ -161,6 +167,7 @@ export function OrgNodeCard({
               <EmployeeAvatar
                 photoUrl={employee.photoUrl}
                 name={employee.fullName}
+                initials={employee.initials}
                 size={compact ? 32 : 38}
               />
               <div className="min-w-0 flex-1">

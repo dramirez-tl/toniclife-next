@@ -13,6 +13,12 @@ import { employeeInitials } from '@/types/hr';
 interface EmployeeAvatarProps {
   photoUrl?: string | null;
   name: string;
+  /**
+   * Iniciales ya calculadas (el organigrama las trae del API, que salta las
+   * partículas: "Ángel de Jesús Rangel" → "ÁJ"). Sin esto se arman aquí con
+   * los dos primeros tokens del nombre, que en nombres compuestos falla.
+   */
+  initials?: string | null;
   /** Lado en px (es un cuadrado redondeado). */
   size?: number;
   className?: string;
@@ -21,6 +27,7 @@ interface EmployeeAvatarProps {
 export function EmployeeAvatar({
   photoUrl,
   name,
+  initials,
   size = 40,
   className = '',
 }: EmployeeAvatarProps) {
@@ -39,7 +46,7 @@ export function EmployeeAvatar({
         title={name}
       >
         <span className="text-xs font-semibold" style={{ fontSize: Math.max(10, size / 3) }}>
-          {employeeInitials(name)}
+          {initials?.trim() || employeeInitials(name)}
         </span>
       </div>
     );

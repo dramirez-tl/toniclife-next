@@ -246,6 +246,7 @@ export function OrgDepartmentsView({
                               <EmployeeAvatar
                                 photoUrl={person.photoUrl}
                                 name={person.fullName}
+                                initials={person.initials}
                                 size={20}
                               />
                               <span className="max-w-[9rem] truncate">{person.fullName}</span>

@@ -9,9 +9,12 @@
 //   employees.supervisor_id             → otro EXPEDIENTE
 //
 // Como hoy faltan datos (departamentos sin país ni jefe, expedientes sin
-// supervisor ni puesto), el árbol NUNCA esconde a nadie: lo que no encaja
+// supervisor ni puesto), el árbol NUNCA esconde a NADIE: lo que no encaja
 // cuelga de un grupo con nombre propio ("Sin país asignado", "Sin
-// departamento", "Sin jefe directo") para que se vea el hueco y se llene.
+// departamento", "Sin jefe directo", "Jefe en otra área") para que se vea el
+// hueco y se llene. La única excepción son los países vacíos (sin Director
+// General y sin departamentos): esos no son un hueco, son catálogo, y
+// dibujarlos llenaba la pantalla de tarjetas sin contenido.
 //
 // Todo lo de este archivo es puro (sin React): recibe datos, devuelve datos.
 
@@ -75,6 +78,11 @@ export interface OrgNode {
   employee: OrgChartEmployee | null;
   /** Foto firmada del nodo (persona o director del país); null = iniciales. */
   photoUrl: string | null;
+  /**
+   * Iniciales YA calculadas por el API (saltan partículas: "Ángel de Jesús
+   * Rangel" → "ÁJ"). Null en los nodos que no son de una persona.
+   */
+  initials: string | null;
   /** Texto YA normalizado contra el que corre la búsqueda. */
   haystack: string;
   children: OrgNode[];
@@ -131,6 +139,7 @@ function personNode(
     department: null,
     employee,
     photoUrl: employee.photoUrl,
+    initials: employee.initials,
     haystack: normalizeText(
       [
         employee.fullName,
@@ -195,6 +204,7 @@ function groupNode(
     department: null,
     employee: null,
     photoUrl: null,
+    initials: null,
     haystack: normalizeText(title),
     children,
   });
@@ -207,18 +217,37 @@ function departmentNode(
   const forest = buildPeopleForest(people);
   const hasHead = !!department.headUserId;
 
-  // El jefe del departamento cuelga DIRECTO del departamento; los demás sin
-  // jefe directo van a un subgrupo, pero solo si hay jefe de quien colgar.
+  // El jefe del departamento cuelga DIRECTO del departamento. Los demás que
+  // quedaron como raíz del bosque son de DOS clases distintas y no hay que
+  // confundirlas: quien de plano no tiene supervisor ("Sin jefe directo", el
+  // hueco que cuenta stats.withoutSupervisor) y quien SÍ lo tiene pero fuera
+  // de este departamento ("Jefe en otra área", que no es ningún hueco).
   const direct: OrgNode[] = [];
+  const external: OrgNode[] = [];
   const orphans: OrgNode[] = [];
   for (const node of forest) {
     const isHead =
       !!department.headEmployeeId && node.employee?.id === department.headEmployeeId;
-    if (isHead || !hasHead) direct.push(node);
+    if (isHead || !hasHead) {
+      direct.push(node);
+      continue;
+    }
+    const supervisorId = node.employee?.supervisorId ?? null;
+    if (supervisorId && supervisorId !== node.employee?.id) external.push(node);
     else orphans.push(node);
   }
 
   const children = [...direct];
+  if (external.length > 0) {
+    children.push(
+      groupNode(
+        `group:dept:${department.id}:jefe-externo`,
+        'Jefe en otra área',
+        `${external.length} persona${external.length === 1 ? '' : 's'} que reporta${external.length === 1 ? '' : 'n'} fuera del departamento`,
+        external,
+      ),
+    );
+  }
   if (orphans.length > 0) {
     children.push(
       groupNode(
@@ -239,6 +268,7 @@ function departmentNode(
     department,
     employee: null,
     photoUrl: null,
+    initials: null,
     haystack: normalizeText(
       [
         department.name,
@@ -251,16 +281,19 @@ function departmentNode(
   });
 }
 
-/** Foto firmada de un expediente (el director del país tiene la suya). */
-function photoByEmployee(chart: OrgChart, employeeId: string | null): string | null {
-  if (!employeeId) return null;
-  return chart.employees.find((e) => e.id === employeeId)?.photoUrl ?? null;
+/** Expediente del Director General del país (si además tiene uno). */
+function directorEmployee(
+  chart: OrgChart,
+  country: OrgChartCountry,
+): OrgChartEmployee | null {
+  if (!country.directorEmployeeId) return null;
+  return chart.employees.find((e) => e.id === country.directorEmployeeId) ?? null;
 }
 
 function countryNode(
   country: OrgChartCountry,
   children: OrgNode[],
-  directorPhotoUrl: string | null = null,
+  director: OrgChartEmployee | null = null,
 ): OrgNode {
   return makeNode({
     id: `country:${country.id}`,
@@ -270,7 +303,8 @@ function countryNode(
     country,
     department: null,
     employee: null,
-    photoUrl: directorPhotoUrl,
+    photoUrl: director?.photoUrl ?? null,
+    initials: director?.initials ?? null,
     haystack: normalizeText([country.name, country.code, country.directorName ?? ''].join(' ')),
     children,
   });
@@ -368,7 +402,16 @@ export function buildOrgTree(chart: OrgChart, filters: OrgFilters): OrgNode[] {
       if (filters.countryId && country.id !== filters.countryId) continue;
       const children = toDepartmentNodes(departmentsByCountry.get(country.id) ?? []);
       if (prune && children.length === 0) continue;
-      roots.push(countryNode(country, children, photoByEmployee(chart, country.directorEmployeeId)));
+      // El catálogo trae TODOS los países activos (16 hoy) y casi ninguno
+      // tiene Director General ni departamentos: dibujarlos sería abrir la
+      // pantalla con una docena de tarjetas vacías que empujan el organigrama
+      // real hasta abajo. El país sin nada no es un hueco que se llene desde
+      // aquí; sigue en el filtro de país (y ahí SÍ se dibuja, para poder
+      // nombrarle Director General) y en la ficha del país.
+      if (!country.directorUserId && children.length === 0 && filters.countryId !== country.id) {
+        continue;
+      }
+      roots.push(countryNode(country, children, directorEmployee(chart, country)));
     }
   }
 
@@ -513,9 +556,7 @@ export function standaloneOrgNode(chart: OrgChart, nodeId: string): OrgNode | nu
   }
   if (kind === 'country') {
     const country = chart.countries.find((c) => c.id === id);
-    return country
-      ? countryNode(country, [], photoByEmployee(chart, country.directorEmployeeId))
-      : null;
+    return country ? countryNode(country, [], directorEmployee(chart, country)) : null;
   }
   return null;
 }

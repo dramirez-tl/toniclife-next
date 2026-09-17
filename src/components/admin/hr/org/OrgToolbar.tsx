@@ -1,17 +1,24 @@
 'use client';
 
-// OrgToolbar - Barra pegajosa del organigrama: búsqueda, filtros, bajas,
+// OrgToolbar - Barra del organigrama: búsqueda, filtros, bajas,
 // expandir/contraer, zoom, impresión y CSV.
 //
-// Va debajo de la barra superior del admin (top-14 en móvil, top-12 en
-// escritorio) y lleva `org-no-print` porque al imprimir estorba.
+// Se pega debajo de la barra superior del admin SOLO desde `md` (top-14, y
+// top-12 en escritorio): en un teléfono los cinco filtros apilados miden ~450px
+// y, pegados, no dejarían ver el organigrama en ningún momento del scroll. Por
+// lo mismo, abajo de `md` los filtros se pliegan detrás del botón "Filtros" y
+// la búsqueda es lo único que queda a la vista.
+//
+// Lleva `org-no-print` porque al imprimir estorba.
 
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import {
+  AdjustmentsHorizontalIcon,
   ArrowDownTrayIcon,
   ArrowsPointingInIcon,
   ArrowsPointingOutIcon,
@@ -21,6 +28,7 @@ import {
   PrinterIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
+import { cn } from '@/lib/utils';
 import { EMPLOYMENT_TYPES, EMPLOYMENT_TYPE_LABELS } from '@/types/hr';
 import type { OrgChartBranch, OrgChartCountry, OrgChartDepartment } from '@/types/hr';
 import { NO_COUNTRY, NO_DEPARTMENT, hasActiveFilters, type OrgFilters } from './org-utils';
@@ -30,6 +38,8 @@ export const ZOOM_MAX = 1.5;
 export const ZOOM_STEP = 0.1;
 
 export interface OrgToolbarProps {
+  /** La pantalla mide el alto real de la barra para anclar la ficha lateral. */
+  rootRef?: React.Ref<HTMLDivElement>;
   filters: OrgFilters;
   onFiltersChange: (patch: Partial<OrgFilters>) => void;
   onClearFilters: () => void;
@@ -53,6 +63,7 @@ export interface OrgToolbarProps {
 }
 
 export function OrgToolbar({
+  rootRef,
   filters,
   onFiltersChange,
   onClearFilters,
@@ -101,8 +112,23 @@ export function OrgToolbar({
   const setZoom = (value: number) =>
     onZoomChange(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Number(value.toFixed(2)))));
 
+  // Solo en teléfono: los cuatro selectores se pliegan. Desde `md` el grid
+  // manda y `filtersOpen` no pinta nada.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const activeFilters = [
+    filters.countryId,
+    filters.departmentId,
+    filters.branchId,
+    filters.employmentType,
+  ].filter(Boolean).length;
+  /** Clase de los selectores plegables (ocultos en móvil si no se abrieron). */
+  const foldable = cn(!filtersOpen && 'hidden md:block');
+
   return (
-    <div className="org-no-print sticky top-14 z-10 mb-4 rounded-xl border border-gray-200 bg-white/95 p-3 shadow-sm backdrop-blur lg:top-12">
+    <div
+      ref={rootRef}
+      className="org-no-print z-10 mb-4 rounded-xl border border-gray-200 bg-white/95 p-3 shadow-sm backdrop-blur md:sticky md:top-14 lg:top-12"
+    >
       <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
         <div className="xl:col-span-1">
           <Label className="mb-1 block text-xs text-muted-foreground">Buscar persona</Label>
@@ -134,7 +160,7 @@ export function OrgToolbar({
           )}
         </div>
 
-        <div>
+        <div className={foldable}>
           <Label className="mb-1 block text-xs text-muted-foreground">País</Label>
           <SearchableSelect
             options={countryOptions}
@@ -145,7 +171,7 @@ export function OrgToolbar({
           />
         </div>
 
-        <div>
+        <div className={foldable}>
           <Label className="mb-1 block text-xs text-muted-foreground">Departamento</Label>
           <SearchableSelect
             options={departmentOptions}
@@ -156,7 +182,7 @@ export function OrgToolbar({
           />
         </div>
 
-        <div>
+        <div className={foldable}>
           <Label className="mb-1 block text-xs text-muted-foreground">Sucursal</Label>
           <SearchableSelect
             options={branchOptions}
@@ -167,7 +193,7 @@ export function OrgToolbar({
           />
         </div>
 
-        <div>
+        <div className={foldable}>
           <Label className="mb-1 block text-xs text-muted-foreground">Tipo</Label>
           <SearchableSelect
             options={typeOptions}
@@ -180,6 +206,24 @@ export function OrgToolbar({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
+        {/* Teléfono: los filtros viven detrás de este botón (desde md están
+            siempre a la vista y el botón desaparece). */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="md:hidden"
+          aria-expanded={filtersOpen}
+          onClick={() => setFiltersOpen((prev) => !prev)}
+        >
+          <AdjustmentsHorizontalIcon className="mr-1 h-4 w-4" />
+          Filtros
+          {activeFilters > 0 && (
+            <span className="ml-1 rounded-full bg-[#3E667D] px-1.5 text-[10px] text-white">
+              {activeFilters}
+            </span>
+          )}
+        </Button>
+
         <label className="flex items-center gap-2 text-xs text-gray-600">
           <Switch checked={includeInactive} onCheckedChange={onIncludeInactiveChange} />
           Incluir bajas
