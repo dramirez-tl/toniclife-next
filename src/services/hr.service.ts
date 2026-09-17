@@ -14,6 +14,7 @@ import type {
   CreateDepartmentDto,
   UpdateDepartmentDto,
   OrgDirector,
+  OrgChart,
   CreateEmployeeDto,
   UpdateEmployeeDto,
   HrDashboard,
@@ -290,6 +291,35 @@ class HrService {
       { userId },
     );
     return response.data;
+  }
+
+  /**
+   * Organigrama completo en UNA consulta: países + departamentos + sucursales
+   * + padrón. El árbol se arma en el front (org-utils) porque la jerarquía
+   * sale de tres columnas distintas y hay que tolerar los huecos.
+   *
+   * Se normaliza la respuesta: si el API devuelve una pieza vacía, la pantalla
+   * debe seguir dibujando el resto en vez de tronar.
+   */
+  async getOrgChart(includeInactive = false): Promise<OrgChart> {
+    const { data } = await api.get<Partial<OrgChart>>('/hr/org/chart', {
+      params: { includeInactive: includeInactive || undefined },
+    });
+    return {
+      generatedAt: data?.generatedAt ?? new Date().toISOString(),
+      countries: data?.countries ?? [],
+      departments: data?.departments ?? [],
+      branches: data?.branches ?? [],
+      employees: data?.employees ?? [],
+      stats: data?.stats ?? {
+        employees: 0,
+        withoutSupervisor: 0,
+        withoutDepartment: 0,
+        withoutPosition: 0,
+        departmentsWithoutHead: 0,
+        departmentsWithoutCountry: 0,
+      },
+    };
   }
 
   // ================================

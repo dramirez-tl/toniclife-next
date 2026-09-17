@@ -478,6 +478,106 @@ export interface OrgDirector {
 }
 
 // ================================
+// ORGANIGRAMA (GET /hr/org/chart)
+// ================================
+//
+// Una sola consulta arma TODO el organigrama: países con su Director General,
+// departamentos con jefe/subjefe, sucursales con personal y el padrón de
+// expedientes activos. El árbol (quién cuelga de quién) se construye en el
+// front con estas piezas — ver components/admin/hr/org/org-utils.ts.
+//
+// La jerarquía real vive en tres lugares distintos de la base y por eso el
+// organigrama tiene que tolerar huecos: countries.director_general_user_id
+// (usuario), departments.head_user_id / subhead_user_id (usuario) y
+// employees.supervisor_id (expediente). Hay departamentos sin país, sin jefe y
+// expedientes sin jefe directo ni puesto: la pantalla los agrupa aparte en vez
+// de esconderlos.
+
+export interface OrgChartCountry {
+  id: string;
+  code: string;
+  name: string;
+  /** users.id del Director General (countries.director_general_user_id). */
+  directorUserId: string | null;
+  directorName: string | null;
+  /** employees.id del director, si además tiene expediente (para la foto). */
+  directorEmployeeId: string | null;
+  departmentsCount: number;
+  employeesCount: number;
+}
+
+export interface OrgChartDepartment {
+  id: string;
+  code: string;
+  name: string;
+  isActive: boolean;
+  countryId: string | null;
+  countryName: string | null;
+  /** Jefe y subjefe son USUARIOS (departments.head_user_id / subhead_user_id). */
+  headUserId: string | null;
+  headName: string | null;
+  headEmployeeId: string | null;
+  subheadUserId: string | null;
+  subheadName: string | null;
+  subheadEmployeeId: string | null;
+  employeesCount: number;
+}
+
+export interface OrgChartBranch {
+  id: string;
+  code: string;
+  name: string;
+  countryId: string | null;
+  employeesCount: number;
+}
+
+/** Persona del organigrama (expediente, tenga o no cuenta de acceso). */
+export interface OrgChartEmployee {
+  id: string;
+  employeeNumber: string;
+  /** COALESCE(workers, employees) ya resuelto por el API. */
+  fullName: string;
+  initials: string;
+  jobPositionId: string | null;
+  jobPositionName: string | null;
+  jobPositionLevel: number | null;
+  /** Departamento EFECTIVO: COALESCE(users.department_id, employees.department_id). */
+  departmentId: string | null;
+  branchId: string | null;
+  branchName: string | null;
+  /** employees.supervisor_id (otro EXPEDIENTE, no un usuario). */
+  supervisorId: string | null;
+  userId: string | null;
+  hasSystemAccess: boolean;
+  employmentType: EmploymentType;
+  status: EmployeeStatus;
+  isActive: boolean;
+  /** URL firmada (15 min); null si no hay foto o el proveedor es local. */
+  photoUrl: string | null;
+  isDepartmentHead: boolean;
+  isCountryDirector: boolean;
+}
+
+/** Huecos por llenar: cada número es una invitación a completar el padrón. */
+export interface OrgChartStats {
+  employees: number;
+  withoutSupervisor: number;
+  withoutDepartment: number;
+  withoutPosition: number;
+  departmentsWithoutHead: number;
+  departmentsWithoutCountry: number;
+}
+
+export interface OrgChart {
+  generatedAt: string;
+  countries: OrgChartCountry[];
+  departments: OrgChartDepartment[];
+  branches: OrgChartBranch[];
+  employees: OrgChartEmployee[];
+  stats: OrgChartStats;
+}
+
+// ================================
 // ASISTENCIA (CHECADOR)
 // ================================
 //

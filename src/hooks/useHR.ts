@@ -43,6 +43,11 @@ export const hrKeys = {
   vacations: () => [...hrKeys.all, 'vacations'] as const,
   vacationList: (query: VacationQuery) => [...hrKeys.vacations(), 'list', query] as const,
   vacation: (id: string) => [...hrKeys.vacations(), id] as const,
+  // Organigrama: la llave 'org' cubre directores y el árbol completo, para
+  // poder invalidar de un golpe al cambiar un jefe, un país o un supervisor.
+  org: () => [...hrKeys.all, 'org'] as const,
+  orgChart: (includeInactive: boolean) =>
+    [...hrKeys.all, 'org', 'chart', includeInactive] as const,
   expenses: () => [...hrKeys.all, 'expenses'] as const,
   expenseList: (query: ExpenseQuery) => [...hrKeys.expenses(), 'list', query] as const,
   expense: (id: string) => [...hrKeys.expenses(), id] as const,
@@ -113,6 +118,8 @@ function useInvalidateEmployees() {
     void queryClient.invalidateQueries({ queryKey: hrKeys.employees() });
     void queryClient.invalidateQueries({ queryKey: hrKeys.dashboard() });
     if (id) void queryClient.invalidateQueries({ queryKey: hrKeys.employee(id) });
+    // Cambiar supervisor/departamento redibuja el organigrama.
+    void queryClient.invalidateQueries({ queryKey: hrKeys.org() });
   };
 }
 
@@ -249,8 +256,11 @@ export function useManageDepartments(includeInactive = true) {
 
 function useInvalidateDepartments() {
   const queryClient = useQueryClient();
-  return () =>
-    queryClient.invalidateQueries({ queryKey: [...hrKeys.all, 'departments'] });
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: [...hrKeys.all, 'departments'] });
+    // Jefe, subjefe y país del departamento son nodos del organigrama.
+    void queryClient.invalidateQueries({ queryKey: hrKeys.org() });
+  };
 }
 
 export function useCreateDepartment() {
@@ -290,13 +300,26 @@ export function useOrgDirectors() {
   });
 }
 
+/**
+ * Organigrama completo (una sola consulta). `includeInactive` trae también
+ * bajas e inactivos ("Incluir bajas" de la barra).
+ */
+export function useOrgChart(includeInactive = false) {
+  return useQuery({
+    queryKey: hrKeys.orgChart(includeInactive),
+    queryFn: () => hrApi.getOrgChart(includeInactive),
+    // Al prender/apagar "Incluir bajas" el árbol no debe parpadear en blanco.
+    placeholderData: keepPreviousData,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
 export function useSetOrgDirector() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ countryId, userId }: { countryId: string; userId: string | null }) =>
       hrApi.setOrgDirector(countryId, userId),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: [...hrKeys.all, 'org', 'directors'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: hrKeys.org() }),
   });
 }
 
