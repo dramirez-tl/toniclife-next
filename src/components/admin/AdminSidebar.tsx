@@ -142,11 +142,13 @@ const navigation: NavItem[] = [
     children: [
       { name: 'Panel Principal', href: '/admin/rrhh' },
       { name: 'Empleados', href: '/admin/rrhh/empleados' },
+      { name: 'Horarios', href: '/admin/rrhh/horarios' },
+      { name: 'Asistencia', href: '/admin/rrhh/asistencia' },
       { name: 'Departamentos', href: '/admin/rrhh/departamentos' },
       { name: 'Organigrama', href: '/admin/rrhh/organigrama' },
-      { name: 'Asistencia', href: '/admin/rrhh/asistencia' },
       { name: 'Vacaciones', href: '/admin/rrhh/vacaciones' },
-      { name: 'Viáticos', href: '/admin/rrhh/viaticos' },
+      // 'Viáticos' (/admin/rrhh/viaticos) sigue oculto: sin backend todavía
+      // (/hr/expenses no existe en el API). La pantalla se queda en el repo.
     ],
   },
   {
