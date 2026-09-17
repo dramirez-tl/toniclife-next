@@ -182,8 +182,11 @@ function AsistenciaContent() {
   const search = get('search');
   // Se llega aquí desde el expediente: /asistencia?employeeId=<id>&from=&to=
   const employeeId = get('employeeId');
-  // Viendo a UNA persona el rango útil no es "hoy" sino su último mes.
-  const from = get('from') || (employeeId ? addDays(today, -29) : today);
+  // Viendo a UNA persona el rango útil de EVENTOS no es "hoy" sino su último
+  // mes. El resumen, en cambio, es de UN solo día: ahí el valor por omisión
+  // vuelve a ser hoy (si no, mostraría el día de hace un mes).
+  const defaultFrom = employeeId && tab === 'eventos' ? addDays(today, -29) : today;
+  const from = get('from') || defaultFrom;
   const to = get('to') || today;
   const page = getNumber('page') || 1;
   const limit = getNumber('limit') || 50;
@@ -327,7 +330,9 @@ function AsistenciaContent() {
                 </button>
               </span>
               <span className="text-xs text-muted-foreground">
-                Solo se muestran las checadas de esta persona.
+                {tab === 'resumen'
+                  ? 'El resumen del día no filtra por persona: busca por su número de empleado y puede incluir coincidencias parecidas.'
+                  : 'Solo se muestran las checadas de esta persona.'}
               </span>
             </div>
           )}
@@ -385,8 +390,9 @@ function AsistenciaContent() {
         </TabsContent>
 
         <TabsContent value="resumen" className="mt-6">
-          {/* El resumen del día no filtra por employeeId: cuando se llega desde
-              un expediente se busca por su número de empleado. */}
+          {/* `from` aquí es el día del resumen (ver defaultFrom). No filtra por
+              employeeId (el API no lo soporta todavía): busca por número de
+              empleado, que es coincidencia PARCIAL. */}
           <ResumenTab
             date={from}
             branchId={branchId}

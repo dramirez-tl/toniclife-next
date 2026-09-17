@@ -33,6 +33,7 @@ import { parsePhone, isValidLocalNumber } from '@/lib/phone';
 import {
   useCreateEmployee,
   useDepartments,
+  useEmployee,
   useUpdateEmployee,
   useWorkSchedules,
 } from '@/hooks/useHR';
@@ -44,7 +45,6 @@ import {
   EMPLOYMENT_TYPES,
   EMPLOYMENT_TYPE_LABELS,
   type CreateEmployeeDto,
-  type Employee,
   type EmployeeDetail,
   type EmployeeStatus,
   type EmploymentType,
@@ -54,8 +54,8 @@ import {
 interface EmployeeFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** null/undefined = alta. */
-  employee?: Employee | EmployeeDetail | null;
+  /** null/undefined = alta; con id se EDITA ese expediente. */
+  employeeId?: string | null;
   /** Se llama con el id del expediente creado (para abrir su ficha). */
   onCreated?: (id: string) => void;
 }
@@ -83,18 +83,17 @@ interface FormState {
   notes: string;
 }
 
-function initialState(employee?: Employee | EmployeeDetail | null): FormState {
-  const detail = employee as EmployeeDetail | undefined;
+function initialState(employee?: EmployeeDetail | null): FormState {
   return {
     employeeNumber: employee?.employeeNumber ?? '',
     noiNumber: employee?.noiNumber ?? '',
-    noiCompany: detail?.noiCompany ?? '',
+    noiCompany: employee?.noiCompany ?? '',
     employmentType: employee?.employmentType ?? 'nomina',
     firstName: employee?.firstName ?? '',
     lastName: employee?.lastName ?? '',
     secondLastName: employee?.secondLastName ?? '',
     phone: employee?.phone ?? '',
-    personalEmail: detail?.personalEmail ?? '',
+    personalEmail: employee?.personalEmail ?? '',
     branchId: employee?.branchId ?? '',
     departmentId: employee?.departmentId ?? '',
     workScheduleId: employee?.workScheduleId ?? '',
@@ -103,11 +102,11 @@ function initialState(employee?: Employee | EmployeeDetail | null): FormState {
     terminationDate: employee?.terminationDate
       ? employee.terminationDate.split('T')[0]
       : '',
-    rfc: detail?.rfc ?? '',
-    curp: detail?.curp ?? '',
-    imssNumber: detail?.imssNumber ?? '',
-    birthDate: detail?.birthDate ? detail.birthDate.split('T')[0] : '',
-    notes: detail?.notes ?? '',
+    rfc: employee?.rfc ?? '',
+    curp: employee?.curp ?? '',
+    imssNumber: employee?.imssNumber ?? '',
+    birthDate: employee?.birthDate ? employee.birthDate.split('T')[0] : '',
+    notes: employee?.notes ?? '',
   };
 }
 
@@ -123,12 +122,72 @@ function nullable(value: string): string | null {
   return v.length > 0 ? v : null;
 }
 
+/**
+ * En edición SIEMPRE se trabaja sobre el expediente COMPLETO.
+ *
+ * El renglón del listado no trae `notes` (el API solo lo manda en el detalle):
+ * si el formulario arrancara con ese renglón, al guardar mandaría notas vacías
+ * y borraría las observaciones del expediente, incluida la línea con la que
+ * `issueBadge` deja rastro de un gafete repuesto/cancelado. Por eso el diálogo
+ * carga el detalle (React Query lo trae de caché si ya se abrió la ficha) y
+ * hasta entonces pinta el formulario.
+ */
 export function EmployeeFormDialog({
+  open,
+  onOpenChange,
+  employeeId,
+  onCreated,
+}: EmployeeFormDialogProps) {
+  const { data: employee, isError } = useEmployee(employeeId ?? '');
+
+  if (employeeId && !employee) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Editar expediente</DialogTitle>
+            <DialogDescription>
+              {isError
+                ? 'No se pudo cargar el expediente; cierra y vuelve a intentarlo.'
+                : 'Cargando el expediente completo…'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center py-10">
+            {!isError && <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // key: al cambiar de expediente el formulario se vuelve a montar limpio.
+  return (
+    <EmployeeForm
+      key={employee?.id ?? 'nuevo'}
+      open={open}
+      onOpenChange={onOpenChange}
+      employee={employee ?? null}
+      onCreated={onCreated}
+    />
+  );
+}
+
+function EmployeeForm({
   open,
   onOpenChange,
   employee,
   onCreated,
-}: EmployeeFormDialogProps) {
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  employee: EmployeeDetail | null;
+  onCreated?: (id: string) => void;
+}) {
   const isEdit = !!employee;
   const [form, setForm] = useState<FormState>(() => initialState(employee));
 

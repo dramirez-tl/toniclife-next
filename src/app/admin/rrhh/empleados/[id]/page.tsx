@@ -45,11 +45,13 @@ import {
 import { useAppSelector } from '@/store/hooks';
 import { selectUserPermissions, selectUserRoles } from '@/store/slices/authSlice';
 import {
+  addDays,
   apiErrorMessage,
   formatDateOnly,
   formatMoney,
   hasManagePermission,
   shortTime,
+  todayCdmx,
 } from '../../hr-utils';
 import {
   EMPLOYEE_STATUS_LABELS,
@@ -392,7 +394,7 @@ export default function EmployeeDetailPage({
       </div>
 
       {editOpen && (
-        <EmployeeFormDialog open onOpenChange={setEditOpen} employee={employee} />
+        <EmployeeFormDialog open onOpenChange={setEditOpen} employeeId={employee.id} />
       )}
     </div>
   );
@@ -492,8 +494,25 @@ function PhotoBlock({
 // Pestaña: asistencia
 // ---------------------------------------------------------------------------
 
+/** Ventana de la pestaña: el API sin from/to devuelve SOLO el día de hoy. */
+const ATTENDANCE_TAB_DAYS = 30;
+
 function AttendanceTab({ employeeId }: { employeeId: string }) {
-  const { data, isLoading } = useEmployeeAttendance(employeeId, { page: 1, limit: 25 });
+  // Rango EXPLÍCITO: AttendanceService.list toma `from = query.from ?? hoy`,
+  // así que sin fechas la tabla sale vacía salvo que la persona ya haya
+  // checado hoy. Se fija una vez por montaje para no cambiar la llave de la
+  // consulta en cada render.
+  const range = useMemo(() => {
+    const to = todayCdmx();
+    return { from: addDays(to, -(ATTENDANCE_TAB_DAYS - 1)), to };
+  }, []);
+
+  const { data, isLoading } = useEmployeeAttendance(employeeId, {
+    from: range.from,
+    to: range.to,
+    page: 1,
+    limit: 25,
+  });
   const events = data?.data ?? [];
 
   const columns: DataTableColumn<AttendanceEvent>[] = [
@@ -536,7 +555,9 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
     <Card>
       <CardContent className="space-y-4 p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm text-muted-foreground">Últimas checadas registradas.</p>
+          <p className="text-sm text-muted-foreground">
+            Checadas de los últimos {ATTENDANCE_TAB_DAYS} días.
+          </p>
           <Button asChild variant="outline" size="sm">
             <Link href={`/admin/rrhh/asistencia?employeeId=${employeeId}`}>
               Ver listado completo
@@ -552,7 +573,9 @@ function AttendanceTab({ employeeId }: { employeeId: string }) {
           emptyState={
             <div className="py-8 text-center">
               <ClockIcon className="mx-auto mb-3 h-10 w-10 text-muted-foreground/50" />
-              <p className="text-sm font-medium">Sin checadas registradas</p>
+              <p className="text-sm font-medium">
+                Sin checadas en los últimos {ATTENDANCE_TAB_DAYS} días
+              </p>
             </div>
           }
         />

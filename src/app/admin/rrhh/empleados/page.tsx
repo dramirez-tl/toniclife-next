@@ -113,7 +113,9 @@ function EmpleadosContent() {
 
   const [searchDraft, setSearchDraft] = useState(search);
   const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<Employee | null>(null);
+  // Solo el id: el diálogo carga el expediente COMPLETO (el renglón del
+  // listado no trae notas y mandarlas vacías las borraría).
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
 
@@ -337,7 +339,7 @@ function EmpleadosContent() {
               size="sm"
               title="Editar expediente"
               onClick={() => {
-                setEditing(e);
+                setEditingId(e.id);
                 setFormOpen(true);
               }}
             >
@@ -371,7 +373,7 @@ function EmpleadosContent() {
               </Button>
               <Button
                 onClick={() => {
-                  setEditing(null);
+                  setEditingId(null);
                   setFormOpen(true);
                 }}
               >
@@ -589,9 +591,9 @@ function EmpleadosContent() {
           open
           onOpenChange={(open) => {
             setFormOpen(open);
-            if (!open) setEditing(null);
+            if (!open) setEditingId(null);
           }}
-          employee={editing}
+          employeeId={editingId}
         />
       )}
       {importOpen && <EmployeeImportDialog open onOpenChange={setImportOpen} />}
