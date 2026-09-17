@@ -1,15 +1,13 @@
 // hr.ts - TypeScript types for Human Resources module
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.6 Módulo Recursos Humanos
 
+import type { BadgeVariant } from './asset';
+
 // ================================
 // ENUMS
 // ================================
 
 export type EmployeeStatus = 'ACTIVE' | 'INACTIVE' | 'ON_LEAVE' | 'TERMINATED';
-
-export type AttendanceType = 'CHECK_IN' | 'CHECK_OUT' | 'BREAK_START' | 'BREAK_END';
-
-export type AttendanceStatus = 'PRESENT' | 'WORKING' | 'ABSENT' | 'VACATION' | 'LATE';
 
 export type VacationStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 
@@ -173,74 +171,156 @@ export interface UpdateEmployeeDto {
 }
 
 // ================================
-// ATTENDANCE TYPES
+// ASISTENCIA (CHECADOR)
 // ================================
+//
+// El empleado teclea su número en el checador del POS Electron, la webcam toma
+// la foto y el API guarda el evento. Aquí solo se CONSULTA (RRHH) y se captura
+// a mano lo que el checador no alcanzó a registrar.
+//
+// Ojo: la asistencia es por DÍA CALENDARIO LOCAL de la sucursal; NO usa los
+// periodos de negocio 26→25.
 
-export interface AttendanceRecord {
+/**
+ * Los cuatro toques del día, igual que el checador legacy (v1):
+ * INGRESO / SALIDA_REFRIGERIO / RETORNO_REFRIGERIO / SALIDA.
+ */
+export const ATTENDANCE_EVENT_TYPES = [
+  'check_in',
+  'break_out',
+  'break_in',
+  'check_out',
+] as const;
+
+export type AttendanceEventType = (typeof ATTENDANCE_EVENT_TYPES)[number];
+
+/**
+ * Cómo se registró el evento: checador del POS, captura manual de RRHH o
+ * migración del checador viejo.
+ */
+export type AttendanceMethod = 'pos_kiosk' | 'manual' | 'legacy';
+
+export const EVENT_TYPE_LABELS: Record<AttendanceEventType, string> = {
+  check_in: 'Entrada',
+  break_out: 'Salida a comer',
+  break_in: 'Regreso de comer',
+  check_out: 'Salida',
+};
+
+export const EVENT_TYPE_VARIANTS: Record<AttendanceEventType, BadgeVariant> = {
+  check_in: 'success',
+  break_out: 'warning',
+  break_in: 'info',
+  check_out: 'secondary',
+};
+
+export const ATTENDANCE_METHOD_LABELS: Record<AttendanceMethod, string> = {
+  pos_kiosk: 'Checador POS',
+  manual: 'Captura manual',
+  legacy: 'Checador anterior',
+};
+
+/** Un toque del checador (o una captura manual de RRHH). */
+export interface AttendanceEvent {
   id: string;
   employeeId: string;
-  type: AttendanceType;
-  timestamp: string;
-  branchId?: string;
-  method: 'biometric' | 'manual' | 'qr' | 'gps';
-  latitude?: number;
-  longitude?: number;
-  ipAddress?: string;
-  deviceInfo?: string;
-  notes?: string;
-  registeredBy?: string;
+  /** Número tecleado/resuelto, guardado como snapshot al momento del evento. */
+  employeeNumber: string;
+  employeeName: string | null;
+  /** Sucursal de la TERMINAL donde se checó (la resuelve el servidor). */
+  branchId: string;
+  branchName: string | null;
+  /** Sucursal del expediente del empleado; puede diferir de la anterior. */
+  employeeBranchId: string | null;
+  employeeBranchName: string | null;
+  posLicenseId: string | null;
+  posLicenseLabel: string | null;
+  eventType: AttendanceEventType;
+  /** ISO con zona (TIMESTAMPTZ). */
+  occurredAt: string;
+  /** 'YYYY-MM-DD' ya materializado con la zona de la sucursal. */
+  localDate: string;
+  /** 'HH:MM:SS' local de la sucursal. */
+  localTime: string;
+  timezone: string;
+  method: AttendanceMethod;
+  /** URL firmada (15 min). null si no hubo foto o no hay GCS configurado. */
+  photoUrl: string | null;
+  /** Motivo por el que no se pudo subir la foto (el evento se guarda igual). */
+  photoError: string | null;
+  registeredBy: { id: string; name: string } | null;
+  notes: string | null;
   createdAt: string;
-  // Relations
-  employee?: Employee;
-  branch?: {
-    id: string;
-    name: string;
-  };
-}
-
-export interface AttendanceListResponse {
-  data: AttendanceRecord[];
-  total: number;
-  page: number;
-  limit: number;
-}
-
-export interface AttendanceReportResponse {
-  data: AttendanceRecord[];
-  summary: {
-    totalPresent: number;
-    totalAbsent: number;
-    totalOnVacation: number;
-    averageHoursWorked: number;
-  };
-  total: number;
-  page: number;
-  limit: number;
 }
 
 export interface AttendanceQuery {
-  employeeId?: string;
+  /** 'YYYY-MM-DD'; el API usa el día de hoy (CDMX) si no se mandan. */
+  from?: string;
+  to?: string;
   branchId?: string;
-  startDate?: string;
-  endDate?: string;
-  type?: AttendanceType;
+  employeeId?: string;
+  /** Número de empleado, número NOI o nombre. */
+  search?: string;
+  eventType?: AttendanceEventType;
   page?: number;
   limit?: number;
 }
 
-export interface CheckInOutDto {
-  type: AttendanceType;
-  branchId?: string;
-  latitude?: number;
-  longitude?: number;
-  notes?: string;
+export interface AttendanceListResponse {
+  data: AttendanceEvent[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
-export interface ManualAttendanceDto {
+/** Un empleado en el resumen de un día: sus cuatro toques, comida y horas. */
+export interface AttendanceDaySummaryRow {
   employeeId: string;
-  type: AttendanceType;
-  timestamp: string;
+  employeeNumber: string;
+  employeeName: string | null;
+  branchId: string;
+  branchName: string | null;
+  /** ISO: primer check_in, primer break_out, último break_in, último check_out. */
+  checkInAt: string | null;
+  breakOutAt: string | null;
+  breakInAt: string | null;
+  checkOutAt: string | null;
+  /** 'HH:MM' local, ya listo para mostrar. */
+  checkInTime: string | null;
+  breakOutTime: string | null;
+  breakInTime: string | null;
+  checkOutTime: string | null;
+  /** Minutos de comida (break_out → break_in); null si no comió o quedó abierto. */
+  breakMinutes: number | null;
+  /** Horas de los tramos cerrados; null si ningún tramo cerró. */
+  hoursWorked: number | null;
+  eventsCount: number;
+  /** true si el último evento del día no fue una salida. */
+  openShift: boolean;
+  firstPhotoUrl: string | null;
+  lastPhotoUrl: string | null;
+}
+
+export interface AttendanceDaySummary {
+  date: string;
+  rows: AttendanceDaySummaryRow[];
+}
+
+export interface AttendanceDayQuery {
+  /** 'YYYY-MM-DD'. */
+  date?: string;
   branchId?: string;
+  search?: string;
+}
+
+/** Captura manual de RRHH (requiere permiso hr:manage). */
+export interface ManualAttendanceInput {
+  employeeId: string;
+  eventType: AttendanceEventType;
+  /** ISO; el API materializa la fecha/hora local con la zona de branchId. */
+  occurredAt: string;
+  branchId: string;
   notes?: string;
 }
 

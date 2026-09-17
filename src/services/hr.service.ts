@@ -13,12 +13,12 @@ import type {
   OrgDirector,
   CreateEmployeeDto,
   UpdateEmployeeDto,
-  AttendanceRecord,
+  AttendanceEvent,
   AttendanceListResponse,
   AttendanceQuery,
-  CheckInOutDto,
-  ManualAttendanceDto,
-  AttendanceReportResponse,
+  AttendanceDayQuery,
+  AttendanceDaySummary,
+  ManualAttendanceInput,
   Vacation,
   VacationListResponse,
   VacationQuery,
@@ -188,45 +188,47 @@ class HrService {
   }
 
   // ================================
-  // ATTENDANCE METHODS
+  // ASISTENCIA (CHECADOR)
   // ================================
+  //
+  // Los eventos los genera el checador del POS Electron (número de empleado +
+  // foto de la webcam); aquí RRHH solo consulta y captura a mano lo que el
+  // checador no alcanzó a registrar. El rango es por DÍA CALENDARIO local de
+  // la sucursal, NO por periodo de negocio 26→25.
 
-  // TODO: Endpoint not implemented in backend
-  async checkInOut(data: CheckInOutDto): Promise<AttendanceRecord> {
-    const response = await api.post<AttendanceRecord>('/hr/attendance/check-in', data);
-    return response.data;
+  /** Bitácora de toques (paginada, del más reciente al más viejo). */
+  async getAttendance(query: AttendanceQuery = {}): Promise<AttendanceListResponse> {
+    const { data } = await api.get<AttendanceListResponse>('/hr/attendance', {
+      params: {
+        from: query.from || undefined,
+        to: query.to || undefined,
+        branchId: query.branchId || undefined,
+        employeeId: query.employeeId || undefined,
+        search: query.search || undefined,
+        eventType: query.eventType || undefined,
+        page: query.page,
+        limit: query.limit,
+      },
+    });
+    return data;
   }
 
-  // TODO: Endpoint not implemented in backend
-  async registerManualAttendance(data: ManualAttendanceDto): Promise<AttendanceRecord> {
-    const response = await api.post<AttendanceRecord>('/hr/attendance/manual', data);
-    return response.data;
+  /** Resumen de un día: un renglón por empleado con sus cuatro toques. */
+  async getAttendanceDay(query: AttendanceDayQuery = {}): Promise<AttendanceDaySummary> {
+    const { data } = await api.get<AttendanceDaySummary>('/hr/attendance/day', {
+      params: {
+        date: query.date || undefined,
+        branchId: query.branchId || undefined,
+        search: query.search || undefined,
+      },
+    });
+    return data;
   }
 
-  // TODO: Endpoint not implemented in backend
-  async getAttendanceReport(query: AttendanceQuery): Promise<AttendanceReportResponse> {
-    const params = new URLSearchParams();
-
-    if (query.employeeId) params.append('employeeId', query.employeeId);
-    if (query.branchId) params.append('branchId', query.branchId);
-    if (query.startDate) params.append('startDate', query.startDate);
-    if (query.endDate) params.append('endDate', query.endDate);
-    if (query.type) params.append('type', query.type);
-    if (query.page) params.append('page', String(query.page));
-    if (query.limit) params.append('limit', String(query.limit));
-
-    const response = await api.get<AttendanceReportResponse>(
-      `/hr/attendance/report?${params.toString()}`
-    );
-    return response.data;
-  }
-
-  // TODO: Endpoint not implemented in backend
-  async getMyAttendance(startDate: string, endDate: string): Promise<AttendanceListResponse> {
-    const response = await api.get<AttendanceListResponse>(
-      `/hr/attendance/my?startDate=${startDate}&endDate=${endDate}`
-    );
-    return response.data;
+  /** Captura manual de RRHH (requiere hr:manage); queda marcada como 'manual'. */
+  async registerManualAttendance(input: ManualAttendanceInput): Promise<AttendanceEvent> {
+    const { data } = await api.post<AttendanceEvent>('/hr/attendance/manual', input);
+    return data;
   }
 
   // ================================

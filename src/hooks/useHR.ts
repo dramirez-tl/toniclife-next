@@ -1,6 +1,6 @@
 // hooks/useHR.ts - React Query hooks for HR module
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { hrService as hrApi } from '@/services/hr.service';
 import {
   EmployeeQuery,
@@ -9,8 +9,8 @@ import {
   CreateDepartmentDto,
   UpdateDepartmentDto,
   AttendanceQuery,
-  CheckInOutDto,
-  ManualAttendanceDto,
+  AttendanceDayQuery,
+  ManualAttendanceInput,
   VacationQuery,
   CreateVacationDto,
   ReviewVacationDto,
@@ -29,7 +29,8 @@ export const hrKeys = {
   employee: (id: string) => [...hrKeys.employees(), id] as const,
   myEmployee: () => [...hrKeys.employees(), 'me'] as const,
   attendance: () => [...hrKeys.all, 'attendance'] as const,
-  attendanceReport: (query: AttendanceQuery) => [...hrKeys.attendance(), 'report', query] as const,
+  attendanceList: (query: AttendanceQuery) => [...hrKeys.attendance(), 'list', query] as const,
+  attendanceDay: (query: AttendanceDayQuery) => [...hrKeys.attendance(), 'day', query] as const,
   vacations: () => [...hrKeys.all, 'vacations'] as const,
   vacationList: (query: VacationQuery) => [...hrKeys.vacations(), 'list', query] as const,
   vacation: (id: string) => [...hrKeys.vacations(), id] as const,
@@ -168,35 +169,36 @@ export function useUpdateEmployee() {
 }
 
 // ================================
-// ATTENDANCE HOOKS
+// ASISTENCIA (CHECADOR)
 // ================================
 
-export function useAttendanceReport(query: AttendanceQuery) {
+/** Bitácora de toques del checador (paginada). */
+export function useAttendance(query: AttendanceQuery = {}) {
   return useQuery({
-    queryKey: hrKeys.attendanceReport(query),
-    queryFn: () => hrApi.getAttendanceReport(query),
-    enabled: !!query.startDate && !!query.endDate,
-    staleTime: 2 * 60 * 1000,
+    queryKey: hrKeys.attendanceList(query),
+    queryFn: () => hrApi.getAttendance(query),
+    placeholderData: keepPreviousData,
+    staleTime: 60 * 1000,
   });
 }
 
-export function useCheckInOut() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (data: CheckInOutDto) => hrApi.checkInOut(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: hrKeys.attendance() });
-      queryClient.invalidateQueries({ queryKey: hrKeys.stats() });
-    },
+/** Resumen de un día: un renglón por empleado con sus cuatro toques. */
+export function useAttendanceDay(query: AttendanceDayQuery = {}, enabled = true) {
+  return useQuery({
+    queryKey: hrKeys.attendanceDay(query),
+    queryFn: () => hrApi.getAttendanceDay(query),
+    enabled,
+    placeholderData: keepPreviousData,
+    staleTime: 60 * 1000,
   });
 }
 
+/** Captura manual de RRHH (hr:manage). Los toasts se disparan en la página. */
 export function useManualAttendance() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: ManualAttendanceDto) => hrApi.registerManualAttendance(data),
+    mutationFn: (input: ManualAttendanceInput) => hrApi.registerManualAttendance(input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: hrKeys.attendance() });
       queryClient.invalidateQueries({ queryKey: hrKeys.stats() });
