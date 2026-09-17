@@ -31,7 +31,7 @@ export interface PosLicense {
    *  (fail-closed): el POS oculta el botón "Checador" y el API rechaza los
    *  registros de la terminal hasta que Sistemas lo prenda (rollout terminal
    *  por terminal). No depende de que la terminal esté liberada. */
-  attendanceEnabled: boolean;
+  attendanceEnabled?: boolean;
   hardwareFingerprint?: string;
   hardwareInfo?: PosLicenseHardwareInfo;
   activatedAt?: string;

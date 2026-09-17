@@ -636,7 +636,7 @@ function PosLicenseReleaseList({ globalEnabled }: { globalEnabled: boolean }) {
                 <div className="mr-2 flex items-center gap-2 border-r pr-4">
                   <span className="text-xs text-muted-foreground">Checador</span>
                   <Switch
-                    checked={lic.attendanceEnabled}
+                    checked={lic.attendanceEnabled ?? false}
                     disabled={pendingAttendanceId === lic.id}
                     onCheckedChange={(v) => handleToggleAttendance(lic, v)}
                     aria-label={`Checador de ${lic.branchName ?? lic.licenseKey}`}
