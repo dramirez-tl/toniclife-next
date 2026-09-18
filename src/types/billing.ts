@@ -7,9 +7,15 @@
 
 export enum InvoiceStatus {
   PENDING = 'pending',
+  /** Timbrado en curso: el API reclamó la factura ante el PAC (candado). */
+  STAMPING = 'stamping',
   STAMPED = 'stamped',
   SENT = 'sent',
   CANCELLED = 'cancelled',
+  /** El SAT aceptó la solicitud pero la cancelación NO está confirmada
+   *  (espera la aceptación del receptor). Valor real de invoices.provider_status. */
+  CANCEL_PENDING = 'cancel_pending',
+  /** @deprecated Nombre anterior; la BD nunca lo guardó. Usa CANCEL_PENDING. */
   CANCELLATION_PENDING = 'cancellation_pending',
   ERROR = 'error',
 }
@@ -310,10 +316,19 @@ export interface RfcValidation {
   Message: string;
 }
 
-export interface FacturamaBalance {
-  Balance: number;
+/**
+ * GET /billing/status — estado real del PAC (no solo "hay credenciales en env").
+ * `facturamaReachable=false` + `error` cuando la consulta de saldo truena.
+ */
+export interface BillingStatus {
   configured: boolean;
-  error?: string;
+  environment: 'sandbox' | 'production' | null;
+  issuerRfcMasked: string | null;
+  facturamaReachable: boolean;
+  balance: number | null;
+  error: string | null;
+  /** Compat con el contrato anterior (Balance = -1 cuando el PAC no responde). */
+  Balance?: number;
 }
 
 // ================================
@@ -390,8 +405,16 @@ export const INVOICE_STATUS_CONFIG: Record<InvoiceStatus, { label: string; color
     label: 'Cancelada',
     color: 'bg-red-100 text-red-800',
   },
+  [InvoiceStatus.STAMPING]: {
+    label: 'Timbrando…',
+    color: 'bg-yellow-100 text-yellow-800',
+  },
+  [InvoiceStatus.CANCEL_PENDING]: {
+    label: 'Cancelación en proceso',
+    color: 'bg-orange-100 text-orange-800',
+  },
   [InvoiceStatus.CANCELLATION_PENDING]: {
-    label: 'Cancelación Pendiente',
+    label: 'Cancelación en proceso',
     color: 'bg-orange-100 text-orange-800',
   },
   [InvoiceStatus.ERROR]: {

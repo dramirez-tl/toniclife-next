@@ -18,7 +18,7 @@ import type {
   CancellationResponse,
   CatalogItem,
   RfcValidation,
-  FacturamaBalance,
+  BillingStatus,
 } from '@/types/billing';
 
 const BASE_URL = '/billing';
@@ -321,8 +321,8 @@ export async function listFacturamaCfdis(query?: FacturamaCfdisQuery): Promise<F
 // STATUS
 // ================================
 
-export async function getFacturamaStatus(): Promise<FacturamaBalance> {
-  const response = await apiClient.get<FacturamaBalance>(`${BASE_URL}/status`);
+export async function getFacturamaStatus(): Promise<BillingStatus> {
+  const response = await apiClient.get<BillingStatus>(`${BASE_URL}/status`);
   return response.data;
 }
 

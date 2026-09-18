@@ -484,6 +484,11 @@ function PosLicenseReleaseList({ globalEnabled }: { globalEnabled: boolean }) {
   const [pendingAttendanceId, setPendingAttendanceId] = useState<string | null>(
     null,
   );
+  // Confirmación al ENCENDER la facturación en v2 (apagarla no necesita aviso:
+  // el sistema anterior sigue emitiendo esa factura).
+  const [invoicingConfirm, setInvoicingConfirm] = useState<PosLicense | null>(
+    null,
+  );
 
   // Excluir revocadas: no son instalables.
   const rows = licenses.filter((l) => l.status !== 'revoked');
@@ -513,21 +518,33 @@ function PosLicenseReleaseList({ globalEnabled }: { globalEnabled: boolean }) {
     );
   };
 
-  const handleToggleInvoicing = (lic: PosLicense, enabled: boolean) => {
+  const applyInvoicing = (lic: PosLicense, enabled: boolean) => {
     setPendingInvoicingId(lic.id);
     setInvoicing.mutate(
       { id: lic.id, enabled },
       {
-        onSuccess: () =>
+        onSuccess: () => {
+          setInvoicingConfirm(null);
           toast.success(
             enabled
-              ? `${lic.branchName ?? lic.licenseKey}: facturación habilitada en la terminal`
-              : `${lic.branchName ?? lic.licenseKey}: facturación deshabilitada — la factura se emite en el sistema anterior`,
-          ),
+              ? `${lic.branchName ?? lic.licenseKey}: factura en v2 (Facturama) — se aplica en el siguiente latido (≤60 s)`
+              : `${lic.branchName ?? lic.licenseKey}: facturación en v2 apagada — la factura se emite en el sistema anterior`,
+          );
+        },
         onError: (err) => apiError(err, 'No se pudo cambiar la facturación'),
         onSettled: () => setPendingInvoicingId(null),
       },
     );
+  };
+
+  const handleToggleInvoicing = (lic: PosLicense, enabled: boolean) => {
+    // Encender obliga a confirmar: si la sucursal sigue facturando en el
+    // sistema anterior, se timbraría dos veces ante el SAT.
+    if (enabled) {
+      setInvoicingConfirm(lic);
+      return;
+    }
+    applyInvoicing(lic, false);
   };
 
   const handleToggleAttendance = (lic: PosLicense, enabled: boolean) => {
@@ -548,105 +565,112 @@ function PosLicenseReleaseList({ globalEnabled }: { globalEnabled: boolean }) {
   };
 
   return (
-    <div className="space-y-2 border-t pt-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <label className="text-sm font-medium text-gray-700">
-            Liberar terminales individuales (pruebas)
-          </label>
-          <p className="text-xs text-muted-foreground">
-            Activa una terminal para operar aunque el POS global esté bloqueado.
-            Ideal para pilotos: instala en todas y prueba en las que elijas. En
-            cada terminal puedes prender el <strong>Checador</strong> de
-            asistencia (botón en el POS, se aplica en el siguiente latido, ≤60 s)
-            y apagar la <strong>Facturación</strong> (piloto doble captura: la
-            factura se emite solo en el sistema anterior para no timbrar dos
-            veces).
+    <>
+      <div className="space-y-2 border-t pt-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <label className="text-sm font-medium text-gray-700">
+              Liberar terminales individuales (pruebas)
+            </label>
+            <p className="text-xs text-muted-foreground">
+              Activa una terminal para operar aunque el POS global esté bloqueado.
+              Ideal para pilotos: instala en todas y prueba en las que elijas. En
+              cada terminal puedes prender el <strong>Checador</strong> de
+              asistencia (botón en el POS, se aplica en el siguiente latido, ≤60
+              s).
+            </p>
+            <p className="text-xs text-muted-foreground">
+              <strong>Facturación en v2 apagada por defecto</strong>: el sistema
+              anterior sigue emitiendo las facturas de esa sucursal. Enciéndela
+              terminal por terminal cuando la sucursal deje de facturar en el
+              legacy; se aplica en el siguiente latido (menos de 60 s) y el
+              servidor rechaza timbrar en terminales apagadas.
+            </p>
+          </div>
+        </div>
+
+        {globalEnabled && (
+          <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">
+            El POS global está liberado: todas las terminales operan. Estos
+            controles aplican solo cuando el POS global está bloqueado.
+          </div>
+        )}
+
+        {isLoading ? (
+          <Skeleton className="h-24 w-full" />
+        ) : rows.length === 0 ? (
+          <p className="py-3 text-sm text-muted-foreground">
+            No hay terminales registradas todavía. Genera licencias desde
+            Sucursales.
           </p>
-        </div>
-      </div>
-
-      {globalEnabled && (
-        <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-700">
-          El POS global está liberado: todas las terminales operan. Estos
-          controles aplican solo cuando el POS global está bloqueado.
-        </div>
-      )}
-
-      {isLoading ? (
-        <Skeleton className="h-24 w-full" />
-      ) : rows.length === 0 ? (
-        <p className="py-3 text-sm text-muted-foreground">
-          No hay terminales registradas todavía. Genera licencias desde
-          Sucursales.
-        </p>
-      ) : (
-        <div className="divide-y rounded-lg border">
-          {rows.map((lic) => (
-            <div
-              key={lic.id}
-              className="flex items-center justify-between gap-4 px-4 py-3"
-            >
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="truncate text-sm font-medium text-gray-900">
-                    {lic.branchName ?? 'Sucursal sin nombre'}
-                  </span>
-                  <Badge
-                    variant="outline"
-                    className={
-                      lic.status === 'active'
-                        ? 'border-green-200 bg-green-50 text-green-700'
-                        : 'border-gray-200 bg-gray-50 text-gray-500'
+        ) : (
+          <div className="divide-y rounded-lg border">
+            {rows.map((lic) => (
+              <div
+                key={lic.id}
+                className="flex items-center justify-between gap-4 px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-sm font-medium text-gray-900">
+                      {lic.branchName ?? 'Sucursal sin nombre'}
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className={
+                        lic.status === 'active'
+                          ? 'border-green-200 bg-green-50 text-green-700'
+                          : 'border-gray-200 bg-gray-50 text-gray-500'
+                      }
+                    >
+                      {POS_STATUS_LABEL[lic.status] ?? lic.status}
+                    </Badge>
+                    {!globalEnabled && lic.operationsReleased && (
+                      <Badge
+                        variant="outline"
+                        className="border-blue-200 bg-blue-50 text-blue-700"
+                      >
+                        En pruebas
+                      </Badge>
+                    )}
+                    {lic.invoicingEnabled && (
+                      <Badge variant="info">Factura en v2</Badge>
+                    )}
+                    {lic.attendanceEnabled && (
+                      <Badge variant="info">Checador</Badge>
+                    )}
+                  </div>
+                  <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="font-mono">{lic.licenseKey}</span>
+                    {lic.label && <span>· {lic.label}</span>}
+                    <span>· visto {fmtLastSeen(lic.lastSeenAt)}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {/* Checador por terminal: visible SIEMPRE (no solo en las
+                      liberadas) — la asistencia se registra aunque el POS esté
+                      bloqueado para vender. Default apagado: rollout terminal
+                      por terminal. */}
+                  <div className="mr-2 flex items-center gap-2 border-r pr-4">
+                    <span className="text-xs text-muted-foreground">Checador</span>
+                    <Switch
+                      checked={lic.attendanceEnabled ?? false}
+                      disabled={pendingAttendanceId === lic.id}
+                      onCheckedChange={(v) => handleToggleAttendance(lic, v)}
+                      aria-label={`Checador de ${lic.branchName ?? lic.licenseKey}`}
+                    />
+                  </div>
+                  {/* Facturación en v2 por terminal: visible SIEMPRE (no solo en
+                      las liberadas). Apagada por defecto = la factura se emite en
+                      el sistema anterior; se enciende sucursal por sucursal. */}
+                  <div
+                    className="mr-2 flex items-center gap-2 border-r pr-4"
+                    title={
+                      lic.invoicingEnabled
+                        ? 'Factura en v2 (Facturama)'
+                        : 'La factura se emite en el sistema anterior'
                     }
                   >
-                    {POS_STATUS_LABEL[lic.status] ?? lic.status}
-                  </Badge>
-                  {!globalEnabled && lic.operationsReleased && (
-                    <Badge
-                      variant="outline"
-                      className="border-blue-200 bg-blue-50 text-blue-700"
-                    >
-                      En pruebas
-                    </Badge>
-                  )}
-                  {!lic.invoicingEnabled && (
-                    <Badge
-                      variant="outline"
-                      className="border-amber-200 bg-amber-50 text-amber-700"
-                    >
-                      Sin facturar
-                    </Badge>
-                  )}
-                  {lic.attendanceEnabled && (
-                    <Badge variant="info">Checador</Badge>
-                  )}
-                </div>
-                <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="font-mono">{lic.licenseKey}</span>
-                  {lic.label && <span>· {lic.label}</span>}
-                  <span>· visto {fmtLastSeen(lic.lastSeenAt)}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {/* Checador por terminal: visible SIEMPRE (no solo en las
-                    liberadas) — la asistencia se registra aunque el POS esté
-                    bloqueado para vender. Default apagado: rollout terminal
-                    por terminal. */}
-                <div className="mr-2 flex items-center gap-2 border-r pr-4">
-                  <span className="text-xs text-muted-foreground">Checador</span>
-                  <Switch
-                    checked={lic.attendanceEnabled ?? false}
-                    disabled={pendingAttendanceId === lic.id}
-                    onCheckedChange={(v) => handleToggleAttendance(lic, v)}
-                    aria-label={`Checador de ${lic.branchName ?? lic.licenseKey}`}
-                  />
-                </div>
-                {/* Facturación por terminal: visible solo cuando la terminal
-                    puede operar. Apagar durante el piloto de doble captura
-                    (la factura se emite en el legacy, no dos veces). */}
-                {(globalEnabled || lic.operationsReleased) && (
-                  <div className="mr-2 flex items-center gap-2 border-r pr-4">
                     <span className="text-xs text-muted-foreground">
                       Facturación
                     </span>
@@ -654,25 +678,62 @@ function PosLicenseReleaseList({ globalEnabled }: { globalEnabled: boolean }) {
                       checked={lic.invoicingEnabled}
                       disabled={pendingInvoicingId === lic.id}
                       onCheckedChange={(v) => handleToggleInvoicing(lic, v)}
-                      aria-label={`Facturación de ${lic.branchName ?? lic.licenseKey}`}
+                      aria-label={`Facturación en v2 de ${lic.branchName ?? lic.licenseKey}`}
                     />
                   </div>
-                )}
-                <span className="text-xs text-muted-foreground">
-                  {lic.operationsReleased ? 'Liberada' : 'Bloqueada'}
-                </span>
-                <Switch
-                  checked={lic.operationsReleased}
-                  disabled={pendingId === lic.id}
-                  onCheckedChange={(v) => handleToggle(lic, v)}
-                  aria-label={`Liberar ${lic.branchName ?? lic.licenseKey}`}
-                />
+                  <span className="text-xs text-muted-foreground">
+                    {lic.operationsReleased ? 'Liberada' : 'Bloqueada'}
+                  </span>
+                  <Switch
+                    checked={lic.operationsReleased}
+                    disabled={pendingId === lic.id}
+                    onCheckedChange={(v) => handleToggle(lic, v)}
+                    aria-label={`Liberar ${lic.branchName ?? lic.licenseKey}`}
+                  />
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Confirmación al ENCENDER la facturación en v2 */}
+      <Dialog
+        open={!!invoicingConfirm}
+        onOpenChange={(open) => {
+          if (!open) setInvoicingConfirm(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Activar la facturación en v2</DialogTitle>
+            <DialogDescription>
+              Vas a activar la facturación en v2 para{' '}
+              <strong>
+                {invoicingConfirm?.branchName ?? invoicingConfirm?.licenseKey}
+              </strong>
+              . Asegúrate de que esa sucursal ya no facture en el sistema
+              anterior para no timbrar dos veces.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setInvoicingConfirm(null)}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={pendingInvoicingId === invoicingConfirm?.id}
+              onClick={() =>
+                invoicingConfirm && applyInvoicing(invoicingConfirm, true)
+              }
+            >
+              {pendingInvoicingId === invoicingConfirm?.id
+                ? 'Aplicando…'
+                : 'Sí, activar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

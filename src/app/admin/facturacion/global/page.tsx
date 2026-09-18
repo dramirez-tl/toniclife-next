@@ -16,6 +16,7 @@ import {
   CheckCircleIcon,
   MapPinIcon,
   CalendarIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -28,6 +29,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useCreateGlobalInvoice } from '@/hooks/useBilling';
+import {
+  BILLING_FLOW_DISABLED_NOTICE,
+  isBillingFlowDisabled,
+} from '@/lib/billing-error';
 import { useOrders } from '@/hooks/useOrders';
 import { useActiveBranches } from '@/hooks/useBranches';
 import { PAYMENT_FORMS, formatCurrency } from '@/types/billing';
@@ -66,6 +71,10 @@ export default function GlobalInvoicePage() {
 
   // Selection state
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
+
+  // El API cierra este flujo con 503 hasta la Fase 2 (Fase 0: solo se factura
+  // desde el POS). Se avisa en pantalla en vez de dejar la sensación de error.
+  const [flowDisabled, setFlowDisabled] = useState(false);
 
   // Payment config state
   const [paymentForm, setPaymentForm] = useState('01'); // Efectivo
@@ -178,8 +187,9 @@ export default function GlobalInvoicePage() {
       setSelectedOrderIds(new Set());
       // Refetch to remove invoiced orders
       ordersQuery.refetch();
-    } catch {
-      // Error handled by the mutation hook
+    } catch (err) {
+      if (isBillingFlowDisabled(err)) setFlowDisabled(true);
+      // El toast del error lo muestra el hook
     }
   };
 
@@ -231,6 +241,21 @@ export default function GlobalInvoicePage() {
 
       {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Flujo cerrado en la Fase 0 (el API responde 503) */}
+        {flowDisabled && (
+          <Card className="mb-6 border-amber-200 bg-amber-50">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <ExclamationTriangleIcon className="h-6 w-6 flex-shrink-0 text-amber-600" />
+                <div className="text-sm text-amber-900">
+                  <p className="font-semibold mb-1">Factura global en corrección</p>
+                  <p>{BILLING_FLOW_DISABLED_NOTICE}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Info Card */}
         <Card className="mb-6 border-blue-200 bg-blue-50">
           <CardContent className="p-4">
@@ -512,7 +537,7 @@ export default function GlobalInvoicePage() {
                               <Button
                                 variant="default"
                                 onClick={handleSubmit}
-                                disabled={createGlobalInvoice.isPending}
+                                disabled={createGlobalInvoice.isPending || flowDisabled}
                                 className="w-full sm:w-auto"
                               >
                                 {createGlobalInvoice.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}

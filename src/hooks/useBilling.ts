@@ -4,6 +4,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { billingService, type FiscalDataQueryDto, type FacturamaCfdisQuery } from '@/services/billing.service';
+import { billingErrorMessage } from '@/lib/billing-error';
 import type {
   CreateFiscalDataDto,
   UpdateFiscalDataDto,
@@ -72,12 +73,12 @@ export function useCreateFiscalData() {
 
   return useMutation({
     mutationFn: (data: CreateFiscalDataDto) => billingService.createFiscalData(data),
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: billingKeys.fiscalData() });
       toast.success('Datos fiscales guardados correctamente');
     },
-    onError: (error: Error) => {
-      toast.error(`Error al guardar datos fiscales: ${error.message}`);
+    onError: (error: unknown) => {
+      toast.error(billingErrorMessage(error, 'No se pudieron guardar los datos fiscales'));
     },
   });
 }
@@ -88,12 +89,12 @@ export function useUpdateFiscalData() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateFiscalDataDto }) =>
       billingService.updateFiscalData(id, data),
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: billingKeys.fiscalData() });
       toast.success('Datos fiscales actualizados');
     },
-    onError: (error: Error) => {
-      toast.error(`Error al actualizar datos fiscales: ${error.message}`);
+    onError: (error: unknown) => {
+      toast.error(billingErrorMessage(error, 'No se pudieron actualizar los datos fiscales'));
     },
   });
 }
@@ -126,8 +127,8 @@ export function useCreateInvoice() {
       queryClient.invalidateQueries({ queryKey: billingKeys.invoices() });
       toast.success('Factura creada correctamente');
     },
-    onError: (error: Error) => {
-      toast.error(`Error al crear factura: ${error.message}`);
+    onError: (error: unknown) => {
+      toast.error(billingErrorMessage(error, 'No se pudo crear la factura'));
     },
   });
 }
@@ -143,8 +144,8 @@ export function useStampInvoice() {
       queryClient.invalidateQueries({ queryKey: billingKeys.invoices() });
       toast.success('Factura timbrada correctamente');
     },
-    onError: (error: Error) => {
-      toast.error(`Error al timbrar factura: ${error.message}`);
+    onError: (error: unknown) => {
+      toast.error(billingErrorMessage(error, 'No se pudo timbrar la factura'));
     },
   });
 }
@@ -158,10 +159,20 @@ export function useCancelInvoice() {
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: billingKeys.invoice(response.invoiceId) });
       queryClient.invalidateQueries({ queryKey: billingKeys.invoices() });
-      toast.success('Factura cancelada correctamente');
+      // El SAT puede dejar la solicitud "en proceso" (espera la aceptación del
+      // receptor): no declarar cancelada una factura que sigue vigente.
+      const cancelada = String(response.status ?? '').toLowerCase() === 'cancelled';
+      if (cancelada) {
+        toast.success('Factura cancelada correctamente');
+      } else {
+        toast.warning(
+          response.message ||
+            'El SAT dejó la cancelación en proceso: la factura sigue vigente hasta que el receptor la acepte.',
+        );
+      }
     },
-    onError: (error: Error) => {
-      toast.error(`Error al cancelar factura: ${error.message}`);
+    onError: (error: unknown) => {
+      toast.error(billingErrorMessage(error, 'No se pudo cancelar la factura'));
     },
   });
 }
@@ -187,8 +198,8 @@ export function useCreateGlobalInvoice() {
       queryClient.invalidateQueries({ queryKey: billingKeys.globalInvoices() });
       toast.success('Factura global creada');
     },
-    onError: (error: Error) => {
-      toast.error(`Error al crear factura global: ${error.message}`);
+    onError: (error: unknown) => {
+      toast.error(billingErrorMessage(error, 'No se pudo crear la factura global'));
     },
   });
 }
@@ -203,8 +214,8 @@ export function useStampGlobalInvoice() {
       queryClient.invalidateQueries({ queryKey: billingKeys.globalInvoices() });
       toast.success('Factura global timbrada');
     },
-    onError: (error: Error) => {
-      toast.error(`Error al timbrar factura global: ${error.message}`);
+    onError: (error: unknown) => {
+      toast.error(billingErrorMessage(error, 'No se pudo timbrar la factura global'));
     },
   });
 }
@@ -231,8 +242,8 @@ export function useCreatePaymentComplement() {
       queryClient.invalidateQueries({ queryKey: billingKeys.paymentComplements() });
       toast.success('Complemento de pago creado');
     },
-    onError: (error: Error) => {
-      toast.error(`Error al crear complemento de pago: ${error.message}`);
+    onError: (error: unknown) => {
+      toast.error(billingErrorMessage(error, 'No se pudo crear el complemento de pago'));
     },
   });
 }
@@ -247,8 +258,8 @@ export function useStampPaymentComplement() {
       queryClient.invalidateQueries({ queryKey: billingKeys.paymentComplements() });
       toast.success('Complemento de pago timbrado');
     },
-    onError: (error: Error) => {
-      toast.error(`Error al timbrar complemento de pago: ${error.message}`);
+    onError: (error: unknown) => {
+      toast.error(billingErrorMessage(error, 'No se pudo timbrar el complemento de pago'));
     },
   });
 }
@@ -295,8 +306,8 @@ export function useValidateRfc() {
         toast.error(`RFC inválido: ${result.Message}`);
       }
     },
-    onError: (error: Error) => {
-      toast.error(`Error al validar RFC: ${error.message}`);
+    onError: (error: unknown) => {
+      toast.error(billingErrorMessage(error, 'No se pudo validar el RFC'));
     },
   });
 }

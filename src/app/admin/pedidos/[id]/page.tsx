@@ -32,6 +32,10 @@ import { billingService } from '@/services/billing.service';
 import { useBranch } from '@/hooks/useBranches';
 import { generateOrderTicketPdf } from '@/lib/generate-order-ticket';
 import { CFDI_USES, PAYMENT_FORMS } from '@/types/billing';
+import {
+  BILLING_FLOW_DISABLED_NOTICE,
+  isBillingFlowDisabled,
+} from '@/lib/billing-error';
 import { OrderStatus } from '@/types/order';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Button } from '@/components/ui/button';
@@ -100,6 +104,9 @@ export default function OrderDetailAdminPage() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
+  // El API cierra la facturación de pedidos con 503 hasta la Fase 2 (Fase 0:
+  // solo se factura desde el POS). Se avisa en pantalla, sin romperla.
+  const [invoiceFlowDisabled, setInvoiceFlowDisabled] = useState(false);
   const [invoiceForm, setInvoiceForm] = useState({
     cfdiUse: 'G03',
     paymentForm: '01',
@@ -158,7 +165,8 @@ export default function OrderDetailAdminPage() {
       });
       setShowInvoiceDialog(false);
       queryClient.invalidateQueries({ queryKey: ['orders', 'admin', id] });
-    } catch {
+    } catch (err) {
+      if (isBillingFlowDisabled(err)) setInvoiceFlowDisabled(true);
       // hook already shows error toast
     }
   };
@@ -731,10 +739,16 @@ export default function OrderDetailAdminPage() {
                           {(fiscalData as any).rfc}
                         </span>
                       </p>
+                      {invoiceFlowDisabled && (
+                        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                          <ExclamationTriangleIcon className="h-4 w-4 flex-shrink-0 text-amber-600" />
+                          <span>{BILLING_FLOW_DISABLED_NOTICE}</span>
+                        </div>
+                      )}
                       <Button
                         variant="default"
                         onClick={() => setShowInvoiceDialog(true)}
-                        disabled={createInvoice.isPending}
+                        disabled={createInvoice.isPending || invoiceFlowDisabled}
                         className="w-full"
                       >
                         <DocumentTextIcon className="h-4 w-4" />
@@ -832,6 +846,13 @@ export default function OrderDetailAdminPage() {
                 Generar Factura CFDI
               </h3>
 
+              {invoiceFlowDisabled && (
+                <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0 text-amber-600" />
+                  <span>{BILLING_FLOW_DISABLED_NOTICE}</span>
+                </div>
+              )}
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -886,7 +907,7 @@ export default function OrderDetailAdminPage() {
                 <Button
                   variant="default"
                   onClick={handleCreateInvoice}
-                  disabled={createInvoice.isPending}
+                  disabled={createInvoice.isPending || invoiceFlowDisabled}
                   className="flex-1"
                 >
                   {createInvoice.isPending ? 'Generando...' : 'Generar Factura'}

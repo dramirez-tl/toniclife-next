@@ -19,6 +19,10 @@ import {
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useCreatePaymentComplement, useStampPaymentComplement } from '@/hooks/useBilling';
+import {
+  BILLING_FLOW_DISABLED_NOTICE,
+  isBillingFlowDisabled,
+} from '@/lib/billing-error';
 import { PermissionGuard } from '@/components/auth';
 
 export default function ComplementoPagoPage() {
@@ -36,6 +40,9 @@ export default function ComplementoPagoPage() {
     id: string;
     complementInvoiceId?: string;
   } | null>(null);
+  // El API cierra este flujo con 503 hasta la Fase 2 (Fase 0: solo se factura
+  // desde el POS). Se avisa en pantalla en vez de dejar la sensación de error.
+  const [flowDisabled, setFlowDisabled] = useState(false);
 
   const handleCreate = async () => {
     if (!invoiceUuid.trim()) {
@@ -64,8 +71,9 @@ export default function ComplementoPagoPage() {
       });
       setCreatedComplement({ id: result.id, complementInvoiceId: result.complementInvoiceId });
       toast.success('Complemento de pago creado exitosamente');
-    } catch {
-      // Error toast is handled by the hook
+    } catch (err) {
+      if (isBillingFlowDisabled(err)) setFlowDisabled(true);
+      // El toast del error lo muestra el hook
     }
   };
 
@@ -75,8 +83,9 @@ export default function ComplementoPagoPage() {
     try {
       await stampComplement.mutateAsync(createdComplement.id);
       toast.success('Complemento de pago timbrado exitosamente');
-    } catch {
-      // Error toast is handled by the hook
+    } catch (err) {
+      if (isBillingFlowDisabled(err)) setFlowDisabled(true);
+      // El toast del error lo muestra el hook
     }
   };
 
@@ -121,6 +130,23 @@ export default function ComplementoPagoPage() {
 
         {/* Main Content */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Flujo cerrado en la Fase 0 (el API responde 503) */}
+          {flowDisabled && (
+            <Card className="mb-6 border-amber-200 bg-amber-50">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <ExclamationTriangleIcon className="h-6 w-6 flex-shrink-0 text-amber-600" />
+                  <div className="text-sm text-amber-900">
+                    <p className="font-semibold mb-1">
+                      Complemento de pago en corrección
+                    </p>
+                    <p>{BILLING_FLOW_DISABLED_NOTICE}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {!createdComplement ? (
             <Card>
               <CardContent className="p-8">
@@ -246,7 +272,7 @@ export default function ComplementoPagoPage() {
                     <Button
                       variant="default"
                       onClick={handleCreate}
-                      disabled={createComplement.isPending}
+                      disabled={createComplement.isPending || flowDisabled}
                     >
                       <PlusIcon className="h-5 w-5" />
                       {createComplement.isPending
@@ -283,7 +309,7 @@ export default function ComplementoPagoPage() {
                     <Button
                       variant="default"
                       onClick={handleStamp}
-                      disabled={stampComplement.isPending}
+                      disabled={stampComplement.isPending || flowDisabled}
                     >
                       {stampComplement.isPending
                         ? 'Timbrando...'

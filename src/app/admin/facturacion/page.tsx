@@ -31,8 +31,10 @@ import {
   InvoiceStatus,
   INVOICE_STATUS_CONFIG,
   formatCurrency,
+  type BillingStatus,
   type InvoiceQueryDto,
 } from '@/types/billing';
+import { billingErrorMessage } from '@/lib/billing-error';
 import { PermissionGuard } from '@/components/auth';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { DEFAULT_TIMEZONE } from '@/lib/timezone-utils';
@@ -60,9 +62,30 @@ function FacturacionContent() {
     status: statusFilter || undefined,
   }), [pageSize, currentPage, statusFilter]);
 
-  const { data: invoicesResponse, isLoading, isFetching, refetch } = useInvoices(filters);
+  const {
+    data: invoicesResponse,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useInvoices(filters);
 
   const { data: facturamaStatus } = useFacturamaStatus();
+
+  // Estado real del PAC. El contrato nuevo de GET /billing/status trae ambiente,
+  // RFC emisor enmascarado y el error legible; se lee como parcial para tolerar
+  // el contrato anterior (solo `Balance`, -1 cuando el PAC no responde).
+  const pac = facturamaStatus as Partial<BillingStatus> | undefined;
+  const pacBalance =
+    pac?.balance ?? (typeof pac?.Balance === 'number' && pac.Balance >= 0 ? pac.Balance : null);
+  const pacReachable = pac?.facturamaReachable ?? pacBalance !== null;
+  const pacEnvironmentLabel =
+    pac?.environment === 'production'
+      ? 'Producción'
+      : pac?.environment === 'sandbox'
+        ? 'Pruebas (sandbox)'
+        : 'Ambiente no informado';
 
   // Backend returns { data: [...], total: number, stats: {} } with snake_case fields
   const paginatedResult = invoicesResponse as any;
@@ -95,8 +118,8 @@ function FacturacionContent() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       toast.success('PDF descargado');
-    } catch (error) {
-      toast.error('Error al descargar PDF');
+    } catch (err) {
+      toast.error(billingErrorMessage(err, 'No se pudo descargar el PDF'));
     }
   };
 
@@ -112,8 +135,8 @@ function FacturacionContent() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       toast.success('XML descargado');
-    } catch (error) {
-      toast.error('Error al descargar XML');
+    } catch (err) {
+      toast.error(billingErrorMessage(err, 'No se pudo descargar el XML'));
     }
   };
 
@@ -357,34 +380,52 @@ function FacturacionContent() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Facturama Status */}
-        {facturamaStatus && (
+        {/* Estado del PAC: conectividad real, ambiente y saldo de timbres */}
+        {pac && (
           <Card className="mb-6">
             <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3">
                   <div
-                    className={`w-3 h-3 rounded-full ${
-                      facturamaStatus.configured ? 'bg-green-500' : 'bg-red-500'
+                    className={`mt-1.5 h-3 w-3 shrink-0 rounded-full ${
+                      !pac.configured
+                        ? 'bg-red-500'
+                        : pacReachable
+                          ? 'bg-green-500'
+                          : 'bg-amber-500'
                     }`}
                   />
-                  <span className="text-sm font-medium">
-                    Facturama:{' '}
-                    {facturamaStatus.configured ? 'Conectado' : 'No configurado'}
-                  </span>
-                </div>
-                {facturamaStatus.configured && (
-                  <div className="text-sm">
-                    <span className="text-gray-600">Timbres disponibles: </span>
-                    {facturamaStatus.Balance >= 0 ? (
-                      <span className={`font-bold ${facturamaStatus.Balance < 100 ? 'text-red-600' : 'text-[#3E667D]'}`}>
-                        {facturamaStatus.Balance.toLocaleString()}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">No disponible</span>
-                    )}
+                  <div>
+                    <p className="text-sm font-medium">
+                      Facturama:{' '}
+                      {!pac.configured
+                        ? 'No configurado'
+                        : pacReachable
+                          ? 'Conectado'
+                          : 'Sin respuesta'}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {pacEnvironmentLabel}
+                      {pac.issuerRfcMasked ? ` · Emisor ${pac.issuerRfcMasked}` : ''}
+                    </p>
                   </div>
-                )}
+                </div>
+                <div className="text-sm sm:text-right">
+                  {pacBalance !== null ? (
+                    <>
+                      <span className="text-gray-600">Timbres disponibles: </span>
+                      <span
+                        className={`font-bold ${pacBalance < 100 ? 'text-red-600' : 'text-[#3E667D]'}`}
+                      >
+                        {pacBalance.toLocaleString('es-MX')}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-amber-700">
+                      {pac.error || 'Saldo de timbres no disponible'}
+                    </span>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -509,7 +550,6 @@ function FacturacionContent() {
                   options={[
                     { value: InvoiceStatus.PENDING, label: 'Pendientes' },
                     { value: InvoiceStatus.STAMPED, label: 'Timbradas' },
-                    { value: InvoiceStatus.SENT, label: 'Enviadas' },
                     { value: InvoiceStatus.CANCELLED, label: 'Canceladas' },
                     { value: InvoiceStatus.ERROR, label: 'Con error' },
                   ]}
@@ -553,43 +593,63 @@ function FacturacionContent() {
                 Actualizando resultados...
               </div>
             )}
-            <DataTable
-              columns={invoiceColumns}
-              data={filteredInvoices}
-              isLoading={isLoading && !paginatedResult}
-              getRowKey={(inv) => inv.id}
-              minWidthClassName="min-w-[920px]"
-              emptyState={
-                <div className="py-2 text-center">
-                  <DocumentTextIcon className="mx-auto mb-4 h-16 w-16 text-gray-400" />
-                  <h3 className="mb-2 text-xl font-bold text-gray-900">
-                    No hay facturas registradas
-                  </h3>
-                  <p className="text-gray-600">
-                    Las facturas se generan desde los pedidos completados
-                  </p>
-                  {hasActiveFilters && (
-                    <div className="mt-4">
-                      <Button variant="outline" onClick={resetFilters}>
-                        Limpiar filtros
-                      </Button>
+            {isError ? (
+              /* Un 400/500 ya no se dibuja igual que "no hay facturas" */
+              <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center">
+                <ExclamationTriangleIcon className="mx-auto mb-3 h-10 w-10 text-red-500" />
+                <h3 className="mb-1 text-base font-bold text-red-900">
+                  No se pudo cargar el listado de facturas
+                </h3>
+                <p className="text-sm text-red-700">
+                  {billingErrorMessage(error, 'Error al consultar las facturas')}
+                </p>
+                <Button variant="outline" className="mt-4" onClick={() => refetch()}>
+                  Reintentar
+                </Button>
+              </div>
+            ) : (
+              <>
+                <DataTable
+                  columns={invoiceColumns}
+                  data={filteredInvoices}
+                  isLoading={isLoading && !paginatedResult}
+                  getRowKey={(inv) => inv.id}
+                  minWidthClassName="min-w-[920px]"
+                  emptyState={
+                    <div className="py-2 text-center">
+                      <DocumentTextIcon className="mx-auto mb-4 h-16 w-16 text-gray-400" />
+                      <h3 className="mb-2 text-xl font-bold text-gray-900">
+                        No hay facturas registradas
+                      </h3>
+                      <p className="text-gray-600">
+                        Hoy solo se factura desde el POS, y únicamente en las
+                        terminales con la facturación en v2 encendida: el resto
+                        de las sucursales sigue facturando en el sistema anterior.
+                      </p>
+                      {hasActiveFilters && (
+                        <div className="mt-4">
+                          <Button variant="outline" onClick={resetFilters}>
+                            Limpiar filtros
+                          </Button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              }
-            />
+                  }
+                />
 
-            {/* Pagination */}
-            {filteredInvoices.length > 0 && (
-              <DataTablePagination
-                currentPage={currentPage}
-                pageSize={pageSize}
-                totalItems={totalInvoices}
-                isLoading={isLoading || isFetching}
-                onPageChange={(p) => setParams({ page: String(p) })}
-                onPageSizeChange={handlePageSizeChange}
-                pageSizeOptions={[10, 20, 50, 100]}
-              />
+                {/* Pagination */}
+                {filteredInvoices.length > 0 && (
+                  <DataTablePagination
+                    currentPage={currentPage}
+                    pageSize={pageSize}
+                    totalItems={totalInvoices}
+                    isLoading={isLoading || isFetching}
+                    onPageChange={(p) => setParams({ page: String(p) })}
+                    onPageSizeChange={handlePageSizeChange}
+                    pageSizeOptions={[10, 20, 50, 100]}
+                  />
+                )}
+              </>
             )}
           </CardContent>
         </Card>

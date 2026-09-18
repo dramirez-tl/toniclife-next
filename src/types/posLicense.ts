@@ -23,9 +23,11 @@ export interface PosLicense {
   status: PosLicenseStatus;
   /** Liberada individualmente para pruebas (opera aunque el POS global esté bloqueado). */
   operationsReleased: boolean;
-  /** Facturación habilitada en esta terminal. false = la terminal oculta
-   *  "Requiere factura" y el API rechaza timbrar sus ventas (piloto doble
-   *  captura: la factura se emite en el sistema legacy). */
+  /** Facturación en v2 (Facturama) habilitada en esta terminal. Default
+   *  APAGADO (fail-closed, migración 139): la terminal oculta "Requiere
+   *  factura" y el API rechaza timbrar sus ventas porque la factura se sigue
+   *  emitiendo en el sistema anterior. Se enciende sucursal por sucursal
+   *  desde /admin/sistema cuando esa sucursal deja de facturar en el legacy. */
   invoicingEnabled: boolean;
   /** Checador de asistencia habilitado en esta terminal. Default apagado
    *  (fail-closed): el POS oculta el botón "Checador" y el API rechaza los
