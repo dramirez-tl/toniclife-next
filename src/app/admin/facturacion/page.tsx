@@ -77,8 +77,14 @@ function FacturacionContent() {
   // RFC emisor enmascarado y el error legible; se lee como parcial para tolerar
   // el contrato anterior (solo `Balance`, -1 cuando el PAC no responde).
   const pac = facturamaStatus as Partial<BillingStatus> | undefined;
+  // El API nombra estos campos `issuerRfc` y `stampBalance`; se leen ambos
+  // nombres para no depender de cuál quede: si solo se lee el alias, el banner
+  // se queda sin RFC emisor (no se distingue si se timbra con el de pruebas).
+  const pacIssuerRfc = pac?.issuerRfc ?? pac?.issuerRfcMasked ?? null;
   const pacBalance =
-    pac?.balance ?? (typeof pac?.Balance === 'number' && pac.Balance >= 0 ? pac.Balance : null);
+    pac?.stampBalance ??
+    pac?.balance ??
+    (typeof pac?.Balance === 'number' && pac.Balance >= 0 ? pac.Balance : null);
   const pacReachable = pac?.facturamaReachable ?? pacBalance !== null;
   const pacEnvironmentLabel =
     pac?.environment === 'production'
@@ -406,7 +412,7 @@ function FacturacionContent() {
                     </p>
                     <p className="text-xs text-gray-500">
                       {pacEnvironmentLabel}
-                      {pac.issuerRfcMasked ? ` · Emisor ${pac.issuerRfcMasked}` : ''}
+                      {pacIssuerRfc ? ` · Emisor ${pacIssuerRfc}` : ''}
                     </p>
                   </div>
                 </div>

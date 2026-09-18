@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { billingService, type FiscalDataQueryDto, type FacturamaCfdisQuery } from '@/services/billing.service';
 import { billingErrorMessage } from '@/lib/billing-error';
 import type {
+  CancellationResponse,
   CreateFiscalDataDto,
   UpdateFiscalDataDto,
   CreateInvoiceDto,
@@ -150,6 +151,30 @@ export function useStampInvoice() {
   });
 }
 
+/**
+ * ¿El SAT dio la cancelación por CONFIRMADA?
+ *
+ * Fuente de verdad: `confirmed` / `providerStatus`, que el API resuelve con
+ * `mapCancellationOutcome` (fail-closed: lo que no confirma queda en proceso).
+ * El texto crudo del PAC solo se mira si el API todavía responde el contrato
+ * viejo, y con el mismo criterio conservador: "en proceso" gana.
+ */
+function cancelacionConfirmada(response: CancellationResponse): boolean {
+  if (typeof response.confirmed === 'boolean') return response.confirmed;
+  if (response.providerStatus) return response.providerStatus === 'cancelled';
+
+  const texto = String(response.status ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase();
+  if (!texto) return false;
+  const enProceso = ['en proceso', 'pendiente', 'pending', 'espera', 'solicitud'];
+  if (enProceso.some((marca) => texto.includes(marca))) return false;
+  return ['cancelado', 'cancelada', 'canceled', 'cancelled', 'aceptad'].some((marca) =>
+    texto.includes(marca),
+  );
+}
+
 export function useCancelInvoice() {
   const queryClient = useQueryClient();
 
@@ -161,12 +186,20 @@ export function useCancelInvoice() {
       queryClient.invalidateQueries({ queryKey: billingKeys.invoices() });
       // El SAT puede dejar la solicitud "en proceso" (espera la aceptación del
       // receptor): no declarar cancelada una factura que sigue vigente.
-      const cancelada = String(response.status ?? '').toLowerCase() === 'cancelled';
+      //
+      // El veredicto sale de `confirmed`/`providerStatus`, que es justo lo que
+      // el API resuelve al mapear el acuse. `response.status` es el texto CRUDO
+      // del PAC ("Cancelado", "canceled", "Cancelacion aceptada"): compararlo
+      // contra 'cancelled' daba SIEMPRE falso y avisaba "en proceso" encima de
+      // CFDI ya cancelados. Solo se usa como último recurso si el API todavía
+      // responde el contrato viejo (sin `providerStatus`).
+      const cancelada = cancelacionConfirmada(response);
       if (cancelada) {
         toast.success('Factura cancelada correctamente');
       } else {
         toast.warning(
-          response.message ||
+          response.statusDetail ||
+            response.message ||
             'El SAT dejó la cancelación en proceso: la factura sigue vigente hasta que el receptor la acepte.',
         );
       }

@@ -294,11 +294,25 @@ export interface CreatePaymentComplementDto {
 // CANCELLATION
 // ================================
 
+/**
+ * Respuesta de POST /billing/invoices/:id/cancel.
+ *
+ * `status`/`message` son el texto CRUDO del PAC ("Cancelado", "canceled",
+ * "Cancelacion aceptada"...): NO sirven para decidir nada. El API ya resuelve
+ * el resultado en `providerStatus` + `confirmed`; usa esos dos.
+ */
 export interface CancellationResponse {
   invoiceId: string;
   uuid: string;
+  /** Texto crudo del PAC, solo informativo. */
   status: string;
   message: string;
+  /** 'cancelled' = confirmada por el SAT; 'cancel_pending' = en proceso. */
+  providerStatus?: 'cancelled' | 'cancel_pending';
+  /** true solo cuando el SAT dio la cancelación por aceptada. */
+  confirmed?: boolean;
+  /** Detalle legible del estatus devuelto por el PAC. */
+  statusDetail?: string;
   cancelledAt?: string;
 }
 
@@ -323,10 +337,18 @@ export interface RfcValidation {
 export interface BillingStatus {
   configured: boolean;
   environment: 'sandbox' | 'production' | null;
-  issuerRfcMasked: string | null;
+  /** Nombre real del campo en el API (billing.service.ts getFacturamaBalance). */
+  issuerRfc: string | null;
+  /** Alias tolerado por si el API se alinea al nombre del banner. */
+  issuerRfcMasked?: string | null;
   facturamaReachable: boolean;
-  balance: number | null;
+  /** Saldo de timbres; null cuando el PAC no respondió. */
+  stampBalance: number | null;
+  /** Alias tolerado del saldo. */
+  balance?: number | null;
   error: string | null;
+  /** Flujos de facturación v2 (factura de pedido, global, complemento). */
+  v2FlowsEnabled?: boolean;
   /** Compat con el contrato anterior (Balance = -1 cuando el PAC no responde). */
   Balance?: number;
 }
