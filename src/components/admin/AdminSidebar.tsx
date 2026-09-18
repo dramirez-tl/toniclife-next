@@ -115,6 +115,8 @@ const navigation: NavItem[] = [
     icon: DocumentTextIcon,
     permissions: ['billing:read', 'reports.invoices', 'config'],
     children: [
+      // Primero: lo que Contabilidad debe dejar completo antes de facturar.
+      { name: 'Preparación fiscal', href: '/admin/facturacion/preparacion' },
       { name: 'Facturas', href: '/admin/facturacion' },
       { name: 'Reporte Folios', href: '/admin/facturacion/reporte-folios' },
       { name: 'Datos Fiscales', href: '/admin/facturacion/datos-fiscales' },
