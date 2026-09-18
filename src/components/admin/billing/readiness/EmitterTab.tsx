@@ -183,9 +183,14 @@ function EmitterForm({ canManage, emitter }: { canManage: boolean; emitter: Emit
                 className="uppercase"
                 disabled={!canManage}
                 aria-invalid={!!showError('legalName')}
+                aria-describedby={showError('legalName') ? 'em-legal-name-error' : undefined}
                 placeholder="TONIC WORLD CENTER"
               />
-              {showError('legalName') && <p className="mt-1 text-xs text-red-600">{errors.legalName}</p>}
+              {showError('legalName') && (
+                <p id="em-legal-name-error" className="mt-1 text-xs text-red-600" role="alert">
+                  {errors.legalName}
+                </p>
+              )}
             </div>
 
             <div>
@@ -204,17 +209,25 @@ function EmitterForm({ canManage, emitter }: { canManage: boolean; emitter: Emit
                 className="font-mono uppercase"
                 disabled={!canManage}
                 aria-invalid={!!showError('rfc')}
+                aria-describedby={showError('rfc') ? 'em-rfc-hint em-rfc-error' : 'em-rfc-hint'}
                 placeholder={emitter.rfcMasked ?? 'TWC000000XX0'}
               />
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p id="em-rfc-hint" className="mt-1 text-xs text-muted-foreground">
                 Se guarda completo pero solo se muestra enmascarado. Escríbelo entero cada vez que guardes.
               </p>
-              {showError('rfc') && <p className="mt-1 text-xs text-red-600">{errors.rfc}</p>}
+              {showError('rfc') && (
+                <p id="em-rfc-error" className="mt-1 text-xs text-red-600" role="alert">
+                  {errors.rfc}
+                </p>
+              )}
             </div>
 
             <div>
-              <Label>Régimen fiscal *</Label>
+              <Label htmlFor="em-regime">Régimen fiscal *</Label>
               <SearchableSelect
+                id="em-regime"
+                aria-invalid={!!showError('taxRegimeCode')}
+                aria-describedby={showError('taxRegimeCode') ? 'em-regime-error' : undefined}
                 options={regimeOptions}
                 value={form.taxRegimeCode}
                 onChange={(val) => setForm((p) => ({ ...p, taxRegimeCode: val }))}
@@ -223,7 +236,9 @@ function EmitterForm({ canManage, emitter }: { canManage: boolean; emitter: Emit
                 disabled={!canManage || loadingRegimes}
               />
               {showError('taxRegimeCode') && (
-                <p className="mt-1 text-xs text-red-600">{errors.taxRegimeCode}</p>
+                <p id="em-regime-error" className="mt-1 text-xs text-red-600" role="alert">
+                  {errors.taxRegimeCode}
+                </p>
               )}
             </div>
 
@@ -240,13 +255,20 @@ function EmitterForm({ canManage, emitter }: { canManage: boolean; emitter: Emit
                 className="font-mono"
                 disabled={!canManage}
                 aria-invalid={!!showError('expeditionZip')}
+                aria-describedby={
+                  showError('expeditionZip')
+                    ? 'em-expedition-zip-hint em-expedition-zip-error'
+                    : 'em-expedition-zip-hint'
+                }
                 placeholder="37000"
               />
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p id="em-expedition-zip-hint" className="mt-1 text-xs text-muted-foreground">
                 Lugar de expedición por defecto del CFDI (cada sucursal puede tener el suyo).
               </p>
               {showError('expeditionZip') && (
-                <p className="mt-1 text-xs text-red-600">{errors.expeditionZip}</p>
+                <p id="em-expedition-zip-error" className="mt-1 text-xs text-red-600" role="alert">
+                  {errors.expeditionZip}
+                </p>
               )}
             </div>
 
@@ -263,9 +285,14 @@ function EmitterForm({ canManage, emitter }: { canManage: boolean; emitter: Emit
                 className="font-mono"
                 disabled={!canManage}
                 aria-invalid={!!showError('fiscalZip')}
+                aria-describedby={showError('fiscalZip') ? 'em-fiscal-zip-error' : undefined}
                 placeholder="37000"
               />
-              {showError('fiscalZip') && <p className="mt-1 text-xs text-red-600">{errors.fiscalZip}</p>}
+              {showError('fiscalZip') && (
+                <p id="em-fiscal-zip-error" className="mt-1 text-xs text-red-600" role="alert">
+                  {errors.fiscalZip}
+                </p>
+              )}
             </div>
 
             <div>
@@ -277,9 +304,14 @@ function EmitterForm({ canManage, emitter }: { canManage: boolean; emitter: Emit
                 onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
                 disabled={!canManage}
                 aria-invalid={!!showError('email')}
+                aria-describedby={showError('email') ? 'em-email-error' : undefined}
                 placeholder="facturacion@toniclife.com"
               />
-              {showError('email') && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
+              {showError('email') && (
+                <p id="em-email-error" className="mt-1 text-xs text-red-600" role="alert">
+                  {errors.email}
+                </p>
+              )}
             </div>
 
             <div>

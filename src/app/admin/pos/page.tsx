@@ -425,15 +425,23 @@ export default function PosPage() {
 
   const handleStampRetrySave = async () => {
     if (!stampRetrySale?.customerId) return;
-    const { rfc, legalName, fiscalRegime, postalCode, cfdiUse, email, paymentFormCode } = stampRetryForm;
+    const { rfc, legalName, fiscalRegime, postalCode, cfdiUse, paymentFormCode } = stampRetryForm;
+    // El API rechaza `email: ''` (400 "email must be an email"): vacío = no se manda.
+    const email = stampRetryForm.email.trim() || undefined;
 
-    // Basic validation
+    // Basic validation (el uso de CFDI se vacía al cambiar de régimen y sin él
+    // no se puede timbrar: también es obligatorio)
     const errs: Record<string, string> = {};
     if (!rfc) errs.rfc = 'RFC es obligatorio';
     if (!legalName) errs.legalName = 'Razón Social es obligatoria';
     if (!fiscalRegime) errs.fiscalRegime = 'Régimen Fiscal es obligatorio';
     if (!postalCode) errs.postalCode = 'Código Postal es obligatorio';
-    if (Object.keys(errs).length > 0) { setStampRetryErrors(errs); return; }
+    if (!cfdiUse) errs.cfdiUse = 'Uso de CFDI es obligatorio (elige uno compatible con el régimen)';
+    if (Object.keys(errs).length > 0) {
+      setStampRetryErrors(errs);
+      toast.error(`Faltan datos fiscales: ${Object.values(errs).join(', ')}`);
+      return;
+    }
 
     setStampRetrySaving(true);
     setStampRetryErrors({});
@@ -1203,14 +1211,19 @@ export default function PosPage() {
 
                     {/* CFDI Use */}
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Uso de CFDI</label>
+                      <label htmlFor="sr-cfdi-use" className="block text-xs font-medium text-gray-600 mb-1">Uso de CFDI *</label>
                       <SearchableSelect
+                        id="sr-cfdi-use"
+                        aria-invalid={!!stampRetryErrors.cfdiUse}
+                        aria-describedby={stampRetryErrors.cfdiUse ? 'sr-cfdi-use-error' : undefined}
                         options={cfdiUseOptions}
                         value={stampRetryForm.cfdiUse}
-                        onChange={(v) => setStampRetryForm((p) => ({ ...p, cfdiUse: v }))}
-                        placeholder="Seleccionar uso..."
+                        onChange={(v) => { setStampRetryForm((p) => ({ ...p, cfdiUse: v })); setStampRetryErrors((p) => { const n = { ...p }; delete n.cfdiUse; return n; }); }}
+                        placeholder={stampRetryForm.fiscalRegime ? 'Seleccionar uso...' : 'Primero elige el régimen'}
                         showAllOption={false}
+                        disabled={!stampRetryForm.fiscalRegime}
                       />
+                      {stampRetryErrors.cfdiUse && <p id="sr-cfdi-use-error" className="text-xs text-red-500 mt-1">{stampRetryErrors.cfdiUse}</p>}
                     </div>
 
                     {/* Email */}

@@ -92,11 +92,11 @@ export function CustomersTab({
   const rows = data?.data ?? [];
   const total = data?.total ?? 0;
 
-  // "Con faltantes" no lleva conteo: el resumen no trae "clientes con algún
-  // faltante" (withRfc − ready no cuadra porque el correo no bloquea `ready`);
-  // el total real lo dice el listado.
+  // "Con faltantes" = clientes con RFC que aún no están listos: el resumen no
+  // lo trae directo, pero withRfc − ready es exacto (mismo universo que el
+  // listado con issue=any).
   const chips: { value: CustomerIssueFilter; label: string; count?: number; why?: string }[] = [
-    { value: 'any', label: 'Con faltantes' },
+    { value: 'any', label: 'Con faltantes', count: counts ? counts.withRfc - counts.ready : undefined },
     ...CUSTOMER_ISSUE_ORDER.map((k) => ({
       value: k,
       label: CUSTOMER_ISSUE_INFO[k].label,
@@ -262,6 +262,7 @@ export function CustomersTab({
                 value={searchDraft}
                 onChange={(e) => setSearchDraft(e.target.value)}
                 placeholder="Número, nombre o RFC"
+                maxLength={100}
               />
             </div>
             <div className="flex items-end text-xs text-muted-foreground">
@@ -366,8 +367,8 @@ function InvalidRfcCard({
               RFC inválidos: {invalidCount === undefined ? '…' : nf.format(invalidCount)}
             </p>
             <p className="text-muted-foreground">
-              RFC que no cumplen el formato del SAT (basura del legacy: nombres, guiones, longitud
-              incorrecta). Limpiarlos pone el RFC en blanco; el cliente sigue activo y podrá
+              RFC que no cumplen el formato del SAT (RFC inválidos heredados del sistema anterior:
+              nombres, guiones, longitud incorrecta). Limpiarlos pone el RFC en blanco; el cliente sigue activo y podrá
               capturarlo bien después. Se guarda el valor anterior en auditoría para poder revertir.
             </p>
           </div>

@@ -14,24 +14,22 @@ import { Input } from '@/components/ui/input';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useReadinessBranches, useUpdateBranchFiscal } from '@/hooks/useBilling';
-import { useTaxRules } from '@/hooks/useConfig';
+import { useActiveTaxRules } from '@/hooks/useConfig';
 import { billingErrorMessage } from '@/lib/billing-error';
-import { BRANCH_ISSUE_INFO, isValidZip, type ReadinessBranch } from '@/types/billing';
+import { BRANCH_ISSUE_INFO, isValidZip, taxRatePct, type ReadinessBranch } from '@/types/billing';
 
 interface Draft {
   zip: string;
   ivaRuleId: string;
 }
 
-function ratePct(rate: number | string | null | undefined): string {
-  const n = Number(rate);
-  if (!Number.isFinite(n)) return '';
-  return `${Math.round(n * 10000) / 100}%`;
-}
+const ZIP_ERROR = 'El CP debe tener 5 dígitos';
 
 export function BranchesTab({ canManage }: { canManage: boolean }) {
   const { data, isLoading, error, refetch } = useReadinessBranches();
-  const { data: taxRules } = useTaxRules();
+  // Endpoint público de reglas activas: `/config/tax-rules` exige admin y
+  // Contabilidad no lo es. Si falla se avisa arriba de la tabla.
+  const { data: taxRules, error: rulesError } = useActiveTaxRules();
   const update = useUpdateBranchFiscal();
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -45,7 +43,7 @@ export function BranchesTab({ canManage }: { canManage: boolean }) {
     () =>
       ivaRules.map((r) => ({
         value: r.id,
-        label: `${r.name} (${ratePct(r.rate)})`,
+        label: `${r.name} (${taxRatePct(r.rate)})`,
         hint: r.code,
       })),
     [ivaRules],
@@ -53,15 +51,29 @@ export function BranchesTab({ canManage }: { canManage: boolean }) {
 
   const rows = data ?? [];
 
+  // La regla IVA vigente se identifica por su tipo (el API lo manda); el
+  // respaldo por id del catálogo cubre una respuesta vieja sin `taxType`.
   const currentIvaRule = (row: ReadinessBranch) =>
-    row.taxRules.find((r) => ivaRuleIds.has(r.id)) ?? row.taxRules[0] ?? null;
+    row.taxRules.find((r) => r.taxType === 'iva') ??
+    row.taxRules.find((r) => ivaRuleIds.has(r.id)) ??
+    null;
 
   const draftOf = (row: ReadinessBranch): Draft =>
     drafts[row.id] ?? { zip: row.addressZip ?? '', ivaRuleId: currentIvaRule(row)?.id ?? '' };
 
+  const zipChanged = (row: ReadinessBranch, d: Draft) => d.zip !== (row.addressZip ?? '');
+
+  /**
+   * El CP solo se manda cuando cambió, y entonces tiene que ser de 5 dígitos:
+   * vaciarlo ('') también cuenta como inválido porque el API lo rechaza con
+   * 400. Un CP original vacío que no se toca no bloquea guardar la regla.
+   */
+  const zipError = (row: ReadinessBranch, d: Draft): string =>
+    zipChanged(row, d) && !isValidZip(d.zip) ? ZIP_ERROR : '';
+
   const isDirty = (row: ReadinessBranch) => {
     const d = draftOf(row);
-    return d.zip !== (row.addressZip ?? '') || d.ivaRuleId !== (currentIvaRule(row)?.id ?? '');
+    return zipChanged(row, d) || d.ivaRuleId !== (currentIvaRule(row)?.id ?? '');
   };
 
   const setDraft = (row: ReadinessBranch, patch: Partial<Draft>) =>
@@ -69,13 +81,13 @@ export function BranchesTab({ canManage }: { canManage: boolean }) {
 
   const save = async (row: ReadinessBranch) => {
     const d = draftOf(row);
-    if (d.zip && !isValidZip(d.zip)) return;
+    if (zipError(row, d)) return;
     setSavingId(row.id);
     try {
       await update.mutateAsync({
         id: row.id,
         data: {
-          addressZip: d.zip !== (row.addressZip ?? '') ? d.zip : undefined,
+          addressZip: zipChanged(row, d) ? d.zip : undefined,
           ivaTaxRuleId: d.ivaRuleId && d.ivaRuleId !== currentIvaRule(row)?.id ? d.ivaRuleId : undefined,
         },
       });
@@ -107,10 +119,12 @@ export function BranchesTab({ canManage }: { canManage: boolean }) {
       header: 'CP (lugar de expedición)',
       render: (row) => {
         const d = draftOf(row);
-        const bad = d.zip.length > 0 && !isValidZip(d.zip);
+        const err = zipError(row, d);
+        const errorId = `br-zip-error-${row.id}`;
         return (
           <div className="w-28">
             <Input
+              id={`br-zip-${row.id}`}
               value={d.zip}
               onChange={(e) => setDraft(row, { zip: e.target.value.replace(/\D/g, '').slice(0, 5) })}
               inputMode="numeric"
@@ -118,10 +132,15 @@ export function BranchesTab({ canManage }: { canManage: boolean }) {
               className="font-mono"
               disabled={!canManage}
               aria-label={`CP de ${row.name}`}
-              aria-invalid={bad}
+              aria-invalid={!!err}
+              aria-describedby={err ? errorId : undefined}
               placeholder="00000"
             />
-            {bad && <p className="mt-1 text-xs text-red-600">5 dígitos</p>}
+            {err && (
+              <p id={errorId} className="mt-1 text-xs text-red-600" role="alert">
+                {err}
+              </p>
+            )}
           </div>
         );
       },
@@ -132,11 +151,13 @@ export function BranchesTab({ canManage }: { canManage: boolean }) {
       render: (row) => (
         <div className="min-w-[240px]">
           <SearchableSelect
+            id={`br-iva-${row.id}`}
+            aria-label={`Regla de IVA de ${row.name}`}
             options={ivaOptions}
             value={draftOf(row).ivaRuleId}
             onChange={(val) => setDraft(row, { ivaRuleId: val })}
             showAllOption={false}
-            placeholder="Elige la regla de IVA"
+            placeholder={rulesError ? 'No se cargaron las reglas' : 'Elige la regla de IVA'}
             disabled={!canManage || ivaOptions.length === 0}
           />
         </div>
@@ -179,7 +200,7 @@ export function BranchesTab({ canManage }: { canManage: boolean }) {
       cellClassName: 'text-right',
       render: (row) => {
         const d = draftOf(row);
-        const bad = d.zip.length > 0 && !isValidZip(d.zip);
+        const bad = !!zipError(row, d);
         return (
           <Button
             size="sm"
@@ -226,6 +247,14 @@ export function BranchesTab({ canManage }: { canManage: boolean }) {
           ))}
         </ul>
       </div>
+      {rulesError ? (
+        <Card className="border-amber-300 bg-amber-50/60" role="alert">
+          <CardContent className="p-4 text-sm text-amber-900">
+            No se pudieron cargar las reglas de IVA, así que no se puede asignar una regla por sucursal:{' '}
+            {billingErrorMessage(rulesError, 'error al consultar /config/tax-rules/active')}
+          </CardContent>
+        </Card>
+      ) : null}
       <Card>
         <CardContent className="p-0">
           <DataTable

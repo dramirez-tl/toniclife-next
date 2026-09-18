@@ -95,6 +95,8 @@ export function PaymentMethodsTab({ canManage }: { canManage: boolean }) {
       render: (row) => (
         <div className="min-w-[260px]">
           <SearchableSelect
+            id={`pm-form-${row.id}`}
+            aria-label={`Forma de pago SAT de ${row.name}`}
             options={FORM_OPTIONS}
             value={draftOf(row).form}
             onChange={(val) => setDraft(row, { form: val })}
@@ -115,7 +117,7 @@ export function PaymentMethodsTab({ canManage }: { canManage: boolean }) {
             onValueChange={(val) => setDraft(row, { method: isMethod(val) ? val : '' })}
             disabled={!canManage}
           >
-            <SelectTrigger className="w-full" aria-label={`Método de pago SAT de ${row.name}`}>
+            <SelectTrigger id={`pm-method-${row.id}`} className="w-full" aria-label={`Método de pago SAT de ${row.name}`}>
               <SelectValue placeholder="Elige PUE o PPD" />
             </SelectTrigger>
             <SelectContent>

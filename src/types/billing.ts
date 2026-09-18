@@ -532,6 +532,8 @@ export interface ReadinessEmitter {
   taxRegimeCode: string | null;
   expeditionZip: string | null;
   envRfcMatches: boolean | null;
+  /** Opcional (si el API lo manda): el RFC configurado coincide con la cuenta del PAC. */
+  pacRfcMatches?: boolean | null;
 }
 
 export interface ReadinessFacturama {
@@ -730,6 +732,9 @@ export interface ReadinessBranchTaxRule {
   id: string;
   code: string;
   name: string;
+  /** 'iva' | 'ieps' | 'isr' | 'local' | 'other' (tax_rules.tax_type). */
+  taxType: string;
+  /** Decimal (0.16) en readiness; `/config/tax-rules*` lo manda en porcentaje ("16"). Ver `taxRatePct`. */
   rate: number;
 }
 
@@ -915,14 +920,20 @@ export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
 
-/** `code — description` desde el catálogo del API; si no está, el código. */
+/**
+ * `code — description` desde el catálogo del API. Mientras el catálogo no ha
+ * cargado (o falló) se usa la lista estática como respaldo para no mostrar el
+ * código pelado; si tampoco está ahí, el código.
+ */
 export function fiscalRegimeLabel(
   code: string | null | undefined,
   catalog: SatCatalogItem[] | undefined,
 ): string {
   if (!code) return '';
   const item = catalog?.find((r) => r.code === code || r.Value === code);
-  return item ? `${item.code || item.Value} — ${item.description || item.Name}` : code;
+  if (item) return `${item.code || item.Value} — ${item.description || item.Name}`;
+  const fallback = FISCAL_REGIMES.find((r) => r.Value === code);
+  return fallback ? `${fallback.Value} — ${fallback.Name}` : code;
 }
 
 export function cfdiUseLabel(
@@ -931,7 +942,21 @@ export function cfdiUseLabel(
 ): string {
   if (!code) return '';
   const item = catalog?.find((u) => u.code === code || u.Value === code);
-  return item ? `${item.code || item.Value} — ${item.description || item.Name}` : code;
+  if (item) return `${item.code || item.Value} — ${item.description || item.Name}`;
+  const fallback = CFDI_USES.find((u) => u.Value === code);
+  return fallback ? `${fallback.Value} — ${fallback.Name}` : code;
+}
+
+/**
+ * Tasa de IVA como texto "16%". Acepta las dos convenciones que conviven:
+ * decimal (0.16, como lo manda readiness) y porcentaje ("16", como lo manda
+ * `/config/tax-rules*`). Todo valor > 1 se toma ya como porcentaje.
+ */
+export function taxRatePct(rate: number | string | null | undefined): string {
+  const n = Number(rate);
+  if (!Number.isFinite(n)) return '';
+  const pct = n > 1 ? n : n * 100;
+  return `${Math.round(pct * 100) / 100}%`;
 }
 
 /** Opciones `{ value, label }` para SearchableSelect a partir del catálogo. */

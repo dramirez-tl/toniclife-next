@@ -149,15 +149,21 @@ export function ReadinessHeader({
         <ReadinessCard
           title="Emisor"
           icon={BuildingOfficeIcon}
-          ok={emitter.configured && emitter.envRfcMatches !== false}
+          ok={
+            emitter.configured &&
+            emitter.envRfcMatches !== false &&
+            emitter.pacRfcMatches !== false
+          }
           statusLabel={
             !emitter.configured
               ? 'Sin configurar'
               : emitter.envRfcMatches === false
                 ? 'RFC distinto al entorno'
-                : emitter.source === 'env'
-                  ? 'Tomado del entorno'
-                  : 'Configurado'
+                : emitter.pacRfcMatches === false
+                  ? 'RFC distinto al del PAC'
+                  : emitter.source === 'env'
+                    ? 'Tomado del entorno'
+                    : 'Configurado'
           }
           lines={[
             ['Razón social', emitter.legalName ?? '—'],

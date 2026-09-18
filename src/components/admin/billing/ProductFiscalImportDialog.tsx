@@ -97,6 +97,9 @@ export function ProductFiscalImportDialog({
         toast.success(`Carga aplicada: ${result.applied} producto(s) actualizados`);
       }
     } catch (err) {
+      // Sin vista previa válida no se puede aplicar: si se dejara la anterior,
+      // "Aplicar" quedaría habilitado con datos de otro intento.
+      setPreview(null);
       toast.error(billingErrorMessage(err, 'No se pudo procesar el archivo'));
     }
   };

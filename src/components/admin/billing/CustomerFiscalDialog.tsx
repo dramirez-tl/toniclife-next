@@ -2,10 +2,14 @@
 
 // Datos fiscales de un cliente desde Preparación fiscal (Contabilidad).
 //
-// El RFC manda: su longitud decide el tipo de persona (12 moral / 13 física)
-// y con eso se filtran los regímenes del catálogo; el régimen filtra los usos
-// de CFDI compatibles (sat_cfdi_use_regimes). Al cambiar el régimen el uso se
-// vacía para no dejar una combinación que el SAT rechace.
+// El RFC manda: cuando es VÁLIDO, su longitud decide el tipo de persona
+// (12 moral / 13 física) y con eso se filtran los regímenes del catálogo;
+// mientras se teclea (longitud intermedia) no se filtra ni se limpia nada.
+// El régimen y el uso solo se vacían cuando el tipo de persona realmente
+// cambia (física ↔ moral) o cuando el usuario cambia el régimen a mano.
+// El régimen filtra los usos de CFDI compatibles (sat_cfdi_use_regimes); si
+// el uso guardado no está entre ellos se vacía y se avisa, para que el
+// faltante `incompatible_use` se vea y se corrija.
 //
 // Guarda con PUT /billing/fiscal-data/:customerId (validación fuerte en el
 // API: formato de RFC, régimen aplicable, uso compatible, CP, correo).
@@ -33,6 +37,7 @@ import {
   isValidZip,
   rfcPersonType,
   satCatalogOptions,
+  type PersonType,
   type ReadinessCustomerRow,
   type SatCatalogItem,
 } from '@/types/billing';
@@ -96,11 +101,16 @@ function CustomerFiscalForm({
 }) {
   const [form, setForm] = useState<FormState>(() => fromRow(customer));
   const [touched, setTouched] = useState(false);
+  // Uso guardado que se vació por no ser compatible con el régimen; el aviso
+  // se muestra hasta que se elija otro uso o cambie el régimen.
+  const [clearedUse, setClearedUse] = useState<string | null>(null);
   const update = useUpdateCustomerFiscal();
 
-  const personType = rfcPersonType(form.rfc);
   const rfcOk = isValidRfc(form.rfc);
   const isGeneric = isGenericRfc(form.rfc);
+  // El tipo de persona solo cuenta con un RFC válido: a media captura la
+  // longitud no dice nada y filtrar por ella borraba el régimen al editar.
+  const personType = rfcOk ? rfcPersonType(form.rfc) : null;
 
   const { data: regimes, isLoading: loadingRegimes } = useFiscalRegimes(personType ?? undefined);
   const { data: uses, isLoading: loadingUses } = useCfdiUses(form.taxRegime || undefined);
@@ -108,16 +118,41 @@ function CustomerFiscalForm({
   const regimeOptions = useMemo(() => satCatalogOptions(regimes), [regimes]);
   const useOptions = useMemo(() => satCatalogOptions(uses), [uses]);
 
-  // Si al cambiar el tipo de persona el régimen guardado ya no aplica, se
-  // vacía (junto con el uso). Ajuste de estado durante el render, como
-  // recomienda React para reaccionar a un dato que llega de fuera.
-  const [seenRegimes, setSeenRegimes] = useState<SatCatalogItem[] | undefined>(regimes);
-  if (regimes !== seenRegimes) {
-    setSeenRegimes(regimes);
-    if (regimes && form.taxRegime && !regimes.some((r) => (r.code || r.Value) === form.taxRegime)) {
+  // Régimen y uso se limpian SOLO cuando el tipo de persona del último RFC
+  // válido cambia de verdad (física ↔ moral). Ajuste de estado durante el
+  // render, como recomienda React para reaccionar a un dato derivado. El RFC
+  // genérico ya trae 616/S01 fijados por onRfcChange y no se tocan.
+  const [lastValidPersonType, setLastValidPersonType] = useState<PersonType | null>(personType);
+  if (personType && personType !== lastValidPersonType) {
+    const changed = lastValidPersonType !== null;
+    setLastValidPersonType(personType);
+    if (changed && !isGeneric) {
+      setClearedUse(null);
       setForm((prev) => ({ ...prev, taxRegime: '', cfdiUse: '' }));
     }
   }
+
+  // Uso guardado que no está entre los compatibles con el régimen: se vacía y
+  // se avisa (así el faltante `incompatible_use` se ve y se corrige). `uses`
+  // siempre corresponde al régimen actual (la query cambia de llave con él).
+  // Arranca en undefined a propósito: si el catálogo ya estaba en caché llega
+  // en el primer render y la revisión tiene que correr también entonces.
+  const [seenUses, setSeenUses] = useState<SatCatalogItem[] | undefined>(undefined);
+  if (uses !== seenUses) {
+    setSeenUses(uses);
+    if (uses && form.cfdiUse && !uses.some((u) => (u.code || u.Value) === form.cfdiUse)) {
+      setClearedUse(form.cfdiUse);
+      setForm((prev) => ({ ...prev, cfdiUse: '' }));
+    }
+  }
+
+  // Régimen guardado que no aplica al tipo de persona del RFC (dato heredado):
+  // no se borra solo, se marca para que Contabilidad elija otro.
+  const regimeNotApplicable =
+    !!form.taxRegime &&
+    !!personType &&
+    !!regimes &&
+    !regimes.some((r) => (r.code || r.Value) === form.taxRegime);
 
   const onRfcChange = (raw: string) => {
     const rfc = raw.toUpperCase().replace(/[^A-ZÑ&0-9]/g, '').slice(0, 13);
@@ -137,13 +172,23 @@ function CustomerFiscalForm({
     legalName: !form.legalName.trim()
       ? 'La razón social es obligatoria (como en la constancia de situación fiscal)'
       : '',
-    taxRegime: !form.taxRegime ? 'Elige el régimen fiscal del cliente' : '',
+    taxRegime: !form.taxRegime
+      ? 'Elige el régimen fiscal del cliente'
+      : regimeNotApplicable
+        ? 'El régimen guardado no aplica al tipo de persona del RFC; elige otro'
+        : '',
     cfdiUse: !form.cfdiUse ? 'Elige un uso compatible con el régimen' : '',
     zip: !isValidZip(form.zip) ? 'El CP fiscal debe tener 5 dígitos' : '',
     email: form.email.trim() && !isValidEmail(form.email) ? 'Correo con formato inválido' : '',
   };
   const hasErrors = Object.values(errors).some(Boolean);
   const showError = (key: keyof typeof errors) => (touched ? errors[key] : '');
+  // Estos dos se muestran aunque no se haya intentado guardar: son datos
+  // heredados que el usuario no tecleó y necesita ver de inmediato.
+  const regimeMessage = regimeNotApplicable ? errors.taxRegime : showError('taxRegime');
+  const useMessage = clearedUse
+    ? 'El uso de CFDI guardado no es compatible con el régimen; elige otro'
+    : showError('cfdiUse');
 
   const submit = async () => {
     setTouched(true);
@@ -199,16 +244,21 @@ function CustomerFiscalForm({
             autoComplete="off"
             className="font-mono uppercase"
             aria-invalid={!!showError('rfc')}
+            aria-describedby={showError('rfc') ? 'cf-rfc-hint cf-rfc-error' : 'cf-rfc-hint'}
             placeholder="XAXX010101000"
           />
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p id="cf-rfc-hint" className="mt-1 text-xs text-muted-foreground">
             {personType === 'moral'
               ? 'Persona moral (12 caracteres).'
               : personType === 'fisica'
                 ? 'Persona física (13 caracteres).'
                 : 'La longitud del RFC define los regímenes disponibles.'}
           </p>
-          {showError('rfc') && <p className="mt-1 text-xs text-red-600">{errors.rfc}</p>}
+          {showError('rfc') && (
+            <p id="cf-rfc-error" className="mt-1 text-xs text-red-600" role="alert">
+              {errors.rfc}
+            </p>
+          )}
         </div>
 
         <div className="sm:col-span-2">
@@ -220,30 +270,51 @@ function CustomerFiscalForm({
             autoComplete="off"
             className="uppercase"
             aria-invalid={!!showError('legalName')}
+            aria-describedby={showError('legalName') ? 'cf-legal-name-error' : undefined}
             placeholder="Como en la constancia, sin S.A. DE C.V."
           />
-          {showError('legalName') && <p className="mt-1 text-xs text-red-600">{errors.legalName}</p>}
+          {showError('legalName') && (
+            <p id="cf-legal-name-error" className="mt-1 text-xs text-red-600" role="alert">
+              {errors.legalName}
+            </p>
+          )}
         </div>
 
         <div>
-          <Label>Régimen fiscal *</Label>
+          <Label htmlFor="cf-regime">Régimen fiscal *</Label>
           <SearchableSelect
+            id="cf-regime"
+            aria-invalid={!!regimeMessage}
+            aria-describedby={regimeMessage ? 'cf-regime-error' : undefined}
             options={regimeOptions}
             value={form.taxRegime}
-            onChange={(val) => setForm((prev) => ({ ...prev, taxRegime: val, cfdiUse: '' }))}
+            onChange={(val) => {
+              setClearedUse(null);
+              setForm((prev) => ({ ...prev, taxRegime: val, cfdiUse: '' }));
+            }}
             showAllOption={false}
             placeholder={loadingRegimes ? 'Cargando regímenes…' : 'Elige el régimen'}
             disabled={loadingRegimes || isGeneric}
           />
-          {showError('taxRegime') && <p className="mt-1 text-xs text-red-600">{errors.taxRegime}</p>}
+          {regimeMessage && (
+            <p id="cf-regime-error" className="mt-1 text-xs text-red-600" role="alert">
+              {regimeMessage}
+            </p>
+          )}
         </div>
 
         <div>
-          <Label>Uso de CFDI *</Label>
+          <Label htmlFor="cf-use">Uso de CFDI *</Label>
           <SearchableSelect
+            id="cf-use"
+            aria-invalid={!!useMessage}
+            aria-describedby={useMessage ? 'cf-use-error' : undefined}
             options={useOptions}
             value={form.cfdiUse}
-            onChange={(val) => setForm((prev) => ({ ...prev, cfdiUse: val }))}
+            onChange={(val) => {
+              setClearedUse(null);
+              setForm((prev) => ({ ...prev, cfdiUse: val }));
+            }}
             showAllOption={false}
             placeholder={
               !form.taxRegime
@@ -254,7 +325,11 @@ function CustomerFiscalForm({
             }
             disabled={!form.taxRegime || loadingUses || isGeneric}
           />
-          {showError('cfdiUse') && <p className="mt-1 text-xs text-red-600">{errors.cfdiUse}</p>}
+          {useMessage && (
+            <p id="cf-use-error" className="mt-1 text-xs text-red-600" role="alert">
+              {useMessage}
+            </p>
+          )}
         </div>
 
         <div>
@@ -269,9 +344,14 @@ function CustomerFiscalForm({
             maxLength={5}
             className="font-mono"
             aria-invalid={!!showError('zip')}
+            aria-describedby={showError('zip') ? 'cf-zip-error' : undefined}
             placeholder="37000"
           />
-          {showError('zip') && <p className="mt-1 text-xs text-red-600">{errors.zip}</p>}
+          {showError('zip') && (
+            <p id="cf-zip-error" className="mt-1 text-xs text-red-600" role="alert">
+              {errors.zip}
+            </p>
+          )}
         </div>
 
         <div>
@@ -283,9 +363,14 @@ function CustomerFiscalForm({
             onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
             autoComplete="off"
             aria-invalid={!!showError('email')}
+            aria-describedby={showError('email') ? 'cf-email-error' : undefined}
             placeholder="facturas@cliente.com"
           />
-          {showError('email') && <p className="mt-1 text-xs text-red-600">{errors.email}</p>}
+          {showError('email') && (
+            <p id="cf-email-error" className="mt-1 text-xs text-red-600" role="alert">
+              {errors.email}
+            </p>
+          )}
         </div>
       </div>
 

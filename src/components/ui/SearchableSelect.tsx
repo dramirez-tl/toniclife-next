@@ -65,6 +65,16 @@ interface SearchableSelectProps {
   allValue?: string;
   disabled?: boolean;
   className?: string;
+  /**
+   * Accesibilidad. Van al botón disparador: `id` para asociarlo a un
+   * `<Label htmlFor>`, `aria-label` cuando no hay etiqueta visible,
+   * `aria-describedby` para enlazar el texto de error/ayuda y `aria-invalid`
+   * para marcarlo en error.
+   */
+  id?: string;
+  'aria-label'?: string;
+  'aria-describedby'?: string;
+  'aria-invalid'?: boolean;
 }
 
 export function SearchableSelect({
@@ -77,6 +87,10 @@ export function SearchableSelect({
   allValue = '',
   disabled = false,
   className = '',
+  id,
+  'aria-label': ariaLabel,
+  'aria-describedby': ariaDescribedBy,
+  'aria-invalid': ariaInvalid,
 }: SearchableSelectProps) {
   const [open, setOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -161,6 +175,10 @@ export function SearchableSelect({
       type="button"
       variant="outline"
       role="combobox"
+      id={id}
+      aria-label={ariaLabel}
+      aria-describedby={ariaDescribedBy}
+      aria-invalid={ariaInvalid || undefined}
       aria-expanded={open}
       disabled={disabled}
       className={cn(

@@ -108,16 +108,22 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
 
   const handleSaveFiscalData = async () => {
     if (!customerId) return;
-    const { rfc, legalName, fiscalRegime, postalCode, cfdiUse, email, paymentFormCode } = fiscalForm;
-    if (!rfc || !legalName || !fiscalRegime || !postalCode) {
+    const { rfc, legalName, fiscalRegime, postalCode, cfdiUse, paymentFormCode } = fiscalForm;
+    // El uso de CFDI se vacía al cambiar de régimen: sin él el CFDI no se
+    // puede armar, así que también es obligatorio para guardar.
+    if (!rfc || !legalName || !fiscalRegime || !postalCode || !cfdiUse) {
       const errs: Record<string, string> = {};
       if (!rfc) errs.rfc = 'RFC es obligatorio';
       if (!legalName) errs.legalName = 'Razón Social es obligatoria';
       if (!fiscalRegime) errs.fiscalRegime = 'Régimen Fiscal es obligatorio';
       if (!postalCode) errs.postalCode = 'Código Postal es obligatorio';
+      if (!cfdiUse) errs.cfdiUse = 'Uso de CFDI es obligatorio (elige uno compatible con el régimen)';
       setFiscalErrors(errs);
+      toast.error(`Faltan datos fiscales: ${Object.values(errs).join(', ')}`);
       return;
     }
+    // El API rechaza `email: ''` (400 "email must be an email"): vacío = no se manda.
+    const email = fiscalForm.email.trim() || undefined;
 
     // Validate with SAT via backend
     setValidatingFiscal(true);
@@ -196,7 +202,18 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
     }
   }, [fiscalData]);
 
-  const fiscalComplete = !wantsInvoice || (fiscalData && fiscalData.rfc && fiscalData.legalName && fiscalData.taxRegime && fiscalData.postalCode && fiscalData.defaultCfdiUse);
+  // Qué le falta al registro fiscal guardado para poder timbrar (el mensaje
+  // dice exactamente qué capturar; el uso de CFDI cuenta como faltante).
+  const fiscalMissing: string[] = fiscalData
+    ? [
+        !fiscalData.rfc && 'RFC',
+        !fiscalData.legalName && 'razón social',
+        !fiscalData.taxRegime && 'régimen fiscal',
+        !fiscalData.postalCode && 'código postal',
+        !fiscalData.defaultCfdiUse && 'uso de CFDI',
+      ].filter((v): v is string => typeof v === 'string')
+    : [];
+  const fiscalComplete = !wantsInvoice || (!!fiscalData && fiscalMissing.length === 0);
 
   const selected = paymentMethods.find(m => m.key === selectedKey)!;
 
@@ -611,14 +628,19 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
                           {fiscalErrors.postalCode && <p className="text-[11px] text-red-600 mt-0.5">{fiscalErrors.postalCode}</p>}
                         </div>
                         <div>
-                          <label className="text-xs text-gray-500">Uso CFDI</label>
+                          <label htmlFor="pm-cfdi-use" className={`text-xs ${fiscalErrors.cfdiUse ? 'text-red-600 font-medium' : 'text-gray-500'}`}>Uso CFDI *</label>
                           <SearchableSelect
+                            id="pm-cfdi-use"
+                            aria-invalid={!!fiscalErrors.cfdiUse}
+                            aria-describedby={fiscalErrors.cfdiUse ? 'pm-cfdi-use-error' : undefined}
                             options={cfdiUseOptions}
                             value={fiscalForm.cfdiUse}
                             onChange={(v) => handleFiscalFormChange('cfdiUse', v)}
-                            placeholder="Buscar uso CFDI..."
+                            placeholder={fiscalForm.fiscalRegime ? 'Buscar uso CFDI...' : 'Primero elige el régimen'}
                             showAllOption={false}
+                            disabled={!fiscalForm.fiscalRegime}
                           />
+                          {fiscalErrors.cfdiUse && <p id="pm-cfdi-use-error" className="text-[11px] text-red-600 mt-0.5">{fiscalErrors.cfdiUse}</p>}
                         </div>
                         <div>
                           <label className={`text-xs ${fiscalErrors.email ? 'text-red-600 font-medium' : 'text-gray-500'}`}>Email</label>
@@ -697,8 +719,8 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
                                   legalName: fiscalForm.legalName,
                                   fiscalRegime: fiscalForm.fiscalRegime,
                                   postalCode: fiscalForm.postalCode,
-                                  cfdiUse: fiscalForm.cfdiUse,
-                                  email: fiscalForm.email,
+                                  cfdiUse: fiscalForm.cfdiUse || undefined,
+                                  email: fiscalForm.email.trim() || undefined,
                                 });
                                 if (result.valid) {
                                   toast.success('RFC, C.P. y régimen válidos en SAT. La correspondencia RFC↔Razón Social se valida al timbrar.');
@@ -720,7 +742,7 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
                         <button
                           type="button"
                           onClick={handleSaveFiscalData}
-                          disabled={savingFiscal || validatingFiscal || !fiscalForm.rfc || !fiscalForm.legalName || !fiscalForm.fiscalRegime || !fiscalForm.postalCode}
+                          disabled={savingFiscal || validatingFiscal || !fiscalForm.rfc || !fiscalForm.legalName || !fiscalForm.fiscalRegime || !fiscalForm.postalCode || !fiscalForm.cfdiUse}
                           className="flex-1 px-3 py-1.5 text-sm text-white bg-[#3E667D] rounded-lg hover:bg-[#2d4f63] disabled:opacity-50"
                         >
                           {validatingFiscal ? 'Validando...' : savingFiscal ? 'Guardando...' : 'Guardar'}
@@ -816,7 +838,9 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
                         </div>
                       </div>
                       {!fiscalComplete && (
-                        <p className="text-xs text-red-600 mt-2 font-medium">Faltan datos fiscales requeridos. Presione &quot;Editar&quot; para completarlos.</p>
+                        <p className="text-xs text-red-600 mt-2 font-medium" role="alert">
+                          Faltan datos fiscales: {fiscalMissing.join(', ')}. Presione &quot;Editar&quot; para completarlos.
+                        </p>
                       )}
                     </div>
                   ) : null

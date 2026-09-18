@@ -23,10 +23,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { SearchableSelect, type SearchableSelectOption } from '@/components/ui/SearchableSelect';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui/DataTable';
 import { useReadinessProducts, useUpdateProductFiscal } from '@/hooks/useBilling';
-import { useTaxRules } from '@/hooks/useConfig';
+import { useActiveTaxRules } from '@/hooks/useConfig';
 import type { useQueryFilters } from '@/hooks/useQueryFilters';
 import { billingService } from '@/services/billing.service';
 import { billingErrorMessage } from '@/lib/billing-error';
@@ -36,6 +36,7 @@ import { ProductFiscalImportDialog } from '@/components/admin/billing/ProductFis
 import {
   isValidSatProductCode,
   isValidSatUnitCode,
+  taxRatePct,
   type ProductMissingFilter,
   type ReadinessProductRow,
   type UpdateProductFiscalDto,
@@ -62,10 +63,11 @@ const PRODUCT_TYPE_LABELS: Record<string, string> = {
   service: 'Servicio',
 };
 
-function ratePct(rate: number | string | null | undefined): string {
-  const n = Number(rate);
-  if (!Number.isFinite(n)) return '';
-  return `${Math.round(n * 10000) / 100}%`;
+/** Reglas de IVA para el select del diálogo, cargadas una vez por pestaña. */
+interface IvaRulesState {
+  options: SearchableSelectOption[];
+  isLoading: boolean;
+  error: unknown;
 }
 
 export function ProductsTab({ canManage, filters }: { canManage: boolean; filters: QueryFilters }) {
@@ -100,6 +102,22 @@ export function ProductsTab({ canManage, filters }: { canManage: boolean; filter
   });
   const rows = data?.data ?? [];
   const total = data?.total ?? 0;
+
+  // Reglas de IVA desde el endpoint público de activas: `/config/tax-rules`
+  // exige admin y Contabilidad (billing:manage) no lo es. Se filtra por tipo
+  // IVA aquí; si falla, se avisa en la pestaña (el select quedaría vacío sin
+  // explicación).
+  const { data: taxRules, isLoading: rulesLoading, error: rulesError } = useActiveTaxRules();
+  const ivaRules = useMemo<IvaRulesState>(
+    () => ({
+      options: (taxRules ?? [])
+        .filter((r) => r.taxType === 'iva' && r.isActive)
+        .map((r) => ({ value: r.id, label: `${r.name} (${taxRatePct(r.rate)})`, hint: r.code })),
+      isLoading: rulesLoading,
+      error: rulesError,
+    }),
+    [taxRules, rulesLoading, rulesError],
+  );
 
   const downloadTemplate = async () => {
     setDownloading(true);
@@ -165,7 +183,7 @@ export function ProductsTab({ canManage, filters }: { canManage: boolean; filter
         ) : row.taxRuleId ? (
           <span className="text-sm text-gray-700">
             {row.taxRuleName ?? 'Regla'}
-            {row.taxRate !== null ? ` (${ratePct(row.taxRate)})` : ''}
+            {row.taxRate !== null ? ` (${taxRatePct(row.taxRate)})` : ''}
           </span>
         ) : (
           <Badge variant="destructive">Sin regla</Badge>
@@ -218,11 +236,15 @@ export function ProductsTab({ canManage, filters }: { canManage: boolean; filter
                 value={searchDraft}
                 onChange={(e) => setSearchDraft(e.target.value)}
                 placeholder="SKU o nombre"
+                maxLength={100}
               />
             </div>
             <div>
-              <Label className="mb-1 block text-xs text-muted-foreground">Mostrar</Label>
+              <Label htmlFor="pr-missing" className="mb-1 block text-xs text-muted-foreground">
+                Mostrar
+              </Label>
               <SearchableSelect
+                id="pr-missing"
                 options={MISSING_OPTIONS}
                 value={missing}
                 onChange={(v) => setParams({ missing: v, page: null })}
@@ -252,6 +274,15 @@ export function ProductsTab({ canManage, filters }: { canManage: boolean; filter
           </div>
         </CardContent>
       </Card>
+
+      {ivaRules.error ? (
+        <Card className="border-amber-300 bg-amber-50/60" role="alert">
+          <CardContent className="p-4 text-sm text-amber-900">
+            No se pudieron cargar las reglas de IVA, así que no se puede asignar una regla al editar:{' '}
+            {billingErrorMessage(ivaRules.error, 'error al consultar /config/tax-rules/active')}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {error && !data ? (
         <Card className="border-destructive/40">
@@ -294,6 +325,7 @@ export function ProductsTab({ canManage, filters }: { canManage: boolean; filter
       <ProductFiscalImportDialog open={importOpen} onOpenChange={setImportOpen} />
       <ProductFiscalDialog
         product={editing}
+        ivaRules={ivaRules}
         open={!!editing}
         onOpenChange={(open) => {
           if (!open) setEditing(null);
@@ -325,10 +357,12 @@ function fromRow(row: ReadinessProductRow): ProductForm {
 
 function ProductFiscalDialog({
   product,
+  ivaRules,
   open,
   onOpenChange,
 }: {
   product: ReadinessProductRow | null;
+  ivaRules: IvaRulesState;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -338,7 +372,12 @@ function ProductFiscalDialog({
         {/* Formulario montado por producto (key): estado inicial desde la fila,
             descartado al cerrar; sin efectos de sincronización. */}
         {product && (
-          <ProductFiscalForm key={product.id} product={product} onClose={() => onOpenChange(false)} />
+          <ProductFiscalForm
+            key={product.id}
+            product={product}
+            ivaRules={ivaRules}
+            onClose={() => onOpenChange(false)}
+          />
         )}
       </DialogContent>
     </Dialog>
@@ -347,23 +386,17 @@ function ProductFiscalDialog({
 
 function ProductFiscalForm({
   product,
+  ivaRules,
   onClose,
 }: {
   product: ReadinessProductRow;
+  ivaRules: IvaRulesState;
   onClose: () => void;
 }) {
   const [form, setForm] = useState<ProductForm>(() => fromRow(product));
   const [touched, setTouched] = useState(false);
   const update = useUpdateProductFiscal();
-  const { data: taxRules, isLoading: loadingRules } = useTaxRules();
-
-  const ivaOptions = useMemo(
-    () =>
-      (taxRules ?? [])
-        .filter((r) => r.taxType === 'iva' && r.isActive)
-        .map((r) => ({ value: r.id, label: `${r.name} (${ratePct(r.rate)})`, hint: r.code })),
-    [taxRules],
-  );
+  const { options: ivaOptions, isLoading: loadingRules, error: rulesError } = ivaRules;
 
   const errors = {
     satProductCode:
@@ -426,17 +459,22 @@ function ProductFiscalForm({
       <div className="space-y-4">
         <div>
           <Label htmlFor="pf-product-code">Clave de producto o servicio SAT *</Label>
+          {/* Sin X de "Quitar clave": el API no admite vaciar una clave ya
+              guardada (un '' nunca se envía), así que el botón solo confundía. */}
           <SatCodeSearch
             id="pf-product-code"
             kind="product"
             value={form.satProductCode}
             onChange={(code) => setForm((p) => ({ ...p, satProductCode: code }))}
+            allowClear={false}
           />
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p id="pf-product-code-hint" className="mt-1 text-xs text-muted-foreground">
             Escribe el código completo (8 dígitos) o una palabra de la descripción, p. ej. «suplemento».
           </p>
           {showError('satProductCode') && (
-            <p className="mt-1 text-xs text-red-600">{errors.satProductCode}</p>
+            <p id="pf-product-code-error" className="mt-1 text-xs text-red-600" role="alert">
+              {errors.satProductCode}
+            </p>
           )}
         </div>
 
@@ -447,25 +485,44 @@ function ProductFiscalForm({
             kind="unit"
             value={form.satUnitCode}
             onChange={(code) => setForm((p) => ({ ...p, satUnitCode: code }))}
+            allowClear={false}
           />
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p id="pf-unit-code-hint" className="mt-1 text-xs text-muted-foreground">
             Para productos físicos casi siempre es H87 (Pieza); para servicios, E48.
           </p>
-          {showError('satUnitCode') && <p className="mt-1 text-xs text-red-600">{errors.satUnitCode}</p>}
+          {showError('satUnitCode') && (
+            <p id="pf-unit-code-error" className="mt-1 text-xs text-red-600" role="alert">
+              {errors.satUnitCode}
+            </p>
+          )}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
           <div>
-            <Label>Regla de IVA</Label>
+            <Label htmlFor="pf-tax-rule">Regla de IVA</Label>
             <SearchableSelect
+              id="pf-tax-rule"
+              aria-describedby={rulesError ? 'pf-tax-rule-error' : undefined}
+              aria-invalid={!!rulesError}
               options={ivaOptions}
               value={form.taxRuleId}
               onChange={(val) => setForm((p) => ({ ...p, taxRuleId: val }))}
               allLabel="Sin regla"
               allValue=""
-              placeholder={loadingRules ? 'Cargando reglas…' : 'Elige la regla de IVA'}
-              disabled={loadingRules || form.isTaxExempt}
+              placeholder={
+                loadingRules
+                  ? 'Cargando reglas…'
+                  : rulesError
+                    ? 'No se cargaron las reglas'
+                    : 'Elige la regla de IVA'
+              }
+              disabled={loadingRules || !!rulesError || form.isTaxExempt}
             />
+            {rulesError ? (
+              <p id="pf-tax-rule-error" className="mt-1 text-xs text-red-600" role="alert">
+                {billingErrorMessage(rulesError, 'No se pudieron cargar las reglas de IVA')}
+              </p>
+            ) : null}
           </div>
           <div className="flex items-center gap-2 pb-1">
             <Switch
