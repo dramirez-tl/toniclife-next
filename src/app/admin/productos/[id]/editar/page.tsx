@@ -739,7 +739,7 @@ export default function EditarProductoAdminPage() {
                   productId={id}
                   satProductCode={formData.satProductCode}
                   satUnitCode={formData.satUnitCode}
-                  onSatFieldChange={handleChange}
+                  onSatFieldChange={(field, value) => setFormData((prev) => ({ ...prev, [field]: value }))}
                 />
               )}
             </div>

@@ -17,11 +17,14 @@ import {
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { rfcPersonType, satCatalogOptions } from '@/types/billing';
 import {
-  FISCAL_REGIMES,
-  CFDI_USES,
-} from '@/types/billing';
-import { useFiscalData, useUpdateFiscalData, useValidateRfc } from '@/hooks/useBilling';
+  useCfdiUses,
+  useFiscalData,
+  useFiscalRegimes,
+  useUpdateFiscalData,
+  useValidateRfc,
+} from '@/hooks/useBilling';
 
 export default function EditFiscalDataPage() {
   const params = useParams();
@@ -54,6 +57,11 @@ export default function EditFiscalDataPage() {
 
   const [isValidated, setIsValidated] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Catálogos SAT del API (ya no listas quemadas): regímenes según el tipo de
+  // persona del RFC y usos de CFDI compatibles con el régimen elegido.
+  const { data: regimeCatalog } = useFiscalRegimes(rfcPersonType(formData.rfc) ?? undefined);
+  const { data: cfdiUseCatalog } = useCfdiUses(formData.taxRegime || undefined);
 
   useEffect(() => {
     if (fiscalData) {
@@ -297,12 +305,10 @@ export default function EditFiscalDataPage() {
                     Régimen Fiscal *
                   </label>
                   <SearchableSelect
-                    options={FISCAL_REGIMES.map((regime) => ({
-                      value: regime.Value,
-                      label: `${regime.Value} - ${regime.Name}`,
-                    }))}
+                    options={satCatalogOptions(regimeCatalog)}
                     value={formData.taxRegime}
-                    onChange={(val) => setFormData({ ...formData, taxRegime: val })}
+                    // Al cambiar el régimen el uso se vacía: los usos válidos dependen de él.
+                    onChange={(val) => setFormData({ ...formData, taxRegime: val, defaultCfdiUse: '' })}
                     showAllOption={false}
                     placeholder="Seleccionar régimen..."
                   />
@@ -342,10 +348,7 @@ export default function EditFiscalDataPage() {
                     Uso de CFDI *
                   </label>
                   <SearchableSelect
-                    options={CFDI_USES.map((use) => ({
-                      value: use.Value,
-                      label: `${use.Value} - ${use.Name}`,
-                    }))}
+                    options={satCatalogOptions(cfdiUseCatalog)}
                     value={formData.defaultCfdiUse}
                     onChange={(val) => setFormData({ ...formData, defaultCfdiUse: val })}
                     showAllOption={false}

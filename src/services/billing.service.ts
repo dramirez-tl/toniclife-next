@@ -19,6 +19,26 @@ import type {
   CatalogItem,
   RfcValidation,
   BillingStatus,
+  BillingReadiness,
+  CleanRfcResult,
+  EmitterConfig,
+  PaginatedReadiness,
+  PaginatedRfcDuplicates,
+  PersonType,
+  ProductFiscalImportResult,
+  ReadinessBranch,
+  ReadinessCustomerRow,
+  ReadinessCustomersQuery,
+  ReadinessPaymentMethod,
+  ReadinessProductRow,
+  ReadinessProductsQuery,
+  SatCatalogItem,
+  SatCodeKind,
+  SatCodeSearchResult,
+  UpdateBranchFiscalDto,
+  UpdateEmitterDto,
+  UpdatePaymentMethodFiscalDto,
+  UpdateProductFiscalDto,
 } from '@/types/billing';
 
 const BASE_URL = '/billing';
@@ -230,15 +250,182 @@ export async function getPaymentForms(): Promise<CatalogItem[]> {
   return response.data;
 }
 
-export async function getCfdiUses(): Promise<CatalogItem[]> {
-  const response = await apiClient.get<CatalogItem[]>(`${BASE_URL}/catalogs/cfdi-uses`);
+export interface CfdiUsesQuery {
+  /** Código de régimen (ej. '612'): filtra por compatibilidad uso↔régimen. */
+  regime?: string;
+  personType?: PersonType;
+}
+
+/** Catálogo SAT desde BD (ya no llama al PAC). Formato dual code/Value. */
+export async function getCfdiUses(query?: CfdiUsesQuery): Promise<SatCatalogItem[]> {
+  const params = new URLSearchParams();
+  if (query?.regime) params.append('regime', query.regime);
+  if (query?.personType) params.append('personType', query.personType);
+  const qs = params.toString();
+  const response = await apiClient.get<SatCatalogItem[]>(
+    `${BASE_URL}/catalogs/cfdi-uses${qs ? `?${qs}` : ''}`
+  );
   return response.data;
 }
 
-export async function getFiscalRegimes(): Promise<CatalogItem[]> {
-  const response = await apiClient.get<CatalogItem[]>(
-    `${BASE_URL}/catalogs/fiscal-regimes`
+export async function getFiscalRegimes(personType?: PersonType): Promise<SatCatalogItem[]> {
+  const qs = personType ? `?personType=${personType}` : '';
+  const response = await apiClient.get<SatCatalogItem[]>(
+    `${BASE_URL}/catalogs/fiscal-regimes${qs}`
   );
+  return response.data;
+}
+
+/** Búsqueda en el catálogo del PAC (c_ClaveProdServ / c_ClaveUnidad). Mínimo 3 caracteres. */
+export async function searchSatCodes(
+  kind: SatCodeKind,
+  keyword: string
+): Promise<SatCodeSearchResult[]> {
+  const path = kind === 'product' ? 'product-codes' : 'unit-codes';
+  const response = await apiClient.get<SatCodeSearchResult[]>(
+    `${BASE_URL}/catalogs/${path}?keyword=${encodeURIComponent(keyword.trim())}`
+  );
+  return response.data;
+}
+
+// ================================
+// PREPARACIÓN FISCAL (Fase 1)
+// ================================
+
+const READINESS_URL = `${BASE_URL}/readiness`;
+const MULTIPART = { headers: { 'Content-Type': 'multipart/form-data' } };
+
+export async function getReadiness(): Promise<BillingReadiness> {
+  const response = await apiClient.get<BillingReadiness>(READINESS_URL);
+  return response.data;
+}
+
+export async function listReadinessProducts(
+  query?: ReadinessProductsQuery
+): Promise<PaginatedReadiness<ReadinessProductRow>> {
+  const params = new URLSearchParams();
+  if (query?.missing) params.append('missing', query.missing);
+  if (query?.search) params.append('search', query.search);
+  if (query?.page) params.append('page', String(query.page));
+  if (query?.limit) params.append('limit', String(query.limit));
+  if (query?.includeInactive) params.append('includeInactive', 'true');
+  const qs = params.toString();
+  const response = await apiClient.get<PaginatedReadiness<ReadinessProductRow>>(
+    `${READINESS_URL}/products${qs ? `?${qs}` : ''}`
+  );
+  return response.data;
+}
+
+export async function updateProductFiscal(
+  id: string,
+  data: UpdateProductFiscalDto
+): Promise<ReadinessProductRow> {
+  const response = await apiClient.patch<ReadinessProductRow>(
+    `${READINESS_URL}/products/${id}/fiscal`,
+    data
+  );
+  return response.data;
+}
+
+export async function importProductFiscal(
+  file: File,
+  dryRun: boolean
+): Promise<ProductFiscalImportResult> {
+  const form = new FormData();
+  form.append('file', file);
+  const response = await apiClient.post<ProductFiscalImportResult>(
+    `${READINESS_URL}/products/import?dryRun=${dryRun ? 'true' : 'false'}`,
+    form,
+    MULTIPART
+  );
+  return response.data;
+}
+
+/** CSV con BOM: una fila por producto activo con lo que ya tenga. */
+export async function downloadProductFiscalTemplate(): Promise<Blob> {
+  const response = await apiClient.get<Blob>(`${READINESS_URL}/products/template`, {
+    responseType: 'blob',
+  });
+  return response.data;
+}
+
+export async function listReadinessCustomers(
+  query?: ReadinessCustomersQuery
+): Promise<PaginatedReadiness<ReadinessCustomerRow>> {
+  const params = new URLSearchParams();
+  if (query?.issue) params.append('issue', query.issue);
+  if (query?.search) params.append('search', query.search);
+  if (query?.page) params.append('page', String(query.page));
+  if (query?.limit) params.append('limit', String(query.limit));
+  const qs = params.toString();
+  const response = await apiClient.get<PaginatedReadiness<ReadinessCustomerRow>>(
+    `${READINESS_URL}/customers${qs ? `?${qs}` : ''}`
+  );
+  return response.data;
+}
+
+export async function cleanInvalidRfc(dryRun: boolean): Promise<CleanRfcResult> {
+  const response = await apiClient.post<CleanRfcResult>(
+    `${READINESS_URL}/customers/clean-rfc?dryRun=${dryRun ? 'true' : 'false'}`
+  );
+  return response.data;
+}
+
+export async function listRfcDuplicates(query?: {
+  page?: number;
+  limit?: number;
+}): Promise<PaginatedRfcDuplicates> {
+  const params = new URLSearchParams();
+  if (query?.page) params.append('page', String(query.page));
+  if (query?.limit) params.append('limit', String(query.limit));
+  const qs = params.toString();
+  const response = await apiClient.get<PaginatedRfcDuplicates>(
+    `${READINESS_URL}/customers/duplicates${qs ? `?${qs}` : ''}`
+  );
+  return response.data;
+}
+
+export async function listReadinessPaymentMethods(): Promise<ReadinessPaymentMethod[]> {
+  const response = await apiClient.get<ReadinessPaymentMethod[]>(
+    `${READINESS_URL}/payment-methods`
+  );
+  return response.data;
+}
+
+export async function updatePaymentMethodFiscal(
+  id: string,
+  data: UpdatePaymentMethodFiscalDto
+): Promise<ReadinessPaymentMethod> {
+  const response = await apiClient.patch<ReadinessPaymentMethod>(
+    `${READINESS_URL}/payment-methods/${id}`,
+    data
+  );
+  return response.data;
+}
+
+export async function listReadinessBranches(): Promise<ReadinessBranch[]> {
+  const response = await apiClient.get<ReadinessBranch[]>(`${READINESS_URL}/branches`);
+  return response.data;
+}
+
+export async function updateBranchFiscal(
+  id: string,
+  data: UpdateBranchFiscalDto
+): Promise<ReadinessBranch> {
+  const response = await apiClient.patch<ReadinessBranch>(
+    `${READINESS_URL}/branches/${id}`,
+    data
+  );
+  return response.data;
+}
+
+export async function getEmitter(): Promise<EmitterConfig> {
+  const response = await apiClient.get<EmitterConfig>(`${BASE_URL}/emitter`);
+  return response.data;
+}
+
+export async function updateEmitter(data: UpdateEmitterDto): Promise<EmitterConfig> {
+  const response = await apiClient.put<EmitterConfig>(`${BASE_URL}/emitter`, data);
   return response.data;
 }
 
@@ -363,6 +550,23 @@ export const billingService = {
   getPaymentForms,
   getCfdiUses,
   getFiscalRegimes,
+  searchSatCodes,
+
+  // Preparación fiscal (Fase 1)
+  getReadiness,
+  listReadinessProducts,
+  updateProductFiscal,
+  importProductFiscal,
+  downloadProductFiscalTemplate,
+  listReadinessCustomers,
+  cleanInvalidRfc,
+  listRfcDuplicates,
+  listReadinessPaymentMethods,
+  updatePaymentMethodFiscal,
+  listReadinessBranches,
+  updateBranchFiscal,
+  getEmitter,
+  updateEmitter,
 
   // Validation
   validateRfc,

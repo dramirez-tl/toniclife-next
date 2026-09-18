@@ -1,9 +1,14 @@
 // useBilling.ts - React Query hooks para facturación CFDI
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.5 Facturación
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { billingService, type FiscalDataQueryDto, type FacturamaCfdisQuery } from '@/services/billing.service';
+import {
+  billingService,
+  type CfdiUsesQuery,
+  type FiscalDataQueryDto,
+  type FacturamaCfdisQuery,
+} from '@/services/billing.service';
 import { billingErrorMessage } from '@/lib/billing-error';
 import type {
   CancellationResponse,
@@ -14,6 +19,14 @@ import type {
   InvoiceQueryDto,
   CreateGlobalInvoiceDto,
   CreatePaymentComplementDto,
+  PersonType,
+  ReadinessCustomersQuery,
+  ReadinessProductsQuery,
+  SatCodeKind,
+  UpdateBranchFiscalDto,
+  UpdateEmitterDto,
+  UpdatePaymentMethodFiscalDto,
+  UpdateProductFiscalDto,
 } from '@/types/billing';
 
 // ================================
@@ -36,10 +49,25 @@ export const billingKeys = {
   paymentComplement: (id: string) => [...billingKeys.paymentComplements(), id] as const,
   catalogs: () => [...billingKeys.all, 'catalogs'] as const,
   paymentForms: () => [...billingKeys.catalogs(), 'payment-forms'] as const,
-  cfdiUses: () => [...billingKeys.catalogs(), 'cfdi-uses'] as const,
-  fiscalRegimes: () => [...billingKeys.catalogs(), 'fiscal-regimes'] as const,
+  cfdiUses: (query?: CfdiUsesQuery) => [...billingKeys.catalogs(), 'cfdi-uses', query] as const,
+  fiscalRegimes: (personType?: PersonType) =>
+    [...billingKeys.catalogs(), 'fiscal-regimes', personType ?? 'all'] as const,
+  satCodes: (kind: SatCodeKind, keyword: string) =>
+    [...billingKeys.catalogs(), 'sat-codes', kind, keyword] as const,
   status: () => [...billingKeys.all, 'status'] as const,
   facturamaCfdis: (query?: FacturamaCfdisQuery) => [...billingKeys.all, 'facturama-cfdis', query] as const,
+  // Preparación fiscal (Fase 1). Todo cuelga de `readiness()` para que una
+  // sola invalidación recalcule conteos, listados, emisor y bloqueadores.
+  readiness: () => [...billingKeys.all, 'readiness'] as const,
+  readinessProducts: (query?: ReadinessProductsQuery) =>
+    [...billingKeys.readiness(), 'products', query] as const,
+  readinessCustomers: (query?: ReadinessCustomersQuery) =>
+    [...billingKeys.readiness(), 'customers', query] as const,
+  readinessDuplicates: (query?: { page?: number; limit?: number }) =>
+    [...billingKeys.readiness(), 'duplicates', query] as const,
+  readinessPaymentMethods: () => [...billingKeys.readiness(), 'payment-methods'] as const,
+  readinessBranches: () => [...billingKeys.readiness(), 'branches'] as const,
+  emitter: () => [...billingKeys.readiness(), 'emitter'] as const,
 };
 
 // ================================
@@ -309,19 +337,220 @@ export function usePaymentForms() {
   });
 }
 
-export function useCfdiUses() {
+/**
+ * Usos de CFDI desde BD. Con `regime` solo devuelve los compatibles con ese
+ * régimen (`sat_cfdi_use_regimes`); sin él, el catálogo completo.
+ */
+export function useCfdiUses(regime?: string, personType?: PersonType) {
+  const query: CfdiUsesQuery = {
+    regime: regime || undefined,
+    personType: personType || undefined,
+  };
   return useQuery({
-    queryKey: billingKeys.cfdiUses(),
-    queryFn: () => billingService.getCfdiUses(),
+    queryKey: billingKeys.cfdiUses(query),
+    queryFn: () => billingService.getCfdiUses(query),
     staleTime: 24 * 60 * 60 * 1000, // 24 hours
   });
 }
 
-export function useFiscalRegimes() {
+/** Regímenes fiscales desde BD, filtrables por tipo de persona (según el RFC). */
+export function useFiscalRegimes(personType?: PersonType) {
   return useQuery({
-    queryKey: billingKeys.fiscalRegimes(),
-    queryFn: () => billingService.getFiscalRegimes(),
+    queryKey: billingKeys.fiscalRegimes(personType),
+    queryFn: () => billingService.getFiscalRegimes(personType),
     staleTime: 24 * 60 * 60 * 1000, // 24 hours
+  });
+}
+
+/**
+ * Búsqueda en el catálogo del PAC para `SatCodeSearch`. Solo dispara con 3+
+ * caracteres; el que llama ya aplica el retraso de 300 ms.
+ */
+export function useSatCodeSearch(kind: SatCodeKind, keyword: string) {
+  const term = keyword.trim();
+  return useQuery({
+    queryKey: billingKeys.satCodes(kind, term),
+    queryFn: () => billingService.searchSatCodes(kind, term),
+    enabled: term.length >= 3,
+    staleTime: 60 * 60 * 1000, // 1 hour (mismo cache que el API)
+    retry: false,
+  });
+}
+
+// ================================
+// PREPARACIÓN FISCAL (Fase 1)
+// ================================
+
+export function useBillingReadiness() {
+  return useQuery({
+    queryKey: billingKeys.readiness(),
+    queryFn: () => billingService.getReadiness(),
+    staleTime: 60 * 1000,
+  });
+}
+
+/** Tras cualquier corrección hay que recalcular conteos y bloqueadores. */
+function useInvalidateReadiness() {
+  const queryClient = useQueryClient();
+  return () => {
+    queryClient.invalidateQueries({ queryKey: billingKeys.readiness() });
+  };
+}
+
+export function useReadinessProducts(query: ReadinessProductsQuery) {
+  return useQuery({
+    queryKey: billingKeys.readinessProducts(query),
+    queryFn: () => billingService.listReadinessProducts(query),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useUpdateProductFiscal() {
+  const invalidate = useInvalidateReadiness();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateProductFiscalDto }) =>
+      billingService.updateProductFiscal(id, data),
+    onSuccess: () => {
+      invalidate();
+      toast.success('Datos fiscales del producto guardados');
+    },
+    onError: (error: unknown) => {
+      toast.error(billingErrorMessage(error, 'No se pudieron guardar los datos fiscales del producto'));
+    },
+  });
+}
+
+/** Importación CSV. El diálogo muestra el resultado; aquí solo se invalida al aplicar. */
+export function useImportProductFiscal() {
+  const invalidate = useInvalidateReadiness();
+  return useMutation({
+    mutationFn: ({ file, dryRun }: { file: File; dryRun: boolean }) =>
+      billingService.importProductFiscal(file, dryRun),
+    onSuccess: (_, { dryRun }) => {
+      if (!dryRun) invalidate();
+    },
+  });
+}
+
+export function useReadinessCustomers(query: ReadinessCustomersQuery) {
+  return useQuery({
+    queryKey: billingKeys.readinessCustomers(query),
+    queryFn: () => billingService.listReadinessCustomers(query),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * Guarda los datos fiscales de un cliente desde Preparación fiscal.
+ * Misma ruta que `useUpdateFiscalData` (PUT /billing/fiscal-data/:customerId),
+ * pero además invalida los conteos de preparación.
+ */
+export function useUpdateCustomerFiscal() {
+  const queryClient = useQueryClient();
+  const invalidate = useInvalidateReadiness();
+  return useMutation({
+    mutationFn: ({ customerId, data }: { customerId: string; data: UpdateFiscalDataDto }) =>
+      billingService.updateFiscalData(customerId, data),
+    onSuccess: () => {
+      invalidate();
+      queryClient.invalidateQueries({ queryKey: billingKeys.fiscalData() });
+      toast.success('Datos fiscales del cliente guardados');
+    },
+    onError: (error: unknown) => {
+      toast.error(billingErrorMessage(error, 'No se pudieron guardar los datos fiscales del cliente'));
+    },
+  });
+}
+
+/** Limpieza de RFC inválidos: la vista previa (dryRun) no invalida nada. */
+export function useCleanInvalidRfc() {
+  const invalidate = useInvalidateReadiness();
+  return useMutation({
+    mutationFn: (dryRun: boolean) => billingService.cleanInvalidRfc(dryRun),
+    onSuccess: (result) => {
+      if (!result.dryRun) {
+        invalidate();
+        toast.success(`Se limpiaron ${result.affected} RFC inválidos`);
+      }
+    },
+    onError: (error: unknown) => {
+      toast.error(billingErrorMessage(error, 'No se pudo limpiar los RFC inválidos'));
+    },
+  });
+}
+
+export function useRfcDuplicates(query: { page?: number; limit?: number }) {
+  return useQuery({
+    queryKey: billingKeys.readinessDuplicates(query),
+    queryFn: () => billingService.listRfcDuplicates(query),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useReadinessPaymentMethods() {
+  return useQuery({
+    queryKey: billingKeys.readinessPaymentMethods(),
+    queryFn: () => billingService.listReadinessPaymentMethods(),
+  });
+}
+
+export function useUpdatePaymentMethodFiscal() {
+  const invalidate = useInvalidateReadiness();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdatePaymentMethodFiscalDto }) =>
+      billingService.updatePaymentMethodFiscal(id, data),
+    onSuccess: () => {
+      invalidate();
+      toast.success('Forma de pago actualizada');
+    },
+    onError: (error: unknown) => {
+      toast.error(billingErrorMessage(error, 'No se pudo actualizar la forma de pago'));
+    },
+  });
+}
+
+export function useReadinessBranches() {
+  return useQuery({
+    queryKey: billingKeys.readinessBranches(),
+    queryFn: () => billingService.listReadinessBranches(),
+  });
+}
+
+export function useUpdateBranchFiscal() {
+  const invalidate = useInvalidateReadiness();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateBranchFiscalDto }) =>
+      billingService.updateBranchFiscal(id, data),
+    onSuccess: () => {
+      invalidate();
+      toast.success('Sucursal actualizada');
+    },
+    onError: (error: unknown) => {
+      toast.error(billingErrorMessage(error, 'No se pudo actualizar la sucursal'));
+    },
+  });
+}
+
+export function useEmitter() {
+  return useQuery({
+    queryKey: billingKeys.emitter(),
+    queryFn: () => billingService.getEmitter(),
+  });
+}
+
+export function useUpdateEmitter() {
+  const queryClient = useQueryClient();
+  const invalidate = useInvalidateReadiness();
+  return useMutation({
+    mutationFn: (data: UpdateEmitterDto) => billingService.updateEmitter(data),
+    onSuccess: (data) => {
+      queryClient.setQueryData(billingKeys.emitter(), data);
+      invalidate();
+      toast.success('Datos del emisor guardados');
+    },
+    onError: (error: unknown) => {
+      toast.error(billingErrorMessage(error, 'No se pudieron guardar los datos del emisor'));
+    },
   });
 }
 

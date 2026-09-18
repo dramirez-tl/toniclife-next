@@ -11,6 +11,7 @@ import { useCreateProduct, useCategories } from '@/hooks/useProducts';
 import type { CreateProductDto } from '@/types/product';
 import { ProductType, KitPosition } from '@/types/product';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { SatCodeSearch } from '@/components/admin/billing/SatCodeSearch';
 
 export default function NuevoProductoAdminPage() {
   const router = useRouter();
@@ -445,25 +446,21 @@ export default function NuevoProductoAdminPage() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>Clave Producto SAT</label>
-                    <input
-                      type="text"
-                      name="satProductCode"
+                    <label className={labelClass} htmlFor="sat-product-code">Clave Producto SAT</label>
+                    <SatCodeSearch
+                      id="sat-product-code"
+                      kind="product"
                       value={formData.satProductCode}
-                      onChange={handleChange}
-                      className={inputClass}
-                      placeholder="c_ClaveProdServ"
+                      onChange={(code) => setFormData((prev) => ({ ...prev, satProductCode: code }))}
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>Clave Unidad SAT</label>
-                    <input
-                      type="text"
-                      name="satUnitCode"
+                    <label className={labelClass} htmlFor="sat-unit-code">Clave Unidad SAT</label>
+                    <SatCodeSearch
+                      id="sat-unit-code"
+                      kind="unit"
                       value={formData.satUnitCode}
-                      onChange={handleChange}
-                      className={inputClass}
-                      placeholder="c_ClaveUnidad"
+                      onChange={(code) => setFormData((prev) => ({ ...prev, satUnitCode: code }))}
                     />
                   </div>
                   <div className="col-span-2">

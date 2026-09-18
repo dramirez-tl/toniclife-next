@@ -28,6 +28,7 @@ import {
 } from '@/hooks/useProducts';
 import { useActiveCountries, useActivePriceTypes, useActiveTaxRules } from '@/hooks/useConfig';
 import { PriceSchedulesPanel } from './PriceSchedulesPanel';
+import { SatCodeSearch } from '@/components/admin/billing/SatCodeSearch';
 import type { ProductPrice, ProductTax } from '@/types/product';
 import type { Country, PriceType, TaxRule } from '@/types/config';
 
@@ -36,7 +37,8 @@ interface ProductPricesSectionProps {
   /** SAT fiscal fields (Mexico-specific, product-level) */
   satProductCode?: string;
   satUnitCode?: string;
-  onSatFieldChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  /** Recibe el campo y el CÓDIGO elegido en el buscador del catálogo SAT. */
+  onSatFieldChange?: (field: 'satProductCode' | 'satUnitCode', value: string) => void;
 }
 
 // Key for local price state: countryId::priceTypeId
@@ -925,25 +927,25 @@ export function ProductPricesSection({
                           </span>
                           <div className="grid grid-cols-2 gap-3 mt-2">
                             <div>
-                              <label className="block text-xs font-medium text-gray-600 mb-1">Clave Producto SAT</label>
-                              <input
-                                type="text"
-                                name="satProductCode"
+                              <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor={`sat-product-code-${countryCode}`}>
+                                Clave Producto SAT
+                              </label>
+                              <SatCodeSearch
+                                id={`sat-product-code-${countryCode}`}
+                                kind="product"
                                 value={satProductCode}
-                                onChange={onSatFieldChange}
-                                className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D]"
-                                placeholder="c_ClaveProdServ"
+                                onChange={(code) => onSatFieldChange('satProductCode', code)}
                               />
                             </div>
                             <div>
-                              <label className="block text-xs font-medium text-gray-600 mb-1">Clave Unidad SAT</label>
-                              <input
-                                type="text"
-                                name="satUnitCode"
+                              <label className="block text-xs font-medium text-gray-600 mb-1" htmlFor={`sat-unit-code-${countryCode}`}>
+                                Clave Unidad SAT
+                              </label>
+                              <SatCodeSearch
+                                id={`sat-unit-code-${countryCode}`}
+                                kind="unit"
                                 value={satUnitCode}
-                                onChange={onSatFieldChange}
-                                className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#3E667D] focus:border-[#3E667D]"
-                                placeholder="c_ClaveUnidad"
+                                onChange={(code) => onSatFieldChange('satUnitCode', code)}
                               />
                             </div>
                           </div>

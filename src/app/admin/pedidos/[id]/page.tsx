@@ -27,11 +27,16 @@ import {
   useUpdateOrderStatus,
   useCancelOrder,
 } from '@/hooks/useOrders';
-import { useCreateInvoice, useInvoices, useFiscalDataByCustomer } from '@/hooks/useBilling';
+import {
+  useCreateInvoice,
+  useInvoices,
+  useFiscalDataByCustomer,
+  useCfdiUses,
+} from '@/hooks/useBilling';
 import { billingService } from '@/services/billing.service';
 import { useBranch } from '@/hooks/useBranches';
 import { generateOrderTicketPdf } from '@/lib/generate-order-ticket';
-import { CFDI_USES, PAYMENT_FORMS } from '@/types/billing';
+import { PAYMENT_FORMS, satCatalogOptions, type FiscalData } from '@/types/billing';
 import {
   BILLING_FLOW_DISABLED_NOTICE,
   isBillingFlowDisabled,
@@ -99,6 +104,12 @@ export default function OrderDetailAdminPage() {
   );
   const invoice = (orderInvoices as any)?.data?.[0] as any; // Backend returns { data, total } with snake_case fields
   const { data: fiscalData } = useFiscalDataByCustomer(order?.customer?.id);
+  // El API puede responder un arreglo (por defecto primero) o un solo registro;
+  // con el régimen del cliente se piden solo los usos de CFDI compatibles.
+  const customerFiscal: FiscalData | undefined = Array.isArray(fiscalData)
+    ? (fiscalData.find((f) => f.isDefault) ?? fiscalData[0])
+    : (fiscalData as unknown as FiscalData | undefined);
+  const { data: cfdiUseCatalog } = useCfdiUses(customerFiscal?.taxRegime || undefined);
 
   const [showActions, setShowActions] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -859,7 +870,7 @@ export default function OrderDetailAdminPage() {
                     Uso del CFDI
                   </label>
                   <SearchableSelect
-                    options={CFDI_USES.map((use) => ({ value: use.Value, label: `${use.Value} - ${use.Name}` }))}
+                    options={satCatalogOptions(cfdiUseCatalog)}
                     value={invoiceForm.cfdiUse}
                     onChange={(val) => setInvoiceForm((prev) => ({ ...prev, cfdiUse: val }))}
                     showAllOption={false}

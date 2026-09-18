@@ -1,7 +1,7 @@
 // components/pos/PaymentModal.tsx - Payment processing modal for POS
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   XMarkIcon,
   BanknotesIcon,
@@ -19,13 +19,12 @@ import {
 import { PosPaymentMethod, type CreatePaymentInput, type Sale } from '@/types/pos';
 import { generatePosTicketPdf, type PosTicketBranchConfig } from '@/lib/generate-pos-ticket';
 import type { FiscalData } from '@/types/billing';
-import { FISCAL_REGIMES, CFDI_USES, PAYMENT_FORMS } from '@/types/billing';
+import { PAYMENT_FORMS, rfcPersonType, satCatalogOptions } from '@/types/billing';
 import { billingService } from '@/services/billing.service';
+import { useCfdiUses, useFiscalRegimes } from '@/hooks/useBilling';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
 
-const fiscalRegimeOptions = FISCAL_REGIMES.map((r) => ({ value: r.Value, label: `${r.Value} - ${r.Name}` }));
-const cfdiUseOptions = CFDI_USES.map((u) => ({ value: u.Value, label: `${u.Value} - ${u.Name}` }));
 const paymentFormOptions = PAYMENT_FORMS.map((f) => ({ value: f.Value, label: `${f.Value} - ${f.Name}` }));
 
 interface PaymentModalProps {
@@ -90,6 +89,12 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
   const [validatingFiscal, setValidatingFiscal] = useState(false);
   const [fiscalForm, setFiscalForm] = useState({ rfc: '', legalName: '', fiscalRegime: '', postalCode: '', cfdiUse: 'G03', email: '', paymentFormCode: '01', invoicePaymentMethod: 'PUE' });
   const [fiscalErrors, setFiscalErrors] = useState<Record<string, string>>({});
+  // Catálogos SAT del API (antes listas quemadas): regímenes según el RFC
+  // tecleado y usos de CFDI compatibles con el régimen elegido.
+  const { data: regimeCatalog } = useFiscalRegimes(rfcPersonType(fiscalForm.rfc) ?? undefined);
+  const { data: cfdiUseCatalog } = useCfdiUses(fiscalForm.fiscalRegime || undefined);
+  const fiscalRegimeOptions = useMemo(() => satCatalogOptions(regimeCatalog), [regimeCatalog]);
+  const cfdiUseOptions = useMemo(() => satCatalogOptions(cfdiUseCatalog), [cfdiUseCatalog]);
 
   // Per-sale invoice payment method (PUE / PPD) — separate from fiscal data stored on customer
   const [invoicePaymentMethod, setInvoicePaymentMethod] = useState<'PUE' | 'PPD'>('PUE');
@@ -587,7 +592,7 @@ export function PaymentModal({ isOpen, onClose, total, customerId, onPaymentComp
                           <SearchableSelect
                             options={fiscalRegimeOptions}
                             value={fiscalForm.fiscalRegime}
-                            onChange={(v) => handleFiscalFormChange('fiscalRegime', v)}
+                            onChange={(v) => { handleFiscalFormChange('fiscalRegime', v); handleFiscalFormChange('cfdiUse', ''); }}
                             placeholder="Buscar régimen..."
                             showAllOption={false}
                           />

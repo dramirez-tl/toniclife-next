@@ -18,9 +18,9 @@ import {
   FunnelIcon,
   ArrowPathIcon,
 } from '@heroicons/react/24/outline';
-import { getFiscalRegimeName, getCfdiUseName } from '@/types/billing';
+import { cfdiUseLabel, fiscalRegimeLabel } from '@/types/billing';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import { useFiscalDataList } from '@/hooks/useBilling';
+import { useCfdiUses, useFiscalDataList, useFiscalRegimes } from '@/hooks/useBilling';
 import type { FiscalDataQueryDto, FiscalDataItem } from '@/services/billing.service';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 
@@ -55,6 +55,9 @@ function DatosFiscalesContent() {
   }, [searchQuery, filterValidated, currentPage, pageSize]);
 
   const { data: fiscalResult, isLoading, isFetching, error, refetch } = useFiscalDataList(queryParams);
+  // Catálogos SAT del API para mostrar la descripción del régimen y del uso.
+  const { data: regimeCatalog } = useFiscalRegimes();
+  const { data: cfdiUseCatalog } = useCfdiUses();
 
   const fiscalDataList = fiscalResult?.data ?? [];
   const totalItems = fiscalResult?.total ?? 0;
@@ -155,7 +158,7 @@ function DatosFiscalesContent() {
       header: 'Régimen Fiscal',
       render: (item) => (
         <p className="text-sm text-gray-600">
-          {item.taxRegime ? getFiscalRegimeName(item.taxRegime) : <span className="text-gray-400">Sin régimen</span>}
+          {item.taxRegime ? fiscalRegimeLabel(item.taxRegime, regimeCatalog) : <span className="text-gray-400">Sin régimen</span>}
         </p>
       ),
     },
@@ -164,7 +167,7 @@ function DatosFiscalesContent() {
       header: 'Uso CFDI',
       render: (item) => (
         <p className="text-sm text-gray-600">
-          {item.defaultCfdiUse ? getCfdiUseName(item.defaultCfdiUse) : <span className="text-gray-400">-</span>}
+          {item.defaultCfdiUse ? cfdiUseLabel(item.defaultCfdiUse, cfdiUseCatalog) : <span className="text-gray-400">-</span>}
         </p>
       ),
     },

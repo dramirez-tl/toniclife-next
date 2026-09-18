@@ -41,18 +41,17 @@ import { PosSaleStatus } from '@/types/pos';
 import type { Branch } from '@/types/branch';
 import type { Currency } from '@/types/config';
 import type { FiscalData } from '@/types/billing';
-import { FISCAL_REGIMES, CFDI_USES, PAYMENT_FORMS } from '@/types/billing';
+import { PAYMENT_FORMS, rfcPersonType, satCatalogOptions } from '@/types/billing';
 import { toast } from 'sonner';
 import { posService } from '@/services/pos.service';
 import { billingService } from '@/services/billing.service';
+import { useCfdiUses, useFiscalRegimes } from '@/hooks/useBilling';
 import { generatePosTicketPdf } from '@/lib/generate-pos-ticket';
 import { getTimezoneShortLabel, formatDateTimeLocal, resolveTimeZone } from '@/lib/timezone-utils';
 import { PermissionGuard } from '@/components/auth';
 import { useSelector } from 'react-redux';
 import { selectUser, selectUserRoles } from '@/store/slices/authSlice';
 
-const fiscalRegimeOptions = FISCAL_REGIMES.map((r) => ({ value: r.Value, label: `${r.Value} - ${r.Name}` }));
-const cfdiUseOptions = CFDI_USES.map((u) => ({ value: u.Value, label: `${u.Value} - ${u.Name}` }));
 const paymentFormOptions = PAYMENT_FORMS.map((f) => ({ value: f.Value, label: `${f.Value} - ${f.Name}` }));
 
 export default function PosPage() {
@@ -78,6 +77,12 @@ export default function PosPage() {
   const [stampRetryErrors, setStampRetryErrors] = useState<Record<string, string>>({});
   const [stampRetryLoading, setStampRetryLoading] = useState(false);
   const [stampRetrySaving, setStampRetrySaving] = useState(false);
+  // Catálogos SAT del API (antes listas quemadas): regímenes según el RFC
+  // tecleado y usos de CFDI compatibles con el régimen elegido.
+  const { data: regimeCatalog } = useFiscalRegimes(rfcPersonType(stampRetryForm.rfc) ?? undefined);
+  const { data: cfdiUseCatalog } = useCfdiUses(stampRetryForm.fiscalRegime || undefined);
+  const fiscalRegimeOptions = useMemo(() => satCatalogOptions(regimeCatalog), [regimeCatalog]);
+  const cfdiUseOptions = useMemo(() => satCatalogOptions(cfdiUseCatalog), [cfdiUseCatalog]);
   const [stampingId, setStampingId] = useState<string | null>(null);
 
   const [loadingPdfId, setLoadingPdfId] = useState<string | null>(null);
@@ -1176,7 +1181,7 @@ export default function PosPage() {
                       <SearchableSelect
                         options={fiscalRegimeOptions}
                         value={stampRetryForm.fiscalRegime}
-                        onChange={(v) => { setStampRetryForm((p) => ({ ...p, fiscalRegime: v })); setStampRetryErrors((p) => { const n = { ...p }; delete n.fiscalRegime; return n; }); }}
+                        onChange={(v) => { setStampRetryForm((p) => ({ ...p, fiscalRegime: v, cfdiUse: '' })); setStampRetryErrors((p) => { const n = { ...p }; delete n.fiscalRegime; return n; }); }}
                         placeholder="Seleccionar régimen..."
                         showAllOption={false}
                       />

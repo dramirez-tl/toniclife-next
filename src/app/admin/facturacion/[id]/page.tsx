@@ -32,7 +32,13 @@ import {
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import { useInvoice, useStampInvoice, useCancelInvoice } from '@/hooks/useBilling';
+import {
+  useInvoice,
+  useStampInvoice,
+  useCancelInvoice,
+  useCfdiUses,
+  useFiscalRegimes,
+} from '@/hooks/useBilling';
 import { billingService } from '@/services/billing.service';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
@@ -42,9 +48,9 @@ import {
   CANCELLATION_REASONS,
   formatInvoiceNumber,
   formatCurrency,
-  getCfdiUseName,
+  cfdiUseLabel,
   getPaymentFormName,
-  getFiscalRegimeName,
+  fiscalRegimeLabel,
 } from '@/types/billing';
 
 export default function InvoiceDetailPage() {
@@ -57,6 +63,9 @@ export default function InvoiceDetailPage() {
   const invoice = invoiceRaw as any;
   const stampInvoice = useStampInvoice();
   const cancelInvoice = useCancelInvoice();
+  // Catálogos SAT del API para describir régimen y uso del receptor.
+  const { data: regimeCatalog } = useFiscalRegimes();
+  const { data: cfdiUseCatalog } = useCfdiUses();
 
   const currentUser = useAppSelector(selectUser);
 
@@ -317,7 +326,7 @@ export default function InvoiceDetailPage() {
                   <div>
                     <p className="text-sm text-gray-600">Régimen Fiscal</p>
                     <p className="font-medium text-gray-900">
-                      {getFiscalRegimeName(invoice.receiver_tax_regime_code || '')}
+                      {fiscalRegimeLabel(invoice.receiver_tax_regime_code, regimeCatalog) || '-'}
                     </p>
                   </div>
                   <div>
@@ -327,7 +336,7 @@ export default function InvoiceDetailPage() {
                   <div>
                     <p className="text-sm text-gray-600">Uso de CFDI</p>
                     <p className="font-medium text-gray-900">
-                      {getCfdiUseName(invoice.receiver_cfdi_use_code || '')}
+                      {cfdiUseLabel(invoice.receiver_cfdi_use_code, cfdiUseCatalog) || '-'}
                     </p>
                   </div>
                 </div>
