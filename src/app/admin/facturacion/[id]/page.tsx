@@ -72,7 +72,7 @@ import {
 } from '@/types/billing';
 import { useCanManageBilling } from '@/components/admin/billing/readiness/useCanManageBilling';
 import { InvoiceStatusBadge, InvoiceTypeBadge, SatStatusBadge } from '@/components/admin/billing/invoices/InvoiceBadges';
-import { CancelInvoiceDialog } from '@/components/admin/billing/invoices/CancelInvoiceDialog';
+import { CancelInvoiceDialog, isCancellationRejected } from '@/components/admin/billing/invoices/CancelInvoiceDialog';
 import { SendInvoiceEmailDialog } from '@/components/admin/billing/invoices/SendInvoiceEmailDialog';
 import { useCustomerFiscalEditor } from '@/components/admin/billing/invoices/useCustomerFiscalEditor';
 import { useBranchTimezone, formatIsoDate } from '@/components/admin/billing/invoices/useBranchTimezone';
@@ -817,7 +817,11 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
                     {a.canCancel && (
                       <Button variant="ghost" className="w-full text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => setCancelOpen(true)}>
                         <XMarkIcon className="h-5 w-5" aria-hidden />
-                        {invoice.providerStatus === InvoiceStatus.CANCEL_PENDING ? 'Actualizar cancelación' : 'Cancelar factura'}
+                        {invoice.providerStatus !== InvoiceStatus.CANCEL_PENDING
+                          ? 'Cancelar factura'
+                          : isCancellationRejected(invoice.cancellation?.satCancellationStatus ?? invoice.satCancellationStatus)
+                            ? 'Volver a solicitar cancelación'
+                            : 'Actualizar cancelación'}
                       </Button>
                     )}
                     {a.canDiscard && (
