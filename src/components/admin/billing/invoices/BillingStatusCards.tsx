@@ -8,7 +8,36 @@ import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 import { Card, CardContent } from '@/components/ui/card';
 import type { BillingStatus } from '@/types/billing';
 
+/** `GET /billing/status`.schemaReady = false: la BD todavía no tiene la migración 141. */
+export function SchemaPendingBanner({ status }: { status: BillingStatus | undefined }) {
+  if (!status || status.schemaReady !== false) return null;
+  return (
+    <Card className="mb-6 border-red-200 bg-red-50" role="alert">
+      <CardContent className="flex items-start gap-3 p-4">
+        <ExclamationTriangleIcon className="h-6 w-6 flex-shrink-0 text-red-600" aria-hidden />
+        <div className="text-sm text-red-900">
+          <p className="font-semibold">Falta aplicar la migración 141</p>
+          <p className="mt-1 text-xs">
+            La base de datos todavía no tiene las tablas y columnas de la facturación de v2. Hasta que
+            Sistemas aplique la migración 141, las facturas, la factura global, el complemento de pago y
+            las ventas por facturar responden &quot;no disponible&quot;. No es un error de tu captura.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function V2FlowsBanner({ status }: { status: BillingStatus | undefined }) {
+  return (
+    <>
+      <SchemaPendingBanner status={status} />
+      <FlowsClosedBanner status={status} />
+    </>
+  );
+}
+
+function FlowsClosedBanner({ status }: { status: BillingStatus | undefined }) {
   if (!status || status.v2FlowsEnabled !== false) return null;
   return (
     <Card className="mb-6 border-amber-200 bg-amber-50" role="status">

@@ -52,12 +52,29 @@ import { V2FlowsBanner } from '@/components/admin/billing/invoices/BillingStatus
 import {
   CONCEPT_MODE_OPTIONS,
   GLOBAL_DAY_STATUS_INFO,
+  INVOICE_STATUS_OPTIONS,
   globalBlockerLabel,
+  globalDayBlockReasonLabel,
   globalExclusionLabel,
 } from '@/components/admin/billing/invoices/labels';
 import { formatIsoDate, localDateInZone, useBranchTimezone } from '@/components/admin/billing/invoices/useBranchTimezone';
 
 const DAYS_STRIP = 14;
+
+/** Día YA emitido con tickets incluibles fuera de su global (ingreso sin declarar). */
+function dayHasUncovered(d: GlobalDayStatus): boolean {
+  return d.status === 'emitted_with_pending' || (d.uncoveredCount ?? 0) > 0;
+}
+
+function dayInfo(d: GlobalDayStatus) {
+  if (dayHasUncovered(d)) return GLOBAL_DAY_STATUS_INFO.emitted_with_pending;
+  return GLOBAL_DAY_STATUS_INFO[d.status] ?? GLOBAL_DAY_STATUS_INFO.not_eligible;
+}
+
+function providerStatusLabel(status: string | null | undefined): string | null {
+  if (!status) return null;
+  return INVOICE_STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status;
+}
 
 function addDays(iso: string, days: number): string {
   const [y, m, d] = iso.split('-').map(Number);
@@ -120,6 +137,21 @@ function GlobalInvoiceContent() {
   const discard = useDiscardGlobalInvoice();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [flowDisabled, setFlowDisabled] = useState(false);
+  // Intento (sin UUID) que se va a descartar, desde la tira de días o la vista previa.
+  const [discardTarget, setDiscardTarget] = useState<{ invoiceId: string; localDate: string } | null>(null);
+
+  const selectedDay = (days.data ?? []).find((d) => d.localDate === date);
+
+  const confirmDiscard = async () => {
+    if (!discardTarget) return;
+    try {
+      await discard.mutateAsync(discardTarget.invoiceId);
+      setDiscardTarget(null);
+      if (previewRequested) void preview.refetch();
+    } catch {
+      // El hook ya avisó.
+    }
+  };
 
   const globals = useInvoices({ invoiceType: 'global', branchId: branchId || undefined, limit: 10, sort: 'createdAt:desc' }, !!branchId);
 
@@ -239,8 +271,10 @@ function GlobalInvoiceContent() {
                 ) : (
                   <div className="flex flex-wrap gap-2" role="listbox" aria-label="Días">
                     {(days.data ?? []).map((d: GlobalDayStatus) => {
-                      const info = GLOBAL_DAY_STATUS_INFO[d.status] ?? GLOBAL_DAY_STATUS_INFO.not_eligible;
+                      const info = dayInfo(d);
                       const active = d.localDate === date;
+                      const attempt = providerStatusLabel(d.providerStatus);
+                      const reason = d.status === 'blocked' ? globalDayBlockReasonLabel(d.blockReason) : null;
                       return (
                         <button
                           key={d.localDate}
@@ -248,7 +282,7 @@ function GlobalInvoiceContent() {
                           role="option"
                           aria-selected={active}
                           onClick={() => setParams({ date: d.localDate })}
-                          title={`${info.label} · ${d.ticketCount} tickets · ${formatCurrency(d.total)}${d.blockers ? ` · ${d.blockers} bloqueador(es)` : ''}${d.lateEmission ? ' · emisión tardía' : ''}`}
+                          title={`${info.label} · ${d.ticketCount} tickets · ${formatCurrency(d.total)}${d.blockers ? ` · ${d.blockers} bloqueador(es)` : ''}${reason ? ` · ${reason}` : ''}${attempt ? ` · Intento/global: ${attempt}` : ''}${dayHasUncovered(d) && d.uncoveredCount ? ` · ${d.uncoveredCount} ticket(s) sin declarar` : ''}${d.lateEmission ? ' · emisión tardía' : ''}`}
                           className={`min-w-[84px] rounded-lg border px-2 py-1.5 text-left text-xs transition-colors ${info.className} ${active ? 'ring-2 ring-[#3E667D]' : ''}`}
                         >
                           <span className="block font-semibold">{formatIsoDate(d.localDate).slice(0, 5)}</span>
@@ -257,6 +291,54 @@ function GlobalInvoiceContent() {
                         </button>
                       );
                     })}
+                  </div>
+                )}
+
+                {/* Estado del día elegido: motivo del bloqueo, intento viejo y tickets sin declarar */}
+                {selectedDay && selectedDay.status === 'blocked' && (
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="status">
+                    <span>
+                      <span className="font-semibold">{formatIsoDate(selectedDay.localDate)} bloqueado.</span>{' '}
+                      {globalDayBlockReasonLabel(selectedDay.blockReason) ?? 'Abre la vista previa para ver el motivo.'}
+                      {providerStatusLabel(selectedDay.providerStatus) && (
+                        <> Estado del intento: {providerStatusLabel(selectedDay.providerStatus)}.</>
+                      )}
+                    </span>
+                    <div className="flex gap-2">
+                      {selectedDay.invoiceId && (
+                        <Button asChild size="sm" variant="outline">
+                          <Link href={`/admin/facturacion/${selectedDay.invoiceId}`}>Ver intento</Link>
+                        </Button>
+                      )}
+                      {canManage && selectedDay.blockReason === 'stale_error' && selectedDay.invoiceId && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-700 hover:bg-red-100 hover:text-red-800"
+                          disabled={discard.isPending}
+                          onClick={() => setDiscardTarget({ invoiceId: selectedDay.invoiceId as string, localDate: selectedDay.localDate })}
+                        >
+                          Descartar intento
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {selectedDay && dayHasUncovered(selectedDay) && (
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900" role="alert">
+                    <span>
+                      <span className="font-semibold">
+                        El {formatIsoDate(selectedDay.localDate)} ya tiene global, pero
+                        {selectedDay.uncoveredCount ? ` ${selectedDay.uncoveredCount} ticket(s) quedaron` : ' hay tickets'} sin declarar.
+                      </span>{' '}
+                      Pasa cuando se cancela la factura nominativa de un ticket después de emitir la global. Hay que
+                      reexpedir la global del día para incluirlos.
+                    </span>
+                    {selectedDay.invoiceId && (
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/admin/facturacion/${selectedDay.invoiceId}`}>Abrir la global para reexpedir</Link>
+                      </Button>
+                    )}
                   </div>
                 )}
               </div>
@@ -301,7 +383,7 @@ function GlobalInvoiceContent() {
                     <div className="flex gap-2">
                       <Button asChild size="sm" variant="outline"><Link href={`/admin/facturacion/${p.existingGlobal.invoiceId}`}>Ver global</Link></Button>
                       {canManage && !p.existingGlobal.satUuid && (p.existingGlobal.providerStatus === 'error' || p.existingGlobal.providerStatus === 'pending') && (
-                        <Button size="sm" variant="ghost" className="text-red-600" disabled={discard.isPending} onClick={() => discard.mutate(p.existingGlobal!.invoiceId, { onSuccess: () => void preview.refetch() })}>
+                        <Button size="sm" variant="ghost" className="text-red-600" disabled={discard.isPending} onClick={() => setDiscardTarget({ invoiceId: p.existingGlobal!.invoiceId, localDate: p.localDate })}>
                           Descartar intento
                         </Button>
                       )}
@@ -416,7 +498,10 @@ function GlobalInvoiceContent() {
               open={confirmOpen}
               onOpenChange={setConfirmOpen}
               title="Emitir factura global"
+              description="Es un CFDI ante el SAT: una vez timbrado solo se puede cancelar, no borrar."
               confirmLabel="Timbrar global"
+              confirmText="EMITIR"
+              cancelLabel="Volver"
               isPending={create.isPending}
               onConfirm={handleEmit}
             >
@@ -428,6 +513,24 @@ function GlobalInvoiceContent() {
               <p className="mt-2 text-xs text-gray-500">Si la selección cambió desde la vista previa, el API la rechazará y se recargará la vista previa.</p>
             </ConfirmDialog>
           </>
+        )}
+
+        {discardTarget && (
+          <ConfirmDialog
+            open={!!discardTarget}
+            onOpenChange={(open) => {
+              if (!open) setDiscardTarget(null);
+            }}
+            title={`Descartar el intento de global del ${formatIsoDate(discardTarget.localDate)}`}
+            description="Solo aplica a intentos sin UUID (pendientes o con error): nunca se timbraron, así que no hay nada que cancelar ante el SAT."
+            confirmLabel="Descartar intento"
+            cancelLabel="Volver"
+            destructive
+            isPending={discard.isPending}
+            onConfirm={confirmDiscard}
+          >
+            <p>Los tickets del día quedan libres y el día vuelve a estar disponible para emitir su factura global.</p>
+          </ConfirmDialog>
         )}
 
         {/* Globales de la sucursal */}
