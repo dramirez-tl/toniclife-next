@@ -110,7 +110,8 @@ function ReporteFoliosContent() {
     page,
   });
 
-  const cfdis = cfdisData?.data ?? [];
+  // Memo: `?? []` crearía un arreglo nuevo en cada render y recalcularía el resumen.
+  const cfdis = useMemo(() => cfdisData?.data ?? [], [cfdisData]);
   const totalCount = cfdisData?.total ?? 0;
 
   // Summary

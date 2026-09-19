@@ -2,7 +2,7 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.5 Facturación
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ import {
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import { rfcPersonType, satCatalogOptions } from '@/types/billing';
+import { rfcPersonType, satCatalogOptions, type FiscalData } from '@/types/billing';
 import {
   useCfdiUses,
   useFiscalData,
@@ -25,6 +25,11 @@ import {
   useUpdateFiscalData,
   useValidateRfc,
 } from '@/hooks/useBilling';
+
+/** El API anexa el cliente al registro fiscal; `FiscalData` no lo declara. */
+type FiscalDataWithCustomer = FiscalData & {
+  customer?: { customerNumber?: string | null } | null;
+};
 
 export default function EditFiscalDataPage() {
   const params = useParams();
@@ -57,23 +62,26 @@ export default function EditFiscalDataPage() {
   const { data: regimeCatalog } = useFiscalRegimes(rfcPersonType(formData.rfc) ?? undefined);
   const { data: cfdiUseCatalog } = useCfdiUses(formData.taxRegime || undefined);
 
-  useEffect(() => {
-    if (fiscalData) {
-      setFormData({
-        rfc: fiscalData.rfc,
-        legalName: fiscalData.legalName,
-        taxRegime: fiscalData.taxRegime,
-        postalCode: fiscalData.postalCode,
-        email: fiscalData.email || '',
-        defaultCfdiUse: fiscalData.defaultCfdiUse,
-      });
-      setCustomerInfo({
-        name: fiscalData.legalName,
-        number: (fiscalData as any).customer?.customerNumber || '-',
-      });
-      setIsValidated(fiscalData.isValidated);
-    }
-  }, [fiscalData]);
+  // El formulario se (re)carga cada vez que llega un registro nuevo del API.
+  // Se ajusta durante el render (patrón de React para "estado derivado de un
+  // dato que cambió") en vez de un efecto con setState, con el mismo resultado.
+  const [loadedFiscalData, setLoadedFiscalData] = useState<FiscalData | null>(null);
+  if (fiscalData && fiscalData !== loadedFiscalData) {
+    setLoadedFiscalData(fiscalData);
+    setFormData({
+      rfc: fiscalData.rfc,
+      legalName: fiscalData.legalName,
+      taxRegime: fiscalData.taxRegime,
+      postalCode: fiscalData.postalCode,
+      email: fiscalData.email || '',
+      defaultCfdiUse: fiscalData.defaultCfdiUse,
+    });
+    setCustomerInfo({
+      name: fiscalData.legalName,
+      number: (fiscalData as FiscalDataWithCustomer).customer?.customerNumber || '-',
+    });
+    setIsValidated(fiscalData.isValidated);
+  }
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -126,7 +134,7 @@ export default function EditFiscalDataPage() {
 
     try {
       await validateRfc.mutateAsync(formData.rfc);
-    } catch (error) {
+    } catch {
       // Error handled by mutation
     }
   };
@@ -151,7 +159,7 @@ export default function EditFiscalDataPage() {
         },
       });
       router.push('/admin/facturacion/datos-fiscales');
-    } catch (error) {
+    } catch {
       // Error handled by mutation
     }
   };

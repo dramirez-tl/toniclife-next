@@ -26,7 +26,6 @@ import {
   GlobeAltIcon,
   BellIcon,
   XMarkIcon,
-  RocketLaunchIcon,
   ReceiptPercentIcon,
   AcademicCapIcon,
   WrenchScrewdriverIcon,
@@ -245,7 +244,7 @@ function hasAnyPermission(userPermissions: string[], requiredPermissions?: strin
 
   // Verificar cada permiso requerido
   return requiredPermissions.some((required) => {
-    const [requiredModule, requiredAction] = required.split(':');
+    const [requiredModule] = required.split(':');
 
     return userPermissions.some((userPerm) => {
       const [userModule, userAction] = userPerm.split(':');

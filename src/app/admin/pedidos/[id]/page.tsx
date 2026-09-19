@@ -8,13 +8,11 @@ import {
   PrinterIcon,
   EnvelopeIcon,
   TruckIcon,
-  CheckCircleIcon,
   XCircleIcon,
   ClockIcon,
   UserIcon,
   MapPinIcon,
   DocumentTextIcon,
-  ReceiptRefundIcon,
   EllipsisVerticalIcon,
   ExclamationTriangleIcon,
   CubeIcon,
@@ -90,6 +88,12 @@ const formatDate = (dateString: string | Date) => {
 // Page Component
 // ================================
 
+/** `message` del cuerpo de error del API (axios), si viene. */
+function apiErrorMessage(err: unknown): string | undefined {
+  const data = (err as { response?: { data?: { message?: string } } } | null | undefined)?.response?.data;
+  return data?.message;
+}
+
 export default function OrderDetailAdminPage() {
   const params = useParams();
   const id = params.id as string;
@@ -143,8 +147,8 @@ export default function OrderDetailAdminPage() {
       toast.success(
         `Estado actualizado a: ${statusOptions.find((s) => s.value === newStatus)?.label}`,
       );
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Error al actualizar estado');
+    } catch (err: unknown) {
+      toast.error(apiErrorMessage(err) || 'Error al actualizar estado');
     }
   };
 
@@ -187,9 +191,6 @@ export default function OrderDetailAdminPage() {
     }
   };
 
-  const handleSendEmail = () => {
-    toast.success('Correo de actualización enviado al cliente');
-  };
 
   const handleCancel = async () => {
     if (!cancelReason.trim()) return;
@@ -201,8 +202,8 @@ export default function OrderDetailAdminPage() {
       setShowCancelModal(false);
       setCancelReason('');
       toast.success('Pedido cancelado correctamente');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Error al cancelar pedido');
+    } catch (err: unknown) {
+      toast.error(apiErrorMessage(err) || 'Error al cancelar pedido');
     }
   };
 
@@ -242,7 +243,7 @@ export default function OrderDetailAdminPage() {
           <ExclamationTriangleIcon className="h-16 w-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-gray-900 mb-2">Error al cargar el pedido</h2>
           <p className="text-gray-600 mb-4">
-            {(error as any)?.response?.data?.message || 'Pedido no encontrado'}
+            {apiErrorMessage(error) || 'Pedido no encontrado'}
           </p>
           <Link href="/admin/pedidos">
             <Button variant="default">
