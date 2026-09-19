@@ -49,7 +49,7 @@ import {
   useInvoices,
   usePaymentForms,
 } from '@/hooks/useBilling';
-import { billingErrorMessage, isBillingErrorCode, isBillingFlowDisabled } from '@/lib/billing-error';
+import { billingErrorBody, billingErrorInvoiceId, billingErrorMessage, isBillingErrorCode, isBillingFlowDisabled } from '@/lib/billing-error';
 import {
   buildPartialitiesPreview,
   parseAmount,
@@ -149,6 +149,9 @@ function ComplementoPagoContent() {
   const [newAttemptNotice, setNewAttemptNotice] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [flowDisabled, setFlowDisabled] = useState(false);
+  // Último envío rechazado que dejó una factura a la vista: el intento del
+  // complemento en `error`, o (`busy`) la factura PPD que el API señaló (p. ej. con otro complemento en curso).
+  const [failedAttempt, setFailedAttempt] = useState<{ invoiceId: string; message: string; busy: boolean } | null>(null);
 
   // Monto = Σ documentos mientras el usuario no lo haya tocado.
   const docsSum = sum2(selectedList.map((d) => parseAmount(d.amountPaid)));
@@ -190,6 +193,7 @@ function ComplementoPagoContent() {
     }
     setAttemptSignature(draftSignature);
     setNewAttemptNotice(false);
+    setFailedAttempt(null);
     try {
       const invoice = await create.mutateAsync({
         idempotencyKey: key,
@@ -209,6 +213,17 @@ function ComplementoPagoContent() {
       router.push(`/admin/facturacion/${invoice.id}`);
     } catch (err) {
       if (isBillingFlowDisabled(err)) setFlowDisabled(true);
+      const errorInvoiceId = billingErrorInvoiceId(err);
+      if (errorInvoiceId) {
+        // Se cierra la confirmación para que el aviso con el enlace quede a la vista.
+        setConfirmOpen(false);
+        setFailedAttempt({
+          invoiceId: errorInvoiceId,
+          message: billingErrorMessage(err, 'No se pudo timbrar el complemento de pago'),
+          // `invoiceId` de primer nivel = el intento del complemento; en `details` viene la factura PPD señalada.
+          busy: !billingErrorBody(err)?.invoiceId,
+        });
+      }
       if (isBillingErrorCode(err, 'CFDI_IDEMPOTENCY_CONFLICT')) {
         // La llave ya se usó con otros datos: llave nueva y se conserva la selección.
         setIdempotencyKey(uuidV4());
@@ -470,6 +485,22 @@ function ComplementoPagoContent() {
               <ul className="mt-4 list-disc space-y-1 pl-5 text-sm text-red-700" role="alert">
                 {errors.map((e, i) => <li key={i}>{e}</li>)}
               </ul>
+            )}
+            {failedAttempt && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">
+                <span>
+                  <span className="font-semibold">El complemento no quedó timbrado.</span> {failedAttempt.message}{' '}
+                  {failedAttempt.busy
+                    ? 'Abre la factura señalada para revisarla: si tiene un complemento en curso, termínalo o deséchalo antes de registrar otro pago.'
+                    : 'El intento quedó guardado: ábrelo para reintentarlo o desecharlo antes de registrar el pago otra vez.'}
+                </span>
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/admin/facturacion/${failedAttempt.invoiceId}`} target="_blank" rel="noopener noreferrer">
+                    {failedAttempt.busy ? 'Ver la factura' : 'Ver intento'}
+                    <span className="sr-only"> (se abre en otra pestaña)</span>
+                  </Link>
+                </Button>
+              </div>
             )}
             <div className="mt-6 flex justify-end gap-3">
               <Button asChild variant="outline"><Link href="/admin/facturacion">Cancelar</Link></Button>

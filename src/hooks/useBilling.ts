@@ -319,7 +319,11 @@ export function useRefreshInvoiceStatus() {
       billingService.refreshInvoiceStatus(id, force),
     onSuccess: (result, { id }) => {
       invalidate(id);
-      toast.success(`Estatus SAT: ${result.satStatus} (se usó ${result.foliosUsed} timbre)`);
+      const summary = `Estatus SAT: ${result.satStatus} (se usó ${result.foliosUsed} timbre)`;
+      const options = result.message ? { description: result.message, duration: 10000 } : undefined;
+      // `confirmed` = esta consulta confirmó la cancelación y liberó el origen.
+      if (result.confirmed) toast.success(summary, options);
+      else toast.info(summary, options);
     },
     onError: (error: unknown) => {
       if (isBillingErrorCode(error, 'CFDI_STATUS_RATE_LIMITED')) {
