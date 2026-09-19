@@ -21,6 +21,36 @@ function fileName(kind: InvoiceFileKind, folio: string | null | undefined, id: s
   return `factura-${base}.${kind}`;
 }
 
+type BlobErrorLike = { response?: { status?: number; data?: unknown } };
+
+/**
+ * Con `responseType: 'blob'` el cuerpo del ERROR también llega como Blob, así
+ * que `billingErrorMessage` no encuentra `code`/`message` y un 503
+ * `BILLING_SCHEMA_PENDING` se veía como "(HTTP 503)". Aquí se lee el Blob, se
+ * parsea el JSON uniforme y se devuelve un error equivalente ya legible.
+ */
+async function withParsedBlobBody(err: unknown): Promise<unknown> {
+  const data = (err as BlobErrorLike | null | undefined)?.response?.data;
+  if (typeof Blob === 'undefined' || !(data instanceof Blob)) return err;
+  try {
+    const text = (await data.text()).trim();
+    if (!text) return err;
+    let parsed: unknown = text;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      // Texto plano (proxy): `billingErrorMessage` lo muestra tal cual.
+    }
+    const original = err as BlobErrorLike & { message?: unknown };
+    return {
+      message: original.message,
+      response: { status: original.response?.status, data: parsed },
+    };
+  } catch {
+    return err;
+  }
+}
+
 async function fetchBlob(kind: InvoiceFileKind, id: string): Promise<Blob> {
   if (kind === 'pdf') return billingService.downloadInvoicePdf(id);
   if (kind === 'xml') return billingService.downloadInvoiceXml(id);
@@ -38,7 +68,9 @@ export async function downloadInvoiceFile(
     saveBlob(blob, fileName(kind, folio, id), MIME[kind]);
     return true;
   } catch (err) {
-    toast.error(billingErrorMessage(err, `No se pudo descargar el ${kind.toUpperCase()}`));
+    const readable = await withParsedBlobBody(err);
+    const what = kind === 'acuse' ? 'acuse de cancelación' : kind.toUpperCase();
+    toast.error(billingErrorMessage(readable, `No se pudo descargar el ${what}`));
     return false;
   }
 }
@@ -51,6 +83,6 @@ export async function openInvoicePdf(id: string): Promise<void> {
     window.open(url, '_blank', 'noopener');
     window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   } catch (err) {
-    toast.error(billingErrorMessage(err, 'No se pudo abrir el PDF'));
+    toast.error(billingErrorMessage(await withParsedBlobBody(err), 'No se pudo abrir el PDF'));
   }
 }

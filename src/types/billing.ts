@@ -269,7 +269,10 @@ export interface InvoiceDetail extends InvoiceSummary {
       complementInvoiceId: string;
       folioDisplay: string;
       satUuid: string | null;
+      /** Instante UTC (TIMESTAMPTZ): NO cortar a 10 caracteres, se corre de día. */
       paymentDate: string | null;
+      /** 'YYYY-MM-DDTHH:mm:ss' en la zona de la sucursal (lo que se muestra). */
+      paymentLocalDateTime?: string | null;
       amountPaid: number;
       partialityNumber: number;
       providerStatus: InvoiceStatus | null;
@@ -309,14 +312,29 @@ export interface CancelInvoiceDto {
   replacementUuid?: string;
 }
 
+/** Veredicto del SAT sobre la solicitud de cancelación. */
+export type CancellationClass = 'cancelled' | 'rejected' | 'pending';
+
 /** `POST /billing/invoices/:id/cancel` → `CancelResultDto`. */
 export interface CancelResultDto {
   invoiceId: string;
   providerStatus: InvoiceStatus;
   /** true solo cuando el SAT dio la cancelación por aceptada. */
   confirmed: boolean;
+  /** 'rejected' = el SAT no va a cancelar (rechazo del receptor o plazo vencido). */
+  cancellationClass?: CancellationClass;
   satCancellationStatus: string | null;
+  /** true = solo se consultó el estatus de una solicitud ya enviada (usa 1 timbre). */
+  refreshed?: boolean;
   message: string;
+}
+
+/** `POST /billing/invoices/:id/discard` (cualquier clase, solo intentos sin UUID). */
+export interface DiscardInvoiceResult {
+  invoiceId: string;
+  discarded: boolean;
+  /** Tickets/pedidos de una global o facturas PPD de un complemento que quedaron libres. */
+  releasedDocuments: number;
 }
 
 /** `POST /billing/invoices/:id/refresh-status` (consume un folio). */
@@ -328,15 +346,25 @@ export interface RefreshStatusResult {
   foliosUsed: number;
 }
 
-/** `POST /billing/invoices/:id/replace`: la nueva factura + resultado de la cancelación 01. */
+/**
+ * `POST /billing/invoices/:id/replace`: la factura NUEVA (su `cancellation` es
+ * la propia y llega en null) + el resultado de la cancelación 01 de la original
+ * en `previousCancellation`.
+ */
 export type ReplaceInvoiceResult = InvoiceDetail & {
   previousInvoiceId: string;
-  cancellation: {
+  previousCancellation: {
     requested: boolean;
     providerStatus: InvoiceStatus | null;
     error?: string | null;
   };
 };
+
+/** Opciones de `POST /billing/invoices/:id/stamp`. */
+export interface StampInvoiceOptions {
+  /** El ticket está en una global viva y el usuario reconoció los 3 pasos (§5.3.7). */
+  acknowledgeGlobal?: boolean;
+}
 
 /** `GET /billing/invoices/:id/files` (URLs firmadas; `null` con storage local). */
 export interface InvoiceFiles {
@@ -427,7 +455,8 @@ export interface InvoiceableSale {
 }
 
 export interface InvoiceableSalesQuery {
-  branchId?: string;
+  /** Obligatorio en el API (§7.3 es por sucursal y día): sin él no se consulta. */
+  branchId: string;
   date?: string;
   status?: InvoiceableStatus;
   search?: string;
@@ -454,18 +483,32 @@ export type GlobalDayState =
   | 'blocked'
   | 'open'
   | 'emitted'
+  /** Global viva del día + tickets incluibles que no están en ella (ingreso sin declarar). */
+  | 'emitted_with_pending'
   | 'cancelled'
   | 'pending_reissue';
+
+/** Por qué un día está `blocked`. */
+export type GlobalDayBlockReason =
+  | 'tickets'
+  | 'terminals_off'
+  | 'attempt_in_progress'
+  | 'stale_error';
 
 /** `GET /billing/global-invoices/days` */
 export interface GlobalDayStatus {
   localDate: string;
   status: GlobalDayState;
   invoiceId?: string | null;
+  /** Estado del intento/global del día (null si no hay fila). */
+  providerStatus?: InvoiceStatus | null;
   providerFolio?: string | null;
   ticketCount: number;
   total: number;
   blockers: number;
+  blockReason?: GlobalDayBlockReason | null;
+  /** Tickets incluibles de un día YA emitido que no están en su global. */
+  uncoveredCount?: number;
   lateEmission: boolean;
 }
 
@@ -521,7 +564,8 @@ export interface GlobalPreview {
     subtotal: number;
     taxAmount: number;
     total: number;
-    taxBreakdown: InvoiceTax[];
+    /** `GlobalTaxDto` del API: `{ rate, factor, base, tax }` (no es `InvoiceTax`). */
+    taxBreakdown: InvoiceTotalsByRate[];
   }[];
   excluded: {
     kind: 'pos_sale' | 'order';
@@ -555,6 +599,20 @@ export interface GlobalPreview {
   } | null;
   canStamp: boolean;
   previewHash: string;
+}
+
+/**
+ * `POST /billing/global-invoices/:id/reissue`. Solo `reissued` trae `invoice`;
+ * `waiting_sat` = la cancelación 04 sigue en proceso y todavía no hay global nueva.
+ */
+export interface GlobalReissueResult {
+  state: 'reissued' | 'waiting_sat' | 'nothing_to_reissue';
+  previousInvoiceId: string;
+  previousProviderStatus: InvoiceStatus | null;
+  message: string;
+  /** true = el PAC rechazó la relación 04 y la nueva global se emitió SIN ella. */
+  relationDropped: boolean;
+  invoice: InvoiceDetail | null;
 }
 
 /** `POST /billing/global-invoices` */
@@ -595,12 +653,21 @@ export interface CreatePaymentComplementDto {
 export interface SetBranchInvoicingSinceDto {
   /** 'YYYY-MM-DD' | null (null = la sucursal sigue facturando en el sistema anterior). */
   since: string | null;
+  /**
+   * Obligatorio para una fecha PASADA: el usuario declara que el sistema
+   * anterior ya dejó de facturar esa sucursal (si no, doble declaración).
+   */
+  acknowledgeLegacyStopped?: boolean;
 }
 
-/** Respuesta de `PUT /billing/branches/:id/invoicing-since`. */
+/** Respuesta de `PUT /billing/branches/:id/invoicing-since` (solo super_admin). */
 export interface BranchInvoicingSinceResult {
   branchId: string;
   v2InvoicingSince: string | null;
+  /** Terminales de la sucursal con Facturación encendida / totales (no revocadas). */
+  terminalsOn?: number;
+  terminalsTotal?: number;
+  warning?: string | null;
 }
 
 // ================================
@@ -650,6 +717,8 @@ export interface BillingStatus {
   error: string | null;
   /** Flujos de facturación v2 (factura de pedido, global, complemento, nominativa desde admin). */
   v2FlowsEnabled?: boolean;
+  /** false = falta aplicar la migración 141: todo `/billing` de Fase 2 responde 503. */
+  schemaReady?: boolean;
   /** Lugar de expedición: tenant (CP del emisor) | branch (CP de la sucursal). */
   expeditionPlaceMode?: 'tenant' | 'branch';
   /** Modo de conceptos por defecto de la factura global. */

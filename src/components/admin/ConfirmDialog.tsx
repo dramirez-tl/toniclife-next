@@ -9,6 +9,10 @@
 //
 // Accesible: Radix maneja foco/Escape; el campo de confirmación lleva Label y
 // `aria-describedby`; el botón principal anuncia el estado pendiente.
+//
+// El texto tecleado vive en `ConfirmDialogBody`, que Radix desmonta al cerrar:
+// así se limpia SIEMPRE, también cuando el padre cierra con `setOpen(false)`
+// sin pasar por `onOpenChange` (si no, al reabrir seguía escrito `CANCELAR`).
 
 import { useId, useState, type ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
@@ -60,17 +64,8 @@ export function ConfirmDialog({
   onConfirm,
   contentClassName,
 }: ConfirmDialogProps) {
-  const [typed, setTyped] = useState('');
-  const inputId = useId();
-  const helpId = `${inputId}-help`;
-
-  const needsText = !!confirmText;
-  const textOk = !needsText || typed.trim() === confirmText;
-  const canConfirm = !isPending && !disabled && textOk;
-
   const handleOpenChange = (next: boolean) => {
     if (!next && isPending) return; // no se cierra a media operación
-    if (!next) setTyped('');
     onOpenChange(next);
   };
 
@@ -83,55 +78,104 @@ export function ConfirmDialog({
           if (isPending) e.preventDefault();
         }}
       >
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          {description ? <DialogDescription>{description}</DialogDescription> : null}
-        </DialogHeader>
-
-        {children ? <div className="text-sm text-gray-700">{children}</div> : null}
-
-        {needsText && (
-          <div className="space-y-1.5">
-            <Label htmlFor={inputId}>
-              Escribe <span className="font-mono font-semibold">{confirmText}</span> para confirmar
-            </Label>
-            <Input
-              id={inputId}
-              value={typed}
-              onChange={(e) => setTyped(e.target.value)}
-              autoComplete="off"
-              autoCapitalize="characters"
-              aria-describedby={helpId}
-              aria-invalid={typed.length > 0 && !textOk}
-              disabled={isPending}
-            />
-            <p id={helpId} className="text-xs text-muted-foreground">
-              Esta confirmación evita acciones por accidente.
-            </p>
-          </div>
-        )}
-
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => handleOpenChange(false)}
-            disabled={isPending}
-          >
-            {cancelLabel}
-          </Button>
-          <Button
-            type="button"
-            variant={destructive ? 'destructive' : 'default'}
-            onClick={() => void onConfirm()}
-            disabled={!canConfirm}
-            aria-busy={isPending}
-          >
-            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
-            {isPending ? 'Procesando…' : confirmLabel}
-          </Button>
-        </DialogFooter>
+        <ConfirmDialogBody
+          title={title}
+          description={description}
+          confirmLabel={confirmLabel}
+          cancelLabel={cancelLabel}
+          confirmText={confirmText}
+          isPending={isPending}
+          disabled={disabled}
+          destructive={destructive}
+          onConfirm={onConfirm}
+          onCancel={() => handleOpenChange(false)}
+        >
+          {children}
+        </ConfirmDialogBody>
       </DialogContent>
     </Dialog>
+  );
+}
+
+type ConfirmDialogBodyProps = Pick<
+  ConfirmDialogProps,
+  'title' | 'description' | 'children' | 'confirmText' | 'onConfirm'
+> & {
+  confirmLabel: string;
+  cancelLabel: string;
+  isPending: boolean;
+  disabled: boolean;
+  destructive: boolean;
+  onCancel: () => void;
+};
+
+/** Contenido del diálogo: se monta al abrir, así que `typed` siempre arranca vacío. */
+function ConfirmDialogBody({
+  title,
+  description,
+  children,
+  confirmLabel,
+  cancelLabel,
+  confirmText,
+  isPending,
+  disabled,
+  destructive,
+  onConfirm,
+  onCancel,
+}: ConfirmDialogBodyProps) {
+  const [typed, setTyped] = useState('');
+  const inputId = useId();
+  const helpId = `${inputId}-help`;
+
+  const needsText = !!confirmText;
+  const textOk = !needsText || typed.trim() === confirmText;
+  const canConfirm = !isPending && !disabled && textOk;
+
+  return (
+    <>
+      <DialogHeader>
+        <DialogTitle>{title}</DialogTitle>
+        {description ? <DialogDescription>{description}</DialogDescription> : null}
+      </DialogHeader>
+
+      {children ? <div className="text-sm text-gray-700">{children}</div> : null}
+
+      {needsText && (
+        <div className="space-y-1.5">
+          <Label htmlFor={inputId}>
+            Escribe <span className="font-mono font-semibold">{confirmText}</span> para confirmar
+          </Label>
+          <Input
+            id={inputId}
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            autoComplete="off"
+            autoCapitalize="characters"
+            aria-describedby={helpId}
+            aria-invalid={typed.length > 0 && !textOk}
+            disabled={isPending}
+          />
+          <p id={helpId} className="text-xs text-muted-foreground">
+            Esta confirmación evita acciones por accidente.
+          </p>
+        </div>
+      )}
+
+      <DialogFooter>
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={isPending}>
+          {cancelLabel}
+        </Button>
+        <Button
+          type="button"
+          variant={destructive ? 'destructive' : 'default'}
+          onClick={() => void onConfirm()}
+          disabled={!canConfirm}
+          aria-busy={isPending}
+        >
+          {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
+          {isPending ? 'Procesando…' : confirmLabel}
+        </Button>
+      </DialogFooter>
+    </>
   );
 }

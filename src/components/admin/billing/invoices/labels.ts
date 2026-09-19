@@ -6,6 +6,7 @@ import {
   InvoiceStatus,
   type CancellationReason,
   type GlobalBlockerCode,
+  type GlobalDayBlockReason,
   type GlobalDayState,
   type GlobalExclusionReason,
   type InvoiceSummary,
@@ -103,6 +104,10 @@ export const GLOBAL_DAY_STATUS_INFO: Record<
   blocked: { label: 'Bloqueada', className: 'bg-red-50 text-red-800 border-red-200' },
   open: { label: 'Día abierto', className: 'bg-amber-50 text-amber-800 border-amber-200' },
   emitted: { label: 'Emitida', className: 'bg-[#C8DDF2] text-[#2f5165] border-[#3E667D]/30' },
+  emitted_with_pending: {
+    label: 'Emitida · faltan tickets',
+    className: 'bg-rose-50 text-rose-800 border-rose-300',
+  },
   cancelled: { label: 'Cancelada', className: 'bg-orange-50 text-orange-800 border-orange-200' },
   pending_reissue: { label: 'Por reexpedir', className: 'bg-purple-50 text-purple-800 border-purple-200' },
 };
@@ -123,8 +128,43 @@ export const GLOBAL_BLOCKER_LABELS: Record<GlobalBlockerCode, string> = {
   stale_error: 'Intento anterior con error (desechar)',
 };
 
+/** Por qué un día de la tira está bloqueado (`GlobalDayStatus.blockReason`). */
+export const GLOBAL_DAY_BLOCK_REASON_LABELS: Record<GlobalDayBlockReason, string> = {
+  tickets: 'Hay tickets con bloqueadores: abre la vista previa para verlos.',
+  terminals_off: 'Hay terminales de la sucursal con Facturación apagada.',
+  attempt_in_progress: 'Hay un intento de factura global en curso para este día.',
+  stale_error: 'Quedó un intento con error de hace más de 24 horas: descártalo para poder emitir el día.',
+};
+
+export function globalDayBlockReasonLabel(reason: string | null | undefined): string | null {
+  if (!reason) return null;
+  return (GLOBAL_DAY_BLOCK_REASON_LABELS as Record<string, string>)[reason] ?? reason;
+}
+
+/**
+ * Bloqueadores propios de "ventas por facturar": la venta ya tiene un intento
+ * de factura (`invoiceId` lleno aunque el estado siga "sin factura").
+ */
+export const INVOICEABLE_BLOCKER_LABELS: Record<string, string> = {
+  invoice_pending: 'Tiene un intento de factura sin timbrar',
+  invoice_error: 'El intento de factura anterior terminó con error',
+  invoice_stamping: 'Se está timbrando en este momento',
+  invoice_cancel_pending: 'Su factura tiene una cancelación en proceso ante el SAT',
+};
+
+/** Intentos que NO impiden facturar: el mismo botón reintenta el timbrado. */
+export const RETRYABLE_INVOICEABLE_BLOCKERS = new Set(['invoice_pending', 'invoice_error']);
+
+export function invoiceableBlockerCode(b: InvoiceableBlocker): string {
+  return typeof b === 'string' ? b : b.code;
+}
+
 export function globalBlockerLabel(code: string): string {
-  return (GLOBAL_BLOCKER_LABELS as Record<string, string>)[code] ?? code;
+  return (
+    (GLOBAL_BLOCKER_LABELS as Record<string, string>)[code] ??
+    INVOICEABLE_BLOCKER_LABELS[code] ??
+    code
+  );
 }
 
 export function globalExclusionLabel(reason: string): string {

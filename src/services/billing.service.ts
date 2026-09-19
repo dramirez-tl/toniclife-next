@@ -12,10 +12,12 @@ import type {
   CancelResultDto,
   CreateGlobalInvoiceDto,
   CreatePaymentComplementDto,
+  DiscardInvoiceResult,
   GlobalDayStatus,
   GlobalDaysQuery,
   GlobalPreview,
   GlobalPreviewQuery,
+  GlobalReissueResult,
   InvoiceDetail,
   InvoiceFiles,
   InvoiceListQuery,
@@ -26,6 +28,7 @@ import type {
   ReplaceInvoiceResult,
   SendInvoiceEmailResult,
   SetBranchInvoicingSinceDto,
+  StampInvoiceOptions,
   CatalogItem,
   RfcValidation,
   BillingStatus,
@@ -172,9 +175,27 @@ export async function getInvoice(id: string): Promise<InvoiceDetail> {
   return response.data;
 }
 
-/** Único endpoint de (re)timbrado para las cuatro clases (§1.1). Nunca re-timbra `stamped`. */
-export async function stampInvoice(id: string): Promise<InvoiceDetail> {
-  const response = await apiClient.post<InvoiceDetail>(`${BASE_URL}/invoices/${id}/stamp`);
+/**
+ * Único endpoint de (re)timbrado para las cuatro clases (§1.1). Nunca re-timbra
+ * `stamped`. `acknowledgeGlobal` se manda cuando el ticket está en una global
+ * viva y el usuario ya reconoció los 3 pasos (§5.3.7); sin él responde 409
+ * `CFDI_IN_GLOBAL`.
+ */
+export async function stampInvoice(
+  id: string,
+  options?: StampInvoiceOptions,
+): Promise<InvoiceDetail> {
+  const qs = toQueryString({ acknowledgeGlobal: options?.acknowledgeGlobal ? true : undefined });
+  const response = await apiClient.post<InvoiceDetail>(`${BASE_URL}/invoices/${id}/stamp${qs}`);
+  return response.data;
+}
+
+/**
+ * Desecha un intento SIN UUID (`pending`/`error`) de cualquier clase: libera
+ * los tickets de una global o las facturas PPD de un complemento.
+ */
+export async function discardInvoice(id: string): Promise<DiscardInvoiceResult> {
+  const response = await apiClient.post<DiscardInvoiceResult>(`${BASE_URL}/invoices/${id}/discard`);
   return response.data;
 }
 
@@ -247,16 +268,16 @@ export async function downloadInvoiceAcuse(id: string): Promise<Blob> {
 // ================================
 
 export async function listInvoiceableSales(
-  query?: InvoiceableSalesQuery,
+  query: InvoiceableSalesQuery,
 ): Promise<PaginatedInvoiceableSales> {
   const qs = toQueryString({
-    branchId: query?.branchId,
-    date: query?.date,
-    status: query?.status,
-    search: query?.search,
-    onlyFiscalReady: query?.onlyFiscalReady,
-    page: query?.page,
-    limit: query?.limit,
+    branchId: query.branchId,
+    date: query.date,
+    status: query.status,
+    search: query.search,
+    onlyFiscalReady: query.onlyFiscalReady,
+    page: query.page,
+    limit: query.limit,
   });
   const response = await apiClient.get<PaginatedInvoiceableSales>(
     `${BASE_URL}/invoiceable-sales${qs}`,
@@ -296,9 +317,14 @@ export async function discardGlobalInvoice(id: string): Promise<void> {
   await apiClient.post(`${BASE_URL}/global-invoices/${id}/discard`);
 }
 
-/** Cancela con 04 y reemite la global sin los tickets facturados nominativamente (§5.3.7). */
-export async function reissueGlobalInvoice(id: string): Promise<InvoiceDetail> {
-  const response = await apiClient.post<InvoiceDetail>(`${BASE_URL}/global-invoices/${id}/reissue`);
+/**
+ * Cancela con 04 y reemite la global sin los tickets facturados nominativamente
+ * (§5.3.7). OJO: no responde la factura sino `{ state, invoice | null, ... }`.
+ */
+export async function reissueGlobalInvoice(id: string): Promise<GlobalReissueResult> {
+  const response = await apiClient.post<GlobalReissueResult>(
+    `${BASE_URL}/global-invoices/${id}/reissue`,
+  );
   return response.data;
 }
 
@@ -638,6 +664,7 @@ export const billingService = {
   getGlobalDays,
   previewGlobalInvoice,
   createGlobalInvoice,
+  discardInvoice,
   discardGlobalInvoice,
   reissueGlobalInvoice,
 

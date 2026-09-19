@@ -9,7 +9,7 @@ import {
   type FiscalDataQueryDto,
   type FacturamaCfdisQuery,
 } from '@/services/billing.service';
-import { billingErrorMessage } from '@/lib/billing-error';
+import { billingErrorMessage, isBillingErrorCode } from '@/lib/billing-error';
 import type {
   CreateFiscalDataDto,
   UpdateFiscalDataDto,
@@ -200,11 +200,17 @@ export function useCreateInvoice() {
   });
 }
 
-/** Reintento de timbrado (`pending`/`error`/`stamping` caducado). */
+/**
+ * Reintento de timbrado (`pending`/`error`/`stamping` caducado). Con
+ * `acknowledgeGlobal` el usuario ya reconoció los 3 pasos del §5.3.7; sin él un
+ * ticket que está en una global viva responde 409 `CFDI_IN_GLOBAL`, que NO se
+ * avisa con toast: la pantalla abre la confirmación de 3 pasos.
+ */
 export function useStampInvoice() {
   const invalidate = useInvalidateInvoices();
   return useMutation({
-    mutationFn: (id: string) => billingService.stampInvoice(id),
+    mutationFn: ({ id, acknowledgeGlobal }: { id: string; acknowledgeGlobal?: boolean }) =>
+      billingService.stampInvoice(id, { acknowledgeGlobal }),
     onSuccess: (invoice) => {
       invalidate(invoice.id);
       if (invoice.providerStatus === 'stamped') {
@@ -213,8 +219,28 @@ export function useStampInvoice() {
         toast.warning(invoice.providerError || 'El timbrado no se pudo confirmar.');
       }
     },
-    onError: (error: unknown) => {
+    onError: (error: unknown, { acknowledgeGlobal }) => {
+      if (!acknowledgeGlobal && isBillingErrorCode(error, 'CFDI_IN_GLOBAL')) return;
       toast.error(billingErrorMessage(error, 'No se pudo timbrar la factura'));
+    },
+  });
+}
+
+/** Desecha un intento sin UUID de una nominativa o de un complemento de pago. */
+export function useDiscardInvoice() {
+  const invalidate = useInvalidateInvoices();
+  return useMutation({
+    mutationFn: (id: string) => billingService.discardInvoice(id),
+    onSuccess: (result, id) => {
+      invalidate(id);
+      toast.success(
+        result.releasedDocuments > 0
+          ? `Intento desechado: ${result.releasedDocuments} documento(s) quedaron libres`
+          : 'Intento desechado',
+      );
+    },
+    onError: (error: unknown) => {
+      toast.error(billingErrorMessage(error, 'No se pudo desechar el intento'));
     },
   });
 }
@@ -231,6 +257,16 @@ export function useCancelInvoice() {
       // veredicto es `confirmed` (el API lo resuelve con mapCancellationOutcome).
       if (result.confirmed) {
         toast.success('Factura cancelada: el SAT confirmó la cancelación');
+      } else if (result.cancellationClass === 'rejected') {
+        toast.error(
+          result.message ||
+            'El SAT rechazó la cancelación (o venció el plazo): la factura sigue vigente. Puedes volver a solicitarla.',
+        );
+      } else if (result.refreshed) {
+        toast.warning(
+          result.message ||
+            'Se consultó al SAT (se usó 1 timbre): la cancelación sigue en proceso y la factura sigue vigente.',
+        );
       } else {
         toast.warning(
           result.message ||
@@ -239,6 +275,12 @@ export function useCancelInvoice() {
       }
     },
     onError: (error: unknown) => {
+      if (isBillingErrorCode(error, 'CFDI_STATUS_RATE_LIMITED')) {
+        toast.warning(
+          'El estatus de esta factura ya se consultó hace menos de 10 minutos. Espera unos minutos antes de volver a preguntar al SAT (cada consulta usa 1 timbre).',
+        );
+        return;
+      }
       toast.error(billingErrorMessage(error, 'No se pudo cancelar la factura'));
     },
   });
@@ -252,12 +294,14 @@ export function useReplaceInvoice() {
     onSuccess: (result) => {
       invalidate(result.id);
       invalidate(result.previousInvoiceId);
-      if (result.cancellation.requested && !result.cancellation.error) {
+      // `result.cancellation` es la de la sustituta (null recién timbrada): el
+      // resultado de la cancelación 01 de la ORIGINAL viene en `previousCancellation`.
+      const previous = result.previousCancellation;
+      if (previous?.requested && !previous.error) {
         toast.success(`Sustituta ${result.folioDisplay} timbrada; cancelación 01 de la original solicitada`);
       } else {
         toast.warning(
-          result.cancellation.error ||
-            'Sustituta timbrada, pero la original aún no se cancela: usa "Cancelar" (motivo 01) en la original.',
+          `Sustituta ${result.folioDisplay} timbrada, pero la original aún no se cancela: usa "Cancelar factura" (motivo 01) en la original.${previous?.error ? ` Detalle: ${previous.error}` : ''}`,
         );
       }
     },
@@ -278,6 +322,12 @@ export function useRefreshInvoiceStatus() {
       toast.success(`Estatus SAT: ${result.satStatus} (se usó ${result.foliosUsed} timbre)`);
     },
     onError: (error: unknown) => {
+      if (isBillingErrorCode(error, 'CFDI_STATUS_RATE_LIMITED')) {
+        toast.warning(
+          'El estatus de esta factura ya se consultó hace menos de 10 minutos. Espera unos minutos antes de volver a preguntar al SAT (cada consulta usa 1 timbre).',
+        );
+        return;
+      }
       toast.error(billingErrorMessage(error, 'No se pudo consultar el estatus ante el SAT'));
     },
   });
@@ -301,12 +351,13 @@ export function useSendInvoiceEmail() {
 // VENTAS POR FACTURAR
 // ================================
 
-export function useInvoiceableSales(query: InvoiceableSalesQuery, enabled = true) {
+/** El API exige `branchId`: sin sucursal (`null`) no se consulta. */
+export function useInvoiceableSales(query: InvoiceableSalesQuery | null) {
   return useQuery({
-    queryKey: billingKeys.invoiceableSalesList(query),
-    queryFn: () => billingService.listInvoiceableSales(query),
+    queryKey: billingKeys.invoiceableSalesList(query ?? undefined),
+    queryFn: () => billingService.listInvoiceableSales(query!),
     placeholderData: keepPreviousData,
-    enabled,
+    enabled: !!query?.branchId,
   });
 }
 
@@ -368,13 +419,33 @@ export function useReissueGlobalInvoice() {
   const invalidate = useInvalidateInvoices();
   return useMutation({
     mutationFn: (id: string) => billingService.reissueGlobalInvoice(id),
-    onSuccess: (invoice, originalId) => {
-      invalidate(invoice.id);
+    onSuccess: (result, originalId) => {
       invalidate(originalId);
-      if (invoice.providerStatus === 'stamped') {
+      if (result.invoice) invalidate(result.invoice.id);
+      if (result.state === 'waiting_sat') {
+        toast.warning(
+          result.message ||
+            'El SAT aún no confirma la cancelación 04 de la global: todavía no se emite la nueva. Vuelve a intentar más tarde.',
+        );
+        return;
+      }
+      if (result.state === 'nothing_to_reissue') {
+        toast.info(result.message || 'No hay nada que reexpedir en esta global.');
+        return;
+      }
+      const invoice = result.invoice;
+      if (invoice?.providerStatus === 'stamped') {
         toast.success(`Global reexpedida: ${invoice.folioDisplay}`);
       } else {
-        toast.warning(invoice.providerError || 'La reexpedición quedó pendiente: revisa el detalle.');
+        toast.warning(
+          invoice?.providerError || result.message || 'La nueva global no quedó timbrada: revisa el detalle y reintenta.',
+        );
+      }
+      if (result.relationDropped) {
+        toast.warning(
+          'El PAC rechazó la relación 04: la nueva global se emitió SIN relación con la cancelada. Avisa a Contabilidad para que lo documente.',
+          { duration: 15000 },
+        );
       }
     },
     onError: (error: unknown) => {
@@ -400,6 +471,13 @@ export function useCreatePaymentComplement() {
       }
     },
     onError: (error: unknown) => {
+      // El formulario regenera la llave y conserva la selección (ver la página).
+      if (isBillingErrorCode(error, 'CFDI_IDEMPOTENCY_CONFLICT')) {
+        toast.warning(
+          'Los datos del pago cambiaron respecto al intento anterior. Ya se preparó un intento nuevo con tu selección: revisa y vuelve a confirmar.',
+        );
+        return;
+      }
       toast.error(billingErrorMessage(error, 'No se pudo crear el complemento de pago'));
     },
   });
@@ -412,17 +490,35 @@ export function useCreatePaymentComplement() {
 export function useSetBranchInvoicingSince() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ branchId, since }: { branchId: string; since: string | null }) =>
-      billingService.setBranchInvoicingSince(branchId, { since }),
-    onSuccess: (_, { since }) => {
+    mutationFn: ({
+      branchId,
+      since,
+      acknowledgeLegacyStopped,
+    }: {
+      branchId: string;
+      since: string | null;
+      acknowledgeLegacyStopped?: boolean;
+    }) =>
+      billingService.setBranchInvoicingSince(branchId, {
+        since,
+        acknowledgeLegacyStopped: acknowledgeLegacyStopped || undefined,
+      }),
+    onSuccess: (result, { since }) => {
       queryClient.invalidateQueries({ queryKey: billingKeys.readiness() });
       queryClient.invalidateQueries({ queryKey: billingKeys.status() });
       queryClient.invalidateQueries({ queryKey: billingKeys.globalDays() });
+      queryClient.invalidateQueries({ queryKey: billingKeys.globalPreview() });
+      queryClient.invalidateQueries({ queryKey: billingKeys.invoiceableSales() });
+      const terminals =
+        typeof result.terminalsOn === 'number' && typeof result.terminalsTotal === 'number'
+          ? ` Terminales con Facturación encendida: ${result.terminalsOn} de ${result.terminalsTotal}.`
+          : '';
       toast.success(
         since
-          ? `La sucursal factura en v2 desde el ${since}`
+          ? `La sucursal factura en v2 desde el ${since.split('-').reverse().join('/')}.${terminals}`
           : 'La sucursal vuelve a facturar en el sistema anterior',
       );
+      if (result.warning) toast.warning(result.warning, { duration: 15000 });
     },
     onError: (error: unknown) => {
       toast.error(billingErrorMessage(error, 'No se pudo fijar la fecha de arranque'));

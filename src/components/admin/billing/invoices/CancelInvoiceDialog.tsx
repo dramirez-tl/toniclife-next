@@ -4,6 +4,12 @@
 // Motivos 01-04 con descripción; el UUID de la sustituta solo con 01 (buscador
 // de facturas timbradas en v2 o captura manual); 04 solo para globales; el
 // usuario teclea CANCELAR. El SAT puede dejarla "en proceso": el hook lo avisa.
+//
+// En `cancel_pending` el mismo endpoint hace DOS cosas distintas (el API decide
+// con el último estatus conocido) y el diálogo lo rotula igual:
+//  - solicitud aún en proceso → solo CONSULTA el estatus (usa 1 timbre);
+//  - solicitud rechazada o con plazo vencido → VUELVE A ENVIAR la cancelación
+//    al PAC: es destructiva y pide teclear CANCELAR.
 
 import { useEffect, useId, useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
@@ -22,6 +28,26 @@ import { CANCELLATION_REASON_INFO } from './labels';
 
 const SAT_UUID_REGEX = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
 
+/**
+ * ¿El último estatus de cancelación conocido es un RECHAZO (o plazo vencido)?
+ * Mismos patrones que `REJECTED_PATTERNS` del API (cancellation-status.lib.ts):
+ * con ellos el API reenvía la solicitud en vez de solo consultar.
+ */
+export function isCancellationRejected(satCancellationStatus: string | null | undefined): boolean {
+  const text = (satCancellationStatus ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .trim()
+    .toLowerCase();
+  if (!text) return false;
+  return (
+    /rechazad[oa]/.test(text) ||
+    /rejected/.test(text) ||
+    /^plazo\s+vencido$/.test(text) ||
+    /^(expired|active|vigente)$/.test(text)
+  );
+}
+
 export function CancelInvoiceDialog({
   open,
   onOpenChange,
@@ -35,16 +61,21 @@ export function CancelInvoiceDialog({
   onDone?: () => void;
 }) {
   const isGlobal = invoice.invoiceType === 'global';
-  const isRefresh = invoice.providerStatus === InvoiceStatus.CANCEL_PENDING;
+  const isCancelPending = invoice.providerStatus === InvoiceStatus.CANCEL_PENDING;
+  const lastStatus = invoice.cancellation?.satCancellationStatus ?? invoice.satCancellationStatus;
+  // Rechazada / plazo vencido: el API vuelve a mandar la cancelación al PAC.
+  const isResubmit = isCancelPending && isCancellationRejected(lastStatus);
+  // Solicitud viva: "cancelar" solo pregunta el estatus (consume 1 timbre).
+  const isRefresh = isCancelPending && !isResubmit;
   const previous = invoice.cancellation ?? null;
   const [reason, setReason] = useState<CancellationReason>(
-    (isRefresh && previous?.reason) || (isGlobal ? '04' : '02'),
+    (isCancelPending && previous?.reason) || (isGlobal ? '04' : '02'),
   );
   const [replacementUuid, setReplacementUuid] = useState(
-    (isRefresh && previous?.replacementUuid) || '',
+    (isCancelPending && previous?.replacementUuid) || '',
   );
-  // Re-consulta de una solicitud ya enviada: el motivo no se vuelve a elegir.
-  const lockReason = isRefresh && !!previous?.reason;
+  // Solicitud ya enviada (consulta o reenvío): el motivo no se vuelve a elegir.
+  const lockReason = isCancelPending && !!previous?.reason;
   const [search, setSearch] = useState('');
   const [debounced, setDebounced] = useState('');
   const cancel = useCancelInvoice();
@@ -99,13 +130,28 @@ export function CancelInvoiceDialog({
     <ConfirmDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={isRefresh ? `Actualizar cancelación de ${invoice.folioDisplay}` : `Cancelar factura ${invoice.folioDisplay}`}
+      title={
+        isRefresh
+          ? `Actualizar cancelación de ${invoice.folioDisplay}`
+          : isResubmit
+            ? `Volver a solicitar la cancelación de ${invoice.folioDisplay}`
+            : `Cancelar factura ${invoice.folioDisplay}`
+      }
       description={
         isRefresh
-          ? 'La solicitud ya está ante el SAT. Volver a enviarla consulta si el receptor la aceptó.'
-          : 'La cancelación se solicita al SAT y no se puede deshacer. Si el receptor debe aceptarla, la factura sigue vigente hasta entonces.'
+          ? 'La solicitud ya está ante el SAT. Se consulta si el receptor la aceptó: esta consulta usa 1 timbre del saldo de Facturama y se permite una cada 10 minutos.'
+          : isResubmit
+            ? 'El SAT rechazó la solicitud anterior o venció el plazo del receptor, así que la factura sigue vigente. Se enviará OTRA solicitud de cancelación al SAT; no se puede deshacer.'
+            : 'La cancelación se solicita al SAT y no se puede deshacer. Si el receptor debe aceptarla, la factura sigue vigente hasta entonces.'
       }
-      confirmLabel={isRefresh ? 'Consultar al SAT' : 'Cancelar factura'}
+      confirmLabel={
+        isRefresh
+          ? 'Consultar al SAT (usa 1 timbre)'
+          : isResubmit
+            ? 'Volver a solicitar cancelación'
+            : 'Cancelar factura'
+      }
+      cancelLabel="Volver"
       confirmText={isRefresh ? undefined : 'CANCELAR'}
       destructive={!isRefresh}
       isPending={cancel.isPending}
@@ -125,7 +171,18 @@ export function CancelInvoiceDialog({
               <span className="font-sans text-gray-500">UUID:</span> {invoice.satUuid}
             </p>
           )}
+          {isCancelPending && (
+            <p>
+              <span className="text-gray-500">Último estatus de cancelación:</span> {lastStatus || 'en proceso'}
+            </p>
+          )}
         </div>
+
+        {isResubmit && (
+          <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800" role="alert">
+            Esto NO es una consulta: se vuelve a pedir la cancelación del CFDI ante el SAT con el mismo motivo.
+          </p>
+        )}
 
         <div className="space-y-1.5">
           <Label htmlFor={`${uuidId}-reason`}>Motivo de cancelación (SAT)</Label>

@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   ArrowDownTrayIcon,
@@ -44,6 +44,7 @@ import { PermissionGuard } from '@/components/auth';
 import {
   useCfdiUses,
   useDiscardGlobalInvoice,
+  useDiscardInvoice,
   useFiscalRegimes,
   useInvoice,
   useInvoiceFiles,
@@ -54,7 +55,12 @@ import {
 } from '@/hooks/useBilling';
 import { useAppSelector } from '@/store/hooks';
 import { selectUserRoles } from '@/store/slices/authSlice';
-import { billingErrorMessage, billingFieldLabel } from '@/lib/billing-error';
+import {
+  billingErrorInvoiceId,
+  billingErrorMessage,
+  billingFieldLabel,
+  isBillingErrorCode,
+} from '@/lib/billing-error';
 import { downloadInvoiceFile, openInvoicePdf } from '@/lib/invoice-download';
 import {
   InvoiceStatus,
@@ -77,6 +83,10 @@ import {
 } from '@/components/admin/billing/invoices/labels';
 
 const RECEIVER_FIELD_PREFIXES = ['Receiver.', 'receiver.'];
+
+/** Marca en la URL tras una reexpedición donde el PAC rechazó la relación 04. */
+const RELATION_DROPPED_PARAM = 'aviso';
+const RELATION_DROPPED_VALUE = 'sin-relacion';
 
 export default function InvoiceDetailPage() {
   const params = useParams();
@@ -148,6 +158,8 @@ function GlobalDocumentsTable({ docs, released }: { docs: GlobalDocumentDto[]; r
 
 function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const relationDroppedNotice = searchParams.get(RELATION_DROPPED_PARAM) === RELATION_DROPPED_VALUE;
   const { data: invoice, isLoading, isError, error, refetch } = useInvoice(invoiceId);
   const canManage = useCanManageBilling();
   const roles = useAppSelector(selectUserRoles);
@@ -159,11 +171,15 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
   const stamp = useStampInvoice();
   const replace = useReplaceInvoice();
   const refresh = useRefreshInvoiceStatus();
-  const discard = useDiscardGlobalInvoice();
+  const discardGlobal = useDiscardGlobalInvoice();
+  const discardOther = useDiscardInvoice();
   const reissue = useReissueGlobalInvoice();
   const fiscalEditor = useCustomerFiscalEditor(() => void refetch());
 
   const [stampOpen, setStampOpen] = useState(false);
+  // Reintento de una nominativa cuyo ticket está en una global viva (§5.3.7).
+  const [ackGlobalOpen, setAckGlobalOpen] = useState(false);
+  const [ackGlobalInvoiceId, setAckGlobalInvoiceId] = useState<string | null>(null);
   const [emailOpen, setEmailOpen] = useState(false);
   const [replaceOpen, setReplaceOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -206,6 +222,9 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
 
   const a = invoice.actions;
   const isGlobal = invoice.invoiceType === 'global';
+  const isPaymentComplement = invoice.invoiceType === 'payment';
+  const discardPending = discardGlobal.isPending || discardOther.isPending;
+  const waitingSatReissue = isGlobal && invoice.providerStatus === InvoiceStatus.CANCEL_PENDING;
   const errorMapped = invoice.providerErrorMapped;
   const errorText = errorMapped?.message ?? invoice.providerError;
   const errorField = errorMapped?.field ?? null;
@@ -230,6 +249,57 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
     try {
       await fn();
       close();
+    } catch {
+      // El hook ya avisó.
+    }
+  };
+
+  /**
+   * (Re)timbrado. Si el ticket está en una global viva el API responde 409
+   * `CFDI_IN_GLOBAL`: se abre la confirmación de 3 pasos y, si el usuario
+   * acepta, se reintenta con `?acknowledgeGlobal=true`.
+   */
+  const stampNow = async (acknowledgeGlobal: boolean) => {
+    try {
+      await stamp.mutateAsync({ id: invoice.id, acknowledgeGlobal });
+      setStampOpen(false);
+      setAckGlobalOpen(false);
+    } catch (err) {
+      if (!acknowledgeGlobal && isBillingErrorCode(err, 'CFDI_IN_GLOBAL')) {
+        setAckGlobalInvoiceId(billingErrorInvoiceId(err));
+        setStampOpen(false);
+        setAckGlobalOpen(true);
+      }
+      // El resto de los errores ya los avisó el hook.
+    }
+  };
+
+  const discardNow = async () => {
+    try {
+      if (isGlobal) {
+        await discardGlobal.mutateAsync(invoice.id);
+        setDiscardOpen(false);
+        router.push('/admin/facturacion/global');
+      } else {
+        await discardOther.mutateAsync(invoice.id);
+        setDiscardOpen(false);
+        router.push(isPaymentComplement ? '/admin/facturacion' : '/admin/facturacion?tab=por-facturar');
+      }
+    } catch {
+      // El hook ya avisó.
+    }
+  };
+
+  const reissueNow = async () => {
+    try {
+      const result = await reissue.mutateAsync(invoice.id);
+      setReissueOpen(false);
+      // Solo `reissued` trae una global nueva; con `waiting_sat` o
+      // `nothing_to_reissue` la pantalla se queda en esta factura (ya refrescada).
+      if (result.state === 'reissued' && result.invoice) {
+        const notice = result.relationDropped ? `?${RELATION_DROPPED_PARAM}=${RELATION_DROPPED_VALUE}` : '';
+        router.push(`/admin/facturacion/${result.invoice.id}${notice}`);
+      }
     } catch {
       // El hook ya avisó.
     }
@@ -333,6 +403,21 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
               </Card>
             )}
 
+            {isGlobal && relationDroppedNotice && (
+              <Card className="border-amber-300 bg-amber-50" role="alert">
+                <CardContent className="flex items-start gap-3 p-4 text-sm text-amber-900">
+                  <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0 text-amber-600" aria-hidden />
+                  <div>
+                    <p className="font-semibold">Esta global se reexpidió SIN relación con la cancelada</p>
+                    <p className="mt-1 text-xs">
+                      El PAC rechazó la relación 04 (sustitución), así que la nueva global se timbró sin ella para no
+                      dejar el día sin declarar. Avisa a Contabilidad para que documente el vínculo entre ambas.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {isGlobal && invoice.global?.reissueState === 'pending_reissue' && (
               <Card className="border-purple-200 bg-purple-50" role="status">
                 <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
@@ -344,7 +429,7 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
                   </div>
                   {canManage && a.canReissue && (
                     <Button onClick={() => setReissueOpen(true)} disabled={reissue.isPending}>
-                      Reexpedir sin los tickets facturados
+                      {waitingSatReissue ? 'Esperando al SAT: reintentar reexpedición' : 'Reexpedir sin los tickets facturados'}
                     </Button>
                   )}
                 </CardContent>
@@ -561,7 +646,12 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
                                 </Link>
                               </TableCell>
                               <TableCell>{c.partialityNumber}</TableCell>
-                              <TableCell className="text-sm">{formatIsoDate(c.paymentDate)}</TableCell>
+                              <TableCell className="whitespace-nowrap text-sm">
+                                {/* `paymentDate` es un instante UTC: cortarlo a 10 caracteres corre de día los pagos de la tarde. */}
+                                {c.paymentLocalDateTime
+                                  ? c.paymentLocalDateTime.replace('T', ' ').slice(0, 16)
+                                  : formatInBranch(c.paymentDate, invoice.branchId)}
+                              </TableCell>
                               <TableCell className="text-right">{formatCurrency(c.amountPaid)}</TableCell>
                               <TableCell>{c.providerStatus ? <InvoiceStatusBadge status={c.providerStatus} /> : '—'}</TableCell>
                             </TableRow>
@@ -721,7 +811,7 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
                     {a.canReissue && isGlobal && (
                       <Button variant="outline" className="w-full" onClick={() => setReissueOpen(true)} disabled={reissue.isPending}>
                         <ArrowsRightLeftIcon className="h-5 w-5" aria-hidden />
-                        Reexpedir global
+                        {waitingSatReissue ? 'Esperando al SAT: reintentar reexpedición' : 'Reexpedir global'}
                       </Button>
                     )}
                     {a.canCancel && (
@@ -730,13 +820,13 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
                         {invoice.providerStatus === InvoiceStatus.CANCEL_PENDING ? 'Actualizar cancelación' : 'Cancelar factura'}
                       </Button>
                     )}
-                    {a.canDiscard && isGlobal && (
-                      <Button variant="ghost" className="w-full text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => setDiscardOpen(true)} disabled={discard.isPending}>
+                    {a.canDiscard && (
+                      <Button variant="ghost" className="w-full text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => setDiscardOpen(true)} disabled={discardPending}>
                         <TrashIcon className="h-5 w-5" aria-hidden />
-                        Desechar intento
+                        {isGlobal ? 'Desechar intento' : 'Desechar'}
                       </Button>
                     )}
-                    {!a.canStamp && !a.canEmail && !a.canReplace && !a.canRefreshStatus && !a.canCancel && !(a.canDiscard && isGlobal) && !(a.canReissue && isGlobal) && (
+                    {!a.canStamp && !a.canEmail && !a.canReplace && !a.canRefreshStatus && !a.canCancel && !a.canDiscard && !(a.canReissue && isGlobal) && (
                       <p className="text-sm text-gray-500">No hay acciones disponibles en este estado.</p>
                     )}
                   </div>
@@ -866,7 +956,7 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
         description="Se reconstruye el CFDI con los datos fiscales actuales y se envía al PAC. Consume un timbre si el SAT lo acepta."
         confirmLabel="Timbrar"
         isPending={stamp.isPending}
-        onConfirm={() => run(() => stamp.mutateAsync(invoice.id), () => setStampOpen(false))}
+        onConfirm={() => stampNow(false)}
       >
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-lg bg-gray-50 p-3 text-sm">
           <dt className="text-gray-500">Receptor</dt>
@@ -874,6 +964,33 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
           <dt className="text-gray-500">Total</dt>
           <dd className="font-semibold">{formatCurrency(invoice.total)}</dd>
         </dl>
+      </ConfirmDialog>
+
+      {/* El ticket ya está en una global viva (§5.3.7): mismos 3 pasos que en "Ventas por facturar". */}
+      <ConfirmDialog
+        open={ackGlobalOpen}
+        onOpenChange={setAckGlobalOpen}
+        title={`${invoice.saleNumber ?? 'El ticket'} ya está en una factura global`}
+        description="Timbrar esta factura nominativa exige tres pasos. Confirma solo si Contabilidad lo autoriza."
+        confirmLabel="Entiendo, timbrar nominativa"
+        confirmText="FACTURAR"
+        cancelLabel="Volver"
+        destructive
+        isPending={stamp.isPending}
+        onConfirm={() => stampNow(true)}
+      >
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>Se timbra la factura nominativa del ticket y se libera de la global.</li>
+          <li>La global queda marcada &quot;por reexpedir&quot;: hay que cancelarla con el motivo 04.</li>
+          <li>Desde el detalle de la global se reexpide sin los tickets facturados (relación 04).</li>
+        </ol>
+        {ackGlobalInvoiceId && (
+          <p className="mt-3">
+            <Link href={`/admin/facturacion/${ackGlobalInvoiceId}`} className="text-[#3E667D] underline" target="_blank">
+              Ver la factura global
+            </Link>
+          </p>
+        )}
       </ConfirmDialog>
 
       {emailOpen && (
@@ -939,21 +1056,28 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
       <ConfirmDialog
         open={discardOpen}
         onOpenChange={setDiscardOpen}
-        title="Desechar intento de factura global"
-        description="Solo para intentos sin UUID (pendientes o con error). Se libera el día para volver a emitir la global."
-        confirmLabel="Desechar"
-        destructive
-        isPending={discard.isPending}
-        onConfirm={() =>
-          run(
-            async () => {
-              await discard.mutateAsync(invoice.id);
-              router.push('/admin/facturacion/global');
-            },
-            () => setDiscardOpen(false),
-          )
+        title={
+          isGlobal
+            ? 'Desechar intento de factura global'
+            : isPaymentComplement
+              ? 'Desechar intento de complemento de pago'
+              : 'Desechar intento de factura'
         }
-      />
+        description={
+          isGlobal
+            ? 'Solo para intentos sin UUID (pendientes o con error). Se libera el día para volver a emitir la global.'
+            : isPaymentComplement
+              ? 'Solo para intentos sin UUID (pendientes o con error). Las facturas PPD de este complemento quedan libres para registrar el pago otra vez.'
+              : 'Solo para intentos sin UUID (pendientes o con error). La venta queda libre para volver a facturarse.'
+        }
+        confirmLabel="Desechar"
+        cancelLabel="Volver"
+        destructive
+        isPending={discardPending}
+        onConfirm={discardNow}
+      >
+        <p>Este intento nunca se timbró: no existe un CFDI ante el SAT, así que no hay nada que cancelar. El registro se conserva en la bitácora de auditoría.</p>
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={reissueOpen}
@@ -964,17 +1088,12 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
         confirmText="REEXPEDIR"
         destructive
         isPending={reissue.isPending}
-        onConfirm={() =>
-          run(
-            async () => {
-              const result = await reissue.mutateAsync(invoice.id);
-              router.push(`/admin/facturacion/${result.id}`);
-            },
-            () => setReissueOpen(false),
-          )
-        }
+        onConfirm={reissueNow}
       >
-        <p>Si el SAT deja la cancelación en proceso, el botón mostrará &quot;Esperando al SAT&quot; hasta que se confirme.</p>
+        <ul className="list-disc space-y-1 pl-5">
+          <li>Si el SAT deja la cancelación en proceso, todavía NO se emite la nueva: te quedas en esta factura y el botón dirá &quot;Esperando al SAT&quot; para reintentar más tarde.</li>
+          <li>Si el PAC rechaza la relación 04, la nueva global se emite sin ella y se te avisa.</li>
+        </ul>
       </ConfirmDialog>
 
       {fiscalEditor.dialog}

@@ -1,14 +1,15 @@
 'use client';
 
 // Pestaña "Ventas por facturar" (`GET /billing/invoiceable-sales`, §7.3):
-// tickets/pedidos nativos MX/FN completados del día (o del filtro) con el
-// cliente y su preparación fiscal. Acciones:
+// tickets/pedidos nativos MX/FN completados de UNA sucursal (el API exige
+// `branchId`; sin sucursal no se consulta) y un día, con el cliente y su
+// preparación fiscal. Acciones:
 //  - Facturar → ConfirmDialog con receptor y forma/método derivados →
 //    `POST /billing/invoices { posSaleId | orderId }`.
 //  - Cliente sin datos fiscales listos → CustomerFiscalDialog (Fase 1) y refresco.
 //  - En global → flujo §5.3.7 (nominativa + cancelar global 04 + reexpedir) con
 //    `acknowledgeGlobal: true`.
-//  - Ver factura / Ver global.
+//  - Ver factura / Ver intento / Ver global.
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -18,6 +19,7 @@ import {
   ArrowPathIcon,
   DocumentTextIcon,
   ExclamationTriangleIcon,
+  BuildingStorefrontIcon,
   MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +53,8 @@ import {
   INVOICEABLE_STATUS_INFO,
   INVOICEABLE_STATUS_OPTIONS,
   PAYMENT_METHOD_LABELS,
+  RETRYABLE_INVOICEABLE_BLOCKERS,
+  invoiceableBlockerCode,
   invoiceableBlockerText,
 } from './labels';
 import { useBranchTimezone, formatIsoDate } from './useBranchTimezone';
@@ -92,16 +96,20 @@ export function InvoiceableSalesTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchInput]);
 
-  const query: InvoiceableSalesQuery = useMemo(
-    () => ({
-      branchId: branchId || undefined,
-      date: date || undefined,
-      status,
-      search: search || undefined,
-      onlyFiscalReady: onlyFiscalReady || undefined,
-      page,
-      limit,
-    }),
+  // El API exige la sucursal (§7.3 es por sucursal y día): sin ella no se consulta.
+  const query: InvoiceableSalesQuery | null = useMemo(
+    () =>
+      branchId
+        ? {
+            branchId,
+            date: date || undefined,
+            status,
+            search: search || undefined,
+            onlyFiscalReady: onlyFiscalReady || undefined,
+            page,
+            limit,
+          }
+        : null,
     [branchId, date, status, search, onlyFiscalReady, page, limit],
   );
 
@@ -121,8 +129,9 @@ export function InvoiceableSalesTab({
   const [globalTarget, setGlobalTarget] = useState<InvoiceableSale | null>(null);
   const [inlineError, setInlineError] = useState<{ text: string; invoiceId: string | null } | null>(null);
 
-  const rows = data?.data ?? [];
-  const total = data?.total ?? 0;
+  // Sin sucursal no hay consulta: no arrastrar filas de la sucursal anterior (keepPreviousData).
+  const rows = branchId ? (data?.data ?? []) : [];
+  const total = branchId ? (data?.total ?? 0) : 0;
 
   const sourceBody = (sale: InvoiceableSale) =>
     sale.kind === 'order' ? { orderId: sale.id } : { posSaleId: sale.id };
@@ -148,10 +157,11 @@ export function InvoiceableSalesTab({
     }
   };
 
-  const hasFilters = Boolean(branchId || date || status || search || onlyFiscalReady);
+  // "Limpiar filtros" conserva la sucursal: sin ella la pestaña no consulta nada.
+  const hasFilters = Boolean(date || status || search || onlyFiscalReady);
   const resetFilters = () => {
     setSearchInput('');
-    setParams({ branchId: null, date: null, vstatus: null, search: null, ready: null, page: null });
+    setParams({ date: null, vstatus: null, search: null, ready: null, page: null });
   };
 
   const columns: DataTableColumn<InvoiceableSale>[] = [
@@ -240,9 +250,16 @@ export function InvoiceableSalesTab({
             )}
             {s.reason && <p className="max-w-[220px] text-xs text-gray-500">{s.reason}</p>}
             {(s.blockers ?? []).length > 0 && (
-              <ul className="list-disc pl-4 text-xs text-red-700">
+              <ul className="list-disc pl-4 text-xs">
                 {s.blockers.map((b, i) => (
-                  <li key={i}>{invoiceableBlockerText(b)}</li>
+                  <li
+                    key={i}
+                    className={
+                      RETRYABLE_INVOICEABLE_BLOCKERS.has(invoiceableBlockerCode(b)) ? 'text-amber-700' : 'text-red-700'
+                    }
+                  >
+                    {invoiceableBlockerText(b)}
+                  </li>
                 ))}
               </ul>
             )}
@@ -256,12 +273,17 @@ export function InvoiceableSalesTab({
       headerClassName: 'text-right',
       cellClassName: 'text-right',
       render: (s) => {
-        const blocked = (s.blockers ?? []).length > 0;
+        const codes = (s.blockers ?? []).map(invoiceableBlockerCode);
+        // Un intento `pending`/`error` NO bloquea: el POST reutiliza esa fila y la re-timbra.
+        const isRetry = codes.some((c) => RETRYABLE_INVOICEABLE_BLOCKERS.has(c));
+        const blocked = codes.some((c) => !RETRYABLE_INVOICEABLE_BLOCKERS.has(c));
         return (
           <div className="flex flex-col items-end gap-1">
-            {s.invoiceStatus === 'nominativa' && s.invoiceId && (
+            {s.invoiceId && (
               <Button asChild variant="outline" size="sm">
-                <Link href={`/admin/facturacion/${s.invoiceId}`}>Ver factura</Link>
+                <Link href={`/admin/facturacion/${s.invoiceId}`}>
+                  {s.invoiceStatus === 'nominativa' ? 'Ver factura' : 'Ver intento'}
+                </Link>
               </Button>
             )}
             {s.invoiceStatus === 'en_global' && s.globalInvoiceId && (
@@ -277,7 +299,7 @@ export function InvoiceableSalesTab({
                   title={blocked ? 'Corrige los bloqueadores antes de facturar' : undefined}
                   onClick={() => (s.invoiceStatus === 'en_global' ? setGlobalTarget(s) : setTarget(s))}
                 >
-                  {s.invoiceStatus === 'en_global' ? 'Facturar (ya en global)' : 'Facturar'}
+                  {isRetry ? 'Reintentar' : s.invoiceStatus === 'en_global' ? 'Facturar (ya en global)' : 'Facturar'}
                 </Button>
               ) : s.customerId ? (
                 <Button
@@ -312,10 +334,10 @@ export function InvoiceableSalesTab({
         <CardContent className="p-4 sm:p-6">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm font-medium text-gray-700">
-              Ventas nativas completadas con total mayor a cero. Sin sucursal ni fecha se muestra el día de hoy de cada sucursal.
+              Ventas nativas completadas con total mayor a cero, por sucursal. Elige la sucursal; sin fecha se muestra su día de hoy.
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="ghost" size="sm" className="gap-2 text-gray-600" onClick={() => void refetch()} disabled={isFetching}>
+              <Button variant="ghost" size="sm" className="gap-2 text-gray-600" onClick={() => void refetch()} disabled={isFetching || !branchId}>
                 <ArrowPathIcon className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} aria-hidden />
                 {isFetching ? 'Actualizando…' : 'Actualizar'}
               </Button>
@@ -333,8 +355,9 @@ export function InvoiceableSalesTab({
                 id="vs-branch"
                 options={branchOptions}
                 value={branchId}
-                onChange={(v) => setParams({ branchId: v })}
-                allLabel="Todas las sucursales"
+                onChange={(v) => setParams({ branchId: v, page: null })}
+                showAllOption={false}
+                placeholder="Elige una sucursal"
               />
             </div>
             <div className="lg:col-span-2">
@@ -393,7 +416,15 @@ export function InvoiceableSalesTab({
             <h2 className="text-base font-semibold text-gray-900">Ventas por facturar</h2>
             <p className="text-sm text-gray-600">{total} en total</p>
           </div>
-          {isError ? (
+          {!branchId ? (
+            <div className="py-10 text-center" role="status">
+              <BuildingStorefrontIcon className="mx-auto mb-4 h-16 w-16 text-gray-400" aria-hidden />
+              <h3 className="mb-2 text-xl font-bold text-gray-900">Elige una sucursal</h3>
+              <p className="text-gray-600">
+                Las ventas por facturar se consultan por sucursal y día. Elige la sucursal en el filtro de arriba.
+              </p>
+            </div>
+          ) : isError ? (
             <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center" role="alert">
               <ExclamationTriangleIcon className="mx-auto mb-3 h-10 w-10 text-red-500" aria-hidden />
               <h3 className="mb-1 text-base font-bold text-red-900">No se pudieron cargar las ventas</h3>
@@ -441,7 +472,7 @@ export function InvoiceableSalesTab({
           onOpenChange={(open) => {
             if (!open) setTarget(null);
           }}
-          title={`Facturar ${target.kind === 'order' ? 'pedido' : 'ticket'} ${target.folio}`}
+          title={`${(target.blockers ?? []).some((b) => RETRYABLE_INVOICEABLE_BLOCKERS.has(invoiceableBlockerCode(b))) ? 'Reintentar la factura del' : 'Facturar'} ${target.kind === 'order' ? 'pedido' : 'ticket'} ${target.folio}`}
           description="Se timbrará 1 CFDI de ingreso con los datos fiscales actuales del cliente. Revisa el receptor antes de confirmar."
           confirmLabel="Timbrar factura"
           isPending={createInvoice.isPending}
