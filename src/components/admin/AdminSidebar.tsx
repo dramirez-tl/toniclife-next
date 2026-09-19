@@ -118,6 +118,7 @@ const navigation: NavItem[] = [
       // Primero: lo que Contabilidad debe dejar completo antes de facturar.
       { name: 'Preparación fiscal', href: '/admin/facturacion/preparacion' },
       { name: 'Facturas', href: '/admin/facturacion' },
+      { name: 'Ventas por facturar', href: '/admin/facturacion?tab=por-facturar' },
       { name: 'Reporte Folios', href: '/admin/facturacion/reporte-folios' },
       { name: 'Datos Fiscales', href: '/admin/facturacion/datos-fiscales' },
       { name: 'Factura Global', href: '/admin/facturacion/global' },

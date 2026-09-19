@@ -1,12 +1,35 @@
-// app/admin/facturacion/[id]/page.tsx - Detalle de factura CFDI
-// Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.5 Facturación
+// app/admin/facturacion/[id]/page.tsx — Detalle de una factura CFDI (Fase 2)
+// Lee `InvoiceDetailDto` (GET /billing/invoices/:id): receptor, emisor,
+// origen, conceptos con desglose por tasa, archivos, correos, cancelación,
+// relación/sustitución, global (tickets incluidos/liberados), PPD y pago.
+// Las acciones salen de `actions.*` del servidor Y del permiso billing:manage.
 'use client';
 
 import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import {
+  ArrowDownTrayIcon,
+  ArrowLeftIcon,
+  ArrowPathIcon,
+  ArrowsRightLeftIcon,
+  CheckCircleIcon,
+  ClipboardDocumentIcon,
+  DocumentDuplicateIcon,
+  DocumentTextIcon,
+  EnvelopeIcon,
+  ExclamationTriangleIcon,
+  EyeIcon,
+  TrashIcon,
+  XMarkIcon,
+} from '@heroicons/react/24/outline';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -16,793 +39,945 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
+import { PermissionGuard } from '@/components/auth';
 import {
-  DocumentTextIcon,
-  ArrowLeftIcon,
-  ArrowDownTrayIcon,
-  EnvelopeIcon,
-  XMarkIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  ClockIcon,
-  DocumentDuplicateIcon,
-  EyeIcon,
-  ShieldExclamationIcon,
-} from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
-import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import {
-  useInvoice,
-  useStampInvoice,
-  useCancelInvoice,
   useCfdiUses,
+  useDiscardGlobalInvoice,
   useFiscalRegimes,
+  useInvoice,
+  useInvoiceFiles,
+  useRefreshInvoiceStatus,
+  useReissueGlobalInvoice,
+  useReplaceInvoice,
+  useStampInvoice,
 } from '@/hooks/useBilling';
-import { billingService } from '@/services/billing.service';
 import { useAppSelector } from '@/store/hooks';
-import { selectUser } from '@/store/slices/authSlice';
+import { selectUserRoles } from '@/store/slices/authSlice';
+import { billingErrorMessage, billingFieldLabel } from '@/lib/billing-error';
+import { downloadInvoiceFile, openInvoicePdf } from '@/lib/invoice-download';
 import {
   InvoiceStatus,
-  INVOICE_STATUS_CONFIG,
-  CANCELLATION_REASONS,
-  formatInvoiceNumber,
-  formatCurrency,
   cfdiUseLabel,
-  getPaymentFormName,
   fiscalRegimeLabel,
+  formatCurrency,
+  getPaymentFormName,
+  type GlobalDocumentDto,
 } from '@/types/billing';
+import { useCanManageBilling } from '@/components/admin/billing/readiness/useCanManageBilling';
+import { InvoiceStatusBadge, InvoiceTypeBadge, SatStatusBadge } from '@/components/admin/billing/invoices/InvoiceBadges';
+import { CancelInvoiceDialog } from '@/components/admin/billing/invoices/CancelInvoiceDialog';
+import { SendInvoiceEmailDialog } from '@/components/admin/billing/invoices/SendInvoiceEmailDialog';
+import { useCustomerFiscalEditor } from '@/components/admin/billing/invoices/useCustomerFiscalEditor';
+import { useBranchTimezone, formatIsoDate } from '@/components/admin/billing/invoices/useBranchTimezone';
+import {
+  CANCELLATION_REASON_INFO,
+  PAYMENT_METHOD_LABELS,
+  invoiceTypeLabel,
+} from '@/components/admin/billing/invoices/labels';
+
+const RECEIVER_FIELD_PREFIXES = ['Receiver.', 'receiver.'];
 
 export default function InvoiceDetailPage() {
   const params = useParams();
-  const router = useRouter();
-  const invoiceId = params.id as string;
+  const invoiceId = String(params.id ?? '');
+  return (
+    <PermissionGuard permissions={['billing:read', 'billing:*']}>
+      <InvoiceDetailContent invoiceId={invoiceId} />
+    </PermissionGuard>
+  );
+}
 
-  const { data: invoiceRaw, isLoading } = useInvoice(invoiceId);
-  // Backend returns snake_case fields; cast to any for direct access
-  const invoice = invoiceRaw as any;
-  const stampInvoice = useStampInvoice();
-  const cancelInvoice = useCancelInvoice();
-  // Catálogos SAT del API para describir régimen y uso del receptor.
+function Field({ label, value, mono = false }: { label: string; value: React.ReactNode; mono?: boolean }) {
+  return (
+    <div>
+      <p className="text-xs text-gray-500">{label}</p>
+      <p className={`text-sm font-medium text-gray-900 ${mono ? 'font-mono break-all' : ''}`}>{value ?? '—'}</p>
+    </div>
+  );
+}
+
+function GlobalDocumentsTable({ docs, released }: { docs: GlobalDocumentDto[]; released?: boolean }) {
+  if (docs.length === 0) {
+    return <p className="text-sm text-gray-500">{released ? 'Ningún ticket liberado.' : 'Sin tickets.'}</p>;
+  }
+  return (
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Documento</TableHead>
+            <TableHead>Día</TableHead>
+            <TableHead className="text-right">Subtotal</TableHead>
+            <TableHead className="text-right">IVA</TableHead>
+            <TableHead className="text-right">Total</TableHead>
+            {released && <TableHead>Liberado</TableHead>}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {docs.map((d) => (
+            <TableRow key={d.id}>
+              <TableCell className="font-mono text-sm">
+                {d.documentNumber}
+                <span className="ml-1 text-xs text-gray-500">{(d.kind ?? d.sourceType) === 'order' ? 'pedido' : 'ticket'}</span>
+              </TableCell>
+              <TableCell className="text-sm">{formatIsoDate(d.localDate)}</TableCell>
+              <TableCell className="text-right text-sm">{formatCurrency(d.subtotal)}</TableCell>
+              <TableCell className="text-right text-sm">{formatCurrency(d.taxAmount)}</TableCell>
+              <TableCell className="text-right text-sm font-medium">{formatCurrency(d.total)}</TableCell>
+              {released && (
+                <TableCell className="text-xs text-gray-600">
+                  {d.releasedReason === 'nominative_issued' ? 'Se emitió nominativa' : d.releasedReason === 'global_cancelled' ? 'Global cancelada' : '—'}
+                  {d.nominativeInvoiceId && (
+                    <>
+                      {' · '}
+                      <Link href={`/admin/facturacion/${d.nominativeInvoiceId}`} className="text-[#3E667D] hover:underline">
+                        ver factura
+                      </Link>
+                    </>
+                  )}
+                </TableCell>
+              )}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
+  const router = useRouter();
+  const { data: invoice, isLoading, isError, error, refetch } = useInvoice(invoiceId);
+  const canManage = useCanManageBilling();
+  const roles = useAppSelector(selectUserRoles);
+  const isSuperAdmin = roles.includes('super_admin');
   const { data: regimeCatalog } = useFiscalRegimes();
   const { data: cfdiUseCatalog } = useCfdiUses();
+  const { formatInBranch, timezoneOf } = useBranchTimezone();
 
-  const currentUser = useAppSelector(selectUser);
+  const stamp = useStampInvoice();
+  const replace = useReplaceInvoice();
+  const refresh = useRefreshInvoiceStatus();
+  const discard = useDiscardGlobalInvoice();
+  const reissue = useReissueGlobalInvoice();
+  const fiscalEditor = useCustomerFiscalEditor(() => void refetch());
 
-  const [showStampModal, setShowStampModal] = useState(false);
-  const [stampSendEmail, setStampSendEmail] = useState(false);
+  const [stampOpen, setStampOpen] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [replaceOpen, setReplaceOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [refreshOpen, setRefreshOpen] = useState(false);
+  const [forceRefresh, setForceRefresh] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const [reissueOpen, setReissueOpen] = useState(false);
 
-  const [showCancelModal, setShowCancelModal] = useState(false);
-  const [cancelReason, setCancelReason] = useState('02');
-  const [replacementUuid, setReplacementUuid] = useState('');
-  const [cancelConfirmText, setCancelConfirmText] = useState('');
-
-  const openStampModal = (sendEmail: boolean) => {
-    setStampSendEmail(sendEmail);
-    setShowStampModal(true);
-  };
-
-  const handleStamp = async () => {
-    try {
-      await stampInvoice.mutateAsync({ id: invoiceId, sendEmail: stampSendEmail });
-      setShowStampModal(false);
-    } catch (error) {
-      // Error handled by mutation
-    }
-  };
-
-  const handleCancel = async () => {
-    if (cancelConfirmText !== 'CANCELAR') {
-      toast.error('Escribe CANCELAR para confirmar');
-      return;
-    }
-
-    if (cancelReason === '01' && !replacementUuid) {
-      toast.error('El UUID de sustitución es requerido para el motivo 01');
-      return;
-    }
-
-    try {
-      await cancelInvoice.mutateAsync({
-        id: invoiceId,
-        data: {
-          reason: cancelReason,
-          replacementUuid: cancelReason === '01' ? replacementUuid : undefined,
-        },
-      });
-      setShowCancelModal(false);
-      setCancelConfirmText('');
-    } catch (error) {
-      // Error handled by mutation
-    }
-  };
-
-  const openCancelModal = () => {
-    setCancelConfirmText('');
-    setCancelReason('02');
-    setReplacementUuid('');
-    setShowCancelModal(true);
-  };
-
-  const handleDownloadPdf = async () => {
-    try {
-      const blob = await billingService.downloadInvoicePdf(invoiceId);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `factura-${invoice?.invoice_number || invoiceId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      toast.success('PDF descargado');
-    } catch (error: any) {
-      const msg = error?.response?.data?.message || '';
-      if (msg.includes('LEGACY_INVOICE')) {
-        toast.error('Esta factura fue generada en el sistema anterior y no está disponible para descarga.');
-      } else {
-        toast.error('Error al descargar PDF');
-      }
-    }
-  };
-
-  const handleViewPdf = async () => {
-    try {
-      const blob = await billingService.downloadInvoicePdf(invoiceId);
-      const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
-      window.open(url, '_blank');
-    } catch (error: any) {
-      const msg = error?.response?.data?.message || '';
-      if (msg.includes('LEGACY_INVOICE')) {
-        toast.error('Esta factura fue generada en el sistema anterior y no está disponible para descarga.');
-      } else {
-        toast.error('Error al visualizar PDF');
-      }
-    }
-  };
-
-  const handleDownloadXml = async () => {
-    try {
-      const blob = await billingService.downloadInvoiceXml(invoiceId);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `factura-${invoice?.invoice_number || invoiceId}.xml`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      toast.success('XML descargado');
-    } catch (error: any) {
-      const msg = error?.response?.data?.message || '';
-      if (msg.includes('LEGACY_INVOICE')) {
-        toast.error('Esta factura fue generada en el sistema anterior y no está disponible para descarga.');
-      } else {
-        toast.error('Error al descargar XML');
-      }
-    }
-  };
-
-  const getStatusIcon = (status: InvoiceStatus) => {
-    switch (status) {
-      case InvoiceStatus.STAMPED:
-      case InvoiceStatus.SENT:
-        return <CheckCircleIcon className="h-6 w-6" />;
-      case InvoiceStatus.CANCELLED:
-        return <XMarkIcon className="h-6 w-6" />;
-      case InvoiceStatus.ERROR:
-        return <ExclamationTriangleIcon className="h-6 w-6" />;
-      default:
-        return <ClockIcon className="h-6 w-6" />;
-    }
-  };
-
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('es-MX', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const filesReady = !!invoice && (invoice.files.pdf || invoice.files.xml);
+  const files = useInvoiceFiles(invoiceId, filesReady);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block w-12 h-12 border-4 border-[#3E667D] border-t-transparent rounded-full animate-spin" />
-          <p className="mt-4 text-gray-600">Cargando factura...</p>
-        </div>
+      <div className="space-y-4 p-6">
+        <Skeleton className="h-10 w-72" />
+        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
 
-  if (!invoice) {
+  if (isError || !invoice) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <Card className="max-w-md">
           <CardContent className="p-8 text-center">
-            <ExclamationTriangleIcon className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 mb-2">
-              Factura no encontrada
-            </h2>
-            <p className="text-gray-600 mb-4">
-              La factura que buscas no existe o fue eliminada.
+            <ExclamationTriangleIcon className="mx-auto mb-4 h-16 w-16 text-yellow-500" aria-hidden />
+            <h2 className="mb-2 text-xl font-bold text-gray-900">Factura no encontrada</h2>
+            <p className="mb-4 text-gray-600">
+              {isError ? billingErrorMessage(error, 'No se pudo cargar la factura') : 'La factura que buscas no existe o fue eliminada.'}
             </p>
-            <Link href="/admin/facturacion">
-              <Button variant="default">Volver a Facturación</Button>
-            </Link>
+            <Button asChild>
+              <Link href="/admin/facturacion">Volver a Facturación</Link>
+            </Button>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  const statusConfig = INVOICE_STATUS_CONFIG[invoice.provider_status as InvoiceStatus] ||
-    INVOICE_STATUS_CONFIG[invoice.status as InvoiceStatus];
+  const a = invoice.actions;
+  const isGlobal = invoice.invoiceType === 'global';
+  const errorMapped = invoice.providerErrorMapped;
+  const errorText = errorMapped?.message ?? invoice.providerError;
+  const errorField = errorMapped?.field ?? null;
+  const receiverError = !!errorField && RECEIVER_FIELD_PREFIXES.some((p) => errorField.startsWith(p));
+  const showError =
+    !!errorText &&
+    (invoice.providerStatus === InvoiceStatus.ERROR ||
+      invoice.providerStatus === InvoiceStatus.STAMPING ||
+      invoice.providerStatus === InvoiceStatus.PENDING);
 
-  // Legacy invoices from v1.0 migration don't have provider_invoice_id — can't download from Facturama
-  const isLegacyInvoice = !invoice.provider_invoice_id && invoice.provider_status === 'stamped';
+  const copyUuid = async () => {
+    if (!invoice.satUuid) return;
+    try {
+      await navigator.clipboard.writeText(invoice.satUuid);
+      toast.success('UUID copiado');
+    } catch {
+      toast.error('No se pudo copiar el UUID');
+    }
+  };
+
+  const run = async (fn: () => Promise<unknown>, close: () => void) => {
+    try {
+      await fn();
+      close();
+    } catch {
+      // El hook ya avisó.
+    }
+  };
+
+  const openFiscal = () => {
+    if (!invoice.customerId) {
+      toast.error('La factura no tiene cliente asociado (receptor genérico)');
+      return;
+    }
+    void fiscalEditor.openFor({
+      customerId: invoice.customerId,
+      rfc: invoice.receiver.rfc,
+      name: invoice.receiver.name,
+    });
+  };
+
+  const pdfUrl = files.data?.pdf?.url ?? null;
+  const xmlUrl = files.data?.xml?.url ?? null;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+      {/* Cabecera */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link
-                href="/admin/facturacion"
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              >
-                <ArrowLeftIcon className="h-6 w-6" />
-              </Link>
+        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex items-start gap-4">
+              <Button asChild variant="ghost" size="icon" className="text-white hover:bg-white/10 hover:text-white">
+                <Link href="/admin/facturacion" aria-label="Volver a facturas">
+                  <ArrowLeftIcon className="h-6 w-6" />
+                </Link>
+              </Button>
               <div>
-                <div className="flex items-center gap-3">
-                  <DocumentTextIcon className="h-8 w-8" />
+                <div className="flex flex-wrap items-center gap-3">
+                  <DocumentTextIcon className="h-8 w-8" aria-hidden />
                   <h1 className="text-3xl font-bold">
-                    Factura {invoice.invoice_number || formatInvoiceNumber(invoice.series, invoice.folio)}
+                    {invoiceTypeLabel(invoice)} {invoice.folioDisplay}
                   </h1>
+                  <InvoiceTypeBadge invoice={invoice} />
                 </div>
-                {invoice.sat_uuid && (
-                  <p className="text-white/80 mt-1 font-mono text-sm">
-                    UUID: {invoice.sat_uuid}
-                  </p>
+                {invoice.satUuid ? (
+                  <div className="mt-1 flex flex-wrap items-center gap-2 text-sm">
+                    <span className="font-mono text-white/85 break-all">UUID: {invoice.satUuid}</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-white hover:bg-white/10 hover:text-white"
+                      onClick={() => void copyUuid()}
+                      aria-label="Copiar UUID"
+                    >
+                      <ClipboardDocumentIcon className="h-4 w-4" aria-hidden />
+                      Copiar
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="mt-1 text-sm text-white/70">Sin UUID: la factura aún no se timbra.</p>
                 )}
+                <p className="mt-1 text-xs text-white/70">
+                  {invoice.invoiceNumber && <>Número interno {invoice.invoiceNumber} · </>}
+                  {invoice.stampedAt
+                    ? `Timbrada ${formatInBranch(invoice.stampedAt, invoice.branchId)} (${timezoneOf(invoice.branchId)})`
+                    : `Creada ${formatInBranch(invoice.createdAt, invoice.branchId)}`}
+                  {invoice.satCertificateNumber && <> · Certificado SAT {invoice.satCertificateNumber}</>}
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              {/* Status Badge */}
-              <span
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium ${statusConfig?.color || 'bg-gray-100 text-gray-800'}`}
-              >
-                {getStatusIcon((invoice.provider_status || invoice.status) as InvoiceStatus)}
-                {statusConfig?.label || invoice.provider_status || invoice.status}
-              </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <InvoiceStatusBadge status={invoice.providerStatus} satCancellationStatus={invoice.satCancellationStatus} size="lg" />
+              <SatStatusBadge status={invoice.satStatus} />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Main Info */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Error Message */}
-            {invoice.provider_status === 'error' && invoice.provider_error && (
-              <Card className="border-red-200 bg-red-50">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <div className="grid gap-6 lg:grid-cols-3">
+          {/* Columna principal */}
+          <div className="space-y-6 lg:col-span-2">
+            {showError && (
+              <Card className="border-red-200 bg-red-50" role="alert">
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
-                    <ExclamationTriangleIcon className="h-6 w-6 text-red-600 flex-shrink-0" />
-                    <div>
-                      <h3 className="font-semibold text-red-800">Error en timbrado</h3>
-                      <p className="text-sm text-red-700 mt-1">{invoice.provider_error}</p>
+                    <ExclamationTriangleIcon className="h-6 w-6 flex-shrink-0 text-red-600" aria-hidden />
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-red-800">
+                        {invoice.providerStatus === InvoiceStatus.STAMPING ? 'Timbrado sin confirmar' : 'Error en el timbrado'}
+                      </h3>
+                      <p className="mt-1 text-sm text-red-700">{errorText}</p>
+                      <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                        {errorField && <Badge variant="destructive">Campo: {billingFieldLabel(errorField)}</Badge>}
+                        {errorMapped?.providerCode && <Badge variant="outline">Código PAC {errorMapped.providerCode}</Badge>}
+                      </div>
+                      {receiverError && canManage && invoice.customerId && (
+                        <Button variant="outline" size="sm" className="mt-3" onClick={openFiscal} disabled={fiscalEditor.isLoading}>
+                          Corregir datos fiscales del cliente
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            {/* Receiver Info */}
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                  Datos del Receptor
-                </h2>
-                <div className="grid md:grid-cols-2 gap-6">
-                  <div>
-                    <p className="text-sm text-gray-600">Razón Social</p>
-                    <p className="font-medium text-gray-900">{invoice.receiver_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">RFC</p>
-                    <p className="font-mono font-medium text-gray-900">
-                      {invoice.receiver_rfc}
+            {isGlobal && invoice.global?.reissueState === 'pending_reissue' && (
+              <Card className="border-purple-200 bg-purple-50" role="status">
+                <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+                  <div className="text-sm text-purple-900">
+                    <p className="font-semibold">
+                      Tiene {invoice.global.released.filter((d) => d.releasedReason === 'nominative_issued').length} operación(es) facturada(s) nominativamente
                     </p>
+                    <p className="text-xs">Hay que cancelar esta global con el motivo 04 y reexpedirla sin esos tickets (relación 04).</p>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Régimen Fiscal</p>
-                    <p className="font-medium text-gray-900">
-                      {fiscalRegimeLabel(invoice.receiver_tax_regime_code, regimeCatalog) || '-'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Código Postal</p>
-                    <p className="font-medium text-gray-900">{invoice.receiver_zip_code}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Uso de CFDI</p>
-                    <p className="font-medium text-gray-900">
-                      {cfdiUseLabel(invoice.receiver_cfdi_use_code, cfdiUseCatalog) || '-'}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Invoice Items */}
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Conceptos</h2>
-                <div className="overflow-x-auto">
-                  <Table className="w-full">
-                    <TableHeader>
-                      <TableRow className="border-b border-gray-200">
-                        <TableHead className="text-left py-2 px-3 text-sm font-medium text-gray-600">
-                          Descripción
-                        </TableHead>
-                        <TableHead className="text-right py-2 px-3 text-sm font-medium text-gray-600">
-                          Cantidad
-                        </TableHead>
-                        <TableHead className="text-right py-2 px-3 text-sm font-medium text-gray-600">
-                          P. Unitario
-                        </TableHead>
-                        <TableHead className="text-right py-2 px-3 text-sm font-medium text-gray-600">
-                          Importe
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {invoice.items?.map((item: any, index: number) => (
-                        <TableRow key={item.id || index} className="border-b border-gray-100">
-                          <TableCell className="py-3 px-3">
-                            <p className="font-medium text-gray-900">{item.description}</p>
-                            <p className="text-xs text-gray-500">
-                              Clave: {item.sat_product_code} | Unidad: {item.sat_unit_code}
-                            </p>
-                          </TableCell>
-                          <TableCell className="py-3 px-3 text-right text-gray-900">
-                            {item.quantity}
-                          </TableCell>
-                          <TableCell className="py-3 px-3 text-right text-gray-900">
-                            {formatCurrency(item.unit_price || 0)}
-                          </TableCell>
-                          <TableCell className="py-3 px-3 text-right font-medium text-gray-900">
-                            {formatCurrency(item.total || 0)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                    <TableFooter>
-                      <TableRow className="border-t-2 border-gray-200">
-                        <TableCell colSpan={3} className="py-3 px-3 text-right font-medium">
-                          Subtotal:
-                        </TableCell>
-                        <TableCell className="py-3 px-3 text-right font-medium">
-                          {formatCurrency(invoice.subtotal || 0)}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell colSpan={3} className="py-2 px-3 text-right text-gray-600">
-                          IVA ({((Number(invoice.tax_rate) || 0.16) * 100).toFixed(0)}%):
-                        </TableCell>
-                        <TableCell className="py-2 px-3 text-right">
-                          {formatCurrency(invoice.tax_amount || 0)}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow className="bg-gray-50">
-                        <TableCell
-                          colSpan={3}
-                          className="py-3 px-3 text-right font-bold text-gray-900"
-                        >
-                          Total:
-                        </TableCell>
-                        <TableCell className="py-3 px-3 text-right font-bold text-xl text-[#3E667D]">
-                          {formatCurrency(invoice.total || 0)}
-                        </TableCell>
-                      </TableRow>
-                    </TableFooter>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Actions */}
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Acciones</h2>
-                <div className="space-y-3">
-                  {invoice.provider_status === 'pending' && (
-                    <>
-                      <Button
-                        variant="default"
-                        className="w-full"
-                        onClick={() => openStampModal(false)}
-                      >
-                        <CheckCircleIcon className="h-5 w-5" />
-                        Timbrar Factura
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="w-full"
-                        onClick={() => openStampModal(true)}
-                      >
-                        <EnvelopeIcon className="h-5 w-5" />
-                        Timbrar y Enviar
-                      </Button>
-                    </>
+                  {canManage && a.canReissue && (
+                    <Button onClick={() => setReissueOpen(true)} disabled={reissue.isPending}>
+                      Reexpedir sin los tickets facturados
+                    </Button>
                   )}
+                </CardContent>
+              </Card>
+            )}
 
-                  {invoice.provider_status === 'stamped' && (
-                    <>
-                      {isLegacyInvoice && (
-                        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg mb-1">
-                          <div className="flex items-start gap-2">
-                            <ExclamationTriangleIcon className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                            <p className="text-xs text-amber-700">
-                              Esta factura fue migrada del sistema anterior. La descarga de PDF/XML no está disponible.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                      {!isLegacyInvoice && (
-                        <>
-                          <Button
-                            variant="default"
-                            className="w-full"
-                            onClick={handleViewPdf}
-                          >
-                            <EyeIcon className="h-5 w-5" />
-                            Visualizar PDF
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="w-full"
-                            onClick={handleDownloadPdf}
-                          >
-                            <ArrowDownTrayIcon className="h-5 w-5" />
-                            Descargar PDF
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="w-full"
-                            onClick={handleDownloadXml}
-                          >
-                            <DocumentDuplicateIcon className="h-5 w-5" />
-                            Descargar XML
-                          </Button>
-                        </>
-                      )}
-                      <Button
-                        variant="ghost"
-                        className="w-full text-red-600 hover:bg-red-50"
-                        onClick={openCancelModal}
-                      >
-                        <XMarkIcon className="h-5 w-5" />
-                        Cancelar Factura
-                      </Button>
-                    </>
-                  )}
+            {invoice.replacement?.replacedByInvoiceId && invoice.providerStatus !== InvoiceStatus.CANCELLED && (
+              <Card className="border-amber-200 bg-amber-50" role="status">
+                <CardContent className="p-4 text-sm text-amber-900">
+                  Sustituida por{' '}
+                  <Link href={`/admin/facturacion/${invoice.replacement.replacedByInvoiceId}`} className="font-semibold underline">
+                    otra factura
+                  </Link>
+                  : falta cancelar esta con el motivo 01. Usa &quot;Cancelar factura&quot; con el UUID de la sustituta.
+                </CardContent>
+              </Card>
+            )}
 
-                  {invoice.provider_status === 'error' && (
-                    <Button
-                      variant="default"
-                      className="w-full"
-                      onClick={() => openStampModal(false)}
-                    >
-                      <CheckCircleIcon className="h-5 w-5" />
-                      Reintentar Timbrado
+            {/* Receptor */}
+            <Card>
+              <CardContent className="p-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-gray-900">Receptor</h2>
+                  {canManage && invoice.customerId && a.canStamp && (
+                    <Button variant="ghost" size="sm" onClick={openFiscal} disabled={fiscalEditor.isLoading}>
+                      Editar datos fiscales
                     </Button>
                   )}
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Invoice Details */}
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Detalles</h2>
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm text-gray-600">Tipo de Comprobante</p>
-                    <p className="font-medium text-gray-900">
-                      {invoice.cfdi_type === 'I' ? 'Ingreso' : invoice.cfdi_type === 'E' ? 'Egreso' : invoice.cfdi_type === 'P' ? 'Pago' : invoice.cfdi_type}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Método de Pago</p>
-                    <p className="font-medium text-gray-900">
-                      {invoice.payment_method_code === 'PUE'
-                        ? 'Pago en Una Exhibición'
-                        : invoice.payment_method_code === 'PPD'
-                          ? 'Pago en Parcialidades'
-                          : invoice.payment_method_code || '-'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Forma de Pago</p>
-                    <p className="font-medium text-gray-900">
-                      {getPaymentFormName(invoice.payment_form_code || '')}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">Moneda</p>
-                    <p className="font-medium text-gray-900">{invoice.currency_code || 'MXN'}</p>
-                  </div>
-                  {invoice.order && (
-                    <div>
-                      <p className="text-sm text-gray-600">Pedido Relacionado</p>
-                      <Link
-                        href={`/admin/pedidos/${invoice.order_id}`}
-                        className="font-medium text-[#3E667D] hover:underline"
-                      >
-                        {invoice.order.order_number}
-                      </Link>
-                    </div>
-                  )}
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Razón social" value={invoice.receiver.name} />
+                  <Field label="RFC" value={invoice.receiver.rfc} mono />
+                  <Field label="Régimen fiscal" value={fiscalRegimeLabel(invoice.receiver.taxRegimeCode, regimeCatalog) || '—'} />
+                  <Field label="Uso de CFDI" value={cfdiUseLabel(invoice.receiver.cfdiUseCode, cfdiUseCatalog) || '—'} />
+                  <Field label="CP fiscal" value={invoice.receiver.zipCode} mono />
+                  <Field label="Correo" value={invoice.receiver.email} />
                 </div>
               </CardContent>
             </Card>
 
-            {/* Timeline */}
+            {/* Emisor y expedición */}
             <Card>
               <CardContent className="p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Historial</h2>
-                <div className="space-y-4">
-                  <div className="flex gap-3">
-                    <div className="w-2 h-2 rounded-full bg-gray-400 mt-2" />
+                <h2 className="mb-4 text-lg font-semibold text-gray-900">Emisor y expedición</h2>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Field label="Emisor" value={invoice.issuer.name} />
+                  <Field label="RFC emisor" value={invoice.issuer.rfcMasked} mono />
+                  <Field label="Régimen" value={fiscalRegimeLabel(invoice.issuer.taxRegimeCode, regimeCatalog) || '—'} />
+                  <Field label="Lugar de expedición (CP)" value={invoice.issuer.expeditionPlace} mono />
+                  <Field label="Sucursal" value={invoice.branchName} />
+                  <Field label="Moneda" value={invoice.currencyCode} />
+                  <Field label="Método de pago" value={invoice.paymentMethodCode ? PAYMENT_METHOD_LABELS[invoice.paymentMethodCode] ?? invoice.paymentMethodCode : '—'} />
+                  <Field label="Forma de pago" value={invoice.paymentFormCode ? `${invoice.paymentFormCode} · ${getPaymentFormName(invoice.paymentFormCode)}` : '—'} />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Origen */}
+            {(invoice.posSaleId || invoice.orderId || invoice.globalLocalDate) && (
+              <Card>
+                <CardContent className="p-6">
+                  <h2 className="mb-4 text-lg font-semibold text-gray-900">Origen</h2>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {invoice.saleNumber && <Field label="Ticket POS" value={invoice.saleNumber} mono />}
+                    {invoice.orderId && (
+                      <Field
+                        label="Pedido"
+                        value={
+                          <Link href={`/admin/pedidos/${invoice.orderId}`} className="text-[#3E667D] hover:underline">
+                            {invoice.orderNumber ?? invoice.orderId}
+                          </Link>
+                        }
+                      />
+                    )}
+                    {invoice.globalLocalDate && <Field label="Día de la global (zona sucursal)" value={formatIsoDate(invoice.globalLocalDate)} />}
+                    {invoice.global && <Field label="Modo de conceptos" value={invoice.global.conceptMode === 'ticket' ? 'Por ticket' : 'Por producto'} />}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Conceptos */}
+            {invoice.items.length > 0 && (
+              <Card>
+                <CardContent className="p-6">
+                  <h2 className="mb-4 text-lg font-semibold text-gray-900">Conceptos</h2>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Descripción</TableHead>
+                          <TableHead className="text-right">Cantidad</TableHead>
+                          <TableHead className="text-right">P. unitario</TableHead>
+                          <TableHead className="text-right">Importe</TableHead>
+                          <TableHead className="text-right">Desc.</TableHead>
+                          <TableHead className="text-right">IVA</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {invoice.items.map((item) => (
+                          <TableRow key={item.lineNumber}>
+                            <TableCell>
+                              <p className="font-medium text-gray-900">{item.description}</p>
+                              <p className="text-xs text-gray-500">
+                                {item.identificationNumber && <>No. ident. {item.identificationNumber} · </>}
+                                Clave {item.satProductCode ?? '—'} · Unidad {item.satUnitCode ?? '—'}
+                                {item.unitName ? ` (${item.unitName})` : ''} · Obj. imp. {item.taxObject}
+                              </p>
+                            </TableCell>
+                            <TableCell className="text-right">{item.quantity}</TableCell>
+                            <TableCell className="text-right">{Number(item.unitPrice).toFixed(6)}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
+                            <TableCell className="text-right">{item.discount > 0 ? formatCurrency(item.discount) : '—'}</TableCell>
+                            <TableCell className="text-right">
+                              {item.taxes.length === 0
+                                ? '—'
+                                : item.taxes.map((t, i) => (
+                                    <span key={i} className="block whitespace-nowrap">
+                                      {t.factorType === 'Exento' ? 'Exento' : `${Math.round(t.rate * 100)}%: ${formatCurrency(t.amount)}`}
+                                    </span>
+                                  ))}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">{formatCurrency(item.total)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                      <TableFooter>
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-right font-medium">Subtotal</TableCell>
+                          <TableCell className="text-right font-medium">{formatCurrency(invoice.totals.subtotal)}</TableCell>
+                        </TableRow>
+                        {invoice.totals.discount > 0 && (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-right text-gray-600">Descuento</TableCell>
+                            <TableCell className="text-right">−{formatCurrency(invoice.totals.discount)}</TableCell>
+                          </TableRow>
+                        )}
+                        {invoice.totals.byRate.map((r, i) => (
+                          <TableRow key={i}>
+                            <TableCell colSpan={6} className="text-right text-gray-600">
+                              IVA {r.factor === 'Exento' ? 'exento' : `${Math.round(r.rate * 100)}%`} (base {formatCurrency(r.base)})
+                            </TableCell>
+                            <TableCell className="text-right">{formatCurrency(r.tax)}</TableCell>
+                          </TableRow>
+                        ))}
+                        <TableRow className="bg-gray-50">
+                          <TableCell colSpan={6} className="text-right font-bold text-gray-900">Total</TableCell>
+                          <TableCell className="text-right text-xl font-bold text-[#3E667D]">{formatCurrency(invoice.totals.total)}</TableCell>
+                        </TableRow>
+                      </TableFooter>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Global: tickets incluidos y liberados */}
+            {invoice.global && (
+              <Card>
+                <CardContent className="p-6">
+                  <h2 className="mb-1 text-lg font-semibold text-gray-900">Factura global</h2>
+                  <p className="mb-4 text-sm text-gray-600">
+                    Día {formatIsoDate(invoice.global.localDate)} · {invoice.global.documentCount ?? invoice.global.documents.length} documento(s) ·{' '}
+                    {invoice.global.conceptMode === 'ticket' ? 'un concepto por ticket' : 'agrupada por producto'}
+                  </p>
+                  <h3 className="mb-2 text-sm font-semibold text-gray-800">Incluidos</h3>
+                  <GlobalDocumentsTable docs={invoice.global.documents} />
+                  {invoice.global.released.length > 0 && (
+                    <>
+                      <h3 className="mb-2 mt-6 text-sm font-semibold text-gray-800">Liberados</h3>
+                      <GlobalDocumentsTable docs={invoice.global.released} released />
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* PPD: saldos y complementos */}
+            {invoice.ppd && (
+              <Card>
+                <CardContent className="p-6">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <h2 className="text-lg font-semibold text-gray-900">Pago en parcialidades (PPD)</h2>
+                    {canManage && (invoice.ppd.outstandingBalance ?? 0) > 0 && invoice.providerStatus === InvoiceStatus.STAMPED && (
+                      <Button asChild size="sm">
+                        <Link href={`/admin/facturacion/complemento-pago?invoiceId=${invoice.id}`}>Registrar pago</Link>
+                      </Button>
+                    )}
+                  </div>
+                  <div className="mb-4 grid gap-4 sm:grid-cols-3">
+                    <Field label="Pagado" value={formatCurrency(invoice.ppd.paidAmount)} />
+                    <Field label="Saldo insoluto" value={formatCurrency(invoice.ppd.outstandingBalance ?? 0)} />
+                    <Field label="Parcialidades" value={invoice.ppd.partialitiesCount} />
+                  </div>
+                  {invoice.ppd.complements.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Complemento</TableHead>
+                            <TableHead>Parcialidad</TableHead>
+                            <TableHead>Fecha de pago</TableHead>
+                            <TableHead className="text-right">Pagado</TableHead>
+                            <TableHead>Estado</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {invoice.ppd.complements.map((c) => (
+                            <TableRow key={c.complementInvoiceId}>
+                              <TableCell>
+                                <Link href={`/admin/facturacion/${c.complementInvoiceId}`} className="font-mono text-sm text-[#3E667D] hover:underline">
+                                  {c.folioDisplay}
+                                </Link>
+                              </TableCell>
+                              <TableCell>{c.partialityNumber}</TableCell>
+                              <TableCell className="text-sm">{formatIsoDate(c.paymentDate)}</TableCell>
+                              <TableCell className="text-right">{formatCurrency(c.amountPaid)}</TableCell>
+                              <TableCell>{c.providerStatus ? <InvoiceStatusBadge status={c.providerStatus} /> : '—'}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">Sin complementos de pago.</p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* CFDI de pago: documentos relacionados */}
+            {invoice.payment && (
+              <Card>
+                <CardContent className="p-6">
+                  <h2 className="mb-4 text-lg font-semibold text-gray-900">Complemento de pago</h2>
+                  <div className="mb-4 grid gap-4 sm:grid-cols-3">
+                    <Field label="Fecha de pago (local)" value={invoice.payment.paymentLocalDateTime?.replace('T', ' ') ?? '—'} />
+                    <Field label="Forma de pago" value={invoice.payment.paymentFormCode ? `${invoice.payment.paymentFormCode} · ${getPaymentFormName(invoice.payment.paymentFormCode)}` : '—'} />
+                    <Field label="Monto" value={formatCurrency(invoice.payment.amount)} />
+                    {invoice.payment.operationNumber && <Field label="Referencia" value={invoice.payment.operationNumber} mono />}
+                  </div>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Factura</TableHead>
+                          <TableHead>Parcialidad</TableHead>
+                          <TableHead className="text-right">Saldo anterior</TableHead>
+                          <TableHead className="text-right">Pagado</TableHead>
+                          <TableHead className="text-right">Saldo insoluto</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {invoice.payment.documents.map((d) => (
+                          <TableRow key={d.invoiceId}>
+                            <TableCell>
+                              <Link href={`/admin/facturacion/${d.invoiceId}`} className="font-mono text-sm text-[#3E667D] hover:underline">
+                                {d.folioDisplay}
+                              </Link>
+                              <p className="font-mono text-[11px] text-gray-500">{d.satUuid}</p>
+                            </TableCell>
+                            <TableCell>{d.partialityNumber}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(d.previousBalance)}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(d.amountPaid)}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(d.outstandingBalance)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Cancelación */}
+            {invoice.cancellation && (
+              <Card className="border-orange-200">
+                <CardContent className="p-6">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                    <h2 className="text-lg font-semibold text-gray-900">Cancelación</h2>
+                    {invoice.cancellation.acuseAvailable && (
+                      <Button variant="outline" size="sm" onClick={() => void downloadInvoiceFile('acuse', invoice.id, invoice.folioDisplay)}>
+                        <ArrowDownTrayIcon className="h-4 w-4" aria-hidden />
+                        Acuse (PDF)
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Field label="Motivo" value={invoice.cancellation.reason ? CANCELLATION_REASON_INFO[invoice.cancellation.reason]?.label ?? invoice.cancellation.reason : '—'} />
+                    <Field label="Estatus SAT" value={invoice.cancellation.satCancellationStatus ?? '—'} />
+                    <Field label="Solicitada" value={formatInBranch(invoice.cancellation.requestedAt, invoice.branchId)} />
+                    <Field label="Confirmada" value={invoice.cancellation.cancelledAt ? formatInBranch(invoice.cancellation.cancelledAt, invoice.branchId) : 'Pendiente'} />
+                    {invoice.cancellation.replacementUuid && <Field label="UUID sustituta" value={invoice.cancellation.replacementUuid} mono />}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Relación / sustitución */}
+            {(invoice.relation || invoice.replacement) && (
+              <Card>
+                <CardContent className="p-6">
+                  <h2 className="mb-4 text-lg font-semibold text-gray-900">Relación y sustitución</h2>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {invoice.relation && (
+                      <>
+                        <Field label="Tipo de relación" value={`${invoice.relation.type}${invoice.relation.type === '04' ? ' — Sustitución de CFDI previos' : ''}`} />
+                        <Field
+                          label="CFDI relacionado"
+                          value={
+                            invoice.relation.invoiceId ? (
+                              <Link href={`/admin/facturacion/${invoice.relation.invoiceId}`} className="font-mono text-[#3E667D] hover:underline">
+                                {invoice.relation.uuid ?? 'ver factura relacionada'}
+                              </Link>
+                            ) : (
+                              <span className="font-mono">{invoice.relation.uuid ?? '—'}</span>
+                            )
+                          }
+                        />
+                      </>
+                    )}
+                    {invoice.replacement?.replacesInvoiceId && (
+                      <Field
+                        label="Sustituye a"
+                        value={<Link href={`/admin/facturacion/${invoice.replacement.replacesInvoiceId}`} className="text-[#3E667D] hover:underline">ver factura original</Link>}
+                      />
+                    )}
+                    {invoice.replacement?.replacedByInvoiceId && (
+                      <Field
+                        label="Sustituida por"
+                        value={<Link href={`/admin/facturacion/${invoice.replacement.replacedByInvoiceId}`} className="text-[#3E667D] hover:underline">ver factura sustituta</Link>}
+                      />
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Barra lateral */}
+          <div className="space-y-6">
+            <Card>
+              <CardContent className="p-6">
+                <h2 className="mb-4 text-lg font-semibold text-gray-900">Acciones</h2>
+                {!canManage ? (
+                  <p className="text-sm text-gray-500">Solo lectura: necesitas billing:manage para operar la factura.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {a.canStamp && (
+                      <Button className="w-full" onClick={() => setStampOpen(true)} disabled={stamp.isPending}>
+                        <CheckCircleIcon className="h-5 w-5" aria-hidden />
+                        {invoice.providerStatus === InvoiceStatus.PENDING ? 'Timbrar' : 'Reintentar timbrado'}
+                      </Button>
+                    )}
+                    {a.canEmail && (
+                      <Button variant="outline" className="w-full" onClick={() => setEmailOpen(true)}>
+                        <EnvelopeIcon className="h-5 w-5" aria-hidden />
+                        Reenviar por correo
+                      </Button>
+                    )}
+                    {a.canReplace && (
+                      <Button variant="outline" className="w-full" onClick={() => setReplaceOpen(true)} disabled={replace.isPending}>
+                        <ArrowsRightLeftIcon className="h-5 w-5" aria-hidden />
+                        Sustituir
+                      </Button>
+                    )}
+                    {a.canRefreshStatus && (
+                      <Button variant="outline" className="w-full" onClick={() => setRefreshOpen(true)} disabled={refresh.isPending}>
+                        <ArrowPathIcon className="h-5 w-5" aria-hidden />
+                        Actualizar estatus SAT
+                      </Button>
+                    )}
+                    {a.canReissue && isGlobal && (
+                      <Button variant="outline" className="w-full" onClick={() => setReissueOpen(true)} disabled={reissue.isPending}>
+                        <ArrowsRightLeftIcon className="h-5 w-5" aria-hidden />
+                        Reexpedir global
+                      </Button>
+                    )}
+                    {a.canCancel && (
+                      <Button variant="ghost" className="w-full text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => setCancelOpen(true)}>
+                        <XMarkIcon className="h-5 w-5" aria-hidden />
+                        {invoice.providerStatus === InvoiceStatus.CANCEL_PENDING ? 'Actualizar cancelación' : 'Cancelar factura'}
+                      </Button>
+                    )}
+                    {a.canDiscard && isGlobal && (
+                      <Button variant="ghost" className="w-full text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => setDiscardOpen(true)} disabled={discard.isPending}>
+                        <TrashIcon className="h-5 w-5" aria-hidden />
+                        Desechar intento
+                      </Button>
+                    )}
+                    {!a.canStamp && !a.canEmail && !a.canReplace && !a.canRefreshStatus && !a.canCancel && !(a.canDiscard && isGlobal) && !(a.canReissue && isGlobal) && (
+                      <p className="text-sm text-gray-500">No hay acciones disponibles en este estado.</p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Archivos */}
+            <Card>
+              <CardContent className="p-6">
+                <h2 className="mb-4 text-lg font-semibold text-gray-900">Archivos</h2>
+                {invoice.satUuid ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-gray-500">
+                      {invoice.files.storedAt
+                        ? `Guardados el ${formatInBranch(invoice.files.storedAt, invoice.branchId)}`
+                        : 'Aún no están en el almacén: se descargan del PAC y se guardan.'}
+                      {files.data?.provider === 'local' && ' · Almacén local'}
+                    </p>
+                    {pdfUrl ? (
+                      <Button asChild className="w-full">
+                        <a href={pdfUrl} target="_blank" rel="noopener noreferrer">
+                          <EyeIcon className="h-5 w-5" aria-hidden />
+                          Ver PDF
+                        </a>
+                      </Button>
+                    ) : (
+                      <Button className="w-full" onClick={() => void openInvoicePdf(invoice.id)}>
+                        <EyeIcon className="h-5 w-5" aria-hidden />
+                        Ver PDF
+                      </Button>
+                    )}
+                    <Button variant="outline" className="w-full" onClick={() => void downloadInvoiceFile('pdf', invoice.id, invoice.folioDisplay)}>
+                      <ArrowDownTrayIcon className="h-5 w-5" aria-hidden />
+                      Descargar PDF
+                    </Button>
+                    {xmlUrl ? (
+                      <Button asChild variant="outline" className="w-full">
+                        <a href={xmlUrl} download>
+                          <DocumentDuplicateIcon className="h-5 w-5" aria-hidden />
+                          Descargar XML
+                        </a>
+                      </Button>
+                    ) : (
+                      <Button variant="outline" className="w-full" onClick={() => void downloadInvoiceFile('xml', invoice.id, invoice.folioDisplay)}>
+                        <DocumentDuplicateIcon className="h-5 w-5" aria-hidden />
+                        Descargar XML
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">Los archivos existen cuando la factura está timbrada.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Correos */}
+            <Card>
+              <CardContent className="p-6">
+                <h2 className="mb-4 text-lg font-semibold text-gray-900">Correos</h2>
+                {invoice.emails.count > 0 ? (
+                  <div className="space-y-1 text-sm">
+                    <p className="text-gray-900">Enviada {invoice.emails.count} vez/veces</p>
+                    <p className="text-xs text-gray-500">Último envío: {formatInBranch(invoice.emails.emailedAt, invoice.branchId)}</p>
+                    {invoice.emails.emailedTo && <p className="break-all text-xs text-gray-600">A: {invoice.emails.emailedTo}</p>}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">
+                    {isGlobal ? 'Las globales no se envían automáticamente.' : 'Todavía no se ha enviado por correo.'}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Historial */}
+            <Card>
+              <CardContent className="p-6">
+                <h2 className="mb-4 text-lg font-semibold text-gray-900">Historial</h2>
+                <ol className="space-y-3">
+                  <li className="flex gap-3">
+                    <span className="mt-2 h-2 w-2 rounded-full bg-gray-400" aria-hidden />
                     <div>
                       <p className="text-sm font-medium text-gray-900">Creada</p>
-                      <p className="text-xs text-gray-500">
-                        {formatDate(invoice.created_at)}
-                      </p>
+                      <p className="text-xs text-gray-500">{formatInBranch(invoice.createdAt, invoice.branchId)}</p>
                     </div>
-                  </div>
-                  {invoice.stamped_at && (
-                    <div className="flex gap-3">
-                      <div className="w-2 h-2 rounded-full bg-green-500 mt-2" />
+                  </li>
+                  {invoice.stampedAt && (
+                    <li className="flex gap-3">
+                      <span className="mt-2 h-2 w-2 rounded-full bg-green-500" aria-hidden />
                       <div>
                         <p className="text-sm font-medium text-gray-900">Timbrada</p>
-                        <p className="text-xs text-gray-500">
-                          {formatDate(invoice.stamped_at)}
-                        </p>
+                        <p className="text-xs text-gray-500">{formatInBranch(invoice.stampedAt, invoice.branchId)}</p>
+                        {invoice.satStampDate && <p className="text-xs text-gray-500">Fecha SAT: {invoice.satStampDate.replace('T', ' ')}</p>}
                       </div>
-                    </div>
+                    </li>
                   )}
-                  {invoice.cancelled_at && (
-                    <div className="flex gap-3">
-                      <div className="w-2 h-2 rounded-full bg-red-500 mt-2" />
+                  {invoice.cancellation?.requestedAt && (
+                    <li className="flex gap-3">
+                      <span className="mt-2 h-2 w-2 rounded-full bg-orange-500" aria-hidden />
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">Cancelación solicitada</p>
+                        <p className="text-xs text-gray-500">{formatInBranch(invoice.cancellation.requestedAt, invoice.branchId)}</p>
+                      </div>
+                    </li>
+                  )}
+                  {invoice.cancellation?.cancelledAt && (
+                    <li className="flex gap-3">
+                      <span className="mt-2 h-2 w-2 rounded-full bg-red-500" aria-hidden />
                       <div>
                         <p className="text-sm font-medium text-gray-900">Cancelada</p>
-                        <p className="text-xs text-gray-500">
-                          {formatDate(invoice.cancelled_at)}
-                        </p>
-                        {invoice.cancellation_reason && (
-                          <p className="text-xs text-gray-500">
-                            Motivo:{' '}
-                            {
-                              CANCELLATION_REASONS.find(
-                                (r) => r.Value === invoice.cancellation_reason
-                              )?.Name
-                            }
-                          </p>
-                        )}
+                        <p className="text-xs text-gray-500">{formatInBranch(invoice.cancellation.cancelledAt, invoice.branchId)}</p>
                       </div>
-                    </div>
+                    </li>
                   )}
-                </div>
+                </ol>
               </CardContent>
             </Card>
           </div>
         </div>
       </div>
 
-      {/* Stamp Confirmation Modal */}
-      {showStampModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="max-w-lg w-full mx-4">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-[#3E667D]/10 rounded-full">
-                  <CheckCircleIcon className="h-6 w-6 text-[#3E667D]" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900">
-                  {stampSendEmail ? 'Timbrar y Enviar Factura' : 'Timbrar Factura'}
-                </h2>
-              </div>
+      {/* Diálogos */}
+      <ConfirmDialog
+        open={stampOpen}
+        onOpenChange={setStampOpen}
+        title={invoice.providerStatus === InvoiceStatus.PENDING ? 'Timbrar factura' : 'Reintentar timbrado'}
+        description="Se reconstruye el CFDI con los datos fiscales actuales y se envía al PAC. Consume un timbre si el SAT lo acepta."
+        confirmLabel="Timbrar"
+        isPending={stamp.isPending}
+        onConfirm={() => run(() => stamp.mutateAsync(invoice.id), () => setStampOpen(false))}
+      >
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-lg bg-gray-50 p-3 text-sm">
+          <dt className="text-gray-500">Receptor</dt>
+          <dd>{invoice.receiver.name ?? '—'} ({invoice.receiver.rfc ?? '—'})</dd>
+          <dt className="text-gray-500">Total</dt>
+          <dd className="font-semibold">{formatCurrency(invoice.total)}</dd>
+        </dl>
+      </ConfirmDialog>
 
-              {/* Invoice summary */}
-              <div className="bg-gray-50 rounded-lg p-4 mb-4 space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Factura:</span>
-                  <span className="font-semibold text-gray-900">{invoice.invoice_number}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Receptor:</span>
-                  <span className="font-medium text-gray-900">{invoice.receiver_name}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">RFC:</span>
-                  <span className="font-mono text-gray-900">{invoice.receiver_rfc}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Total:</span>
-                  <span className="font-bold text-gray-900">{formatCurrency(invoice.total || 0)}</span>
-                </div>
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                <p className="text-sm text-blue-700">
-                  {stampSendEmail
-                    ? 'La factura será timbrada ante el SAT y enviada por correo electrónico al receptor.'
-                    : 'La factura será timbrada ante el SAT. Esta acción genera un CFDI con validez fiscal.'}
-                </p>
-              </div>
-
-              {/* Who is stamping */}
-              <div className="text-sm text-gray-600 mb-4">
-                Timbrando como: <span className="font-semibold text-gray-900">{currentUser?.firstName} {currentUser?.lastName}</span>
-                <span className="text-gray-400 ml-1">({currentUser?.email})</span>
-              </div>
-
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setShowStampModal(false)}
-                >
-                  Volver
-                </Button>
-                <Button
-                  variant="default"
-                  className="flex-1"
-                  onClick={handleStamp}
-                  disabled={stampInvoice.isPending}
-                >
-                  {stampInvoice.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-                  {stampSendEmail ? <EnvelopeIcon className="h-5 w-5" /> : <CheckCircleIcon className="h-5 w-5" />}
-                  {stampSendEmail ? 'Timbrar y Enviar' : 'Confirmar Timbrado'}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      {emailOpen && (
+        <SendInvoiceEmailDialog
+          open={emailOpen}
+          onOpenChange={setEmailOpen}
+          invoiceId={invoice.id}
+          folio={invoice.folioDisplay}
+          defaultEmail={invoice.receiver.email}
+        />
       )}
 
-      {/* Cancel Modal */}
-      {showCancelModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="max-w-lg w-full mx-4">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-red-100 rounded-full">
-                  <ShieldExclamationIcon className="h-6 w-6 text-red-600" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900">Cancelar Factura</h2>
-              </div>
+      <ConfirmDialog
+        open={replaceOpen}
+        onOpenChange={setReplaceOpen}
+        title={`Sustituir factura ${invoice.folioDisplay}`}
+        description="Para corregir RFC o razón social. Se timbra una factura NUEVA con relación 04 usando los datos fiscales actuales del cliente y después se solicita la cancelación 01 de esta."
+        confirmLabel="Sustituir"
+        confirmText="SUSTITUIR"
+        destructive
+        isPending={replace.isPending}
+        onConfirm={() =>
+          run(
+            async () => {
+              const result = await replace.mutateAsync(invoice.id);
+              router.push(`/admin/facturacion/${result.id}`);
+            },
+            () => setReplaceOpen(false),
+          )
+        }
+      >
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>Corrige antes los datos fiscales del cliente (Preparación fiscal o &quot;Editar datos fiscales&quot;).</li>
+          <li>Se emite la sustituta (consume un timbre).</li>
+          <li>Se cancela esta con motivo 01; si el PAC falla, quedará marcada &quot;falta cancelar&quot; para reintentar.</li>
+        </ol>
+      </ConfirmDialog>
 
-              {/* Invoice summary */}
-              <div className="bg-gray-50 rounded-lg p-4 mb-4 space-y-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Factura:</span>
-                  <span className="font-semibold text-gray-900">{invoice.invoice_number}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Receptor:</span>
-                  <span className="font-medium text-gray-900">{invoice.receiver_name}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">RFC:</span>
-                  <span className="font-mono text-gray-900">{invoice.receiver_rfc}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Total:</span>
-                  <span className="font-bold text-gray-900">{formatCurrency(invoice.total || 0)}</span>
-                </div>
-                {invoice.sat_uuid && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">UUID:</span>
-                    <span className="font-mono text-xs text-gray-900">{invoice.sat_uuid}</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-                <p className="text-sm text-red-700 font-medium">
-                  Esta acción no se puede deshacer. La factura será cancelada ante el SAT.
-                </p>
-              </div>
-
-              {/* Who is cancelling */}
-              <div className="text-sm text-gray-600 mb-4">
-                Cancelando como: <span className="font-semibold text-gray-900">{currentUser?.firstName} {currentUser?.lastName}</span>
-                <span className="text-gray-400 ml-1">({currentUser?.email})</span>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Motivo de Cancelación *
-                  </label>
-                  <SearchableSelect
-                    options={CANCELLATION_REASONS.map((reason) => ({
-                      value: reason.Value,
-                      label: `${reason.Value} - ${reason.Name}`,
-                    }))}
-                    value={cancelReason}
-                    onChange={setCancelReason}
-                    showAllOption={false}
-                  />
-                </div>
-
-                {cancelReason === '01' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      UUID de Sustitución *
-                    </label>
-                    <input
-                      type="text"
-                      value={replacementUuid}
-                      onChange={(e) => setReplacementUuid(e.target.value)}
-                      placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Escribe <span className="font-bold text-red-600">CANCELAR</span> para confirmar
-                  </label>
-                  <input
-                    type="text"
-                    value={cancelConfirmText}
-                    onChange={(e) => setCancelConfirmText(e.target.value)}
-                    placeholder="CANCELAR"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                    autoComplete="off"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3 mt-6">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setShowCancelModal(false)}
-                >
-                  Volver
-                </Button>
-                <Button
-                  variant="default"
-                  className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-red-300"
-                  onClick={handleCancel}
-                  disabled={cancelInvoice.isPending || (cancelConfirmText !== 'CANCELAR' || cancelInvoice.isPending)}
-                >
-                  {cancelInvoice.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-                  Confirmar Cancelación
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+      {cancelOpen && (
+        <CancelInvoiceDialog open={cancelOpen} onOpenChange={setCancelOpen} invoice={invoice} />
       )}
+
+      <ConfirmDialog
+        open={refreshOpen}
+        onOpenChange={(open) => {
+          setRefreshOpen(open);
+          if (!open) setForceRefresh(false);
+        }}
+        title="Actualizar estatus ante el SAT"
+        description="Esta consulta usa 1 timbre del saldo de Facturama. Se permite una consulta cada 10 minutos por factura."
+        confirmLabel="Consultar (usa 1 timbre)"
+        isPending={refresh.isPending}
+        onConfirm={() => run(() => refresh.mutateAsync({ id: invoice.id, force: forceRefresh }), () => setRefreshOpen(false))}
+      >
+        {isSuperAdmin && (
+          <div className="flex items-center gap-2">
+            <Checkbox id="force-refresh" checked={forceRefresh} onCheckedChange={(v) => setForceRefresh(v === true)} />
+            <Label htmlFor="force-refresh" className="text-sm font-normal">Forzar aunque se consultó hace menos de 10 minutos (super_admin)</Label>
+          </div>
+        )}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={discardOpen}
+        onOpenChange={setDiscardOpen}
+        title="Desechar intento de factura global"
+        description="Solo para intentos sin UUID (pendientes o con error). Se libera el día para volver a emitir la global."
+        confirmLabel="Desechar"
+        destructive
+        isPending={discard.isPending}
+        onConfirm={() =>
+          run(
+            async () => {
+              await discard.mutateAsync(invoice.id);
+              router.push('/admin/facturacion/global');
+            },
+            () => setDiscardOpen(false),
+          )
+        }
+      />
+
+      <ConfirmDialog
+        open={reissueOpen}
+        onOpenChange={setReissueOpen}
+        title="Reexpedir la factura global"
+        description="Se cancela esta global con el motivo 04 y se timbra una nueva del mismo día sin los tickets facturados nominativamente, con relación 04 a la cancelada."
+        confirmLabel="Reexpedir"
+        confirmText="REEXPEDIR"
+        destructive
+        isPending={reissue.isPending}
+        onConfirm={() =>
+          run(
+            async () => {
+              const result = await reissue.mutateAsync(invoice.id);
+              router.push(`/admin/facturacion/${result.id}`);
+            },
+            () => setReissueOpen(false),
+          )
+        }
+      >
+        <p>Si el SAT deja la cancelación en proceso, el botón mostrará &quot;Esperando al SAT&quot; hasta que se confirme.</p>
+      </ConfirmDialog>
+
+      {fiscalEditor.dialog}
     </div>
   );
 }

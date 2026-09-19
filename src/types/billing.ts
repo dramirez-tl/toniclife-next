@@ -7,29 +7,22 @@
 
 export enum InvoiceStatus {
   PENDING = 'pending',
-  /** Timbrado en curso: el API reclamó la factura ante el PAC (candado). */
+  /** Timbrado en curso: el API reclamó la factura ante el PAC (candado 3 min). */
   STAMPING = 'stamping',
   STAMPED = 'stamped',
+  /** Valor del CHECK; la Fase 2 ya no lo escribe (el correo se registra aparte). */
   SENT = 'sent',
-  CANCELLED = 'cancelled',
+  ERROR = 'error',
   /** El SAT aceptó la solicitud pero la cancelación NO está confirmada
    *  (espera la aceptación del receptor). Valor real de invoices.provider_status. */
   CANCEL_PENDING = 'cancel_pending',
-  /** @deprecated Nombre anterior; la BD nunca lo guardó. Usa CANCEL_PENDING. */
-  CANCELLATION_PENDING = 'cancellation_pending',
-  ERROR = 'error',
+  CANCELLED = 'cancelled',
 }
 
-export enum CfdiType {
-  INGRESO = 'I',
-  EGRESO = 'E',
-  PAGO = 'P',
-  TRASLADO = 'T',
-}
-
+/** @deprecated Usa `SatPaymentMethodCode` ('PUE' | 'PPD'). */
 export enum PaymentMethod {
-  PUE = 'PUE', // Pago en Una sola Exhibición
-  PPD = 'PPD', // Pago en Parcialidades o Diferido
+  PUE = 'PUE',
+  PPD = 'PPD',
 }
 
 // ================================
@@ -89,231 +82,545 @@ export interface UpdateFiscalDataDto {
 }
 
 // ================================
-// INVOICES
+// INVOICES (Fase 2 — contrato §7.1 / §7.2, DTOs camelCase del API)
 // ================================
 
-export interface InvoiceItem {
-  id: string;
-  invoiceId: string;
-  productCode: string;
-  unitCode: string;
-  sku?: string;
-  identificationNumber?: string;
+/** `invoices.invoice_type` (CHECK real de la mig 141). */
+export type InvoiceType =
+  | 'sale'
+  | 'global'
+  | 'payment'
+  | 'commission'
+  | 'weekly_bonus'
+  | 'cedea'
+  | 'credit_note'
+  | 'payroll';
+
+/** `invoices.cfdi_type` (CHECK real). */
+export type CfdiKind = 'ingreso' | 'egreso' | 'traslado' | 'nomina' | 'pago';
+
+/** Último estatus consultado ante el SAT (`invoices.sat_status`). */
+export type SatStatus = 'vigente' | 'cancelado' | 'no_encontrado';
+
+export type GlobalReissueState = 'none' | 'pending_reissue' | 'reissued';
+export type GlobalConceptMode = 'ticket' | 'product';
+export type CancellationReason = '01' | '02' | '03' | '04';
+export type TaxObject = '01' | '02';
+export type TaxFactorType = 'Tasa' | 'Exento';
+
+/** Impuesto enviado por concepto (`invoice_items.tax_breakdown`). */
+export interface InvoiceTax {
+  taxCode: string;
+  factorType: TaxFactorType;
+  rate: number;
+  base: number;
+  amount: number;
+}
+
+export interface InvoiceItemDto {
+  lineNumber: number;
+  sku: string | null;
   description: string;
-  quantity: string;
-  unitPrice: string;
-  amount: string;
-  discount?: string;
-  taxBase?: string;
-  taxRate?: string;
-  taxAmount?: string;
-  taxType?: string;
-  taxObject: string;
-  sortOrder: number;
-  createdAt: string;
+  identificationNumber: string | null;
+  satProductCode: string | null;
+  satUnitCode: string | null;
+  unitName: string | null;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+  discount: number;
+  taxObject: TaxObject;
+  taxes: InvoiceTax[];
+  total: number;
+  posSaleId: string | null;
 }
 
-export interface Invoice {
+/** Fila del listado `GET /billing/invoices` (contrato §7.1). */
+export interface InvoiceSummary {
   id: string;
-  orderId: string;
-  fiscalDataId?: string;
-  uuid?: string;
-  series?: string;
-  folio?: string;
-  invoiceType: CfdiType;
-  cfdiUse: string;
-  paymentMethod: PaymentMethod;
-  paymentForm: string;
-  paymentConditions?: string;
-  issuerRfc: string;
-  issuerName: string;
-  issuerTaxRegime: string;
-  issuerPostalCode: string;
-  receiverRfc: string;
-  receiverName: string;
-  receiverTaxRegime: string;
-  receiverPostalCode: string;
-  receiverEmail?: string;
-  currency: string;
-  exchangeRate: string;
-  subtotal: string;
-  discount: string;
-  taxAmount: string;
-  total: string;
-  taxes?: unknown;
-  pdfUrl?: string;
-  xmlUrl?: string;
-  pdfStoragePath?: string;
-  xmlStoragePath?: string;
-  status: InvoiceStatus;
-  facturamaId?: string;
-  facturamaResponse?: unknown;
-  errorCode?: string;
-  errorMessage?: string;
-  retryCount: number;
-  lastRetryAt?: string;
-  cancellationReason?: string;
-  cancellationUuid?: string;
-  cancelledAt?: string;
-  cancelledById?: string;
-  stampedAt?: string;
-  sentAt?: string;
-  createdById?: string;
+  invoiceNumber: string | null;
+  providerSerie: string | null;
+  providerFolio: string | null;
+  /** "serie-folio" | folio | invoiceNumber (lo arma el API). */
+  folioDisplay: string;
+  satUuid: string | null;
+  invoiceType: InvoiceType;
+  cfdiType: CfdiKind;
+  providerStatus: InvoiceStatus;
+  satStatus: SatStatus | null;
+  receiverRfc: string | null;
+  receiverName: string | null;
+  customerId: string | null;
+  total: number;
+  currencyCode: string;
+  paymentMethodCode: SatPaymentMethodCode | null;
+  paymentFormCode: string | null;
+  branchId: string | null;
+  branchName: string | null;
+  posSaleId: string | null;
+  saleNumber: string | null;
+  orderId: string | null;
+  orderNumber: string | null;
+  stampedAt: string | null;
   createdAt: string;
-  updatedAt: string;
-  items?: InvoiceItem[];
-  order?: {
-    orderNumber: string;
-    customerId: string;
-  };
-  fiscalData?: FiscalData;
+  hasFiles: boolean;
+  emailedAt: string | null;
+  paidAmount: number;
+  outstandingBalance: number | null;
+  partialitiesCount: number;
+  isReplacement: boolean;
+  replacedByInvoiceId: string | null;
+  globalLocalDate: string | null;
+  globalReissueState: GlobalReissueState | null;
+  cancellationRequestedAt: string | null;
+  satCancellationStatus: string | null;
+  providerError: string | null;
 }
 
+export interface InvoiceTotalsByRate {
+  rate: number;
+  factor: TaxFactorType;
+  base: number;
+  tax: number;
+}
+
+/** Ticket/pedido que entró (o salió) de una factura global. */
+export interface GlobalDocumentDto {
+  id: string;
+  /** El API lo manda como `kind`; `sourceType` se tolera por el nombre de la columna. */
+  kind?: 'pos_sale' | 'order';
+  sourceType?: 'pos_sale' | 'order';
+  posSaleId: string | null;
+  orderId: string | null;
+  documentNumber: string;
+  localDate: string;
+  subtotal: number;
+  taxAmount: number;
+  total: number;
+  paymentFormCode: string | null;
+  releasedAt: string | null;
+  releasedReason: 'global_cancelled' | 'nominative_issued' | null;
+  nominativeInvoiceId: string | null;
+}
+
+export interface InvoiceActions {
+  canStamp: boolean;
+  canCancel: boolean;
+  canReplace: boolean;
+  canRefreshStatus: boolean;
+  canEmail: boolean;
+  canDiscard: boolean;
+  canReissue: boolean;
+}
+
+/** `GET /billing/invoices/:id` (contrato §7.1). */
+export interface InvoiceDetail extends InvoiceSummary {
+  issuer: {
+    rfcMasked: string | null;
+    name: string | null;
+    taxRegimeCode: string | null;
+    expeditionPlace: string | null;
+  };
+  receiver: {
+    rfc: string | null;
+    name: string | null;
+    taxRegimeCode: string | null;
+    cfdiUseCode: string | null;
+    zipCode: string | null;
+    email: string | null;
+  };
+  items: InvoiceItemDto[];
+  totals: {
+    subtotal: number;
+    discount: number;
+    taxes: number;
+    total: number;
+    byRate: InvoiceTotalsByRate[];
+  };
+  satStampDate: string | null;
+  satCertificateNumber: string | null;
+  providerErrorMapped: {
+    message: string;
+    providerCode: string | null;
+    field: string | null;
+  } | null;
+  cancellation: {
+    reason: CancellationReason | null;
+    requestedAt: string | null;
+    cancelledAt: string | null;
+    satCancellationStatus: string | null;
+    replacementUuid: string | null;
+    acuseAvailable: boolean;
+  } | null;
+  relation: { type: string; uuid: string | null; invoiceId: string | null } | null;
+  replacement: {
+    replacesInvoiceId: string | null;
+    replacedByInvoiceId: string | null;
+  } | null;
+  files: { pdf: boolean; xml: boolean; storedAt: string | null };
+  emails: { emailedAt: string | null; emailedTo: string | null; count: number };
+  global: {
+    localDate: string | null;
+    conceptMode: GlobalConceptMode | null;
+    documentCount: number | null;
+    documents: GlobalDocumentDto[];
+    released: GlobalDocumentDto[];
+    reissueState: GlobalReissueState;
+  } | null;
+  ppd: {
+    paidAmount: number;
+    outstandingBalance: number | null;
+    partialitiesCount: number;
+    complements: {
+      complementInvoiceId: string;
+      folioDisplay: string;
+      satUuid: string | null;
+      paymentDate: string | null;
+      amountPaid: number;
+      partialityNumber: number;
+      providerStatus: InvoiceStatus | null;
+    }[];
+  } | null;
+  payment: {
+    paymentLocalDateTime: string | null;
+    paymentFormCode: string | null;
+    amount: number;
+    operationNumber: string | null;
+    documents: {
+      invoiceId: string;
+      folioDisplay: string;
+      satUuid: string;
+      partialityNumber: number;
+      previousBalance: number;
+      amountPaid: number;
+      outstandingBalance: number;
+    }[];
+  } | null;
+  actions: InvoiceActions;
+}
+
+/** `POST /billing/invoices` (exactamente uno de `posSaleId`/`orderId`). */
 export interface CreateInvoiceDto {
-  orderId: string;
-  fiscalDataId?: string;
-  cfdiUse?: string;
-  paymentMethod?: PaymentMethod;
-  paymentForm?: string;
+  posSaleId?: string;
+  orderId?: string;
+  paymentMethod?: SatPaymentMethodCode;
+  /** Ticket que ya está en una global viva: el usuario reconoce los 3 pasos (§5.3.7). */
+  acknowledgeGlobal?: boolean;
   sendEmail?: boolean;
 }
 
 export interface CancelInvoiceDto {
-  reason: string; // '01', '02', '03', '04'
+  reason: CancellationReason;
+  /** Obligatorio con motivo 01, prohibido con los demás. */
   replacementUuid?: string;
 }
 
-export interface InvoiceQueryDto {
+/** `POST /billing/invoices/:id/cancel` → `CancelResultDto`. */
+export interface CancelResultDto {
+  invoiceId: string;
+  providerStatus: InvoiceStatus;
+  /** true solo cuando el SAT dio la cancelación por aceptada. */
+  confirmed: boolean;
+  satCancellationStatus: string | null;
+  message: string;
+}
+
+/** `POST /billing/invoices/:id/refresh-status` (consume un folio). */
+export interface RefreshStatusResult {
+  satStatus: SatStatus;
+  providerStatus: InvoiceStatus;
+  satCancellationStatus: string | null;
+  checkedAt: string;
+  foliosUsed: number;
+}
+
+/** `POST /billing/invoices/:id/replace`: la nueva factura + resultado de la cancelación 01. */
+export type ReplaceInvoiceResult = InvoiceDetail & {
+  previousInvoiceId: string;
+  cancellation: {
+    requested: boolean;
+    providerStatus: InvoiceStatus | null;
+    error?: string | null;
+  };
+};
+
+/** `GET /billing/invoices/:id/files` (URLs firmadas; `null` con storage local). */
+export interface InvoiceFiles {
+  pdf: { url: string; expiresAt: string } | null;
+  xml: { url: string; expiresAt: string } | null;
+  provider: 'gcs' | 'local';
+}
+
+/** `POST /billing/invoices/:id/email` */
+export interface SendInvoiceEmailResult {
+  sentTo: string[];
+  emailedAt: string;
+  emailCount: number;
+}
+
+export type InvoiceSort =
+  | 'stampedAt:desc'
+  | 'stampedAt:asc'
+  | 'createdAt:desc'
+  | 'createdAt:asc'
+  | 'total:desc'
+  | 'total:asc';
+
+/** Query de `GET /billing/invoices` (contrato §7.2). */
+export interface InvoiceListQuery {
+  search?: string;
+  status?: InvoiceStatus;
+  invoiceType?: InvoiceType;
+  cfdiType?: CfdiKind;
+  paymentMethod?: SatPaymentMethodCode;
+  withBalance?: boolean;
+  branchId?: string;
   customerId?: string;
   orderId?: string;
-  branchId?: string;
-  status?: InvoiceStatus;
+  posSaleId?: string;
+  emailed?: boolean;
   startDate?: string;
   endDate?: string;
+  page?: number;
   limit?: number;
-  offset?: number;
+  sort?: InvoiceSort;
 }
 
 export interface PaginatedInvoices {
-  data: Invoice[];
+  data: InvoiceSummary[];
   total: number;
-  stats: Record<string, number>;
-}
-
-// ================================
-// GLOBAL INVOICES
-// ================================
-
-export interface GlobalInvoice {
-  id: string;
-  periodicity: string;
-  month: string;
-  year: number;
-  invoiceId?: string;
-  totalOrders: number;
-  subtotal: string;
-  taxAmount: string;
-  total: string;
-  status: string;
-  processedAt?: string;
-  createdById?: string;
-  createdAt: string;
-  updatedAt: string;
-  invoice?: Invoice;
-  orders?: GlobalInvoiceOrder[];
-}
-
-export interface GlobalInvoiceOrder {
-  id: string;
-  globalInvoiceId: string;
-  orderId: string;
-  subtotal: string;
-  taxAmount: string;
-  total: string;
-  createdAt: string;
-  order?: {
-    orderNumber: string;
-    customerId: string;
+  page: number;
+  limit: number;
+  stats: {
+    byStatus: Partial<Record<InvoiceStatus, number>>;
+    total: number;
   };
 }
 
-export interface CreateGlobalInvoiceDto {
-  periodicity: string; // '01'=Diario, '02'=Semanal, '03'=Quincenal, '04'=Mensual, '05'=Bimestral
-  month: string; // '01' a '12'
-  year: string;
-  branchId?: string;
-  orderIds?: string[];
-  saleIds?: string[];
-  paymentForm?: string;   // SAT payment form code (default '01' Efectivo)
-  paymentMethod?: string; // PUE or PPD (default PUE)
-}
-
 // ================================
-// PAYMENT COMPLEMENTS
+// VENTAS POR FACTURAR (contrato §7.3)
 // ================================
 
-export interface PaymentComplement {
+export type InvoiceableStatus = 'sin_factura' | 'en_global' | 'nominativa' | 'no_facturable';
+
+/** El API puede mandar el bloqueador como código suelto o como `{ code, message }`. */
+export type InvoiceableBlocker = string | { code: string; message?: string };
+
+export interface InvoiceableSale {
+  kind: 'pos_sale' | 'order';
   id: string;
-  originalInvoiceId: string;
-  complementInvoiceId?: string;
-  paymentDate: string;
-  paymentForm: string;
-  currency: string;
-  exchangeRate: string;
-  amount: string;
-  operationNumber?: string;
-  sourceBankRfc?: string;
-  sourceAccount?: string;
-  targetBankRfc?: string;
-  targetAccount?: string;
-  relatedDocuments?: unknown;
-  status: string;
-  errorMessage?: string;
-  stampedAt?: string;
-  createdById?: string;
-  createdAt: string;
-  updatedAt: string;
-  originalInvoice?: Invoice;
+  folio: string;
+  branchId: string;
+  branchName: string;
+  localDate: string;
+  localTime: string;
+  customerId: string | null;
+  customerCode: string | null;
+  customerName: string | null;
+  customerRfc: string | null;
+  fiscalReady: boolean;
+  fiscalIssues: CustomerFiscalIssue[];
+  paymentFormCode: string | null;
+  paymentFormResolved: boolean;
+  paymentMethodCode: SatPaymentMethodCode | null;
+  total: number;
+  invoiceStatus: InvoiceableStatus;
+  reason?: string | null;
+  invoiceId?: string | null;
+  globalInvoiceId?: string | null;
+  globalFolio?: string | null;
+  blockers: InvoiceableBlocker[];
 }
 
-export interface PaymentComplementItemDto {
-  invoiceUuid: string;
-  amountPaid: number;
-  partialityNumber: number;
+export interface InvoiceableSalesQuery {
+  branchId?: string;
+  date?: string;
+  status?: InvoiceableStatus;
+  search?: string;
+  onlyFiscalReady?: boolean;
+  page?: number;
+  limit?: number;
 }
 
-export interface CreatePaymentComplementDto {
-  paymentDate: string;
-  paymentForm: string;
-  amount: number;
-  invoices: PaymentComplementItemDto[];
-  currency?: string;
+export interface PaginatedInvoiceableSales {
+  data: InvoiceableSale[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 // ================================
-// CANCELLATION
+// FACTURA GLOBAL (contrato §5.3 / §7.4)
 // ================================
 
-/**
- * Respuesta de POST /billing/invoices/:id/cancel.
- *
- * `status`/`message` son el texto CRUDO del PAC ("Cancelado", "canceled",
- * "Cancelacion aceptada"...): NO sirven para decidir nada. El API ya resuelve
- * el resultado en `providerStatus` + `confirmed`; usa esos dos.
- */
-export interface CancellationResponse {
+export type GlobalDayState =
+  | 'not_eligible'
+  | 'no_sales'
+  | 'ready'
+  | 'blocked'
+  | 'open'
+  | 'emitted'
+  | 'cancelled'
+  | 'pending_reissue';
+
+/** `GET /billing/global-invoices/days` */
+export interface GlobalDayStatus {
+  localDate: string;
+  status: GlobalDayState;
+  invoiceId?: string | null;
+  providerFolio?: string | null;
+  ticketCount: number;
+  total: number;
+  blockers: number;
+  lateEmission: boolean;
+}
+
+export interface GlobalDaysQuery {
+  branchId: string;
+  from: string;
+  to: string;
+}
+
+export interface GlobalPreviewQuery {
+  branchId: string;
+  date: string;
+  conceptMode?: GlobalConceptMode;
+}
+
+export type GlobalExclusionReason =
+  | 'nominative_invoiced'
+  | 'zero_total'
+  | 'credit_sale'
+  | 'already_in_global';
+
+export type GlobalBlockerCode =
+  | 'nominative_in_progress'
+  | 'tax_unresolved'
+  | 'payment_form_unresolved'
+  | 'amount_mismatch'
+  | 'product_not_ready'
+  | 'stale_error';
+
+/** `GET /billing/global-invoices/preview` (contrato §7.4). */
+export interface GlobalPreview {
+  branch: {
+    id: string;
+    code: string;
+    name: string;
+    timezone: string;
+    expeditionZip: string | null;
+    v2InvoicingSince: string | null;
+    terminalsOff: string[];
+  };
+  localDate: string;
+  conceptMode: GlobalConceptMode;
+  eligible: boolean;
+  eligibilityErrors: { code: string; message: string }[];
+  lateEmission: boolean;
+  included: {
+    kind: 'pos_sale' | 'order';
+    id: string;
+    folio: string;
+    time: string;
+    customerName?: string | null;
+    paymentFormCode: string | null;
+    subtotal: number;
+    taxAmount: number;
+    total: number;
+    taxBreakdown: InvoiceTax[];
+  }[];
+  excluded: {
+    kind: 'pos_sale' | 'order';
+    id: string;
+    folio: string;
+    total: number;
+    reason: GlobalExclusionReason;
+    detail?: string | null;
+  }[];
+  blockers: {
+    code: GlobalBlockerCode | string;
+    message: string;
+    folio?: string | null;
+    sku?: string | null;
+    method?: string | null;
+  }[];
+  totals: {
+    documents: number;
+    subtotal: number;
+    taxes: number;
+    total: number;
+    byRate: InvoiceTotalsByRate[];
+    paymentForm: string | null;
+  };
+  items: InvoiceItemDto[];
+  existingGlobal: {
+    invoiceId: string;
+    providerStatus: InvoiceStatus;
+    folioDisplay: string;
+    satUuid: string | null;
+  } | null;
+  canStamp: boolean;
+  previewHash: string;
+}
+
+/** `POST /billing/global-invoices` */
+export interface CreateGlobalInvoiceDto {
+  branchId: string;
+  date: string;
+  conceptMode?: GlobalConceptMode;
+  previewHash: string;
+}
+
+// ================================
+// COMPLEMENTO DE PAGO (contrato §5.4)
+// ================================
+
+export interface PaymentComplementDocumentDto {
   invoiceId: string;
-  uuid: string;
-  /** Texto crudo del PAC, solo informativo. */
-  status: string;
+  amountPaid: number;
+}
+
+/** `POST /billing/payment-complements` */
+export interface CreatePaymentComplementDto {
+  /** uuid v4 generado al abrir el formulario; mismo valor ⇒ 200 con el existente. */
+  idempotencyKey: string;
+  paymentDate: string;
+  /** HH:mm (default 12:00 en el API). */
+  paymentTime?: string;
+  paymentFormCode: string;
+  amount: number;
+  operationNumber?: string;
+  documents: PaymentComplementDocumentDto[];
+}
+
+// ================================
+// SUCURSAL: arranque de facturación v2
+// ================================
+
+/** `PUT /billing/branches/:id/invoicing-since` */
+export interface SetBranchInvoicingSinceDto {
+  /** 'YYYY-MM-DD' | null (null = la sucursal sigue facturando en el sistema anterior). */
+  since: string | null;
+}
+
+/** Respuesta de `PUT /billing/branches/:id/invoicing-since`. */
+export interface BranchInvoicingSinceResult {
+  branchId: string;
+  v2InvoicingSince: string | null;
+}
+
+// ================================
+// ERRORES (contrato §3.9 / §4: cuerpo uniforme de /billing)
+// ================================
+
+export interface BillingErrorBody {
+  statusCode: number;
+  code: string;
   message: string;
-  /** 'cancelled' = confirmada por el SAT; 'cancel_pending' = en proceso. */
-  providerStatus?: 'cancelled' | 'cancel_pending';
-  /** true solo cuando el SAT dio la cancelación por aceptada. */
-  confirmed?: boolean;
-  /** Detalle legible del estatus devuelto por el PAC. */
-  statusDetail?: string;
-  cancelledAt?: string;
+  field?: string;
+  details?: unknown;
+  providerCode?: string | null;
+  invoiceId?: string;
 }
 
 // ================================
@@ -347,8 +654,16 @@ export interface BillingStatus {
   /** Alias tolerado del saldo. */
   balance?: number | null;
   error: string | null;
-  /** Flujos de facturación v2 (factura de pedido, global, complemento). */
+  /** Flujos de facturación v2 (factura de pedido, global, complemento, nominativa desde admin). */
   v2FlowsEnabled?: boolean;
+  /** Lugar de expedición: tenant (CP del emisor) | branch (CP de la sucursal). */
+  expeditionPlaceMode?: 'tenant' | 'branch';
+  /** Modo de conceptos por defecto de la factura global. */
+  globalConceptMode?: GlobalConceptMode;
+  storageProvider?: 'gcs' | 'local' | string;
+  emailConfigured?: boolean;
+  /** Sucursales con `v2_invoicing_since` fijada. */
+  branchesStarted?: number;
   /** Compat con el contrato anterior (Balance = -1 cuando el PAC no responde). */
   Balance?: number;
 }
@@ -442,10 +757,6 @@ export const INVOICE_STATUS_CONFIG: Record<InvoiceStatus, { label: string; color
     color: 'bg-yellow-100 text-yellow-800',
   },
   [InvoiceStatus.CANCEL_PENDING]: {
-    label: 'Cancelación en proceso',
-    color: 'bg-orange-100 text-orange-800',
-  },
-  [InvoiceStatus.CANCELLATION_PENDING]: {
     label: 'Cancelación en proceso',
     color: 'bg-orange-100 text-orange-800',
   },
@@ -747,6 +1058,9 @@ export interface ReadinessBranch {
   taxRules: ReadinessBranchTaxRule[];
   borderZone: boolean;
   issues: BranchFiscalIssue[];
+  /** Primer día natural (zona de la sucursal) que factura v2; null = sigue el sistema anterior. */
+  v2InvoicingSince?: string | null;
+  timezone?: string | null;
 }
 
 export interface UpdateBranchFiscalDto {

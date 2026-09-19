@@ -11,14 +11,16 @@ import {
 } from '@/services/billing.service';
 import { billingErrorMessage } from '@/lib/billing-error';
 import type {
-  CancellationResponse,
   CreateFiscalDataDto,
   UpdateFiscalDataDto,
   CreateInvoiceDto,
   CancelInvoiceDto,
-  InvoiceQueryDto,
   CreateGlobalInvoiceDto,
   CreatePaymentComplementDto,
+  GlobalDaysQuery,
+  GlobalPreviewQuery,
+  InvoiceListQuery,
+  InvoiceableSalesQuery,
   PersonType,
   ReadinessCustomersQuery,
   ReadinessProductsQuery,
@@ -37,16 +39,20 @@ export const billingKeys = {
   all: ['billing'] as const,
   invoices: () => [...billingKeys.all, 'invoices'] as const,
   invoice: (id: string) => [...billingKeys.invoices(), id] as const,
-  invoicesList: (query?: InvoiceQueryDto) => [...billingKeys.invoices(), 'list', query] as const,
+  invoicesList: (query?: InvoiceListQuery) => [...billingKeys.invoices(), 'list', query] as const,
+  invoiceFiles: (id: string) => [...billingKeys.invoices(), id, 'files'] as const,
+  invoiceableSales: () => [...billingKeys.all, 'invoiceable-sales'] as const,
+  invoiceableSalesList: (query?: InvoiceableSalesQuery) =>
+    [...billingKeys.invoiceableSales(), 'list', query] as const,
   fiscalData: () => [...billingKeys.all, 'fiscal-data'] as const,
   fiscalDataList: (query?: FiscalDataQueryDto) => [...billingKeys.fiscalData(), 'list', query] as const,
   fiscalDataById: (id: string) => [...billingKeys.fiscalData(), id] as const,
   fiscalDataByCustomer: (customerId: string) =>
     [...billingKeys.fiscalData(), 'customer', customerId] as const,
-  globalInvoices: () => [...billingKeys.all, 'global-invoices'] as const,
-  globalInvoice: (id: string) => [...billingKeys.globalInvoices(), id] as const,
-  paymentComplements: () => [...billingKeys.all, 'payment-complements'] as const,
-  paymentComplement: (id: string) => [...billingKeys.paymentComplements(), id] as const,
+  globalDays: () => [...billingKeys.all, 'global-days'] as const,
+  globalDaysList: (query?: GlobalDaysQuery) => [...billingKeys.globalDays(), query] as const,
+  globalPreview: () => [...billingKeys.all, 'global-preview'] as const,
+  globalPreviewFor: (query?: GlobalPreviewQuery) => [...billingKeys.globalPreview(), query] as const,
   catalogs: () => [...billingKeys.all, 'catalogs'] as const,
   paymentForms: () => [...billingKeys.catalogs(), 'payment-forms'] as const,
   cfdiUses: (query?: CfdiUsesQuery) => [...billingKeys.catalogs(), 'cfdi-uses', query] as const,
@@ -129,13 +135,15 @@ export function useUpdateFiscalData() {
 }
 
 // ================================
-// INVOICE HOOKS
+// INVOICE HOOKS (Fase 2)
 // ================================
 
-export function useInvoices(query?: InvoiceQueryDto) {
+export function useInvoices(query?: InvoiceListQuery, enabled = true) {
   return useQuery({
     queryKey: billingKeys.invoicesList(query),
     queryFn: () => billingService.listInvoices(query),
+    placeholderData: keepPreviousData,
+    enabled,
   });
 }
 
@@ -147,31 +155,63 @@ export function useInvoice(id: string | undefined) {
   });
 }
 
-export function useCreateInvoice() {
-  const queryClient = useQueryClient();
+/** URLs firmadas de PDF/XML; solo se pide cuando la factura ya tiene archivos. */
+export function useInvoiceFiles(id: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: billingKeys.invoiceFiles(id || ''),
+    queryFn: () => billingService.getInvoiceFiles(id!),
+    enabled: !!id && enabled,
+    staleTime: 10 * 60 * 1000, // las URLs firmadas duran 15 min
+    retry: false,
+  });
+}
 
+/** Invalida detalle + listados + días/preview de la global + ventas por facturar. */
+function useInvalidateInvoices() {
+  const queryClient = useQueryClient();
+  return (invoiceId?: string) => {
+    if (invoiceId) queryClient.invalidateQueries({ queryKey: billingKeys.invoice(invoiceId) });
+    queryClient.invalidateQueries({ queryKey: billingKeys.invoices() });
+    queryClient.invalidateQueries({ queryKey: billingKeys.invoiceableSales() });
+    queryClient.invalidateQueries({ queryKey: billingKeys.globalDays() });
+    queryClient.invalidateQueries({ queryKey: billingKeys.globalPreview() });
+  };
+}
+
+/** `POST /billing/invoices { posSaleId | orderId }`: crea y timbra la nominativa. */
+export function useCreateInvoice() {
+  const invalidate = useInvalidateInvoices();
   return useMutation({
     mutationFn: (data: CreateInvoiceDto) => billingService.createInvoice(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: billingKeys.invoices() });
-      toast.success('Factura creada correctamente');
+    onSuccess: (invoice) => {
+      invalidate(invoice.id);
+      if (invoice.providerStatus === 'stamped') {
+        toast.success(`Factura ${invoice.folioDisplay} timbrada`);
+      } else {
+        toast.warning(
+          invoice.providerError ||
+            'La factura se creó pero no quedó timbrada: revisa el detalle y reintenta.',
+        );
+      }
     },
     onError: (error: unknown) => {
-      toast.error(billingErrorMessage(error, 'No se pudo crear la factura'));
+      toast.error(billingErrorMessage(error, 'No se pudo facturar'));
     },
   });
 }
 
+/** Reintento de timbrado (`pending`/`error`/`stamping` caducado). */
 export function useStampInvoice() {
-  const queryClient = useQueryClient();
-
+  const invalidate = useInvalidateInvoices();
   return useMutation({
-    mutationFn: ({ id, sendEmail = false }: { id: string; sendEmail?: boolean }) =>
-      billingService.stampInvoice(id, sendEmail),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: billingKeys.invoice(data.id) });
-      queryClient.invalidateQueries({ queryKey: billingKeys.invoices() });
-      toast.success('Factura timbrada correctamente');
+    mutationFn: (id: string) => billingService.stampInvoice(id),
+    onSuccess: (invoice) => {
+      invalidate(invoice.id);
+      if (invoice.providerStatus === 'stamped') {
+        toast.success(`Factura ${invoice.folioDisplay} timbrada`);
+      } else {
+        toast.warning(invoice.providerError || 'El timbrado no se pudo confirmar.');
+      }
     },
     onError: (error: unknown) => {
       toast.error(billingErrorMessage(error, 'No se pudo timbrar la factura'));
@@ -179,55 +219,21 @@ export function useStampInvoice() {
   });
 }
 
-/**
- * ¿El SAT dio la cancelación por CONFIRMADA?
- *
- * Fuente de verdad: `confirmed` / `providerStatus`, que el API resuelve con
- * `mapCancellationOutcome` (fail-closed: lo que no confirma queda en proceso).
- * El texto crudo del PAC solo se mira si el API todavía responde el contrato
- * viejo, y con el mismo criterio conservador: "en proceso" gana.
- */
-function cancelacionConfirmada(response: CancellationResponse): boolean {
-  if (typeof response.confirmed === 'boolean') return response.confirmed;
-  if (response.providerStatus) return response.providerStatus === 'cancelled';
-
-  const texto = String(response.status ?? '')
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase();
-  if (!texto) return false;
-  const enProceso = ['en proceso', 'pendiente', 'pending', 'espera', 'solicitud'];
-  if (enProceso.some((marca) => texto.includes(marca))) return false;
-  return ['cancelado', 'cancelada', 'canceled', 'cancelled', 'aceptad'].some((marca) =>
-    texto.includes(marca),
-  );
-}
-
 export function useCancelInvoice() {
-  const queryClient = useQueryClient();
-
+  const invalidate = useInvalidateInvoices();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: CancelInvoiceDto }) =>
       billingService.cancelInvoice(id, data),
-    onSuccess: (response) => {
-      queryClient.invalidateQueries({ queryKey: billingKeys.invoice(response.invoiceId) });
-      queryClient.invalidateQueries({ queryKey: billingKeys.invoices() });
+    onSuccess: (result) => {
+      invalidate(result.invoiceId);
       // El SAT puede dejar la solicitud "en proceso" (espera la aceptación del
-      // receptor): no declarar cancelada una factura que sigue vigente.
-      //
-      // El veredicto sale de `confirmed`/`providerStatus`, que es justo lo que
-      // el API resuelve al mapear el acuse. `response.status` es el texto CRUDO
-      // del PAC ("Cancelado", "canceled", "Cancelacion aceptada"): compararlo
-      // contra 'cancelled' daba SIEMPRE falso y avisaba "en proceso" encima de
-      // CFDI ya cancelados. Solo se usa como último recurso si el API todavía
-      // responde el contrato viejo (sin `providerStatus`).
-      const cancelada = cancelacionConfirmada(response);
-      if (cancelada) {
-        toast.success('Factura cancelada correctamente');
+      // receptor): no declarar cancelada una factura que sigue vigente. El
+      // veredicto es `confirmed` (el API lo resuelve con mapCancellationOutcome).
+      if (result.confirmed) {
+        toast.success('Factura cancelada: el SAT confirmó la cancelación');
       } else {
         toast.warning(
-          response.statusDetail ||
-            response.message ||
+          result.message ||
             'El SAT dejó la cancelación en proceso: la factura sigue vigente hasta que el receptor la acepte.',
         );
       }
@@ -238,70 +244,160 @@ export function useCancelInvoice() {
   });
 }
 
+/** Sustitución (nueva con relación 04 + cancelación 01 de la original). */
+export function useReplaceInvoice() {
+  const invalidate = useInvalidateInvoices();
+  return useMutation({
+    mutationFn: (id: string) => billingService.replaceInvoice(id),
+    onSuccess: (result) => {
+      invalidate(result.id);
+      invalidate(result.previousInvoiceId);
+      if (result.cancellation.requested && !result.cancellation.error) {
+        toast.success(`Sustituta ${result.folioDisplay} timbrada; cancelación 01 de la original solicitada`);
+      } else {
+        toast.warning(
+          result.cancellation.error ||
+            'Sustituta timbrada, pero la original aún no se cancela: usa "Cancelar" (motivo 01) en la original.',
+        );
+      }
+    },
+    onError: (error: unknown) => {
+      toast.error(billingErrorMessage(error, 'No se pudo sustituir la factura'));
+    },
+  });
+}
+
+/** Consulta al SAT (consume un folio). */
+export function useRefreshInvoiceStatus() {
+  const invalidate = useInvalidateInvoices();
+  return useMutation({
+    mutationFn: ({ id, force = false }: { id: string; force?: boolean }) =>
+      billingService.refreshInvoiceStatus(id, force),
+    onSuccess: (result, { id }) => {
+      invalidate(id);
+      toast.success(`Estatus SAT: ${result.satStatus} (se usó ${result.foliosUsed} timbre)`);
+    },
+    onError: (error: unknown) => {
+      toast.error(billingErrorMessage(error, 'No se pudo consultar el estatus ante el SAT'));
+    },
+  });
+}
+
+export function useSendInvoiceEmail() {
+  const invalidate = useInvalidateInvoices();
+  return useMutation({
+    mutationFn: ({ id, to }: { id: string; to?: string[] }) => billingService.sendInvoiceEmail(id, to),
+    onSuccess: (result, { id }) => {
+      invalidate(id);
+      toast.success(`Factura enviada a ${result.sentTo.join(', ')}`);
+    },
+    onError: (error: unknown) => {
+      toast.error(billingErrorMessage(error, 'No se pudo enviar la factura por correo'));
+    },
+  });
+}
+
 // ================================
-// GLOBAL INVOICE HOOKS
+// VENTAS POR FACTURAR
 // ================================
 
-export function useGlobalInvoice(id: string | undefined) {
+export function useInvoiceableSales(query: InvoiceableSalesQuery, enabled = true) {
   return useQuery({
-    queryKey: billingKeys.globalInvoice(id || ''),
-    queryFn: () => billingService.getGlobalInvoice(id!),
-    enabled: !!id,
+    queryKey: billingKeys.invoiceableSalesList(query),
+    queryFn: () => billingService.listInvoiceableSales(query),
+    placeholderData: keepPreviousData,
+    enabled,
+  });
+}
+
+// ================================
+// FACTURA GLOBAL
+// ================================
+
+export function useGlobalDays(query: GlobalDaysQuery | null) {
+  return useQuery({
+    queryKey: billingKeys.globalDaysList(query ?? undefined),
+    queryFn: () => billingService.getGlobalDays(query!),
+    enabled: !!query?.branchId && !!query?.from && !!query?.to,
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useGlobalPreview(query: GlobalPreviewQuery | null, enabled = true) {
+  return useQuery({
+    queryKey: billingKeys.globalPreviewFor(query ?? undefined),
+    queryFn: () => billingService.previewGlobalInvoice(query!),
+    enabled: enabled && !!query?.branchId && !!query?.date,
+    retry: false,
   });
 }
 
 export function useCreateGlobalInvoice() {
-  const queryClient = useQueryClient();
-
+  const invalidate = useInvalidateInvoices();
   return useMutation({
     mutationFn: (data: CreateGlobalInvoiceDto) => billingService.createGlobalInvoice(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: billingKeys.globalInvoices() });
-      toast.success('Factura global creada');
+    onSuccess: (invoice) => {
+      invalidate(invoice.id);
+      if (invoice.providerStatus === 'stamped') {
+        toast.success(`Factura global ${invoice.folioDisplay} timbrada`);
+      } else {
+        toast.warning(invoice.providerError || 'La global se creó pero no quedó timbrada.');
+      }
     },
     onError: (error: unknown) => {
-      toast.error(billingErrorMessage(error, 'No se pudo crear la factura global'));
+      toast.error(billingErrorMessage(error, 'No se pudo emitir la factura global'));
     },
   });
 }
 
-export function useStampGlobalInvoice() {
-  const queryClient = useQueryClient();
-
+export function useDiscardGlobalInvoice() {
+  const invalidate = useInvalidateInvoices();
   return useMutation({
-    mutationFn: (id: string) => billingService.stampGlobalInvoice(id),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: billingKeys.globalInvoice(data.id) });
-      queryClient.invalidateQueries({ queryKey: billingKeys.globalInvoices() });
-      toast.success('Factura global timbrada');
+    mutationFn: (id: string) => billingService.discardGlobalInvoice(id),
+    onSuccess: (_, id) => {
+      invalidate(id);
+      toast.success('Intento de factura global desechado');
     },
     onError: (error: unknown) => {
-      toast.error(billingErrorMessage(error, 'No se pudo timbrar la factura global'));
+      toast.error(billingErrorMessage(error, 'No se pudo desechar la factura global'));
+    },
+  });
+}
+
+export function useReissueGlobalInvoice() {
+  const invalidate = useInvalidateInvoices();
+  return useMutation({
+    mutationFn: (id: string) => billingService.reissueGlobalInvoice(id),
+    onSuccess: (invoice, originalId) => {
+      invalidate(invoice.id);
+      invalidate(originalId);
+      if (invoice.providerStatus === 'stamped') {
+        toast.success(`Global reexpedida: ${invoice.folioDisplay}`);
+      } else {
+        toast.warning(invoice.providerError || 'La reexpedición quedó pendiente: revisa el detalle.');
+      }
+    },
+    onError: (error: unknown) => {
+      toast.error(billingErrorMessage(error, 'No se pudo reexpedir la factura global'));
     },
   });
 }
 
 // ================================
-// PAYMENT COMPLEMENT HOOKS
+// COMPLEMENTO DE PAGO
 // ================================
-
-export function usePaymentComplement(id: string | undefined) {
-  return useQuery({
-    queryKey: billingKeys.paymentComplement(id || ''),
-    queryFn: () => billingService.getPaymentComplement(id!),
-    enabled: !!id,
-  });
-}
 
 export function useCreatePaymentComplement() {
-  const queryClient = useQueryClient();
-
+  const invalidate = useInvalidateInvoices();
   return useMutation({
-    mutationFn: (data: CreatePaymentComplementDto) =>
-      billingService.createPaymentComplement(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: billingKeys.paymentComplements() });
-      toast.success('Complemento de pago creado');
+    mutationFn: (data: CreatePaymentComplementDto) => billingService.createPaymentComplement(data),
+    onSuccess: (invoice) => {
+      invalidate(invoice.id);
+      if (invoice.providerStatus === 'stamped') {
+        toast.success(`Complemento de pago ${invoice.folioDisplay} timbrado`);
+      } else {
+        toast.warning(invoice.providerError || 'El complemento se creó pero no quedó timbrado.');
+      }
     },
     onError: (error: unknown) => {
       toast.error(billingErrorMessage(error, 'No se pudo crear el complemento de pago'));
@@ -309,18 +405,27 @@ export function useCreatePaymentComplement() {
   });
 }
 
-export function useStampPaymentComplement() {
-  const queryClient = useQueryClient();
+// ================================
+// SUCURSAL: "Factura en v2 desde"
+// ================================
 
+export function useSetBranchInvoicingSince() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => billingService.stampPaymentComplement(id),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: billingKeys.paymentComplement(data.id) });
-      queryClient.invalidateQueries({ queryKey: billingKeys.paymentComplements() });
-      toast.success('Complemento de pago timbrado');
+    mutationFn: ({ branchId, since }: { branchId: string; since: string | null }) =>
+      billingService.setBranchInvoicingSince(branchId, { since }),
+    onSuccess: (_, { since }) => {
+      queryClient.invalidateQueries({ queryKey: billingKeys.readiness() });
+      queryClient.invalidateQueries({ queryKey: billingKeys.status() });
+      queryClient.invalidateQueries({ queryKey: billingKeys.globalDays() });
+      toast.success(
+        since
+          ? `La sucursal factura en v2 desde el ${since}`
+          : 'La sucursal vuelve a facturar en el sistema anterior',
+      );
     },
     onError: (error: unknown) => {
-      toast.error(billingErrorMessage(error, 'No se pudo timbrar el complemento de pago'));
+      toast.error(billingErrorMessage(error, 'No se pudo fijar la fecha de arranque'));
     },
   });
 }
@@ -593,3 +698,6 @@ export function useFacturamaStatus() {
     refetchInterval: 5 * 60 * 1000, // 5 minutes
   });
 }
+
+/** Alias: `GET /billing/status` también trae `v2FlowsEnabled`, `globalConceptMode`, etc. */
+export const useBillingStatus = useFacturamaStatus;

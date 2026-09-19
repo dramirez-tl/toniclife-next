@@ -6,16 +6,26 @@ import type {
   FiscalData,
   CreateFiscalDataDto,
   UpdateFiscalDataDto,
-  Invoice,
   CreateInvoiceDto,
   CancelInvoiceDto,
-  InvoiceQueryDto,
-  PaginatedInvoices,
-  GlobalInvoice,
+  BranchInvoicingSinceResult,
+  CancelResultDto,
   CreateGlobalInvoiceDto,
-  PaymentComplement,
   CreatePaymentComplementDto,
-  CancellationResponse,
+  GlobalDayStatus,
+  GlobalDaysQuery,
+  GlobalPreview,
+  GlobalPreviewQuery,
+  InvoiceDetail,
+  InvoiceFiles,
+  InvoiceListQuery,
+  InvoiceableSalesQuery,
+  PaginatedInvoiceableSales,
+  PaginatedInvoices,
+  RefreshStatusResult,
+  ReplaceInvoiceResult,
+  SendInvoiceEmailResult,
+  SetBranchInvoicingSinceDto,
   CatalogItem,
   RfcValidation,
   BillingStatus,
@@ -114,49 +124,90 @@ export async function getFiscalDataByCustomer(customerId: string): Promise<Fisca
 }
 
 // ================================
-// INVOICES
+// INVOICES (Fase 2: contrato §5 / §7)
 // ================================
 
-export async function createInvoice(data: CreateInvoiceDto): Promise<Invoice> {
-  const response = await apiClient.post<Invoice>(`${BASE_URL}/invoices`, data);
+function toQueryString(params: Record<string, string | number | boolean | undefined | null>): string {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === '') continue;
+    search.append(key, String(value));
+  }
+  const qs = search.toString();
+  return qs ? `?${qs}` : '';
+}
+
+/** `POST /billing/invoices { posSaleId | orderId }` → crea y timbra (201 InvoiceDetailDto). */
+export async function createInvoice(data: CreateInvoiceDto): Promise<InvoiceDetail> {
+  const response = await apiClient.post<InvoiceDetail>(`${BASE_URL}/invoices`, data);
   return response.data;
 }
 
-export async function listInvoices(query?: InvoiceQueryDto): Promise<PaginatedInvoices> {
-  const params = new URLSearchParams();
-  if (query?.customerId) params.append('customerId', query.customerId);
-  if (query?.orderId) params.append('orderId', query.orderId);
-  if (query?.branchId) params.append('branchId', query.branchId);
-  if (query?.status) params.append('status', query.status);
-  if (query?.startDate) params.append('startDate', query.startDate);
-  if (query?.endDate) params.append('endDate', query.endDate);
-  if (query?.limit) params.append('limit', String(query.limit));
-  if (query?.offset) params.append('offset', String(query.offset));
-
-  const url = `${BASE_URL}/invoices${params.toString() ? `?${params.toString()}` : ''}`;
-  const response = await apiClient.get<PaginatedInvoices>(url);
+/** `GET /billing/invoices` con búsqueda, filtros y paginación en servidor (§7.2). */
+export async function listInvoices(query?: InvoiceListQuery): Promise<PaginatedInvoices> {
+  const qs = toQueryString({
+    search: query?.search,
+    status: query?.status,
+    invoiceType: query?.invoiceType,
+    cfdiType: query?.cfdiType,
+    paymentMethod: query?.paymentMethod,
+    withBalance: query?.withBalance,
+    branchId: query?.branchId,
+    customerId: query?.customerId,
+    orderId: query?.orderId,
+    posSaleId: query?.posSaleId,
+    emailed: query?.emailed,
+    startDate: query?.startDate,
+    endDate: query?.endDate,
+    page: query?.page,
+    limit: query?.limit,
+    sort: query?.sort,
+  });
+  const response = await apiClient.get<PaginatedInvoices>(`${BASE_URL}/invoices${qs}`);
   return response.data;
 }
 
-export async function getInvoice(id: string): Promise<Invoice> {
-  const response = await apiClient.get<Invoice>(`${BASE_URL}/invoices/${id}`);
+export async function getInvoice(id: string): Promise<InvoiceDetail> {
+  const response = await apiClient.get<InvoiceDetail>(`${BASE_URL}/invoices/${id}`);
   return response.data;
 }
 
-export async function stampInvoice(id: string, sendEmail = false): Promise<Invoice> {
-  const response = await apiClient.post<Invoice>(
-    `${BASE_URL}/invoices/${id}/stamp?sendEmail=${sendEmail}`
+/** Único endpoint de (re)timbrado para las cuatro clases (§1.1). Nunca re-timbra `stamped`. */
+export async function stampInvoice(id: string): Promise<InvoiceDetail> {
+  const response = await apiClient.post<InvoiceDetail>(`${BASE_URL}/invoices/${id}/stamp`);
+  return response.data;
+}
+
+export async function cancelInvoice(id: string, data: CancelInvoiceDto): Promise<CancelResultDto> {
+  const response = await apiClient.post<CancelResultDto>(`${BASE_URL}/invoices/${id}/cancel`, data);
+  return response.data;
+}
+
+/** Sustitución: nueva con relación 04 + cancelación 01 de la original (§5.5). */
+export async function replaceInvoice(id: string): Promise<ReplaceInvoiceResult> {
+  const response = await apiClient.post<ReplaceInvoiceResult>(`${BASE_URL}/invoices/${id}/replace`);
+  return response.data;
+}
+
+/** Consulta el estatus ante el SAT (CONSUME UN FOLIO). `force` solo super_admin. */
+export async function refreshInvoiceStatus(id: string, force = false): Promise<RefreshStatusResult> {
+  const response = await apiClient.post<RefreshStatusResult>(
+    `${BASE_URL}/invoices/${id}/refresh-status${force ? '?force=true' : ''}`,
   );
   return response.data;
 }
 
-export async function cancelInvoice(
-  id: string,
-  data: CancelInvoiceDto
-): Promise<CancellationResponse> {
-  const response = await apiClient.post<CancellationResponse>(
-    `${BASE_URL}/invoices/${id}/cancel`,
-    data
+/** URLs firmadas de PDF/XML (null con storage local: usar las rutas de descarga). */
+export async function getInvoiceFiles(id: string): Promise<InvoiceFiles> {
+  const response = await apiClient.get<InvoiceFiles>(`${BASE_URL}/invoices/${id}/files`);
+  return response.data;
+}
+
+/** Reenvío por correo (PDF+XML). Sin `to` el API usa el correo fiscal del cliente. */
+export async function sendInvoiceEmail(id: string, to?: string[]): Promise<SendInvoiceEmailResult> {
+  const response = await apiClient.post<SendInvoiceEmailResult>(
+    `${BASE_URL}/invoices/${id}/email`,
+    to && to.length > 0 ? { to } : {},
   );
   return response.data;
 }
@@ -183,58 +234,97 @@ export async function downloadInvoiceXml(id: string): Promise<Blob> {
   return response.data;
 }
 
-// ================================
-// GLOBAL INVOICES
-// ================================
-
-export async function createGlobalInvoice(
-  data: CreateGlobalInvoiceDto
-): Promise<GlobalInvoice> {
-  const response = await apiClient.post<GlobalInvoice>(
-    `${BASE_URL}/global-invoices`,
-    data
-  );
-  return response.data;
-}
-
-export async function getGlobalInvoice(id: string): Promise<GlobalInvoice> {
-  const response = await apiClient.get<GlobalInvoice>(
-    `${BASE_URL}/global-invoices/${id}`
-  );
-  return response.data;
-}
-
-export async function stampGlobalInvoice(id: string): Promise<GlobalInvoice> {
-  const response = await apiClient.post<GlobalInvoice>(
-    `${BASE_URL}/global-invoices/${id}/stamp`
-  );
+/** PDF del acuse de cancelación. */
+export async function downloadInvoiceAcuse(id: string): Promise<Blob> {
+  const response = await apiClient.get<Blob>(`${BASE_URL}/invoices/${id}/acuse`, {
+    responseType: 'blob',
+  });
   return response.data;
 }
 
 // ================================
-// PAYMENT COMPLEMENTS
+// VENTAS POR FACTURAR (§7.3)
 // ================================
 
+export async function listInvoiceableSales(
+  query?: InvoiceableSalesQuery,
+): Promise<PaginatedInvoiceableSales> {
+  const qs = toQueryString({
+    branchId: query?.branchId,
+    date: query?.date,
+    status: query?.status,
+    search: query?.search,
+    onlyFiscalReady: query?.onlyFiscalReady,
+    page: query?.page,
+    limit: query?.limit,
+  });
+  const response = await apiClient.get<PaginatedInvoiceableSales>(
+    `${BASE_URL}/invoiceable-sales${qs}`,
+  );
+  return response.data;
+}
+
+// ================================
+// FACTURA GLOBAL (§5.3)
+// ================================
+
+export async function getGlobalDays(query: GlobalDaysQuery): Promise<GlobalDayStatus[]> {
+  const qs = toQueryString({ branchId: query.branchId, from: query.from, to: query.to });
+  const response = await apiClient.get<GlobalDayStatus[]>(`${BASE_URL}/global-invoices/days${qs}`);
+  return response.data;
+}
+
+/** Solo lectura: incluidos, excluidos con motivo, bloqueadores, totales y `previewHash`. */
+export async function previewGlobalInvoice(query: GlobalPreviewQuery): Promise<GlobalPreview> {
+  const qs = toQueryString({
+    branchId: query.branchId,
+    date: query.date,
+    conceptMode: query.conceptMode,
+  });
+  const response = await apiClient.get<GlobalPreview>(`${BASE_URL}/global-invoices/preview${qs}`);
+  return response.data;
+}
+
+/** Crea y timbra la global del día (409 `CFDI_GLOBAL_PREVIEW_STALE` si cambió la selección). */
+export async function createGlobalInvoice(data: CreateGlobalInvoiceDto): Promise<InvoiceDetail> {
+  const response = await apiClient.post<InvoiceDetail>(`${BASE_URL}/global-invoices`, data);
+  return response.data;
+}
+
+/** Desecha un intento `pending`/`error` sin UUID (libera los tickets del día). */
+export async function discardGlobalInvoice(id: string): Promise<void> {
+  await apiClient.post(`${BASE_URL}/global-invoices/${id}/discard`);
+}
+
+/** Cancela con 04 y reemite la global sin los tickets facturados nominativamente (§5.3.7). */
+export async function reissueGlobalInvoice(id: string): Promise<InvoiceDetail> {
+  const response = await apiClient.post<InvoiceDetail>(`${BASE_URL}/global-invoices/${id}/reissue`);
+  return response.data;
+}
+
+// ================================
+// COMPLEMENTO DE PAGO (§5.4)
+// ================================
+
+/** Crea y timbra el CFDI P. Mismo `idempotencyKey` ⇒ 200 con el existente. */
 export async function createPaymentComplement(
-  data: CreatePaymentComplementDto
-): Promise<PaymentComplement> {
-  const response = await apiClient.post<PaymentComplement>(
-    `${BASE_URL}/payment-complements`,
-    data
-  );
+  data: CreatePaymentComplementDto,
+): Promise<InvoiceDetail> {
+  const response = await apiClient.post<InvoiceDetail>(`${BASE_URL}/payment-complements`, data);
   return response.data;
 }
 
-export async function getPaymentComplement(id: string): Promise<PaymentComplement> {
-  const response = await apiClient.get<PaymentComplement>(
-    `${BASE_URL}/payment-complements/${id}`
-  );
-  return response.data;
-}
+// ================================
+// SUCURSAL: "Factura en v2 desde"
+// ================================
 
-export async function stampPaymentComplement(id: string): Promise<PaymentComplement> {
-  const response = await apiClient.post<PaymentComplement>(
-    `${BASE_URL}/payment-complements/${id}/stamp`
+export async function setBranchInvoicingSince(
+  branchId: string,
+  data: SetBranchInvoicingSinceDto,
+): Promise<BranchInvoicingSinceResult> {
+  const response = await apiClient.put<BranchInvoicingSinceResult>(
+    `${BASE_URL}/branches/${branchId}/invoicing-since`,
+    data,
   );
   return response.data;
 }
@@ -525,26 +615,37 @@ export const billingService = {
   updateFiscalData,
   getFiscalDataByCustomer,
 
-  // Invoices
+  // Invoices (Fase 2)
   createInvoice,
   listInvoices,
   getInvoice,
   stampInvoice,
   cancelInvoice,
+  replaceInvoice,
+  refreshInvoiceStatus,
+  getInvoiceFiles,
+  sendInvoiceEmail,
   getInvoicePdfUrl,
   getInvoiceXmlUrl,
   downloadInvoicePdf,
   downloadInvoiceXml,
+  downloadInvoiceAcuse,
 
-  // Global Invoices
+  // Ventas por facturar
+  listInvoiceableSales,
+
+  // Global
+  getGlobalDays,
+  previewGlobalInvoice,
   createGlobalInvoice,
-  getGlobalInvoice,
-  stampGlobalInvoice,
+  discardGlobalInvoice,
+  reissueGlobalInvoice,
 
-  // Payment Complements
+  // Complemento de pago
   createPaymentComplement,
-  getPaymentComplement,
-  stampPaymentComplement,
+
+  // Sucursal
+  setBranchInvoicingSince,
 
   // Catalogs
   getPaymentForms,

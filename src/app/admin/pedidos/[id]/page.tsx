@@ -31,16 +31,22 @@ import {
   useCreateInvoice,
   useInvoices,
   useFiscalDataByCustomer,
-  useCfdiUses,
 } from '@/hooks/useBilling';
-import { billingService } from '@/services/billing.service';
 import { useBranch } from '@/hooks/useBranches';
 import { generateOrderTicketPdf } from '@/lib/generate-order-ticket';
-import { PAYMENT_FORMS, satCatalogOptions, type FiscalData } from '@/types/billing';
+import { InvoiceStatus, type FiscalData, type InvoiceSummary } from '@/types/billing';
 import {
   BILLING_FLOW_DISABLED_NOTICE,
+  billingErrorInvoiceId,
+  billingErrorMessage,
   isBillingFlowDisabled,
 } from '@/lib/billing-error';
+import { downloadInvoiceFile } from '@/lib/invoice-download';
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
+import { InvoiceStatusBadge } from '@/components/admin/billing/invoices/InvoiceBadges';
+import { useCanManageBilling } from '@/components/admin/billing/readiness/useCanManageBilling';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import { OrderStatus } from '@/types/order';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Button } from '@/components/ui/button';
@@ -98,18 +104,23 @@ export default function OrderDetailAdminPage() {
   // Branch data (for ticket printing)
   const { data: branch } = useBranch(order?.branchId || '');
 
-  // Invoice data
-  const { data: orderInvoices } = useInvoices(
-    order?.isInvoiced ? { orderId: id } : undefined,
-  );
-  const invoice = (orderInvoices as any)?.data?.[0] as any; // Backend returns { data, total } with snake_case fields
+  // Facturas del pedido (`InvoiceSummaryDto`, camelCase). Se consultan siempre:
+  // `orders.is_invoiced` solo se enciende tras el acuse, y un intento en
+  // `pending`/`error` también debe verse aquí para reintentarlo en su detalle.
+  const canManageBilling = useCanManageBilling();
+  const { data: orderInvoices } = useInvoices({ orderId: id, limit: 10, sort: 'createdAt:desc' }, !!id);
+  const invoiceRows: InvoiceSummary[] = orderInvoices?.data ?? [];
+  const invoice: InvoiceSummary | undefined =
+    invoiceRows.find(
+      (inv) => inv.providerStatus !== InvoiceStatus.CANCELLED && !inv.replacedByInvoiceId,
+    ) ?? invoiceRows[0];
+  const invoiceIsLive = !!invoice && invoice.providerStatus !== InvoiceStatus.CANCELLED;
   const { data: fiscalData } = useFiscalDataByCustomer(order?.customer?.id);
   // El API puede responder un arreglo (por defecto primero) o un solo registro;
   // con el régimen del cliente se piden solo los usos de CFDI compatibles.
   const customerFiscal: FiscalData | undefined = Array.isArray(fiscalData)
     ? (fiscalData.find((f) => f.isDefault) ?? fiscalData[0])
     : (fiscalData as unknown as FiscalData | undefined);
-  const { data: cfdiUseCatalog } = useCfdiUses(customerFiscal?.taxRegime || undefined);
 
   const [showActions, setShowActions] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -118,11 +129,10 @@ export default function OrderDetailAdminPage() {
   // El API cierra la facturación de pedidos con 503 hasta la Fase 2 (Fase 0:
   // solo se factura desde el POS). Se avisa en pantalla, sin romperla.
   const [invoiceFlowDisabled, setInvoiceFlowDisabled] = useState(false);
-  const [invoiceForm, setInvoiceForm] = useState({
-    cfdiUse: 'G03',
-    paymentForm: '01',
-    sendEmail: false,
-  });
+  // El uso de CFDI sale de los datos fiscales del cliente y la forma de pago del
+  // cobro real del pedido (contrato Fase 2 §3.4/§3.6): aquí solo se decide el correo.
+  const [sendInvoiceEmail, setSendInvoiceEmail] = useState(true);
+  const [invoiceError, setInvoiceError] = useState<{ text: string; invoiceId: string | null } | null>(null);
 
   const handleStatusChange = async (newStatus: string) => {
     try {
@@ -138,47 +148,22 @@ export default function OrderDetailAdminPage() {
     }
   };
 
-  const handleDownloadPdf = async (invoiceId: string) => {
-    try {
-      const blob = await billingService.downloadInvoicePdf(invoiceId);
-      const url = window.URL.createObjectURL(new Blob([blob]));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `factura-${invoiceId}.pdf`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    } catch {
-      toast.error('Error al descargar PDF');
-    }
-  };
-
-  const handleDownloadXml = async (invoiceId: string) => {
-    try {
-      const blob = await billingService.downloadInvoiceXml(invoiceId);
-      const url = window.URL.createObjectURL(new Blob([blob]));
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `factura-${invoiceId}.xml`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    } catch {
-      toast.error('Error al descargar XML');
-    }
-  };
-
+  // POST /billing/invoices { orderId } → InvoiceDetailDto (crea y timbra).
   const handleCreateInvoice = async () => {
+    setInvoiceError(null);
     try {
-      await createInvoice.mutateAsync({
-        orderId: id,
-        cfdiUse: invoiceForm.cfdiUse,
-        paymentForm: invoiceForm.paymentForm,
-        sendEmail: invoiceForm.sendEmail,
-      });
+      await createInvoice.mutateAsync({ orderId: id, sendEmail: sendInvoiceEmail });
       setShowInvoiceDialog(false);
       queryClient.invalidateQueries({ queryKey: ['orders', 'admin', id] });
     } catch (err) {
       if (isBillingFlowDisabled(err)) setInvoiceFlowDisabled(true);
-      // hook already shows error toast
+      setShowInvoiceDialog(false);
+      // El hook ya mostró el toast; aquí queda el detalle (campo, código del PAC,
+      // factura existente) a la vista para corregir.
+      setInvoiceError({
+        text: billingErrorMessage(err, 'No se pudo facturar el pedido'),
+        invoiceId: billingErrorInvoiceId(err),
+      });
     }
   };
 
@@ -658,61 +643,53 @@ export default function OrderDetailAdminPage() {
                 Facturación
               </h2>
 
-              {order.isInvoiced && invoice ? (
+              {invoice && (invoiceIsLive || order.isInvoiced) ? (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        invoice.provider_status === 'stamped'
-                          ? 'bg-green-100 text-green-800'
-                          : invoice.provider_status === 'pending'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : invoice.provider_status === 'error'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {invoice.provider_status === 'stamped'
-                        ? 'Timbrada'
-                        : invoice.provider_status === 'pending'
-                          ? 'Pendiente'
-                          : invoice.provider_status === 'error'
-                            ? 'Error'
-                            : invoice.provider_status === 'cancelled'
-                              ? 'Cancelada'
-                              : invoice.provider_status}
-                    </span>
-                    {invoice.invoice_number && (
-                      <span className="text-xs text-gray-500 font-mono">
-                        {invoice.invoice_number}
-                      </span>
-                    )}
+                  <div className="flex items-center justify-between gap-2">
+                    <InvoiceStatusBadge
+                      status={invoice.providerStatus}
+                      satCancellationStatus={invoice.satCancellationStatus}
+                    />
+                    <span className="text-xs text-gray-500 font-mono">{invoice.folioDisplay}</span>
                   </div>
 
-                  {invoice.sat_uuid && (
+                  {invoice.satUuid && (
                     <div>
                       <span className="text-gray-500 text-xs">UUID Fiscal:</span>
                       <p className="text-xs font-mono text-gray-700 break-all mt-0.5">
-                        {invoice.sat_uuid}
+                        {invoice.satUuid}
                       </p>
                     </div>
                   )}
 
-                  {invoice.provider_status === 'stamped' && (
+                  {!invoice.satUuid && invoice.providerError && (
+                    <p className="rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-800" role="alert">
+                      {invoice.providerError}
+                    </p>
+                  )}
+                  {!invoice.satUuid && (
+                    <p className="text-xs text-gray-500">
+                      La factura aún no está timbrada: reintenta el timbrado desde su detalle.
+                    </p>
+                  )}
+
+                  {invoice.satUuid && (
                     <div className="flex gap-2">
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDownloadPdf(invoice.id)}
+                        onClick={() => void downloadInvoiceFile('pdf', invoice.id, invoice.folioDisplay)}
                         className="flex-1 bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-700"
+                        aria-label={`Descargar PDF de la factura ${invoice.folioDisplay}`}
                       >
                         PDF
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => handleDownloadXml(invoice.id)}
+                        onClick={() => void downloadInvoiceFile('xml', invoice.id, invoice.folioDisplay)}
                         className="flex-1 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:text-blue-700"
+                        aria-label={`Descargar XML de la factura ${invoice.folioDisplay}`}
                       >
                         XML
                       </Button>
@@ -742,12 +719,34 @@ export default function OrderDetailAdminPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {(fiscalData as any)?.rfc ? (
+                  {invoice && !invoiceIsLive && (
+                    <p className="text-xs text-gray-500">
+                      La factura anterior{' '}
+                      <Link href={`/admin/facturacion/${invoice.id}`} className="text-[#3E667D] hover:underline">
+                        {invoice.folioDisplay}
+                      </Link>{' '}
+                      está cancelada: el pedido se puede volver a facturar.
+                    </p>
+                  )}
+                  {invoiceError && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800" role="alert">
+                      <p>{invoiceError.text}</p>
+                      {invoiceError.invoiceId && (
+                        <Link
+                          href={`/admin/facturacion/${invoiceError.invoiceId}`}
+                          className="mt-1 inline-block font-medium underline"
+                        >
+                          Ver factura
+                        </Link>
+                      )}
+                    </div>
+                  )}
+                  {customerFiscal?.rfc ? (
                     <>
                       <p className="text-sm text-gray-600">
                         RFC:{' '}
                         <span className="font-mono font-medium">
-                          {(fiscalData as any).rfc}
+                          {customerFiscal.rfc}
                         </span>
                       </p>
                       {invoiceFlowDisabled && (
@@ -759,12 +758,17 @@ export default function OrderDetailAdminPage() {
                       <Button
                         variant="default"
                         onClick={() => setShowInvoiceDialog(true)}
-                        disabled={createInvoice.isPending || invoiceFlowDisabled}
+                        disabled={createInvoice.isPending || invoiceFlowDisabled || !canManageBilling}
                         className="w-full"
                       >
-                        <DocumentTextIcon className="h-4 w-4" />
-                        {createInvoice.isPending ? 'Generando...' : 'Generar Factura'}
+                        <DocumentTextIcon className="h-4 w-4" aria-hidden />
+                        {createInvoice.isPending ? 'Timbrando…' : 'Facturar'}
                       </Button>
+                      {!canManageBilling && (
+                        <p className="text-xs text-gray-500">
+                          Solo lectura: para facturar necesitas el permiso billing:manage (Contabilidad).
+                        </p>
+                      )}
                     </>
                   ) : (
                     <div className="text-center">
@@ -844,90 +848,45 @@ export default function OrderDetailAdminPage() {
         </div>
       )}
 
-      {/* Invoice Creation Dialog */}
-      {showInvoiceDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div
-            className="absolute inset-0 bg-black/50"
-            onClick={() => setShowInvoiceDialog(false)}
-          />
-          <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full mx-4">
-            <div className="p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">
-                Generar Factura CFDI
-              </h3>
-
-              {invoiceFlowDisabled && (
-                <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                  <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0 text-amber-600" />
-                  <span>{BILLING_FLOW_DISABLED_NOTICE}</span>
-                </div>
-              )}
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Uso del CFDI
-                  </label>
-                  <SearchableSelect
-                    options={satCatalogOptions(cfdiUseCatalog)}
-                    value={invoiceForm.cfdiUse}
-                    onChange={(val) => setInvoiceForm((prev) => ({ ...prev, cfdiUse: val }))}
-                    showAllOption={false}
-                    className="w-full"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Forma de Pago
-                  </label>
-                  <SearchableSelect
-                    options={PAYMENT_FORMS.map((form) => ({ value: form.Value, label: `${form.Value} - ${form.Name}` }))}
-                    value={invoiceForm.paymentForm}
-                    onChange={(val) => setInvoiceForm((prev) => ({ ...prev, paymentForm: val }))}
-                    showAllOption={false}
-                    className="w-full"
-                  />
-                </div>
-
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={invoiceForm.sendEmail}
-                    onChange={(e) =>
-                      setInvoiceForm((prev) => ({
-                        ...prev,
-                        sendEmail: e.target.checked,
-                      }))
-                    }
-                    className="h-4 w-4 rounded border-gray-300 text-[#3E667D] focus:ring-[#3E667D]"
-                  />
-                  Enviar factura por correo al cliente
-                </label>
-              </div>
-
-              <div className="flex gap-3 mt-6">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowInvoiceDialog(false)}
-                  className="flex-1"
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  variant="default"
-                  onClick={handleCreateInvoice}
-                  disabled={createInvoice.isPending || invoiceFlowDisabled}
-                  className="flex-1"
-                >
-                  {createInvoice.isPending ? 'Generando...' : 'Generar Factura'}
-                </Button>
-              </div>
-            </div>
+      {/* Confirmación de factura del pedido (POST /billing/invoices { orderId }) */}
+      <ConfirmDialog
+        open={showInvoiceDialog}
+        onOpenChange={setShowInvoiceDialog}
+        title={`Facturar pedido ${order.orderNumber ?? ''}`}
+        description="Se timbrará 1 CFDI de ingreso con los datos fiscales actuales del cliente. La forma de pago se toma del cobro real del pedido."
+        confirmLabel="Timbrar factura"
+        isPending={createInvoice.isPending}
+        disabled={invoiceFlowDisabled}
+        onConfirm={handleCreateInvoice}
+      >
+        {invoiceFlowDisabled && (
+          <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="status">
+            <ExclamationTriangleIcon className="h-5 w-5 flex-shrink-0 text-amber-600" aria-hidden />
+            <span>{BILLING_FLOW_DISABLED_NOTICE}</span>
           </div>
+        )}
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-lg bg-gray-50 p-3 text-sm">
+          <dt className="text-gray-500">Receptor</dt>
+          <dd className="font-medium text-gray-900">{customerFiscal?.legalName ?? '—'}</dd>
+          <dt className="text-gray-500">RFC</dt>
+          <dd className="font-mono">{customerFiscal?.rfc ?? '—'}</dd>
+          <dt className="text-gray-500">CP fiscal</dt>
+          <dd className="font-mono">{customerFiscal?.postalCode ?? '—'}</dd>
+          <dt className="text-gray-500">Uso de CFDI</dt>
+          <dd>{customerFiscal?.defaultCfdiUse ?? '—'}</dd>
+        </dl>
+        <div className="mt-3 flex items-center gap-2">
+          <Checkbox
+            id="order-invoice-email"
+            checked={sendInvoiceEmail}
+            onCheckedChange={(v) => setSendInvoiceEmail(v === true)}
+            disabled={createInvoice.isPending}
+          />
+          <Label htmlFor="order-invoice-email" className="text-sm font-normal">
+            Enviar la factura (PDF y XML) por correo al cliente
+          </Label>
         </div>
-      )}
+      </ConfirmDialog>
     </div>
   );
 }

@@ -1,559 +1,447 @@
-// app/admin/facturacion/global/page.tsx - Factura Global (Orders)
-// Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.5 Facturación
+// app/admin/facturacion/global/page.tsx — Factura global por sucursal y día
+// natural LOCAL (contrato §5.3, NUNCA periodo 26→25 ni mes calendario).
+// Sucursal + día (tira de días con estados) → vista previa (incluidos,
+// excluidos con motivo, bloqueadores en rojo, totales por tasa, conceptos) →
+// confirmación con `previewHash` → POST /billing/global-invoices → detalle.
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import {
-  GlobeAltIcon,
   ArrowLeftIcon,
-  MagnifyingGlassIcon,
-  DocumentTextIcon,
-  CheckCircleIcon,
-  MapPinIcon,
   CalendarIcon,
   ExclamationTriangleIcon,
+  GlobeAltIcon,
+  MagnifyingGlassIcon,
 } from '@heroicons/react/24/outline';
-import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
+import { PermissionGuard } from '@/components/auth';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { useCreateGlobalInvoice } from '@/hooks/useBilling';
+  useBillingStatus,
+  useCreateGlobalInvoice,
+  useDiscardGlobalInvoice,
+  useGlobalDays,
+  useGlobalPreview,
+  useInvoices,
+  useReadinessBranches,
+} from '@/hooks/useBilling';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
+import { billingErrorMessage, isBillingErrorCode, isBillingFlowDisabled } from '@/lib/billing-error';
+import { DEFAULT_TIMEZONE } from '@/lib/timezone-utils';
 import {
-  BILLING_FLOW_DISABLED_NOTICE,
-  isBillingFlowDisabled,
-} from '@/lib/billing-error';
-import { useOrders } from '@/hooks/useOrders';
-import { useActiveBranches } from '@/hooks/useBranches';
-import { PAYMENT_FORMS, formatCurrency } from '@/types/billing';
-import { OrderStatus } from '@/types/order';
-import type { Branch } from '@/types/branch';
-import type { Order } from '@/types/order';
+  formatCurrency,
+  getPaymentFormName,
+  type GlobalConceptMode,
+  type GlobalDayStatus,
+  type GlobalPreview,
+  type InvoiceSummary,
+} from '@/types/billing';
+import { useCanManageBilling } from '@/components/admin/billing/readiness/useCanManageBilling';
+import { InvoiceStatusBadge } from '@/components/admin/billing/invoices/InvoiceBadges';
+import { V2FlowsBanner } from '@/components/admin/billing/invoices/BillingStatusCards';
+import {
+  CONCEPT_MODE_OPTIONS,
+  GLOBAL_DAY_STATUS_INFO,
+  globalBlockerLabel,
+  globalExclusionLabel,
+} from '@/components/admin/billing/invoices/labels';
+import { formatIsoDate, localDateInZone, useBranchTimezone } from '@/components/admin/billing/invoices/useBranchTimezone';
 
-const PAYMENT_METHODS_FACTURAMA = [
-  { value: 'PUE', label: 'PUE - Pago en Una sola Exhibición' },
-  { value: 'PPD', label: 'PPD - Pago en Parcialidades o Diferido' },
-];
+const DAYS_STRIP = 14;
+
+function addDays(iso: string, days: number): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d + days));
+  return date.toISOString().slice(0, 10);
+}
 
 export default function GlobalInvoicePage() {
-  const createGlobalInvoice = useCreateGlobalInvoice();
-  const searchParams = useSearchParams();
+  return (
+    <PermissionGuard permissions={['billing:read', 'billing:*']}>
+      <Suspense fallback={<div className="p-6"><Skeleton className="h-64 w-full" /></div>}>
+        <GlobalInvoiceContent />
+      </Suspense>
+    </PermissionGuard>
+  );
+}
+
+function GlobalInvoiceContent() {
   const router = useRouter();
+  const canManage = useCanManageBilling();
+  const { get, setParams } = useQueryFilters({});
+  const branchId = get('branchId');
+  const dateParam = get('date');
+  const modeParam = get('mode');
 
-  // Read initial values from URL query params
-  const initialBranchId = searchParams.get('branchId') || '';
-  const initialDate = searchParams.get('date') || new Date().toISOString().split('T')[0];
-  const initialAutoSearch = !!searchParams.get('branchId') && !!searchParams.get('date');
+  const { data: status } = useBillingStatus();
+  const { data: readinessBranches, isLoading: loadingBranches } = useReadinessBranches();
+  const { timezoneOf } = useBranchTimezone();
 
-  // Filter state
-  const [selectedBranchId, setSelectedBranchId] = useState(initialBranchId);
-  const [selectedDate, setSelectedDate] = useState(initialDate);
-  const [searchTriggered, setSearchTriggered] = useState(initialAutoSearch);
+  const branchTz = branchId ? timezoneOf(branchId) : DEFAULT_TIMEZONE;
+  const yesterday = localDateInZone(branchTz, -1);
+  const date = dateParam || yesterday;
+  const conceptMode: GlobalConceptMode =
+    modeParam === 'product' || modeParam === 'ticket' ? modeParam : (status?.globalConceptMode ?? 'ticket');
 
-  // Sync filters to URL
-  const updateUrl = useCallback((branchId: string, date: string) => {
-    const params = new URLSearchParams();
-    if (branchId) params.set('branchId', branchId);
-    if (date) params.set('date', date);
-    const qs = params.toString();
-    router.replace(`/admin/facturacion/global${qs ? `?${qs}` : ''}`, { scroll: false });
-  }, [router]);
+  const branchOptions = useMemo(
+    () =>
+      (readinessBranches ?? []).map((b) => ({
+        value: b.id,
+        label: b.v2InvoicingSince ? `${b.name} · v2 desde ${formatIsoDate(b.v2InvoicingSince)}` : `${b.name} · sin arranque en v2`,
+        hint: b.code,
+      })),
+    [readinessBranches],
+  );
+  const selectedBranch = (readinessBranches ?? []).find((b) => b.id === branchId);
 
-  // Selection state
-  const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
+  // Tira de días: últimos 14 hasta ayer (o alrededor de la fecha elegida).
+  const stripTo = date > yesterday ? yesterday : date;
+  const stripFrom = addDays(stripTo, -(DAYS_STRIP - 1));
+  const days = useGlobalDays(branchId ? { branchId, from: stripFrom, to: stripTo } : null);
 
-  // El API cierra este flujo con 503 hasta la Fase 2 (Fase 0: solo se factura
-  // desde el POS). Se avisa en pantalla en vez de dejar la sensación de error.
+  // La vista previa se pide a mano; al cambiar sucursal/fecha/modo la llave deja
+  // de coincidir y hay que volver a pedirla (sin efecto que reinicie estado).
+  const previewKey = `${branchId}|${date}|${conceptMode}`;
+  const [requestedKey, setRequestedKey] = useState<string | null>(null);
+  const previewRequested = requestedKey === previewKey;
+
+  const preview = useGlobalPreview(branchId ? { branchId, date, conceptMode } : null, previewRequested);
+  const create = useCreateGlobalInvoice();
+  const discard = useDiscardGlobalInvoice();
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [flowDisabled, setFlowDisabled] = useState(false);
 
-  // Payment config state
-  const [paymentForm, setPaymentForm] = useState('01'); // Efectivo
-  const [paymentMethodFact, setPaymentMethodFact] = useState('PUE');
+  const globals = useInvoices({ invoiceType: 'global', branchId: branchId || undefined, limit: 10, sort: 'createdAt:desc' }, !!branchId);
 
-  // Success state
-  const [createdInvoice, setCreatedInvoice] = useState<{
-    id: string;
-    uuid?: string;
-    total: string;
-    ordersCount: number;
-    status: string;
-  } | null>(null);
-
-  // Branches
-  const { data: allBranches } = useActiveBranches();
-  const branchOptions = useMemo(
-    () => (allBranches || []).map((b: Branch) => ({ value: b.id, label: b.name })),
-    [allBranches],
-  );
-
-  // Orders query — only run when search is triggered
-  const ordersQuery = useOrders(
-    {
-      branchId: selectedBranchId,
-      dateFrom: selectedDate,
-      dateTo: selectedDate,
-      status: OrderStatus.CONFIRMED,
-      isInvoiced: false,
-      limit: 100,
-      sortBy: 'orderDate',
-      sortOrder: 'desc',
-    },
-    searchTriggered && !!selectedBranchId,
-  );
-  // Filter out orders with total <= 0
-  const orders: Order[] = useMemo(
-    () => (ordersQuery.data?.data || []).filter((o) => parseFloat(o.total) > 0),
-    [ordersQuery.data],
-  );
-
-  // Selection helpers
-  const allSelected = orders.length > 0 && selectedOrderIds.size === orders.length;
-
-  const toggleSelectAll = () => {
-    if (allSelected) {
-      setSelectedOrderIds(new Set());
-    } else {
-      setSelectedOrderIds(new Set(orders.map((o) => o.id)));
-    }
-  };
-
-  const toggleOrder = (orderId: string) => {
-    setSelectedOrderIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(orderId)) {
-        next.delete(orderId);
-      } else {
-        next.add(orderId);
-      }
-      return next;
-    });
-  };
-
-  // Selection totals
-  const selectedOrders = orders.filter((o) => selectedOrderIds.has(o.id));
-  const selectedTotal = selectedOrders.reduce((sum, o) => sum + parseFloat(o.total), 0);
-
-  // Search handler
-  const handleSearch = () => {
-    if (!selectedBranchId) {
-      toast.error('Selecciona una sucursal');
-      return;
-    }
-    setSelectedOrderIds(new Set());
-    setCreatedInvoice(null);
-    setSearchTriggered(true);
-    updateUrl(selectedBranchId, selectedDate);
-  };
-
-  // Submit handler
-  const handleSubmit = async () => {
-    if (selectedOrderIds.size === 0) {
-      toast.error('Selecciona al menos una venta');
-      return;
-    }
-
-    const date = new Date(selectedDate + 'T12:00:00');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = String(date.getFullYear());
-
+  const handleEmit = async () => {
+    const p = preview.data;
+    if (!p) return;
     try {
-      const result = await createGlobalInvoice.mutateAsync({
-        periodicity: '01', // Diario
-        month,
-        year,
-        branchId: selectedBranchId,
-        orderIds: Array.from(selectedOrderIds),
-        paymentForm,
-        paymentMethod: paymentMethodFact,
-      });
-
-      setCreatedInvoice({
-        id: result.id,
-        uuid: (result as any).uuid || (result as any).invoice?.uuid,
-        total: result.total,
-        ordersCount: selectedOrderIds.size,
-        status: result.status || 'stamped',
-      });
-      setSelectedOrderIds(new Set());
-      // Refetch to remove invoiced orders
-      ordersQuery.refetch();
+      const invoice = await create.mutateAsync({ branchId, date, conceptMode, previewHash: p.previewHash });
+      setConfirmOpen(false);
+      router.push(`/admin/facturacion/${invoice.id}`);
     } catch (err) {
       if (isBillingFlowDisabled(err)) setFlowDisabled(true);
-      // El toast del error lo muestra el hook
+      if (isBillingErrorCode(err, 'CFDI_GLOBAL_PREVIEW_STALE')) {
+        setConfirmOpen(false);
+        void preview.refetch();
+      }
     }
   };
 
-  // Reset to search again
-  const handleNewSearch = () => {
-    setCreatedInvoice(null);
-    setSearchTriggered(false);
-    setSelectedOrderIds(new Set());
-  };
+  const dayColumns: DataTableColumn<GlobalPreview['included'][number]>[] = [
+    { key: 'folio', header: 'Folio', render: (r) => <span className="font-mono text-sm">{r.folio}<span className="ml-1 text-xs text-gray-500">{r.kind === 'order' ? 'pedido' : 'ticket'}</span></span> },
+    { key: 'time', header: 'Hora', render: (r) => <span className="text-sm">{r.time}</span> },
+    { key: 'customer', header: 'Cliente', render: (r) => <span className="text-sm text-gray-700">{r.customerName ?? 'Público en general'}</span> },
+    { key: 'pf', header: 'Forma de pago', render: (r) => <span className="text-sm">{r.paymentFormCode ? `${r.paymentFormCode} · ${getPaymentFormName(r.paymentFormCode)}` : '—'}</span> },
+    { key: 'subtotal', header: 'Base', headerClassName: 'text-right', cellClassName: 'text-right', render: (r) => formatCurrency(r.subtotal) },
+    { key: 'tax', header: 'IVA', headerClassName: 'text-right', cellClassName: 'text-right', render: (r) => formatCurrency(r.taxAmount) },
+    { key: 'total', header: 'Total', headerClassName: 'text-right', cellClassName: 'text-right', render: (r) => <span className="font-medium">{formatCurrency(r.total)}</span> },
+  ];
 
-  // Get customer display name
-  const getCustomerName = (order: Order) => {
-    if (order.customer) {
-      return `${order.customer.firstName} ${order.customer.lastName}`.trim();
-    }
-    return 'Público General';
-  };
+  const excludedColumns: DataTableColumn<GlobalPreview['excluded'][number]>[] = [
+    { key: 'folio', header: 'Folio', render: (r) => <span className="font-mono text-sm">{r.folio}</span> },
+    { key: 'reason', header: 'Motivo', render: (r) => <span className="text-sm">{globalExclusionLabel(r.reason)}{r.detail ? ` — ${r.detail}` : ''}</span> },
+    { key: 'total', header: 'Total', headerClassName: 'text-right', cellClassName: 'text-right', render: (r) => formatCurrency(r.total) },
+  ];
 
-  // Get order number display (strip prefix if present)
-  const getOrderDisplay = (order: Order) => {
-    const num = order.orderNumber.replace(/^M-/, '');
-    return num;
-  };
+  const globalColumns: DataTableColumn<InvoiceSummary>[] = [
+    { key: 'day', header: 'Día', render: (inv) => <span className="text-sm">{formatIsoDate(inv.globalLocalDate)}</span> },
+    { key: 'folio', header: 'Folio', render: (inv) => <Link href={`/admin/facturacion/${inv.id}`} className="font-mono text-sm text-[#3E667D] hover:underline">{inv.folioDisplay}</Link> },
+    { key: 'total', header: 'Total', headerClassName: 'text-right', cellClassName: 'text-right', render: (inv) => formatCurrency(inv.total) },
+    { key: 'status', header: 'Estado', render: (inv) => <InvoiceStatusBadge status={inv.providerStatus} satCancellationStatus={inv.satCancellationStatus} /> },
+    { key: 'reissue', header: 'Reexpedición', render: (inv) => inv.globalReissueState && inv.globalReissueState !== 'none' ? <Badge variant="warning">{inv.globalReissueState === 'pending_reissue' ? 'Por reexpedir' : 'Reexpedida'}</Badge> : <span className="text-xs text-gray-400">—</span> },
+  ];
+
+  const p = previewRequested ? preview.data : undefined;
+  // Global VIVA del día = la que cuenta para `uq_invoices_global_branch_day` (más la
+  // cancelación en proceso). Un intento en `error` se reutiliza al emitir (§5.3.5).
+  const existingLive =
+    !!p?.existingGlobal && !['error', 'cancelled'].includes(p.existingGlobal.providerStatus);
+  const canEmit = !!p && p.canStamp && !existingLive && p.blockers.length === 0 && canManage && !flowDisabled;
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-gradient-to-r from-[#3E667D] to-[#3E667D]/90 text-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
           <div className="flex items-center gap-4">
-            <Link
-              href="/admin/facturacion"
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-            >
-              <ArrowLeftIcon className="h-6 w-6" />
-            </Link>
+            <Button asChild variant="ghost" size="icon" className="text-white hover:bg-white/10 hover:text-white">
+              <Link href="/admin/facturacion" aria-label="Volver a facturas"><ArrowLeftIcon className="h-6 w-6" /></Link>
+            </Button>
             <div>
-              <div className="flex items-center gap-3 mb-2">
-                <GlobeAltIcon className="h-10 w-10" />
-                <h1 className="text-4xl font-bold">Factura Global</h1>
+              <div className="mb-1 flex items-center gap-3">
+                <GlobeAltIcon className="h-10 w-10" aria-hidden />
+                <h1 className="text-4xl font-bold">Factura global</h1>
               </div>
-              <p className="text-white/80 text-lg">
-                Generar factura global para ventas al público en general
-              </p>
+              <p className="text-lg text-white/80">Por sucursal y día natural (zona de la sucursal), a PÚBLICO EN GENERAL</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Flujo cerrado en la Fase 0 (el API responde 503) */}
-        {flowDisabled && (
-          <Card className="mb-6 border-amber-200 bg-amber-50">
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3">
-                <ExclamationTriangleIcon className="h-6 w-6 flex-shrink-0 text-amber-600" />
-                <div className="text-sm text-amber-900">
-                  <p className="font-semibold mb-1">Factura global en corrección</p>
-                  <p>{BILLING_FLOW_DISABLED_NOTICE}</p>
-                </div>
-              </div>
-            </CardContent>
+      <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
+        <V2FlowsBanner status={status} />
+        {flowDisabled && status?.v2FlowsEnabled !== false && (
+          <Card className="border-amber-200 bg-amber-50" role="status">
+            <CardContent className="p-4 text-sm text-amber-900">Los flujos de v2 están cerrados; el sistema anterior sigue facturando.</CardContent>
           </Card>
         )}
 
-        {/* Info Card */}
-        <Card className="mb-6 border-blue-200 bg-blue-50">
-          <CardContent className="p-4">
-            <div className="flex items-start gap-3">
-              <DocumentTextIcon className="h-6 w-6 text-blue-600 flex-shrink-0" />
-              <div className="text-sm text-blue-800">
-                <p className="font-semibold mb-1">Sobre la Factura Global</p>
-                <p>
-                  La factura global se emite para amparar las ventas realizadas a clientes
-                  que no solicitaron factura individual. Se emite a nombre del{' '}
-                  <strong>PUBLICO EN GENERAL</strong> con RFC genérico XAXX010101000.
-                </p>
+        {/* Selector */}
+        <Card>
+          <CardContent className="p-6">
+            <div className="grid gap-4 md:grid-cols-12 md:items-end">
+              <div className="md:col-span-5">
+                <Label htmlFor="g-branch">Sucursal</Label>
+                <SearchableSelect
+                  id="g-branch"
+                  options={branchOptions}
+                  value={branchId}
+                  onChange={(v) => setParams({ branchId: v, date: null })}
+                  showAllOption={false}
+                  placeholder={loadingBranches ? 'Cargando sucursales…' : 'Elige la sucursal'}
+                />
+                {selectedBranch && !selectedBranch.v2InvoicingSince && (
+                  <p className="mt-1 text-xs text-amber-700">Esta sucursal no tiene fecha de arranque en v2: no es elegible (Preparación fiscal → Sucursales).</p>
+                )}
               </div>
+              <div className="md:col-span-3">
+                <Label htmlFor="g-date">Día (máximo ayer)</Label>
+                <div className="relative">
+                  <CalendarIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" aria-hidden />
+                  <Input id="g-date" type="date" className="pl-10" value={date} max={yesterday} onChange={(e) => setParams({ date: e.target.value })} />
+                </div>
+              </div>
+              <div className="md:col-span-4">
+                <Label htmlFor="g-mode">Conceptos</Label>
+                <SearchableSelect id="g-mode" options={CONCEPT_MODE_OPTIONS} value={conceptMode} onChange={(v) => setParams({ mode: v })} showAllOption={false} />
+              </div>
+            </div>
+
+            {/* Tira de días */}
+            {branchId && (
+              <div className="mt-6">
+                <p className="mb-2 text-xs font-medium text-gray-600">Últimos {DAYS_STRIP} días (zona {branchTz})</p>
+                {days.isLoading ? (
+                  <Skeleton className="h-16 w-full" />
+                ) : days.isError ? (
+                  <p className="text-xs text-red-700">{billingErrorMessage(days.error, 'No se pudieron cargar los días')}</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2" role="listbox" aria-label="Días">
+                    {(days.data ?? []).map((d: GlobalDayStatus) => {
+                      const info = GLOBAL_DAY_STATUS_INFO[d.status] ?? GLOBAL_DAY_STATUS_INFO.not_eligible;
+                      const active = d.localDate === date;
+                      return (
+                        <button
+                          key={d.localDate}
+                          type="button"
+                          role="option"
+                          aria-selected={active}
+                          onClick={() => setParams({ date: d.localDate })}
+                          title={`${info.label} · ${d.ticketCount} tickets · ${formatCurrency(d.total)}${d.blockers ? ` · ${d.blockers} bloqueador(es)` : ''}${d.lateEmission ? ' · emisión tardía' : ''}`}
+                          className={`min-w-[84px] rounded-lg border px-2 py-1.5 text-left text-xs transition-colors ${info.className} ${active ? 'ring-2 ring-[#3E667D]' : ''}`}
+                        >
+                          <span className="block font-semibold">{formatIsoDate(d.localDate).slice(0, 5)}</span>
+                          <span className="block">{info.label}</span>
+                          <span className="block text-[10px] opacity-80">{d.ticketCount} · {formatCurrency(d.total)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end">
+              <Button onClick={() => setRequestedKey(previewKey)} disabled={!branchId || !date || preview.isFetching}>
+                {preview.isFetching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : <MagnifyingGlassIcon className="h-5 w-5" aria-hidden />}
+                Vista previa
+              </Button>
             </div>
           </CardContent>
         </Card>
 
-        {createdInvoice ? (
-          /* Success State */
-          <Card>
-            <CardContent className="p-6">
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <CheckCircleIcon className="h-8 w-8 text-green-600" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900">
-                  Factura Global {createdInvoice.status === 'stamped' ? 'Timbrada' : 'Creada'}
-                </h2>
-                {createdInvoice.uuid && (
-                  <p className="text-sm text-gray-500 mt-1">UUID: {createdInvoice.uuid}</p>
+        {/* Vista previa */}
+        {previewRequested && preview.isError && (
+          <Card className="border-red-200 bg-red-50" role="alert">
+            <CardContent className="p-4 text-sm text-red-800">{billingErrorMessage(preview.error, 'No se pudo generar la vista previa')}</CardContent>
+          </Card>
+        )}
+
+        {p && (
+          <>
+            {(!p.eligible || p.blockers.length > 0 || p.existingGlobal || p.lateEmission || p.branch.terminalsOff.length > 0) && (
+              <div className="space-y-3">
+                {p.eligibilityErrors.map((e) => (
+                  <div key={e.code} className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">
+                    <span className="font-mono text-xs">{e.code}</span> · {e.message}
+                  </div>
+                ))}
+                {p.branch.terminalsOff.length > 0 && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">
+                    Terminales con Facturación apagada (el sistema anterior sigue globalizando esas cajas): {p.branch.terminalsOff.join(', ')}
+                  </div>
+                )}
+                {p.existingGlobal && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900" role="status">
+                    <span>
+                      Ya existe una global de este día: <span className="font-mono">{p.existingGlobal.folioDisplay}</span>{' '}
+                      <InvoiceStatusBadge status={p.existingGlobal.providerStatus} />
+                    </span>
+                    <div className="flex gap-2">
+                      <Button asChild size="sm" variant="outline"><Link href={`/admin/facturacion/${p.existingGlobal.invoiceId}`}>Ver global</Link></Button>
+                      {canManage && !p.existingGlobal.satUuid && (p.existingGlobal.providerStatus === 'error' || p.existingGlobal.providerStatus === 'pending') && (
+                        <Button size="sm" variant="ghost" className="text-red-600" disabled={discard.isPending} onClick={() => discard.mutate(p.existingGlobal!.invoiceId, { onSuccess: () => void preview.refetch() })}>
+                          Descartar intento
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {p.lateEmission && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="status">
+                    Emisión tardía: el día ya no es ayer. Se permite, pero revisa que el sistema anterior no haya emitido la global de esa fecha.
+                  </div>
+                )}
+                {p.blockers.length > 0 && (
+                  <Card className="border-red-300" role="alert">
+                    <CardContent className="p-4">
+                      <div className="mb-2 flex items-center gap-2 text-red-800">
+                        <ExclamationTriangleIcon className="h-5 w-5" aria-hidden />
+                        <h3 className="font-semibold">Bloqueadores: no se puede emitir el día (excluir el ticket dejaría ingreso sin declarar)</h3>
+                      </div>
+                      <ul className="list-disc space-y-1 pl-5 text-sm text-red-800">
+                        {p.blockers.map((b, i) => (
+                          <li key={i}>
+                            <span className="font-medium">{globalBlockerLabel(b.code)}</span>
+                            {b.folio ? ` · ${b.folio}` : ''}{b.sku ? ` · SKU ${b.sku}` : ''}{b.method ? ` · ${b.method}` : ''} — {b.message}
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
                 )}
               </div>
+            )}
 
-              <div className="grid md:grid-cols-3 gap-4 mb-6">
-                <div className="p-4 bg-gray-50 rounded-lg text-center">
-                  <p className="text-sm text-gray-600">Ventas Incluidas</p>
-                  <p className="text-2xl font-bold text-gray-900">{createdInvoice.ordersCount}</p>
+            {/* Totales */}
+            <div className="grid gap-4 md:grid-cols-4">
+              <Card><CardContent className="p-4"><p className="text-xs text-gray-500">Documentos</p><p className="text-2xl font-bold text-gray-900">{p.totals.documents}</p></CardContent></Card>
+              <Card><CardContent className="p-4"><p className="text-xs text-gray-500">Base</p><p className="text-2xl font-bold text-gray-900">{formatCurrency(p.totals.subtotal)}</p></CardContent></Card>
+              <Card><CardContent className="p-4"><p className="text-xs text-gray-500">IVA</p><p className="text-2xl font-bold text-gray-900">{formatCurrency(p.totals.taxes)}</p></CardContent></Card>
+              <Card><CardContent className="p-4"><p className="text-xs text-gray-500">Total</p><p className="text-2xl font-bold text-[#3E667D]">{formatCurrency(p.totals.total)}</p></CardContent></Card>
+            </div>
+            <Card>
+              <CardContent className="grid gap-4 p-4 text-sm md:grid-cols-3">
+                <div>
+                  <p className="text-xs text-gray-500">Forma de pago dominante</p>
+                  <p className="font-medium">{p.totals.paymentForm ? `${p.totals.paymentForm} · ${getPaymentFormName(p.totals.paymentForm)}` : '—'} · PUE</p>
                 </div>
-                <div className="p-4 bg-gray-50 rounded-lg text-center">
-                  <p className="text-sm text-gray-600">Total</p>
-                  <p className="text-2xl font-bold text-[#3E667D]">
-                    {formatCurrency(createdInvoice.total)}
-                  </p>
+                <div>
+                  <p className="text-xs text-gray-500">Por tasa</p>
+                  <ul>
+                    {p.totals.byRate.map((r, i) => (
+                      <li key={i}>{r.factor === 'Exento' ? 'Exento' : `${Math.round(r.rate * 100)}%`}: base {formatCurrency(r.base)} · IVA {formatCurrency(r.tax)}</li>
+                    ))}
+                  </ul>
                 </div>
-                <div className="p-4 bg-gray-50 rounded-lg text-center">
-                  <p className="text-sm text-gray-600">Estado</p>
-                  <p className={`text-lg font-bold ${
-                    createdInvoice.status === 'stamped' ? 'text-green-600' : 'text-yellow-600'
-                  }`}>
-                    {createdInvoice.status === 'stamped' ? 'Timbrada' : 'Pendiente'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-center gap-4">
-                <Link href="/admin/facturacion">
-                  <Button variant="outline">Ver Lista de Facturas</Button>
-                </Link>
-                <Button variant="default" onClick={handleNewSearch}>
-                  Nueva Búsqueda
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            {/* Filter Bar */}
-            <Card className="mb-6">
-              <CardContent className="p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                  <MagnifyingGlassIcon className="h-5 w-5 text-[#3E667D]" />
-                  Buscar Ventas
-                </h2>
-                <div className="grid md:grid-cols-3 gap-4 items-end">
-                  {/* Branch */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <span className="flex items-center gap-1">
-                        <MapPinIcon className="h-4 w-4" />
-                        Sucursal *
-                      </span>
-                    </label>
-                    <SearchableSelect
-                      options={branchOptions}
-                      value={selectedBranchId}
-                      onChange={(val) => {
-                        setSelectedBranchId(val);
-                        setSearchTriggered(false);
-                        setSelectedOrderIds(new Set());
-                      }}
-                      placeholder="Seleccionar sucursal..."
-                      showAllOption={false}
-                    />
-                  </div>
-
-                  {/* Date */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      <span className="flex items-center gap-1">
-                        <CalendarIcon className="h-4 w-4" />
-                        Fecha *
-                      </span>
-                    </label>
-                    <input
-                      type="date"
-                      value={selectedDate}
-                      onChange={(e) => {
-                        setSelectedDate(e.target.value);
-                        setSearchTriggered(false);
-                        setSelectedOrderIds(new Set());
-                      }}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                    />
-                  </div>
-
-                  {/* Search Button */}
-                  <div>
-                    <Button
-                      variant="default"
-                      onClick={handleSearch}
-                      disabled={ordersQuery.isLoading}
-                      className="w-full"
-                    >
-                      {ordersQuery.isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
-                      <MagnifyingGlassIcon className="h-5 w-5" />
-                      Buscar
-                    </Button>
-                  </div>
+                <div>
+                  <p className="text-xs text-gray-500">Sucursal</p>
+                  <p className="font-medium">{p.branch.name} ({p.branch.code}) · CP {p.branch.expeditionZip ?? '—'} · {p.branch.timezone}</p>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Orders Table */}
-            {searchTriggered && (
+            {/* Incluidos / excluidos / conceptos */}
+            <Card>
+              <CardContent className="p-6">
+                <h2 className="mb-3 text-lg font-semibold text-gray-900">Incluidos ({p.included.length})</h2>
+                <DataTable columns={dayColumns} data={p.included} getRowKey={(r) => `${r.kind}:${r.id}`} emptyMessage="Ningún documento entra a la global." minWidthClassName="min-w-[800px]" />
+              </CardContent>
+            </Card>
+            {p.excluded.length > 0 && (
               <Card>
-                <CardContent className="p-0">
-                  {ordersQuery.isLoading ? (
-                    <div className="p-12 text-center text-gray-500">
-                      <div className="animate-spin h-8 w-8 border-4 border-[#3E667D] border-t-transparent rounded-full mx-auto mb-4" />
-                      Buscando ventas...
-                    </div>
-                  ) : orders.length === 0 ? (
-                    <div className="p-12 text-center text-gray-500">
-                      <DocumentTextIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p className="text-lg">No se encontraron ventas sin facturar</p>
-                      <p className="text-sm mt-1">
-                        No hay ventas confirmadas sin factura para esta sucursal y fecha
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      {/* Table */}
-                      <div className="overflow-x-auto">
-                        <Table className="w-full">
-                          <TableHeader>
-                            <TableRow className="bg-gray-50 border-b hover:bg-gray-50">
-                              <TableHead className="px-4 py-3 text-left w-12">
-                                <input
-                                  type="checkbox"
-                                  checked={allSelected}
-                                  onChange={toggleSelectAll}
-                                  className="rounded border-gray-300 text-[#3E667D] focus:ring-[#3E667D]"
-                                />
-                              </TableHead>
-                              <TableHead className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                                ID Venta
-                              </TableHead>
-                              <TableHead className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                                Cliente
-                              </TableHead>
-                              <TableHead className="px-4 py-3 text-left text-sm font-semibold text-gray-700">
-                                Método de Pago
-                              </TableHead>
-                              <TableHead className="px-4 py-3 text-right text-sm font-semibold text-gray-700">
-                                Total
-                              </TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody className="divide-y divide-gray-100">
-                            {orders.map((order) => (
-                              <TableRow
-                                key={order.id}
-                                className={`hover:bg-gray-50 transition-colors cursor-pointer ${
-                                  selectedOrderIds.has(order.id) ? 'bg-[#3E667D]/5' : ''
-                                }`}
-                                onClick={() => toggleOrder(order.id)}
-                              >
-                                <TableCell className="px-4 py-3">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedOrderIds.has(order.id)}
-                                    onChange={() => toggleOrder(order.id)}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="rounded border-gray-300 text-[#3E667D] focus:ring-[#3E667D]"
-                                  />
-                                </TableCell>
-                                <TableCell className="px-4 py-3 text-sm font-medium">
-                                  <a
-                                    href={`/admin/pedidos/${order.id}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="text-[#3E667D] hover:text-[#2d4f63] hover:underline"
-                                  >
-                                    {getOrderDisplay(order)}
-                                  </a>
-                                </TableCell>
-                                <TableCell className="px-4 py-3 text-sm text-gray-600">
-                                  {getCustomerName(order)}
-                                </TableCell>
-                                <TableCell className="px-4 py-3 text-sm text-gray-600">
-                                  {order.paymentMethodName || 'Sin definir'}
-                                </TableCell>
-                                <TableCell className="px-4 py-3 text-sm font-semibold text-gray-900 text-right">
-                                  {formatCurrency(order.total)}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-
-                      {/* Footer: Selection summary + Payment config + Submit */}
-                      <div className="border-t bg-gray-50 p-4 space-y-4">
-                        {/* Selection summary */}
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm text-gray-600">
-                            {orders.length} venta{orders.length !== 1 ? 's' : ''} encontrada{orders.length !== 1 ? 's' : ''}
-                            {selectedOrderIds.size > 0 && (
-                              <span className="font-semibold text-[#3E667D] ml-2">
-                                — {selectedOrderIds.size} seleccionada{selectedOrderIds.size !== 1 ? 's' : ''}
-                              </span>
-                            )}
-                          </p>
-                          {selectedOrderIds.size > 0 && (
-                            <p className="text-lg font-bold text-[#3E667D]">
-                              Total: {formatCurrency(selectedTotal)}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Payment config + Submit */}
-                        {selectedOrderIds.size > 0 && (
-                          <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-4 pt-2 border-t border-gray-200">
-                            {/* Forma de Pago SAT */}
-                            <div className="flex-1">
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Forma de Pago (SAT)
-                              </label>
-                              <SearchableSelect
-                                options={PAYMENT_FORMS.map((p) => ({
-                                  value: p.Value,
-                                  label: `${p.Value} - ${p.Name}`,
-                                }))}
-                                value={paymentForm}
-                                onChange={setPaymentForm}
-                                showAllOption={false}
-                              />
-                            </div>
-
-                            {/* Método de Pago Facturama */}
-                            <div className="flex-1">
-                              <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Método de Pago (Facturama)
-                              </label>
-                              <SearchableSelect
-                                options={PAYMENT_METHODS_FACTURAMA.map((p) => ({
-                                  value: p.value,
-                                  label: p.label,
-                                }))}
-                                value={paymentMethodFact}
-                                onChange={setPaymentMethodFact}
-                                showAllOption={false}
-                              />
-                            </div>
-
-                            {/* Submit */}
-                            <div className="sm:flex-shrink-0">
-                              <Button
-                                variant="default"
-                                onClick={handleSubmit}
-                                disabled={createGlobalInvoice.isPending || flowDisabled}
-                                className="w-full sm:w-auto"
-                              >
-                                {createGlobalInvoice.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-                                <GlobeAltIcon className="h-5 w-5" />
-                                Enviar a Facturama
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
+                <CardContent className="p-6">
+                  <h2 className="mb-3 text-lg font-semibold text-gray-900">Excluidos ({p.excluded.length})</h2>
+                  <DataTable columns={excludedColumns} data={p.excluded} getRowKey={(r) => `${r.kind}:${r.id}`} />
                 </CardContent>
               </Card>
             )}
+            <Card>
+              <CardContent className="p-6">
+                <h2 className="mb-3 text-lg font-semibold text-gray-900">Conceptos que se enviarán ({p.items.length})</h2>
+                <div className="max-h-96 overflow-auto">
+                  <table className="w-full min-w-[640px] text-sm">
+                    <thead className="sticky top-0 bg-white text-left text-xs text-gray-500">
+                      <tr><th className="py-1 pr-3">#</th><th className="py-1 pr-3">Clave / unidad</th><th className="py-1 pr-3">No. identificación</th><th className="py-1 pr-3">Descripción</th><th className="py-1 pr-3 text-right">Cant.</th><th className="py-1 pr-3 text-right">Importe</th><th className="py-1 pr-3 text-right">IVA</th><th className="py-1 text-right">Total</th></tr>
+                    </thead>
+                    <tbody>
+                      {p.items.map((it) => (
+                        <tr key={it.lineNumber} className="border-t">
+                          <td className="py-1 pr-3">{it.lineNumber}</td>
+                          <td className="py-1 pr-3 font-mono text-xs">{it.satProductCode} / {it.satUnitCode}</td>
+                          <td className="py-1 pr-3 font-mono text-xs">{it.identificationNumber ?? '—'}</td>
+                          <td className="py-1 pr-3">{it.description}</td>
+                          <td className="py-1 pr-3 text-right">{it.quantity}</td>
+                          <td className="py-1 pr-3 text-right">{formatCurrency(it.amount)}</td>
+                          <td className="py-1 pr-3 text-right">{formatCurrency(it.taxes.reduce((s, t) => s + t.amount, 0))}</td>
+                          <td className="py-1 text-right font-medium">{formatCurrency(it.total)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              {!canManage && <p className="text-sm text-gray-500">Solo lectura: necesitas billing:manage para emitir.</p>}
+              <Button size="lg" disabled={!canEmit || create.isPending} onClick={() => setConfirmOpen(true)}>
+                <GlobeAltIcon className="h-5 w-5" aria-hidden />
+                Emitir factura global
+              </Button>
+            </div>
+
+            <ConfirmDialog
+              open={confirmOpen}
+              onOpenChange={setConfirmOpen}
+              title="Emitir factura global"
+              confirmLabel="Timbrar global"
+              isPending={create.isPending}
+              onConfirm={handleEmit}
+            >
+              <p>
+                Se timbrará <strong>1 CFDI</strong> con <strong>{p.totals.documents}</strong> documento(s) por{' '}
+                <strong>{formatCurrency(p.totals.total)}</strong> a <strong>PÚBLICO EN GENERAL</strong> para{' '}
+                <strong>{p.branch.name}</strong> del <strong>{formatIsoDate(p.localDate)}</strong> ({p.conceptMode === 'ticket' ? 'un concepto por ticket' : 'agrupada por producto'}).
+              </p>
+              <p className="mt-2 text-xs text-gray-500">Si la selección cambió desde la vista previa, el API la rechazará y se recargará la vista previa.</p>
+            </ConfirmDialog>
           </>
+        )}
+
+        {/* Globales de la sucursal */}
+        {branchId && (
+          <Card>
+            <CardContent className="p-6">
+              <h2 className="mb-3 text-lg font-semibold text-gray-900">Globales de la sucursal</h2>
+              {globals.isError ? (
+                <p className="text-sm text-red-700">{billingErrorMessage(globals.error, 'No se pudieron cargar las globales')}</p>
+              ) : (
+                <DataTable columns={globalColumns} data={globals.data?.data ?? []} isLoading={globals.isLoading} getRowKey={(inv) => inv.id} emptyMessage="Esta sucursal no tiene globales en v2." />
+              )}
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>

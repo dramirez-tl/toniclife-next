@@ -3,10 +3,17 @@
 // Sin esto el panel solo enseña "Request failed with status code 500": el
 // detalle real del PAC (ModelState / Details / Message) viaja en el cuerpo de
 // la respuesta y se tiraba. Mismo patrón que `extractStampError` de /admin/pos.
+//
+// Fase 2: todo `/billing` responde el cuerpo uniforme
+// `{ statusCode, code, message, field?, details?, providerCode?, invoiceId? }`
+// (contrato §3.9 / §4). El front lee `code` para DECIDIR y `message` para el
+// texto; `field` y `providerCode` se añaden al mensaje cuando vienen.
 
-/** Aviso único para los flujos de facturación cerrados en la Fase 0. */
+import type { BillingErrorBody } from '@/types/billing';
+
+/** Aviso único para los flujos de facturación cerrados (gate `billing.v2_flows_enabled`). */
 export const BILLING_FLOW_DISABLED_NOTICE =
-  'En corrección: hoy solo se factura desde el POS. Este flujo se reabre en la Fase 2 del plan de facturación.';
+  'Los flujos de v2 están cerrados; el sistema anterior sigue facturando. Sistemas los abre con el ajuste billing.v2_flows_enabled.';
 
 type AxiosLikeError = {
   message?: unknown;
@@ -34,6 +41,47 @@ const GENERIC_MESSAGES = [
   'service unavailable',
 ];
 
+/**
+ * Nombre legible del campo que rechazó el PAC o el validador (`field` del
+ * cuerpo uniforme). Las llaves son las del JSON de Facturama (§3.9) y las de
+ * `CfdiDocument`; lo que no esté aquí se muestra tal cual.
+ */
+export const BILLING_FIELD_LABELS: Record<string, string> = {
+  'Receiver.Rfc': 'RFC del receptor',
+  'Receiver.Name': 'Razón social del receptor',
+  'Receiver.TaxZipCode': 'CP fiscal del receptor',
+  'Receiver.FiscalRegime': 'Régimen fiscal del receptor',
+  'Receiver.CfdiUse': 'Uso de CFDI',
+  ExpeditionPlace: 'Lugar de expedición',
+  Date: 'Fecha del comprobante',
+  PaymentForm: 'Forma de pago',
+  PaymentMethod: 'Método de pago',
+  'receiver.rfc': 'RFC del receptor',
+  'receiver.name': 'Razón social del receptor',
+  'receiver.zipCode': 'CP fiscal del receptor',
+  'receiver.taxRegimeCode': 'Régimen fiscal del receptor',
+  'receiver.cfdiUseCode': 'Uso de CFDI',
+  expeditionPlace: 'Lugar de expedición',
+  localDateTime: 'Fecha del comprobante',
+  paymentForm: 'Forma de pago',
+  paymentMethod: 'Método de pago',
+  items: 'Conceptos',
+  totals: 'Totales',
+  payment: 'Complemento de pago',
+  relations: 'CFDI relacionados',
+};
+
+/** Campos del receptor: el error se corrige en Datos fiscales del cliente. */
+const RECEIVER_FIELD_PREFIXES = ['Receiver.', 'receiver.'];
+
+const RECEIVER_ERROR_CODES = new Set([
+  'CFDI_RECEIVER_RFC_INVALID',
+  'CFDI_RECEIVER_NAME_MISSING',
+  'CFDI_RECEIVER_REGIME_INVALID',
+  'CFDI_RECEIVER_USE_INCOMPATIBLE',
+  'CFDI_RECEIVER_ZIP_INVALID',
+]);
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -52,6 +100,7 @@ function isGeneric(message: string): boolean {
 function flattenText(value: unknown, depth = 0): string[] {
   if (depth > 3) return [];
   if (typeof value === 'string') return value.trim() ? [value.trim()] : [];
+  if (typeof value === 'number') return [String(value)];
   if (Array.isArray(value)) return value.flatMap((v) => flattenText(v, depth + 1));
   const record = asRecord(value);
   if (!record) return [];
@@ -67,13 +116,99 @@ function withStatus(fallback: string, status?: number): string {
 }
 
 /**
- * Mensaje legible de un error de `/billing`. Concatena el `message` del API
- * (string o arreglo de class-validator) con el detalle que devuelva Facturama.
+ * Cuerpo uniforme del error de `/billing`, o null si la respuesta no lo trae
+ * (proxy, red, contrato viejo). `message` puede llegar como arreglo de
+ * class-validator: se une en una sola línea.
+ */
+export function billingErrorBody(err: unknown): BillingErrorBody | null {
+  const error = err as AxiosLikeError | null | undefined;
+  const body = asRecord(error?.response?.data);
+  if (!body || typeof body.code !== 'string') return null;
+  const message = flattenText(body.message).join(', ');
+  return {
+    statusCode:
+      typeof body.statusCode === 'number' ? body.statusCode : (error?.response?.status ?? 0),
+    code: body.code,
+    message,
+    field: typeof body.field === 'string' ? body.field : undefined,
+    details: body.details,
+    providerCode: typeof body.providerCode === 'string' ? body.providerCode : null,
+    invoiceId: typeof body.invoiceId === 'string' ? body.invoiceId : undefined,
+  };
+}
+
+/** `code` del cuerpo uniforme (`CFDI_*`, `BILLING_*`...), o null. */
+export function billingErrorCode(err: unknown): string | null {
+  return billingErrorBody(err)?.code ?? null;
+}
+
+export function isBillingErrorCode(err: unknown, ...codes: string[]): boolean {
+  const code = billingErrorCode(err);
+  return code !== null && codes.includes(code);
+}
+
+/** Etiqueta en español del `field` del error (o el campo crudo). */
+export function billingFieldLabel(field: string | null | undefined): string | null {
+  if (!field) return null;
+  return BILLING_FIELD_LABELS[field] ?? field;
+}
+
+/**
+ * true cuando el error apunta a los datos fiscales del receptor: la pantalla
+ * ofrece "Corregir datos fiscales" (abre `CustomerFiscalDialog`).
+ */
+export function isReceiverBillingError(err: unknown): boolean {
+  const body = billingErrorBody(err);
+  if (!body) return false;
+  if (RECEIVER_ERROR_CODES.has(body.code)) return true;
+  return !!body.field && RECEIVER_FIELD_PREFIXES.some((p) => body.field!.startsWith(p));
+}
+
+/**
+ * Detalle del error como lista de líneas legibles (por ejemplo
+ * `details: [{ sku, name, lineNumber }]` de `CFDI_TAX_UNRESOLVED`).
+ */
+export function billingErrorDetails(err: unknown): string[] {
+  const body = billingErrorBody(err);
+  if (!body || body.details === undefined || body.details === null) return [];
+  if (Array.isArray(body.details)) {
+    return body.details.map((d) => {
+      const rec = asRecord(d);
+      if (!rec) return String(d);
+      return Object.entries(rec)
+        .filter(([, v]) => v !== null && v !== undefined && v !== '')
+        .map(([k, v]) => `${k}: ${String(v)}`)
+        .join(', ');
+    });
+  }
+  return flattenText(body.details);
+}
+
+/**
+ * Mensaje legible de un error de `/billing`. Con el cuerpo uniforme arma
+ * `message` + campo + código del PAC + detalle; con el contrato anterior
+ * concatena el `message` del API (string o arreglo) con lo que devuelva
+ * Facturama.
  */
 export function billingErrorMessage(err: unknown, fallback: string): string {
   const error = err as AxiosLikeError | null | undefined;
   const status = error?.response?.status;
   const data = error?.response?.data;
+
+  const uniform = billingErrorBody(err);
+  if (uniform) {
+    const parts: string[] = [];
+    const main = uniform.message && !isGeneric(uniform.message) ? uniform.message : '';
+    parts.push(main || withStatus(fallback, uniform.statusCode || status));
+    const field = billingFieldLabel(uniform.field);
+    if (field && !parts[0].toLowerCase().includes(field.toLowerCase())) {
+      parts.push(`Campo: ${field}`);
+    }
+    if (uniform.providerCode) parts.push(`Código PAC ${uniform.providerCode}`);
+    const details = billingErrorDetails(err);
+    if (details.length > 0) parts.push(details.slice(0, 5).join(' · '));
+    return parts.join(' · ');
+  }
 
   // Algunos proxies devuelven texto plano.
   if (typeof data === 'string' && data.trim()) return data.trim();
@@ -94,9 +229,25 @@ export function billingErrorMessage(err: unknown, fallback: string): string {
 }
 
 /**
- * true cuando el API responde 503: el flujo de facturación está cerrado a
- * propósito (Fase 0) y la pantalla debe avisarlo en vez de parecer rota.
+ * true cuando el flujo de facturación está cerrado a propósito (gate
+ * `billing.v2_flows_enabled`: 503 `BILLING_V2_DISABLED`) y la pantalla debe
+ * avisarlo en vez de parecer rota.
  */
 export function isBillingFlowDisabled(err: unknown): boolean {
-  return (err as AxiosLikeError | null | undefined)?.response?.status === 503;
+  if (isBillingErrorCode(err, 'BILLING_V2_DISABLED')) return true;
+  const status = (err as AxiosLikeError | null | undefined)?.response?.status;
+  return status === 503 && billingErrorCode(err) === null;
+}
+
+/**
+ * `invoiceId` que acompaña a `CFDI_ALREADY_LIVE` / `CFDI_IN_GLOBAL`
+ * (`details.globalInvoiceId`) para ofrecer "Ver factura".
+ */
+export function billingErrorInvoiceId(err: unknown): string | null {
+  const body = billingErrorBody(err);
+  if (!body) return null;
+  if (body.invoiceId) return body.invoiceId;
+  const details = asRecord(body.details);
+  const fromDetails = details?.invoiceId ?? details?.globalInvoiceId;
+  return typeof fromDetails === 'string' ? fromDetails : null;
 }
