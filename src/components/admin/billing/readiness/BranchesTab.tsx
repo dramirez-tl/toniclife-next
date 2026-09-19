@@ -8,13 +8,20 @@
 // Fase 2: "Factura en v2 desde" (`branches.v2_invoicing_since`) por sucursal,
 // con confirmación: es el candado de fecha que decide qué sistema factura
 // (PUT /billing/branches/:id/invoicing-since { since: 'YYYY-MM-DD' | null }).
+// El API lo exige a super_admin: para el resto es de solo lectura. Una fecha
+// PASADA volvería facturables en v2 días que el sistema anterior ya globalizó
+// (doble declaración), así que el campo arranca en hoy (zona de la sucursal) y
+// una fecha anterior pide la casilla explícita `acknowledgeLegacyStopped`.
 
 import { useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
@@ -25,7 +32,17 @@ import {
 } from '@/hooks/useBilling';
 import { useActiveTaxRules } from '@/hooks/useConfig';
 import { billingErrorMessage } from '@/lib/billing-error';
-import { BRANCH_ISSUE_INFO, isValidZip, taxRatePct, type ReadinessBranch } from '@/types/billing';
+import { DEFAULT_TIMEZONE } from '@/lib/timezone-utils';
+import { useAppSelector } from '@/store/hooks';
+import { selectUserRoles } from '@/store/slices/authSlice';
+import {
+  BRANCH_ISSUE_INFO,
+  isValidZip,
+  taxRatePct,
+  type BranchInvoicingSinceResult,
+  type ReadinessBranch,
+} from '@/types/billing';
+import { localDateInZone } from '../invoices/useBranchTimezone';
 
 interface Draft {
   zip: string;
@@ -45,7 +62,12 @@ interface SinceTarget {
   row: ReadinessBranch;
   /** null = quitar la fecha (la sucursal vuelve al sistema anterior). */
   since: string | null;
+  /** La fecha es anterior a hoy (zona de la sucursal): exige la casilla explícita. */
+  isPast: boolean;
 }
+
+const SINCE_READONLY_HINT =
+  'Solo Sistemas (super_admin) puede fijar o cambiar esta fecha: decide qué sistema factura la sucursal.';
 
 export function BranchesTab({ canManage }: { canManage: boolean }) {
   const { data, isLoading, error, refetch } = useReadinessBranches();
@@ -56,17 +78,36 @@ export function BranchesTab({ canManage }: { canManage: boolean }) {
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const setSince = useSetBranchInvoicingSince();
+  const roles = useAppSelector(selectUserRoles);
+  // El PUT exige super_admin (billing:manage no alcanza): el resto solo mira.
+  const canSetSince = roles.includes('super_admin');
   const [sinceDrafts, setSinceDrafts] = useState<Record<string, string>>({});
   const [sinceTarget, setSinceTarget] = useState<SinceTarget | null>(null);
+  const [legacyStopped, setLegacyStopped] = useState(false);
+  // Respuesta del último cambio por sucursal: terminales encendidas y aviso del API.
+  const [sinceResults, setSinceResults] = useState<Record<string, BranchInvoicingSinceResult>>({});
 
   const currentSince = (row: ReadinessBranch) => (row.v2InvoicingSince ?? '').slice(0, 10);
   const sinceDraftOf = (row: ReadinessBranch) => sinceDrafts[row.id] ?? currentSince(row);
+  /** Hoy en la zona de la sucursal: mínimo del campo de fecha. */
+  const todayOf = (row: ReadinessBranch) => localDateInZone(row.timezone || DEFAULT_TIMEZONE);
+
+  const openSinceTarget = (row: ReadinessBranch, since: string | null) => {
+    setLegacyStopped(false);
+    setSinceTarget({ row, since, isPast: !!since && since < todayOf(row) });
+  };
 
   const confirmSince = async () => {
     if (!sinceTarget) return;
-    const { row, since } = sinceTarget;
+    const { row, since, isPast } = sinceTarget;
+    if (isPast && !legacyStopped) return;
     try {
-      await setSince.mutateAsync({ branchId: row.id, since });
+      const result = await setSince.mutateAsync({
+        branchId: row.id,
+        since,
+        acknowledgeLegacyStopped: isPast ? true : undefined,
+      });
+      setSinceResults((prev) => ({ ...prev, [row.id]: result }));
       setSinceDrafts((prev) => {
         const next = { ...prev };
         delete next[row.id];
@@ -212,43 +253,93 @@ export function BranchesTab({ canManage }: { canManage: boolean }) {
       header: 'Factura en v2 desde',
       render: (row) => {
         const current = currentSince(row);
+        if (!canSetSince) {
+          // Solo lectura: el valor se ve, pero no hay controles que terminen en un 403.
+          return (
+            <div className="min-w-[210px] space-y-1">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span
+                      tabIndex={0}
+                      className="inline-block rounded-md border border-dashed border-gray-300 px-2 py-1 text-sm text-gray-800"
+                      aria-label={`${row.name}: ${current ? `factura en v2 desde el ${formatSince(current)}` : 'sin fecha de arranque en v2'}. ${SINCE_READONLY_HINT}`}
+                    >
+                      {current ? formatSince(current) : 'Sin fecha'}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>{SINCE_READONLY_HINT}</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              {!current && (
+                <p className="text-xs text-muted-foreground">Sin fecha: factura el sistema anterior.</p>
+              )}
+            </div>
+          );
+        }
         const draft = sinceDraftOf(row);
         const changed = draft !== current;
+        const today = todayOf(row);
+        const draftIsPast = !!draft && changed && draft < today;
+        const hintId = `br-since-hint-${row.id}`;
+        const lastResult = sinceResults[row.id];
+        const hasTerminals =
+          typeof lastResult?.terminalsOn === 'number' && typeof lastResult?.terminalsTotal === 'number';
         return (
           <div className="min-w-[210px] space-y-1">
             <Input
               id={`br-since-${row.id}`}
               type="date"
               value={draft}
+              min={today}
               onChange={(e) => setSinceDrafts((prev) => ({ ...prev, [row.id]: e.target.value }))}
-              disabled={!canManage || setSince.isPending}
+              disabled={setSince.isPending}
               aria-label={`Fecha desde la que ${row.name} factura en v2`}
+              aria-describedby={draftIsPast ? hintId : undefined}
             />
-            {canManage ? (
-              <div className="flex flex-wrap gap-1">
+            {draftIsPast && (
+              <p id={hintId} className="text-xs text-amber-700">
+                Fecha anterior a hoy: al confirmar tendrás que declarar que el sistema anterior ya dejó de facturar
+                esta sucursal.
+              </p>
+            )}
+            <div className="flex flex-wrap gap-1">
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={!draft || !changed || setSince.isPending}
+                onClick={() => openSinceTarget(row, draft)}
+              >
+                {current ? 'Cambiar fecha' : 'Fijar fecha'}
+              </Button>
+              {current && (
                 <Button
                   size="sm"
-                  variant="secondary"
-                  disabled={!draft || !changed || setSince.isPending}
-                  onClick={() => setSinceTarget({ row, since: draft })}
+                  variant="ghost"
+                  className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                  disabled={setSince.isPending}
+                  onClick={() => openSinceTarget(row, null)}
                 >
-                  {current ? 'Cambiar fecha' : 'Fijar fecha'}
+                  Quitar
                 </Button>
-                {current && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                    disabled={setSince.isPending}
-                    onClick={() => setSinceTarget({ row, since: null })}
-                  >
-                    Quitar
-                  </Button>
-                )}
-              </div>
-            ) : null}
+              )}
+            </div>
             {!current && (
               <p className="text-xs text-muted-foreground">Sin fecha: factura el sistema anterior.</p>
+            )}
+            {lastResult && (hasTerminals || lastResult.warning) && (
+              <div className="space-y-0.5 text-xs" role="status">
+                {hasTerminals && (
+                  <p
+                    className={
+                      lastResult.terminalsOn === lastResult.terminalsTotal ? 'text-emerald-700' : 'text-amber-700'
+                    }
+                  >
+                    Terminales con Facturación encendida: {lastResult.terminalsOn} de {lastResult.terminalsTotal}
+                  </p>
+                )}
+                {lastResult.warning && <p className="text-amber-700">{lastResult.warning}</p>}
+              </div>
             )}
           </div>
         );
@@ -333,7 +424,7 @@ export function BranchesTab({ canManage }: { canManage: boolean }) {
           <strong>Factura en v2 desde:</strong> primer día (zona de la sucursal) cuyas ventas factura v2.
           Las ventas anteriores a esa fecha se facturan en el sistema anterior; la factura global exige
           además todas las terminales de la sucursal con Facturación encendida. Sin fecha, v2 no factura
-          nada de esa sucursal.
+          nada de esa sucursal. {canSetSince ? 'La fecha normal es hoy o un día futuro.' : SINCE_READONLY_HINT}
         </p>
         <ul className="list-disc space-y-0.5 pl-5 text-xs">
           {(Object.keys(BRANCH_ISSUE_INFO) as (keyof typeof BRANCH_ISSUE_INFO)[]).map((k) => (
@@ -381,11 +472,35 @@ export function BranchesTab({ canManage }: { canManage: boolean }) {
               : 'La sucursal vuelve a facturar solo en el sistema anterior: v2 rechazará sus ventas y sus días.'
           }
           confirmLabel={sinceTarget.since ? 'Fijar fecha' : 'Quitar fecha'}
+          cancelLabel="Volver"
           confirmText="CONFIRMAR"
-          destructive={!sinceTarget.since}
+          destructive={!sinceTarget.since || sinceTarget.isPast}
+          disabled={sinceTarget.isPast && !legacyStopped}
           isPending={setSince.isPending}
           onConfirm={confirmSince}
         >
+          {sinceTarget.isPast && (
+            <div className="mb-3 space-y-2 rounded-lg border border-red-200 bg-red-50 p-3 text-red-900" role="alert">
+              <p className="font-semibold">La fecha {formatSince(sinceTarget.since)} ya pasó.</p>
+              <p className="text-xs">
+                Los días entre esa fecha y hoy quedarían facturables en v2. Si el sistema anterior ya emitió la
+                factura global de alguno de esos días, el mismo ingreso se declararía dos veces.
+              </p>
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="br-since-legacy-stopped"
+                  checked={legacyStopped}
+                  onCheckedChange={(v) => setLegacyStopped(v === true)}
+                  disabled={setSince.isPending}
+                  className="mt-0.5"
+                />
+                <Label htmlFor="br-since-legacy-stopped" className="text-sm font-medium leading-snug">
+                  El sistema anterior ya dejó de facturar esta sucursal desde el {formatSince(sinceTarget.since)} y no
+                  emitió globales de esos días.
+                </Label>
+              </div>
+            </div>
+          )}
           <ul className="list-disc space-y-1 pl-5">
             {sinceTarget.since ? (
               <>

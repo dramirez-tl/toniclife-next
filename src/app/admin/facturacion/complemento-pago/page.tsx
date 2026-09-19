@@ -4,9 +4,14 @@
 // importe por documento (default = saldo; Σ = monto en vivo).
 // Paso 3: vista previa de parcialidades calculada en el cliente (la BD manda)
 // → ConfirmDialog → POST /billing/payment-complements con `idempotencyKey`
-// (uuid v4 generado al abrir el formulario; se regenera solo tras éxito) →
-// detalle del CFDI P. El API crea y timbra en la misma llamada: no hay
-// botón "Timbrar" posterior.
+// (uuid v4 generado al abrir el formulario) → detalle del CFDI P. El API crea
+// y timbra en la misma llamada: no hay botón "Timbrar" posterior.
+//
+// Llave de idempotencia: la MISMA llave solo se reutiliza para reenviar el
+// MISMO borrador (p. ej. tras un corte de red). Se regenera, sin perder la
+// selección, cuando cambia cualquier campo tras un intento, cuando el API
+// responde `CFDI_IDEMPOTENCY_CONFLICT` o cuando la respuesta no quedó timbrada:
+// con la llave vieja el API devolvería el complemento anterior (importes viejos).
 'use client';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
@@ -44,7 +49,7 @@ import {
   useInvoices,
   usePaymentForms,
 } from '@/hooks/useBilling';
-import { billingErrorMessage, isBillingFlowDisabled } from '@/lib/billing-error';
+import { billingErrorMessage, isBillingErrorCode, isBillingFlowDisabled } from '@/lib/billing-error';
 import {
   buildPartialitiesPreview,
   parseAmount,
@@ -139,6 +144,9 @@ function ComplementoPagoContent() {
   const [amountTouched, setAmountTouched] = useState(false);
   const [operationNumber, setOperationNumber] = useState('');
   const [idempotencyKey, setIdempotencyKey] = useState(() => uuidV4());
+  // Firma del borrador enviado con la llave actual (null = la llave aún no se usa).
+  const [attemptSignature, setAttemptSignature] = useState<string | null>(null);
+  const [newAttemptNotice, setNewAttemptNotice] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [flowDisabled, setFlowDisabled] = useState(false);
 
@@ -162,11 +170,29 @@ function ComplementoPagoContent() {
   const errors = validateComplementDraft({ amount, paymentDate, paymentFormCode, rows, latestStampDate, today });
   const canSubmit = errors.length === 0 && !flowDisabled;
 
+  // Todo lo que viaja al API: si cambia tras un intento, la llave ya no sirve.
+  const draftSignature = JSON.stringify({
+    paymentDate,
+    paymentTime,
+    paymentFormCode,
+    amount: parseAmount(amount),
+    operationNumber: operationNumber.trim(),
+    documents: rows.map((r) => [r.invoiceId, r.amountPaid]),
+  });
+
   const create = useCreatePaymentComplement();
   const submit = async () => {
+    // Borrador distinto al del intento anterior ⇒ llave nueva (la selección se conserva).
+    let key = idempotencyKey;
+    if (attemptSignature !== null && attemptSignature !== draftSignature) {
+      key = uuidV4();
+      setIdempotencyKey(key);
+    }
+    setAttemptSignature(draftSignature);
+    setNewAttemptNotice(false);
     try {
       const invoice = await create.mutateAsync({
-        idempotencyKey,
+        idempotencyKey: key,
         paymentDate,
         paymentTime: paymentTime || undefined,
         paymentFormCode,
@@ -174,11 +200,23 @@ function ComplementoPagoContent() {
         operationNumber: operationNumber.trim() || undefined,
         documents: rows.map((r) => ({ invoiceId: r.invoiceId, amountPaid: r.amountPaid })),
       });
-      setIdempotencyKey(uuidV4()); // solo tras éxito: un reintento reutiliza la misma llave
+      // Hubo respuesta (timbrada o no): esa llave queda ligada a ESE complemento.
+      // Si no quedó timbrado se reintenta o se desecha desde su detalle; un pago
+      // nuevo desde este formulario necesita otra llave.
+      setIdempotencyKey(uuidV4());
+      setAttemptSignature(null);
       setConfirmOpen(false);
       router.push(`/admin/facturacion/${invoice.id}`);
     } catch (err) {
       if (isBillingFlowDisabled(err)) setFlowDisabled(true);
+      if (isBillingErrorCode(err, 'CFDI_IDEMPOTENCY_CONFLICT')) {
+        // La llave ya se usó con otros datos: llave nueva y se conserva la selección.
+        setIdempotencyKey(uuidV4());
+        setAttemptSignature(null);
+        setConfirmOpen(false);
+        setNewAttemptNotice(true);
+      }
+      // Error de red o del PAC sin respuesta: se conserva la llave para reenviar el MISMO borrador.
     }
   };
 
@@ -237,6 +275,17 @@ function ComplementoPagoContent() {
         {flowDisabled && status?.v2FlowsEnabled !== false && (
           <Card className="border-amber-200 bg-amber-50" role="status">
             <CardContent className="p-4 text-sm text-amber-900">Los flujos de v2 están cerrados; el sistema anterior sigue facturando.</CardContent>
+          </Card>
+        )}
+        {newAttemptNotice && (
+          <Card className="border-amber-200 bg-amber-50" role="status">
+            <CardContent className="flex flex-wrap items-center justify-between gap-2 p-4 text-sm text-amber-900">
+              <span>
+                Los datos del pago cambiaron respecto al intento anterior, así que se preparó un intento nuevo. Tu
+                selección de facturas e importes se conservó: revisa los datos y vuelve a confirmar.
+              </span>
+              <Button size="sm" variant="ghost" onClick={() => setNewAttemptNotice(false)}>Entendido</Button>
+            </CardContent>
           </Card>
         )}
 
