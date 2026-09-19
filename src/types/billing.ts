@@ -260,6 +260,10 @@ export interface InvoiceDetail extends InvoiceSummary {
     documents: GlobalDocumentDto[];
     released: GlobalDocumentDto[];
     reissueState: GlobalReissueState;
+    /** Ventas incluibles del día que esta global VIVA no declara (habilitan `canReissue`). */
+    uncoveredCount?: number;
+    /** Importe (con IVA) de esas ventas. */
+    uncoveredTotal?: number;
   } | null;
   ppd: {
     paidAmount: number;
@@ -344,6 +348,10 @@ export interface RefreshStatusResult {
   satCancellationStatus: string | null;
   checkedAt: string;
   foliosUsed: number;
+  /** true = esta consulta confirmó la cancelación y liberó el origen. */
+  confirmed?: boolean;
+  /** Explicación del API en español, lista para mostrarse. */
+  message?: string;
 }
 
 /**
@@ -483,17 +491,20 @@ export type GlobalDayState =
   | 'blocked'
   | 'open'
   | 'emitted'
-  /** Global viva del día + tickets incluibles que no están en ella (ingreso sin declarar). */
-  | 'emitted_with_pending'
   | 'cancelled'
   | 'pending_reissue';
 
-/** Por qué un día está `blocked`. */
+/**
+ * Por qué un día está `blocked`. `uncovered_tickets` es la excepción: llega con
+ * el día `emitted` (o `pending_reissue`) cuando la global viva NO declara ventas
+ * incluibles del día (`uncoveredCount` / `uncoveredTotal`): hay que reexpedirla.
+ */
 export type GlobalDayBlockReason =
   | 'tickets'
   | 'terminals_off'
   | 'attempt_in_progress'
-  | 'stale_error';
+  | 'stale_error'
+  | 'uncovered_tickets';
 
 /** `GET /billing/global-invoices/days` */
 export interface GlobalDayStatus {
@@ -509,6 +520,8 @@ export interface GlobalDayStatus {
   blockReason?: GlobalDayBlockReason | null;
   /** Tickets incluibles de un día YA emitido que no están en su global. */
   uncoveredCount?: number;
+  /** Importe (con IVA) de esos tickets: ingreso del día que la global no declara. */
+  uncoveredTotal?: number;
   lateEmission: boolean;
 }
 

@@ -104,12 +104,17 @@ export const GLOBAL_DAY_STATUS_INFO: Record<
   blocked: { label: 'Bloqueada', className: 'bg-red-50 text-red-800 border-red-200' },
   open: { label: 'Día abierto', className: 'bg-amber-50 text-amber-800 border-amber-200' },
   emitted: { label: 'Emitida', className: 'bg-[#C8DDF2] text-[#2f5165] border-[#3E667D]/30' },
-  emitted_with_pending: {
-    label: 'Emitida · faltan tickets',
-    className: 'bg-rose-50 text-rose-800 border-rose-300',
-  },
   cancelled: { label: 'Cancelada', className: 'bg-orange-50 text-orange-800 border-orange-200' },
   pending_reissue: { label: 'Por reexpedir', className: 'bg-purple-50 text-purple-800 border-purple-200' },
+};
+
+/**
+ * Día con global viva que NO declara todos sus tickets. No es un estado del API:
+ * llega `emitted` (o `pending_reissue`) con `uncoveredCount > 0`.
+ */
+export const GLOBAL_DAY_UNCOVERED_INFO: { label: string; className: string } = {
+  label: 'Emitida · faltan tickets',
+  className: 'bg-rose-50 text-rose-800 border-rose-300',
 };
 
 export const GLOBAL_EXCLUSION_LABELS: Record<GlobalExclusionReason, string> = {
@@ -134,6 +139,7 @@ export const GLOBAL_DAY_BLOCK_REASON_LABELS: Record<GlobalDayBlockReason, string
   terminals_off: 'Hay terminales de la sucursal con Facturación apagada.',
   attempt_in_progress: 'Hay un intento de factura global en curso para este día.',
   stale_error: 'Quedó un intento con error de hace más de 24 horas: descártalo para poder emitir el día.',
+  uncovered_tickets: 'La global del día no declara todos los tickets: hay que reexpedirla.',
 };
 
 export function globalDayBlockReasonLabel(reason: string | null | undefined): string | null {

@@ -34,6 +34,7 @@ import {
   useGlobalPreview,
   useInvoices,
   useReadinessBranches,
+  useReissueGlobalInvoice,
 } from '@/hooks/useBilling';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { billingErrorMessage, isBillingErrorCode, isBillingFlowDisabled } from '@/lib/billing-error';
@@ -52,6 +53,7 @@ import { V2FlowsBanner } from '@/components/admin/billing/invoices/BillingStatus
 import {
   CONCEPT_MODE_OPTIONS,
   GLOBAL_DAY_STATUS_INFO,
+  GLOBAL_DAY_UNCOVERED_INFO,
   INVOICE_STATUS_OPTIONS,
   globalBlockerLabel,
   globalDayBlockReasonLabel,
@@ -61,13 +63,16 @@ import { formatIsoDate, localDateInZone, useBranchTimezone } from '@/components/
 
 const DAYS_STRIP = 14;
 
-/** Día YA emitido con tickets incluibles fuera de su global (ingreso sin declarar). */
+/**
+ * Día YA emitido con tickets incluibles fuera de su global (ingreso sin declarar).
+ * El API lo manda como `emitted` + `blockReason: 'uncovered_tickets'` + `uncoveredCount`.
+ */
 function dayHasUncovered(d: GlobalDayStatus): boolean {
-  return d.status === 'emitted_with_pending' || (d.uncoveredCount ?? 0) > 0;
+  return d.blockReason === 'uncovered_tickets' || (d.uncoveredCount ?? 0) > 0;
 }
 
 function dayInfo(d: GlobalDayStatus) {
-  if (dayHasUncovered(d)) return GLOBAL_DAY_STATUS_INFO.emitted_with_pending;
+  if (dayHasUncovered(d)) return GLOBAL_DAY_UNCOVERED_INFO;
   return GLOBAL_DAY_STATUS_INFO[d.status] ?? GLOBAL_DAY_STATUS_INFO.not_eligible;
 }
 
@@ -135,7 +140,15 @@ function GlobalInvoiceContent() {
   const preview = useGlobalPreview(branchId ? { branchId, date, conceptMode } : null, previewRequested);
   const create = useCreateGlobalInvoice();
   const discard = useDiscardGlobalInvoice();
+  const reissue = useReissueGlobalInvoice();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // Global viva (día ya emitido) que se va a reexpedir porque no declara todos sus tickets.
+  const [reissueTarget, setReissueTarget] = useState<{
+    invoiceId: string;
+    localDate: string;
+    uncoveredCount: number;
+    uncoveredTotal: number | null;
+  } | null>(null);
   const [flowDisabled, setFlowDisabled] = useState(false);
   // Intento (sin UUID) que se va a descartar, desde la tira de días o la vista previa.
   const [discardTarget, setDiscardTarget] = useState<{ invoiceId: string; localDate: string } | null>(null);
@@ -149,6 +162,24 @@ function GlobalInvoiceContent() {
       setDiscardTarget(null);
       if (previewRequested) void preview.refetch();
     } catch {
+      // El hook ya avisó.
+    }
+  };
+
+  const confirmReissue = async () => {
+    if (!reissueTarget) return;
+    try {
+      const result = await reissue.mutateAsync(reissueTarget.invoiceId);
+      setReissueTarget(null);
+      // Solo `reissued` trae una global nueva; con `waiting_sat` o
+      // `nothing_to_reissue` el hook avisa y la tira de días se refresca.
+      if (result.state === 'reissued' && result.invoice) {
+        router.push(`/admin/facturacion/${result.invoice.id}`);
+      } else if (previewRequested) {
+        void preview.refetch();
+      }
+    } catch (err) {
+      if (isBillingFlowDisabled(err)) setFlowDisabled(true);
       // El hook ya avisó.
     }
   };
@@ -329,15 +360,38 @@ function GlobalInvoiceContent() {
                     <span>
                       <span className="font-semibold">
                         El {formatIsoDate(selectedDay.localDate)} ya tiene global, pero
-                        {selectedDay.uncoveredCount ? ` ${selectedDay.uncoveredCount} ticket(s) quedaron` : ' hay tickets'} sin declarar.
+                        {selectedDay.uncoveredCount ? ` ${selectedDay.uncoveredCount} ticket(s)` : ' hay tickets'}
+                        {selectedDay.uncoveredTotal ? ` por ${formatCurrency(selectedDay.uncoveredTotal)}` : ''}
+                        {selectedDay.uncoveredCount ? ' quedaron' : ''} sin declarar.
                       </span>{' '}
-                      Pasa cuando se cancela la factura nominativa de un ticket después de emitir la global. Hay que
-                      reexpedir la global del día para incluirlos.
+                      Pasa cuando una venta del día se completa o se libera después de emitir la global (por ejemplo, al
+                      cancelar su factura nominativa). Hay que reexpedir la global del día para incluirlos.
                     </span>
                     {selectedDay.invoiceId && (
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/admin/facturacion/${selectedDay.invoiceId}`}>Abrir la global para reexpedir</Link>
-                      </Button>
+                      <div className="flex flex-wrap gap-2">
+                        <Button asChild size="sm" variant="outline">
+                          <Link href={`/admin/facturacion/${selectedDay.invoiceId}`}>Ver la global</Link>
+                        </Button>
+                        {canManage ? (
+                          <Button
+                            size="sm"
+                            disabled={reissue.isPending || flowDisabled}
+                            onClick={() =>
+                              setReissueTarget({
+                                invoiceId: selectedDay.invoiceId as string,
+                                localDate: selectedDay.localDate,
+                                uncoveredCount: selectedDay.uncoveredCount ?? 0,
+                                uncoveredTotal: selectedDay.uncoveredTotal ?? null,
+                              })
+                            }
+                          >
+                            {reissue.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
+                            Reexpedir global
+                          </Button>
+                        ) : (
+                          <span className="self-center text-xs">Solo lectura: necesitas billing:manage para reexpedir.</span>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}
@@ -530,6 +584,41 @@ function GlobalInvoiceContent() {
             onConfirm={confirmDiscard}
           >
             <p>Los tickets del día quedan libres y el día vuelve a estar disponible para emitir su factura global.</p>
+          </ConfirmDialog>
+        )}
+
+        {reissueTarget && (
+          <ConfirmDialog
+            open={!!reissueTarget}
+            onOpenChange={(open) => {
+              if (!open) setReissueTarget(null);
+            }}
+            title={`Reexpedir la factura global del ${formatIsoDate(reissueTarget.localDate)}`}
+            description="Se cancela la global del día con el motivo 04 y se timbra una nueva del mismo día con todas las ventas vigentes, con relación 04 a la cancelada. Son CFDI ante el SAT: no se pueden borrar."
+            confirmLabel="Reexpedir"
+            confirmText="REEXPEDIR"
+            cancelLabel="Volver"
+            destructive
+            isPending={reissue.isPending}
+            onConfirm={confirmReissue}
+          >
+            <p>
+              {reissueTarget.uncoveredCount > 0 ? (
+                <>
+                  La nueva global dejará declarados <strong>{reissueTarget.uncoveredCount}</strong> ticket(s)
+                  {reissueTarget.uncoveredTotal !== null && (
+                    <> por <strong>{formatCurrency(reissueTarget.uncoveredTotal)}</strong></>
+                  )}{' '}
+                  que hoy están fuera de la global de este día.
+                </>
+              ) : (
+                <>La nueva global dejará declarados los tickets que hoy están fuera de la global de este día.</>
+              )}
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              <li>Si la cancelación queda en proceso ante el SAT, todavía NO se emite la nueva: abre la global, usa &quot;Actualizar estatus SAT&quot; y, cuando quede cancelada, vuelve a pulsar Reexpedir.</li>
+              <li>Si el PAC rechaza la relación 04, la nueva global se emite sin ella y se te avisa.</li>
+            </ul>
           </ConfirmDialog>
         )}
 
