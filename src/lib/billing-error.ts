@@ -240,8 +240,22 @@ export function isBillingFlowDisabled(err: unknown): boolean {
 }
 
 /**
- * `invoiceId` que acompaña a `CFDI_ALREADY_LIVE` / `CFDI_IN_GLOBAL`
- * (`details.globalInvoiceId`) para ofrecer "Ver factura".
+ * Id de la factura GLOBAL viva que contiene al ticket (`CFDI_IN_GLOBAL`). Al
+ * retimbrar, el API relanza el error con `invoiceId` = la propia nominativa y
+ * deja la global en `details.globalInvoiceId`: por eso se lee primero el detalle.
+ */
+export function billingErrorGlobalInvoiceId(err: unknown): string | null {
+  const body = billingErrorBody(err);
+  if (!body) return null;
+  const fromDetails = asRecord(body.details)?.globalInvoiceId;
+  if (typeof fromDetails === 'string' && fromDetails) return fromDetails;
+  return billingErrorInvoiceId(err);
+}
+
+/**
+ * `invoiceId` que acompaña a un error de facturación (`CFDI_ALREADY_LIVE`, el
+ * intento que quedó en `error`…) para ofrecer "Ver factura" / "Ver intento".
+ * Para la global de un `CFDI_IN_GLOBAL` usa `billingErrorGlobalInvoiceId`.
  */
 export function billingErrorInvoiceId(err: unknown): string | null {
   const body = billingErrorBody(err);

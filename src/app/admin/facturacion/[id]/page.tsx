@@ -56,7 +56,7 @@ import {
 import { useAppSelector } from '@/store/hooks';
 import { selectUserRoles } from '@/store/slices/authSlice';
 import {
-  billingErrorInvoiceId,
+  billingErrorGlobalInvoiceId,
   billingErrorMessage,
   billingFieldLabel,
   isBillingErrorCode,
@@ -224,7 +224,13 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
   const isGlobal = invoice.invoiceType === 'global';
   const isPaymentComplement = invoice.invoiceType === 'payment';
   const discardPending = discardGlobal.isPending || discardOther.isPending;
-  const waitingSatReissue = isGlobal && invoice.providerStatus === InvoiceStatus.CANCEL_PENDING;
+  // Global: operaciones que ya no le corresponden (nominativas) y ventas del día sin declarar.
+  const nominativeReleased = invoice.global
+    ? invoice.global.released.filter((d) => d.releasedReason === 'nominative_issued').length
+    : 0;
+  const uncoveredCount = invoice.global?.uncoveredCount ?? 0;
+  const uncoveredTotal = invoice.global?.uncoveredTotal ?? null;
+  const needsReissue = isGlobal && (invoice.global?.reissueState === 'pending_reissue' || uncoveredCount > 0);
   const errorMapped = invoice.providerErrorMapped;
   const errorText = errorMapped?.message ?? invoice.providerError;
   const errorField = errorMapped?.field ?? null;
@@ -266,7 +272,9 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
       setAckGlobalOpen(false);
     } catch (err) {
       if (!acknowledgeGlobal && isBillingErrorCode(err, 'CFDI_IN_GLOBAL')) {
-        setAckGlobalInvoiceId(billingErrorInvoiceId(err));
+        // El `invoiceId` del error es ESTA nominativa: la global viene en `details.globalInvoiceId`.
+        const globalId = billingErrorGlobalInvoiceId(err);
+        setAckGlobalInvoiceId(globalId && globalId !== invoice.id ? globalId : null);
         setStampOpen(false);
         setAckGlobalOpen(true);
       }
@@ -418,18 +426,33 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
               </Card>
             )}
 
-            {isGlobal && invoice.global?.reissueState === 'pending_reissue' && (
+            {needsReissue && (
               <Card className="border-purple-200 bg-purple-50" role="status">
                 <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
                   <div className="text-sm text-purple-900">
                     <p className="font-semibold">
-                      Tiene {invoice.global.released.filter((d) => d.releasedReason === 'nominative_issued').length} operación(es) facturada(s) nominativamente
+                      {nominativeReleased > 0
+                        ? `Tiene ${nominativeReleased} operación(es) facturada(s) nominativamente`
+                        : 'Esta global tiene operaciones que ya no le corresponden o tickets sin declarar: hay que cancelarla y reexpedirla'}
                     </p>
-                    <p className="text-xs">Hay que cancelar esta global con el motivo 04 y reexpedirla sin esos tickets (relación 04).</p>
+                    {uncoveredCount > 0 && (
+                      <p>
+                        {uncoveredCount} ticket(s) del día
+                        {uncoveredTotal !== null ? ` por ${formatCurrency(uncoveredTotal)}` : ''} no están declarados en esta global.
+                      </p>
+                    )}
+                    <p className="text-xs">
+                      {nominativeReleased > 0 && uncoveredCount === 0
+                        ? 'Hay que cancelar esta global con el motivo 04 y reexpedirla sin esos tickets (relación 04).'
+                        : 'La reexpedición cancela esta global con el motivo 04 y timbra una nueva con las ventas vigentes del día (relación 04).'}
+                    </p>
+                    {!a.canReissue && invoice.providerStatus === InvoiceStatus.CANCEL_PENDING && (
+                      <p className="text-xs">La cancelación está en proceso ante el SAT: usa &quot;Actualizar estatus SAT&quot;; cuando quede cancelada vuelve a pulsar Reexpedir.</p>
+                    )}
                   </div>
                   {canManage && a.canReissue && (
                     <Button onClick={() => setReissueOpen(true)} disabled={reissue.isPending}>
-                      {waitingSatReissue ? 'Esperando al SAT: reintentar reexpedición' : 'Reexpedir sin los tickets facturados'}
+                      {nominativeReleased > 0 && uncoveredCount === 0 ? 'Reexpedir sin los tickets facturados' : 'Reexpedir global'}
                     </Button>
                   )}
                 </CardContent>
@@ -596,6 +619,15 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
                     Día {formatIsoDate(invoice.global.localDate)} · {invoice.global.documentCount ?? invoice.global.documents.length} documento(s) ·{' '}
                     {invoice.global.conceptMode === 'ticket' ? 'un concepto por ticket' : 'agrupada por producto'}
                   </p>
+                  {uncoveredCount > 0 && (
+                    <p className="mb-4 rounded-lg border border-rose-300 bg-rose-50 p-3 text-sm text-rose-900" role="status">
+                      <span className="font-semibold">
+                        Sin declarar: {uncoveredCount} ticket(s)
+                        {uncoveredTotal !== null ? ` por ${formatCurrency(uncoveredTotal)}` : ''}.
+                      </span>{' '}
+                      Son ventas del día que esta global no incluye; se declaran al reexpedirla.
+                    </p>
+                  )}
                   <h3 className="mb-2 text-sm font-semibold text-gray-800">Incluidos</h3>
                   <GlobalDocumentsTable docs={invoice.global.documents} />
                   {invoice.global.released.length > 0 && (
@@ -811,7 +843,7 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
                     {a.canReissue && isGlobal && (
                       <Button variant="outline" className="w-full" onClick={() => setReissueOpen(true)} disabled={reissue.isPending}>
                         <ArrowsRightLeftIcon className="h-5 w-5" aria-hidden />
-                        {waitingSatReissue ? 'Esperando al SAT: reintentar reexpedición' : 'Reexpedir global'}
+                        Reexpedir global
                       </Button>
                     )}
                     {a.canCancel && (
@@ -1087,15 +1119,25 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
         open={reissueOpen}
         onOpenChange={setReissueOpen}
         title="Reexpedir la factura global"
-        description="Se cancela esta global con el motivo 04 y se timbra una nueva del mismo día sin los tickets facturados nominativamente, con relación 04 a la cancelada."
+        description="Se cancela esta global con el motivo 04 y se timbra una nueva del mismo día con las ventas vigentes (sin los tickets facturados nominativamente y con los que faltaban por declarar), con relación 04 a la cancelada."
         confirmLabel="Reexpedir"
         confirmText="REEXPEDIR"
+        cancelLabel="Volver"
         destructive
         isPending={reissue.isPending}
         onConfirm={reissueNow}
       >
+        {uncoveredCount > 0 && (
+          <p className="mb-2">
+            La nueva global dejará declarados <strong>{uncoveredCount}</strong> ticket(s)
+            {uncoveredTotal !== null && (
+              <> por <strong>{formatCurrency(uncoveredTotal)}</strong></>
+            )}{' '}
+            que hoy están fuera de esta global.
+          </p>
+        )}
         <ul className="list-disc space-y-1 pl-5">
-          <li>Si el SAT deja la cancelación en proceso, todavía NO se emite la nueva: te quedas en esta factura y el botón dirá &quot;Esperando al SAT&quot; para reintentar más tarde.</li>
+          <li>Si la cancelación queda en proceso, usa &quot;Actualizar estatus SAT&quot;; cuando quede cancelada vuelve a pulsar Reexpedir.</li>
           <li>Si el PAC rechaza la relación 04, la nueva global se emite sin ella y se te avisa.</li>
         </ul>
       </ConfirmDialog>
