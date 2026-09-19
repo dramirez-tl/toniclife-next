@@ -223,9 +223,16 @@ export interface AmbiguityCandidate {
   rfcMasked: string | null;
 }
 
-/** Body de `POST /billing/invoices/:id/resolve-ambiguous` (solo super_admin). */
+/**
+ * Body de `POST /billing/invoices/:id/resolve-ambiguous` (solo super_admin).
+ *
+ * V3-L2: en `adopt`, `uuid` debe ser uno de `ambiguity.candidates` (el API
+ * responde 422 si no). `force` + `reason` (obligatorio) adopta un UUID NO
+ * listado, solo en ingresos y globales y nunca en complementos de pago; es
+ * una salida de emergencia por API: el admin NO la ofrece.
+ */
 export type ResolveAmbiguousDto =
-  | { action: 'adopt'; uuid: string }
+  | { action: 'adopt'; uuid: string; force?: boolean; reason?: string }
   | { action: 'mark_not_stamped'; confirmation: 'NO TIMBRADA'; reason?: string };
 
 /** `GET /billing/invoices/:id` (contrato §7.1). */

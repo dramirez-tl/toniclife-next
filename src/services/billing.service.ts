@@ -204,6 +204,9 @@ export async function discardInvoice(id: string): Promise<DiscardInvoiceResult> 
  * V2-L3: salida manual de un timbrado ambiguo (`actions.canResolveAmbiguous`).
  * Solo `super_admin` (el API responde 403 al resto). No timbra ni cancela:
  * `adopt` registra ese UUID del PAC y `mark_not_stamped` pasa la fila a error.
+ * V3-L2/L3: el UUID debe ser uno de los candidatos anotados y el PAC debe dar
+ * su acuse completo (422 con el motivo si no); `force` + `reason` existe en el
+ * contrato pero el admin no lo usa.
  */
 export async function resolveAmbiguousInvoice(
   id: string,

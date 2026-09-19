@@ -8,8 +8,13 @@
 // (best-effort, leídos de la auditoría; nunca se consulta al PAC al cargar).
 //
 // Solo `super_admin` resuelve (`POST /billing/invoices/:id/resolve-ambiguous`):
-//   - adoptar un candidato (el API valida RFC + total + no cancelado), o
+//   - adoptar un candidato (el API valida que sea uno de los ANOTADOS, su
+//     acuse completo, RFC + total y que no esté cancelado), o
 //   - marcar la fila como NO timbrada (pasa a error: se reintenta o se desecha).
+// V3-L2: aquí SOLO se ofrecen los candidatos listados. El contrato admite
+// `force` + `reason` para un UUID no listado (nunca en pagos), pero es una
+// salida de emergencia por API: a propósito no tiene UI. Los rechazos se
+// muestran con el mensaje del API (hook).
 // El resto ve la misma tarjeta en solo lectura.
 
 import { useState } from 'react';
@@ -198,8 +203,8 @@ export function AmbiguousStampCard({ invoice, canResolve }: AmbiguousStampCardPr
                 {adoptTarget.rfcMasked ?? 'sin dato'}
               </li>
               <li>
-                El sistema vuelve a verificar en el PAC que el RFC y el total coincidan y que el CFDI no esté cancelado;
-                si no coincide, lo rechaza.
+                El sistema vuelve a verificar en el PAC que sea uno de los CFDI anotados, que exista su acuse completo,
+                que el RFC y el total coincidan y que no esté cancelado; si algo no cuadra, lo rechaza y te dice por qué.
               </li>
               <li>Se descargan el PDF y el XML, y se envía el correo al cliente como en un timbrado normal.</li>
               <li>Queda registrado en la auditoría con tu usuario.</li>

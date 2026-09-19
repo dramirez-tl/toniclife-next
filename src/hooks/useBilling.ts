@@ -231,7 +231,9 @@ export function useStampInvoice() {
  * V2-L3: resuelve a mano un timbrado ambiguo (solo `super_admin`). `adopt`
  * registra el CFDI del PAC elegido; `mark_not_stamped` pasa la fila a error
  * para reintentar o desechar. Al terminar invalida el detalle (y sus archivos,
- * que aparecen tras adoptar) y los listados.
+ * que aparecen tras adoptar) y los listados. Los rechazos del API (422: el
+ * UUID no está entre los candidatos anotados o no hay acuse completo; 409; 502)
+ * se muestran con SU mensaje.
  */
 export function useResolveAmbiguousInvoice() {
   const queryClient = useQueryClient();
