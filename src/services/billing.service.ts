@@ -26,6 +26,7 @@ import type {
   PaginatedInvoices,
   RefreshStatusResult,
   ReplaceInvoiceResult,
+  ResolveAmbiguousDto,
   SendInvoiceEmailResult,
   SetBranchInvoicingSinceDto,
   StampInvoiceOptions,
@@ -196,6 +197,22 @@ export async function stampInvoice(
  */
 export async function discardInvoice(id: string): Promise<DiscardInvoiceResult> {
   const response = await apiClient.post<DiscardInvoiceResult>(`${BASE_URL}/invoices/${id}/discard`);
+  return response.data;
+}
+
+/**
+ * V2-L3: salida manual de un timbrado ambiguo (`actions.canResolveAmbiguous`).
+ * Solo `super_admin` (el API responde 403 al resto). No timbra ni cancela:
+ * `adopt` registra ese UUID del PAC y `mark_not_stamped` pasa la fila a error.
+ */
+export async function resolveAmbiguousInvoice(
+  id: string,
+  data: ResolveAmbiguousDto,
+): Promise<InvoiceDetail> {
+  const response = await apiClient.post<InvoiceDetail>(
+    `${BASE_URL}/invoices/${id}/resolve-ambiguous`,
+    data,
+  );
   return response.data;
 }
 
@@ -665,6 +682,7 @@ export const billingService = {
   previewGlobalInvoice,
   createGlobalInvoice,
   discardInvoice,
+  resolveAmbiguousInvoice,
   discardGlobalInvoice,
   reissueGlobalInvoice,
 

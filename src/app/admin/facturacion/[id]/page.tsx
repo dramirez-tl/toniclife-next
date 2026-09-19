@@ -3,6 +3,8 @@
 // origen, conceptos con desglose por tasa, archivos, correos, cancelación,
 // relación/sustitución, global (tickets incluidos/liberados), PPD y pago.
 // Las acciones salen de `actions.*` del servidor Y del permiso billing:manage.
+// Timbrado ambiguo (`actions.canResolveAmbiguous`): tarjeta AmbiguousStampCard;
+// solo super_admin resuelve, el resto la ve en solo lectura.
 'use client';
 
 import { useState } from 'react';
@@ -73,6 +75,7 @@ import {
 import { useCanManageBilling } from '@/components/admin/billing/readiness/useCanManageBilling';
 import { InvoiceStatusBadge, InvoiceTypeBadge, SatStatusBadge } from '@/components/admin/billing/invoices/InvoiceBadges';
 import { CancelInvoiceDialog, isCancellationRejected } from '@/components/admin/billing/invoices/CancelInvoiceDialog';
+import { AmbiguousStampCard } from '@/components/admin/billing/invoices/AmbiguousStampCard';
 import { SendInvoiceEmailDialog } from '@/components/admin/billing/invoices/SendInvoiceEmailDialog';
 import { useCustomerFiscalEditor } from '@/components/admin/billing/invoices/useCustomerFiscalEditor';
 import { useBranchTimezone, formatIsoDate } from '@/components/admin/billing/invoices/useBranchTimezone';
@@ -235,7 +238,11 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
   const errorText = errorMapped?.message ?? invoice.providerError;
   const errorField = errorMapped?.field ?? null;
   const receiverError = !!errorField && RECEIVER_FIELD_PREFIXES.some((p) => errorField.startsWith(p));
+  // V2-L3: timbrado ambiguo (candidato dudoso del PAC). Tiene su propia tarjeta,
+  // así que la de error genérica no se repite.
+  const ambiguousStamp = a.canResolveAmbiguous === true;
   const showError =
+    !ambiguousStamp &&
     !!errorText &&
     (invoice.providerStatus === InvoiceStatus.ERROR ||
       invoice.providerStatus === InvoiceStatus.STAMPING ||
@@ -410,6 +417,8 @@ function InvoiceDetailContent({ invoiceId }: { invoiceId: string }) {
                 </CardContent>
               </Card>
             )}
+
+            {ambiguousStamp && <AmbiguousStampCard invoice={invoice} canResolve={isSuperAdmin && canManage} />}
 
             {isGlobal && relationDroppedNotice && (
               <Card className="border-amber-300 bg-amber-50" role="alert">

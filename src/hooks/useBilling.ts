@@ -24,6 +24,7 @@ import type {
   PersonType,
   ReadinessCustomersQuery,
   ReadinessProductsQuery,
+  ResolveAmbiguousDto,
   SatCodeKind,
   UpdateBranchFiscalDto,
   UpdateEmitterDto,
@@ -222,6 +223,36 @@ export function useStampInvoice() {
     onError: (error: unknown, { acknowledgeGlobal }) => {
       if (!acknowledgeGlobal && isBillingErrorCode(error, 'CFDI_IN_GLOBAL')) return;
       toast.error(billingErrorMessage(error, 'No se pudo timbrar la factura'));
+    },
+  });
+}
+
+/**
+ * V2-L3: resuelve a mano un timbrado ambiguo (solo `super_admin`). `adopt`
+ * registra el CFDI del PAC elegido; `mark_not_stamped` pasa la fila a error
+ * para reintentar o desechar. Al terminar invalida el detalle (y sus archivos,
+ * que aparecen tras adoptar) y los listados.
+ */
+export function useResolveAmbiguousInvoice() {
+  const queryClient = useQueryClient();
+  const invalidate = useInvalidateInvoices();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: ResolveAmbiguousDto }) =>
+      billingService.resolveAmbiguousInvoice(id, data),
+    onSuccess: (invoice, { id, data }) => {
+      queryClient.setQueryData(billingKeys.invoice(id), invoice);
+      // Las llaves del detalle y de sus archivos cuelgan de `invoices()`: caen todas.
+      invalidate(id);
+      toast.success(
+        data.action === 'adopt'
+          ? `CFDI adoptado: la factura ${invoice.folioDisplay} quedó timbrada`
+          : 'Factura marcada como no timbrada: ya se puede reintentar o desechar',
+      );
+    },
+    onError: (error: unknown, { id }) => {
+      // 409/422: el estado pudo cambiar (otro usuario, el cron): se refresca el detalle.
+      invalidate(id);
+      toast.error(billingErrorMessage(error, 'No se pudo resolver el timbrado sin confirmar'));
     },
   });
 }

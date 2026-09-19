@@ -205,7 +205,28 @@ export interface InvoiceActions {
   canEmail: boolean;
   canDiscard: boolean;
   canReissue: boolean;
+  /**
+   * V2-L3: fila en `stamping` con el claim caducado cuyo error es el de un
+   * candidato dudoso del PAC. Habilita `POST :id/resolve-ambiguous`, que además
+   * exige `super_admin`. Opcional: un API anterior a V2-L3 no lo manda.
+   */
+  canResolveAmbiguous?: boolean;
 }
+
+/** V2-L3: CFDI del PAC que PODRÍA ser el de la factura (best-effort, de la auditoría). */
+export interface AmbiguityCandidate {
+  uuid: string;
+  /** Fecha tal como la reportó el PAC (sin garantía de formato). */
+  date: string | null;
+  total: number | null;
+  orderNumber: string | null;
+  rfcMasked: string | null;
+}
+
+/** Body de `POST /billing/invoices/:id/resolve-ambiguous` (solo super_admin). */
+export type ResolveAmbiguousDto =
+  | { action: 'adopt'; uuid: string }
+  | { action: 'mark_not_stamped'; confirmation: 'NO TIMBRADA'; reason?: string };
 
 /** `GET /billing/invoices/:id` (contrato §7.1). */
 export interface InvoiceDetail extends InvoiceSummary {
@@ -260,10 +281,13 @@ export interface InvoiceDetail extends InvoiceSummary {
     documents: GlobalDocumentDto[];
     released: GlobalDocumentDto[];
     reissueState: GlobalReissueState;
-    /** Ventas incluibles del día que esta global VIVA no declara (habilitan `canReissue`). */
-    uncoveredCount?: number;
-    /** Importe (con IVA) de esas ventas. */
-    uncoveredTotal?: number;
+    /**
+     * Ventas incluibles del día que esta global VIVA no declara (habilitan
+     * `canReissue`). El API manda `null` cuando no aplica o no se pudo calcular.
+     */
+    uncoveredCount: number | null;
+    /** Importe (con IVA) de esas ventas; `null` igual que el conteo. */
+    uncoveredTotal: number | null;
   } | null;
   ppd: {
     paidAmount: number;
@@ -297,6 +321,8 @@ export interface InvoiceDetail extends InvoiceSummary {
       outstandingBalance: number;
     }[];
   } | null;
+  /** V2-L3: solo en `stamping` con un candidato dudoso; `null` en el resto. */
+  ambiguity?: { candidates: AmbiguityCandidate[] } | null;
   actions: InvoiceActions;
 }
 
