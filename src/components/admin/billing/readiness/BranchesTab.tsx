@@ -4,6 +4,10 @@
 // del CFDI) y regla de IVA que aplica. El PATCH deja UNA sola regla IVA activa
 // por sucursal; el aviso "Frontera con 16%" sale cuando el CP cae en franja
 // fronteriza y la regla es 16% (podría aplicar el estímulo del 8%).
+//
+// Fase 2: "Factura en v2 desde" (`branches.v2_invoicing_since`) por sucursal,
+// con confirmación: es el candado de fecha que decide qué sistema factura
+// (PUT /billing/branches/:id/invoicing-since { since: 'YYYY-MM-DD' | null }).
 
 import { useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
@@ -13,7 +17,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import { useReadinessBranches, useUpdateBranchFiscal } from '@/hooks/useBilling';
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
+import {
+  useReadinessBranches,
+  useSetBranchInvoicingSince,
+  useUpdateBranchFiscal,
+} from '@/hooks/useBilling';
 import { useActiveTaxRules } from '@/hooks/useConfig';
 import { billingErrorMessage } from '@/lib/billing-error';
 import { BRANCH_ISSUE_INFO, isValidZip, taxRatePct, type ReadinessBranch } from '@/types/billing';
@@ -25,6 +34,19 @@ interface Draft {
 
 const ZIP_ERROR = 'El CP debe tener 5 dígitos';
 
+/** 'YYYY-MM-DD' → '18/09/2026' sin pasar por Date (evita el corrimiento UTC). */
+function formatSince(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const [y, m, d] = iso.slice(0, 10).split('-');
+  return y && m && d ? `${d}/${m}/${y}` : iso;
+}
+
+interface SinceTarget {
+  row: ReadinessBranch;
+  /** null = quitar la fecha (la sucursal vuelve al sistema anterior). */
+  since: string | null;
+}
+
 export function BranchesTab({ canManage }: { canManage: boolean }) {
   const { data, isLoading, error, refetch } = useReadinessBranches();
   // Endpoint público de reglas activas: `/config/tax-rules` exige admin y
@@ -33,6 +55,28 @@ export function BranchesTab({ canManage }: { canManage: boolean }) {
   const update = useUpdateBranchFiscal();
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
+  const setSince = useSetBranchInvoicingSince();
+  const [sinceDrafts, setSinceDrafts] = useState<Record<string, string>>({});
+  const [sinceTarget, setSinceTarget] = useState<SinceTarget | null>(null);
+
+  const currentSince = (row: ReadinessBranch) => (row.v2InvoicingSince ?? '').slice(0, 10);
+  const sinceDraftOf = (row: ReadinessBranch) => sinceDrafts[row.id] ?? currentSince(row);
+
+  const confirmSince = async () => {
+    if (!sinceTarget) return;
+    const { row, since } = sinceTarget;
+    try {
+      await setSince.mutateAsync({ branchId: row.id, since });
+      setSinceDrafts((prev) => {
+        const next = { ...prev };
+        delete next[row.id];
+        return next;
+      });
+      setSinceTarget(null);
+    } catch {
+      // El hook ya avisó.
+    }
+  };
 
   const ivaRules = useMemo(
     () => (taxRules ?? []).filter((r) => r.taxType === 'iva' && r.isActive),
@@ -164,6 +208,53 @@ export function BranchesTab({ canManage }: { canManage: boolean }) {
       ),
     },
     {
+      key: 'since',
+      header: 'Factura en v2 desde',
+      render: (row) => {
+        const current = currentSince(row);
+        const draft = sinceDraftOf(row);
+        const changed = draft !== current;
+        return (
+          <div className="min-w-[210px] space-y-1">
+            <Input
+              id={`br-since-${row.id}`}
+              type="date"
+              value={draft}
+              onChange={(e) => setSinceDrafts((prev) => ({ ...prev, [row.id]: e.target.value }))}
+              disabled={!canManage || setSince.isPending}
+              aria-label={`Fecha desde la que ${row.name} factura en v2`}
+            />
+            {canManage ? (
+              <div className="flex flex-wrap gap-1">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={!draft || !changed || setSince.isPending}
+                  onClick={() => setSinceTarget({ row, since: draft })}
+                >
+                  {current ? 'Cambiar fecha' : 'Fijar fecha'}
+                </Button>
+                {current && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                    disabled={setSince.isPending}
+                    onClick={() => setSinceTarget({ row, since: null })}
+                  >
+                    Quitar
+                  </Button>
+                )}
+              </div>
+            ) : null}
+            {!current && (
+              <p className="text-xs text-muted-foreground">Sin fecha: factura el sistema anterior.</p>
+            )}
+          </div>
+        );
+      },
+    },
+    {
       key: 'zone',
       header: 'Zona',
       render: (row) =>
@@ -238,6 +329,12 @@ export function BranchesTab({ canManage }: { canManage: boolean }) {
           regla de IVA define la tasa que desglosa el POS. Al guardar una regla, queda como la única
           regla de IVA activa de esa sucursal.
         </p>
+        <p>
+          <strong>Factura en v2 desde:</strong> primer día (zona de la sucursal) cuyas ventas factura v2.
+          Las ventas anteriores a esa fecha se facturan en el sistema anterior; la factura global exige
+          además todas las terminales de la sucursal con Facturación encendida. Sin fecha, v2 no factura
+          nada de esa sucursal.
+        </p>
         <ul className="list-disc space-y-0.5 pl-5 text-xs">
           {(Object.keys(BRANCH_ISSUE_INFO) as (keyof typeof BRANCH_ISSUE_INFO)[]).map((k) => (
             <li key={k}>
@@ -266,6 +363,49 @@ export function BranchesTab({ canManage }: { canManage: boolean }) {
           />
         </CardContent>
       </Card>
+
+      {sinceTarget && (
+        <ConfirmDialog
+          open={!!sinceTarget}
+          onOpenChange={(open) => {
+            if (!open) setSinceTarget(null);
+          }}
+          title={
+            sinceTarget.since
+              ? `Facturar ${sinceTarget.row.name} en v2 desde el ${formatSince(sinceTarget.since)}`
+              : `Quitar la fecha de arranque de ${sinceTarget.row.name}`
+          }
+          description={
+            sinceTarget.since
+              ? 'Desde ese día v2 emite las facturas nominativas y la global de esta sucursal.'
+              : 'La sucursal vuelve a facturar solo en el sistema anterior: v2 rechazará sus ventas y sus días.'
+          }
+          confirmLabel={sinceTarget.since ? 'Fijar fecha' : 'Quitar fecha'}
+          confirmText="CONFIRMAR"
+          destructive={!sinceTarget.since}
+          isPending={setSince.isPending}
+          onConfirm={confirmSince}
+        >
+          <ul className="list-disc space-y-1 pl-5">
+            {sinceTarget.since ? (
+              <>
+                <li>
+                  El sistema anterior debe dejar de emitir la factura global de esta sucursal a partir del{' '}
+                  <strong>{formatSince(sinceTarget.since)}</strong>; si no, habrá dos globales del mismo día.
+                </li>
+                <li>Las ventas anteriores a esa fecha se siguen facturando en el sistema anterior.</li>
+                <li>La global exige todas las terminales de la sucursal con Facturación encendida.</li>
+              </>
+            ) : (
+              <li>
+                Fecha actual: <strong>{formatSince(currentSince(sinceTarget.row)) || 'sin fecha'}</strong>. Las
+                facturas ya timbradas en v2 no cambian.
+              </li>
+            )}
+            <li>El cambio queda en la bitácora de auditoría (riesgo alto).</li>
+          </ul>
+        </ConfirmDialog>
+      )}
     </div>
   );
 }
