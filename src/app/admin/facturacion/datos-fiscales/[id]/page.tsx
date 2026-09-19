@@ -40,12 +40,6 @@ export default function EditFiscalDataPage() {
     legalName: '',
     taxRegime: '',
     postalCode: '',
-    street: '',
-    exteriorNumber: '',
-    interiorNumber: '',
-    neighborhood: '',
-    city: '',
-    state: '',
     email: '',
     defaultCfdiUse: '',
   });
@@ -70,12 +64,6 @@ export default function EditFiscalDataPage() {
         legalName: fiscalData.legalName,
         taxRegime: fiscalData.taxRegime,
         postalCode: fiscalData.postalCode,
-        street: fiscalData.street || '',
-        exteriorNumber: fiscalData.exteriorNumber || '',
-        interiorNumber: fiscalData.interiorNumber || '',
-        neighborhood: fiscalData.neighborhood || '',
-        city: fiscalData.city || '',
-        state: fiscalData.state || '',
         email: fiscalData.email || '',
         defaultCfdiUse: fiscalData.defaultCfdiUse,
       });
@@ -157,13 +145,9 @@ export default function EditFiscalDataPage() {
           fiscalRegime: formData.taxRegime,
           postalCode: formData.postalCode,
           cfdiUse: formData.defaultCfdiUse,
+          // Sin domicilio: el CFDI 4.0 solo usa el CP fiscal y el API rechaza
+          // cualquier campo fuera de su lista blanca (forbidNonWhitelisted).
           email: formData.email,
-          street: formData.street || undefined,
-          exteriorNumber: formData.exteriorNumber || undefined,
-          interiorNumber: formData.interiorNumber || undefined,
-          neighborhood: formData.neighborhood || undefined,
-          city: formData.city || undefined,
-          state: formData.state || undefined,
         },
       });
       router.push('/admin/facturacion/datos-fiscales');
@@ -382,109 +366,6 @@ export default function EditFiscalDataPage() {
           </Card>
 
           {/* Address (Optional) */}
-          <Card className="mb-6">
-            <CardContent className="p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">
-                Dirección Fiscal
-              </h2>
-              <p className="text-sm text-gray-500 mb-6">
-                Información opcional para el domicilio fiscal
-              </p>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Street */}
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Calle
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.street}
-                    onChange={(e) => setFormData({ ...formData, street: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                    placeholder="Nombre de la calle"
-                  />
-                </div>
-
-                {/* Exterior Number */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Número Exterior
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.exteriorNumber}
-                    onChange={(e) =>
-                      setFormData({ ...formData, exteriorNumber: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                    placeholder="123"
-                  />
-                </div>
-
-                {/* Interior Number */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Número Interior
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.interiorNumber}
-                    onChange={(e) =>
-                      setFormData({ ...formData, interiorNumber: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                    placeholder="Depto 5"
-                  />
-                </div>
-
-                {/* Neighborhood */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Colonia
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.neighborhood}
-                    onChange={(e) =>
-                      setFormData({ ...formData, neighborhood: e.target.value })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                    placeholder="Nombre de la colonia"
-                  />
-                </div>
-
-                {/* City */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Ciudad
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                    placeholder="Ciudad"
-                  />
-                </div>
-
-                {/* State */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Estado
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.state}
-                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
-                    placeholder="Estado"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Actions */}
           <div className="flex items-center justify-end gap-4">
             <Link href="/admin/facturacion/datos-fiscales">

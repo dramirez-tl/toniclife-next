@@ -1,12 +1,14 @@
 'use client';
 
-import { useMemo, useState, Suspense } from 'react';
+import { useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { DataTable } from '@/components/ui/DataTable';
 import type { DataTableColumn } from '@/components/ui/DataTable';
 import { useFacturamaCfdis } from '@/hooks/useBilling';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
+import { billingErrorMessage } from '@/lib/billing-error';
 import type { FacturamaCfdiItem } from '@/services/billing.service';
 import {
   DocumentTextIcon,
@@ -92,11 +94,16 @@ export default function ReporteFoliosPage() {
 }
 
 function ReporteFoliosContent() {
-  const [dateFrom, setDateFrom] = useState(getDefaultDateFrom);
-  const [dateTo, setDateTo] = useState(getDefaultDateTo);
-  const [page, setPage] = useState(0);
+  // Filtros en la URL (`?from&to&page`): se pueden compartir y sobreviven a recargar.
+  // Es un rango libre de fechas de emisión ante el PAC, no una métrica de periodo.
+  const { get, getNumber, setParams } = useQueryFilters({});
+  const defaults = useMemo(() => ({ from: getDefaultDateFrom(), to: getDefaultDateTo() }), []);
+  const dateFrom = get('from') || defaults.from;
+  const dateTo = get('to') || defaults.to;
+  const page = Math.max(0, getNumber('page'));
+  const setPage = (next: number) => setParams({ page: next > 0 ? String(next) : null });
 
-  const { data: cfdisData, isLoading, isFetching } = useFacturamaCfdis({
+  const { data: cfdisData, isLoading, isFetching, isError, error, refetch } = useFacturamaCfdis({
     dateStart: dateFrom,
     dateEnd: dateTo,
     status: 'all',
@@ -268,20 +275,22 @@ function ReporteFoliosContent() {
           <CardContent className="p-6">
             <div className="flex flex-col lg:flex-row gap-4 items-center">
               <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-500 whitespace-nowrap">Desde</label>
+                <label htmlFor="rf-from" className="text-sm text-gray-500 whitespace-nowrap">Desde</label>
                 <input
+                  id="rf-from"
                   type="date"
                   value={dateFrom}
-                  onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
+                  onChange={(e) => setParams({ from: e.target.value, page: null })}
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 />
               </div>
               <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-500 whitespace-nowrap">Hasta</label>
+                <label htmlFor="rf-to" className="text-sm text-gray-500 whitespace-nowrap">Hasta</label>
                 <input
+                  id="rf-to"
                   type="date"
                   value={dateTo}
-                  onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
+                  onChange={(e) => setParams({ to: e.target.value, page: null })}
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                 />
               </div>
@@ -293,6 +302,14 @@ function ReporteFoliosContent() {
         </Card>
 
         {/* Table */}
+        {isError && (
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
+            <span>{billingErrorMessage(error, 'No se pudieron consultar los CFDI en Facturama')}</span>
+            <Button variant="outline" size="sm" onClick={() => void refetch()}>
+              Reintentar
+            </Button>
+          </div>
+        )}
         <Card>
           <CardContent className="p-0">
             <DataTable
@@ -327,7 +344,7 @@ function ReporteFoliosContent() {
               variant="outline"
               size="sm"
               disabled={page === 0 || isLoading || isFetching}
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              onClick={() => setPage(Math.max(0, page - 1))}
             >
               <ChevronLeftIcon className="h-4 w-4 mr-1" />
               Anterior
@@ -336,7 +353,7 @@ function ReporteFoliosContent() {
               variant="outline"
               size="sm"
               disabled={totalCount < 100 || isLoading || isFetching}
-              onClick={() => setPage((p) => p + 1)}
+              onClick={() => setPage(page + 1)}
             >
               Siguiente
               <ChevronRightIcon className="h-4 w-4 ml-1" />

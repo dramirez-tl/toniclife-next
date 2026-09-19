@@ -73,12 +73,6 @@ export interface UpdateFiscalDataDto {
   cfdiUse?: string;
   paymentFormCode?: string;
   email?: string;
-  street?: string;
-  exteriorNumber?: string;
-  interiorNumber?: string;
-  neighborhood?: string;
-  city?: string;
-  state?: string;
 }
 
 // ================================
