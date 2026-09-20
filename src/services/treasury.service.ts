@@ -704,10 +704,15 @@ class WithholdingsTreasuryService {
     return normalizeWithholdingStatement(data, agreement);
   }
 
-  /** GET /mlm/withholdings/preview?periodId&commissionIds[] — `globalPct` del API → `globalMaxPct`. */
+  /**
+   * GET /mlm/withholdings/preview?periodId&commissionIds — `globalPct` del API → `globalMaxPct`.
+   * `commissionIds` viaja como CSV (el DTO hace `value.split(',')`): así no depende de
+   * cómo serialice axios los arreglos (`commissionIds[]=…`) ni del query parser de Nest,
+   * y no hace falta un `paramsSerializer` global en lib/axios.ts (archivo de auth).
+   */
   async preview(periodId: string, commissionIds?: string[]): Promise<WithholdingPreview> {
-    const params: Record<string, string | string[]> = { periodId };
-    if (commissionIds && commissionIds.length > 0) params.commissionIds = commissionIds;
+    const params: Record<string, string> = { periodId };
+    if (commissionIds && commissionIds.length > 0) params.commissionIds = commissionIds.join(',');
     const { data } = await api.get<WithholdingPreview>(`${WITHHOLDINGS_BASE}/preview`, {
       params,
     });
