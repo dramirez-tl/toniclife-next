@@ -354,6 +354,7 @@ import type {
   WithholdingListFilters,
   WithholdingListResponse,
   WithholdingPreview,
+  WithholdingShortfallRow,
   WithholdingStatement,
 } from '@/types/treasury';
 
@@ -565,8 +566,31 @@ export function normalizeBankResultPreview(input: unknown): BankResultPreview {
     alreadyApplied: input.alreadyApplied === true,
     alreadyProcessed,
     pendingNotInFile: numOrNull(input.pendingNotInFile),
+    withholdingShortfalls: normalizeWithholdingShortfalls(input.withholdingShortfalls),
     applyToken: input.applyToken,
   };
+}
+
+/** `withholdingShortfalls[]` de preview/apply/confirm → filas con importes numéricos (tolera strings). */
+export function normalizeWithholdingShortfalls(input: unknown): WithholdingShortfallRow[] {
+  if (!Array.isArray(input)) return [];
+  return input
+    .map((s): WithholdingShortfallRow | null => {
+      if (!isRecord(s)) return null;
+      const commissionId = strOrNull(s.commissionId) ?? strOrNull(s.id);
+      if (!commissionId) return null;
+      const frozen = numOrNull(s.frozen) ?? 0;
+      const requested = numOrNull(s.requested) ?? 0;
+      return {
+        sequence: numOrNull(s.sequence),
+        commissionId,
+        customerNumber: strOrNull(s.customerNumber),
+        frozen,
+        requested,
+        shortfall: numOrNull(s.shortfall) ?? Math.max(0, Math.round((requested - frozen) * 100) / 100),
+      };
+    })
+    .filter((s): s is WithholdingShortfallRow => s !== null);
 }
 
 function normalizeSkipped(input: unknown): PayoutBatchSkipped[] {
@@ -896,6 +920,7 @@ class PayoutBatchesService {
       failed: numOrNull(data.failed) ?? 0,
       mismatched: normalizePreviewRows(data.mismatched, 'fail'),
       unmatched: normalizePreviewRows(data.unmatched, 'fail'),
+      withholdingShortfalls: normalizeWithholdingShortfalls(data.withholdingShortfalls),
     };
   }
 
@@ -911,6 +936,7 @@ class PayoutBatchesService {
       paid: numOrNull(data.paid) ?? 0,
       mismatched: normalizePreviewRows(data.mismatched, 'fail'),
       remainingPending: numOrNull(data.remainingPending) ?? 0,
+      withholdingShortfalls: normalizeWithholdingShortfalls(data.withholdingShortfalls),
     };
   }
 

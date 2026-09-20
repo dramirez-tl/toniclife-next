@@ -50,7 +50,7 @@ import {
 } from '@/hooks/useTreasury';
 import { payoutBatchesService } from '@/services/treasury.service';
 import { saveBlob } from '@/lib/download';
-import type { BankResultPreview, BankResultPreviewRow, PayoutBatchFull } from '@/types/treasury';
+import type { BankResultPreview, BankResultPreviewRow, PayoutBatchFull, WithholdingShortfallRow } from '@/types/treasury';
 import { TREASURY_PAY_PERMISSIONS } from '../useTreasuryPermissions';
 import { treasuryErrorMessage } from '../treasury-error';
 import { filenameFromDisposition, formatInt, formatMoney, todayCdmx, toNumber } from '../treasury-format';
@@ -286,6 +286,12 @@ function ConfirmBatchDialog({ batch, onClose, onDone }: SingleDialogProps) {
           ? ` · ${formatInt(res.mismatched.length)} sin pagar por cambio de convenio (usa “Liberar pendientes”)`
           : '';
       toast.success(`Pago confirmado: ${formatInt(res.paid)} fila(s) del lote ${batch.batchNumber} marcadas como pagadas${tail}`);
+      if (res.withholdingShortfalls.length > 0) {
+        toast.warning(
+          `${formatInt(res.withholdingShortfalls.length)} convenio(s) recibieron menos abono que el plan (faltante ${formatMoney(sumShortfall(res.withholdingShortfalls), batch.currencyCode)}): se cobra en un periodo siguiente`,
+          { duration: 12000 },
+        );
+      }
       onDone?.(res.batch);
       onClose();
     } catch (err) {
@@ -517,6 +523,59 @@ function PreviewTable({ rows, caption }: { rows: BankResultPreviewRow[]; caption
   );
 }
 
+/** Σ del faltante de convenios (moneda de pago del lote). */
+function sumShortfall(rows: WithholdingShortfallRow[]): number {
+  return Math.round(rows.reduce((acc, r) => acc + r.shortfall, 0) * 100) / 100;
+}
+
+/**
+ * Convenios con abono menor al plan (`withholdingShortfalls[]`): la fila SÍ se paga,
+ * con la retención congelada en el layout; el faltante queda para el siguiente periodo.
+ */
+function ShortfallTable({ rows, currency, compact = false }: { rows: WithholdingShortfallRow[]; currency: string; compact?: boolean }) {
+  if (rows.length === 0) return null;
+  const total = sumShortfall(rows);
+  const shown = compact ? rows.slice(0, 8) : rows;
+  return (
+    <div className="overflow-x-auto rounded-md border border-amber-200 bg-amber-50" role="region" aria-label="Convenios con abono menor al plan">
+      <table className="w-full text-xs">
+        <caption className="px-3 py-2 text-left font-medium text-amber-900">
+          Convenios con abono menor al plan: {formatInt(rows.length)} fila(s) · faltante {formatMoney(total, currency)} (se cobra en un periodo siguiente)
+        </caption>
+        <thead>
+          <tr className="border-b border-amber-200 text-left uppercase tracking-wide text-amber-800">
+            <th className="px-3 py-1.5">Sec.</th>
+            <th className="px-3 py-1.5">Nº dist.</th>
+            <th className="px-3 py-1.5 text-right">Congelada</th>
+            <th className="px-3 py-1.5 text-right">Plan hoy</th>
+            <th className="px-3 py-1.5 text-right">Faltante</th>
+          </tr>
+        </thead>
+        <tbody>
+          {shown.map((r) => (
+            <tr key={r.commissionId} className="border-b border-amber-200/60 text-amber-900 last:border-0">
+              <td className="px-3 py-1.5 tabular-nums">{r.sequence ?? '—'}</td>
+              <td className="px-3 py-1.5 font-mono">{r.customerNumber ?? '—'}</td>
+              <td className="px-3 py-1.5 text-right tabular-nums">{formatMoney(r.frozen, currency)}</td>
+              <td className="px-3 py-1.5 text-right tabular-nums">{formatMoney(r.requested, currency)}</td>
+              <td className="px-3 py-1.5 text-right font-medium tabular-nums">{formatMoney(r.shortfall, currency)}</td>
+            </tr>
+          ))}
+        </tbody>
+        {shown.length < rows.length && (
+          <tfoot>
+            <tr>
+              <td colSpan={5} className="px-3 py-1.5 text-amber-800">
+                y {formatInt(rows.length - shown.length)} más (lista completa en la vista previa).
+              </td>
+            </tr>
+          </tfoot>
+        )}
+      </table>
+    </div>
+  );
+}
+
 function UploadResultDialog({ batch, onClose, onDone }: SingleDialogProps) {
   const previewMutation = usePreviewBankResult();
   const applyMutation = useApplyBankResult();
@@ -549,6 +608,12 @@ function UploadResultDialog({ batch, onClose, onDone }: SingleDialogProps) {
             res.mismatched.length > 0 ? ` · ${formatInt(res.mismatched.length)} sin aplicar por diferencia` : ''
           }${res.unmatched.length > 0 ? ` · ${formatInt(res.unmatched.length)} no encontradas` : ''}`,
         );
+        if (res.withholdingShortfalls.length > 0) {
+          toast.warning(
+            `${formatInt(res.withholdingShortfalls.length)} convenio(s) recibieron menos abono que el plan (faltante ${formatMoney(sumShortfall(res.withholdingShortfalls), batch.currencyCode)}): se cobra en un periodo siguiente`,
+            { duration: 12000 },
+          );
+        }
       }
       setApplyOpen(false);
       onDone?.(res.batch);
@@ -560,6 +625,7 @@ function UploadResultDialog({ batch, onClose, onDone }: SingleDialogProps) {
 
   const mismatched = preview ? issueRows(preview, 'mismatched') : [];
   const unmatched = preview ? issueRows(preview, 'unmatched') : [];
+  const shortfalls = preview?.withholdingShortfalls ?? [];
   const alreadyProcessed = preview?.alreadyProcessed ?? [];
   const parseErrors = preview?.errors ?? [];
   const applicable = preview ? preview.paid + preview.failed : 0;
@@ -647,6 +713,7 @@ function UploadResultDialog({ batch, onClose, onDone }: SingleDialogProps) {
                 )}
                 <PreviewTable rows={mismatched} caption="No cuadran (importe distinto, fila ajena o convenio cambiado): NO se pagan" />
                 <PreviewTable rows={unmatched} caption="No encontradas en el lote: se ignoran" />
+                <ShortfallTable rows={shortfalls} currency={batch.currencyCode} />
                 {alreadyProcessed.length > 0 && (
                   <p className="text-xs text-muted-foreground">
                     Ya procesadas antes (se ignoran):{' '}
@@ -690,11 +757,14 @@ function UploadResultDialog({ batch, onClose, onDone }: SingleDialogProps) {
           isPending={applyMutation.isPending}
           onConfirm={apply}
         >
-          <ul className="space-y-1 text-sm">
-            <li>{formatInt(preview.paid)} comisiones pasan a pagadas (convenios aplicados, ledger completado).</li>
-            <li>{formatInt(preview.failed)} vuelven a Aprobadas con ledger “rechazado”.</li>
-            {mismatched.length > 0 && <li className="text-amber-700">{formatInt(mismatched.length)} no se tocan por diferencia de importe.</li>}
-          </ul>
+          <div className="space-y-3">
+            <ul className="space-y-1 text-sm">
+              <li>{formatInt(preview.paid)} comisiones pasan a pagadas (convenios aplicados, ledger completado).</li>
+              <li>{formatInt(preview.failed)} vuelven a Aprobadas con ledger “rechazado”.</li>
+              {mismatched.length > 0 && <li className="text-amber-700">{formatInt(mismatched.length)} no se tocan por diferencia de importe.</li>}
+            </ul>
+            <ShortfallTable rows={shortfalls} currency={batch.currencyCode} compact />
+          </div>
         </ConfirmDialog>
       )}
     </>

@@ -938,6 +938,26 @@ export interface ConfirmBatchResult {
   paid: number;
   mismatched: BankResultPreviewRow[];
   remainingPending: number;
+  /** Convenios que recibieron menos abono que el plan (ver `WithholdingShortfallRow`). */
+  withholdingShortfalls: WithholdingShortfallRow[];
+}
+
+/**
+ * `WithholdingShortfallRow` del API (vista previa, apply y confirm): la fila SÍ se
+ * paga, pero el plan de convenios pide hoy más retención que la congelada en el
+ * layout; se aplica la congelada y el faltante queda para el siguiente periodo.
+ * Importes en la moneda de pago del lote.
+ */
+export interface WithholdingShortfallRow {
+  sequence: number | null;
+  commissionId: string;
+  customerNumber: string | null;
+  /** Retención congelada en el lote. */
+  frozen: number;
+  /** Retención que pediría el plan hoy. */
+  requested: number;
+  /** requested − frozen: queda por cobrar en un periodo siguiente. */
+  shortfall: number;
 }
 
 /** `POST /mlm/payout-batches/:id/release-pending` → libera filas pendientes por WITHHOLDING_CHANGED. */
@@ -1014,6 +1034,8 @@ export interface BankResultPreview {
   alreadyProcessed?: BankResultAlreadyProcessedRow[] | null;
   /** Filas pendientes del lote que el archivo no menciona (siguen pendientes). */
   pendingNotInFile?: number | null;
+  /** Filas ok cuyo convenio pide hoy más retención que la congelada (se pagan con la congelada). */
+  withholdingShortfalls: WithholdingShortfallRow[];
   /** sha256 del archivo: se reenvía en `POST /:id/result/apply` junto con el MISMO archivo. */
   applyToken: string;
 }
@@ -1022,7 +1044,7 @@ export interface ApplyBankResultPayload {
   applyToken: string;
 }
 
-/** `POST /:id/result/apply` → `{ batch, applied, paid, failed, mismatched[], unmatched[] }`. */
+/** `POST /:id/result/apply` → `{ batch, applied, paid, failed, mismatched[], unmatched[], withholdingShortfalls[] }`. */
 export interface ApplyBankResultResult {
   batch: PayoutBatchFull;
   /** false = archivo ya aplicado antes (idempotente, nada escrito). */
@@ -1031,6 +1053,7 @@ export interface ApplyBankResultResult {
   failed: number;
   mismatched: BankResultPreviewRow[];
   unmatched: BankResultPreviewRow[];
+  withholdingShortfalls: WithholdingShortfallRow[];
 }
 
 /** Ledger con el id de la comisión (para el recibo) cuando el API lo expone. */
