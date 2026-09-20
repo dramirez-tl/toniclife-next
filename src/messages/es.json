@@ -1455,130 +1455,385 @@
     },
     "payments": {
       "title": "Datos para Comisiones",
-      "subtitle": "Para poder depositarte tus comisiones, necesitamos verificar tu identidad e información bancaria. Estos datos son confidenciales y solo los usa el equipo de Tesorería.",
+      "subtitle": "Para depositarte tus comisiones necesitamos verificar tu identidad, tus datos fiscales y tu cuenta bancaria. Esta información es confidencial y solo la usa el equipo de Tesorería.",
       "protected": "Información protegida",
-      "badges": {
-        "completed": "Completado",
-        "pending": "Pendiente"
+      "overall": {
+        "not_started": "Sin iniciar",
+        "incomplete": "Incompleto",
+        "pending_validation": "En revisión",
+        "rejected": "Con rechazos",
+        "validated": "Validado"
+      },
+      "hero": {
+        "title": {
+          "capture": "Captura tus datos",
+          "submit_docs": "Sube tus documentos",
+          "in_review": "Tu expediente está en revisión",
+          "fix_rejected": "Hay documentos rechazados",
+          "ready": "Todo listo para recibir tus comisiones"
+        },
+        "body": {
+          "capture": "Completa tus datos personales, fiscales y bancarios en cada tarjeta y guárdalos.",
+          "submit_docs": "Ya tenemos tus datos; falta subir los documentos que los respaldan.",
+          "in_review": "Tesorería revisa tu expediente en un máximo de {days} días hábiles. Te avisaremos por correo y aquí.",
+          "fix_rejected": "Revisa el motivo de cada rechazo y vuelve a subir el documento corregido.",
+          "ready": "Tus datos y documentos están validados y tu cuenta verificada."
+        },
+        "progress": "{completed} de {total} completados"
+      },
+      "stepper": {
+        "ariaLabel": "Avance de tus datos para comisiones",
+        "capture": "Captura",
+        "documents": "Documentos",
+        "review": "Revisión (≤ {days} días)",
+        "validated": "Validado",
+        "current": "paso actual",
+        "done": "completado"
+      },
+      "checklist": {
+        "title": "¿Qué me falta?",
+        "progress": "{completed}/{total}",
+        "empty": "Aún no hay elementos por revisar.",
+        "goTo": "Ir a {item}",
+        "state": {
+          "complete": "Listo",
+          "pending": "En revisión",
+          "rejected": "Rechazado",
+          "missing": "Falta"
+        },
+        "items": {
+          "email": "Correo electrónico",
+          "phone": "Teléfono",
+          "curp": "CURP",
+          "rfc": "RFC",
+          "ineNumber": "Número de INE",
+          "satRegime": "Régimen fiscal (SAT)",
+          "satRegimeCode": "Régimen fiscal (SAT)",
+          "fiscalZipCode": "Código postal fiscal",
+          "commissionRegime": "Régimen de comisión (Tesorería)",
+          "bankAccount": "Cuenta bancaria verificada",
+          "clabe": "CLABE",
+          "routing": "Cuenta bancaria (US)",
+          "accountHolder": "Titular de la cuenta",
+          "consent": "Aviso de privacidad",
+          "ine": "INE escaneada",
+          "taxId": "Constancia de Situación Fiscal",
+          "bankStatement": "Carátula de cuenta",
+          "foreignId": "Identificación oficial",
+          "w9": "Formulario W-9"
+        }
+      },
+      "rejection": {
+        "title": "Documentos rechazados",
+        "body": "Corrige cada documento según el motivo indicado y vuelve a subirlo; Tesorería lo revisará de nuevo.",
+        "reason": "Motivo: {reason}",
+        "notes": "Nota del revisor: {notes}",
+        "fix": "Corregir"
+      },
+      "consent": {
+        "title": "Aviso de privacidad",
+        "body": "Para recibir comisiones tratamos tu INE, CURP, RFC y datos bancarios conforme a nuestro aviso de privacidad. Debes aceptarlo antes de guardar tus datos.",
+        "checkbox": "He leído y acepto el aviso de privacidad (versión {version}).",
+        "link": "Leer el aviso de privacidad",
+        "accepted": "Aceptado el {date} (versión {version}).",
+        "outdated": "El aviso de privacidad cambió (versión {version}). Vuelve a aceptarlo para continuar.",
+        "required": "Debes aceptar el aviso de privacidad.",
+        "blocked": "Acepta el aviso de privacidad para poder guardar",
+        "save": "Aceptar y continuar",
+        "saving": "Guardando…",
+        "saved": "Aviso de privacidad aceptado"
+      },
+      "common": {
+        "save": "Guardar",
+        "saving": "Guardando…",
+        "dirty": "Tienes cambios sin guardar",
+        "clean": "Sin cambios pendientes",
+        "requiredMark": "obligatorio",
+        "help": "Ayuda: {field}",
+        "locked": "Validado",
+        "requestChange": "Solicitar cambio"
+      },
+      "requestChange": {
+        "title": "¿Solicitar cambio?",
+        "body": "Vas a modificar {subject}. Para hacerlo, el documento {documents} volverá a quedar pendiente de revisión.",
+        "warning": "Al guardar, la validación actual se revoca y Tesorería deberá revisar de nuevo tu expediente. Mientras tanto no se pueden dispersar tus comisiones.",
+        "confirm": "Entiendo, continuar",
+        "cancel": "Cancelar"
+      },
+      "personal": {
+        "title": "Datos personales",
+        "description": "Identidad y contacto para que Tesorería pueda ubicarte.",
+        "tooltip": "Datos de contacto e identidad. Tesorería los coteja contra tu INE.",
+        "email": "Correo electrónico",
+        "emailTooltip": "Correo donde te avisamos cuando se procesa un depósito. Se cambia desde tu cuenta.",
+        "emailReadOnly": "Solo lectura aquí.",
+        "emailLink": "Cambiarlo en mi cuenta",
+        "phone": "Teléfono",
+        "phoneTooltip": "Número de contacto para aclaraciones sobre tu pago.",
+        "phoneDial": "Lada",
+        "phoneHint": "{country} · {digits} dígitos",
+        "phoneInvalid": "{country}: deben ser {digits} dígitos ({count}).",
+        "curp": "CURP",
+        "curpTooltip": "Clave Única de Registro de Población (18 caracteres). La encuentras en consulta.curp.gob.mx o en tu INE.",
+        "curpCount": "{count}/18 caracteres",
+        "curpValid": "CURP válida",
+        "ineNumber": "Número de INE",
+        "ineNumberTooltip": "Clave de elector o número de credencial que aparece al reverso de tu INE.",
+        "ineNumberHint": "Tal como aparece en tu credencial.",
+        "lockedTitle": "Tu INE ya fue validada",
+        "lockedBody": "CURP y número de INE están bloqueados. Si necesitas corregirlos, solicita el cambio; tu INE volverá a revisión."
+      },
+      "fiscal": {
+        "title": "Datos fiscales",
+        "description": "Lo que aparece en tu Constancia de Situación Fiscal del SAT.",
+        "tooltip": "Tesorería usa estos datos para calcular las retenciones de ISR e IVA de tus comisiones.",
+        "note": "Captura los datos exactamente como aparecen en tu Constancia de Situación Fiscal vigente. El régimen fiscal con el que se calculan tus retenciones lo asigna Tesorería al validar tu constancia.",
+        "rfc": "RFC",
+        "rfcTooltip": "Registro Federal de Contribuyentes con homoclave (13 caracteres para persona física).",
+        "rfcCount": "{count}/13 caracteres",
+        "rfcValid": "RFC válido",
+        "rfcMatchesCurp": "RFC válido · coincide con tu CURP",
+        "rfcMismatchCurp": "El RFC no coincide con los primeros 10 caracteres de tu CURP. Verifica ambos.",
+        "fiscalZipCode": "Código postal fiscal",
+        "fiscalZipCodeTooltip": "El código postal de tu domicilio fiscal, tal como aparece en la constancia.",
+        "fiscalZipCodeHint": "5 dígitos.",
+        "satRegime": "Régimen fiscal (SAT)",
+        "satRegimeTooltip": "El régimen que aparece en tu Constancia de Situación Fiscal. Si tienes varios, elige el que corresponde a tus ingresos por comisiones.",
+        "satRegimePlaceholder": "Selecciona tu régimen…",
+        "satRegimeHint": "Escribe para buscar por clave o nombre.",
+        "commissionRegime": "Régimen para tus comisiones",
+        "commissionRegimeTooltip": "Lo asigna Tesorería al validar tu constancia; determina cómo se calculan tus retenciones.",
+        "commissionRegimeNone": "Pendiente de asignar por Tesorería",
+        "commissionRegimeHint": "Solo lectura.",
+        "lockedTitle": "Tu constancia fiscal ya fue validada",
+        "lockedBody": "RFC, régimen y código postal están bloqueados. Si cambiaron, solicita el cambio y sube tu constancia actualizada."
+      },
+      "bank": {
+        "title": "Cuenta para depósitos",
+        "description": "Cuenta donde recibirás tus comisiones.",
+        "currencyNote": "Tus comisiones se depositan en {currency} ({country}).",
+        "tooltip": {
+          "clabe": "Cuenta bancaria mexicana identificada por su CLABE de 18 dígitos. Debe estar a tu nombre.",
+          "us": "Cuenta bancaria en Estados Unidos: número de ruta ABA (9 dígitos), número de cuenta y tipo. Debe estar a tu nombre.",
+          "generic": "Cuenta bancaria local a tu nombre. Indica el banco y el número de cuenta tal como aparecen en tu estado de cuenta."
+        },
+        "current": "Cuenta actual: {bank} · {masked}",
+        "verified": "Verificada",
+        "unverified": "Pendiente de verificar",
+        "verifiedAt": "verificada el {date}",
+        "replaceNotice": "Si capturas una cuenta nueva, la anterior deja de usarse y la nueva deberá verificarse con tu carátula.",
+        "clabe": "CLABE interbancaria",
+        "clabeNew": "Nueva CLABE interbancaria",
+        "clabeTooltip": "18 dígitos. La encuentras en tu app bancaria, estado de cuenta o carátula. El banco se detecta con los primeros 3 dígitos.",
+        "clabeCount": "{count}/18 dígitos",
+        "clabeValid": "CLABE válida · {bank}",
+        "bankDetected": "Banco detectado: {bank}",
+        "bankUnknown": "Banco no reconocido; verifica los primeros 3 dígitos",
+        "routing": "Número de ruta (ABA)",
+        "routingTooltip": "9 dígitos que identifican a tu banco en Estados Unidos. Aparece en tus cheques y en tu banca en línea.",
+        "routingHint": "{count}/9 dígitos",
+        "routingValid": "Número de ruta válido",
+        "accountNumber": "Número de cuenta",
+        "accountNumberTooltip": "Tu número de cuenta tal como aparece en tu estado de cuenta.",
+        "accountNumberHint": "Entre 4 y 20 caracteres, sin espacios.",
+        "accountType": "Tipo de cuenta",
+        "accountTypeChecking": "Cheques (checking)",
+        "accountTypeSavings": "Ahorro (savings)",
+        "bankName": "Banco",
+        "bankNameTooltip": "Nombre del banco donde tienes la cuenta.",
+        "bankNamePlaceholder": "Nombre del banco",
+        "bankNameHint": "Tal como aparece en tu estado de cuenta.",
+        "accountHolder": "Titular de la cuenta",
+        "accountHolderTooltip": "Nombre exacto del titular, como aparece en el estado de cuenta.",
+        "accountHolderPlaceholder": "NOMBRE COMPLETO DEL TITULAR",
+        "accountHolderHint": "Debe coincidir con tu nombre registrado como distribuidor.",
+        "lockedTitle": "Tu cuenta ya fue verificada",
+        "lockedBody": "Para cambiar de cuenta solicita el cambio: la nueva cuenta se registrará sin verificar y deberás subir su carátula."
+      },
+      "validation": {
+        "phone": "El teléfono no tiene la longitud correcta para el país.",
+        "zip": "El código postal debe tener 5 dígitos.",
+        "accountNumber": "El número de cuenta debe tener entre 4 y 20 caracteres.",
+        "curp": {
+          "generic": "La CURP no es válida.",
+          "FORMAT": "La CURP debe tener 18 caracteres con el formato oficial.",
+          "DATE": "La fecha de nacimiento dentro de la CURP no es válida.",
+          "CHECK_DIGIT": "El dígito verificador de la CURP no coincide; revisa que la copiaste completa."
+        },
+        "rfc": {
+          "generic": "El RFC no es válido.",
+          "FORMAT": "El RFC debe tener 12 o 13 caracteres con homoclave.",
+          "CHECK_DIGIT": "El dígito verificador del RFC no coincide; revisa la homoclave.",
+          "GENERIC": "No se aceptan RFC genéricos (XAXX010101000 / XEXX010101000)."
+        },
+        "clabe": {
+          "generic": "La CLABE no es válida.",
+          "LENGTH": "La CLABE debe tener exactamente 18 dígitos.",
+          "DIGITS": "La CLABE solo admite dígitos.",
+          "CHECK_DIGIT": "El dígito verificador de la CLABE no coincide; revisa que la copiaste completa."
+        },
+        "routing": {
+          "generic": "El número de ruta ABA no es válido (9 dígitos con verificador)."
+        }
+      },
+      "documents": {
+        "title": "Documentos",
+        "description": "Sube cada documento y se guarda al instante. Tesorería los revisa uno por uno.",
+        "tooltip": "Fotos o escaneos legibles. Se aceptan JPG, PNG y PDF de hasta 5 MB. El archivo anterior se conserva como historial.",
+        "none": "No hay documentos requeridos para tu país.",
+        "optional": "(opcional)",
+        "uploadedAt": "Subido el {date}",
+        "reviewedAt": "Revisado el {date}",
+        "preview": "Ver documento",
+        "previewTitle": "{document}",
+        "previewLoading": "Generando enlace seguro…",
+        "previewExpires": "Enlace seguro válido hasta {time}.",
+        "previewOpen": "Abrir en pestaña nueva",
+        "previewUnavailable": "No se pudo abrir el documento",
+        "close": "Cerrar",
+        "replace": "Reemplazar",
+        "requestReplace": "Solicitar reemplazo",
+        "delete": "Eliminar",
+        "cancel": "Cancelar",
+        "deleteConfirmTitle": "¿Eliminar el documento?",
+        "deleteConfirmBody": "Se eliminará {document} que aún no ha sido revisado. Podrás subir otro después.",
+        "confirmDelete": "Sí, eliminar",
+        "status": {
+          "missing": "Sin subir",
+          "pending": "Pendiente de revisión",
+          "validated": "Aprobado",
+          "rejected": "Rechazado",
+          "expired": "Vencido"
+        },
+        "upload": {
+          "reasonPrefix": "Motivo:",
+          "dropHint": "Arrastra y suelta tu archivo aquí",
+          "selectFile": "Seleccionar archivo",
+          "allowedHint": "JPG, PNG o PDF (máx. {max} MB)",
+          "errorTooLarge": "El archivo excede {max} MB.",
+          "errorType": "Tipo de archivo no permitido. Usa JPG, PNG o PDF.",
+          "removeFile": "Quitar archivo",
+          "uploading": "Subiendo…"
+        },
+        "ine": {
+          "title": "INE (credencial para votar)",
+          "hint": "Foto por ambos lados, legible: nombre, fotografía y clave de elector."
+        },
+        "taxId": {
+          "title": "Constancia de Situación Fiscal",
+          "hint": "Descárgala del portal del SAT (PDF). Debe ser reciente y mostrar tu RFC, régimen y código postal."
+        },
+        "bankStatement": {
+          "title": "Carátula de estado de cuenta",
+          "hint": "Documento del banco donde se vea tu nombre, el banco y la cuenta/CLABE completa."
+        },
+        "foreignId": {
+          "title": "Identificación oficial",
+          "hint": "Pasaporte, licencia de conducir o identificación oficial vigente con fotografía."
+        },
+        "w9": {
+          "title": "Formulario W-9",
+          "hint": "Formulario W-9 del IRS firmado (PDF)."
+        }
+      },
+      "errors": {
+        "load": "No se pudieron cargar tus datos para comisiones.",
+        "loadTitle": "No pudimos cargar esta sección",
+        "retry": "Reintentar",
+        "forbidden": "Tu sesión expiró o no tienes permiso. Vuelve a iniciar sesión.",
+        "tooLarge": "El archivo es demasiado grande (máximo 5 MB).",
+        "server": "Ocurrió un error en el servidor. Intenta de nuevo en unos minutos.",
+        "network": "Sin conexión con el servidor. Revisa tu internet e intenta de nuevo.",
+        "TRS_MIGRATION_PENDING": "Esta función se está habilitando. Intenta más tarde.",
+        "TRS_CURP_INVALID": "La CURP no es válida. Revisa los 18 caracteres.",
+        "TRS_RFC_INVALID": "El RFC no es válido. Revisa la homoclave.",
+        "TRS_RFC_GENERIC": "No se aceptan RFC genéricos; usa el de tu Constancia de Situación Fiscal.",
+        "TRS_CLABE_INVALID": "La CLABE no es válida. Revisa los 18 dígitos.",
+        "TRS_ROUTING_INVALID": "El número de ruta ABA no es válido.",
+        "TRS_CURP_RFC_MISMATCH": "El RFC y la CURP no corresponden a la misma persona.",
+        "TRS_DUPLICATE_ID": "Este dato ya está registrado por otro distribuidor. Contacta a Tesorería.",
+        "TRS_DOC_TYPE": "Tipo de archivo no permitido. Usa JPG, PNG o PDF.",
+        "TRS_DOC_CONTENT": "El archivo no corresponde a su tipo (parece dañado o renombrado). Sube el original.",
+        "TRS_DOC_UPLOAD_FAILED": "No se pudo guardar el archivo. Intenta de nuevo.",
+        "TRS_DOC_LOCKED": "Ese dato ya fue validado. Usa \"Solicitar cambio\" para modificarlo.",
+        "TRS_DOC_NOT_PENDING": "Solo se pueden eliminar documentos pendientes de revisión.",
+        "TRS_CONSENT_REQUIRED": "Acepta el aviso de privacidad para guardar tus datos.",
+        "TRS_EMAIL_READONLY": "El correo se cambia desde tu cuenta, no desde aquí.",
+        "TRS_REASON_REQUIRED": "Falta el motivo del cambio."
+      },
+      "toast": {
+        "saved": "Datos guardados",
+        "savedSection": "{section}: cambios guardados",
+        "saveError": "No se pudieron guardar los datos",
+        "docUploaded": "{document}: documento subido, pendiente de revisión",
+        "docDeleted": "{document}: documento eliminado"
       },
       "status": {
+        "completed": "Pagado",
         "paid": "Pagado",
         "pending": "Pendiente",
         "failed": "Fallido",
         "reversed": "Revertido"
       },
-      "banner": {
-        "completeTitle": "Datos completos y validados",
-        "completeBody": "Estás listo para recibir pagos de comisiones.",
-        "validationTitle": "Documentos pendientes de validación",
-        "validationBody": "Tu información está en revisión por el equipo de Tesorería.",
-        "incompleteTitle": "Datos incompletos para recibir comisiones",
-        "missing": "Falta: {fields}"
-      },
-      "missingFields": {
-        "email": "Correo electrónico",
-        "phone": "Teléfono",
-        "curp": "CURP",
-        "rfc": "RFC",
-        "ineNumber": "Número de INE",
-        "ineDocument": "INE (escaneado)",
-        "taxIdDocument": "Constancia Fiscal",
-        "bankStatement": "Carátula de cuenta",
-        "clabe": "CLABE interbancaria"
-      },
-      "infoCards": {
-        "identityTitle": "Verificar tu identidad",
-        "identityBody": "INE y CURP para confirmar que eres titular de la cuenta.",
-        "fiscalTitle": "Cumplimiento fiscal",
-        "fiscalBody": "RFC y régimen fiscal para calcular retenciones correctamente.",
-        "depositTitle": "Cuenta para depósitos",
-        "depositBody": "CLABE y carátula para transferir tus comisiones de forma segura."
-      },
-      "personal": {
-        "title": "Información Personal",
-        "tooltip": "Datos de contacto para que Tesorería pueda comunicarse contigo si hay algún problema con tu pago.",
-        "fullName": "Nombre completo",
-        "fullNameTooltip": "Se toma de tu perfil. Si necesitas cambiarlo, contacta a soporte.",
-        "readOnlyField": "Campo de solo lectura",
-        "email": "Correo electrónico",
-        "emailTooltip": "Email donde te notificaremos cuando se procese un depósito de comisiones.",
-        "emailPlaceholder": "tu@email.com",
-        "phone": "Teléfono",
-        "phoneTooltip": "Número de contacto para que Tesorería te ubique en caso de aclaraciones."
-      },
-      "fiscal": {
-        "title": "Información Fiscal",
-        "tooltip": "Datos requeridos por el SAT para calcular retenciones de ISR e IVA sobre tus comisiones.",
-        "note": "Tu constancia fiscal debe indicar Régimen de Sueldos y Salarios e Ingresos Asimilados a Salarios.",
-        "curp": "CURP",
-        "curpTooltip": "Clave Única de Registro de Población (18 caracteres). Lo encuentras en tu acta de nacimiento o en consulta.curp.gob.mx",
-        "curpCount": "{count}/18 caracteres",
-        "rfc": "RFC",
-        "rfcTooltip": "Registro Federal de Contribuyentes (12-13 caracteres). Lo encuentras en tu Constancia de Situación Fiscal.",
-        "ineNumber": "Número de INE",
-        "ineNumberTooltip": "Número de credencial que aparece al reverso de tu INE (credencial de elector).",
-        "taxRegime": "Régimen Fiscal",
-        "taxRegimeTooltip": "El régimen que aparece en tu Constancia de Situación Fiscal del SAT. Determina cómo se calculan tus retenciones.",
-        "selectPlaceholder": "Seleccionar..."
-      },
-      "banking": {
-        "title": "Datos Bancarios",
-        "tooltip": "Cuenta donde se depositarán tus comisiones. Debe estar a tu nombre y ser una cuenta bancaria mexicana con CLABE.",
-        "note": "La cuenta debe estar a nombre del distribuidor que recibirá las comisiones.",
-        "bank": "Banco",
-        "bankTooltip": "Nombre de tu banco. Ej: BBVA, Banorte, Santander, HSBC, etc.",
-        "bankPlaceholder": "BBVA, Banorte, Santander...",
-        "clabe": "CLABE Interbancaria",
-        "clabeTooltip": "La CLABE es un número de 18 dígitos que identifica tu cuenta bancaria. La encuentras en tu estado de cuenta, app del banco, o carátula de la cuenta.",
-        "clabeCount": "{count}/18 dígitos",
-        "clabeComplete": "Completa",
-        "accountHolder": "Titular de la cuenta",
-        "accountHolderTooltip": "Nombre exacto como aparece en tu estado de cuenta. Debe coincidir con tu nombre registrado como distribuidor.",
-        "accountHolderPlaceholder": "NOMBRE COMPLETO DEL TITULAR"
-      },
-      "documents": {
-        "title": "Documentos Requeridos",
-        "tooltip": "Escaneados o fotos legibles de tus documentos. Se aceptan JPG, PNG y PDF. Máximo 5MB por archivo.",
-        "note": "Sube fotos o escaneos legibles. El equipo de Tesorería los revisará y validará.",
-        "ineTitle": "INE (Credencial de elector)",
-        "ineHint": "Foto por ambos lados. Debe verse claramente tu nombre, foto y número de credencial.",
-        "taxIdTitle": "Constancia de Situación Fiscal (RFC)",
-        "taxIdHint": "Descárgala desde el portal del SAT. Debe indicar régimen de Sueldos y Salarios e Ingresos Asimilados a Salarios.",
-        "bankStatementTitle": "Carátula de Estado de Cuenta",
-        "bankStatementHint": "Documento del banco donde se vea tu nombre, nombre del banco y CLABE interbancaria completa."
-      },
-      "contact": {
-        "title": "Dudas sobre tus datos",
-        "body": "Envía tus documentos escaneados o foto legible a <email>comisiones@toniclife.com</email> o por WhatsApp al <whatsapp>+52 462 220 1995</whatsapp>. Atención a clientes: <phone>462 626 5304</phone> Ext. 105, 124, 126."
-      },
-      "save": {
-        "footerNote": "Tus datos están protegidos y solo los usa Tesorería.",
-        "saving": "Guardando...",
-        "save": "Guardar Datos"
-      },
-      "validation": {
-        "clabeLength": "La CLABE debe tener exactamente 18 dígitos"
-      },
-      "toast": {
-        "updated": "Datos actualizados correctamente",
-        "saveError": "Error al guardar los datos"
-      },
       "history": {
-        "title": "Historial de Pagos de Comisiones",
+        "title": "Historial de pagos de comisiones",
+        "filterLabel": "Estado",
         "filterAll": "Todos los estados",
         "filterPaid": "Pagados",
         "filterPending": "Pendientes",
         "filterFailed": "Fallidos",
-        "incompleteWarning": "Completa tus datos para comisiones arriba para poder recibir pagos.",
-        "empty": "No hay pagos de comisiones registrados aún.",
+        "incompleteWarning": "Completa y valida tus datos para comisiones para poder recibir pagos.",
+        "empty": "Aún no hay pagos de comisiones registrados.",
+        "receipt": "Recibo",
+        "receiptGenerating": "Generando…",
+        "receiptAria": "Descargar recibo del periodo {period}",
+        "receiptError": "No se pudo generar el recibo",
+        "pageOf": "Página {page} de {total} · {count} pagos",
+        "paginationAria": "Paginación del historial",
+        "prev": "Anterior",
+        "next": "Siguiente",
+        "methods": {
+          "transfer": "Transferencia",
+          "cash": "Efectivo",
+          "check": "Cheque"
+        },
         "columns": {
           "period": "Periodo",
           "amount": "Monto",
+          "withheld": "Convenios",
           "date": "Fecha",
           "method": "Método",
           "reference": "Referencia",
-          "status": "Estado"
+          "batch": "Lote",
+          "tracking": "Rastreo",
+          "status": "Estado",
+          "receipt": "Recibo"
         }
+      },
+      "withholdings": {
+        "title": "Convenios con la empresa",
+        "description": "Descuentos acordados que se aplican sobre tus comisiones hasta cubrir el saldo.",
+        "since": "desde {date}",
+        "total": "Total",
+        "balance": "Saldo pendiente",
+        "installment": "Abono por periodo",
+        "maxPct": "Tope por periodo",
+        "applications": "Ver abonos aplicados ({count})",
+        "balanceAfter": "saldo: {amount}",
+        "concept": {
+          "loan": "Préstamo",
+          "other": "Otro concepto"
+        },
+        "status": {
+          "active": "Activo",
+          "paused": "Pausado",
+          "settled": "Liquidado",
+          "cancelled": "Cancelado"
+        }
+      },
+      "contact": {
+        "title": "Dudas sobre tus datos",
+        "body": "Escríbenos a <email>comisiones@toniclife.com</email> o por WhatsApp al <whatsapp>+52 462 220 1995</whatsapp>. Atención a clientes: <phone>462 626 5304</phone> Ext. 105, 124, 126."
       }
     },
     "notifications": {

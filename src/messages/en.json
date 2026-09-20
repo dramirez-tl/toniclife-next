@@ -1454,131 +1454,386 @@
       }
     },
     "payments": {
-      "title": "Commission Details",
-      "subtitle": "To deposit your commissions, we need to verify your identity and bank information. This data is confidential and only used by the Treasury team.",
+      "title": "Commission Payment Details",
+      "subtitle": "To deposit your commissions we need to verify your identity, tax details and bank account. This information is confidential and used only by the Treasury team.",
       "protected": "Protected information",
-      "badges": {
-        "completed": "Completed",
-        "pending": "Pending"
+      "overall": {
+        "not_started": "Not started",
+        "incomplete": "Incomplete",
+        "pending_validation": "Under review",
+        "rejected": "Has rejections",
+        "validated": "Validated"
+      },
+      "hero": {
+        "title": {
+          "capture": "Enter your details",
+          "submit_docs": "Upload your documents",
+          "in_review": "Your file is under review",
+          "fix_rejected": "Some documents were rejected",
+          "ready": "You are all set to receive your commissions"
+        },
+        "body": {
+          "capture": "Fill in your personal, tax and bank details in each card and save them.",
+          "submit_docs": "We already have your details; now upload the supporting documents.",
+          "in_review": "Treasury reviews your file within {days} business days. We will notify you by email and here.",
+          "fix_rejected": "Check the reason for each rejection and upload the corrected document again.",
+          "ready": "Your details and documents are validated and your account is verified."
+        },
+        "progress": "{completed} of {total} completed"
+      },
+      "stepper": {
+        "ariaLabel": "Progress of your commission payment details",
+        "capture": "Details",
+        "documents": "Documents",
+        "review": "Review (≤ {days} days)",
+        "validated": "Validated",
+        "current": "current step",
+        "done": "completed"
+      },
+      "checklist": {
+        "title": "What is missing?",
+        "progress": "{completed}/{total}",
+        "empty": "Nothing to review yet.",
+        "goTo": "Go to {item}",
+        "state": {
+          "complete": "Done",
+          "pending": "Under review",
+          "rejected": "Rejected",
+          "missing": "Missing"
+        },
+        "items": {
+          "email": "Email",
+          "phone": "Phone",
+          "curp": "CURP",
+          "rfc": "RFC",
+          "ineNumber": "INE number",
+          "satRegime": "Tax regime (SAT)",
+          "satRegimeCode": "Tax regime (SAT)",
+          "fiscalZipCode": "Tax ZIP code",
+          "commissionRegime": "Commission regime (Treasury)",
+          "bankAccount": "Verified bank account",
+          "clabe": "CLABE",
+          "routing": "Bank account (US)",
+          "accountHolder": "Account holder",
+          "consent": "Privacy notice",
+          "ine": "Scanned INE",
+          "taxId": "Tax status certificate (CSF)",
+          "bankStatement": "Bank statement cover",
+          "foreignId": "Government ID",
+          "w9": "Form W-9"
+        }
+      },
+      "rejection": {
+        "title": "Rejected documents",
+        "body": "Fix each document according to the reason given and upload it again; Treasury will review it once more.",
+        "reason": "Reason: {reason}",
+        "notes": "Reviewer note: {notes}",
+        "fix": "Fix"
+      },
+      "consent": {
+        "title": "Privacy notice",
+        "body": "To pay your commissions we process your INE, CURP, RFC and bank details under our privacy notice. You must accept it before saving your details.",
+        "checkbox": "I have read and accept the privacy notice (version {version}).",
+        "link": "Read the privacy notice",
+        "accepted": "Accepted on {date} (version {version}).",
+        "outdated": "The privacy notice changed (version {version}). Please accept it again to continue.",
+        "required": "You must accept the privacy notice.",
+        "blocked": "Accept the privacy notice to be able to save",
+        "save": "Accept and continue",
+        "saving": "Saving…",
+        "saved": "Privacy notice accepted"
+      },
+      "common": {
+        "save": "Save",
+        "saving": "Saving…",
+        "dirty": "You have unsaved changes",
+        "clean": "No pending changes",
+        "requiredMark": "required",
+        "help": "Help: {field}",
+        "locked": "Validated",
+        "requestChange": "Request change"
+      },
+      "requestChange": {
+        "title": "Request a change?",
+        "body": "You are about to change {subject}. To do so, the document {documents} will go back to pending review.",
+        "warning": "When you save, the current validation is revoked and Treasury must review your file again. Your commissions cannot be paid out in the meantime.",
+        "confirm": "I understand, continue",
+        "cancel": "Cancel"
+      },
+      "personal": {
+        "title": "Personal details",
+        "description": "Identity and contact details so Treasury can reach you.",
+        "tooltip": "Contact and identity details. Treasury checks them against your INE.",
+        "email": "Email",
+        "emailTooltip": "Email where we notify you when a deposit is processed. Change it from your account.",
+        "emailReadOnly": "Read-only here.",
+        "emailLink": "Change it in my account",
+        "phone": "Phone",
+        "phoneTooltip": "Contact number for questions about your payment.",
+        "phoneDial": "Country code",
+        "phoneHint": "{country} · {digits} digits",
+        "phoneInvalid": "{country}: must be {digits} digits ({count}).",
+        "curp": "CURP",
+        "curpTooltip": "Clave Única de Registro de Población (18 characters). Find it at consulta.curp.gob.mx or on your INE.",
+        "curpCount": "{count}/18 characters",
+        "curpValid": "Valid CURP",
+        "ineNumber": "INE number",
+        "ineNumberTooltip": "Voter key or card number shown on the back of your INE.",
+        "ineNumberHint": "Exactly as printed on your card.",
+        "lockedTitle": "Your INE has already been validated",
+        "lockedBody": "CURP and INE number are locked. If you need to correct them, request a change; your INE will go back to review."
+      },
+      "fiscal": {
+        "title": "Tax details",
+        "description": "As shown on your SAT tax status certificate (CSF).",
+        "tooltip": "Treasury uses these details to calculate the ISR and IVA withholdings on your commissions.",
+        "note": "Enter the details exactly as they appear on your current Constancia de Situación Fiscal. The regime used to calculate your withholdings is assigned by Treasury when it validates your certificate.",
+        "rfc": "RFC",
+        "rfcTooltip": "Registro Federal de Contribuyentes with homoclave (13 characters for individuals).",
+        "rfcCount": "{count}/13 characters",
+        "rfcValid": "Valid RFC",
+        "rfcMatchesCurp": "Valid RFC · matches your CURP",
+        "rfcMismatchCurp": "The RFC does not match the first 10 characters of your CURP. Check both.",
+        "fiscalZipCode": "Tax ZIP code",
+        "fiscalZipCodeTooltip": "The ZIP code of your tax address, as shown on the certificate.",
+        "fiscalZipCodeHint": "5 digits.",
+        "satRegime": "Tax regime (SAT)",
+        "satRegimeTooltip": "The regime shown on your Constancia de Situación Fiscal. If you have several, pick the one for your commission income.",
+        "satRegimePlaceholder": "Select your regime…",
+        "satRegimeHint": "Type to search by code or name.",
+        "commissionRegime": "Regime for your commissions",
+        "commissionRegimeTooltip": "Assigned by Treasury when validating your certificate; it determines how your withholdings are calculated.",
+        "commissionRegimeNone": "Pending assignment by Treasury",
+        "commissionRegimeHint": "Read-only.",
+        "lockedTitle": "Your tax certificate has already been validated",
+        "lockedBody": "RFC, regime and ZIP code are locked. If they changed, request a change and upload your updated certificate."
+      },
+      "bank": {
+        "title": "Deposit account",
+        "description": "Account where you will receive your commissions.",
+        "currencyNote": "Your commissions are deposited in {currency} ({country}).",
+        "tooltip": {
+          "clabe": "Mexican bank account identified by its 18-digit CLABE. It must be in your name.",
+          "us": "United States bank account: ABA routing number (9 digits), account number and type. It must be in your name.",
+          "generic": "Local bank account in your name. Enter the bank and account number as shown on your statement."
+        },
+        "current": "Current account: {bank} · {masked}",
+        "verified": "Verified",
+        "unverified": "Pending verification",
+        "verifiedAt": "verified on {date}",
+        "replaceNotice": "If you enter a new account, the previous one is retired and the new one must be verified with your statement cover.",
+        "clabe": "CLABE interbank number",
+        "clabeNew": "New CLABE interbank number",
+        "clabeTooltip": "18 digits. Find it in your banking app, statement or account cover. The bank is detected from the first 3 digits.",
+        "clabeCount": "{count}/18 digits",
+        "clabeValid": "Valid CLABE · {bank}",
+        "bankDetected": "Bank detected: {bank}",
+        "bankUnknown": "Bank not recognized; check the first 3 digits",
+        "routing": "Routing number (ABA)",
+        "routingTooltip": "9 digits identifying your bank in the United States. Shown on your checks and online banking.",
+        "routingHint": "{count}/9 digits",
+        "routingValid": "Valid routing number",
+        "accountNumber": "Account number",
+        "accountNumberTooltip": "Your account number as shown on your statement.",
+        "accountNumberHint": "4 to 20 characters, no spaces.",
+        "accountType": "Account type",
+        "accountTypeChecking": "Checking",
+        "accountTypeSavings": "Savings",
+        "bankName": "Bank",
+        "bankNameTooltip": "Name of the bank where you hold the account.",
+        "bankNamePlaceholder": "Bank name",
+        "bankNameHint": "As shown on your statement.",
+        "accountHolder": "Account holder",
+        "accountHolderTooltip": "Exact holder name as shown on the statement.",
+        "accountHolderPlaceholder": "FULL NAME OF THE ACCOUNT HOLDER",
+        "accountHolderHint": "It must match your registered distributor name.",
+        "lockedTitle": "Your account has already been verified",
+        "lockedBody": "To switch accounts, request a change: the new account is registered unverified and you must upload its statement cover."
+      },
+      "validation": {
+        "phone": "The phone number does not have the right length for the country.",
+        "zip": "The ZIP code must have 5 digits.",
+        "accountNumber": "The account number must have between 4 and 20 characters.",
+        "curp": {
+          "generic": "The CURP is not valid.",
+          "FORMAT": "The CURP must have 18 characters in the official format.",
+          "DATE": "The birth date inside the CURP is not valid.",
+          "CHECK_DIGIT": "The CURP check digit does not match; make sure you copied it completely."
+        },
+        "rfc": {
+          "generic": "The RFC is not valid.",
+          "FORMAT": "The RFC must have 12 or 13 characters including the homoclave.",
+          "CHECK_DIGIT": "The RFC check digit does not match; check the homoclave.",
+          "GENERIC": "Generic RFCs are not accepted (XAXX010101000 / XEXX010101000)."
+        },
+        "clabe": {
+          "generic": "The CLABE is not valid.",
+          "LENGTH": "The CLABE must have exactly 18 digits.",
+          "DIGITS": "The CLABE accepts digits only.",
+          "CHECK_DIGIT": "The CLABE check digit does not match; make sure you copied it completely."
+        },
+        "routing": {
+          "generic": "The ABA routing number is not valid (9 digits with check digit)."
+        }
+      },
+      "documents": {
+        "title": "Documents",
+        "description": "Upload each document and it is saved instantly. Treasury reviews them one by one.",
+        "tooltip": "Legible photos or scans. JPG, PNG and PDF up to 5 MB are accepted. The previous file is kept as history.",
+        "none": "No documents are required for your country.",
+        "optional": "(optional)",
+        "uploadedAt": "Uploaded on {date}",
+        "reviewedAt": "Reviewed on {date}",
+        "preview": "View document",
+        "previewTitle": "{document}",
+        "previewLoading": "Generating secure link…",
+        "previewExpires": "Secure link valid until {time}.",
+        "previewOpen": "Open in new tab",
+        "previewUnavailable": "The document could not be opened",
+        "close": "Close",
+        "replace": "Replace",
+        "requestReplace": "Request replacement",
+        "delete": "Delete",
+        "cancel": "Cancel",
+        "deleteConfirmTitle": "Delete the document?",
+        "deleteConfirmBody": "{document} has not been reviewed yet and will be deleted. You can upload another one later.",
+        "confirmDelete": "Yes, delete",
+        "status": {
+          "missing": "Not uploaded",
+          "pending": "Pending review",
+          "validated": "Approved",
+          "rejected": "Rejected",
+          "expired": "Expired"
+        },
+        "upload": {
+          "reasonPrefix": "Reason:",
+          "dropHint": "Drag and drop your file here",
+          "selectFile": "Select file",
+          "allowedHint": "JPG, PNG or PDF (max. {max} MB)",
+          "errorTooLarge": "The file exceeds {max} MB.",
+          "errorType": "File type not allowed. Use JPG, PNG or PDF.",
+          "removeFile": "Remove file",
+          "uploading": "Uploading…"
+        },
+        "ine": {
+          "title": "INE (voter ID card)",
+          "hint": "Legible photo of both sides: name, photo and voter key."
+        },
+        "taxId": {
+          "title": "Tax status certificate (CSF)",
+          "hint": "Download it from the SAT portal (PDF). It must be recent and show your RFC, regime and ZIP code."
+        },
+        "bankStatement": {
+          "title": "Bank statement cover",
+          "hint": "Bank document showing your name, the bank and the full account/CLABE."
+        },
+        "foreignId": {
+          "title": "Government ID",
+          "hint": "Passport, driver's license or a valid government-issued photo ID."
+        },
+        "w9": {
+          "title": "Form W-9",
+          "hint": "Signed IRS Form W-9 (PDF)."
+        }
+      },
+      "errors": {
+        "load": "Your commission payment details could not be loaded.",
+        "loadTitle": "We could not load this section",
+        "retry": "Retry",
+        "forbidden": "Your session expired or you do not have permission. Please sign in again.",
+        "tooLarge": "The file is too large (5 MB maximum).",
+        "server": "A server error occurred. Please try again in a few minutes.",
+        "network": "No connection to the server. Check your internet and try again.",
+        "TRS_MIGRATION_PENDING": "This feature is being enabled. Please try again later.",
+        "TRS_CURP_INVALID": "The CURP is not valid. Check all 18 characters.",
+        "TRS_RFC_INVALID": "The RFC is not valid. Check the homoclave.",
+        "TRS_RFC_GENERIC": "Generic RFCs are not accepted; use the one on your tax status certificate.",
+        "TRS_CLABE_INVALID": "The CLABE is not valid. Check all 18 digits.",
+        "TRS_ROUTING_INVALID": "The ABA routing number is not valid.",
+        "TRS_CURP_RFC_MISMATCH": "The RFC and CURP do not belong to the same person.",
+        "TRS_DUPLICATE_ID": "This value is already registered by another distributor. Contact Treasury.",
+        "TRS_DOC_TYPE": "File type not allowed. Use JPG, PNG or PDF.",
+        "TRS_DOC_CONTENT": "The file does not match its type (it looks damaged or renamed). Upload the original.",
+        "TRS_DOC_UPLOAD_FAILED": "The file could not be saved. Please try again.",
+        "TRS_DOC_LOCKED": "That value has already been validated. Use \"Request change\" to modify it.",
+        "TRS_DOC_NOT_PENDING": "Only documents pending review can be deleted.",
+        "TRS_CONSENT_REQUIRED": "Accept the privacy notice to save your details.",
+        "TRS_EMAIL_READONLY": "Your email is changed from your account, not here.",
+        "TRS_REASON_REQUIRED": "The reason for the change is missing."
+      },
+      "toast": {
+        "saved": "Details saved",
+        "savedSection": "{section}: changes saved",
+        "saveError": "The details could not be saved",
+        "docUploaded": "{document}: document uploaded, pending review",
+        "docDeleted": "{document}: document deleted"
       },
       "status": {
+        "completed": "Paid",
         "paid": "Paid",
         "pending": "Pending",
         "failed": "Failed",
         "reversed": "Reversed"
       },
-      "banner": {
-        "completeTitle": "Data complete and validated",
-        "completeBody": "You are ready to receive commission payments.",
-        "validationTitle": "Documents pending validation",
-        "validationBody": "Your information is under review by the Treasury team.",
-        "incompleteTitle": "Incomplete data to receive commissions",
-        "missing": "Missing: {fields}"
-      },
-      "missingFields": {
-        "email": "Email",
-        "phone": "Phone",
-        "curp": "CURP",
-        "rfc": "RFC",
-        "ineNumber": "INE number",
-        "ineDocument": "INE (scanned)",
-        "taxIdDocument": "Tax ID Certificate",
-        "bankStatement": "Account statement",
-        "clabe": "CLABE interbank number"
-      },
-      "infoCards": {
-        "identityTitle": "Verify your identity",
-        "identityBody": "INE and CURP to confirm you are the account holder.",
-        "fiscalTitle": "Tax compliance",
-        "fiscalBody": "RFC and tax regime to calculate withholdings correctly.",
-        "depositTitle": "Account for deposits",
-        "depositBody": "CLABE and statement to transfer your commissions securely."
-      },
-      "personal": {
-        "title": "Personal Information",
-        "tooltip": "Contact details so Treasury can reach you if there is any issue with your payment.",
-        "fullName": "Full name",
-        "fullNameTooltip": "Taken from your profile. If you need to change it, contact support.",
-        "readOnlyField": "Read-only field",
-        "email": "Email",
-        "emailTooltip": "Email where we will notify you when a commission deposit is processed.",
-        "emailPlaceholder": "you@email.com",
-        "phone": "Phone",
-        "phoneTooltip": "Contact number so Treasury can reach you in case of clarifications."
-      },
-      "fiscal": {
-        "title": "Tax Information",
-        "tooltip": "Information required by the SAT to calculate ISR and IVA withholdings on your commissions.",
-        "note": "Your tax certificate must indicate Régimen de Sueldos y Salarios e Ingresos Asimilados a Salarios.",
-        "curp": "CURP",
-        "curpTooltip": "Clave Única de Registro de Población (18 characters). You can find it on your birth certificate or at consulta.curp.gob.mx",
-        "curpCount": "{count}/18 characters",
-        "rfc": "RFC",
-        "rfcTooltip": "Registro Federal de Contribuyentes (12-13 characters). You can find it on your Constancia de Situación Fiscal.",
-        "ineNumber": "INE number",
-        "ineNumberTooltip": "Card number shown on the back of your INE (voter ID card).",
-        "taxRegime": "Tax regime",
-        "taxRegimeTooltip": "The regime shown on your Constancia de Situación Fiscal from the SAT. It determines how your withholdings are calculated.",
-        "selectPlaceholder": "Select..."
-      },
-      "banking": {
-        "title": "Bank Details",
-        "tooltip": "Account where your commissions will be deposited. It must be in your name and be a Mexican bank account with CLABE.",
-        "note": "The account must be in the name of the distributor who will receive the commissions.",
-        "bank": "Bank",
-        "bankTooltip": "Name of your bank. E.g.: BBVA, Banorte, Santander, HSBC, etc.",
-        "bankPlaceholder": "BBVA, Banorte, Santander...",
-        "clabe": "CLABE Interbank Number",
-        "clabeTooltip": "The CLABE is an 18-digit number that identifies your bank account. You can find it on your statement, your bank's app, or the account cover sheet.",
-        "clabeCount": "{count}/18 digits",
-        "clabeComplete": "Complete",
-        "accountHolder": "Account holder",
-        "accountHolderTooltip": "Exact name as it appears on your statement. It must match your registered distributor name.",
-        "accountHolderPlaceholder": "FULL NAME OF ACCOUNT HOLDER"
-      },
-      "documents": {
-        "title": "Required Documents",
-        "tooltip": "Legible scans or photos of your documents. JPG, PNG and PDF are accepted. Maximum 5MB per file.",
-        "note": "Upload legible photos or scans. The Treasury team will review and validate them.",
-        "ineTitle": "INE (Voter ID card)",
-        "ineHint": "Photo of both sides. Your name, photo and card number must be clearly visible.",
-        "taxIdTitle": "Constancia de Situación Fiscal (RFC)",
-        "taxIdHint": "Download it from the SAT portal. It must indicate the régimen de Sueldos y Salarios e Ingresos Asimilados a Salarios.",
-        "bankStatementTitle": "Account Statement Cover Sheet",
-        "bankStatementHint": "Bank document showing your name, the bank's name and the full CLABE interbank number."
-      },
-      "contact": {
-        "title": "Questions about your data",
-        "body": "Send your scanned documents or a legible photo to <email>comisiones@toniclife.com</email> or via WhatsApp at <whatsapp>+52 462 220 1995</whatsapp>. Customer service: <phone>462 626 5304</phone> Ext. 105, 124, 126."
-      },
-      "save": {
-        "footerNote": "Your data is protected and only used by Treasury.",
-        "saving": "Saving...",
-        "save": "Save Data"
-      },
-      "validation": {
-        "clabeLength": "The CLABE must be exactly 18 digits"
-      },
-      "toast": {
-        "updated": "Data updated successfully",
-        "saveError": "Error saving data"
-      },
       "history": {
-        "title": "Commission Payment History",
+        "title": "Commission payment history",
+        "filterLabel": "Status",
         "filterAll": "All statuses",
         "filterPaid": "Paid",
         "filterPending": "Pending",
         "filterFailed": "Failed",
-        "incompleteWarning": "Complete your commission details above to be able to receive payments.",
+        "incompleteWarning": "Complete and validate your commission payment details to be able to receive payments.",
         "empty": "No commission payments recorded yet.",
+        "receipt": "Receipt",
+        "receiptGenerating": "Generating…",
+        "receiptAria": "Download receipt for period {period}",
+        "receiptError": "The receipt could not be generated",
+        "pageOf": "Page {page} of {total} · {count} payments",
+        "paginationAria": "History pagination",
+        "prev": "Previous",
+        "next": "Next",
+        "methods": {
+          "transfer": "Transfer",
+          "cash": "Cash",
+          "check": "Check"
+        },
         "columns": {
           "period": "Period",
           "amount": "Amount",
+          "withheld": "Agreements",
           "date": "Date",
           "method": "Method",
           "reference": "Reference",
-          "status": "Status"
+          "batch": "Batch",
+          "tracking": "Tracking",
+          "status": "Status",
+          "receipt": "Receipt"
         }
+      },
+      "withholdings": {
+        "title": "Agreements with the company",
+        "description": "Agreed deductions applied to your commissions until the balance is covered.",
+        "since": "since {date}",
+        "total": "Total",
+        "balance": "Outstanding balance",
+        "installment": "Installment per period",
+        "maxPct": "Cap per period",
+        "applications": "View applied installments ({count})",
+        "balanceAfter": "balance: {amount}",
+        "concept": {
+          "loan": "Loan",
+          "other": "Other"
+        },
+        "status": {
+          "active": "Active",
+          "paused": "Paused",
+          "settled": "Settled",
+          "cancelled": "Cancelled"
+        }
+      },
+      "contact": {
+        "title": "Questions about your details",
+        "body": "Write to <email>comisiones@toniclife.com</email> or via WhatsApp at <whatsapp>+52 462 220 1995</whatsapp>. Customer service: <phone>462 626 5304</phone> Ext. 105, 124, 126."
       }
     },
     "notifications": {
