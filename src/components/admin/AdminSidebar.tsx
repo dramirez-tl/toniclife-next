@@ -89,11 +89,26 @@ const navigation: NavItem[] = [
     icon: CurrencyDollarIcon,
     // mig 120: se quitó customers:read de esta lista (revelaba Tesorería a
     // cualquier rol con clientes, p.ej. call center o los de la matriz).
-    permissions: ['commissions', 'commissions.history', 'commissions:read', 'commissions:manage', 'mlm:withhold'],
+    // Tesorería v2 (contrato §1.11): lectura = commissions:read | mlm:admin |
+    // mlm:approve | mlm:pay | mlm:withhold | commissions:validate.
+    permissions: [
+      'commissions',
+      'commissions.history',
+      'commissions:read',
+      'commissions:manage',
+      'commissions:validate',
+      'mlm:withhold',
+      'mlm:pay',
+      'mlm:approve',
+      'mlm:admin',
+    ],
     children: [
+      { name: 'Resumen', href: '/admin/tesoreria' },
       { name: 'Comisiones', href: '/admin/comisiones' },
+      // 'Dispersión y pagos' (/admin/tesoreria/dispersion) se agrega con el
+      // paso 10 (lotes + ledger); hasta entonces no se enlaza a un 404.
       { name: 'Retenciones', href: '/admin/tesoreria/retenciones' },
-      { name: 'Validación de Datos', href: '/admin/tesoreria/validacion-datos' },
+      { name: 'Validación de datos', href: '/admin/tesoreria/validacion-datos' },
     ],
   },
   {
@@ -226,6 +241,7 @@ const navigation: NavItem[] = [
     superAdminOnly: true,
     children: [
       { name: 'Limpieza y Carga', href: '/admin/sistema' },
+      { name: 'Tesorería (ajustes)', href: '/admin/sistema?tab=tesoreria' },
     ],
   },
 ];

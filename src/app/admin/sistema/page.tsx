@@ -10,7 +10,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import {
   ExclamationTriangleIcon,
   WrenchScrewdriverIcon,
-  ComputerDesktopIcon,
   LockClosedIcon,
   LockOpenIcon,
 } from '@heroicons/react/24/outline';
@@ -55,6 +54,7 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Switch } from '@/components/ui/switch';
 import { PilotLiveTab } from './PilotLiveTab';
 import { PilotGatingTab } from './PilotGatingTab';
+import { TreasurySettingsTab } from './TreasurySettingsTab';
 import type { CleanupBlockStatus, LoadPhaseStatus } from '@/types/maintenance';
 import type { PosLicense } from '@/types/posLicense';
 
@@ -99,6 +99,7 @@ const SISTEMA_TABS = [
   'limpieza',
   'carga',
   'reset',
+  'tesoreria',
 ];
 
 function SistemaContent() {
@@ -179,7 +180,12 @@ function SistemaContent() {
                 <TabsTrigger value="limpieza">Limpieza</TabsTrigger>
                 <TabsTrigger value="carga">Carga masiva</TabsTrigger>
                 <TabsTrigger value="reset">Reset por periodo</TabsTrigger>
+                <TabsTrigger value="tesoreria">Tesorería</TabsTrigger>
               </TabsList>
+
+              <TabsContent value="tesoreria" className="mt-6">
+                <TreasurySettingsTab />
+              </TabsContent>
 
               <TabsContent value="piloto" className="mt-6">
                 <PilotLiveTab />
