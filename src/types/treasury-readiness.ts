@@ -169,6 +169,10 @@ export interface ReadinessListFilters {
   countryCode?: string;
   earnersOfPeriodId?: string;
   minDaysInQueue?: number;
+  /** Mismo universo que el KPI "Listos para pagar" (validado + cuenta + régimen + FX). */
+  readyToPay?: boolean;
+  /** Mismo universo que el KPI "Fuera de SLA" (pendientes de validación > review_sla_days). */
+  slaBreached?: boolean;
   search?: string;
   sortBy?: ReadinessSortBy;
   sortDir?: 'asc' | 'desc';

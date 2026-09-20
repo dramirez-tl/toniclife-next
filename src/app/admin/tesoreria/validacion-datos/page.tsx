@@ -125,6 +125,9 @@ function ValidacionDatosContent() {
   const periodParam = get('period') || earnersLink;
   const earnersParam = get('earners');
   const minDaysParam = getNumber('minDays');
+  // Filtros del API con el MISMO universo que los KPIs (readyToPay / slaBreached).
+  const readyOn = get('ready') === '1';
+  const slaOn = get('sla') === '1';
   const search = get('search');
   const sortParam = get('sort');
   const dirParam = get('dir') === 'asc' ? 'asc' : 'desc';
@@ -158,13 +161,15 @@ function ValidacionDatosContent() {
       countryCode: countryParam || undefined,
       earnersOfPeriodId: earnersOn ? effectivePeriodId : undefined,
       minDaysInQueue: minDaysParam > 0 ? minDaysParam : undefined,
+      readyToPay: readyOn || undefined,
+      slaBreached: slaOn || undefined,
       search: search || undefined,
       sortBy,
       sortDir: dirParam,
       page,
       limit,
     }),
-    [status, document, documentStatus, countryParam, earnersOn, effectivePeriodId, minDaysParam, search, sortBy, dirParam, page, limit],
+    [status, document, documentStatus, countryParam, earnersOn, effectivePeriodId, minDaysParam, readyOn, slaOn, search, sortBy, dirParam, page, limit],
   );
 
   const listQuery = useReadinessList(filters);
@@ -191,11 +196,12 @@ function ValidacionDatosContent() {
 
   const onKpi = (target: ReadinessKpiTarget) => {
     if (target.kind === 'status') setParams({ status: target.status, page: null });
-    else if (target.kind === 'readyToPay') setParams({ status: 'validated', page: null });
+    // `readyToPay=true` del API: un "validado" puede no estar listo (moneda de la cuenta, FX, régimen).
+    else if (target.kind === 'readyToPay') setParams({ ready: readyOn ? null : '1', status: null, page: null });
     else if (target.kind === 'earnersBlocked')
       setParams({ earners: earnersOn ? '0' : '1', earnersOfPeriodId: null, period: effectivePeriodId ?? null, status: earnersOn ? null : 'incomplete', page: null });
-    else if (target.kind === 'sla')
-      setParams({ minDays: minDaysParam > 0 ? null : String((slaDays ?? 0) + 1), status: minDaysParam > 0 ? null : 'pending_validation', page: null });
+    // `slaBreached=true` del API: exactamente el universo del KPI "Fuera de SLA".
+    else if (target.kind === 'sla') setParams({ sla: slaOn ? null : '1', minDays: null, page: null });
   };
 
   const handleExport = async () => {
@@ -233,7 +239,7 @@ function ValidacionDatosContent() {
   };
 
   const hasActiveFilters =
-    !!status || !!document || !!documentStatus || !!countryParam || earnersOn || minDaysParam > 0 || !!search;
+    !!status || !!document || !!documentStatus || !!countryParam || earnersOn || readyOn || slaOn || minDaysParam > 0 || !!search;
 
   const columns: DataTableColumn<ReadinessRow>[] = [
     {
@@ -411,7 +417,8 @@ function ValidacionDatosContent() {
           isLoading={listQuery.isLoading}
           activeStatus={status ?? null}
           earnersActive={earnersOn}
-          slaActive={minDaysParam > 0}
+          readyActive={readyOn}
+          slaActive={slaOn || minDaysParam > 0}
           slaDays={slaDays}
           hasPeriod={!!effectivePeriodId}
           onSelect={onKpi}
@@ -537,7 +544,7 @@ function ValidacionDatosContent() {
                 className="ml-auto"
                 onClick={() => {
                   setSearchDraft('');
-                  setParams({ status: null, doc: null, docStatus: null, country: null, earners: null, earnersOfPeriodId: null, minDays: null, search: null, page: null });
+                  setParams({ status: null, doc: null, docStatus: null, country: null, earners: null, earnersOfPeriodId: null, ready: null, sla: null, minDays: null, search: null, page: null });
                 }}
               >
                 Limpiar filtros

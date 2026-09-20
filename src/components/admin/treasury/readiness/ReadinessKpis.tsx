@@ -21,6 +21,8 @@ interface ReadinessKpisProps {
   isLoading: boolean;
   activeStatus: ReadinessOverallStatus | null;
   earnersActive: boolean;
+  /** Filtro `readyToPay=true` activo (mismo universo que el KPI). */
+  readyActive?: boolean;
   slaActive: boolean;
   slaDays: number | null;
   hasPeriod: boolean;
@@ -82,6 +84,7 @@ export function ReadinessKpis({
   isLoading,
   activeStatus,
   earnersActive,
+  readyActive = false,
   slaActive,
   slaDays,
   hasPeriod,
@@ -130,7 +133,7 @@ export function ReadinessKpis({
         value={formatInt(s?.readyToPay ?? 0)}
         sub="Expediente, cuenta y régimen"
         tone="text-emerald-700"
-        active={false}
+        active={readyActive}
         onClick={() => onSelect({ kind: 'readyToPay' })}
       />
       <KpiCard

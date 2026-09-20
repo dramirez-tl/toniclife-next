@@ -40,7 +40,7 @@ import {
 } from '@/components/ui/DataTable';
 import { PermissionGuard } from '@/components/auth';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
-import { useUpdateWithholdingV2, useWithholdingList } from '@/hooks/useTreasury';
+import { useTreasurySettings, useUpdateWithholdingV2, useWithholdingList } from '@/hooks/useTreasury';
 import { withholdingsTreasuryService } from '@/services/treasury.service';
 import { exportToCsv } from '@/lib/csv-export';
 import { saveBlob } from '@/lib/download';
@@ -142,6 +142,10 @@ function RetencionesContent() {
   const periodSel = useTreasuryPeriod(get('period'));
   const { effectivePeriodId, selectedPeriod, visiblePeriods } = periodSel;
   const perms = useTreasuryPermissions();
+  // Tope global real (`treasury.withholding_max_pct_per_period`): solo super_admin puede leer
+  // /settings/treasury; el resto usa el `globalPct` del preview o el default 30.
+  const settingsQuery = useTreasurySettings(perms.isSuperAdmin);
+  const globalMaxPct = settingsQuery.data?.withholdingMaxPctPerPeriod ?? null;
 
   // Búsqueda con retraso (300 ms).
   const [searchDraft, setSearchDraft] = useState(search);
@@ -482,6 +486,7 @@ function RetencionesContent() {
         periodId={effectivePeriodId}
         periodName={selectedPeriod?.name}
         isPeriodClosed={selectedPeriod?.isClosed}
+        globalMaxPct={globalMaxPct}
       />
 
       {/* Filtros (URL) */}
@@ -592,6 +597,7 @@ function RetencionesContent() {
           onOpenChange={setFormOpen}
           agreement={editing}
           periods={visiblePeriods}
+          globalMaxPct={globalMaxPct}
           onSaved={(row) => {
             if (statementFor?.id === row.id) setStatementFor(row);
           }}

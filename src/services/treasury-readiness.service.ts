@@ -287,6 +287,8 @@ function listParams(filters: ReadinessListFilters): Record<string, string> {
   if (filters.earnersOfPeriodId) p.earnersOfPeriodId = filters.earnersOfPeriodId;
   if (filters.minDaysInQueue !== undefined && filters.minDaysInQueue > 0)
     p.minDaysInQueue = String(filters.minDaysInQueue);
+  if (filters.readyToPay) p.readyToPay = 'true';
+  if (filters.slaBreached) p.slaBreached = 'true';
   if (filters.search) p.search = filters.search;
   if (filters.sortBy) p.sortBy = filters.sortBy;
   if (filters.sortDir) p.sortDir = filters.sortDir;
