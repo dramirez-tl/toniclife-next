@@ -326,10 +326,14 @@ function ConfirmBatchDialog({ batch, onClose, onDone }: SingleDialogProps) {
 function ReleasePendingDialog({ batch, onClose, onDone }: SingleDialogProps) {
   const mutation = useReleasePendingRows();
   const pending = batchPendingRows(batch);
+  const [reason, setReason] = useState('');
+  const reasonId = useId();
+  const trimmed = reason.trim();
+  const reasonOk = trimmed.length >= 5 && trimmed.length <= 300;
 
   const handle = async () => {
     try {
-      const res = await mutation.mutateAsync(batch.id);
+      const res = await mutation.mutateAsync({ id: batch.id, reason: trimmed });
       toast.success(`${formatInt(res.released)} fila(s) del lote ${batch.batchNumber} liberadas: vuelven a Aprobadas para un nuevo lote`);
       onDone?.(res.batch);
       onClose();
@@ -347,14 +351,32 @@ function ReleasePendingDialog({ batch, onClose, onDone }: SingleDialogProps) {
       confirmLabel="Liberar pendientes"
       confirmText={pending !== null && pending > 0 ? String(pending) : undefined}
       isPending={mutation.isPending}
+      disabled={!reasonOk}
       onConfirm={handle}
     >
-      <div className="space-y-2">
+      <div className="space-y-3">
         <BatchSummaryLine batch={batch} />
         <p className="text-xs text-muted-foreground">
           Filas pendientes: {pending === null ? 'sin dato' : formatInt(pending)}. Si el banco ya pagó alguna, aplica primero el
           resultado o confirma el pago; solo se liberan las que sigan pendientes.
         </p>
+        <div className="space-y-1.5">
+          <Label htmlFor={reasonId}>Motivo (5-300) *</Label>
+          <Textarea
+            id={reasonId}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            rows={3}
+            maxLength={300}
+            disabled={mutation.isPending}
+            aria-invalid={reason.length > 0 && !reasonOk}
+            aria-describedby={`${reasonId}-hint`}
+            placeholder="Ej. Convenio del distribuidor cambió tras generar el layout; se reprograma en el siguiente lote"
+          />
+          <p id={`${reasonId}-hint`} className="text-xs text-muted-foreground">
+            Queda en la auditoría del lote (COMMISSION_BATCH_RELEASE). {trimmed.length}/300
+          </p>
+        </div>
       </div>
     </ConfirmDialog>
   );

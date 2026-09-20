@@ -926,12 +926,15 @@ class PayoutBatchesService {
   }
 
   /**
-   * POST /mlm/payout-batches/:id/release-pending (mlm:pay) — libera las filas que
-   * quedaron `pending` por WITHHOLDING_CHANGED (vuelven a Aprobadas, sin ledger)
-   * para que el lote `sent` pueda conciliarse.
+   * POST /mlm/payout-batches/:id/release-pending { reason } (mlm:pay) — libera las
+   * filas que quedaron `pending` por WITHHOLDING_CHANGED (vuelven a Aprobadas, sin
+   * ledger) para que el lote `sent` pueda conciliarse. `reason` es obligatorio
+   * (5-300, `BatchReasonDto`): sin él el API responde 400.
    */
-  async releasePending(id: string): Promise<ReleasePendingResult> {
-    const { data } = await api.post<unknown>(`${BATCHES_BASE}/${id}/release-pending`, {});
+  async releasePending(id: string, reason: string): Promise<ReleasePendingResult> {
+    const { data } = await api.post<unknown>(`${BATCHES_BASE}/${id}/release-pending`, {
+      reason: reason.trim(),
+    });
     if (!isRecord(data)) throw new Error('Respuesta de liberación inválida');
     return {
       batch: normalizeBatch(isRecord(data.batch) ? data.batch : data),

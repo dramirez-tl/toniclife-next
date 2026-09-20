@@ -369,11 +369,12 @@ export function useApplyBankResult() {
   });
 }
 
-/** Libera filas pendientes (WITHHOLDING_CHANGED) de un lote enviado; mlm:pay. */
+/** Libera filas pendientes (WITHHOLDING_CHANGED) de un lote enviado; mlm:pay. Motivo 5-300 obligatorio. */
 export function useReleasePendingRows() {
   const invalidate = useInvalidateTreasuryAndWithholdings();
   return useMutation({
-    mutationFn: (id: string) => payoutBatchesService.releasePending(id),
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      payoutBatchesService.releasePending(id, reason),
     onSettled: invalidate,
   });
 }
