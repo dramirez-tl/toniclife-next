@@ -78,7 +78,7 @@ export function periodBlockers(summary: CommissionSummary, periodId?: string): B
     if (fnPending && fnPending.count > 0) {
       out.push({
         key: 'fn-pending',
-        text: `${formatInt(fnPending.count)} de Frontera Norte (FN) en espera: el tratamiento fiscal de FN está pendiente de definir; no se aprueban ni pagan hasta resolverlo (no asignar régimen a FN mientras tanto).`,
+        text: `${formatInt(fnPending.count)} de Frontera Norte (FN) en espera: el tratamiento fiscal de FN está pendiente de definir; no se aprueban ni pagan hasta resolverlo (asignarles régimen sí está permitido; el pago espera la decisión C-9).`,
       });
     }
     const noRate = (readiness.blockers ?? []).find((b) => NO_RATE_CODES.has(b.code));

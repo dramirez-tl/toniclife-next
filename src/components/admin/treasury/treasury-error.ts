@@ -43,7 +43,7 @@ export const TREASURY_ERROR_LABELS: Record<string, string> = {
   TRS_REGIME_MISMATCH:
     'El régimen fiscal con el que se calculó la comisión ya no coincide con el régimen actual del distribuidor: recalcula el periodo (cotejado) antes de aprobar para que las retenciones sean las correctas.',
   TRS_REGIME_FN_PENDING:
-    'Distribuidor de Frontera Norte (FN): el tratamiento fiscal de FN está pendiente de definir (el motor no congela régimen para FN), así que la comisión no se aprueba ni se paga hasta resolverlo. No asignes régimen de comisión a distribuidores FN mientras tanto.',
+    'Distribuidor de Frontera Norte (FN): el tratamiento fiscal de FN está pendiente de definir (el motor no congela régimen para FN), así que la comisión no se aprueba ni se paga hasta resolverlo. Sí puedes asignarles régimen de comisión desde ahora (es el dato correcto para cuando se resuelva la decisión C-9); mientras tanto no se aprueban ni pagan.',
   TRS_IN_BATCH: 'La comisión ya está en un lote de dispersión vivo.',
   TRS_USE_BATCH: 'Las transferencias se pagan por lote de dispersión, no con pago directo.',
   TRS_NO_FX_RATE: 'Falta el tipo de cambio del periodo para la moneda de pago.',
