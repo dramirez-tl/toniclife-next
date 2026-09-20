@@ -2,17 +2,21 @@
 
 // BatchActions — acciones por estado del lote (contrato §4.2 / §5.3):
 //   generated → Descargar layout · Marcar enviado · Cancelar
-//   sent      → Descargar layout · Cargar resultado (preview → aplicar) · Confirmar pago · Conciliar
+//   sent      → Descargar layout · Cargar resultado (preview → aplicar) · Confirmar pago ·
+//               Liberar pendientes (filas WITHHOLDING_CHANGED) · Conciliar
 //   reconciled/cancelled → Descargar layout (archivo conservado)
 // Toda acción financiera pasa por ConfirmDialog (nunca window.confirm); los
 // errores se muestran con `treasuryErrorMessage`. Los botones de escritura van
 // dentro de `PermissionGuard fallback={<></>}` (mlm:pay | mlm:admin).
+// Aplicar el resultado reenvía el MISMO archivo de la vista previa (multipart
+// `bankResult`) más su `applyToken`: el API recalcula el sha256 y los coteja.
 
 import { useId, useState } from 'react';
 import { toast } from 'sonner';
 import {
   ArrowDownTrayIcon,
   ArrowUpTrayIcon,
+  ArrowUturnLeftIcon,
   CheckBadgeIcon,
   CheckCircleIcon,
   PaperAirplaneIcon,
@@ -42,6 +46,7 @@ import {
   useMarkBatchSent,
   usePreviewBankResult,
   useReconcileBatch,
+  useReleasePendingRows,
 } from '@/hooks/useTreasury';
 import { payoutBatchesService } from '@/services/treasury.service';
 import { saveBlob } from '@/lib/download';
@@ -50,19 +55,37 @@ import { TREASURY_PAY_PERMISSIONS } from '../useTreasuryPermissions';
 import { treasuryErrorMessage } from '../treasury-error';
 import { filenameFromDisposition, formatInt, formatMoney, todayCdmx, toNumber } from '../treasury-format';
 
-export type BatchAction = 'layout' | 'mark-sent' | 'result' | 'confirm' | 'reconcile' | 'cancel';
+export type BatchAction =
+  | 'layout'
+  | 'mark-sent'
+  | 'result'
+  | 'confirm'
+  | 'release-pending'
+  | 'reconcile'
+  | 'cancel';
 
 export interface BatchActionTarget {
   batch: PayoutBatchFull;
   action: Exclude<BatchAction, 'layout'>;
 }
 
+/** Filas pendientes del lote (`rows.pending` del API; null si el listado no lo trae). */
+export function batchPendingRows(batch: PayoutBatchFull): number | null {
+  return batch.rows?.pending ?? batch.pendingCount ?? null;
+}
+
 export function availableActions(batch: PayoutBatchFull): BatchAction[] {
   switch (batch.status) {
     case 'generated':
       return ['layout', 'mark-sent', 'cancel'];
-    case 'sent':
-      return ['layout', 'result', 'confirm', 'reconcile'];
+    case 'sent': {
+      const pending = batchPendingRows(batch);
+      // "Liberar pendientes" solo tiene sentido con filas pendientes tras aplicar resultado/confirmar.
+      const canRelease = !!batch.resultSummary && (pending === null || pending > 0);
+      return canRelease
+        ? ['layout', 'result', 'confirm', 'release-pending', 'reconcile']
+        : ['layout', 'result', 'confirm', 'reconcile'];
+    }
     default:
       return ['layout'];
   }
@@ -83,6 +106,7 @@ const ACTION_META: Record<BatchAction, { label: string; icon: React.ComponentTyp
   'mark-sent': { label: 'Marcar enviado', icon: PaperAirplaneIcon },
   result: { label: 'Cargar resultado', icon: ArrowUpTrayIcon },
   confirm: { label: 'Confirmar pago', icon: CheckCircleIcon },
+  'release-pending': { label: 'Liberar pendientes', icon: ArrowUturnLeftIcon },
   reconcile: { label: 'Conciliar', icon: CheckBadgeIcon },
   cancel: { label: 'Cancelar lote', icon: XCircleIcon },
 };
@@ -163,6 +187,8 @@ export function BatchActionDialogs({ target, onClose, onDone }: DialogHostProps)
       return <UploadResultDialog key={key} batch={target.batch} onClose={onClose} onDone={onDone} />;
     case 'confirm':
       return <ConfirmBatchDialog key={key} batch={target.batch} onClose={onClose} onDone={onDone} />;
+    case 'release-pending':
+      return <ReleasePendingDialog key={key} batch={target.batch} onClose={onClose} onDone={onDone} />;
     case 'reconcile':
       return <ReconcileDialog key={key} batch={target.batch} onClose={onClose} onDone={onDone} />;
     case 'cancel':
@@ -250,13 +276,17 @@ function ConfirmBatchDialog({ batch, onClose, onDone }: SingleDialogProps) {
   const today = todayCdmx();
   const refOk = reference.trim().length >= 1 && reference.trim().length <= 100;
   const dateOk = /^\d{4}-\d{2}-\d{2}$/.test(paymentDate) && paymentDate <= today;
-  const pending = batch.pendingCount ?? batch.itemsCount;
+  const pending = batchPendingRows(batch) ?? batch.itemsCount;
 
   const handle = async () => {
     try {
       const res = await mutation.mutateAsync({ id: batch.id, payload: { reference: reference.trim(), paymentDate } });
-      toast.success(`Pago confirmado: filas pendientes del lote ${batch.batchNumber} marcadas como pagadas`);
-      onDone?.(res);
+      const tail =
+        res.mismatched.length > 0
+          ? ` · ${formatInt(res.mismatched.length)} sin pagar por cambio de convenio (usa “Liberar pendientes”)`
+          : '';
+      toast.success(`Pago confirmado: ${formatInt(res.paid)} fila(s) del lote ${batch.batchNumber} marcadas como pagadas${tail}`);
+      onDone?.(res.batch);
       onClose();
     } catch (err) {
       toast.error(treasuryErrorMessage(err, 'No se pudo confirmar el pago del lote'));
@@ -293,9 +323,46 @@ function ConfirmBatchDialog({ batch, onClose, onDone }: SingleDialogProps) {
   );
 }
 
+function ReleasePendingDialog({ batch, onClose, onDone }: SingleDialogProps) {
+  const mutation = useReleasePendingRows();
+  const pending = batchPendingRows(batch);
+
+  const handle = async () => {
+    try {
+      const res = await mutation.mutateAsync(batch.id);
+      toast.success(`${formatInt(res.released)} fila(s) del lote ${batch.batchNumber} liberadas: vuelven a Aprobadas para un nuevo lote`);
+      onDone?.(res.batch);
+      onClose();
+    } catch (err) {
+      toast.error(treasuryErrorMessage(err, 'No se pudieron liberar las filas pendientes'));
+    }
+  };
+
+  return (
+    <ConfirmDialog
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title="Liberar filas pendientes"
+      description="Saca del lote las filas que quedaron pendientes porque su convenio de retención cambió después de generar el layout (WITHHOLDING_CHANGED). No se escribe ledger: vuelven a Aprobadas para un lote nuevo con la retención vigente, y este lote puede conciliarse."
+      confirmLabel="Liberar pendientes"
+      confirmText={pending !== null && pending > 0 ? String(pending) : undefined}
+      isPending={mutation.isPending}
+      onConfirm={handle}
+    >
+      <div className="space-y-2">
+        <BatchSummaryLine batch={batch} />
+        <p className="text-xs text-muted-foreground">
+          Filas pendientes: {pending === null ? 'sin dato' : formatInt(pending)}. Si el banco ya pagó alguna, aplica primero el
+          resultado o confirma el pago; solo se liberan las que sigan pendientes.
+        </p>
+      </div>
+    </ConfirmDialog>
+  );
+}
+
 function ReconcileDialog({ batch, onClose, onDone }: SingleDialogProps) {
   const mutation = useReconcileBatch();
-  const pending = batch.pendingCount ?? null;
+  const pending = batchPendingRows(batch);
 
   const handle = async () => {
     try {
@@ -323,7 +390,7 @@ function ReconcileDialog({ batch, onClose, onDone }: SingleDialogProps) {
         {pending !== null && pending > 0 && (
           <p className="text-xs text-amber-700">
             Aún hay {formatInt(pending)} fila(s) pendientes: el API rechazará la conciliación (TRS_BATCH_STATE) hasta
-            aplicar el resultado o confirmar el pago.
+            aplicar el resultado, confirmar el pago o liberar las pendientes por cambio de convenio.
           </p>
         )}
         {batch.resultSummary && (
@@ -448,16 +515,21 @@ function UploadResultDialog({ batch, onClose, onDone }: SingleDialogProps) {
   };
 
   const apply = async () => {
-    if (!preview) return;
+    // El archivo se conserva en estado: aplicar reenvía el MISMO File + applyToken.
+    if (!preview || !file) return;
     try {
-      const res = await applyMutation.mutateAsync({ id: batch.id, applyToken: preview.applyToken });
-      toast.success(
-        `Resultado aplicado: ${formatInt(res.paid)} pagadas · ${formatInt(res.failed)} rechazadas${
-          res.mismatched ? ` · ${formatInt(res.mismatched)} sin aplicar por diferencia` : ''
-        }`,
-      );
+      const res = await applyMutation.mutateAsync({ id: batch.id, file, applyToken: preview.applyToken });
+      if (!res.applied) {
+        toast.info(`Este archivo ya se había aplicado al lote ${batch.batchNumber}: no se escribió nada (idempotente)`);
+      } else {
+        toast.success(
+          `Resultado aplicado: ${formatInt(res.paid)} pagadas · ${formatInt(res.failed)} rechazadas${
+            res.mismatched.length > 0 ? ` · ${formatInt(res.mismatched.length)} sin aplicar por diferencia` : ''
+          }${res.unmatched.length > 0 ? ` · ${formatInt(res.unmatched.length)} no encontradas` : ''}`,
+        );
+      }
       setApplyOpen(false);
-      onDone?.(res.batch ?? null);
+      onDone?.(res.batch);
       onClose();
     } catch (err) {
       toast.error(treasuryErrorMessage(err, 'No se pudo aplicar el resultado'));
@@ -466,8 +538,11 @@ function UploadResultDialog({ batch, onClose, onDone }: SingleDialogProps) {
 
   const mismatched = preview ? issueRows(preview, 'mismatched') : [];
   const unmatched = preview ? issueRows(preview, 'unmatched') : [];
+  const alreadyProcessed = preview?.alreadyProcessed ?? [];
+  const parseErrors = preview?.errors ?? [];
   const applicable = preview ? preview.paid + preview.failed : 0;
   const busy = previewMutation.isPending || applyMutation.isPending;
+  const canApply = !!preview && !!file && !preview.alreadyApplied && applicable > 0 && !busy;
 
   return (
     <>
@@ -506,29 +581,60 @@ function UploadResultDialog({ batch, onClose, onDone }: SingleDialogProps) {
 
             {preview && (
               <div className="space-y-3" aria-live="polite">
-                <div className="flex flex-wrap gap-2 text-sm">
+                {preview.alreadyApplied && (
+                  <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800" role="status">
+                    Este archivo (mismo sha256) ya se aplicó a este lote: volver a aplicarlo no escribe nada.
+                  </p>
+                )}
+                <div className="flex flex-wrap items-center gap-2 text-sm">
                   <Badge variant="success">{formatInt(preview.paid)} ok</Badge>
                   <Badge variant="destructive">{formatInt(preview.failed)} fail</Badge>
                   <Badge variant="warning">{formatInt(mismatched.length)} no cuadran</Badge>
                   <Badge variant="outline">{formatInt(unmatched.length)} no encontradas</Badge>
-                  {preview.totals?.ok !== null && preview.totals?.ok !== undefined && (
-                    <span className="text-xs text-muted-foreground">
-                      Σ ok {formatMoney(preview.totals.ok, batch.currencyCode)}
-                    </span>
+                  {alreadyProcessed.length > 0 && (
+                    <Badge variant="secondary">{formatInt(alreadyProcessed.length)} ya procesadas</Badge>
+                  )}
+                  {preview.pendingNotInFile !== null && preview.pendingNotInFile !== undefined && preview.pendingNotInFile > 0 && (
+                    <Badge variant="outline" title="Filas pendientes del lote que el archivo no menciona: siguen pendientes">
+                      {formatInt(preview.pendingNotInFile)} pendientes fuera del archivo
+                    </Badge>
                   )}
                 </div>
-                {(preview.errors ?? []).length > 0 && (
-                  <ul className="space-y-0.5 text-xs text-destructive">
-                    {(preview.errors ?? []).map((e, i) => (
-                      <li key={i}>
+                {preview.totals && (
+                  <p className="text-xs text-muted-foreground">
+                    {preview.totals.ok !== null && preview.totals.ok !== undefined
+                      ? `Σ ok ${formatMoney(preview.totals.ok, preview.totals.currency ?? batch.currencyCode)}`
+                      : ''}
+                    {preview.totals.fail !== null && preview.totals.fail !== undefined
+                      ? ` · Σ fail ${formatMoney(preview.totals.fail, preview.totals.currency ?? batch.currencyCode)}`
+                      : ''}
+                    {preview.parse
+                      ? ` · ${formatInt(preview.parse.rows)} línea(s) leídas${preview.parse.separator ? ` (separador “${preview.parse.separator}”)` : ''}`
+                      : ''}
+                  </p>
+                )}
+                {parseErrors.length > 0 && (
+                  <ul className="space-y-0.5 text-xs text-destructive" aria-label="Errores de lectura del archivo">
+                    {parseErrors.map((e, i) => (
+                      <li key={`${e.line ?? 'x'}-${i}`}>
                         {e.line ? `Línea ${e.line}: ` : ''}
                         {e.message}
                       </li>
                     ))}
                   </ul>
                 )}
-                <PreviewTable rows={mismatched} caption="No cuadran (importe distinto o fila ajena): NO se pagan" />
+                <PreviewTable rows={mismatched} caption="No cuadran (importe distinto, fila ajena o convenio cambiado): NO se pagan" />
                 <PreviewTable rows={unmatched} caption="No encontradas en el lote: se ignoran" />
+                {alreadyProcessed.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Ya procesadas antes (se ignoran):{' '}
+                    {alreadyProcessed
+                      .slice(0, 10)
+                      .map((r) => `línea ${r.line ?? '?'}${r.sequence !== null && r.sequence !== undefined ? ` / sec. ${r.sequence}` : ''} (${r.rowStatus})`)
+                      .join(', ')}
+                    {alreadyProcessed.length > 10 ? ` y ${formatInt(alreadyProcessed.length - 10)} más` : ''}
+                  </p>
+                )}
                 {preview.rows && preview.rows.length > 0 && (
                   <details className="text-xs">
                     <summary className="cursor-pointer text-muted-foreground">Ver filas que se aplicarán ({formatInt(preview.rows.length)})</summary>
@@ -544,7 +650,7 @@ function UploadResultDialog({ batch, onClose, onDone }: SingleDialogProps) {
             <Button type="button" variant="ghost" onClick={onClose} disabled={busy}>
               Cerrar
             </Button>
-            <Button type="button" onClick={() => setApplyOpen(true)} disabled={!preview || applicable === 0 || busy}>
+            <Button type="button" onClick={() => setApplyOpen(true)} disabled={!canApply}>
               Aplicar resultado…
             </Button>
           </DialogFooter>
@@ -556,7 +662,7 @@ function UploadResultDialog({ batch, onClose, onDone }: SingleDialogProps) {
           open={applyOpen}
           onOpenChange={setApplyOpen}
           title="Aplicar resultado del banco"
-          description="Se escribirá el ledger y cambiará el estado de las comisiones. Idempotente por archivo: volver a aplicar el mismo no duplica."
+          description="Se reenvía el mismo archivo analizado (el API coteja su sha256 con el token): se escribirá el ledger y cambiará el estado de las comisiones. Idempotente por archivo: volver a aplicar el mismo no duplica."
           confirmLabel="Aplicar"
           confirmText={String(applicable)}
           isPending={applyMutation.isPending}

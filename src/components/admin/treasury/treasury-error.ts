@@ -84,6 +84,12 @@ export const READINESS_BLOCKER_LABELS: Record<string, string> = {
   NO_FX_RATE: 'Sin tipo de cambio del periodo',
   TRS_NO_FX_RATE: 'Sin tipo de cambio del periodo',
   NO_RATE: 'Convenio sin tipo de cambio',
+  // Motivos de omisión al generar un lote (`skipped[].code` de POST /mlm/payout-batches).
+  BANK_MISSING: 'Sin cuenta bancaria activa',
+  CURRENCY_MISMATCH: 'Moneda de la fila distinta a la del lote',
+  AMOUNT_ZERO: 'Importe a pagar en cero',
+  NOT_FOUND: 'Comisión no encontrada o no aprobada',
+  WITHHOLDING_CHANGED: 'El convenio de retención cambió tras generar el lote',
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {

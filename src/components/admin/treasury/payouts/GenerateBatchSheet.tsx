@@ -121,14 +121,37 @@ export function GenerateBatchSheet({ open, onOpenChange, period, defaultFormat, 
   const handleCreate = async () => {
     if (!period) return;
     try {
-      const batch = await create.mutateAsync({
+      const { batch, skipped, warnings } = await create.mutateAsync({
         periodId: period.id,
         currencyCode: currency,
         layoutFormat: format,
         paymentDate,
+        onlyReady,
         notes: notes.trim() || undefined,
       });
       toast.success(`Lote ${batch.batchNumber} generado: ${formatInt(batch.itemsCount)} filas · ${formatMoney(batch.totalNetPayout, batch.currencyCode)}`);
+      if (skipped.length > 0) {
+        // Omitidas con motivo (BANK_MISSING, CURRENCY_MISMATCH, AMOUNT_ZERO…): quedan Aprobadas fuera del lote.
+        const byCode = new Map<string, number>();
+        for (const s of skipped) byCode.set(s.code, (byCode.get(s.code) ?? 0) + 1);
+        const reasons = Array.from(byCode.entries())
+          .map(([code, n]) => `${readinessBlockerLabel(code)}: ${formatInt(n)}`)
+          .join(' · ');
+        const sample = skipped
+          .slice(0, 3)
+          .map((s) => s.customerNumber ?? s.id)
+          .join(', ');
+        toast.warning(
+          `${formatInt(skipped.length)} fila(s) aprobadas quedaron FUERA del lote (${reasons})${sample ? ` · p. ej. ${sample}` : ''}. Siguen Aprobadas: corrige los datos y genera otro lote.`,
+          { duration: 12000 },
+        );
+      }
+      if (warnings.length > 0) {
+        toast.info(
+          `${formatInt(warnings.length)} fila(s) entraron al lote con bloqueadores de readiness (ajuste “exigir datos validados” apagado).`,
+          { duration: 10000 },
+        );
+      }
       setConfirmOpen(false);
       onCreated?.(batch);
       onOpenChange(false);

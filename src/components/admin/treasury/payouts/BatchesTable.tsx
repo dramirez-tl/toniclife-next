@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { DataTable, type DataTableColumn } from '@/components/ui/DataTable';
 import type { PayoutBatchFull } from '@/types/treasury';
 import { actorName, formatDateOnly, formatDateTime, formatInt, formatMoney } from '../treasury-format';
-import { BatchActionButtons, type BatchActionTarget } from './BatchActions';
+import { BatchActionButtons, batchPendingRows, type BatchActionTarget } from './BatchActions';
 import { BatchStatusBadge } from './BatchStatusBadge';
 import { layoutFormatLabel, shortHash } from './payout-format';
 
@@ -55,16 +55,24 @@ export function BatchesTable({ batches, isLoading, onAction, emptyMessage }: Bat
       header: 'Filas',
       headerClassName: 'text-right',
       cellClassName: 'text-right tabular-nums',
-      render: (b) => (
-        <>
-          <p>{formatInt(b.itemsCount)}</p>
-          {(b.paidCount !== null && b.paidCount !== undefined) || (b.failedCount !== null && b.failedCount !== undefined) ? (
-            <p className="text-xs text-muted-foreground">
-              {formatInt(b.paidCount ?? 0)} pagadas · {formatInt(b.failedCount ?? 0)} rechazadas
-            </p>
-          ) : null}
-        </>
-      ),
+      render: (b) => {
+        // `rows{pending,paid,failed}` del PayoutBatchDto (aplanado por normalizeBatch).
+        const pending = batchPendingRows(b);
+        const paid = b.rows?.paid ?? b.paidCount ?? null;
+        const failed = b.rows?.failed ?? b.failedCount ?? null;
+        const hasCounts = pending !== null || paid !== null || failed !== null;
+        return (
+          <>
+            <p>{formatInt(b.itemsCount)}</p>
+            {hasCounts && (
+              <p className="text-xs text-muted-foreground">
+                {formatInt(paid ?? 0)} pagadas · {formatInt(failed ?? 0)} rechazadas
+                {b.status === 'sent' && pending !== null && pending > 0 ? ` · ${formatInt(pending)} pendientes` : ''}
+              </p>
+            )}
+          </>
+        );
+      },
     },
     {
       key: 'total',

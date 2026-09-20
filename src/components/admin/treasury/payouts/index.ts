@@ -4,6 +4,7 @@ export {
   BatchActionButtons,
   BatchActionDialogs,
   availableActions,
+  batchPendingRows,
   downloadBatchLayout,
   type BatchAction,
   type BatchActionTarget,
