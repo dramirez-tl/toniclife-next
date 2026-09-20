@@ -9,6 +9,7 @@
 // inventar datos: lo que no llega queda `null`.
 
 import api from '@/lib/axios';
+import { rethrowWithParsedBlobError } from '@/services/treasury.service';
 import type { PageMeta, ReadinessBlocker } from '@/types/treasury';
 import type {
   AmountByCurrency,
@@ -402,11 +403,17 @@ function bankDetail(value: unknown): ReadinessBankDetail | null {
   };
 }
 
-/** Detalle del contrato; tolera el checklist plano previo (`items[]`). */
+/**
+ * Detalle del contrato (`ReadinessDetailDto`: datos capturados anidados en
+ * `personal{email,phone,curp,ineNumber}` y `fiscal{rfc, satRegime{code,name},
+ * fiscalZipCode}`); tolera la forma plana / `captured` y el checklist previo (`items[]`).
+ */
 export function normalizeReadinessDetail(input: unknown, customerIdHint: string): ReadinessDetail {
   const r = rec(input) ?? {};
   const customerRec = rec(r.customer);
   const captured = rec(pick(r, 'captured', 'fields', 'data')) ?? r;
+  const personal = rec(r.personal) ?? {};
+  const fiscal = rec(r.fiscal) ?? {};
   const legacyItems = arr(r.items);
   const checklistRaw = arr(r.checklist).length > 0 ? arr(r.checklist) : legacyItems;
   const checklist = checklistRaw
@@ -447,7 +454,8 @@ export function normalizeReadinessDetail(input: unknown, customerIdHint: string)
   const fc = rec(r.formatChecks);
   const dup = rec(r.duplicates);
   const consent = rec(r.consent);
-  const satRegime = regimeRef(pick(r, 'satRegime', 'satTaxRegime'));
+  const satRegime =
+    regimeRef(pick(fiscal, 'satRegime')) ?? regimeRef(pick(r, 'satRegime', 'satTaxRegime'));
 
   return {
     customer: {
@@ -493,14 +501,14 @@ export function normalizeReadinessDetail(input: unknown, customerIdHint: string)
     daysInQueue: num(r.daysInQueue),
     submittedAt: str(pick(r, 'submittedAt', 'paymentDocsSubmittedAt')),
     captured: {
-      email: str(captured.email) ?? legacyValue('email'),
-      phone: str(captured.phone) ?? legacyValue('phone'),
-      curp: str(captured.curp) ?? legacyValue('curp'),
-      rfc: str(captured.rfc) ?? legacyValue('rfc'),
-      ineNumber: str(captured.ineNumber) ?? legacyValue('ineNumber'),
-      satRegimeCode: str(captured.satRegimeCode) ?? satRegime?.code ?? null,
-      satRegimeName: str(captured.satRegimeName) ?? satRegime?.name ?? null,
-      fiscalZipCode: str(captured.fiscalZipCode),
+      email: str(personal.email) ?? str(captured.email) ?? legacyValue('email'),
+      phone: str(personal.phone) ?? str(captured.phone) ?? legacyValue('phone'),
+      curp: str(personal.curp) ?? str(captured.curp) ?? legacyValue('curp'),
+      rfc: str(fiscal.rfc) ?? str(captured.rfc) ?? legacyValue('rfc'),
+      ineNumber: str(personal.ineNumber) ?? str(captured.ineNumber) ?? legacyValue('ineNumber'),
+      satRegimeCode: satRegime?.code ?? str(captured.satRegimeCode) ?? null,
+      satRegimeName: satRegime?.name ?? str(captured.satRegimeName) ?? null,
+      fiscalZipCode: str(fiscal.fiscalZipCode) ?? str(captured.fiscalZipCode),
     },
     periodCommission: period(r.periodCommission),
   };
@@ -589,13 +597,18 @@ class TreasuryReadinessService {
     const { page: _page, limit: _limit, ...rest } = filters;
     void _page;
     void _limit;
-    const res = await api.get<Blob>(`${BASE}/export`, {
-      params: listParams(rest),
-      responseType: 'blob',
-    });
-    const headers = res.headers as Record<string, unknown>;
-    const disposition = headers['content-disposition'];
-    return { blob: res.data, disposition: typeof disposition === 'string' ? disposition : null };
+    try {
+      const res = await api.get<Blob>(`${BASE}/export`, {
+        params: listParams(rest),
+        responseType: 'blob',
+      });
+      const headers = res.headers as Record<string, unknown>;
+      const disposition = headers['content-disposition'];
+      return { blob: res.data, disposition: typeof disposition === 'string' ? disposition : null };
+    } catch (err) {
+      // El cuerpo de error llega como Blob: se parsea para que el toast muestre el TRS_*.
+      return rethrowWithParsedBlobError(err);
+    }
   }
 
   /** GET /customers/payment-readiness/catalogs */
@@ -667,13 +680,26 @@ class TreasuryReadinessService {
     return normalizeHistory(data);
   }
 
-  /** GET /mlm/tax-regimes/sat-suggestions → { '605': 'ASIMILADOS', … } */
+  /**
+   * GET /mlm/tax-regimes/sat-suggestions → `{ suggestions: [{ satRegimeCode, commissionRegime }], note }`
+   * (se mapea a `{ '605': 'ASIMILADOS', … }`; tolera el mapa plano o `{ data }`).
+   */
   async satSuggestions(): Promise<SatSuggestionMap> {
     const { data } = await api.get<unknown>('/mlm/tax-regimes/sat-suggestions');
     const r = rec(data);
-    const inner = r && rec(r.data) ? rec(r.data) : r;
     const out: SatSuggestionMap = {};
-    if (!inner) return out;
+    if (!r) return out;
+    const suggestions = pick(r, 'suggestions', 'satSuggestions');
+    if (Array.isArray(suggestions)) {
+      for (const s of suggestions) {
+        const x = rec(s);
+        const sat = x ? str(pick(x, 'satRegimeCode', 'satCode', 'code')) : null;
+        const regime = x ? str(pick(x, 'commissionRegime', 'commissionRegimeCode', 'regime')) : null;
+        if (sat && regime) out[sat] = regime;
+      }
+      return out;
+    }
+    const inner = rec(suggestions) ?? rec(r.data) ?? r;
     for (const [k, v] of Object.entries(inner)) {
       if (typeof v === 'string' && v.trim()) out[k] = v;
     }

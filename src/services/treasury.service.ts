@@ -183,9 +183,13 @@ class TreasuryService {
     const params = listParams(filters);
     delete params.page;
     delete params.limit;
-    const res = await api.get<Blob>(`${BASE}/export`, { params, responseType: 'blob' });
-    const disposition = (res.headers?.['content-disposition'] as string | undefined) ?? null;
-    return { blob: res.data, disposition };
+    try {
+      const res = await api.get<Blob>(`${BASE}/export`, { params, responseType: 'blob' });
+      const disposition = (res.headers?.['content-disposition'] as string | undefined) ?? null;
+      return { blob: res.data, disposition };
+    } catch (err) {
+      return rethrowWithParsedBlobError(err);
+    }
   }
 
   /** GET /mlm/commissions/:id */
@@ -266,24 +270,25 @@ class TreasuryService {
     if (params.status) query.status = params.status;
     if (params.page) query.page = String(params.page);
     if (params.limit) query.limit = String(params.limit);
-    const { data } = await api.get<PayoutBatch[] | { data: PayoutBatch[] }>(
-      '/mlm/payout-batches',
-      { params: query },
-    );
-    return Array.isArray(data) ? data : (data.data ?? []);
+    const { data } = await api.get<unknown>('/mlm/payout-batches', { params: query });
+    return normalizeBatchList(data, params.limit ?? 20).data;
   }
 
   // ── Régimen fiscal (§4.3) ──────────────────────────────────────────────
 
-  /** GET /mlm/tax-regimes (catálogo + tasas reales de la lib + drift) */
+  /**
+   * GET /mlm/tax-regimes → `TaxRegimeCatalogDto { regimes, drift, periodId, unassigned, satSuggestions }`.
+   * Devuelve solo `regimes[]` (tolera el arreglo plano o `{ data }`).
+   */
   async listTaxRegimes(periodId?: string): Promise<TaxRegimeCatalogItem[]> {
     const params: Record<string, string> = {};
     if (periodId) params.periodId = periodId;
-    const { data } = await api.get<TaxRegimeCatalogItem[] | { data: TaxRegimeCatalogItem[] }>(
-      '/mlm/tax-regimes',
-      { params },
-    );
-    return Array.isArray(data) ? data : (data.data ?? []);
+    const { data } = await api.get<unknown>('/mlm/tax-regimes', { params });
+    if (Array.isArray(data)) return data as TaxRegimeCatalogItem[];
+    if (!isRecord(data)) return [];
+    if (Array.isArray(data.regimes)) return data.regimes as TaxRegimeCatalogItem[];
+    if (Array.isArray(data.data)) return data.data as TaxRegimeCatalogItem[];
+    return [];
   }
 
   // ── Ajustes treasury.* (super_admin) ───────────────────────────────────
@@ -318,9 +323,13 @@ export default treasuryService;
 
 import type {
   ApplyBankResultResult,
+  BankResultAlreadyProcessedRow,
   BankResultPreview,
+  BankResultPreviewRow,
   ConfirmBatchPayload,
+  ConfirmBatchResult,
   CreatePayoutBatchPayload,
+  CreatePayoutBatchResult,
   CreateWithholdingPayload,
   LayoutFormatInfo,
   MarkBatchSentPayload,
@@ -330,10 +339,15 @@ import type {
   PayoutBatchItemsFilters,
   PayoutBatchListFilters,
   PayoutBatchListResponse,
+  PayoutBatchSkipped,
   PayoutBatchSummary,
+  PayoutBatchWarning,
+  ReleasePendingResult,
   UpdateWithholdingPayload,
+  UserRef,
   WithholdingAgreementRow,
   WithholdingApplicationRow,
+  WithholdingAttachmentUploadResult,
   WithholdingAttachmentUrl,
   WithholdingEvent,
   WithholdingKpis,
@@ -365,10 +379,220 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function numOrNull(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+function strOrNull(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
+function userRef(value: unknown): UserRef | null {
+  if (!isRecord(value)) return null;
+  const id = typeof value.id === 'string' ? value.id : '';
+  const name = typeof value.name === 'string' ? value.name : '';
+  return id || name ? { id, name } : null;
+}
+
+/**
+ * Con `responseType: 'blob'` axios entrega el cuerpo de error como `Blob`, y
+ * `treasuryErrorMessage` (síncrono) no puede leer el `{ code: 'TRS_*' }`. Aquí
+ * se lee el blob JSON y se sustituye `response.data` por el objeto antes de
+ * relanzar, para que el toast muestre TRS_RESULT_MISMATCH y no "(HTTP 409)".
+ */
+export async function rethrowWithParsedBlobError(err: unknown): Promise<never> {
+  const error = err as { response?: { data?: unknown } } | null | undefined;
+  const data = error?.response?.data;
+  if (
+    error?.response &&
+    typeof Blob !== 'undefined' &&
+    data instanceof Blob &&
+    (data.type.includes('json') || data.type === '' || data.type.startsWith('text/'))
+  ) {
+    try {
+      const text = await data.text();
+      const parsed: unknown = text.trim() ? JSON.parse(text) : null;
+      if (isRecord(parsed)) error.response.data = parsed;
+      else if (text.trim()) error.response.data = text;
+    } catch {
+      // No era JSON: se conserva el blob y el mensaje genérico.
+    }
+  }
+  throw err;
+}
+
 async function getBlob(url: string, params?: Record<string, string>): Promise<BlobDownload> {
-  const res = await api.get<Blob>(url, { params, responseType: 'blob' });
-  const disposition = (res.headers?.['content-disposition'] as string | undefined) ?? null;
-  return { blob: res.data, disposition };
+  try {
+    const res = await api.get<Blob>(url, { params, responseType: 'blob' });
+    const disposition = (res.headers?.['content-disposition'] as string | undefined) ?? null;
+    return { blob: res.data, disposition };
+  } catch (err) {
+    return rethrowWithParsedBlobError(err);
+  }
+}
+
+// ── Normalizadores de filas del API (nombres del contrato ↔ DTO real) ──────
+
+/**
+ * `WithholdingAgreementDto`: `statusChange{at,by,reason}` → `statusChangedAt/By/Reason`,
+ * `lastAppliedAt` → `lastApplicationAt`, `customerCountry` → `countryCode`.
+ * Conserva los nombres crudos por si alguna pantalla los lee.
+ */
+export function normalizeWithholdingRow(input: unknown): WithholdingAgreementRow | null {
+  if (!isRecord(input) || typeof input.id !== 'string') return null;
+  const raw = input as unknown as WithholdingAgreementRow;
+  const change = isRecord(input.statusChange) ? input.statusChange : null;
+  return {
+    ...raw,
+    countryCode: raw.countryCode ?? strOrNull(input.customerCountry),
+    statusChangedAt: raw.statusChangedAt ?? (change ? strOrNull(change.at) : null),
+    statusChangedBy: raw.statusChangedBy ?? (change ? userRef(change.by) : null),
+    statusReason: raw.statusReason ?? (change ? strOrNull(change.reason) : null),
+    lastApplicationAt: raw.lastApplicationAt ?? strOrNull(input.lastAppliedAt),
+  };
+}
+
+function normalizeWithholdingRows(input: unknown): WithholdingAgreementRow[] {
+  if (!Array.isArray(input)) return [];
+  return input
+    .map(normalizeWithholdingRow)
+    .filter((r): r is WithholdingAgreementRow => r !== null);
+}
+
+/** `PayoutBatchDto.rows{pending,paid,failed}` → `pendingCount/paidCount/failedCount`. */
+export function normalizeBatch(input: unknown): PayoutBatchFull {
+  if (!isRecord(input)) throw new Error('Respuesta de lote inválida');
+  const raw = input as unknown as PayoutBatchFull;
+  const rows = isRecord(input.rows) ? input.rows : null;
+  const pending = rows ? numOrNull(rows.pending) : null;
+  const paid = rows ? numOrNull(rows.paid) : null;
+  const failed = rows ? numOrNull(rows.failed) : null;
+  return {
+    ...raw,
+    rows: rows ? { pending: pending ?? 0, paid: paid ?? 0, failed: failed ?? 0 } : (raw.rows ?? null),
+    pendingCount: raw.pendingCount ?? pending,
+    paidCount: raw.paidCount ?? paid,
+    failedCount: raw.failedCount ?? failed,
+  };
+}
+
+function normalizeBatches(input: unknown): PayoutBatchFull[] {
+  if (!Array.isArray(input)) return [];
+  return input.filter(isRecord).map(normalizeBatch);
+}
+
+/** Fila `mismatched[]`/`unmatched[]` de `ResultPreviewDto` (`reason`, `fileAmount`, `batchAmount`) → `BankResultPreviewRow`. */
+function normalizePreviewRow(input: unknown, status: 'ok' | 'fail'): BankResultPreviewRow | null {
+  if (!isRecord(input)) return null;
+  const raw = input as unknown as BankResultPreviewRow;
+  return {
+    ...raw,
+    status: raw.status === 'ok' || raw.status === 'fail' ? raw.status : status,
+    line: raw.line ?? numOrNull(input.line),
+    sequence: raw.sequence ?? numOrNull(input.sequence),
+    amount: raw.amount ?? numOrNull(input.fileAmount),
+    expectedAmount: raw.expectedAmount ?? numOrNull(input.batchAmount),
+    issue: raw.issue ?? strOrNull(input.reason) ?? raw.failureReason ?? null,
+  };
+}
+
+function normalizePreviewRows(input: unknown, status: 'ok' | 'fail'): BankResultPreviewRow[] {
+  if (!Array.isArray(input)) return [];
+  return input
+    .map((r) => normalizePreviewRow(r, status))
+    .filter((r): r is BankResultPreviewRow => r !== null);
+}
+
+function normalizeParseErrors(input: unknown): Array<{ line?: number | null; message: string }> {
+  if (!Array.isArray(input)) return [];
+  return input
+    .map((e) => {
+      if (!isRecord(e)) return null;
+      const message = strOrNull(e.message);
+      return message ? { line: numOrNull(e.line), message } : null;
+    })
+    .filter((e): e is { line: number | null; message: string } => e !== null);
+}
+
+/** `ResultPreviewDto` → `BankResultPreview` (nombres del contrato Next). */
+export function normalizeBankResultPreview(input: unknown): BankResultPreview {
+  if (!isRecord(input) || typeof input.applyToken !== 'string') {
+    throw new Error('El API no devolvió la vista previa del resultado (applyToken)');
+  }
+  const totalsRec = isRecord(input.totals) ? input.totals : null;
+  const parseRec = isRecord(input.parse) ? input.parse : null;
+  const parseErrors = parseRec ? normalizeParseErrors(parseRec.errors) : [];
+  const errors = Array.isArray(input.errors) ? normalizeParseErrors(input.errors) : parseErrors;
+  const alreadyProcessed: BankResultAlreadyProcessedRow[] = Array.isArray(input.alreadyProcessed)
+    ? input.alreadyProcessed
+        .filter(isRecord)
+        .map((r) => ({ line: numOrNull(r.line), sequence: numOrNull(r.sequence), rowStatus: strOrNull(r.rowStatus) ?? '' }))
+    : [];
+  return {
+    batchId: strOrNull(input.batchId),
+    batchNumber: strOrNull(input.batchNumber),
+    status: strOrNull(input.status),
+    paid: numOrNull(input.paid) ?? 0,
+    failed: numOrNull(input.failed) ?? 0,
+    mismatched: normalizePreviewRows(input.mismatched, 'fail'),
+    unmatched: normalizePreviewRows(input.unmatched, 'fail'),
+    rows: Array.isArray(input.rows) ? normalizePreviewRows(input.rows, 'ok') : null,
+    totals: totalsRec
+      ? {
+          ok: numOrNull(totalsRec.ok) ?? numOrNull(totalsRec.paidAmount),
+          fail: numOrNull(totalsRec.fail) ?? numOrNull(totalsRec.failedAmount),
+          amount: numOrNull(totalsRec.amount),
+          currency: strOrNull(totalsRec.currency),
+        }
+      : null,
+    errors,
+    parse: parseRec
+      ? {
+          rows: numOrNull(parseRec.rows) ?? 0,
+          errors: parseErrors,
+          separator: strOrNull(parseRec.separator),
+          hadHeader: typeof parseRec.hadHeader === 'boolean' ? parseRec.hadHeader : null,
+        }
+      : null,
+    alreadyApplied: input.alreadyApplied === true,
+    alreadyProcessed,
+    pendingNotInFile: numOrNull(input.pendingNotInFile),
+    applyToken: input.applyToken,
+  };
+}
+
+function normalizeSkipped(input: unknown): PayoutBatchSkipped[] {
+  if (!Array.isArray(input)) return [];
+  return input
+    .filter(isRecord)
+    .filter((s) => typeof s.id === 'string')
+    .map((s) => ({
+      id: String(s.id),
+      customerNumber: strOrNull(s.customerNumber),
+      code: strOrNull(s.code) ?? 'SKIPPED',
+      blockers: Array.isArray(s.blockers) ? (s.blockers as PayoutBatchSkipped['blockers']) : [],
+    }));
+}
+
+function normalizeWarnings(input: unknown): PayoutBatchWarning[] {
+  if (!Array.isArray(input)) return [];
+  return input
+    .map((w): PayoutBatchWarning | null => {
+      if (typeof w === 'string') return { id: w, code: w };
+      if (!isRecord(w)) return null;
+      return {
+        id: strOrNull(w.id) ?? '',
+        customerNumber: strOrNull(w.customerNumber),
+        code: strOrNull(w.code) ?? 'WARNING',
+        blockers: Array.isArray(w.blockers) ? (w.blockers as PayoutBatchWarning['blockers']) : [],
+      };
+    })
+    .filter((w): w is PayoutBatchWarning => w !== null);
 }
 
 // ── Retenciones ──────────────────────────────────────────────────────────
@@ -394,7 +618,7 @@ export function normalizeWithholdingList(
   fallbackLimit: number,
 ): WithholdingListResponse {
   if (Array.isArray(input)) {
-    const data = input as WithholdingAgreementRow[];
+    const data = normalizeWithholdingRows(input);
     return {
       data,
       meta: { total: data.length, page: 1, limit: fallbackLimit, totalPages: 1 },
@@ -402,7 +626,7 @@ export function normalizeWithholdingList(
     };
   }
   if (!isRecord(input)) return { data: [], kpis: null };
-  const data = Array.isArray(input.data) ? (input.data as WithholdingAgreementRow[]) : [];
+  const data = normalizeWithholdingRows(input.data);
   const meta = isRecord(input.meta)
     ? (input.meta as unknown as PageMeta)
     : {
@@ -434,9 +658,7 @@ export function normalizeWithholdingStatement(
       ? (input.data as WithholdingApplicationRow[])
       : [];
   const events = Array.isArray(input.events) ? (input.events as WithholdingEvent[]) : null;
-  const agreement = isRecord(input.agreement)
-    ? (input.agreement as unknown as WithholdingAgreementRow)
-    : fallbackAgreement;
+  const agreement = normalizeWithholdingRow(input.agreement) ?? fallbackAgreement;
   return { agreement, applications, events };
 }
 
@@ -455,38 +677,52 @@ class WithholdingsTreasuryService {
     return normalizeWithholdingStatement(data, agreement);
   }
 
-  /** GET /mlm/withholdings/preview?periodId&commissionIds[] */
+  /** GET /mlm/withholdings/preview?periodId&commissionIds[] — `globalPct` del API → `globalMaxPct`. */
   async preview(periodId: string, commissionIds?: string[]): Promise<WithholdingPreview> {
     const params: Record<string, string | string[]> = { periodId };
     if (commissionIds && commissionIds.length > 0) params.commissionIds = commissionIds;
     const { data } = await api.get<WithholdingPreview>(`${WITHHOLDINGS_BASE}/preview`, {
       params,
     });
-    return data;
+    if (!isRecord(data)) return { periodId, items: [], totalByCurrency: [] };
+    const preview = data as WithholdingPreview;
+    return {
+      ...preview,
+      items: Array.isArray(preview.items) ? preview.items : [],
+      totalByCurrency: preview.totalByCurrency ?? [],
+      globalMaxPct: preview.globalMaxPct ?? preview.globalPct ?? null,
+    };
   }
 
   /** POST /mlm/withholdings */
   async create(payload: CreateWithholdingPayload): Promise<WithholdingAgreementRow> {
-    const { data } = await api.post<WithholdingAgreementRow>(WITHHOLDINGS_BASE, payload);
-    return data;
+    const { data } = await api.post<unknown>(WITHHOLDINGS_BASE, payload);
+    const row = normalizeWithholdingRow(data);
+    if (!row) throw new Error('El API no devolvió el convenio creado');
+    return row;
   }
 
   /** PATCH /mlm/withholdings/:id (motivo obligatorio si cambia `status`). */
   async update(id: string, payload: UpdateWithholdingPayload): Promise<WithholdingAgreementRow> {
-    const { data } = await api.patch<WithholdingAgreementRow>(`${WITHHOLDINGS_BASE}/${id}`, payload);
-    return data;
+    const { data } = await api.patch<unknown>(`${WITHHOLDINGS_BASE}/${id}`, payload);
+    const row = normalizeWithholdingRow(data);
+    if (!row) throw new Error('El API no devolvió el convenio actualizado');
+    return row;
   }
 
-  /** POST /mlm/withholdings/:id/attachment (multipart `attachment`, ≤ 5 MB). */
-  async uploadAttachment(id: string, file: File): Promise<WithholdingAgreementRow> {
+  /** POST /mlm/withholdings/:id/attachment (multipart `attachment`, ≤ 5 MB) → `{ id, hasAttachment, sha256 }`. */
+  async uploadAttachment(id: string, file: File): Promise<WithholdingAttachmentUploadResult> {
     const form = new FormData();
     form.append('attachment', file);
-    const { data } = await api.post<WithholdingAgreementRow>(
-      `${WITHHOLDINGS_BASE}/${id}/attachment`,
-      form,
-      { headers: { 'Content-Type': 'multipart/form-data' } },
-    );
-    return data;
+    const { data } = await api.post<unknown>(`${WITHHOLDINGS_BASE}/${id}/attachment`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    const r = isRecord(data) ? data : {};
+    return {
+      id: strOrNull(r.id) ?? id,
+      hasAttachment: r.hasAttachment !== false,
+      sha256: strOrNull(r.sha256),
+    };
   }
 
   /** GET /mlm/withholdings/:id/attachment → URL firmada 15 min. */
@@ -513,11 +749,11 @@ class WithholdingsTreasuryService {
 
 export function normalizeBatchList(input: unknown, fallbackLimit: number): PayoutBatchListResponse {
   if (Array.isArray(input)) {
-    const data = input as PayoutBatchFull[];
+    const data = normalizeBatches(input);
     return { data, meta: { total: data.length, page: 1, limit: fallbackLimit, totalPages: 1 } };
   }
   if (!isRecord(input)) return { data: [] };
-  const data = Array.isArray(input.data) ? (input.data as PayoutBatchFull[]) : [];
+  const data = normalizeBatches(input.data);
   const meta = isRecord(input.meta)
     ? (input.meta as unknown as PageMeta)
     : {
@@ -532,9 +768,7 @@ export function normalizeBatchList(input: unknown, fallbackLimit: number): Payou
 /** `{ batch, items, meta, summary }` o el lote plano con `items` dentro. */
 export function normalizeBatchDetail(input: unknown): PayoutBatchDetail {
   if (!isRecord(input)) throw new Error('Respuesta de lote inválida');
-  const batch = isRecord(input.batch)
-    ? (input.batch as unknown as PayoutBatchFull)
-    : (input as unknown as PayoutBatchFull);
+  const batch = normalizeBatch(isRecord(input.batch) ? input.batch : input);
   const items = Array.isArray(input.items) ? (input.items as PayoutBatchItem[]) : [];
   const meta = isRecord(input.meta) ? (input.meta as unknown as PageMeta) : undefined;
   const summary = isRecord(input.summary) ? (input.summary as unknown as PayoutBatchSummary) : null;
@@ -590,19 +824,30 @@ class PayoutBatchesService {
     return Array.isArray(data) ? data : (data.data ?? []);
   }
 
-  /** POST /mlm/payout-batches → 201 lote `generated` (layout ya en GCS con sha256). */
-  async create(payload: CreatePayoutBatchPayload): Promise<PayoutBatchFull> {
+  /**
+   * POST /mlm/payout-batches → 201 `{ batch, skipped[], warnings[] }`: lote `generated`
+   * (layout ya en GCS con sha256) + filas omitidas con motivo (BANK_MISSING…).
+   */
+  async create(payload: CreatePayoutBatchPayload): Promise<CreatePayoutBatchResult> {
     const body: CreatePayoutBatchPayload = {
       periodId: payload.periodId,
       currencyCode: payload.currencyCode,
       layoutFormat: payload.layoutFormat,
       paymentDate: payload.paymentDate,
+      onlyReady: payload.onlyReady ?? true,
     };
     if (payload.commissionIds && payload.commissionIds.length > 0) body.commissionIds = payload.commissionIds;
     if (payload.countryCodes && payload.countryCodes.length > 0) body.countryCodes = payload.countryCodes;
     if (payload.notes && payload.notes.trim()) body.notes = payload.notes.trim();
-    const { data } = await api.post<PayoutBatchFull>(BATCHES_BASE, body);
-    return data;
+    const { data } = await api.post<unknown>(BATCHES_BASE, body);
+    if (!isRecord(data)) throw new Error('Respuesta de lote inválida');
+    // Tolera el lote plano (sin envoltorio) del contrato anterior.
+    const batch = normalizeBatch(isRecord(data.batch) ? data.batch : data);
+    return {
+      batch,
+      skipped: normalizeSkipped(data.skipped),
+      warnings: normalizeWarnings(data.warnings),
+    };
   }
 
   /** GET /mlm/payout-batches/:id/layout → archivo (regenerado y cotejado por sha256). */
@@ -615,49 +860,83 @@ class PayoutBatchesService {
     const body: MarkBatchSentPayload = {};
     if (payload.sentAt) body.sentAt = payload.sentAt;
     if (payload.bankReference && payload.bankReference.trim()) body.bankReference = payload.bankReference.trim();
-    const { data } = await api.post<PayoutBatchFull>(`${BATCHES_BASE}/${id}/mark-sent`, body);
-    return data;
+    const { data } = await api.post<unknown>(`${BATCHES_BASE}/${id}/mark-sent`, body);
+    return normalizeBatch(data);
   }
 
   /** POST /mlm/payout-batches/:id/result (multipart `bankResult` ≤ 2 MB) → vista previa; nada se escribe. */
   async previewResult(id: string, file: File): Promise<BankResultPreview> {
     const form = new FormData();
-    form.append('bankResult', file);
-    const { data } = await api.post<BankResultPreview>(`${BATCHES_BASE}/${id}/result`, form, {
+    form.append('bankResult', file, file.name);
+    const { data } = await api.post<unknown>(`${BATCHES_BASE}/${id}/result`, form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-    return data;
+    return normalizeBankResultPreview(data);
   }
 
-  /** POST /mlm/payout-batches/:id/result/apply { applyToken } */
-  async applyResult(id: string, applyToken: string): Promise<ApplyBankResultResult> {
-    const { data } = await api.post<ApplyBankResultResult>(`${BATCHES_BASE}/${id}/result/apply`, {
-      applyToken,
+  /**
+   * POST /mlm/payout-batches/:id/result/apply — multipart con el MISMO archivo de la
+   * vista previa (`bankResult`) + `applyToken` (sha256); 409 TRS_RESULT_TOKEN si difieren.
+   */
+  async applyResult(id: string, file: File, applyToken: string): Promise<ApplyBankResultResult> {
+    const form = new FormData();
+    form.append('bankResult', file, file.name);
+    form.append('applyToken', applyToken);
+    const { data } = await api.post<unknown>(`${BATCHES_BASE}/${id}/result/apply`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
-    return data;
+    if (!isRecord(data)) throw new Error('Respuesta de aplicación inválida');
+    return {
+      batch: normalizeBatch(isRecord(data.batch) ? data.batch : data),
+      applied: data.applied !== false,
+      paid: numOrNull(data.paid) ?? 0,
+      failed: numOrNull(data.failed) ?? 0,
+      mismatched: normalizePreviewRows(data.mismatched, 'fail'),
+      unmatched: normalizePreviewRows(data.unmatched, 'fail'),
+    };
   }
 
   /** POST /mlm/payout-batches/:id/confirm { reference, paymentDate } — bancos sin archivo. */
-  async confirm(id: string, payload: ConfirmBatchPayload): Promise<PayoutBatchFull> {
-    const { data } = await api.post<PayoutBatchFull>(`${BATCHES_BASE}/${id}/confirm`, {
+  async confirm(id: string, payload: ConfirmBatchPayload): Promise<ConfirmBatchResult> {
+    const { data } = await api.post<unknown>(`${BATCHES_BASE}/${id}/confirm`, {
       reference: payload.reference.trim(),
       paymentDate: payload.paymentDate,
     });
-    return data;
+    if (!isRecord(data)) throw new Error('Respuesta de confirmación inválida');
+    return {
+      batch: normalizeBatch(isRecord(data.batch) ? data.batch : data),
+      paid: numOrNull(data.paid) ?? 0,
+      mismatched: normalizePreviewRows(data.mismatched, 'fail'),
+      remainingPending: numOrNull(data.remainingPending) ?? 0,
+    };
   }
 
   /** POST /mlm/payout-batches/:id/reconcile — requiere 0 filas pendientes. */
   async reconcile(id: string): Promise<PayoutBatchFull> {
-    const { data } = await api.post<PayoutBatchFull>(`${BATCHES_BASE}/${id}/reconcile`, {});
-    return data;
+    const { data } = await api.post<unknown>(`${BATCHES_BASE}/${id}/reconcile`, {});
+    return normalizeBatch(data);
   }
 
   /** POST /mlm/payout-batches/:id/cancel { reason } — solo `generated`. */
   async cancel(id: string, reason: string): Promise<PayoutBatchFull> {
-    const { data } = await api.post<PayoutBatchFull>(`${BATCHES_BASE}/${id}/cancel`, {
+    const { data } = await api.post<unknown>(`${BATCHES_BASE}/${id}/cancel`, {
       reason: reason.trim(),
     });
-    return data;
+    return normalizeBatch(data);
+  }
+
+  /**
+   * POST /mlm/payout-batches/:id/release-pending (mlm:pay) — libera las filas que
+   * quedaron `pending` por WITHHOLDING_CHANGED (vuelven a Aprobadas, sin ledger)
+   * para que el lote `sent` pueda conciliarse.
+   */
+  async releasePending(id: string): Promise<ReleasePendingResult> {
+    const { data } = await api.post<unknown>(`${BATCHES_BASE}/${id}/release-pending`, {});
+    if (!isRecord(data)) throw new Error('Respuesta de liberación inválida');
+    return {
+      batch: normalizeBatch(isRecord(data.batch) ? data.batch : data),
+      released: numOrNull(data.released) ?? numOrNull(data.count) ?? 0,
+    };
   }
 }
 

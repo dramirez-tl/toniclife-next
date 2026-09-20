@@ -578,9 +578,14 @@ export interface WithholdingAgreementRow {
   /** true cuando hay pagaré/convenio adjunto (la ruta nunca se expone). */
   hasAttachment?: boolean | null;
   attachmentUploadedAt?: string | null;
+  /** Aplanados por `normalizeWithholdingRow` desde `statusChange{at,by,reason}` del API. */
   statusChangedAt?: string | null;
   statusChangedBy?: UserRef | null;
   statusReason?: string | null;
+  /** Forma cruda del API (`WithholdingAgreementDto.statusChange`). */
+  statusChange?: { at?: string | null; by?: UserRef | null; reason?: string | null } | null;
+  /** Forma cruda del API (`customerCountry`); se aplana a `countryCode`. */
+  customerCountry?: string | null;
   updatedBy?: UserRef | null;
   createdBy?: UserRef | null;
   /** Abono estimado del periodo actual (preview) en la moneda del convenio. */
@@ -588,7 +593,9 @@ export interface WithholdingAgreementRow {
   /** true mientras el cliente tenga filas en un lote `generated|sent` (TRS_IN_BATCH). */
   inBatch?: boolean | null;
   applicationsCount?: number | null;
+  /** Aplanado desde `lastAppliedAt` del API. */
   lastApplicationAt?: string | null;
+  lastAppliedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -698,6 +705,13 @@ export interface WithholdingAttachmentUrl {
   uploadedAt?: string | null;
 }
 
+/** `POST /mlm/withholdings/:id/attachment` → `{ id, hasAttachment, sha256 }` (no devuelve la fila). */
+export interface WithholdingAttachmentUploadResult {
+  id: string;
+  hasAttachment: boolean;
+  sha256: string | null;
+}
+
 /** Motivo por el que un convenio quedó limitado en una fila (withholding-cap.lib). */
 export type WithholdingCapReason =
   | 'installment'
@@ -748,8 +762,10 @@ export interface WithholdingPreviewItem {
 
 export interface WithholdingPreview {
   periodId: string;
-  /** % global del ajuste `treasury.withholding_max_pct_per_period` si el API lo expone. */
+  /** % global del ajuste `treasury.withholding_max_pct_per_period` (API: `globalPct`; se normaliza aquí). */
   globalMaxPct?: Money | null;
+  /** Nombre crudo del API (`WithholdingPreviewDto.globalPct`). */
+  globalPct?: Money | null;
   items: WithholdingPreviewItem[];
   totalByCurrency: Record<string, Money> | AmountByCurrency[];
   warnings?: WithholdingPreviewWarning[] | null;
@@ -805,10 +821,21 @@ export interface PayoutBatchFull extends PayoutBatch {
   cancelReason?: string | null;
   notes?: string | null;
   updatedAt?: string | null;
-  /** Conteos por estado de fila si el API los expone en el listado. */
+  hasLayout?: boolean | null;
+  hasResult?: boolean | null;
+  /** Conteos por estado de fila tal como los manda `PayoutBatchDto.rows`. */
+  rows?: PayoutBatchRowCounts | null;
+  /** Conteos aplanados desde `rows` por `normalizeBatch` (compatibilidad). */
   pendingCount?: number | null;
   paidCount?: number | null;
   failedCount?: number | null;
+}
+
+/** `PayoutBatchDto.rows` = filas del lote por estado. */
+export interface PayoutBatchRowCounts {
+  pending: number;
+  paid: number;
+  failed: number;
 }
 
 export interface PayoutBatchListFilters {
@@ -873,7 +900,42 @@ export interface CreatePayoutBatchPayload {
   paymentDate: string;
   commissionIds?: string[];
   countryCodes?: string[];
+  /** true (default del DTO) = solo filas listas; false = todas las aprobadas (el API puede rechazar bloqueadas). */
+  onlyReady?: boolean;
   notes?: string;
+}
+
+/** Fila omitida al generar el lote (`ApproveSkippedDto`: BANK_MISSING, CURRENCY_MISMATCH, AMOUNT_ZERO…). */
+export type PayoutBatchSkipped = ApproveSkipped;
+
+/** Advertencia por fila al generar (`GateWarning`: incluida aunque tenga bloqueadores, con `require_validated_data=false`). */
+export interface PayoutBatchWarning {
+  id: string;
+  customerNumber?: string | null;
+  code: string;
+  blockers?: ReadinessBlocker[];
+}
+
+/** `POST /mlm/payout-batches` → `{ batch, skipped[], warnings[] }`. */
+export interface CreatePayoutBatchResult {
+  batch: PayoutBatchFull;
+  skipped: PayoutBatchSkipped[];
+  warnings: PayoutBatchWarning[];
+}
+
+/** `POST /mlm/payout-batches/:id/confirm` → `{ batch, paid, mismatched[], remainingPending }`. */
+export interface ConfirmBatchResult {
+  batch: PayoutBatchFull;
+  paid: number;
+  mismatched: BankResultPreviewRow[];
+  remainingPending: number;
+}
+
+/** `POST /mlm/payout-batches/:id/release-pending` → libera filas pendientes por WITHHOLDING_CHANGED. */
+export interface ReleasePendingResult {
+  batch: PayoutBatchFull;
+  /** Filas liberadas (vuelven a Aprobadas sin ledger). */
+  released: number;
 }
 
 export interface MarkBatchSentPayload {
@@ -902,20 +964,48 @@ export interface BankResultPreviewRow {
   reference?: string | null;
   trackingKey?: string | null;
   failureReason?: string | null;
-  /** Motivo por el que no cuadra (mismatched) o no se encontró (unmatched). */
+  /** Motivo por el que no cuadra (mismatched) o no se encontró (unmatched); API: `reason`. */
   issue?: string | null;
 }
 
+/** Fila del archivo que ya estaba pagada/rechazada en el lote (`alreadyProcessed[]`). */
+export interface BankResultAlreadyProcessedRow {
+  line?: number | null;
+  sequence?: number | null;
+  rowStatus: string;
+}
+
+export interface BankResultParseInfo {
+  rows: number;
+  errors: Array<{ line?: number | null; message: string }>;
+  separator?: string | null;
+  hadHeader?: boolean | null;
+}
+
+/**
+ * Vista previa normalizada de `ResultPreviewDto` (`normalizeBankResultPreview`):
+ * `mismatched[].reason/fileAmount/batchAmount` → `issue/amount/expectedAmount`,
+ * `totals.paidAmount/failedAmount` → `totals.ok/fail`, `parse.errors` → `errors`.
+ */
 export interface BankResultPreview {
+  batchId?: string | null;
+  batchNumber?: string | null;
+  status?: string | null;
   paid: number;
   failed: number;
   mismatched: BankResultPreviewRow[];
   unmatched: BankResultPreviewRow[];
   /** Filas que sí se aplicarán (ok/fail) si el API las devuelve. */
   rows?: BankResultPreviewRow[] | null;
-  totals?: { ok?: Money | null; fail?: Money | null; amount?: Money | null } | null;
+  totals?: { ok?: Money | null; fail?: Money | null; amount?: Money | null; currency?: string | null } | null;
   errors?: Array<{ line?: number | null; message: string }> | null;
-  /** sha256 del archivo: se reenvía en `POST /:id/result/apply`. */
+  parse?: BankResultParseInfo | null;
+  /** El mismo archivo (sha256) ya se aplicó a este lote: aplicar no escribe nada. */
+  alreadyApplied?: boolean;
+  alreadyProcessed?: BankResultAlreadyProcessedRow[] | null;
+  /** Filas pendientes del lote que el archivo no menciona (siguen pendientes). */
+  pendingNotInFile?: number | null;
+  /** sha256 del archivo: se reenvía en `POST /:id/result/apply` junto con el MISMO archivo. */
   applyToken: string;
 }
 
@@ -923,12 +1013,15 @@ export interface ApplyBankResultPayload {
   applyToken: string;
 }
 
+/** `POST /:id/result/apply` → `{ batch, applied, paid, failed, mismatched[], unmatched[] }`. */
 export interface ApplyBankResultResult {
+  batch: PayoutBatchFull;
+  /** false = archivo ya aplicado antes (idempotente, nada escrito). */
+  applied: boolean;
   paid: number;
   failed: number;
-  mismatched?: number;
-  skipped?: number;
-  batch?: PayoutBatchFull | null;
+  mismatched: BankResultPreviewRow[];
+  unmatched: BankResultPreviewRow[];
 }
 
 /** Ledger con el id de la comisión (para el recibo) cuando el API lo expone. */

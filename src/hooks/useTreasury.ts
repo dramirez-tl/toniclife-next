@@ -359,11 +359,21 @@ export function usePreviewBankResult() {
   });
 }
 
+/** Aplica el resultado: el MISMO archivo de la vista previa + su applyToken (sha256). */
 export function useApplyBankResult() {
   const invalidate = useInvalidateTreasuryAndWithholdings();
   return useMutation({
-    mutationFn: ({ id, applyToken }: { id: string; applyToken: string }) =>
-      payoutBatchesService.applyResult(id, applyToken),
+    mutationFn: ({ id, file, applyToken }: { id: string; file: File; applyToken: string }) =>
+      payoutBatchesService.applyResult(id, file, applyToken),
+    onSettled: invalidate,
+  });
+}
+
+/** Libera filas pendientes (WITHHOLDING_CHANGED) de un lote enviado; mlm:pay. */
+export function useReleasePendingRows() {
+  const invalidate = useInvalidateTreasuryAndWithholdings();
+  return useMutation({
+    mutationFn: (id: string) => payoutBatchesService.releasePending(id),
     onSettled: invalidate,
   });
 }

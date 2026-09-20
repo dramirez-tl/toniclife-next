@@ -26,6 +26,8 @@ export const TREASURY_ERROR_LABELS: Record<string, string> = {
     'La migración 142 de Tesorería no está aplicada: las acciones de escritura están cerradas.',
   TRS_CUTOVER_NOT_SET:
     'El corte v2 no está fijado (treasury.first_v2_payout_period_code): ningún periodo es aprobable ni pagable todavía.',
+  TRS_CUTOVER_LEGACY_PENDING:
+    'No se puede fijar el corte: hay periodos desde ese corte con comisiones aún marcadas como pagadas por el sistema anterior. Corre el corte legacy (o mueve el corte a un periodo posterior) y vuelve a intentarlo.',
   TRS_PERIOD_BEFORE_CUTOVER:
     'Este periodo es anterior al corte v2: lo paga el sistema anterior.',
   TRS_PERIOD_OPEN:
@@ -34,10 +36,12 @@ export const TREASURY_ERROR_LABELS: Record<string, string> = {
     'El periodo tiene comisiones aprobadas, pagadas o canceladas (o lotes vivos): no se puede reabrir.',
   TRS_INVALID_STATUS: 'La transición de estado no está permitida para esta comisión.',
   TRS_COUNT_MISMATCH:
-    'El conjunto de comisiones cambió desde que abriste la confirmación. Vuelve a cargar y confirma de nuevo.',
+    'El conjunto de comisiones cambió desde que abriste la confirmación (alguien canceló, aprobó o recalculó mientras tanto): no se escribió nada. Vuelve a cargar y confirma de nuevo.',
   TRS_NOT_READY:
     'Hay comisiones sin datos de pago validados (expediente, cuenta verificada o régimen).',
   TRS_REGIME_MISSING: 'El distribuidor no tiene régimen fiscal de comisión asignado.',
+  TRS_REGIME_MISMATCH:
+    'El régimen fiscal con el que se calculó la comisión ya no coincide con el régimen actual del distribuidor: recalcula el periodo (cotejado) antes de aprobar para que las retenciones sean las correctas.',
   TRS_IN_BATCH: 'La comisión ya está en un lote de dispersión vivo.',
   TRS_USE_BATCH: 'Las transferencias se pagan por lote de dispersión, no con pago directo.',
   TRS_NO_FX_RATE: 'Falta el tipo de cambio del periodo para la moneda de pago.',
