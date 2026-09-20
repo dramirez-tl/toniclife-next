@@ -104,8 +104,7 @@ const navigation: NavItem[] = [
     children: [
       { name: 'Resumen', href: '/admin/tesoreria' },
       { name: 'Comisiones', href: '/admin/comisiones' },
-      // 'Dispersión y pagos' (/admin/tesoreria/dispersion) se agrega con el
-      // paso 10 (lotes + ledger); hasta entonces no se enlaza a un 404.
+      { name: 'Dispersión y pagos', href: '/admin/tesoreria/dispersion' },
       { name: 'Retenciones', href: '/admin/tesoreria/retenciones' },
       { name: 'Validación de datos', href: '/admin/tesoreria/validacion-datos' },
     ],

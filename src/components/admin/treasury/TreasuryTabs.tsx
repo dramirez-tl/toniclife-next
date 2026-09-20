@@ -24,9 +24,7 @@ export const TREASURY_TAB_META: Record<
 > = {
   resumen: { label: 'Resumen', href: '/admin/tesoreria' },
   comisiones: { label: 'Comisiones', href: '/admin/comisiones' },
-  // La pantalla de lotes/ledger llega con el paso 10 (Dispersión y pago); hasta
-  // entonces la pestaña se muestra deshabilitada para no enlazar a un 404.
-  dispersion: { label: 'Dispersión y pagos', href: '/admin/tesoreria/dispersion', disabled: true },
+  dispersion: { label: 'Dispersión y pagos', href: '/admin/tesoreria/dispersion' },
   retenciones: { label: 'Retenciones', href: '/admin/tesoreria/retenciones' },
   'validacion-datos': { label: 'Validación de datos', href: '/admin/tesoreria/validacion-datos' },
 };
