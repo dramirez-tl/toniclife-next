@@ -516,3 +516,424 @@ export interface ReceiptModel {
   commissions: Commission[];
   generatedAt?: string | null;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Retenciones — convenios de retención (contrato §4.4, mig 142 §7)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export const WITHHOLDING_STATUSES = ['active', 'paused', 'settled', 'cancelled'] as const;
+export type WithholdingStatus = (typeof WITHHOLDING_STATUSES)[number];
+
+export function isWithholdingStatus(value: string): value is WithholdingStatus {
+  return (WITHHOLDING_STATUSES as readonly string[]).includes(value);
+}
+
+export const WITHHOLDING_CONCEPTS = ['loan', 'other'] as const;
+export type WithholdingConcept = (typeof WITHHOLDING_CONCEPTS)[number];
+
+export function isWithholdingConcept(value: string): value is WithholdingConcept {
+  return (WITHHOLDING_CONCEPTS as readonly string[]).includes(value);
+}
+
+export type WithholdingSortBy =
+  | 'createdAt'
+  | 'balanceRemaining'
+  | 'installmentAmount'
+  | 'customerName';
+
+export const WITHHOLDING_SORT_KEYS: readonly WithholdingSortBy[] = [
+  'createdAt',
+  'balanceRemaining',
+  'installmentAmount',
+  'customerName',
+];
+
+export function isWithholdingSortBy(value: string): value is WithholdingSortBy {
+  return (WITHHOLDING_SORT_KEYS as readonly string[]).includes(value);
+}
+
+/** Estados a los que se puede pasar desde la UI (`settled` lo fija el sistema). */
+export type WithholdingStatusChange = 'active' | 'paused' | 'cancelled';
+
+/** Fila de `GET /mlm/withholdings` (campos actuales + trazabilidad de la 142). */
+export interface WithholdingAgreementRow {
+  id: string;
+  customerId: string;
+  customerName?: string | null;
+  customerNumber?: string | null;
+  countryCode?: string | null;
+  concept: WithholdingConcept;
+  description: string;
+  currencyCode: string;
+  totalAmount: Money | null;
+  installmentAmount: Money;
+  maxPctOfNet: Money;
+  balanceRemaining: Money | null;
+  withheldToDate?: Money | null;
+  status: WithholdingStatus;
+  startsPeriodId: string | null;
+  startsPeriodName?: string | null;
+  notes: string;
+  authorizationFolio?: string | null;
+  /** true cuando hay pagaré/convenio adjunto (la ruta nunca se expone). */
+  hasAttachment?: boolean | null;
+  attachmentUploadedAt?: string | null;
+  statusChangedAt?: string | null;
+  statusChangedBy?: UserRef | null;
+  statusReason?: string | null;
+  updatedBy?: UserRef | null;
+  createdBy?: UserRef | null;
+  /** Abono estimado del periodo actual (preview) en la moneda del convenio. */
+  nextInstallmentEstimate?: Money | null;
+  /** true mientras el cliente tenga filas en un lote `generated|sent` (TRS_IN_BATCH). */
+  inBatch?: boolean | null;
+  applicationsCount?: number | null;
+  lastApplicationAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WithholdingListFilters {
+  search?: string;
+  status?: WithholdingStatus;
+  currencyCode?: string;
+  concept?: WithholdingConcept;
+  customerId?: string;
+  /** Periodo para "retenido / proyectado en el periodo" de los KPIs. */
+  periodId?: string;
+  sortBy?: WithholdingSortBy;
+  sortDir?: 'asc' | 'desc';
+  page?: number;
+  /** ≤ 100 (DTO). */
+  limit?: number;
+}
+
+export interface WithholdingKpis {
+  active: number;
+  paused: number;
+  settled: number;
+  cancelled?: number;
+  balanceByCurrency: AmountByCurrency[];
+  withheldThisPeriodByCurrency: AmountByCurrency[];
+  projectedThisPeriodByCurrency: AmountByCurrency[];
+}
+
+export interface WithholdingListResponse {
+  data: WithholdingAgreementRow[];
+  meta?: PageMeta;
+  kpis?: WithholdingKpis | null;
+}
+
+export interface CreateWithholdingPayload {
+  customerId: string;
+  concept: WithholdingConcept;
+  description: string;
+  /** Obligatorio si `concept === 'loan'` (TRS_WITHHOLDING_LOAN_TOTAL). */
+  totalAmount?: number;
+  installmentAmount: number;
+  maxPctOfNet?: number;
+  startsPeriodId?: string;
+  notes: string;
+  authorizationFolio?: string;
+}
+
+export interface UpdateWithholdingPayload {
+  status?: WithholdingStatusChange;
+  installmentAmount?: number;
+  maxPctOfNet?: number;
+  description?: string;
+  /** Se ANEXA (append-only) con sello y autor en el API. */
+  notes?: string;
+  authorizationFolio?: string;
+  /** Obligatorio (5-300) cuando cambia `status`. */
+  reason?: string;
+}
+
+export interface WithholdingApplicationRow {
+  id: string;
+  periodId: string;
+  periodName: string | null;
+  periodCode?: string | null;
+  amountWithheld: Money;
+  currencyCode: string;
+  agreementAmount: Money;
+  agreementCurrency: string;
+  balanceBefore: Money | null;
+  balanceAfter: Money | null;
+  appliedAt: string;
+  appliedBy?: UserRef | null;
+  commissionPaymentId?: string | null;
+  paymentReference?: string | null;
+}
+
+/** Evento del convenio (derivado de columnas y `audit_log`; sin datos personales). */
+export interface WithholdingEvent {
+  at: string;
+  event:
+    | 'created'
+    | 'updated'
+    | 'paused'
+    | 'reactivated'
+    | 'cancelled'
+    | 'settled'
+    | 'note'
+    | 'attachment'
+    | string;
+  actor?: string | UserRef | null;
+  reason?: string | null;
+  note?: string | null;
+}
+
+/** Estado de cuenta del convenio (fila + abonos por periodo + eventos). */
+export interface WithholdingStatement {
+  agreement: WithholdingAgreementRow;
+  applications: WithholdingApplicationRow[];
+  events?: WithholdingEvent[] | null;
+}
+
+export interface WithholdingAttachmentUrl {
+  url: string;
+  expiresAt?: string | null;
+  contentType?: string | null;
+  uploadedAt?: string | null;
+}
+
+/** Motivo por el que un convenio quedó limitado en una fila (withholding-cap.lib). */
+export type WithholdingCapReason =
+  | 'installment'
+  | 'agreement_cap'
+  | 'global_cap'
+  | 'remaining'
+  | 'balance'
+  | string;
+
+export interface WithholdingPreviewDetail {
+  agreementId: string;
+  concept?: WithholdingConcept | string | null;
+  description?: string | null;
+  /** Lo que deja de dispersarse, en la moneda de la fila. */
+  amount: Money;
+  /** Abono al saldo, en la moneda del convenio. */
+  amountAgreement?: Money | null;
+  agreementCurrency?: string | null;
+  balanceBefore?: Money | null;
+  balanceAfter?: Money | null;
+  cappedBy?: WithholdingCapReason | null;
+}
+
+export interface WithholdingPreviewWarning {
+  customerId?: string | null;
+  agreementId?: string | null;
+  rowId?: string | null;
+  code: 'NO_RATE' | string;
+  detail?: string | null;
+}
+
+export interface WithholdingPreviewItem {
+  commissionId: string;
+  customerId: string;
+  customerName?: string | null;
+  customerNumber?: string | null;
+  commissionType?: string | null;
+  net: Money;
+  currencyCode: string;
+  /** Tope global de la fila (net × pct global). */
+  capGlobal?: Money | null;
+  totalWithheld: Money;
+  toDisperse: Money;
+  details: WithholdingPreviewDetail[];
+  /** Advertencias de la fila (códigos o `{code, detail}`). */
+  warnings?: Array<string | WithholdingPreviewWarning> | null;
+}
+
+export interface WithholdingPreview {
+  periodId: string;
+  /** % global del ajuste `treasury.withholding_max_pct_per_period` si el API lo expone. */
+  globalMaxPct?: Money | null;
+  items: WithholdingPreviewItem[];
+  totalByCurrency: Record<string, Money> | AmountByCurrency[];
+  warnings?: WithholdingPreviewWarning[] | null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Dispersión y pagos — lotes (contrato §4.2, mig 142 §1) y ledger (§4.1)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export const PAYOUT_BATCH_STATUSES = ['generated', 'sent', 'reconciled', 'cancelled'] as const;
+
+export function isPayoutBatchStatus(value: string): value is PayoutBatchStatus {
+  return (PAYOUT_BATCH_STATUSES as readonly string[]).includes(value);
+}
+
+export type PayoutCurrency = (typeof PAYOUT_CURRENCIES)[number];
+
+export function isPayoutCurrency(value: string): value is PayoutCurrency {
+  return (PAYOUT_CURRENCIES as readonly string[]).includes(value);
+}
+
+/** `GET /mlm/payout-batches/formats` → `[{code, name, bank, fileType, ready}]`. */
+export interface LayoutFormatInfo {
+  code: string;
+  name: string;
+  bank?: string | null;
+  fileType?: string | null;
+  /** false = falta configuración (p. ej. CLABE ordenante para SPEI). */
+  ready: boolean;
+}
+
+export interface PayoutBatchResultSummary {
+  paid?: number | null;
+  failed?: number | null;
+  mismatched?: number | null;
+  unmatched?: number | null;
+  appliedAt?: string | null;
+  appliedBy?: string | UserRef | null;
+}
+
+/** `PayoutBatchDto` completo (listado y detalle). */
+export interface PayoutBatchFull extends PayoutBatch {
+  layoutGeneratedAt?: string | null;
+  sentAt?: string | null;
+  sentBy?: UserRef | null;
+  bankReference?: string | null;
+  resultSha256?: string | null;
+  resultSummary?: PayoutBatchResultSummary | null;
+  reconciledAt?: string | null;
+  reconciledBy?: UserRef | null;
+  cancelledAt?: string | null;
+  cancelledBy?: UserRef | null;
+  cancelReason?: string | null;
+  notes?: string | null;
+  updatedAt?: string | null;
+  /** Conteos por estado de fila si el API los expone en el listado. */
+  pendingCount?: number | null;
+  paidCount?: number | null;
+  failedCount?: number | null;
+}
+
+export interface PayoutBatchListFilters {
+  periodId?: string;
+  status?: PayoutBatchStatus;
+  currencyCode?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface PayoutBatchListResponse {
+  data: PayoutBatchFull[];
+  meta?: PageMeta;
+}
+
+export type PayoutItemRowStatus = 'pending' | 'paid' | 'failed';
+
+export interface PayoutBatchItem {
+  commissionId: string;
+  sequence: number;
+  customerId?: string | null;
+  customerNumber: string | null;
+  name: string;
+  bankName?: string | null;
+  accountLast4?: string | null;
+  amountMxn: Money;
+  payoutAmount: Money;
+  payoutWithheld?: Money | null;
+  rowStatus: PayoutItemRowStatus;
+  reference?: string | null;
+  trackingKey?: string | null;
+  failureReason?: string | null;
+}
+
+export interface PayoutBatchItemsFilters {
+  page?: number;
+  limit?: number;
+  rowStatus?: PayoutItemRowStatus;
+}
+
+export interface PayoutBatchSummary {
+  pending: number;
+  paid: number;
+  failed: number;
+  totalNetPayout?: Money | null;
+  totalWithheld?: Money | null;
+}
+
+/** `GET /mlm/payout-batches/:id` → lote + `items[]` paginados + `summary`. */
+export interface PayoutBatchDetail {
+  batch: PayoutBatchFull;
+  items: PayoutBatchItem[];
+  meta?: PageMeta;
+  summary?: PayoutBatchSummary | null;
+}
+
+export interface CreatePayoutBatchPayload {
+  periodId: string;
+  currencyCode: PayoutCurrency;
+  layoutFormat: string;
+  /** YYYY-MM-DD ≥ hoy (fecha valor). */
+  paymentDate: string;
+  commissionIds?: string[];
+  countryCodes?: string[];
+  notes?: string;
+}
+
+export interface MarkBatchSentPayload {
+  sentAt?: string;
+  bankReference?: string;
+}
+
+export interface ConfirmBatchPayload {
+  reference: string;
+  /** YYYY-MM-DD. */
+  paymentDate: string;
+}
+
+export type BankResultRowStatus = 'ok' | 'fail';
+
+/** Fila de la vista previa del resultado del banco (§4.2 `POST /:id/result`). */
+export interface BankResultPreviewRow {
+  line?: number | null;
+  sequence?: number | null;
+  commissionId?: string | null;
+  customerNumber?: string | null;
+  accountLast4?: string | null;
+  amount?: Money | null;
+  expectedAmount?: Money | null;
+  status: BankResultRowStatus;
+  reference?: string | null;
+  trackingKey?: string | null;
+  failureReason?: string | null;
+  /** Motivo por el que no cuadra (mismatched) o no se encontró (unmatched). */
+  issue?: string | null;
+}
+
+export interface BankResultPreview {
+  paid: number;
+  failed: number;
+  mismatched: BankResultPreviewRow[];
+  unmatched: BankResultPreviewRow[];
+  /** Filas que sí se aplicarán (ok/fail) si el API las devuelve. */
+  rows?: BankResultPreviewRow[] | null;
+  totals?: { ok?: Money | null; fail?: Money | null; amount?: Money | null } | null;
+  errors?: Array<{ line?: number | null; message: string }> | null;
+  /** sha256 del archivo: se reenvía en `POST /:id/result/apply`. */
+  applyToken: string;
+}
+
+export interface ApplyBankResultPayload {
+  applyToken: string;
+}
+
+export interface ApplyBankResultResult {
+  paid: number;
+  failed: number;
+  mismatched?: number;
+  skipped?: number;
+  batch?: PayoutBatchFull | null;
+}
+
+/** Ledger con el id de la comisión (para el recibo) cuando el API lo expone. */
+export interface PaymentLedgerRowExt extends PaymentLedgerRow {
+  commissionId?: string | null;
+  commissionCalculationId?: string | null;
+  commissionType?: string | null;
+}

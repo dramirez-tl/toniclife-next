@@ -1,722 +1,622 @@
 'use client';
 
-// Tesorería → Retenciones: convenios de retención sobre comisiones
-// (préstamos personales con saldo + conceptos ad-hoc por distribuidor).
-// Desde el CIERRE del periodo la retención se PROYECTA en los desgloses
-// (distribuidor y admin) junto al total de comisiones; se hace efectiva en
-// automático al "Marcar como Pagadas" (con preview en Comisiones).
-// Diseño: DISENO_RETENCIONES_COMISIONES.md.
+// Tesorería → Retenciones (contrato §4.4 / §5.4, paso 9 Next).
+//
+// Convenios de retención sobre comisiones (préstamos con saldo y conceptos
+// ad-hoc). KPIs, filtros en la URL (buscar, estado, moneda, concepto,
+// distribuidor, periodo 26→25), DataTable paginada/ordenada en servidor,
+// alta/edición en Sheet, cambios de estado con motivo (ConfirmDialog), notas
+// append-only, pagaré privado, estado de cuenta por convenio, export y preview
+// de aplicación del periodo con el tope global multi-fila explicado.
+// Guard de lectura en layout.tsx; escritura botón a botón (mlm:withhold).
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
+  ArrowDownTrayIcon,
   BanknotesIcon,
-  PlusIcon,
-  PauseIcon,
-  PlayIcon,
-  XMarkIcon,
-  ClockIcon,
+  DocumentTextIcon,
   MagnifyingGlassIcon,
+  PauseIcon,
+  PencilSquareIcon,
+  PlayIcon,
+  PlusIcon,
+  XCircleIcon,
 } from '@heroicons/react/24/outline';
 import { Loader2 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
+import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import { PermissionGuard } from '@/components/auth';
 import {
-  useWithholdings,
-  useWithholdingApplications,
-  useCreateWithholding,
-  useUpdateWithholding,
-} from '@/hooks/useWithholdings';
-import { customersService } from '@/services/customers.service';
-import type { WithholdingAgreement } from '@/services/withholdings.service';
+  DataTable,
+  DataTablePagination,
+  type DataTableColumn,
+  type DataTableSortState,
+} from '@/components/ui/DataTable';
+import { PermissionGuard } from '@/components/auth';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
+import { useUpdateWithholdingV2, useWithholdingList } from '@/hooks/useTreasury';
+import { withholdingsTreasuryService } from '@/services/treasury.service';
+import { exportToCsv } from '@/lib/csv-export';
+import { saveBlob } from '@/lib/download';
+import {
+  PeriodSelector,
+  TreasuryHeader,
+  TreasuryTabs,
+  TREASURY_WITHHOLD_PERMISSIONS,
+  csvSafe,
+  filenameFromDisposition,
+  formatDateOnly,
+  formatInt,
+  formatMoney,
+  formatRate,
+  toNumber,
+  treasuryErrorMessage,
+  useTreasuryPeriod,
+  useTreasuryPermissions,
+} from '@/components/admin/treasury';
+import {
+  DistributorSearchSelect,
+  WITHHOLDING_STATUS_LABELS,
+  WITHHOLDING_STATUS_TONES,
+  WithholdingFormSheet,
+  WithholdingKpis,
+  WithholdingPreviewCard,
+  WithholdingStatementSheet,
+  WithholdingStatusDialog,
+  withholdingConceptLabel,
+  withholdingExportFilename,
+  withholdingStatusLabel,
+  type DistributorOption,
+} from '@/components/admin/treasury/withholdings';
+import {
+  PAYOUT_CURRENCIES,
+  isWithholdingConcept,
+  isWithholdingSortBy,
+  isWithholdingStatus,
+  type WithholdingAgreementRow,
+  type WithholdingListFilters,
+  type WithholdingStatusChange,
+} from '@/types/treasury';
 
-const fmtMoney = (v: number, cur: string) =>
-  new Intl.NumberFormat(cur === 'USD' ? 'en-US' : 'es-MX', {
-    style: 'currency',
-    currency: cur || 'MXN',
-    minimumFractionDigits: 2,
-  }).format(v);
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
-const STATUS_META: Record<string, { label: string; cls: string }> = {
-  active: { label: 'Activo', cls: 'bg-emerald-100 text-emerald-700' },
-  paused: { label: 'Pausado', cls: 'bg-amber-100 text-amber-700' },
-  settled: { label: 'Liquidado', cls: 'bg-blue-100 text-blue-700' },
-  cancelled: { label: 'Cancelado', cls: 'bg-gray-200 text-gray-500' },
+const STATUS_OPTIONS = (Object.keys(WITHHOLDING_STATUS_LABELS) as Array<keyof typeof WITHHOLDING_STATUS_LABELS>).map(
+  (value) => ({ value, label: WITHHOLDING_STATUS_LABELS[value] }),
+);
+const CURRENCY_OPTIONS = PAYOUT_CURRENCIES.map((c) => ({ value: c, label: c }));
+const CONCEPT_OPTIONS = [
+  { value: 'loan', label: 'Préstamo' },
+  { value: 'other', label: 'Otro concepto' },
+];
+
+/** Columna DataTable ↔ `sortBy` del API. */
+const SORT_MAP: Record<string, string> = {
+  customer: 'customerName',
+  installment: 'installmentAmount',
+  balance: 'balanceRemaining',
+  updated: 'createdAt',
 };
 
 export default function RetencionesPage() {
   return (
-    <Suspense>
-      <PermissionGuard permissions={['commissions:read', 'commissions:*']}>
-        <RetencionesContent />
-      </PermissionGuard>
+    <Suspense fallback={<PageSkeleton />}>
+      <RetencionesContent />
     </Suspense>
   );
 }
 
-function RetencionesContent() {
-  const [statusFilter, setStatusFilter] = useState('');
-  const { data: agreements, isLoading } = useWithholdings(
-    statusFilter ? { status: statusFilter } : undefined,
-  );
-  const updateMutation = useUpdateWithholding();
-
-  const [showCreate, setShowCreate] = useState(false);
-  const [historyFor, setHistoryFor] = useState<WithholdingAgreement | null>(
-    null,
-  );
-
-  const activeCount = (agreements ?? []).filter(
-    (a) => a.status === 'active',
-  ).length;
-
-  const handleStatusChange = async (
-    a: WithholdingAgreement,
-    status: 'active' | 'paused' | 'cancelled',
-  ) => {
-    const labels = {
-      active: 'reanudar',
-      paused: 'pausar',
-      cancelled: 'CANCELAR',
-    } as const;
-    if (
-      status === 'cancelled' &&
-      !window.confirm(
-        `¿Cancelar el convenio "${a.description}" de ${a.customerName}? El saldo pendiente dejará de retenerse.`,
-      )
-    ) {
-      return;
-    }
-    try {
-      await updateMutation.mutateAsync({ id: a.id, dto: { status } });
-      toast.success(`Convenio ${labels[status]} correctamente`);
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message ?? 'Error al actualizar el convenio';
-      toast.error(msg);
-    }
-  };
-
+function PageSkeleton() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-gray-50">
-      <div className="bg-gradient-to-r from-[#3E667D] to-[#0A4B94] text-white">
-        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <div className="mb-2 flex items-center gap-3">
-                <BanknotesIcon className="h-9 w-9" />
-                <h1 className="text-3xl font-bold sm:text-4xl">
-                  Retenciones de Comisiones
-                </h1>
-              </div>
-              <p className="text-base text-white/80 sm:text-lg">
-                Convenios de Tesorería (préstamos personales y descuentos) que se
-                aplican al pagar las comisiones del periodo
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Link href="/admin/comisiones">
-                <Button
-                  variant="outline"
-                  className="border-white/40 bg-white/10 text-white hover:bg-white/20"
-                >
-                  Ir a Comisiones
-                </Button>
-              </Link>
-              <Button
-                onClick={() => setShowCreate(true)}
-                className="bg-white font-semibold text-[#3E667D] hover:bg-white/90"
-              >
-                <PlusIcon className="h-5 w-5" />
-                Nueva Retención
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-gray-500">
-            {activeCount} convenio{activeCount === 1 ? '' : 's'} activo
-            {activeCount === 1 ? '' : 's'} · la retención respeta el tope % del
-            neto y se abona al saldo hasta liquidarse
-          </p>
-          <div className="w-48">
-            <SearchableSelect
-              options={[
-                { value: 'active', label: 'Activos' },
-                { value: 'paused', label: 'Pausados' },
-                { value: 'settled', label: 'Liquidados' },
-                { value: 'cancelled', label: 'Cancelados' },
-              ]}
-              value={statusFilter}
-              onChange={setStatusFilter}
-              showAllOption={true}
-              allLabel="Todos los estados"
-              allValue=""
-            />
-          </div>
-        </div>
-
-        <Card>
-          <CardContent className="p-0">
-            {isLoading ? (
-              <div className="flex items-center justify-center gap-2 p-10 text-gray-500">
-                <Loader2 className="size-5 animate-spin" /> Cargando convenios…
-              </div>
-            ) : !agreements || agreements.length === 0 ? (
-              <div className="p-10 text-center text-gray-500">
-                <p className="font-medium">Sin convenios de retención</p>
-                <p className="mt-1 text-sm">
-                  Crea el primero con “Nueva Retención”: préstamo personal con
-                  saldo o un concepto personalizado.
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-                      <th className="px-4 py-3">Distribuidor</th>
-                      <th className="px-4 py-3">Concepto</th>
-                      <th className="px-4 py-3 text-right">Abono/periodo</th>
-                      <th className="px-4 py-3 text-right">Tope % neto</th>
-                      <th className="px-4 py-3 text-right">Total</th>
-                      <th className="px-4 py-3 text-right">Saldo</th>
-                      <th className="px-4 py-3 text-right">Retenido</th>
-                      <th className="px-4 py-3">Estado</th>
-                      <th className="px-4 py-3 text-right">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {agreements.map((a) => {
-                      const meta = STATUS_META[a.status] ?? STATUS_META.active;
-                      return (
-                        <tr key={a.id} className="border-b hover:bg-gray-50">
-                          <td className="px-4 py-3">
-                            <Link
-                              href={`/admin/distribuidores/${a.customerId}`}
-                              className="font-medium text-[#3E667D] hover:underline"
-                            >
-                              {a.customerName}
-                            </Link>
-                            <div className="text-xs text-gray-400">
-                              #{a.customerNumber} · {a.currencyCode}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span
-                              className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${a.concept === 'loan' ? 'bg-purple-100 text-purple-700' : 'bg-sky-100 text-sky-700'}`}
-                            >
-                              {a.concept === 'loan' ? 'Préstamo' : 'Otro'}
-                            </span>
-                            <div className="mt-0.5 max-w-56 truncate text-xs text-gray-500" title={a.description}>
-                              {a.description}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-right font-medium tabular-nums">
-                            {fmtMoney(a.installmentAmount, a.currencyCode)}
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums">
-                            {a.maxPctOfNet}%
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums">
-                            {a.totalAmount != null
-                              ? fmtMoney(a.totalAmount, a.currencyCode)
-                              : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-right font-semibold tabular-nums">
-                            {a.balanceRemaining != null
-                              ? fmtMoney(a.balanceRemaining, a.currencyCode)
-                              : '—'}
-                          </td>
-                          <td className="px-4 py-3 text-right tabular-nums text-gray-600">
-                            {a.withheldToDate != null
-                              ? fmtMoney(a.withheldToDate, a.currencyCode)
-                              : '—'}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span
-                              className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${meta.cls}`}
-                            >
-                              {meta.label}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex justify-end gap-1">
-                              <button
-                                type="button"
-                                onClick={() => setHistoryFor(a)}
-                                className="rounded p-1.5 text-gray-500 hover:bg-gray-100"
-                                title="Historial de abonos"
-                              >
-                                <ClockIcon className="h-4 w-4" />
-                              </button>
-                              {a.status === 'active' && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleStatusChange(a, 'paused')}
-                                  className="rounded p-1.5 text-amber-600 hover:bg-amber-50"
-                                  title="Pausar"
-                                >
-                                  <PauseIcon className="h-4 w-4" />
-                                </button>
-                              )}
-                              {a.status === 'paused' && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleStatusChange(a, 'active')}
-                                  className="rounded p-1.5 text-emerald-600 hover:bg-emerald-50"
-                                  title="Reanudar"
-                                >
-                                  <PlayIcon className="h-4 w-4" />
-                                </button>
-                              )}
-                              {(a.status === 'active' ||
-                                a.status === 'paused') && (
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleStatusChange(a, 'cancelled')
-                                  }
-                                  className="rounded p-1.5 text-red-500 hover:bg-red-50"
-                                  title="Cancelar convenio"
-                                >
-                                  <XMarkIcon className="h-4 w-4" />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {showCreate && (
-        <CreateWithholdingSheet onClose={() => setShowCreate(false)} />
-      )}
-      {historyFor && (
-        <ApplicationsDialog
-          agreement={historyFor}
-          onClose={() => setHistoryFor(null)}
-        />
-      )}
+    <div className="space-y-4 p-6">
+      <Skeleton className="h-10 w-72" />
+      <Skeleton className="h-20 w-full" />
+      <Skeleton className="h-28 w-full" />
+      <Skeleton className="h-96 w-full" />
     </div>
   );
 }
 
-// ============================================================
-// Alta de convenio (panel lateral)
-// ============================================================
-function CreateWithholdingSheet({ onClose }: { onClose: () => void }) {
-  const createMutation = useCreateWithholding();
+function RetencionesContent() {
+  const { get, getNumber, setParams } = useQueryFilters({ page: '1', limit: '20', dir: 'desc' });
 
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [exactNumber, setExactNumber] = useState('');
-  const [selected, setSelected] = useState<{
-    id: string;
-    name: string;
-    number: string;
-  } | null>(null);
-  const [concept, setConcept] = useState<'loan' | 'other'>('loan');
-  const [description, setDescription] = useState('');
-  const [totalAmount, setTotalAmount] = useState('');
-  const [installment, setInstallment] = useState('');
-  const [maxPct, setMaxPct] = useState('30');
-  const [notes, setNotes] = useState('');
+  const search = get('search');
+  const statusParam = get('status');
+  const currencyParam = get('currency');
+  const conceptParam = get('concept');
+  const customerParam = get('customer');
+  const sortParam = get('sort');
+  const dirParam = get('dir') === 'asc' ? 'asc' : 'desc';
+  const page = getNumber('page') || 1;
+  const limit = PAGE_SIZE_OPTIONS.includes(getNumber('limit')) ? getNumber('limit') : 20;
 
-  // Búsqueda por NOMBRE (parcial, con sugerencias en vivo).
-  const { data: searchResults } = useQuery({
-    queryKey: ['withholdings', 'customer-search', customerSearch],
-    queryFn: () =>
-      customersService.getAll({ search: customerSearch, limit: 10 }),
-    enabled: customerSearch.trim().length >= 2 && !selected,
-    staleTime: 30 * 1000,
-  });
+  const status = isWithholdingStatus(statusParam) ? statusParam : undefined;
+  const concept = isWithholdingConcept(conceptParam) ? conceptParam : undefined;
+  const sortBy = isWithholdingSortBy(sortParam) ? sortParam : undefined;
 
-  // Búsqueda por NÚMERO DE DISTRIBUIDOR exacto (input separado; el API
-  // filtra customer_number = <valor>, sin parciales).
-  const exactQuery = exactNumber.trim();
-  const { data: exactData, isFetching: exactFetching } = useQuery({
-    queryKey: ['withholdings', 'customer-exact', exactQuery],
-    queryFn: () =>
-      customersService.getAll({ customerNumber: exactQuery, limit: 1 }),
-    enabled: exactQuery.length >= 1 && !selected,
-    staleTime: 30 * 1000,
-  });
-  const exactMatch = exactData?.data?.[0];
+  const periodSel = useTreasuryPeriod(get('period'));
+  const { effectivePeriodId, selectedPeriod, visiblePeriods } = periodSel;
+  const perms = useTreasuryPermissions();
 
-  const selectCustomer = (c: {
-    id: string;
-    firstName?: string | null;
-    lastName?: string | null;
-    customerNumber?: string | null;
-  }) => {
-    setSelected({
-      id: c.id,
-      name: `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim(),
-      number: c.customerNumber ?? '',
-    });
-    setCustomerSearch('');
-    setExactNumber('');
+  // Búsqueda con retraso (300 ms).
+  const [searchDraft, setSearchDraft] = useState(search);
+  useEffect(() => {
+    if (searchDraft === search) return;
+    const t = setTimeout(() => setParams({ search: searchDraft.trim() || null, page: null }), 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchDraft]);
+
+  const filters = useMemo<WithholdingListFilters>(
+    () => ({
+      search: search || undefined,
+      status,
+      currencyCode: currencyParam || undefined,
+      concept,
+      customerId: customerParam || undefined,
+      periodId: effectivePeriodId,
+      sortBy,
+      sortDir: sortBy ? dirParam : undefined,
+      page,
+      limit,
+    }),
+    [search, status, currencyParam, concept, customerParam, effectivePeriodId, sortBy, dirParam, page, limit],
+  );
+
+  const listQuery = useWithholdingList(filters);
+  const rows = useMemo(() => listQuery.data?.data ?? [], [listQuery.data]);
+  const meta = listQuery.data?.meta;
+  const total = meta?.total ?? rows.length;
+
+  // Distribuidor del filtro: el nombre se toma de la primera fila (todas son suyas).
+  const [customerOption, setCustomerOption] = useState<DistributorOption | null>(null);
+  const customerFilterOption: DistributorOption | null = customerParam
+    ? (customerOption?.id === customerParam
+        ? customerOption
+        : {
+            id: customerParam,
+            name: rows[0]?.customerId === customerParam ? (rows[0].customerName ?? 'Distribuidor') : 'Distribuidor',
+            number: rows[0]?.customerId === customerParam ? (rows[0].customerNumber ?? null) : null,
+          })
+    : null;
+
+  // ── Diálogos ────────────────────────────────────────────────────────────
+  const [formOpen, setFormOpen] = useState(false);
+  const [formKey, setFormKey] = useState(0);
+  const [editing, setEditing] = useState<WithholdingAgreementRow | null>(null);
+  const [statementFor, setStatementFor] = useState<WithholdingAgreementRow | null>(null);
+  const [statusTarget, setStatusTarget] = useState<{ row: WithholdingAgreementRow; target: WithholdingStatusChange } | null>(null);
+  const [statusKey, setStatusKey] = useState(0);
+  const updateMutation = useUpdateWithholdingV2();
+
+  const openCreate = () => {
+    setEditing(null);
+    setFormKey((k) => k + 1);
+    setFormOpen(true);
+  };
+  const openEdit = (row: WithholdingAgreementRow) => {
+    setEditing(row);
+    setFormKey((k) => k + 1);
+    setFormOpen(true);
+  };
+  const openStatus = (row: WithholdingAgreementRow, target: WithholdingStatusChange) => {
+    setStatusTarget({ row, target });
+    setStatusKey((k) => k + 1);
   };
 
-  const handleSubmit = async () => {
-    if (!selected) return toast.error('Selecciona un distribuidor');
-    if (!description.trim()) return toast.error('Captura la descripción');
-    const inst = parseFloat(installment);
-    if (!inst || inst <= 0)
-      return toast.error('El abono por periodo debe ser mayor a 0');
-    const total = totalAmount ? parseFloat(totalAmount) : undefined;
-    if (concept === 'loan' && (!total || total <= 0))
-      return toast.error('Un préstamo requiere el total a recuperar');
-    if (total != null && total < inst)
-      return toast.error('El total no puede ser menor que el abono por periodo');
-    if (notes.trim().length < 5)
-      return toast.error('La nota de autorización es obligatoria');
-
+  const handleStatusChange = async (reason: string) => {
+    if (!statusTarget) return;
+    const { row, target } = statusTarget;
     try {
-      await createMutation.mutateAsync({
-        customerId: selected.id,
-        concept,
-        description: description.trim(),
-        totalAmount: total,
-        installmentAmount: inst,
-        maxPctOfNet: parseFloat(maxPct) || 30,
-        notes: notes.trim(),
-      });
+      await updateMutation.mutateAsync({ id: row.id, payload: { status: target, reason } });
       toast.success(
-        `Convenio creado para ${selected.name} — se aplicará al pagar comisiones`,
+        target === 'cancelled'
+          ? 'Convenio cancelado'
+          : target === 'paused'
+            ? 'Convenio pausado'
+            : 'Convenio reactivado',
       );
-      onClose();
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message ?? 'Error al crear el convenio';
-      toast.error(msg);
+      setStatusTarget(null);
+      if (statementFor?.id === row.id) setStatementFor({ ...row, status: target });
+    } catch (err) {
+      toast.error(treasuryErrorMessage(err, 'No se pudo cambiar el estado del convenio'));
     }
   };
 
-  return (
-    <Sheet open onOpenChange={(o) => !o && onClose()}>
-      <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-md">
-        <SheetHeader className="pb-0">
-          <SheetTitle>Nueva retención</SheetTitle>
-          <SheetDescription>
-            Convenio de Tesorería que se descuenta de las comisiones de cada
-            periodo hasta liquidarse.
-          </SheetDescription>
-        </SheetHeader>
-        <div className="space-y-4 px-4 pb-6">
-          {/* Distribuidor: buscador por nombre + número exacto */}
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Distribuidor *
-            </label>
-            {selected ? (
-              <div className="flex items-center justify-between rounded-md border border-gray-300 px-3 py-2">
-                <span className="text-sm">
-                  <span className="font-medium">{selected.name}</span>{' '}
-                  <span className="text-gray-400">#{selected.number}</span>
-                </span>
-                <button
-                  type="button"
-                  className="text-xs text-red-500 hover:underline"
-                  onClick={() => setSelected(null)}
-                >
-                  Cambiar
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <div className="relative">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                  <Input
-                    value={customerSearch}
-                    onChange={(e) => setCustomerSearch(e.target.value)}
-                    placeholder="Buscar por nombre…"
-                    className="pl-9"
-                  />
-                  {customerSearch.trim().length >= 2 &&
-                    searchResults &&
-                    searchResults.data.length > 0 && (
-                      <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg">
-                        {searchResults.data.map((c) => (
-                          <button
-                            key={c.id}
-                            type="button"
-                            onClick={() => selectCustomer(c)}
-                            className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-gray-50"
-                          >
-                            <span>
-                              {c.firstName} {c.lastName}
-                            </span>
-                            <span className="font-mono text-xs text-gray-400">
-                              #{c.customerNumber}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                </div>
-                <div>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
-                      #
-                    </span>
-                    <Input
-                      value={exactNumber}
-                      onChange={(e) => setExactNumber(e.target.value)}
-                      inputMode="numeric"
-                      placeholder="No. de distribuidor (exacto)"
-                      className="pl-8"
-                    />
-                  </div>
-                  {exactQuery.length >= 1 && (
-                    <div className="mt-1">
-                      {exactFetching ? (
-                        <p className="text-xs text-gray-400">Buscando…</p>
-                      ) : exactMatch ? (
-                        <button
-                          type="button"
-                          onClick={() => selectCustomer(exactMatch)}
-                          className="flex w-full items-center justify-between rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-left text-sm hover:bg-emerald-100"
-                        >
-                          <span>
-                            {exactMatch.firstName} {exactMatch.lastName}
-                          </span>
-                          <span className="font-mono text-xs font-medium text-emerald-700">
-                            #{exactMatch.customerNumber} · usar
-                          </span>
-                        </button>
-                      ) : (
-                        <p className="text-xs text-amber-600">
-                          Sin coincidencia con el número exacto “{exactQuery}”.
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            <p className="mt-1 text-xs text-gray-400">
-              La moneda del convenio será la de la sucursal del distribuidor
-              (la fija el sistema).
+  // ── Export ──────────────────────────────────────────────────────────────
+  const [exporting, setExporting] = useState(false);
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const { blob, disposition } = await withholdingsTreasuryService.export(filters);
+      saveBlob(blob, filenameFromDisposition(disposition, withholdingExportFilename('convenios')), blob.type || undefined);
+    } catch (err) {
+      const httpStatus = (err as { response?: { status?: number } })?.response?.status;
+      if (httpStatus === 404 && rows.length > 0) {
+        exportToCsv(
+          withholdingExportFilename('convenios-pagina'),
+          ['Nº', 'Distribuidor', 'Concepto', 'Descripción', 'Moneda', 'Total', 'Abono', 'Tope %', 'Saldo', 'Retenido', 'Estado', 'Folio', 'Creado'],
+          rows.map((r) => [
+            csvSafe(r.customerNumber ?? ''),
+            csvSafe(r.customerName ?? ''),
+            withholdingConceptLabel(r.concept),
+            csvSafe(r.description),
+            r.currencyCode,
+            r.totalAmount === null ? '' : toNumber(r.totalAmount),
+            toNumber(r.installmentAmount),
+            toNumber(r.maxPctOfNet),
+            r.balanceRemaining === null ? '' : toNumber(r.balanceRemaining),
+            r.withheldToDate === null || r.withheldToDate === undefined ? '' : toNumber(r.withheldToDate),
+            withholdingStatusLabel(r.status),
+            csvSafe(r.authorizationFolio ?? ''),
+            r.createdAt,
+          ]),
+        );
+        toast.info('Export local de la página: el API aún no expone el CSV auditado');
+      } else {
+        toast.error(treasuryErrorMessage(err, 'No se pudo exportar'));
+      }
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // ── Orden en servidor ───────────────────────────────────────────────────
+  const sortState: DataTableSortState | null = sortBy
+    ? { key: Object.keys(SORT_MAP).find((k) => SORT_MAP[k] === sortBy) ?? sortBy, direction: dirParam }
+    : null;
+  const handleSortChange = (next: DataTableSortState | null) => {
+    if (!next) {
+      setParams({ sort: null, dir: null, page: null });
+      return;
+    }
+    setParams({ sort: SORT_MAP[next.key] ?? next.key, dir: next.direction, page: null });
+  };
+
+  const canWithhold = perms.canWithhold;
+
+  const columns = useMemo<DataTableColumn<WithholdingAgreementRow>[]>(
+    () => [
+      {
+        key: 'customer',
+        header: 'Distribuidor',
+        sortable: true,
+        render: (r) => (
+          <div className="min-w-[10rem]">
+            <Link href={`/admin/distribuidores/${r.customerId}`} className="font-medium text-primary hover:underline">
+              {r.customerName ?? 'Distribuidor'}
+            </Link>
+            <p className="text-xs text-muted-foreground">
+              {r.customerNumber ? `#${r.customerNumber}` : 'Sin número'} · {r.currencyCode}
+              {r.countryCode ? ` · ${r.countryCode}` : ''}
             </p>
           </div>
-
-          {/* Concepto */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Concepto *
-              </label>
-              <SearchableSelect
-                options={[
-                  { value: 'loan', label: 'Préstamo personal (con saldo)' },
-                  { value: 'other', label: 'Otro concepto' },
-                ]}
-                value={concept}
-                onChange={(v) => setConcept(v as 'loan' | 'other')}
-                showAllOption={false}
-              />
+        ),
+      },
+      {
+        key: 'concept',
+        header: 'Concepto',
+        render: (r) => (
+          <div className="min-w-[10rem]">
+            <Badge variant="outline">{withholdingConceptLabel(r.concept)}</Badge>
+            <p className="mt-0.5 max-w-64 truncate text-xs text-muted-foreground" title={r.description}>
+              {r.description}
+            </p>
+            {r.authorizationFolio && (
+              <p className="font-mono text-[11px] text-muted-foreground">Folio {r.authorizationFolio}</p>
+            )}
+          </div>
+        ),
+      },
+      {
+        key: 'installment',
+        header: 'Abono/periodo',
+        sortable: true,
+        headerClassName: 'text-right',
+        cellClassName: 'text-right tabular-nums',
+        render: (r) => (
+          <>
+            <p className="font-medium">{formatMoney(r.installmentAmount, r.currencyCode)}</p>
+            <p className="text-xs text-muted-foreground">tope {formatRate(toNumber(r.maxPctOfNet) / 100)}</p>
+          </>
+        ),
+      },
+      {
+        key: 'total',
+        header: 'Total',
+        headerClassName: 'text-right',
+        cellClassName: 'text-right tabular-nums',
+        render: (r) => (r.totalAmount === null ? <span className="text-muted-foreground">Sin tope</span> : formatMoney(r.totalAmount, r.currencyCode)),
+      },
+      {
+        key: 'balance',
+        header: 'Saldo',
+        sortable: true,
+        headerClassName: 'text-right',
+        cellClassName: 'text-right font-semibold tabular-nums',
+        render: (r) => (r.balanceRemaining === null ? '—' : formatMoney(r.balanceRemaining, r.currencyCode)),
+      },
+      {
+        key: 'withheld',
+        header: 'Retenido',
+        headerClassName: 'text-right',
+        cellClassName: 'text-right tabular-nums text-muted-foreground',
+        render: (r) =>
+          r.withheldToDate === null || r.withheldToDate === undefined ? '—' : formatMoney(r.withheldToDate, r.currencyCode),
+      },
+      {
+        key: 'next',
+        header: 'Próximo abono estimado',
+        headerClassName: 'text-right',
+        cellClassName: 'text-right tabular-nums',
+        render: (r) =>
+          r.nextInstallmentEstimate === null || r.nextInstallmentEstimate === undefined ? (
+            <span className="text-muted-foreground" title="Se calcula con el preview del periodo al cerrar">
+              —
+            </span>
+          ) : (
+            formatMoney(r.nextInstallmentEstimate, r.currencyCode)
+          ),
+      },
+      {
+        key: 'status',
+        header: 'Estado',
+        render: (r) => (
+          <div className="flex flex-wrap items-center gap-1">
+            <Badge variant={WITHHOLDING_STATUS_TONES[r.status] ?? 'secondary'}>{withholdingStatusLabel(r.status)}</Badge>
+            {r.inBatch && (
+              <Badge variant="warning" title="Comisiones del distribuidor en un lote vivo: sin cambios hasta conciliar">
+                En lote
+              </Badge>
+            )}
+          </div>
+        ),
+      },
+      {
+        key: 'updated',
+        header: 'Actualizado',
+        sortable: true,
+        cellClassName: 'text-xs text-muted-foreground',
+        render: (r) => (
+          <>
+            <p>{formatDateOnly(r.updatedAt || r.createdAt)}</p>
+            {r.statusChangedBy && <p>{r.statusChangedBy.name}</p>}
+          </>
+        ),
+      },
+      {
+        key: 'actions',
+        header: 'Acciones',
+        headerClassName: 'text-right',
+        render: (r) => {
+          const live = r.status === 'active' || r.status === 'paused';
+          return (
+            <div className="flex justify-end gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2"
+                onClick={() => setStatementFor(r)}
+                title="Estado de cuenta"
+                aria-label={`Estado de cuenta de ${r.customerName ?? 'distribuidor'}`}
+              >
+                <DocumentTextIcon className="h-4 w-4" aria-hidden />
+              </Button>
+              <PermissionGuard permissions={TREASURY_WITHHOLD_PERMISSIONS} fallback={<></>}>
+                {live && (
+                  <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={() => openEdit(r)} title="Editar" aria-label="Editar convenio">
+                    <PencilSquareIcon className="h-4 w-4" aria-hidden />
+                  </Button>
+                )}
+                {r.status === 'active' && (
+                  <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-amber-700" onClick={() => openStatus(r, 'paused')} title="Pausar" aria-label="Pausar convenio">
+                    <PauseIcon className="h-4 w-4" aria-hidden />
+                  </Button>
+                )}
+                {r.status === 'paused' && (
+                  <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-emerald-700" onClick={() => openStatus(r, 'active')} title="Reactivar" aria-label="Reactivar convenio">
+                    <PlayIcon className="h-4 w-4" aria-hidden />
+                  </Button>
+                )}
+                {live && (
+                  <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-destructive" onClick={() => openStatus(r, 'cancelled')} title="Cancelar convenio" aria-label="Cancelar convenio">
+                    <XCircleIcon className="h-4 w-4" aria-hidden />
+                  </Button>
+                )}
+              </PermissionGuard>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Tope % del neto
-              </label>
-              <Input
-                type="number"
-                min={1}
-                max={100}
-                value={maxPct}
-                onChange={(e) => setMaxPct(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Descripción *
-            </label>
-            <Input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Ej. Préstamo personal — convenio 12-jul-2026"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                {concept === 'loan' ? 'Total del préstamo *' : 'Total (opcional)'}
-              </label>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={totalAmount}
-                onChange={(e) => setTotalAmount(e.target.value)}
-                placeholder={concept === 'loan' ? '10000.00' : 'Sin tope'}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Abono por periodo *
-              </label>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={installment}
-                onChange={(e) => setInstallment(e.target.value)}
-                placeholder="1000.00"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Nota de autorización * (folio/quién autorizó)
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3E667D]"
-              placeholder="Ej. Autorizó Tesorería — convenio firmado 12-jul-2026, folio T-0045"
-            />
-          </div>
-
-          <div className="rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700">
-            Desde el <strong>cierre del periodo</strong> el distribuidor ya ve
-            la retención proyectada junto a su total de comisiones; se hace
-            efectiva en automático al <strong>Marcar como Pagadas</strong>,
-            respetando el tope % del neto. Si el neto no alcanza, se retiene
-            lo disponible y el resto permanece en el saldo.
-          </div>
-
-          <div className="flex justify-end gap-2 pt-1">
-            <Button variant="outline" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={createMutation.isPending}
-              className="bg-[#3E667D] hover:bg-[#2f5165]"
-            >
-              {createMutation.isPending && (
-                <Loader2 className="mr-2 size-4 animate-spin" />
-              )}
-              Crear convenio
-            </Button>
-          </div>
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-}
-
-// ============================================================
-// Historial de abonos
-// ============================================================
-function ApplicationsDialog({
-  agreement,
-  onClose,
-}: {
-  agreement: WithholdingAgreement;
-  onClose: () => void;
-}) {
-  const { data: applications, isLoading } = useWithholdingApplications(
-    agreement.id,
+          );
+        },
+      },
+    ],
+    [],
   );
 
   return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>
-            Abonos — {agreement.description}
-          </DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-gray-500">
-          {agreement.customerName} #{agreement.customerNumber}
-          {agreement.balanceRemaining != null && (
+    <div className="p-6">
+      <TreasuryHeader
+        icon={BanknotesIcon}
+        title="Retenciones"
+        subtitle="Convenios que se descuentan de las comisiones al pagarlas (tope por convenio + tope global del periodo 26→25)."
+        note={!canWithhold ? 'Solo lectura: capturar o cambiar convenios requiere mlm:withhold.' : undefined}
+        actions={
+          <>
+            <Button type="button" variant="outline" onClick={() => void handleExport()} disabled={exporting || rows.length === 0}>
+              {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : <ArrowDownTrayIcon className="mr-2 h-4 w-4" aria-hidden />}
+              Exportar CSV
+            </Button>
+            <PermissionGuard permissions={TREASURY_WITHHOLD_PERMISSIONS} fallback={<></>}>
+              <Button type="button" onClick={openCreate}>
+                <PlusIcon className="mr-2 h-4 w-4" aria-hidden /> Nuevo convenio
+              </Button>
+            </PermissionGuard>
+          </>
+        }
+      />
+
+      <div className="mb-6">
+        <TreasuryTabs active="retenciones" periodId={effectivePeriodId} />
+      </div>
+
+      <PeriodSelector
+        selection={periodSel}
+        caption="Periodo · KPIs retenido/proyectado y preview"
+        onChange={(id) => setParams({ period: id, page: null })}
+      />
+
+      <WithholdingKpis
+        kpis={listQuery.data?.kpis}
+        rows={rows}
+        isLoading={listQuery.isLoading}
+        periodName={selectedPeriod?.name}
+        onStatusClick={(s) => setParams({ status: status === s ? null : s, page: null })}
+      />
+
+      <WithholdingPreviewCard
+        periodId={effectivePeriodId}
+        periodName={selectedPeriod?.name}
+        isPeriodClosed={selectedPeriod?.isClosed}
+      />
+
+      {/* Filtros (URL) */}
+      <Card className="mb-6 border-border shadow-sm">
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6">
+            <div className="space-y-1.5 md:col-span-2">
+              <Label htmlFor="wh-search">Buscar</Label>
+              <div className="relative">
+                <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                <Input
+                  id="wh-search"
+                  type="search"
+                  className="pl-9"
+                  placeholder="Nombre, nº de distribuidor, descripción o folio"
+                  value={searchDraft}
+                  onChange={(e) => setSearchDraft(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="wh-status">Estado</Label>
+              <SearchableSelect id="wh-status" options={STATUS_OPTIONS} value={status ?? ''} onChange={(v) => setParams({ status: v || null, page: null })} allLabel="Todos los estados" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="wh-currency">Moneda</Label>
+              <SearchableSelect id="wh-currency" options={CURRENCY_OPTIONS} value={currencyParam} onChange={(v) => setParams({ currency: v || null, page: null })} allLabel="Todas" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="wh-concept">Concepto</Label>
+              <SearchableSelect id="wh-concept" options={CONCEPT_OPTIONS} value={concept ?? ''} onChange={(v) => setParams({ concept: v || null, page: null })} allLabel="Todos" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="wh-customer">Distribuidor</Label>
+              <DistributorSearchSelect
+                id="wh-customer"
+                value={customerFilterOption}
+                onChange={(opt) => {
+                  setCustomerOption(opt);
+                  setParams({ customer: opt?.id ?? null, page: null });
+                }}
+                placeholder="Todos"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tabla */}
+      <Card className="border-border shadow-sm">
+        <CardContent className="p-6">
+          {listQuery.isError ? (
+            <div className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm">
+              <p className="font-medium text-destructive">{treasuryErrorMessage(listQuery.error, 'No se pudieron cargar los convenios')}</p>
+              <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => void listQuery.refetch()}>
+                Reintentar
+              </Button>
+            </div>
+          ) : (
             <>
-              {' · Saldo: '}
-              <span className="font-semibold text-gray-700">
-                {fmtMoney(agreement.balanceRemaining, agreement.currencyCode)}
-              </span>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
+                <span>
+                  {formatInt(total)} convenio(s)
+                  {listQuery.isFetching && !listQuery.isLoading ? ' · actualizando…' : ''}
+                </span>
+                {!listQuery.data?.meta || listQuery.data.meta.totalPages <= 1 ? null : (
+                  <span>Página {meta?.page ?? page} de {meta?.totalPages ?? 1}</span>
+                )}
+              </div>
+              <DataTable
+                columns={columns}
+                data={rows}
+                getRowKey={(r) => r.id}
+                isLoading={listQuery.isLoading}
+                sortingMode="server"
+                sortState={sortState}
+                onSortChange={handleSortChange}
+                minWidthClassName="min-w-[64rem]"
+                emptyState={
+                  <div className="text-sm text-muted-foreground">
+                    <p className="font-medium text-foreground">Sin convenios con estos filtros</p>
+                    <p className="mt-1">
+                      {canWithhold
+                        ? 'Crea el primero con “Nuevo convenio”: préstamo con saldo o un concepto personalizado.'
+                        : 'No hay convenios registrados que coincidan.'}
+                    </p>
+                  </div>
+                }
+              />
+              <DataTablePagination
+                currentPage={meta?.page ?? page}
+                pageSize={limit}
+                totalItems={total}
+                onPageChange={(p) => setParams({ page: String(p) })}
+                onPageSizeChange={(size) => setParams({ limit: String(size), page: null })}
+                pageSizeOptions={PAGE_SIZE_OPTIONS}
+                isLoading={listQuery.isFetching}
+              />
             </>
           )}
-        </p>
-        {isLoading ? (
-          <div className="flex items-center gap-2 py-6 text-gray-500">
-            <Loader2 className="size-4 animate-spin" /> Cargando…
-          </div>
-        ) : !applications || applications.length === 0 ? (
-          <p className="py-6 text-center text-sm text-gray-500">
-            Aún sin abonos: se registran al pagar las comisiones del periodo.
-          </p>
-        ) : (
-          <div className="max-h-80 overflow-y-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs uppercase text-gray-500">
-                  <th className="py-2 pr-2">Periodo</th>
-                  <th className="py-2 pr-2 text-right">Retenido</th>
-                  <th className="py-2 pr-2 text-right">Abono</th>
-                  <th className="py-2 text-right">Saldo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {applications.map((ap) => (
-                  <tr key={ap.id} className="border-b last:border-0">
-                    <td className="py-2 pr-2">{ap.periodName ?? '—'}</td>
-                    <td className="py-2 pr-2 text-right tabular-nums">
-                      {fmtMoney(ap.amountWithheld, ap.currencyCode)}
-                    </td>
-                    <td className="py-2 pr-2 text-right tabular-nums">
-                      {fmtMoney(ap.agreementAmount, ap.agreementCurrency)}
-                    </td>
-                    <td className="py-2 text-right tabular-nums">
-                      {ap.balanceAfter != null
-                        ? fmtMoney(ap.balanceAfter, ap.agreementCurrency)
-                        : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+        </CardContent>
+      </Card>
+
+      {formOpen && (
+        <WithholdingFormSheet
+          key={formKey}
+          open={formOpen}
+          onOpenChange={setFormOpen}
+          agreement={editing}
+          periods={visiblePeriods}
+          onSaved={(row) => {
+            if (statementFor?.id === row.id) setStatementFor(row);
+          }}
+        />
+      )}
+
+      <WithholdingStatementSheet
+        agreement={statementFor}
+        onClose={() => setStatementFor(null)}
+        canWithhold={canWithhold}
+        onEdit={openEdit}
+        onStatusChange={openStatus}
+      />
+
+      {statusTarget && (
+        <WithholdingStatusDialog
+          key={statusKey}
+          open={!!statusTarget}
+          onOpenChange={(o) => !o && setStatusTarget(null)}
+          agreement={statusTarget.row}
+          target={statusTarget.target}
+          onConfirm={handleStatusChange}
+          isPending={updateMutation.isPending}
+        />
+      )}
+    </div>
   );
 }

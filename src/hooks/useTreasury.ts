@@ -181,3 +181,224 @@ export function useUpdateTreasurySettings() {
     },
   });
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Retenciones (§4.4) y Dispersión y pagos (§4.2) — pasos 9 y 10 (Next).
+// Claves colgadas de `treasuryKeys.all` para que `useInvalidateTreasury`
+// las refresque; las mutaciones también invalidan `withholdingKeys.all`
+// (hook viejo que aún usa la confirmación de pago en Comisiones).
+// ═══════════════════════════════════════════════════════════════════════════
+
+import {
+  paymentsLedgerService,
+  payoutBatchesService,
+  withholdingsTreasuryService,
+} from '@/services/treasury.service';
+import { withholdingKeys } from '@/hooks/useWithholdings';
+import type {
+  ConfirmBatchPayload,
+  CreatePayoutBatchPayload,
+  CreateWithholdingPayload,
+  LayoutFormatInfo,
+  MarkBatchSentPayload,
+  PayoutBatchDetail,
+  PayoutBatchItemsFilters,
+  PayoutBatchListFilters,
+  PayoutBatchListResponse,
+  UpdateWithholdingPayload,
+  WithholdingAgreementRow,
+  WithholdingListFilters,
+  WithholdingListResponse,
+  WithholdingPreview,
+  WithholdingStatement,
+} from '@/types/treasury';
+
+export const withholdingV2Keys = {
+  all: [...treasuryKeys.all, 'withholdings'] as const,
+  list: (filters: WithholdingListFilters) => [...withholdingV2Keys.all, 'list', filters] as const,
+  statement: (id: string) => [...withholdingV2Keys.all, 'statement', id] as const,
+  preview: (periodId: string, commissionIds?: string[]) =>
+    [...withholdingV2Keys.all, 'preview', periodId, commissionIds ?? []] as const,
+};
+
+export const payoutBatchKeys = {
+  all: [...treasuryKeys.all, 'payout-batches'] as const,
+  list: (filters: PayoutBatchListFilters) => [...payoutBatchKeys.all, 'list', filters] as const,
+  detail: (id: string, filters: PayoutBatchItemsFilters) =>
+    [...payoutBatchKeys.all, 'detail', id, filters] as const,
+  formats: () => [...payoutBatchKeys.all, 'formats'] as const,
+};
+
+function useInvalidateTreasuryAndWithholdings() {
+  const queryClient = useQueryClient();
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: treasuryKeys.all });
+    void queryClient.invalidateQueries({ queryKey: commissionKeys.all });
+    void queryClient.invalidateQueries({ queryKey: withholdingKeys.all });
+  };
+}
+
+// ── Retenciones ──────────────────────────────────────────────────────────
+
+/** Listado paginado/ordenado en servidor con KPIs; conserva la página anterior. */
+export function useWithholdingList(filters: WithholdingListFilters, enabled = true) {
+  return useQuery<WithholdingListResponse>({
+    queryKey: withholdingV2Keys.list(filters),
+    queryFn: () => withholdingsTreasuryService.list(filters),
+    enabled,
+    placeholderData: keepPreviousData,
+    staleTime: STALE_SHORT,
+  });
+}
+
+/** Estado de cuenta del convenio (abonos por periodo + eventos). */
+export function useWithholdingStatement(agreement: WithholdingAgreementRow | null) {
+  return useQuery<WithholdingStatement>({
+    queryKey: withholdingV2Keys.statement(agreement?.id ?? ''),
+    queryFn: () => withholdingsTreasuryService.statement(agreement as WithholdingAgreementRow),
+    enabled: !!agreement,
+    staleTime: STALE_SHORT,
+  });
+}
+
+/** Preview de aplicación del periodo (tope global multi-fila). Sin reintentos: 403/404 se explican. */
+export function useWithholdingPreviewV2(
+  periodId: string | undefined,
+  commissionIds?: string[],
+  enabled = true,
+) {
+  return useQuery<WithholdingPreview>({
+    queryKey: withholdingV2Keys.preview(periodId ?? '', commissionIds),
+    queryFn: () => withholdingsTreasuryService.preview(periodId as string, commissionIds),
+    enabled: enabled && !!periodId,
+    retry: false,
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useCreateWithholdingV2() {
+  const invalidate = useInvalidateTreasuryAndWithholdings();
+  return useMutation({
+    mutationFn: (payload: CreateWithholdingPayload) => withholdingsTreasuryService.create(payload),
+    onSettled: invalidate,
+  });
+}
+
+export function useUpdateWithholdingV2() {
+  const invalidate = useInvalidateTreasuryAndWithholdings();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: UpdateWithholdingPayload }) =>
+      withholdingsTreasuryService.update(id, payload),
+    onSettled: invalidate,
+  });
+}
+
+export function useUploadWithholdingAttachment() {
+  const invalidate = useInvalidateTreasuryAndWithholdings();
+  return useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) =>
+      withholdingsTreasuryService.uploadAttachment(id, file),
+    onSettled: invalidate,
+  });
+}
+
+// ── Lotes de dispersión ──────────────────────────────────────────────────
+
+export function usePayoutBatchList(filters: PayoutBatchListFilters, enabled = true) {
+  return useQuery<PayoutBatchListResponse>({
+    queryKey: payoutBatchKeys.list(filters),
+    queryFn: () => payoutBatchesService.list(filters),
+    enabled,
+    placeholderData: keepPreviousData,
+    retry: false,
+    staleTime: STALE_SHORT,
+  });
+}
+
+export function usePayoutBatchDetail(id: string | null, filters: PayoutBatchItemsFilters = {}) {
+  return useQuery<PayoutBatchDetail>({
+    queryKey: payoutBatchKeys.detail(id ?? '', filters),
+    queryFn: () => payoutBatchesService.detail(id as string, filters),
+    enabled: !!id,
+    placeholderData: keepPreviousData,
+    retry: false,
+    staleTime: STALE_SHORT,
+  });
+}
+
+export function useLayoutFormats(enabled = true) {
+  return useQuery<LayoutFormatInfo[]>({
+    queryKey: payoutBatchKeys.formats(),
+    queryFn: () => payoutBatchesService.formats(),
+    enabled,
+    retry: false,
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+export function useCreatePayoutBatch() {
+  const invalidate = useInvalidateTreasuryAndWithholdings();
+  return useMutation({
+    mutationFn: (payload: CreatePayoutBatchPayload) => payoutBatchesService.create(payload),
+    onSettled: invalidate,
+  });
+}
+
+export function useMarkBatchSent() {
+  const invalidate = useInvalidateTreasuryAndWithholdings();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: MarkBatchSentPayload }) =>
+      payoutBatchesService.markSent(id, payload),
+    onSettled: invalidate,
+  });
+}
+
+/** Vista previa del resultado del banco: NO escribe nada, por eso no invalida. */
+export function usePreviewBankResult() {
+  return useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) =>
+      payoutBatchesService.previewResult(id, file),
+  });
+}
+
+export function useApplyBankResult() {
+  const invalidate = useInvalidateTreasuryAndWithholdings();
+  return useMutation({
+    mutationFn: ({ id, applyToken }: { id: string; applyToken: string }) =>
+      payoutBatchesService.applyResult(id, applyToken),
+    onSettled: invalidate,
+  });
+}
+
+export function useConfirmBatch() {
+  const invalidate = useInvalidateTreasuryAndWithholdings();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: ConfirmBatchPayload }) =>
+      payoutBatchesService.confirm(id, payload),
+    onSettled: invalidate,
+  });
+}
+
+export function useReconcileBatch() {
+  const invalidate = useInvalidateTreasuryAndWithholdings();
+  return useMutation({
+    mutationFn: (id: string) => payoutBatchesService.reconcile(id),
+    onSettled: invalidate,
+  });
+}
+
+export function useCancelBatch() {
+  const invalidate = useInvalidateTreasuryAndWithholdings();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      payoutBatchesService.cancel(id, reason),
+    onSettled: invalidate,
+  });
+}
+
+/** Export del ledger (CSV del API). Se expone como mutación para el estado de descarga. */
+export function useExportPayments() {
+  return useMutation({
+    mutationFn: (filters: PaymentsLedgerFilters) => paymentsLedgerService.export(filters),
+  });
+}
