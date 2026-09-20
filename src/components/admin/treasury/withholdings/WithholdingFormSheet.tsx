@@ -196,7 +196,16 @@ export function WithholdingFormSheet({
         if (startsPeriodId) payload.startsPeriodId = startsPeriodId;
         if (folio.trim()) payload.authorizationFolio = folio.trim();
         const row = await createMutation.mutateAsync(payload);
-        toast.success(`Convenio creado para ${distributor.name}: se aplica al pagar comisiones`);
+        const warnings = row.warnings ?? [];
+        if (warnings.length > 0) {
+          // Inicio diferido por lote vivo (H-3): el API movió `startsPeriodId` al
+          // periodo siguiente al del lote; no retiene en el periodo que el usuario cree.
+          toast.warning(`Convenio creado para ${distributor.name} con aviso: ${warnings.join(' · ')}`, {
+            duration: 12000,
+          });
+        } else {
+          toast.success(`Convenio creado para ${distributor.name}: se aplica al pagar comisiones`);
+        }
         await uploadIfAny(row.id);
         onSaved?.(row);
         onOpenChange(false);

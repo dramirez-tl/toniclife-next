@@ -100,6 +100,7 @@ const SORT_MAP: Record<string, string> = {
   customer: 'customerName',
   installment: 'installmentAmount',
   balance: 'balanceRemaining',
+  status: 'status',
   updated: 'createdAt',
 };
 
@@ -284,6 +285,13 @@ function RetencionesContent() {
 
   const canWithhold = perms.canWithhold;
 
+  // Nombre del periodo "aplica desde" (el API solo manda `startsPeriodId`).
+  const periodNameById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const p of visiblePeriods) map.set(p.id, p.name);
+    return map;
+  }, [visiblePeriods]);
+
   const columns = useMemo<DataTableColumn<WithholdingAgreementRow>[]>(
     () => [
       {
@@ -370,16 +378,30 @@ function RetencionesContent() {
       {
         key: 'status',
         header: 'Estado',
-        render: (r) => (
-          <div className="flex flex-wrap items-center gap-1">
-            <Badge variant={WITHHOLDING_STATUS_TONES[r.status] ?? 'secondary'}>{withholdingStatusLabel(r.status)}</Badge>
-            {r.inBatch && (
-              <Badge variant="warning" title="Comisiones del distribuidor en un lote vivo: sin cambios hasta conciliar">
-                En lote
-              </Badge>
-            )}
-          </div>
-        ),
+        sortable: true,
+        render: (r) => {
+          const startsName = r.startsPeriodName ?? (r.startsPeriodId ? periodNameById.get(r.startsPeriodId) : undefined);
+          return (
+            <div className="min-w-[8rem]">
+              <div className="flex flex-wrap items-center gap-1">
+                <Badge variant={WITHHOLDING_STATUS_TONES[r.status] ?? 'secondary'}>{withholdingStatusLabel(r.status)}</Badge>
+                {r.inBatch && (
+                  <Badge variant="warning" title="Comisiones del distribuidor en un lote vivo: sin cambios hasta conciliar">
+                    En lote
+                  </Badge>
+                )}
+              </div>
+              {r.startsPeriodId && (
+                <p
+                  className="mt-0.5 text-xs text-muted-foreground"
+                  title="Periodo 26→25 a partir del cual se retiene (puede ser posterior al pedido si el distribuidor estaba en un lote vivo)"
+                >
+                  Desde {startsName ?? 'periodo definido'}
+                </p>
+              )}
+            </div>
+          );
+        },
       },
       {
         key: 'updated',
@@ -439,7 +461,7 @@ function RetencionesContent() {
         },
       },
     ],
-    [],
+    [periodNameById],
   );
 
   return (

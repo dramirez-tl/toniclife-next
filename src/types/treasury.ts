@@ -535,17 +535,20 @@ export function isWithholdingConcept(value: string): value is WithholdingConcept
   return (WITHHOLDING_CONCEPTS as readonly string[]).includes(value);
 }
 
+/** `WITHHOLDING_SORT_KEYS` del API (`withholding.dto.ts`). */
 export type WithholdingSortBy =
   | 'createdAt'
   | 'balanceRemaining'
   | 'installmentAmount'
-  | 'customerName';
+  | 'customerName'
+  | 'status';
 
 export const WITHHOLDING_SORT_KEYS: readonly WithholdingSortBy[] = [
   'createdAt',
   'balanceRemaining',
   'installmentAmount',
   'customerName',
+  'status',
 ];
 
 export function isWithholdingSortBy(value: string): value is WithholdingSortBy {
@@ -573,6 +576,12 @@ export interface WithholdingAgreementRow {
   status: WithholdingStatus;
   startsPeriodId: string | null;
   startsPeriodName?: string | null;
+  /**
+   * Avisos de la operación (`WithholdingAgreementDto.warnings`): p. ej. al crear con
+   * el distribuidor en un lote vivo el API difiere `startsPeriodId` al periodo
+   * siguiente y lo explica aquí. Solo viene en la respuesta de POST.
+   */
+  warnings?: string[] | null;
   notes: string;
   authorizationFolio?: string | null;
   /** true cuando hay pagaré/convenio adjunto (la ruta nunca se expone). */

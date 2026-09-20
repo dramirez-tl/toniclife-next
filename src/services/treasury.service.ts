@@ -454,6 +454,9 @@ export function normalizeWithholdingRow(input: unknown): WithholdingAgreementRow
     statusChangedBy: raw.statusChangedBy ?? (change ? userRef(change.by) : null),
     statusReason: raw.statusReason ?? (change ? strOrNull(change.reason) : null),
     lastApplicationAt: raw.lastApplicationAt ?? strOrNull(input.lastAppliedAt),
+    warnings: Array.isArray(input.warnings)
+      ? input.warnings.map(strOrNull).filter((w): w is string => w !== null)
+      : null,
   };
 }
 
