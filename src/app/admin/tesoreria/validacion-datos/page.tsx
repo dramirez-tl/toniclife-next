@@ -1,651 +1,623 @@
 'use client';
 
-import { useState, Fragment, Suspense } from 'react';
+// /admin/tesoreria/validacion-datos — BANDEJA DE REVISIÓN (contrato §5.5).
+//
+// KPIs-filtro coherentes con la cola (misma CTE treasury_readiness del API),
+// filtros en la URL (estado, documento/estado, país, solo con comisión del
+// periodo 26→25, antigüedad, búsqueda con debounce), DataTable con orden en
+// servidor y cola por antigüedad, selección múltiple → Recordar / Exportar,
+// revisión en Sheet ancho (PaymentReadinessReview) con Anterior/Siguiente y
+// atajos J/K, V/R. El guard vive en layout.tsx; los botones de escritura van
+// dentro de PermissionGuard fallback vacío.
+
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { customersService } from '@/services/customers.service';
 import { toast } from 'sonner';
-import { Card, CardContent } from '@/components/ui/card';
-import { DataTablePagination } from '@/components/ui';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
-import { useQueryFilters } from '@/hooks/useQueryFilters';
-import { PermissionGuard } from '@/components/auth';
-import type { PaymentReadinessResponse, DocumentValidation } from '@/types/payment-data';
 import {
-  ShieldCheckIcon,
-  ExclamationTriangleIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  MagnifyingGlassIcon,
-  EyeIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-  DocumentArrowUpIcon,
-  ChatBubbleLeftEllipsisIcon,
-  FunnelIcon,
+  ArrowDownTrayIcon,
   ArrowPathIcon,
-  BanknotesIcon,
-  UserIcon,
+  BellAlertIcon,
+  EyeIcon,
+  MagnifyingGlassIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
+import { Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import {
+  DataTable,
+  DataTablePagination,
+  type DataTableColumn,
+  type DataTableSortState,
+} from '@/components/ui/DataTable';
+import { PermissionGuard } from '@/components/auth';
+import { useQueryFilters } from '@/hooks/useQueryFilters';
+import { useActiveCountries } from '@/hooks/useConfig';
+import { useReadinessCatalogs, useReadinessList, useRemindDistributors } from '@/hooks/useTreasuryReadiness';
+import { treasuryReadinessService } from '@/services/treasury-readiness.service';
+import { saveBlob } from '@/lib/download';
+import { csvDateStamp, downloadCsv } from '@/lib/csv-export';
+import {
+  PeriodSelector,
+  TreasuryHeader,
+  TreasuryTabs,
+  useTreasuryPeriod,
+  TREASURY_VALIDATE_PERMISSIONS,
+  filenameFromDisposition,
+  formatDateTime,
+  formatInt,
+  formatMoney,
+  treasuryErrorMessage,
+} from '@/components/admin/treasury';
+import {
+  BankCell,
+  DocLegend,
+  DocStatusBadge,
+  PaymentReadinessReviewSheet,
+  ProgressBar,
+  ReadinessKpis,
+  ReadinessStatusBadge,
+  RemindDialog,
+  DOCUMENT_LABELS,
+  DOCUMENT_STATUS_LABELS,
+  READINESS_STATUS_LABELS,
+  buildReadinessCsv,
+  daysLabel,
+  documentsForCountry,
+  isOverSla,
+  type ReadinessKpiTarget,
+} from '@/components/admin/treasury/readiness';
+import {
+  DOCUMENT_STATUS_FILTERS,
+  PAYMENT_DOCUMENT_KEYS,
+  READINESS_STATUSES,
+  isDocumentStatusFilter,
+  isPaymentDocumentKey,
+  isReadinessSortBy,
+  isReadinessStatus,
+  type ReadinessListFilters,
+  type ReadinessRow,
+  type RemindChannel,
+} from '@/types/treasury-readiness';
 
-// ===== HELPERS =====
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:3001';
-
-/** Resolve document URL: prepend backend base for relative URLs */
-function resolveDocUrl(url: string | null | undefined): string | null {
-  if (!url) return null;
-  if (url.startsWith('http')) return url;
-  // /api/v1/storage/file/... or /uploads/... — prepend backend host
-  return `${API_BASE}${url}`;
-}
-
-function isPreviewable(url: string): boolean {
-  // Check extension (before any query params)
-  const pathPart = url.split('?')[0];
-  if (/\.(jpg|jpeg|png|gif|webp|pdf)$/i.test(pathPart)) return true;
-  // GCS URLs or URLs with mime info in path
-  if (url.includes('/pdf') || url.includes('/image') || url.includes('content-type=image') || url.includes('content-type=application%2Fpdf')) return true;
-  // Documents uploaded through our system are always JPG/PNG/PDF, so default to preview
-  return true;
-}
-
-// ===== STATUS CONFIG =====
-
-const statusConfig = {
-  complete: { label: 'Validado', icon: ShieldCheckIcon, color: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
-  pending_validation: { label: 'Pendiente', icon: ClockIcon, color: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
-  incomplete: { label: 'Incompleto', icon: ExclamationTriangleIcon, color: 'bg-red-50 text-red-700 border-red-200', dot: 'bg-red-400' },
+const PAGE_SIZE_OPTIONS = [20, 50, 100];
+const SORT_KEYS: Record<string, ReadinessListFilters['sortBy']> = {
+  name: 'name',
+  daysInQueue: 'daysInQueue',
+  submittedAt: 'submittedAt',
+  periodCommission: 'commissionAmount',
+  updatedAt: 'updatedAt',
 };
 
-function StatusBadge({ status }: { status: string }) {
-  const cfg = statusConfig[status as keyof typeof statusConfig] || statusConfig.incomplete;
-  const Icon = cfg.icon;
+export default function ValidacionDatosPage() {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${cfg.color}`}>
-      <Icon className="h-3.5 w-3.5" />
-      {cfg.label}
-    </span>
+    <Suspense fallback={<PageSkeleton />}>
+      <ValidacionDatosContent />
+    </Suspense>
   );
 }
 
-function DocStatusDot({ uploaded, status }: { uploaded: boolean; status: string | null }) {
-  if (!uploaded) return <span className="w-2 h-2 rounded-full bg-gray-300" title="No subido" />;
-  if (status === 'validated') return <span className="w-2 h-2 rounded-full bg-emerald-500" title="Validado" />;
-  if (status === 'rejected') return <span className="w-2 h-2 rounded-full bg-red-500" title="Rechazado" />;
-  return <span className="w-2 h-2 rounded-full bg-amber-500" title="Pendiente de revisión" />;
-}
-
-// ===== EXPANDED ROW (detail + validation) =====
-
-function DistributorDetail({
-  customerId,
-  onValidated,
-}: {
-  customerId: string;
-  onValidated: () => void;
-}) {
-  const [rejectField, setRejectField] = useState<string | null>(null);
-  const [rejectReason, setRejectReason] = useState('');
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [previewLabel, setPreviewLabel] = useState('');
-
-  const { data: readiness, isLoading } = useQuery({
-    queryKey: ['customer', customerId, 'payment-readiness'],
-    queryFn: () => customersService.getPaymentReadiness(customerId),
-  });
-
-  const queryClient = useQueryClient();
-  const validateMutation = useMutation({
-    mutationFn: (validations: DocumentValidation[]) =>
-      customersService.validateDocuments(customerId, validations),
-    onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ['customer', customerId, 'payment-readiness'] });
-      queryClient.invalidateQueries({ queryKey: ['payment-readiness-list'] });
-      toast.success(result.documentsValidated ? 'Todos los documentos validados' : 'Validación actualizada');
-      setRejectField(null);
-      setRejectReason('');
-      onValidated();
-    },
-  });
-
-  const handleApprove = (field: string) => {
-    validateMutation.mutate([{ field, approved: true }]);
-  };
-
-  const handleReject = () => {
-    if (!rejectField || !rejectReason.trim()) {
-      toast.error('Ingresa un motivo de rechazo');
-      return;
-    }
-    validateMutation.mutate([{ field: rejectField, approved: false, rejectionReason: rejectReason }]);
-  };
-
-  const handleApproveAll = () => {
-    if (!readiness) return;
-    const docFields = ['ineDocument', 'taxIdDocument', 'bankStatement'];
-    const fieldMap: Record<string, string> = { ineDocument: 'ine', taxIdDocument: 'taxId', bankStatement: 'bankStatement' };
-    const pending = readiness.items.filter(
-      (i) => docFields.includes(i.field) && i.url && (i.status === 'uploaded' || i.status === 'rejected'),
-    );
-    if (!pending.length) {
-      toast.info('No hay documentos pendientes de validar');
-      return;
-    }
-    validateMutation.mutate(pending.map((i) => ({ field: fieldMap[i.field] || i.field, approved: true })));
-  };
-
-  if (isLoading) {
-    return (
-      <div className="p-6 animate-pulse space-y-3">
-        {[0, 1, 2].map((i) => <div key={i} className="h-10 bg-gray-100 rounded" />)}
-      </div>
-    );
-  }
-
-  if (!readiness) return null;
-
-  const docFields = ['ineDocument', 'taxIdDocument', 'bankStatement'];
-  const dataFields = readiness.items.filter((i) => !docFields.includes(i.field));
-  const docItems = readiness.items.filter((i) => docFields.includes(i.field));
-  const fieldMap: Record<string, string> = { ineDocument: 'ine', taxIdDocument: 'taxId', bankStatement: 'bankStatement' };
-  const pendingCount = docItems.filter((i) => i.url && i.status !== 'validated').length;
-
+function PageSkeleton() {
   return (
-    <div className="bg-gray-50 border-t border-gray-200 p-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left: Data fields */}
-        <div>
-          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Datos del Distribuidor</h4>
-          <div className="space-y-2">
-            {dataFields.map((item) => (
-              <div key={item.field} className="flex items-center justify-between bg-white rounded-lg border border-gray-100 px-3 py-2">
-                <div className="flex items-center gap-2">
-                  {item.status === 'complete' ? (
-                    <CheckCircleIcon className="h-4 w-4 text-emerald-500" />
-                  ) : (
-                    <XCircleIcon className="h-4 w-4 text-gray-300" />
-                  )}
-                  <span className="text-sm text-gray-700">{item.label}</span>
-                </div>
-                <span className={`text-xs font-mono ${item.value ? 'text-gray-900' : 'text-gray-400 italic'}`}>
-                  {item.value || 'Sin capturar'}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Right: Documents */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Documentos</h4>
-            {pendingCount > 0 && (
-              <button
-                type="button"
-                onClick={handleApproveAll}
-                disabled={validateMutation.isPending}
-                className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
-              >
-                Validar todos ({pendingCount})
-              </button>
-            )}
-          </div>
-          <div className="space-y-3">
-            {docItems.map((item) => (
-              <div key={item.field} className="bg-white rounded-lg border border-gray-100 p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    {item.status === 'validated' ? (
-                      <CheckCircleIcon className="h-4 w-4 text-emerald-500" />
-                    ) : item.status === 'rejected' ? (
-                      <XCircleIcon className="h-4 w-4 text-red-500" />
-                    ) : item.url ? (
-                      <ClockIcon className="h-4 w-4 text-amber-500" />
-                    ) : (
-                      <XCircleIcon className="h-4 w-4 text-gray-300" />
-                    )}
-                    <span className="text-sm font-medium text-gray-700">{item.label}</span>
-                  </div>
-                  <span className={`text-[10px] font-medium rounded-full px-2 py-0.5 ${
-                    item.status === 'validated' ? 'bg-emerald-50 text-emerald-600' :
-                    item.status === 'rejected' ? 'bg-red-50 text-red-600' :
-                    item.url ? 'bg-amber-50 text-amber-600' : 'bg-gray-50 text-gray-400'
-                  }`}>
-                    {item.status === 'validated' ? 'Validado' : item.status === 'rejected' ? 'Rechazado' : item.url ? 'Por revisar' : 'No subido'}
-                  </span>
-                </div>
-
-                {/* Rejection reason */}
-                {item.status === 'rejected' && item.rejectionReason && (
-                  <div className="flex items-start gap-1.5 mb-2 bg-red-50 rounded px-2 py-1.5">
-                    <ChatBubbleLeftEllipsisIcon className="h-3.5 w-3.5 text-red-400 flex-shrink-0 mt-0.5" />
-                    <p className="text-xs text-red-600">{item.rejectionReason}</p>
-                  </div>
-                )}
-
-                {/* Actions */}
-                {item.url && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const resolved = resolveDocUrl(item.url)!;
-                        if (isPreviewable(resolved)) {
-                          setPreviewUrl(resolved);
-                          setPreviewLabel(item.label);
-                        } else {
-                          window.open(resolved, '_blank');
-                        }
-                      }}
-                      className="inline-flex items-center gap-1 rounded border border-gray-200 bg-white px-2.5 py-1 text-xs text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      <EyeIcon className="h-3 w-3" />
-                      Ver documento
-                    </button>
-                    {item.status !== 'validated' && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => handleApprove(fieldMap[item.field] || item.field)}
-                          disabled={validateMutation.isPending}
-                          className="inline-flex items-center gap-1 rounded bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition-colors disabled:opacity-50"
-                        >
-                          <CheckCircleIcon className="h-3 w-3" />
-                          Validar
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setRejectField(fieldMap[item.field] || item.field); setRejectReason(''); }}
-                          disabled={validateMutation.isPending}
-                          className="inline-flex items-center gap-1 rounded bg-red-50 border border-red-200 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50"
-                        >
-                          <XCircleIcon className="h-3 w-3" />
-                          Rechazar
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-
-                {/* Reject reason input */}
-                {rejectField === (fieldMap[item.field] || item.field) && (
-                  <div className="mt-3 space-y-2 bg-red-50 rounded-lg p-3 border border-red-100">
-                    <label className="block text-xs font-medium text-red-700">
-                      <ChatBubbleLeftEllipsisIcon className="h-3.5 w-3.5 inline mr-1" />
-                      Motivo del rechazo
-                    </label>
-                    <textarea
-                      value={rejectReason}
-                      onChange={(e) => setRejectReason(e.target.value)}
-                      placeholder="Explica al distribuidor por qué se rechaza este documento..."
-                      rows={2}
-                      className="w-full rounded border border-red-200 px-3 py-2 text-xs focus:border-red-400 focus:ring-1 focus:ring-red-400 outline-none resize-none"
-                    />
-                    <div className="flex gap-2 justify-end">
-                      <button
-                        type="button"
-                        onClick={() => { setRejectField(null); setRejectReason(''); }}
-                        className="rounded px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 transition-colors"
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleReject}
-                        disabled={validateMutation.isPending || !rejectReason.trim()}
-                        className="rounded bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
-                      >
-                        Confirmar rechazo
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Link to full profile */}
-      <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between">
-        <Link
-          href={`/admin/distribuidores/${customerId}`}
-          className="text-xs text-[#3E667D] hover:underline flex items-center gap-1"
-        >
-          <UserIcon className="h-3.5 w-3.5" />
-          Ver perfil completo del distribuidor
-        </Link>
-      </div>
-
-      {/* Document Preview Modal */}
-      {previewUrl && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          onClick={() => setPreviewUrl(null)}
-        >
-          <div
-            className="relative bg-white rounded-2xl shadow-2xl max-w-4xl max-h-[90vh] w-[90vw] flex flex-col overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
-              <h3 className="text-sm font-semibold text-gray-900">{previewLabel}</h3>
-              <div className="flex items-center gap-2">
-                <a
-                  href={previewUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
-                >
-                  Abrir en nueva pestaña
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setPreviewUrl(null)}
-                  className="rounded-lg p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-                >
-                  <XCircleIcon className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-            {/* Modal body */}
-            <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-gray-50 min-h-[400px]">
-              {/\.pdf/i.test(previewUrl.split('?')[0]) || previewUrl.includes('constancia') || previewUrl.includes('application%2Fpdf') ? (
-                <iframe
-                  src={previewUrl}
-                  className="w-full h-[75vh] rounded border border-gray-200"
-                  title={previewLabel}
-                />
-              ) : /\.(jpg|jpeg|png|gif|webp)/i.test(previewUrl.split('?')[0]) || previewUrl.includes('ine') ? (
-                <img
-                  src={previewUrl}
-                  alt={previewLabel}
-                  className="max-w-full max-h-[75vh] object-contain rounded-lg shadow-sm"
-                  onError={(e) => {
-                    // If image fails, try as iframe (might be PDF without extension)
-                    const parent = (e.target as HTMLElement).parentElement;
-                    if (parent) {
-                      parent.innerHTML = `<iframe src="${previewUrl}" class="w-full h-[75vh] rounded border border-gray-200" title="${previewLabel}"></iframe>`;
-                    }
-                  }}
-                />
-              ) : (
-                <iframe
-                  src={previewUrl}
-                  className="w-full h-[75vh] rounded border border-gray-200"
-                  title={previewLabel}
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+    <div className="space-y-4 p-6">
+      <Skeleton className="h-10 w-72" />
+      <Skeleton className="h-20 w-full" />
+      <Skeleton className="h-24 w-full" />
+      <Skeleton className="h-96 w-full" />
     </div>
   );
 }
 
-// ===== MAIN PAGE =====
-
-interface DistributorRow {
-  id: string;
-  customerNumber: string | null;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  overallStatus: string;
-  documentsValidated: boolean;
-  missingCount: number;
-  completedCount: number;
-  documents: {
-    ine: { uploaded: boolean; status: string | null };
-    taxId: { uploaded: boolean; status: string | null };
-    bankStatement: { uploaded: boolean; status: string | null };
-  };
-  updatedAt: string;
-}
-
-export default function ValidacionDatosPage() {
-  // Guard (mig 120): la página no tenía ninguno y era accesible por URL a
-  // cualquier colaborador. Tesorería entra con mlm:withhold/commissions:read.
-  return (
-    <PermissionGuard permissions={['mlm:withhold', 'commissions:read', 'commissions:*']}>
-      <Suspense><ValidacionDatosContent /></Suspense>
-    </PermissionGuard>
-  );
-}
-
 function ValidacionDatosContent() {
-  const { get, getNumber, setParams } = useQueryFilters({
-    status: 'all',
-    page: '1',
-    limit: '20',
-  });
+  const { get, getNumber, setParams } = useQueryFilters({ page: '1', limit: '20', dir: 'desc' });
 
-  const statusFilter = get('status');
-  const searchQuery = get('search');
-  const currentPage = getNumber('page') || 1;
-  const pageSize = getNumber('limit') || 20;
+  const statusParam = get('status');
+  const docParam = get('doc');
+  const docStatusParam = get('docStatus');
+  const countryParam = get('country');
+  const earnersLink = get('earnersOfPeriodId'); // enlace desde el índice / semáforo
+  const periodParam = get('period') || earnersLink;
+  const earnersParam = get('earners');
+  const minDaysParam = getNumber('minDays');
+  const search = get('search');
+  const sortParam = get('sort');
+  const dirParam = get('dir') === 'asc' ? 'asc' : 'desc';
+  const reviewParam = get('review');
+  const page = getNumber('page') || 1;
+  const limit = PAGE_SIZE_OPTIONS.includes(getNumber('limit')) ? getNumber('limit') : 20;
 
-  const [searchInput, setSearchInput] = useState(searchQuery);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const status = isReadinessStatus(statusParam) ? statusParam : undefined;
+  const document = isPaymentDocumentKey(docParam) ? docParam : undefined;
+  const documentStatus = isDocumentStatusFilter(docStatusParam) ? docStatusParam : undefined;
+  const sortBy = isReadinessSortBy(sortParam) ? sortParam : undefined;
+  const earnersOn = earnersParam === '1' || (!!earnersLink && earnersParam !== '0');
 
-  const { data, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['payment-readiness-list', statusFilter, searchQuery, currentPage, pageSize],
-    queryFn: () => customersService.getPaymentReadinessList({
-      status: statusFilter,
-      search: searchQuery || undefined,
-      page: currentPage,
-      limit: pageSize,
+  // ── Periodo 26→25 (comisión del periodo y filtro "con comisión") ──────────
+  const periodSel = useTreasuryPeriod(periodParam);
+  const { effectivePeriodId, selectedPeriod } = periodSel;
+
+  const [searchDraft, setSearchDraft] = useState(search);
+  useEffect(() => {
+    if (searchDraft === search) return;
+    const t = setTimeout(() => setParams({ search: searchDraft.trim() || null, page: null }), 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchDraft]);
+
+  const filters = useMemo<ReadinessListFilters>(
+    () => ({
+      status,
+      document,
+      documentStatus,
+      countryCode: countryParam || undefined,
+      earnersOfPeriodId: earnersOn ? effectivePeriodId : undefined,
+      minDaysInQueue: minDaysParam > 0 ? minDaysParam : undefined,
+      search: search || undefined,
+      sortBy,
+      sortDir: dirParam,
+      page,
+      limit,
     }),
-  });
+    [status, document, documentStatus, countryParam, earnersOn, effectivePeriodId, minDaysParam, search, sortBy, dirParam, page, limit],
+  );
 
-  const distributors: DistributorRow[] = data?.data || [];
-  const totalItems = data?.total || 0;
-  const globalStats = data?.stats || { totalWithData: 0, pendingValidation: 0, validated: 0, incomplete: 0 };
+  const listQuery = useReadinessList(filters);
+  const catalogsQuery = useReadinessCatalogs();
+  const { data: countries } = useActiveCountries();
+  const remindMutation = useRemindDistributors();
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setParams({ search: searchInput || null, page: '1' });
+  const rows: ReadinessRow[] = useMemo(() => listQuery.data?.data ?? [], [listQuery.data]);
+  const meta = listQuery.data?.meta;
+  const stats = listQuery.data?.stats;
+  const catalogs = catalogsQuery.data;
+  const slaDays = catalogs?.slaDays ?? null;
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [remindScope, setRemindScope] = useState<'selected' | 'earners' | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  const selectedRows = useMemo(() => rows.filter((r) => selectedIds.includes(r.customerId)), [rows, selectedIds]);
+  const queueIds = useMemo(() => rows.map((r) => r.customerId), [rows]);
+
+  const sortState: DataTableSortState | null = sortBy
+    ? { key: Object.keys(SORT_KEYS).find((k) => SORT_KEYS[k] === sortBy) ?? sortBy, direction: dirParam }
+    : null;
+
+  const onKpi = (target: ReadinessKpiTarget) => {
+    if (target.kind === 'status') setParams({ status: target.status, page: null });
+    else if (target.kind === 'readyToPay') setParams({ status: 'validated', page: null });
+    else if (target.kind === 'earnersBlocked')
+      setParams({ earners: earnersOn ? '0' : '1', earnersOfPeriodId: null, period: effectivePeriodId ?? null, status: earnersOn ? null : 'incomplete', page: null });
+    else if (target.kind === 'sla')
+      setParams({ minDays: minDaysParam > 0 ? null : String((slaDays ?? 0) + 1), status: minDaysParam > 0 ? null : 'pending_validation', page: null });
   };
 
-  const handleStatusFilter = (s: string) => {
-    setParams({ status: s, page: '1' });
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const { blob, disposition } = await treasuryReadinessService.exportCsv(filters);
+      saveBlob(blob, filenameFromDisposition(disposition, `validacion-datos-${csvDateStamp()}.csv`), blob.type || 'text/csv;charset=utf-8;');
+      toast.success('Exportación descargada');
+    } catch (err) {
+      toast.error(treasuryErrorMessage(err, 'No se pudo exportar la cola'));
+    } finally {
+      setExporting(false);
+    }
   };
 
-  const hasActiveFilters = statusFilter !== 'all' || !!searchQuery;
+  const handleExportSelection = () => {
+    if (selectedRows.length === 0) return;
+    downloadCsv(`validacion-datos-seleccion-${csvDateStamp()}.csv`, buildReadinessCsv(selectedRows));
+    toast.success(`${selectedRows.length} fila(s) exportadas`);
+  };
 
-  return (
-    <div className="space-y-6 px-4 sm:px-6 lg:px-8 pb-8">
-      {/* Header */}
-      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#3E667D] to-[#2f5165] px-6 py-6 shadow-lg">
-        <div className="absolute -right-8 -top-8 h-40 w-40 rounded-full bg-white/5" />
-        <div className="relative">
-          <div className="flex items-center gap-3">
-            <DocumentArrowUpIcon className="h-7 w-7 text-white/80" />
-            <h1 className="text-2xl font-bold text-white">Validación de Datos para Pago</h1>
-          </div>
-          <p className="text-sm text-white/70 mt-1">
-            Revisa y valida los documentos fiscales y bancarios de los distribuidores para autorizar depósitos de comisiones
+  const handleRemind = async (channels: RemindChannel[]) => {
+    try {
+      const res = await remindMutation.mutateAsync(
+        remindScope === 'earners' && effectivePeriodId
+          ? { earnersOfPeriodId: effectivePeriodId, channels }
+          : { customerIds: selectedIds, channels },
+      );
+      toast.success(`Recordatorios en cola: ${formatInt(res.queued)}${res.skipped.length ? ` · omitidos: ${res.skipped.length}` : ''}`);
+      setRemindScope(null);
+      setSelectedIds([]);
+    } catch (err) {
+      toast.error(treasuryErrorMessage(err, 'No se pudo enviar el recordatorio'));
+    }
+  };
+
+  const hasActiveFilters =
+    !!status || !!document || !!documentStatus || !!countryParam || earnersOn || minDaysParam > 0 || !!search;
+
+  const columns: DataTableColumn<ReadinessRow>[] = [
+    {
+      key: 'name',
+      header: 'Distribuidor',
+      sortable: true,
+      render: (r) => (
+        <div className="min-w-[180px]">
+          <Link
+            href={`/admin/distribuidores/${r.customerId}?tab=datos-pago`}
+            className="font-medium text-foreground hover:underline"
+          >
+            {r.name}
+          </Link>
+          <p className="text-xs text-muted-foreground">
+            #{r.customerNumber ?? '—'}
+            {r.countryCode ? ` · ${r.countryCode}` : ''}
           </p>
         </div>
+      ),
+    },
+    {
+      key: 'progress',
+      header: 'Progreso',
+      render: (r) => <ProgressBar progress={r.progress} />,
+    },
+    {
+      key: 'docs',
+      header: 'Documentos',
+      render: (r) => (
+        <div className="flex flex-wrap gap-1">
+          {documentsForCountry(r.countryCode, catalogs, r.docs).map((d) => (
+            <DocStatusBadge key={d} document={d} status={r.docs[d]?.status ?? null} className="px-1.5 py-0" />
+          ))}
+        </div>
+      ),
+    },
+    {
+      key: 'regime',
+      header: 'Régimen',
+      render: (r) =>
+        r.taxRegime ? (
+          <span className="font-mono text-xs">{r.taxRegime.code}</span>
+        ) : (
+          <Badge variant="warning" className="px-1.5 py-0">
+            Sin asignar
+          </Badge>
+        ),
+    },
+    {
+      key: 'bank',
+      header: 'Cuenta',
+      render: (r) => <BankCell account={r.bankAccount} />,
+    },
+    {
+      key: 'daysInQueue',
+      header: 'En cola',
+      sortable: true,
+      render: (r) => {
+        const over = isOverSla(r.daysInQueue, slaDays);
+        return (
+          <span className={`text-xs tabular-nums ${over ? 'font-semibold text-amber-700' : 'text-foreground'}`}>
+            {daysLabel(r.daysInQueue)}
+            {over && <span className="sr-only"> (fuera de SLA)</span>}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'periodCommission',
+      header: 'Comisión del periodo',
+      sortable: true,
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (r) =>
+        r.periodCommission ? (
+          <span className="text-xs tabular-nums">{formatMoney(r.periodCommission.amount, r.periodCommission.currencyCode)}</span>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        ),
+    },
+    {
+      key: 'reviewer',
+      header: 'Último revisor',
+      render: (r) =>
+        r.lastReviewer?.name || r.lastReviewer?.at ? (
+          <div className="text-xs">
+            <p className="text-foreground">{r.lastReviewer.name ?? '—'}</p>
+            <p className="text-muted-foreground">{formatDateTime(r.lastReviewer.at)}</p>
+          </div>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        ),
+    },
+    {
+      key: 'status',
+      header: 'Estado',
+      render: (r) => (
+        <div className="flex flex-col gap-1">
+          <ReadinessStatusBadge status={r.overallStatus} />
+          {r.readyToPay && (
+            <Badge variant="success" className="px-1.5 py-0">
+              Listo para pagar
+            </Badge>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Acciones',
+      render: (r) => (
+        <Button variant="outline" size="sm" onClick={() => setParams({ review: r.customerId, page: String(page) })}>
+          <EyeIcon className="mr-1 h-4 w-4" aria-hidden />
+          Revisar
+        </Button>
+      ),
+    },
+  ];
+
+  return (
+    <div className="p-4 sm:p-6">
+      <TreasuryHeader
+        icon={ShieldCheckIcon}
+        title="Validación de datos para pago"
+        subtitle="Cola de expedientes por antigüedad: documentos, cuenta bancaria y régimen de comisión antes de dispersar."
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={() => void listQuery.refetch()} disabled={listQuery.isFetching}>
+              <ArrowPathIcon className={`mr-2 h-4 w-4 ${listQuery.isFetching ? 'animate-spin' : ''}`} aria-hidden />
+              Actualizar
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
+              {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : <ArrowDownTrayIcon className="mr-2 h-4 w-4" aria-hidden />}
+              Exportar CSV
+            </Button>
+            <PermissionGuard permissions={TREASURY_VALIDATE_PERMISSIONS} fallback={<></>}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setRemindScope('earners')}
+                disabled={!effectivePeriodId}
+                title="Recordar a quienes tienen comisión en el periodo y datos incompletos"
+              >
+                <BellAlertIcon className="mr-2 h-4 w-4" aria-hidden />
+                Recordar a earners del periodo
+              </Button>
+            </PermissionGuard>
+          </>
+        }
+      />
+
+      <TreasuryTabs active="validacion-datos" periodId={effectivePeriodId} className="mb-6" />
+
+      <PeriodSelector
+        selection={periodSel}
+        onChange={(id) => setParams({ period: id, earnersOfPeriodId: null, page: null })}
+        caption='Periodo · "Comisión del periodo" y filtro "solo con comisión"'
+      />
+
+      <div className="mb-6">
+        <ReadinessKpis
+          stats={stats}
+          isLoading={listQuery.isLoading}
+          activeStatus={status ?? null}
+          earnersActive={earnersOn}
+          slaActive={minDaysParam > 0}
+          slaDays={slaDays}
+          hasPeriod={!!effectivePeriodId}
+          onSelect={onKpi}
+        />
       </div>
 
-      {/* Stats cards - global counts */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <button
-          type="button"
-          onClick={() => handleStatusFilter('all')}
-          className={`rounded-xl border p-4 text-left transition-colors ${statusFilter === 'all' ? 'border-[#3E667D]/40 bg-[#3E667D]/5 ring-1 ring-[#3E667D]/20' : 'border-gray-200 bg-white hover:border-gray-300'}`}
-        >
-          <p className="text-xs text-gray-500">Total con datos</p>
-          <p className="text-2xl font-bold text-gray-900">{globalStats.totalWithData.toLocaleString()}</p>
-        </button>
-        <button
-          type="button"
-          onClick={() => handleStatusFilter('pending_validation')}
-          className={`rounded-xl border p-4 text-left transition-colors ${statusFilter === 'pending_validation' ? 'border-amber-300 bg-amber-50 ring-1 ring-amber-200' : 'border-gray-200 bg-white hover:border-amber-200'}`}
-        >
-          <p className="text-xs text-amber-600 font-medium">Pendientes de revisión</p>
-          <p className="text-2xl font-bold text-amber-700">{globalStats.pendingValidation.toLocaleString()}</p>
-        </button>
-        <button
-          type="button"
-          onClick={() => handleStatusFilter('complete')}
-          className={`rounded-xl border p-4 text-left transition-colors ${statusFilter === 'complete' ? 'border-emerald-300 bg-emerald-50 ring-1 ring-emerald-200' : 'border-gray-200 bg-white hover:border-emerald-200'}`}
-        >
-          <p className="text-xs text-emerald-600 font-medium">Validados</p>
-          <p className="text-2xl font-bold text-emerald-700">{globalStats.validated.toLocaleString()}</p>
-        </button>
-        <button
-          type="button"
-          onClick={() => handleStatusFilter('incomplete')}
-          className={`rounded-xl border p-4 text-left transition-colors ${statusFilter === 'incomplete' ? 'border-red-300 bg-red-50 ring-1 ring-red-200' : 'border-gray-200 bg-white hover:border-red-200'}`}
-        >
-          <p className="text-xs text-red-600 font-medium">Incompletos</p>
-          <p className="text-2xl font-bold text-red-600">{globalStats.incomplete.toLocaleString()}</p>
-        </button>
-      </div>
+      {listQuery.isError && (
+        <Card className="mb-6 border-destructive/40">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
+            <span className="text-destructive">
+              {treasuryErrorMessage(listQuery.error, 'No se pudo cargar la cola de validación')}
+            </span>
+            <Button variant="outline" size="sm" onClick={() => void listQuery.refetch()}>
+              Reintentar
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Filters + Table */}
-      <Card>
-        <CardContent className="p-0">
-          {/* Search bar */}
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex flex-col sm:flex-row gap-3 items-end">
-              <form onSubmit={handleSearch} className="flex-1 flex gap-2">
-                <div className="relative flex-1">
-                  <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input
-                    type="text"
-                    value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
-                    placeholder="Buscar por nombre o número de cliente..."
-                    className="w-full rounded-lg border border-gray-300 pl-9 pr-3 py-2 text-sm focus:border-[#3E667D] focus:ring-1 focus:ring-[#3E667D] outline-none"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="rounded-lg bg-[#3E667D] px-4 py-2 text-sm font-medium text-white hover:bg-[#2f5165] transition-colors"
-                >
-                  Buscar
-                </button>
-              </form>
-              <div className="flex gap-2">
-                {hasActiveFilters && (
-                  <button
-                    type="button"
-                    onClick={() => { setParams({ status: 'all', search: null, page: '1' }); setSearchInput(''); }}
-                    className="rounded-lg border border-gray-300 px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
-                  >
-                    Limpiar filtros
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => refetch()}
-                  className="rounded-lg border border-gray-300 px-3 py-2 text-gray-600 hover:bg-gray-50 transition-colors"
-                  title="Actualizar"
-                >
-                  <ArrowPathIcon className="h-4 w-4" />
-                </button>
+      {/* Filtros */}
+      <Card className="mb-6">
+        <CardContent className="space-y-4 p-4 sm:p-6">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            <div className="xl:col-span-2">
+              <Label htmlFor="vd-search" className="mb-1 block text-xs text-muted-foreground">
+                Buscar
+              </Label>
+              <div className="relative">
+                <MagnifyingGlassIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                <Input
+                  id="vd-search"
+                  value={searchDraft}
+                  onChange={(e) => setSearchDraft(e.target.value)}
+                  placeholder="Nombre o número de distribuidor"
+                  className="pl-9"
+                />
               </div>
+            </div>
+            <div>
+              <Label htmlFor="vd-status" className="mb-1 block text-xs text-muted-foreground">
+                Estado
+              </Label>
+              <SearchableSelect
+                id="vd-status"
+                options={READINESS_STATUSES.map((s) => ({ value: s, label: READINESS_STATUS_LABELS[s] }))}
+                value={status ?? ''}
+                onChange={(v) => setParams({ status: v || null, page: null })}
+                allLabel="Todos los estados"
+              />
+            </div>
+            <div>
+              <Label htmlFor="vd-doc" className="mb-1 block text-xs text-muted-foreground">
+                Documento
+              </Label>
+              <SearchableSelect
+                id="vd-doc"
+                options={PAYMENT_DOCUMENT_KEYS.map((d) => ({ value: d, label: DOCUMENT_LABELS[d] }))}
+                value={document ?? ''}
+                onChange={(v) => setParams({ doc: v || null, docStatus: v ? docStatusParam || 'pending' : null, page: null })}
+                allLabel="Cualquier documento"
+              />
+            </div>
+            <div>
+              <Label htmlFor="vd-docstatus" className="mb-1 block text-xs text-muted-foreground">
+                Estado del documento
+              </Label>
+              <SearchableSelect
+                id="vd-docstatus"
+                options={DOCUMENT_STATUS_FILTERS.map((s) => ({ value: s, label: DOCUMENT_STATUS_LABELS[s] }))}
+                value={documentStatus ?? ''}
+                onChange={(v) => setParams({ docStatus: v || null, page: null })}
+                allLabel="Cualquier estado"
+                disabled={!document}
+              />
+            </div>
+            <div>
+              <Label htmlFor="vd-country" className="mb-1 block text-xs text-muted-foreground">
+                País
+              </Label>
+              <SearchableSelect
+                id="vd-country"
+                options={(countries ?? []).map((c) => ({ value: c.code, label: c.name, hint: c.code }))}
+                value={countryParam}
+                onChange={(v) => setParams({ country: v || null, page: null })}
+                allLabel="Todos los países"
+              />
             </div>
           </div>
 
-          {/* Table */}
-          {isLoading && !data ? (
-            <div className="p-6 space-y-3">
-              {[0, 1, 2, 3, 4].map((i) => <div key={i} className="animate-pulse h-14 bg-gray-100 rounded" />)}
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="vd-earners"
+                checked={earnersOn}
+                onCheckedChange={(v) =>
+                  setParams({ earners: v === true ? '1' : '0', earnersOfPeriodId: null, period: effectivePeriodId ?? null, page: null })
+                }
+                disabled={!effectivePeriodId}
+              />
+              <Label htmlFor="vd-earners" className="cursor-pointer text-sm">
+                Solo con comisión en {selectedPeriod?.name ?? 'el periodo'}
+              </Label>
             </div>
-          ) : distributors.length === 0 ? (
-            <div className="py-12 text-center">
-              <DocumentArrowUpIcon className="mx-auto mb-3 h-12 w-12 text-gray-300" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">No se encontraron distribuidores</h3>
-              <p className="text-sm text-gray-500">Intenta ajustar los filtros de búsqueda.</p>
+            <div className="w-40">
+              <Label htmlFor="vd-mindays" className="mb-1 block text-xs text-muted-foreground">
+                En cola al menos (días)
+              </Label>
+              <Input
+                id="vd-mindays"
+                type="number"
+                min={0}
+                step={1}
+                value={minDaysParam > 0 ? String(minDaysParam) : ''}
+                onChange={(e) => setParams({ minDays: e.target.value && Number(e.target.value) > 0 ? e.target.value : null, page: null })}
+                placeholder={slaDays !== null ? `SLA ${slaDays}` : '0'}
+              />
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table className="w-full text-sm min-w-[800px]">
-                <TableHeader>
-                  <TableRow className="border-b border-gray-200 bg-gray-50 hover:bg-gray-50">
-                    <TableHead className="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Distribuidor</TableHead>
-                    <TableHead className="text-center py-3 px-3 text-xs font-semibold text-gray-500 uppercase">Progreso</TableHead>
-                    <TableHead className="text-center py-3 px-3 text-xs font-semibold text-gray-500 uppercase">INE</TableHead>
-                    <TableHead className="text-center py-3 px-3 text-xs font-semibold text-gray-500 uppercase">RFC</TableHead>
-                    <TableHead className="text-center py-3 px-3 text-xs font-semibold text-gray-500 uppercase">Cuenta</TableHead>
-                    <TableHead className="text-center py-3 px-3 text-xs font-semibold text-gray-500 uppercase">Estatus</TableHead>
-                    <TableHead className="text-center py-3 px-3 text-xs font-semibold text-gray-500 uppercase">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {distributors.map((d) => (
-                    <Fragment key={d.id}>
-                      <TableRow
-                        className={`border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${expandedId === d.id ? 'bg-[#3E667D]/5' : ''}`}
-                        onClick={() => setExpandedId(expandedId === d.id ? null : d.id)}
-                      >
-                        <TableCell className="py-3 px-4">
-                          <p className="font-medium text-gray-900">{d.name}</p>
-                          <p className="text-xs text-gray-500">
-                            #{d.customerNumber || '—'}
-                            {d.email && <span className="ml-2 text-gray-400">{d.email}</span>}
-                          </p>
-                        </TableCell>
-                        <TableCell className="py-3 px-3">
-                          <div className="flex items-center gap-2 justify-center">
-                            <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full ${d.completedCount === 9 ? 'bg-emerald-500' : d.completedCount >= 6 ? 'bg-amber-500' : 'bg-red-400'}`}
-                                style={{ width: `${(d.completedCount / 9) * 100}%` }}
-                              />
-                            </div>
-                            <span className="text-[10px] text-gray-500">{d.completedCount}/9</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="py-3 px-3 text-center"><div className="flex justify-center"><DocStatusDot uploaded={d.documents.ine.uploaded} status={d.documents.ine.status} /></div></TableCell>
-                        <TableCell className="py-3 px-3 text-center"><div className="flex justify-center"><DocStatusDot uploaded={d.documents.taxId.uploaded} status={d.documents.taxId.status} /></div></TableCell>
-                        <TableCell className="py-3 px-3 text-center"><div className="flex justify-center"><DocStatusDot uploaded={d.documents.bankStatement.uploaded} status={d.documents.bankStatement.status} /></div></TableCell>
-                        <TableCell className="py-3 px-3 text-center"><StatusBadge status={d.overallStatus} /></TableCell>
-                        <TableCell className="py-3 px-3 text-center">
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); setExpandedId(expandedId === d.id ? null : d.id); }}
-                            className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
-                          >
-                            {expandedId === d.id ? <><ChevronUpIcon className="h-3.5 w-3.5" /> Cerrar</> : <><ChevronDownIcon className="h-3.5 w-3.5" /> Revisar</>}
-                          </button>
-                        </TableCell>
-                      </TableRow>
-                      {expandedId === d.id && (
-                        <TableRow className="hover:bg-transparent">
-                          <TableCell colSpan={7} className="p-0">
-                            <DistributorDetail customerId={d.id} onValidated={() => refetch()} />
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </Fragment>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+            <DocLegend />
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto"
+                onClick={() => {
+                  setSearchDraft('');
+                  setParams({ status: null, doc: null, docStatus: null, country: null, earners: null, earnersOfPeriodId: null, minDays: null, search: null, page: null });
+                }}
+              >
+                Limpiar filtros
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-          {/* Pagination */}
-          {distributors.length > 0 && (
+      {/* Barra de selección */}
+      {selectedIds.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm" role="status">
+          <span className="font-medium text-foreground">
+            {formatInt(selectedIds.length)} seleccionado(s)
+            {selectedRows.length !== selectedIds.length ? ` (${selectedRows.length} en esta página)` : ''}
+          </span>
+          <PermissionGuard permissions={TREASURY_VALIDATE_PERMISSIONS} fallback={<></>}>
+            <Button size="sm" variant="outline" onClick={() => setRemindScope('selected')}>
+              <BellAlertIcon className="mr-1 h-4 w-4" aria-hidden />
+              Recordar
+            </Button>
+          </PermissionGuard>
+          <Button size="sm" variant="outline" onClick={handleExportSelection} disabled={selectedRows.length === 0}>
+            <ArrowDownTrayIcon className="mr-1 h-4 w-4" aria-hidden />
+            Exportar selección ({selectedRows.length})
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])}>
+            Limpiar selección
+          </Button>
+        </div>
+      )}
+
+      <Card>
+        <CardContent className="p-0">
+          <DataTable
+            columns={columns}
+            data={rows}
+            getRowKey={(r) => r.customerId}
+            isLoading={listQuery.isLoading && rows.length === 0}
+            minWidthClassName="min-w-[1180px]"
+            sortingMode="server"
+            sortState={sortState}
+            onSortChange={(s) =>
+              setParams({
+                sort: s ? (SORT_KEYS[s.key] ?? null) : null,
+                dir: s ? s.direction : null,
+                page: null,
+              })
+            }
+            enableRowSelection
+            selectedRowKeys={selectedIds}
+            onSelectedRowKeysChange={setSelectedIds}
+            emptyMessage={hasActiveFilters ? 'Ningún distribuidor coincide con los filtros.' : 'No hay expedientes en la cola.'}
+            rowClassName={(r) =>
+              `border-b border-border transition-colors hover:bg-muted/50 ${reviewParam === r.customerId ? 'bg-primary/5' : ''}`
+            }
+          />
+          {meta && meta.total > 0 && (
             <DataTablePagination
-              currentPage={currentPage}
-              pageSize={pageSize}
-              totalItems={totalItems}
-              isLoading={isLoading || isFetching}
+              currentPage={page}
+              pageSize={limit}
+              totalItems={meta.total}
+              isLoading={listQuery.isFetching}
               onPageChange={(p) => setParams({ page: String(p) })}
-              onPageSizeChange={(size) => setParams({ limit: String(size), page: '1' })}
-              pageSizeOptions={[10, 20, 50, 100]}
+              onPageSizeChange={(size) => setParams({ limit: String(size), page: null })}
+              pageSizeOptions={PAGE_SIZE_OPTIONS}
             />
           )}
         </CardContent>
       </Card>
+
+      <PaymentReadinessReviewSheet
+        customerId={reviewParam || null}
+        queueIds={queueIds}
+        onOpenChange={(open) => !open && setParams({ review: null, page: String(page) })}
+        onNavigate={(id) => setParams({ review: id, page: String(page) })}
+      />
+
+      {remindScope && (
+        <RemindDialog
+          scopeLabel={
+            remindScope === 'earners'
+              ? `los distribuidores con comisión en ${selectedPeriod?.name ?? 'el periodo'} y datos incompletos`
+              : `${selectedIds.length} distribuidor(es) seleccionado(s)`
+          }
+          whatsappAvailable
+          isPending={remindMutation.isPending}
+          onOpenChange={(o) => !o && setRemindScope(null)}
+          onConfirm={handleRemind}
+        />
+      )}
     </div>
   );
 }
