@@ -95,7 +95,6 @@ const navigation: NavItem[] = [
       'commissions',
       'commissions.history',
       'commissions:read',
-      'commissions:manage',
       'commissions:validate',
       'mlm:withhold',
       'mlm:pay',

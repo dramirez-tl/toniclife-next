@@ -22,6 +22,7 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { useTreasurySettings, useUpdateTreasurySettings } from '@/hooks/useTreasury';
 import { treasuryErrorMessage } from '@/components/admin/treasury/treasury-error';
+import { detectBankFromClabe, isValidClabe } from '@/lib/mx-ids';
 import {
   TREASURY_SETTINGS_DEFAULTS,
   type PayoutCurrencyPolicy,
@@ -447,22 +448,30 @@ function NumbersCard({
   const [sla, setSla] = useState(String(settings.reviewSlaDays));
   const [consent, setConsent] = useState(settings.privacyConsentVersion);
   const [waTemplate, setWaTemplate] = useState(settings.whatsappReviewTemplate ?? '');
+  const [speiClabe, setSpeiClabe] = useState(settings.speiSourceClabe ?? '');
   const pctId = useId();
   const slaId = useId();
   const consentId = useId();
   const waId = useId();
+  const speiId = useId();
+  const speiHelpId = `${speiId}-help`;
 
   const pctNum = Number(maxPct);
   const slaNum = Number(sla);
   const pctOk = Number.isFinite(pctNum) && pctNum >= 0 && pctNum <= 100;
   const slaOk = Number.isInteger(slaNum) && slaNum >= 0 && slaNum <= 60;
   const consentOk = consent.trim().length >= 1 && consent.trim().length <= 20;
+  const speiTrim = speiClabe.replace(/\s+/g, '');
+  const speiCheck = speiTrim ? isValidClabe(speiTrim) : null;
+  const speiOk = !speiTrim || speiCheck?.ok === true;
+  const speiBank = speiCheck?.ok ? detectBankFromClabe(speiTrim) : null;
 
   const dirty =
     pctNum !== settings.withholdingMaxPctPerPeriod ||
     slaNum !== settings.reviewSlaDays ||
     consent.trim() !== settings.privacyConsentVersion ||
-    (waTemplate.trim() || null) !== settings.whatsappReviewTemplate;
+    (waTemplate.trim() || null) !== settings.whatsappReviewTemplate ||
+    (speiTrim || null) !== settings.speiSourceClabe;
 
   const handleSave = async () => {
     const patch: TreasurySettingsPatch = {};
@@ -471,6 +480,7 @@ function NumbersCard({
     if (consent.trim() !== settings.privacyConsentVersion) patch.privacyConsentVersion = consent.trim();
     if ((waTemplate.trim() || null) !== settings.whatsappReviewTemplate)
       patch.whatsappReviewTemplate = waTemplate.trim() || null;
+    if ((speiTrim || null) !== settings.speiSourceClabe) patch.speiSourceClabe = speiTrim || null;
     await onSave(patch, 'Ajustes guardados');
   };
 
@@ -540,9 +550,33 @@ function NumbersCard({
               Nombre de la plantilla aprobada en Meta; respeta whatsapp_opt_out.
             </p>
           </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={speiId}>CLABE ordenante para layout SPEI (opcional)</Label>
+            <Input
+              id={speiId}
+              value={speiClabe}
+              inputMode="numeric"
+              maxLength={18}
+              onChange={(e) => setSpeiClabe(e.target.value.replace(/\D/g, ''))}
+              placeholder="18 dígitos · vacío = formato spei_csv no disponible"
+              aria-invalid={!speiOk}
+              aria-describedby={speiHelpId}
+              disabled={isPending}
+            />
+            <p id={speiHelpId} className="text-xs text-muted-foreground">
+              {speiTrim && !speiOk
+                ? 'CLABE inválida (longitud o dígito verificador).'
+                : speiBank
+                  ? `Cuenta de la empresa en ${speiBank.shortName}; sin ella el formato spei_csv nunca queda listo.`
+                  : 'Cuenta de la empresa desde la que se dispersa; sin ella el formato spei_csv nunca queda listo.'}
+            </p>
+          </div>
         </div>
         <div className="flex justify-end">
-          <Button onClick={handleSave} disabled={!dirty || !pctOk || !slaOk || !consentOk || isPending}>
+          <Button
+            onClick={handleSave}
+            disabled={!dirty || !pctOk || !slaOk || !consentOk || !speiOk || isPending}
+          >
             {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
             Guardar
           </Button>

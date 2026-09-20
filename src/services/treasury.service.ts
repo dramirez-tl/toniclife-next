@@ -85,6 +85,7 @@ const SETTING_KEYS: Array<[camel: keyof TreasurySettings, snake: string]> = [
   ['blockDuplicateIds', 'block_duplicate_ids'],
   ['whatsappReviewTemplate', 'whatsapp_review_template'],
   ['privacyConsentVersion', 'privacy_consent_version'],
+  ['speiSourceClabe', 'spei_source_clabe'],
 ];
 
 function pickSetting(raw: Record<string, unknown>, camel: string, snake: string): unknown {
@@ -111,6 +112,7 @@ export function normalizeTreasurySettings(input: unknown): TreasurySettings {
     switch (camel) {
       case 'firstV2PayoutPeriodCode':
       case 'whatsappReviewTemplate':
+      case 'speiSourceClabe':
         out[camel] = typeof value === 'string' && value.trim() ? value.trim() : null;
         break;
       case 'privacyConsentVersion':

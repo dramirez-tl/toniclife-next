@@ -455,6 +455,11 @@ export interface TreasurySettings {
   blockDuplicateIds: boolean;
   whatsappReviewTemplate: string | null;
   privacyConsentVersion: string;
+  /**
+   * CLABE ordenante para el layout `spei_csv` (ajuste opcional, no sembrado
+   * por la mig 142): sin ella el formato SPEI nunca queda `ready`.
+   */
+  speiSourceClabe: string | null;
 }
 
 export type TreasurySettingsPatch = Partial<TreasurySettings>;
@@ -471,10 +476,12 @@ export const TREASURY_SETTINGS_DEFAULTS: TreasurySettings = {
   notifyDistributorOnReview: true,
   notifyDistributorOnPayment: true,
   notifyDistributorOnWithholding: false,
-  distributorSeesAgreements: true,
+  // mig 142 §10 siembra `false` (decisión C-6); igual que treasury-settings.lib del API.
+  distributorSeesAgreements: false,
   blockDuplicateIds: false,
   whatsappReviewTemplate: null,
   privacyConsentVersion: '2026-09',
+  speiSourceClabe: null,
 };
 
 // ───────────────────────────────────────────────────────────────────────────
