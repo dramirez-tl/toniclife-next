@@ -88,6 +88,7 @@ import {
   treasuryBlockedDetails,
   treasuryCodeLabel,
   treasuryErrorMessage,
+  treasurySkippedByCode,
 } from '@/components/admin/treasury';
 import {
   COMMISSION_STAGES,
@@ -313,7 +314,12 @@ function ComisionesContent() {
       setApprovePeriodOpen(false);
       clearSelection();
     } catch (err) {
-      toast.error(treasuryErrorMessage(err, 'No se pudo aprobar el periodo'));
+      // TRS_COUNT_MISMATCH trae esperado/real y `skippedByCode` (p. ej. TRS_REGIME_MISMATCH
+      // tras el backfill de régimen): el mensaje lo desglosa para que Tesorería sepa por qué.
+      const skipped = treasurySkippedByCode(err);
+      toast.error(treasuryErrorMessage(err, 'No se pudo aprobar el periodo'), {
+        duration: skipped.length > 0 ? 15000 : undefined,
+      });
     }
   };
 

@@ -26,8 +26,8 @@ export const TREASURY_ERROR_LABELS: Record<string, string> = {
     'La migración 142 de Tesorería no está aplicada: las acciones de escritura están cerradas.',
   TRS_CUTOVER_NOT_SET:
     'El corte v2 no está fijado (treasury.first_v2_payout_period_code): ningún periodo es aprobable ni pagable todavía.',
-  TRS_CUTOVER_LEGACY_PENDING:
-    'No se puede fijar el corte: hay periodos desde ese corte con comisiones aún marcadas como pagadas por el sistema anterior. Corre el corte legacy (o mueve el corte a un periodo posterior) y vuelve a intentarlo.',
+  TRS_CUTOVER_CONFLICT:
+    'No se puede fijar el corte: los datos no son consistentes con él (periodos desde el corte ya pagados por el sistema anterior, o periodos anteriores al corte con comisiones vivas porque el corte legacy no ha corrido). Corre el corte legacy o mueve el corte y vuelve a intentarlo.',
   TRS_PERIOD_BEFORE_CUTOVER:
     'Este periodo es anterior al corte v2: lo paga el sistema anterior.',
   TRS_PERIOD_OPEN:
@@ -42,6 +42,8 @@ export const TREASURY_ERROR_LABELS: Record<string, string> = {
   TRS_REGIME_MISSING: 'El distribuidor no tiene régimen fiscal de comisión asignado.',
   TRS_REGIME_MISMATCH:
     'El régimen fiscal con el que se calculó la comisión ya no coincide con el régimen actual del distribuidor: recalcula el periodo (cotejado) antes de aprobar para que las retenciones sean las correctas.',
+  TRS_REGIME_FN_PENDING:
+    'Distribuidor de Frontera Norte (FN): el tratamiento fiscal de FN está pendiente de definir (el motor no congela régimen para FN), así que la comisión no se aprueba ni se paga hasta resolverlo. No asignes régimen de comisión a distribuidores FN mientras tanto.',
   TRS_IN_BATCH: 'La comisión ya está en un lote de dispersión vivo.',
   TRS_USE_BATCH: 'Las transferencias se pagan por lote de dispersión, no con pago directo.',
   TRS_NO_FX_RATE: 'Falta el tipo de cambio del periodo para la moneda de pago.',
@@ -62,6 +64,10 @@ export const TREASURY_ERROR_LABELS: Record<string, string> = {
 export const READINESS_BLOCKER_LABELS: Record<string, string> = {
   TRS_REGIME_MISSING: 'Sin régimen fiscal de comisión',
   REGIME_MISSING: 'Sin régimen fiscal de comisión',
+  TRS_REGIME_MISMATCH: 'Régimen congelado distinto al actual (recalcular)',
+  REGIME_MISMATCH: 'Régimen congelado distinto al actual (recalcular)',
+  TRS_REGIME_FN_PENDING: 'Frontera Norte (FN): tratamiento fiscal pendiente de definir',
+  REGIME_FN_PENDING: 'Frontera Norte (FN): tratamiento fiscal pendiente de definir',
   DOCS_NOT_VALIDATED: 'Expediente sin validar',
   DOCUMENTS_NOT_VALIDATED: 'Expediente sin validar',
   BANK_NOT_VERIFIED: 'Cuenta bancaria sin verificar',
@@ -170,11 +176,53 @@ export function treasuryBlockedDetails(err: unknown): TreasuryBlockedDetail[] {
     }));
 }
 
+/** Conteo por motivo `{ code, count }` (orden descendente por conteo). */
+export interface SkippedByCode {
+  code: string;
+  count: number;
+}
+
+/**
+ * `details.skippedByCode` de `TRS_COUNT_MISMATCH` (approve-period): omitidas por
+ * motivo. Tolera `{ CODE: n }` o `[{ code, count }]`; [] si no viene.
+ */
+export function treasurySkippedByCode(err: unknown): SkippedByCode[] {
+  const body = treasuryErrorBody(err);
+  const details = asRecord(body?.details);
+  const raw = details?.skippedByCode;
+  const out: SkippedByCode[] = [];
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      const rec = asRecord(item);
+      if (!rec || typeof rec.code !== 'string') continue;
+      const count = typeof rec.count === 'number' ? rec.count : Number(rec.count);
+      if (Number.isFinite(count) && count > 0) out.push({ code: rec.code, count });
+    }
+  } else {
+    const rec = asRecord(raw);
+    if (rec) {
+      for (const [code, value] of Object.entries(rec)) {
+        const count = typeof value === 'number' ? value : Number(value);
+        if (Number.isFinite(count) && count > 0) out.push({ code, count });
+      }
+    }
+  }
+  return out.sort((a, b) => b.count - a.count);
+}
+
+/** "Etiqueta ×n; Etiqueta ×m" de las omitidas por motivo (readiness o TRS_*). */
+export function skippedByCodeText(items: SkippedByCode[]): string {
+  return items
+    .map((s) => `${READINESS_BLOCKER_LABELS[s.code] ?? TREASURY_ERROR_LABELS[s.code] ?? s.code} ×${s.count}`)
+    .join('; ');
+}
+
 /**
  * Mensaje legible de un error de Tesorería. Con el cuerpo uniforme usa el
  * `message` del API (o la etiqueta del código si vino genérico) y añade el
- * campo y el conteo de bloqueadas; sin él, el `message` de NestJS (string o
- * arreglo) o el `fallback` con el HTTP.
+ * campo, el conteo de bloqueadas y, en `TRS_COUNT_MISMATCH`, el esperado vs
+ * real y las omitidas por motivo (`details.skippedByCode`); sin él, el
+ * `message` de NestJS (string o arreglo) o el `fallback` con el HTTP.
  */
 export function treasuryErrorMessage(err: unknown, fallback: string): string {
   const error = err as AxiosLikeError | null | undefined;
@@ -190,6 +238,14 @@ export function treasuryErrorMessage(err: unknown, fallback: string): string {
     if (uniform.field) parts.push(`Campo: ${uniform.field}`);
     const blocked = treasuryBlockedDetails(err);
     if (blocked.length > 0) parts.push(`${blocked.length} comisión(es) bloqueada(s)`);
+    if (uniform.code === 'TRS_COUNT_MISMATCH') {
+      const details = asRecord(uniform.details);
+      const expected = typeof details?.expected === 'number' ? details.expected : null;
+      const actual = typeof details?.actual === 'number' ? details.actual : null;
+      if (expected !== null && actual !== null) parts.push(`Esperadas ${expected}, aprobables ahora ${actual}`);
+    }
+    const skipped = treasurySkippedByCode(err);
+    if (skipped.length > 0) parts.push(`Omitidas por motivo: ${skippedByCodeText(skipped)}`);
     return Array.from(new Set(parts)).join(' · ');
   }
 

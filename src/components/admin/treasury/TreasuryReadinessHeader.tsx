@@ -27,6 +27,8 @@ interface Blocker {
 }
 
 const REGIME_CODES = new Set(['TRS_REGIME_MISSING', 'REGIME_MISSING']);
+/** Bloqueador FN (N-1 del dictamen): el motor no congela régimen para FN; decisión de negocio pendiente. */
+const FN_PENDING_CODES = new Set(['TRS_REGIME_FN_PENDING', 'REGIME_FN_PENDING']);
 const NO_RATE_CODES = new Set(['NO_RATE', 'WITHHOLDING_NO_RATE']);
 
 /** Bloqueadores del periodo derivados del resumen (sin datos personales). */
@@ -70,6 +72,13 @@ export function periodBlockers(summary: CommissionSummary, periodId?: string): B
         text: `${formatInt(regime.count)} sin régimen fiscal de comisión asignado.`,
         href: validacionHref,
         linkLabel: 'Asignar régimen',
+      });
+    }
+    const fnPending = (readiness.blockers ?? []).find((b) => FN_PENDING_CODES.has(b.code));
+    if (fnPending && fnPending.count > 0) {
+      out.push({
+        key: 'fn-pending',
+        text: `${formatInt(fnPending.count)} de Frontera Norte (FN) en espera: el tratamiento fiscal de FN está pendiente de definir; no se aprueban ni pagan hasta resolverlo (no asignar régimen a FN mientras tanto).`,
       });
     }
     const noRate = (readiness.blockers ?? []).find((b) => NO_RATE_CODES.has(b.code));
@@ -141,7 +150,7 @@ export function TreasuryReadinessHeader({
   const blockers = periodBlockers(summary, periodId);
   const ready = blockers.length === 0;
   const otherBlockers = (summary.readiness?.blockers ?? []).filter(
-    (b) => !REGIME_CODES.has(b.code) && !NO_RATE_CODES.has(b.code) && b.count > 0,
+    (b) => !REGIME_CODES.has(b.code) && !FN_PENDING_CODES.has(b.code) && !NO_RATE_CODES.has(b.code) && b.count > 0,
   );
 
   return (
