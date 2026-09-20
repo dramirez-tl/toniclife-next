@@ -35,7 +35,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { RankMedal } from '@/components/distributor/RankMedal';
 import { RANK_LABELS } from '@/constants/ranks';
 import type { RankType } from '@/types/network';
-import { usePaymentData } from '@/hooks/usePaymentData';
+import { useDistributorPaymentData } from '@/hooks/useDistributorPayment';
+import type { PaymentOverallStatus } from '@/types/distributor-payment';
 import {
   useDistributorDashboard,
   useRankRoadmap,
@@ -49,6 +50,14 @@ import { localeLanguage } from '@/i18n/config';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
 import { toast } from 'sonner';
+
+/** Estados de "Datos para comisiones" que piden acción del distribuidor (el banner
+ *  no se muestra en revisión ni validado). */
+const PAYMENT_DATA_BANNER_STATUSES = new Set<PaymentOverallStatus>([
+  'not_started',
+  'incomplete',
+  'rejected',
+]);
 
 // Mapas de íconos/colores de la actividad reciente. OCULTOS TEMPORALMENTE junto
 // con la tarjeta "Lo que ha pasado" (mostraba montos de comisión). Restaurar
@@ -363,7 +372,7 @@ export default function DistribuidorDashboard() {
 
   const copyLinkMutation = useCopyReferralLink();
   const shareLinkMutation = useShareReferralLink();
-  const { data: paymentData } = usePaymentData();
+  const { data: paymentData } = useDistributorPaymentData();
   const { data: myCourses = [] } = useMyCourses();
 
   // Extraer el código de referido del perfil
@@ -1079,7 +1088,7 @@ export default function DistribuidorDashboard() {
             </Card>
 
             {/* ══════════════ Banners contextuales ══════════════ */}
-            {paymentData && paymentData.overallStatus === 'incomplete' && (
+            {paymentData && PAYMENT_DATA_BANNER_STATUSES.has(paymentData.overallStatus) && (
               <Link
                 href="/distribuidor/pagos"
                 className="block rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-4 hover:shadow-md transition-shadow group"

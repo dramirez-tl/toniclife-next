@@ -1,12 +1,12 @@
 // hooks/useCommissions.ts - React Query hooks para comisiones MLM
+// Aprobar / pagar / resumen de Tesorería: hooks/useTreasury.ts. Las
+// mutaciones de Tesorería invalidan `commissionKeys.all`.
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { commissionsApi } from '@/services/commissionsApi';
 import {
-  Commission,
   CommissionFilters,
   CommissionsListResponse,
-  CommissionSummary,
   CommissionPercentage,
   CommissionStructure,
   MonthlyCommissionTrend,
@@ -19,8 +19,6 @@ export const commissionKeys = {
   lists: () => [...commissionKeys.all, 'list'] as const,
   list: (filters: CommissionFilters) => [...commissionKeys.lists(), filters] as const,
   adminList: (filters: CommissionFilters) => [...commissionKeys.all, 'admin', filters] as const,
-  summary: (periodId: string) => [...commissionKeys.all, 'summary', periodId] as const,
-  projection: () => [...commissionKeys.all, 'projection'] as const,
   periods: () => [...commissionKeys.all, 'periods'] as const,
   percentages: () => [...commissionKeys.all, 'percentages'] as const,
   structure: (customerId: string, periodId?: string) => [...commissionKeys.all, 'structure', customerId, periodId] as const,
@@ -49,57 +47,6 @@ export function useAllCommissions(filters: CommissionFilters = {}) {
     queryKey: commissionKeys.adminList(filters),
     queryFn: () => commissionsApi.getAllCommissions(filters),
     staleTime: 2 * 60 * 1000, // 2 minutos
-  });
-}
-
-/**
- * Hook para aprobar comisiones (Admin)
- */
-export function useApproveCommissions() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (commissionIds: string[]) => commissionsApi.approveCommissions(commissionIds),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: commissionKeys.all });
-    },
-  });
-}
-
-/**
- * Hook para marcar comisiones como pagadas (Admin)
- */
-export function useMarkCommissionsAsPaid() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (commissionIds: string[]) => commissionsApi.markAsPaid(commissionIds),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: commissionKeys.all });
-    },
-  });
-}
-
-/**
- * Hook para obtener resumen de comisiones de un periodo
- */
-export function useCommissionSummary(periodId: string) {
-  return useQuery<CommissionSummary>({
-    queryKey: commissionKeys.summary(periodId),
-    queryFn: () => commissionsApi.getSummary(periodId),
-    enabled: !!periodId,
-    staleTime: 2 * 60 * 1000,
-  });
-}
-
-/**
- * Hook para obtener proyección de comisiones
- */
-export function useCommissionProjection() {
-  return useQuery({
-    queryKey: commissionKeys.projection(),
-    queryFn: () => commissionsApi.getProjection(),
-    staleTime: 5 * 60 * 1000, // 5 minutos
   });
 }
 
@@ -188,70 +135,6 @@ export function useCommissionLevelBreakdown(
     enabled: enabled && !!customerId && !!periodId,
     staleTime: 5 * 60 * 1000,
   });
-}
-
-/**
- * Hook para solicitar pago de comisiones
- */
-export function useRequestPayment() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (commissionIds: string[]) => commissionsApi.requestPayment(commissionIds),
-    onSuccess: () => {
-      // Invalidar queries relacionadas
-      queryClient.invalidateQueries({ queryKey: commissionKeys.all });
-    },
-  });
-}
-
-/**
- * Hook para descargar estado de cuenta
- */
-export function useDownloadStatement() {
-  return useMutation({
-    mutationFn: async (periodId: string) => {
-      const blob = await commissionsApi.downloadStatement(periodId);
-
-      // Crear URL y descargar
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `estado-cuenta-${periodId}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      return { success: true };
-    },
-  });
-}
-
-/**
- * Hook combinado para obtener todos los datos de comisiones de una vez
- */
-export function useCommissionsDashboard(periodId: string, customerId: string) {
-  const commissionsQuery = useCommissions({ periodId });
-  const projectionQuery = useCommissionProjection();
-  const trendsQuery = useCommissionTrends(customerId, 6);
-  const percentagesQuery = useCommissionPercentages();
-
-  return {
-    commissions: commissionsQuery.data,
-    projection: projectionQuery.data,
-    trends: trendsQuery.data,
-    percentages: percentagesQuery.data,
-    isLoading:
-      commissionsQuery.isLoading ||
-      projectionQuery.isLoading ||
-      trendsQuery.isLoading,
-    isError:
-      commissionsQuery.isError ||
-      projectionQuery.isError ||
-      trendsQuery.isError,
-    error: commissionsQuery.error || projectionQuery.error || trendsQuery.error,
-  };
 }
 
 /**

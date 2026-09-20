@@ -162,13 +162,34 @@ export interface ExpiringProductsReportResponse {
 // MLM/COMMISSIONS RESPONSE TYPES
 // ================================
 
+/** Totales de UNA moneda. Retenciones fiscales = isr + ivaWithholding + resico. */
+export interface CommissionCurrencySummary {
+  currencyCode: string;
+  rows: number;
+  distributors: number;
+  gross: number;
+  iva: number;
+  ivaWithholding: number;
+  isr: number;
+  resico: number;
+  retentions: number;
+  net: number;
+}
+
 export interface CommissionSummary {
+  /** Solo filas MXN. */
   totalGrossMxn: number;
+  /** Solo filas USD. */
   totalGrossUsd: number;
+  /** Retenciones fiscales MXN (isr + ret. IVA + resico); nunca mezcla monedas. */
   totalRetentions: number;
+  /** Retenciones fiscales USD. */
+  totalRetentionsUsd: number;
   totalNetMxn: number;
   totalNetUsd: number;
   distributorsWithCommission: number;
+  /** Desglose por moneda (incluye COP/GTQ). */
+  byCurrency: CommissionCurrencySummary[];
 }
 
 export interface DistributorCommission {
@@ -176,9 +197,15 @@ export interface DistributorCommission {
   customerName: string;
   email: string;
   rank: string;
+  /** Moneda de las filas del distribuidor (una fila por distribuidor y moneda). */
+  currencyCode: string;
   grossAmountMxn: number;
   grossAmountUsd: number;
+  /** Retenciones fiscales en currencyCode = isr + ivaWithholding + resico. */
   retentions: number;
+  isr: number;
+  ivaWithholding: number;
+  resico: number;
   netAmountMxn: number;
   netAmountUsd: number;
 }

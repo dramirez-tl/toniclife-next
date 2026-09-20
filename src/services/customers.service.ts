@@ -17,38 +17,6 @@ import type { NetworkExportJob } from '@/services/networkApi';
 
 export type { NetworkExportJob };
 
-/** Fila de GET /customers/payment-readiness/list (estatus de datos para pago). */
-export interface PaymentReadinessListRow {
-  id: string;
-  customerNumber: string | null;
-  name: string;
-  email: string | null;
-  phone: string | null;
-  overallStatus: string;
-  documentsValidated: boolean;
-  missingCount: number;
-  completedCount: number;
-  documents: {
-    ine: { uploaded: boolean; status: string | null };
-    taxId: { uploaded: boolean; status: string | null };
-    bankStatement: { uploaded: boolean; status: string | null };
-  };
-  updatedAt: string;
-}
-
-export interface PaymentReadinessListResponse {
-  data: PaymentReadinessListRow[];
-  total: number;
-  page?: number;
-  limit?: number;
-  stats: {
-    totalWithData: number;
-    pendingValidation: number;
-    validated: number;
-    incomplete: number;
-  };
-}
-
 class CustomersService {
   private basePath = '/customers';
 
@@ -304,33 +272,9 @@ class CustomersService {
     return response.data;
   }
 
-  // ===== Payment Readiness (Admin) =====
-
-  async getPaymentReadinessList(params?: {
-    status?: string;
-    search?: string;
-    page?: number;
-    limit?: number;
-  }): Promise<PaymentReadinessListResponse> {
-    const response = await api.get<PaymentReadinessListResponse>(
-      `${this.basePath}/payment-readiness/list`,
-      { params },
-    );
-    return response.data;
-  }
-
-  async getPaymentReadiness(customerId: string): Promise<import('@/types/payment-data').PaymentReadinessResponse> {
-    const response = await api.get(`${this.basePath}/${customerId}/payment-readiness`);
-    return response.data;
-  }
-
-  async validateDocuments(
-    customerId: string,
-    validations: import('@/types/payment-data').DocumentValidation[],
-  ): Promise<{ success: boolean; documentsValidated: boolean }> {
-    const response = await api.post(`${this.basePath}/${customerId}/validate-documents`, { validations });
-    return response.data;
-  }
+  // ===== Validación de datos (Tesorería) =====
+  // Cola, detalle, revisión y recordatorios: services/treasury-readiness.service.ts
+  // (/customers/payment-readiness/*). Los métodos viejos se retiraron (paso 12).
 
   // ===== Exportación de red (descendencia) por periodo (Admin) =====
 

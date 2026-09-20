@@ -185,8 +185,8 @@ export function useUpdateTreasurySettings() {
 // ═══════════════════════════════════════════════════════════════════════════
 // Retenciones (§4.4) y Dispersión y pagos (§4.2) — pasos 9 y 10 (Next).
 // Claves colgadas de `treasuryKeys.all` para que `useInvalidateTreasury`
-// las refresque; las mutaciones también invalidan `withholdingKeys.all`
-// (hook viejo que aún usa la confirmación de pago en Comisiones).
+// las refresque; las mutaciones también invalidan `commissionKeys.all`.
+// (El hook viejo `useWithholdings` y su servicio se retiraron en el paso 12.)
 // ═══════════════════════════════════════════════════════════════════════════
 
 import {
@@ -194,7 +194,6 @@ import {
   payoutBatchesService,
   withholdingsTreasuryService,
 } from '@/services/treasury.service';
-import { withholdingKeys } from '@/hooks/useWithholdings';
 import type {
   ConfirmBatchPayload,
   CreatePayoutBatchPayload,
@@ -234,7 +233,6 @@ function useInvalidateTreasuryAndWithholdings() {
   return () => {
     void queryClient.invalidateQueries({ queryKey: treasuryKeys.all });
     void queryClient.invalidateQueries({ queryKey: commissionKeys.all });
-    void queryClient.invalidateQueries({ queryKey: withholdingKeys.all });
   };
 }
 

@@ -308,26 +308,9 @@ class DistributorApi {
     return data;
   }
 
-  // ===== Payment Data =====
-
-  async getPaymentData(): Promise<import('@/types/payment-data').PaymentDataResponse> {
-    const { data } = await api.get('/distributor/payment-data');
-    return data;
-  }
-
-  async updatePaymentData(formData: FormData): Promise<import('@/types/payment-data').PaymentDataResponse> {
-    const { data } = await api.post('/distributor/payment-data', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return data;
-  }
-
-  async getCommissionPayments(
-    filters?: import('@/types/payment-data').CommissionPaymentFilters,
-  ): Promise<import('@/types/payment-data').CommissionPaymentsResponse> {
-    const { data } = await api.get('/distributor/commission-payments', { params: filters });
-    return data;
-  }
+  // ===== Datos para comisiones =====
+  // Viven en services/distributor-payment.service.ts (/distributor/payment-data,
+  // /distributor/commission-payments); los métodos viejos se retiraron (paso 12).
 
   // ===== Onboarding & Mis Pedidos =====
 

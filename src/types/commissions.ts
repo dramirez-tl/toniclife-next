@@ -142,15 +142,6 @@ export interface CalculateCommissionsDto {
   recalculate?: boolean;
 }
 
-export interface ApproveCommissionsDto {
-  commissionIds: string[];
-}
-
-export interface MarkAsPaidDto {
-  commissionIds: string[];
-  paymentReference?: string;
-}
-
 // Tax calculation types (kept for local UI calculations)
 export interface TaxCalculation {
   regime: TaxRegime;
