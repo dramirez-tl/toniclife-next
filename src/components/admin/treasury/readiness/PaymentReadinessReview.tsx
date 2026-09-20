@@ -11,6 +11,9 @@
 // (banco, ****1234, titular, verificación con últimos 4), régimen de comisión
 // (sugerido por SAT, asignar con motivo, historial), checklist y bitácora.
 // Toda mutación con onError → treasuryErrorMessage; nunca innerHTML.
+// El expediente (GET /:customerId) y las URL firmadas de documentos exigen
+// commissions:validate | mlm:admin (contrato §1.11): sin ese permiso no se
+// consulta nada y se muestra el aviso; la cola (customers:read) sigue visible.
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -157,11 +160,12 @@ export function PaymentReadinessReview({
   className,
 }: PaymentReadinessReviewProps) {
   // `key={customerId}` en el que llama reinicia este estado al cambiar de distribuidor.
-  const detailQuery = useReadinessDetail(customerId);
-  const catalogsQuery = useReadinessCatalogs();
-  const suggestionsQuery = useSatSuggestions();
-  const regimesQuery = useTaxRegimes();
   const perms = useTreasuryPermissions();
+  const canValidate = perms.canValidate;
+  const detailQuery = useReadinessDetail(customerId, canValidate);
+  const catalogsQuery = useReadinessCatalogs(canValidate);
+  const suggestionsQuery = useSatSuggestions(canValidate);
+  const regimesQuery = useTaxRegimes();
 
   const urlMutation = useReadinessDocumentUrl();
   const reviewMutation = useReviewDocuments();
@@ -211,9 +215,10 @@ export function PaymentReadinessReview({
   );
 
   useEffect(() => {
-    if (!effectiveDoc || !uploaded(effectiveDoc) || signedUrls[effectiveDoc]) return;
+    // La URL firmada exige commissions:validate | mlm:admin: sin permiso no se pide.
+    if (!canValidate || !effectiveDoc || !uploaded(effectiveDoc) || signedUrls[effectiveDoc]) return;
     loadUrl(effectiveDoc);
-  }, [effectiveDoc, uploaded, signedUrls, loadUrl]);
+  }, [canValidate, effectiveDoc, uploaded, signedUrls, loadUrl]);
 
   const urlLoadingFor = urlMutation.isPending ? urlMutation.variables?.document : undefined;
   const urlErrorFor = urlMutation.isError ? urlMutation.variables?.document : undefined;
@@ -241,7 +246,6 @@ export function PaymentReadinessReview({
     : '';
 
   // ── Acciones ──────────────────────────────────────────────────────────────
-  const canValidate = perms.canValidate;
   const pendingDocs = docKeys.filter((d) => detail?.docs[d]?.status === 'pending');
 
   const openApprove = useCallback(
@@ -305,6 +309,24 @@ export function PaymentReadinessReview({
   }, [enableShortcuts, dialogOpen, queue, effectiveDoc, detail, openApprove, openReject]);
 
   // ── Render ────────────────────────────────────────────────────────────────
+  if (!canValidate) {
+    return (
+      <div
+        className={`rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 ${className ?? ''}`}
+        role="status"
+      >
+        <p className="flex items-center gap-2 font-medium">
+          <ExclamationTriangleIcon className="h-4 w-4" aria-hidden />
+          Revisar el expediente requiere el permiso commissions:validate (o mlm:admin).
+        </p>
+        <p className="mt-1 text-amber-800/90">
+          Los documentos (INE, constancia, carátula) y los datos capturados solo se muestran a quien valida. La cola de
+          validación sigue disponible en solo lectura.
+        </p>
+      </div>
+    );
+  }
+
   if (detailQuery.isLoading && !detail) {
     return (
       <div className={`space-y-3 ${className ?? ''}`}>

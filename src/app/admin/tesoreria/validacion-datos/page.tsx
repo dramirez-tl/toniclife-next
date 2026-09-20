@@ -346,10 +346,21 @@ function ValidacionDatosContent() {
       key: 'actions',
       header: 'Acciones',
       render: (r) => (
-        <Button variant="outline" size="sm" onClick={() => setParams({ review: r.customerId, page: String(page) })}>
-          <EyeIcon className="mr-1 h-4 w-4" aria-hidden />
-          Revisar
-        </Button>
+        // Ver el expediente y sus documentos exige commissions:validate | mlm:admin (contrato §1.11);
+        // con solo customers:read queda el enlace a la ficha.
+        <PermissionGuard
+          permissions={TREASURY_VALIDATE_PERMISSIONS}
+          fallback={
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/admin/distribuidores/${r.customerId}`}>Ver ficha</Link>
+            </Button>
+          }
+        >
+          <Button variant="outline" size="sm" onClick={() => setParams({ review: r.customerId, page: String(page) })}>
+            <EyeIcon className="mr-1 h-4 w-4" aria-hidden />
+            Revisar
+          </Button>
+        </PermissionGuard>
       ),
     },
   ];

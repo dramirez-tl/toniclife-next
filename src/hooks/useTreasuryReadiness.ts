@@ -48,11 +48,12 @@ export function useReadinessList(filters: ReadinessListFilters, enabled = true) 
   });
 }
 
-export function useReadinessDetail(customerId: string | null | undefined) {
+/** Detalle del expediente: el API exige commissions:validate | mlm:admin (se pasa `enabled=false` sin permiso). */
+export function useReadinessDetail(customerId: string | null | undefined, enabled = true) {
   return useQuery<ReadinessDetail>({
     queryKey: readinessKeys.detail(customerId ?? ''),
     queryFn: () => treasuryReadinessService.detail(customerId as string),
-    enabled: !!customerId,
+    enabled: enabled && !!customerId,
     staleTime: STALE_SHORT,
   });
 }
