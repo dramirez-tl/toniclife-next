@@ -8,11 +8,13 @@ import {
   PlusIcon,
   GiftIcon,
   SparklesIcon,
+  ClipboardDocumentCheckIcon,
 } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PermissionGuard } from '@/components/auth';
 import { cn } from '@/lib/utils';
+import { useProductPermissions } from '@/components/admin/products/lib/permissions';
 import { ProductosTab } from './_tabs/ProductosTab';
 import { KitsTab } from './_tabs/KitsTab';
 import { PromocionesTab } from './_tabs/PromocionesTab';
@@ -68,6 +70,17 @@ const TAB_FILTER_KEYS = [
   'isActive',
   'page',
   'limit',
+  // Pestaña Productos (listado en servidor)
+  'tipo',
+  'tienda',
+  'pos',
+  'destacado',
+  'pais',
+  'precio',
+  'imagen',
+  'falta',
+  'orden',
+  'dir',
 ];
 
 export default function ProductosPage() {
@@ -86,6 +99,7 @@ function PageContent() {
     rawTab === 'kits' || rawTab === 'promociones' ? rawTab : 'productos';
   const config = TABS.find((t) => t.id === active)!;
   const Icon = config.icon;
+  const { canCreate } = useProductPermissions();
 
   const setTab = (next: Tab) => {
     const usp = new URLSearchParams(sp.toString());
@@ -115,12 +129,20 @@ function PageContent() {
                 <Link href="/admin">
                   <Button variant="secondary">Volver al Panel Principal</Button>
                 </Link>
-                <Link href={config.newHref}>
-                  <Button variant="default">
-                    <PlusIcon className="h-5 w-5" />
-                    {config.newLabel}
+                <Link href="/admin/productos/salud">
+                  <Button variant="secondary">
+                    <ClipboardDocumentCheckIcon className="h-5 w-5" />
+                    Salud del catálogo
                   </Button>
                 </Link>
+                {canCreate ? (
+                  <Link href={config.newHref}>
+                    <Button variant="default">
+                      <PlusIcon className="h-5 w-5" />
+                      {config.newLabel}
+                    </Button>
+                  </Link>
+                ) : null}
               </div>
             </div>
 

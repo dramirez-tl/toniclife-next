@@ -2,6 +2,9 @@
 
 import type { StoreCountryCode } from '@/services/products-admin.service';
 
+/** sessionStorage: filtros del listado, para que "Regresar" en la ficha vuelva a ellos. */
+export const PRODUCTS_LIST_RETURN_KEY = 'tl_admin_products_list_qs';
+
 // ================================
 // Secciones de la ficha (?seccion=)
 // ================================

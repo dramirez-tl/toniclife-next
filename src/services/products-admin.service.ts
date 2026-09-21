@@ -56,18 +56,11 @@ export interface HealthIssueCount {
   count: number;
 }
 
-export interface CatalogHealthByCategory {
-  categoryId: string | null;
-  categoryName: string | null;
-  total: number;
-  withIssues: number;
-  averageScore: number | null;
-}
-
 export interface CatalogHealth {
   totals: { active: number; sellable: Partial<Record<StoreCountryCode, number>> };
   issues: HealthIssueCount[];
-  byCategory: CatalogHealthByCategory[];
+  /** El contrato no fija la forma de cada elemento: se conserva crudo y la UI no lo pinta aún. */
+  byCategory: Record<string, unknown>[];
 }
 
 // ================================
@@ -424,15 +417,7 @@ function normalizeHealth(raw: unknown): CatalogHealth {
     .filter(isDict)
     .map((i) => ({ code: str(i.code) ?? '', severity: str(i.severity), count: num(i.count) ?? 0 }))
     .filter((i) => i.code !== '');
-  const byCategory: CatalogHealthByCategory[] = (Array.isArray(body.byCategory) ? body.byCategory : [])
-    .filter(isDict)
-    .map((c) => ({
-      categoryId: str(c.categoryId),
-      categoryName: str(c.categoryName),
-      total: num(c.total) ?? 0,
-      withIssues: num(c.withIssues) ?? 0,
-      averageScore: num(c.averageScore),
-    }));
+  const byCategory = (Array.isArray(body.byCategory) ? body.byCategory : []).filter(isDict);
   return { totals: { active: num(totals.active) ?? 0, sellable }, issues, byCategory };
 }
 
@@ -471,6 +456,22 @@ function cleanParams(params: CatalogAdminListParams): Record<string, string | nu
     out[key] = value as string | number | boolean;
   }
   return out;
+}
+
+const CONTROL_KEYS = ['expectedUpdatedAt', 'fiscalReason', 'confirmCodeChange'] as const;
+
+/** Llaves de control que un API aún sin el DTO ampliado rechazó con 400 "property X should not exist". */
+function rejectedControlKeys(err: unknown): string[] {
+  const response = (err as { response?: { status?: number; data?: unknown } } | null)?.response;
+  if (response?.status !== 400 || !isDict(response.data)) return [];
+  const raw = response.data.message;
+  const messages = Array.isArray(raw) ? raw.filter((m): m is string => typeof m === 'string') : typeof raw === 'string' ? [raw] : [];
+  const unknownProps = messages
+    .map((m) => /^property (\w+) should not exist$/.exec(m)?.[1])
+    .filter((p): p is string => !!p);
+  // Si el API rechazó también llaves de DATOS, no se reintenta: el error debe verse.
+  if (unknownProps.length === 0 || unknownProps.some((p) => !(CONTROL_KEYS as readonly string[]).includes(p))) return [];
+  return unknownProps;
 }
 
 /** Claves repetidas (no `key[]=`): las entienden el parser `simple` y el `extended` de Express. */
@@ -533,8 +534,20 @@ class ProductsAdminService {
   }
 
   async updateProduct(id: string, dto: AdminUpdateProductDto): Promise<AdminProduct> {
-    const response = await api.patch<AdminProduct>(`/products/${id}`, dto);
-    return response.data;
+    try {
+      const response = await api.patch<AdminProduct>(`/products/${id}`, dto);
+      return response.data;
+    } catch (err) {
+      // Compatibilidad de despliegue: un API anterior al DTO ampliado rechaza
+      // (forbidNonWhitelisted) las llaves de CONTROL nuevas. Se reintenta UNA vez
+      // sin ellas; nunca se quitan llaves de datos (eso sí sería perder cambios).
+      const rejected = rejectedControlKeys(err);
+      if (rejected.length === 0) throw err;
+      const retry: Record<string, unknown> = { ...dto };
+      for (const key of rejected) delete retry[key];
+      const response = await api.patch<AdminProduct>(`/products/${id}`, retry);
+      return response.data;
+    }
   }
 
   async duplicate(id: string, dto: DuplicateProductDto): Promise<AdminProduct> {

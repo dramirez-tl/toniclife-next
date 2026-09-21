@@ -28,6 +28,7 @@ import { ProductActiveDialog } from '../ProductActiveDialog';
 import { productAdminErrorCode, productAdminErrorMessage } from '../lib/errors';
 import {
   CREATE_SECTIONS,
+  PRODUCTS_LIST_RETURN_KEY,
   PRODUCT_SECTIONS,
   SECTION_LABEL,
   isProductSectionId,
@@ -60,9 +61,6 @@ import { PricesSection } from './sections/PricesSection';
 import { SeoSection } from './sections/SeoSection';
 import { StoreSection } from './sections/StoreSection';
 import { TranslationsSection } from './sections/TranslationsSection';
-
-/** Clave de sessionStorage donde el listado deja sus filtros para el botón Regresar. */
-export const PRODUCTS_LIST_RETURN_KEY = 'tl_admin_products_list_qs';
 
 const SECTION_COMPONENT: Record<ProductSectionId, () => ReactNode> = {
   basica: () => <BasicSection />,

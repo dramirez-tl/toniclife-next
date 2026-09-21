@@ -54,7 +54,16 @@ const navigation: NavItem[] = [
   { name: 'Sucursales', href: '/admin/sucursales', icon: BuildingStorefrontIcon, permissions: ['branches:read', 'config.branches', 'config.branches.read'] },
   // customers:read (matriz): abre Usuarios solo con la pestaña Distribuidores.
   { name: 'Usuarios', href: '/admin/usuarios', icon: UserGroupIcon, permissions: ['users:read', 'customers:read', 'config.users', 'config.users.read'] },
-  { name: 'Productos', href: '/admin/productos', icon: ShoppingBagIcon, permissions: ['products:read', 'config.products', 'config.products.read'] },
+  {
+    name: 'Productos',
+    href: '/admin/productos',
+    icon: ShoppingBagIcon,
+    permissions: ['products:read', 'config.products', 'config.products.read'],
+    children: [
+      { name: 'Catálogo', href: '/admin/productos' },
+      { name: 'Salud del catálogo', href: '/admin/productos/salud' },
+    ],
+  },
   { name: 'Pedidos', href: '/admin/pedidos', icon: ClipboardDocumentListIcon, permissions: ['orders:read', 'sales.orders', 'sales.orders.read'] },
   {
     name: 'Inventario',

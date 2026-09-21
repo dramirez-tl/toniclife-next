@@ -1,404 +1,506 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+// ProductosTab — listado admin del catálogo (contrato §7.5).
+//
+// TODO en servidor vía GET /catalog-admin/products: filtros, orden por columna
+// y paginación (estado en la URL con useQueryFilters). Los kits y las
+// promociones NO salen aquí: tienen su pestaña y su editor.
+//
+//  - Filtros: búsqueda, clave exacta, categoría, tipo, estado, en tienda, POS,
+//    destacado, país de referencia, con/sin precio, con/sin imagen y
+//    "Le falta…" (multi). Chips removibles.
+//  - Selección POR PÁGINA (nunca "todos los resultados") con acciones masivas
+//    seguras: `expectedCount` + ConfirmDialog con el alcance real; desactivar
+//    exige escribir DESACTIVAR.
+//  - Export CSV que respeta los filtros activos (celdas neutralizadas).
+//  - Una sola llamada de indicadores (/catalog-admin/health).
+
+import { useEffect, useId, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import {
+  ChevronDown,
+  Copy,
+  Download,
+  ExternalLink,
+  LineChart,
+  ListChecks,
+  MoreHorizontal,
+  Package,
+  Pencil,
+  Plus,
+  Power,
+  RefreshCw,
+  Search,
+  X,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
-import { productsService } from '@/services/products.service';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { DataTable, DataTablePagination, type DataTableColumn, type DataTableSortState } from '@/components/ui';
 import {
-  ShoppingBagIcon,
-  MagnifyingGlassIcon,
-  FunnelIcon,
-  PlusIcon,
-  PencilIcon,
-  TrashIcon,
-  ArrowDownTrayIcon,
-  CubeIcon,
-  TagIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ArrowPathIcon,
-  ExclamationTriangleIcon,
-  ChartBarIcon,
-} from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
-import { useProducts, useCategories, useDeleteProduct } from '@/hooks/useProducts';
-import type { Product, ProductQueryParams } from '@/types/product';
-import { ProductType } from '@/types/product';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
+import { DuplicateProductDialog } from '@/components/admin/products/DuplicateProductDialog';
+import { ProductActiveDialog, type ProductActiveTarget } from '@/components/admin/products/ProductActiveDialog';
+import { buildCsv, downloadCsv, fileDateStamp } from '@/components/admin/products/lib/csv';
+import { productAdminErrorCode, productAdminErrorMessage } from '@/components/admin/products/lib/errors';
+import {
+  HEALTH_ISSUE_BASES,
+  PRODUCTS_LIST_RETURN_KEY,
+  PRODUCTS_TAB_TYPES,
+  PRODUCT_TYPE_LABEL,
+  SCORE_TONE_CLASS,
+  STORE_COUNTRY_CURRENCY,
+  STORE_COUNTRY_NAME,
+  STOREFRONT_REASON_LABEL,
+  healthIssueLabel,
+  healthIssueMeta,
+  issueCodeFor,
+  productTypeLabel,
+  scoreTone,
+} from '@/components/admin/products/lib/labels';
+import { useProductPermissions } from '@/components/admin/products/lib/permissions';
+import {
+  useCatalogAdminProducts,
+  useCatalogBulk,
+  useCatalogHealth,
+} from '@/components/admin/products/useProductsAdmin';
+import { useCategories } from '@/hooks/useProducts';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
+import { formatCurrency } from '@/lib/currency';
+import {
+  STORE_COUNTRY_CODES,
+  productsAdminService,
+  type CatalogAdminListParams,
+  type CatalogAdminRow,
+  type CatalogAdminSortBy,
+  type CatalogBulkAction,
+  type StoreCountryCode,
+} from '@/services/products-admin.service';
 
 const formatNumber = (n: number) => new Intl.NumberFormat('es-MX').format(n);
 
+const FILTER_DEFAULTS = { status: 'all', page: '1', limit: '20', pais: 'MX' };
+
+const SORT_KEYS: CatalogAdminSortBy[] = ['name', 'code', 'price', 'score', 'updatedAt'];
+const isSortKey = (v: string): v is CatalogAdminSortBy => (SORT_KEYS as string[]).includes(v);
+const isCountry = (v: string): v is StoreCountryCode => (STORE_COUNTRY_CODES as string[]).includes(v);
+
+const COUNTRY_LOCALE: Record<StoreCountryCode, string> = { MX: 'es-mx', US: 'en-us', CO: 'es-co', GT: 'es-gt' };
+
+const YES_NO = [
+  { value: 'si', label: 'Sí' },
+  { value: 'no', label: 'No' },
+];
+const triState = (v: string): boolean | undefined => (v === 'si' ? true : v === 'no' ? false : undefined);
+
+interface BulkActionMeta {
+  action: CatalogBulkAction;
+  label: string;
+  /** Verbo + complemento para el diálogo: "Ocultar de la tienda". */
+  scope: string;
+  needsDelete?: boolean;
+  destructive?: boolean;
+  confirmText?: string;
+  note?: string;
+}
+
+const BULK_ACTIONS: BulkActionMeta[] = [
+  { action: 'show_store', label: 'Mostrar en tienda', scope: 'Mostrar en la tienda', note: 'Se omiten los tipos que la tienda no vende (solo productos y paquetes).' },
+  { action: 'hide_store', label: 'Ocultar de la tienda', scope: 'Ocultar de la tienda', destructive: true },
+  { action: 'enable_pos', label: 'Habilitar en POS', scope: 'Habilitar en el POS' },
+  { action: 'disable_pos', label: 'Quitar del POS', scope: 'Quitar del POS', destructive: true },
+  { action: 'feature', label: 'Destacar', scope: 'Marcar como destacados' },
+  { action: 'unfeature', label: 'Quitar destacado', scope: 'Quitar el destacado de' },
+  { action: 'set_category', label: 'Cambiar categoría', scope: 'Cambiar la categoría de' },
+  { action: 'activate', label: 'Activar', scope: 'Activar', needsDelete: true },
+  {
+    action: 'deactivate',
+    label: 'Desactivar',
+    scope: 'Desactivar',
+    needsDelete: true,
+    destructive: true,
+    confirmText: 'DESACTIVAR',
+    note: 'Dejarán de venderse en tienda y POS. Se pueden reactivar cuando quieras.',
+  },
+];
+
+const SKIP_REASON_LABEL: Record<string, string> = {
+  enrollment_kit: 'kit de inscripción',
+  not_sellable_type: 'tipo que la tienda no vende',
+  not_found: 'ya no existe',
+  unchanged: 'ya estaba así',
+};
+
 export function ProductosTab() {
-  const router = useRouter();
+  const ids = useId();
+  const permissions = useProductPermissions();
+  const { searchParams, get, getNumber, setParams } = useQueryFilters(FILTER_DEFAULTS);
 
-  const { get, getNumber, setParams } = useQueryFilters({
-    status: 'all',
-    page: '1',
-    limit: '20',
-  });
-
-  const searchQuery = get('search');
-  const filterCode = get('sku');
-  const filterCategoryId = get('categoryId');
-  const filterStatus = get('status') as 'all' | 'active' | 'inactive';
+  // ---------- Estado en la URL ----------
+  const search = get('search');
+  const sku = get('sku');
+  const categoryId = get('categoryId');
+  const status = get('status') as 'all' | 'active' | 'inactive';
+  const tipo = get('tipo');
+  const tienda = get('tienda');
+  const pos = get('pos');
+  const destacado = get('destacado');
+  const paisRaw = get('pais');
+  const country: StoreCountryCode = isCountry(paisRaw) ? paisRaw : 'MX';
+  const precio = get('precio');
+  const imagen = get('imagen');
+  const falta = get('falta');
+  const missing = useMemo(() => (falta ? falta.split(',').filter((b) => HEALTH_ISSUE_BASES.includes(b)) : []), [falta]);
+  const orden = get('orden');
+  const dir = get('dir') === 'desc' ? 'desc' : 'asc';
   const currentPage = getNumber('page') || 1;
-  const pageSize = getNumber('limit') || 20;
+  const pageSize = Math.min(100, Math.max(10, getNumber('limit') || 20));
 
-  const [searchInput, setSearchInput] = useState(searchQuery);
-  const [codeInput, setCodeInput] = useState(filterCode);
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [searchInput, setSearchInput] = useState(search);
+  const [skuInput, setSkuInput] = useState(sku);
 
-  const queryParams: ProductQueryParams = useMemo(() => {
-    const params: ProductQueryParams = {
-      page: currentPage,
-      limit: pageSize,
-      sortBy: 'createdAt',
-      sortDir: 'desc',
-      // Las promociones se administran en su propia pestaña.
-      excludeProductType: ProductType.PROMOTIONAL,
+  // El botón "Regresar" de la ficha vuelve al listado con estos filtros.
+  const currentQs = searchParams.toString();
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(PRODUCTS_LIST_RETURN_KEY, currentQs);
+    } catch {
+      // Sin sessionStorage (modo privado): el botón vuelve al listado sin filtros.
+    }
+  }, [currentQs]);
+
+  const filterParams = useMemo<CatalogAdminListParams>(() => {
+    const params: CatalogAdminListParams = {
+      country,
+      // Kits y promociones viven en sus pestañas.
+      productType: tipo && PRODUCTS_TAB_TYPES.includes(tipo) ? [tipo] : PRODUCTS_TAB_TYPES,
     };
-    if (searchQuery) params.search = searchQuery;
-    if (filterCode) params.sku = filterCode;
-    if (filterCategoryId) params.categoryId = filterCategoryId;
-    if (filterStatus === 'active') params.isActive = true;
-    if (filterStatus === 'inactive') params.isActive = false;
+    if (search) params.q = search;
+    if (sku) params.sku = sku;
+    if (categoryId) params.categoryId = categoryId;
+    if (status === 'active') params.isActive = true;
+    if (status === 'inactive') params.isActive = false;
+    const visible = triState(tienda);
+    if (visible !== undefined) params.visibleEcommerce = visible;
+    const inPos = triState(pos);
+    if (inPos !== undefined) params.availableInPos = inPos;
+    const featured = triState(destacado);
+    if (featured !== undefined) params.isFeatured = featured;
+    if (precio === 'con') params.hasPublicPrice = true;
+    if (precio === 'sin') params.hasPublicPrice = false;
+    if (imagen === 'con') params.hasImage = true;
+    if (imagen === 'sin') params.hasImage = false;
+    if (missing.length > 0) params.issue = missing.map((base) => issueCodeFor(base, country));
+    if (isSortKey(orden)) {
+      params.sortBy = orden;
+      params.sortDir = dir;
+    }
     return params;
-  }, [searchQuery, filterCode, filterCategoryId, filterStatus, currentPage, pageSize]);
+  }, [country, tipo, search, sku, categoryId, status, tienda, pos, destacado, precio, imagen, missing, orden, dir]);
 
-  const activeStatsParams: ProductQueryParams = useMemo(() => {
-    const p: ProductQueryParams = { sortBy: 'createdAt', sortDir: 'desc', limit: 1, page: 1, isActive: true, excludeProductType: ProductType.PROMOTIONAL };
-    if (searchQuery) p.search = searchQuery;
-    if (filterCode) p.sku = filterCode;
-    if (filterCategoryId) p.categoryId = filterCategoryId;
-    return p;
-  }, [searchQuery, filterCode, filterCategoryId]);
+  const listParams = useMemo<CatalogAdminListParams>(
+    () => ({ ...filterParams, page: currentPage, limit: pageSize }),
+    [filterParams, currentPage, pageSize],
+  );
 
-  const featuredStatsParams: ProductQueryParams = useMemo(() => {
-    const p: ProductQueryParams = { sortBy: 'createdAt', sortDir: 'desc', limit: 1, page: 1, isFeatured: true, excludeProductType: ProductType.PROMOTIONAL };
-    if (searchQuery) p.search = searchQuery;
-    if (filterCode) p.sku = filterCode;
-    if (filterCategoryId) p.categoryId = filterCategoryId;
-    if (filterStatus === 'active') p.isActive = true;
-    if (filterStatus === 'inactive') p.isActive = false;
-    return p;
-  }, [searchQuery, filterCode, filterCategoryId, filterStatus]);
+  const list = useCatalogAdminProducts(listParams);
+  const health = useCatalogHealth(country);
+  const { data: categories = [] } = useCategories({ isActive: true });
+  const bulk = useCatalogBulk();
 
-  const { data: productsData, isLoading, isFetching, isError, refetch } = useProducts(queryParams);
-  const { data: activeStatsData } = useProducts(activeStatsParams);
-  const { data: featuredStatsData } = useProducts(featuredStatsParams);
-  const { data: categories } = useCategories({ isActive: true });
-  const deleteProduct = useDeleteProduct();
+  const rows = useMemo(() => list.data?.data ?? [], [list.data]);
+  const total = list.data?.total ?? 0;
 
-  const products = productsData?.data ?? [];
-  const total = productsData?.total ?? 0;
+  // ---------- Selección (solo la página visible) ----------
+  const selectionScope = JSON.stringify(listParams);
+  const [selection, setSelection] = useState<{ scope: string; ids: string[] }>({ scope: '', ids: [] });
+  const selectedIds = useMemo(() => {
+    if (selection.scope !== selectionScope) return [];
+    const visible = new Set(rows.map((r) => r.id));
+    return selection.ids.filter((id) => visible.has(id));
+  }, [rows, selection, selectionScope]);
+  const setSelectedIds = (next: string[]) => setSelection({ scope: selectionScope, ids: next });
 
-  const stats = useMemo(() => ({
-    total,
-    active: filterStatus === 'active' ? total : filterStatus === 'inactive' ? 0 : (activeStatsData?.total ?? 0),
-    featured: featuredStatsData?.total ?? 0,
-    categories: categories?.length ?? 0,
-  }), [total, activeStatsData, featuredStatsData, categories, filterStatus]);
+  const [bulkMeta, setBulkMeta] = useState<BulkActionMeta | null>(null);
+  const [bulkCategoryId, setBulkCategoryId] = useState('');
+  const [duplicateSource, setDuplicateSource] = useState<CatalogAdminRow | null>(null);
+  const [activeTarget, setActiveTarget] = useState<ProductActiveTarget | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
-  const hasActiveFilters = Boolean(searchQuery || filterCode || filterCategoryId || filterStatus !== 'all');
-
-  const handleSearch = () => {
-    setParams({ search: searchInput.trim() });
-  };
-
-  const handleCodeSearch = () => {
-    setParams({ sku: codeInput.trim() || null, page: null });
-  };
-
-  const handleFilterCategory = (value: string) => {
-    setParams({ categoryId: value });
-  };
-
-  const handleFilterStatus = (value: string) => {
-    setParams({ status: value });
-  };
-
-  const handlePageSizeChange = (size: number) => {
-    setParams({ limit: String(size), page: null });
-  };
+  const hasActiveFilters = Boolean(
+    search || sku || categoryId || status !== 'all' || tipo || tienda || pos || destacado || precio || imagen || missing.length > 0,
+  );
 
   const resetFilters = () => {
     setSearchInput('');
-    setCodeInput('');
-    setParams({ search: null, sku: null, categoryId: null, status: 'all', page: null });
-  };
-
-  const handleDeleteClick = (product: Product) => {
-    setProductToDelete(product);
-    setDeleteConfirmText('');
-    setDeleteModalOpen(true);
-  };
-
-  const handleCloseDeleteModal = () => {
-    setDeleteModalOpen(false);
-    setProductToDelete(null);
-    setDeleteConfirmText('');
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!productToDelete || deleteConfirmText !== 'ELIMINAR') return;
-    setIsDeleting(true);
-    try {
-      await deleteProduct.mutateAsync(productToDelete.id);
-      toast.success(`${productToDelete.name} ha sido eliminado correctamente`);
-      handleCloseDeleteModal();
-    } catch {
-      toast.error('Error al eliminar el producto');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const [isExporting, setIsExporting] = useState(false);
-
-  const handleExport = useCallback(async () => {
-    setIsExporting(true);
-    const toastId = toast.loading('Preparando exportación del catálogo...');
-    try {
-      const baseQuery: ProductQueryParams = {
-        sortBy: 'createdAt',
-        sortDir: 'desc',
-        excludeProductType: ProductType.PROMOTIONAL,
-      };
-      if (searchQuery) baseQuery.search = searchQuery;
-      if (filterCategoryId) baseQuery.categoryId = filterCategoryId;
-      if (filterStatus === 'active') baseQuery.isActive = true;
-      if (filterStatus === 'inactive') baseQuery.isActive = false;
-
-      const PAGE_SIZE = 100;
-      const firstPage = await productsService.getProducts({ ...baseQuery, limit: PAGE_SIZE, page: 1 });
-      const allItems = [...firstPage.data];
-      const totalPages = firstPage.totalPages;
-
-      if (totalPages > 1) {
-        const promises = [];
-        for (let p = 2; p <= totalPages; p++) {
-          promises.push(productsService.getProducts({ ...baseQuery, limit: PAGE_SIZE, page: p }));
-        }
-        const results = await Promise.all(promises);
-        for (const result of results) {
-          allItems.push(...result.data);
-        }
-      }
-
-      if (allItems.length === 0) {
-        toast.error('No hay datos para exportar', { id: toastId });
-        setIsExporting(false);
-        return;
-      }
-
-      const headers = ['SKU', 'Nombre', 'Nombre Corto', 'Categoría', 'Tipo', 'Precio Público', 'Puntos', 'Vol. Negocio', 'Marca', 'Países', 'Estado', 'Destacado', 'Visible E-commerce', 'POS', 'Creado'];
-      const rows = allItems.map((p) => {
-        const status = p.isActive ? 'Activo' : 'Inactivo';
-        const countries = (p.activeCountries ?? []).join(', ');
-        const createdAt = new Date(p.createdAt).toLocaleDateString('es-MX');
-        return [
-          p.code,
-          `"${(p.name ?? '').replace(/"/g, '""')}"`,
-          `"${(p.shortName ?? '').replace(/"/g, '""')}"`,
-          `"${(p.categoryName ?? '').replace(/"/g, '""')}"`,
-          p.productType,
-          p.price ?? '',
-          p.pointsValue ?? '',
-          p.businessVolume ?? '',
-          `"${(p.brand ?? '').replace(/"/g, '""')}"`,
-          `"${countries}"`,
-          status,
-          p.isFeatured ? 'Sí' : 'No',
-          p.isVisibleEcommerce ? 'Sí' : 'No',
-          p.availableInPos ? 'Sí' : 'No',
-          createdAt,
-        ].join(',');
-      });
-
-      const bom = '﻿';
-      const csv = bom + [headers.join(','), ...rows].join('\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `catalogo_productos_${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
-
-      toast.success(`${allItems.length} productos exportados`, { id: toastId });
-    } catch {
-      toast.error('Error al exportar catálogo', { id: toastId });
-    } finally {
-      setIsExporting(false);
-    }
-  }, [searchQuery, filterCategoryId, filterStatus]);
-
-  const formatCurrency = (amount: string | number) => {
-    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN',
-    }).format(numAmount);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-MX', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+    setSkuInput('');
+    setParams({
+      search: null,
+      sku: null,
+      categoryId: null,
+      status: null,
+      tipo: null,
+      tienda: null,
+      pos: null,
+      destacado: null,
+      precio: null,
+      imagen: null,
+      falta: null,
+      page: null,
     });
   };
 
-  const columns: DataTableColumn<Product>[] = [
+  const toggleMissing = (base: string) => {
+    const next = missing.includes(base) ? missing.filter((b) => b !== base) : [...missing, base];
+    setParams({ falta: next.length > 0 ? next.join(',') : null });
+  };
+
+  const sortState: DataTableSortState | null = isSortKey(orden) ? { key: orden, direction: dir } : null;
+  const handleSortChange = (next: DataTableSortState | null) =>
+    setParams({ orden: next?.key ?? null, dir: next && next.direction === 'desc' ? 'desc' : null });
+
+  // ---------- Acción masiva ----------
+  const runBulk = async () => {
+    if (!bulkMeta || selectedIds.length === 0) return;
+    try {
+      const result = await bulk.mutateAsync({
+        ids: selectedIds,
+        action: bulkMeta.action,
+        categoryId: bulkMeta.action === 'set_category' ? bulkCategoryId : undefined,
+        expectedCount: selectedIds.length,
+      });
+      const skippedByReason = new Map<string, number>();
+      for (const s of result.skipped) skippedByReason.set(s.reason, (skippedByReason.get(s.reason) ?? 0) + 1);
+      const skippedText = Array.from(skippedByReason.entries())
+        .map(([reason, n]) => `${n} ${SKIP_REASON_LABEL[reason] ?? reason}`)
+        .join(', ');
+      const message = `${bulkMeta.label}: ${result.updated} ${result.updated === 1 ? 'actualizado' : 'actualizados'}${
+        result.skipped.length > 0 ? ` · ${result.skipped.length} omitidos (${skippedText})` : ''
+      }`;
+      if (result.skipped.length > 0) toast.warning(message, { duration: 8000 });
+      else toast.success(message);
+      const slugs = rows.filter((r) => selectedIds.includes(r.id)).map((r) => r.slug);
+      void productsAdminService.revalidateCatalog(slugs);
+      setSelection({ scope: '', ids: [] });
+      setBulkMeta(null);
+    } catch (err) {
+      toast.error(productAdminErrorMessage(err, `No se pudo aplicar "${bulkMeta.label}"`), { duration: 8000 });
+      if (productAdminErrorCode(err) === 'PRD_COUNT_MISMATCH') {
+        setSelection({ scope: '', ids: [] });
+        setBulkMeta(null);
+        void list.refetch();
+      }
+    }
+  };
+
+  // ---------- Export (respeta los filtros activos) ----------
+  const handleExport = async () => {
+    setIsExporting(true);
+    const toastId = toast.loading('Preparando la exportación…');
+    try {
+      const PAGE = 100;
+      const all: CatalogAdminRow[] = [];
+      let page = 1;
+      let totalPages = 1;
+      do {
+        const res = await productsAdminService.listProducts({ ...filterParams, page, limit: PAGE });
+        all.push(...res.data);
+        totalPages = res.totalPages;
+        page += 1;
+      } while (page <= totalPages && page <= 100);
+
+      if (all.length === 0) {
+        toast.error('No hay productos que exportar con estos filtros', { id: toastId });
+        return;
+      }
+      const flag = (row: CatalogAdminRow, cc: StoreCountryCode) => {
+        const f = row.storefront[cc];
+        return f ? (f.sellable ? 'Sí' : 'No') : '';
+      };
+      const csv = buildCsv(
+        [
+          'Clave', 'Nombre', 'Tipo', 'Categoría', 'Activo', 'Visible en tienda', 'POS', 'Destacado',
+          'Precio público MX', 'Precio público US', 'Precio público CO', 'Precio público GT',
+          'Se vende en MX', 'Se vende en US', 'Ficha %', 'Pendientes', 'URL', 'Actualizado',
+        ],
+        all.map((r) => [
+          r.code,
+          r.name,
+          productTypeLabel(r.productType),
+          r.categoryName ?? '',
+          r.isActive,
+          r.isVisibleEcommerce,
+          r.availableInPos,
+          r.isFeatured,
+          r.publicPrices.MX ?? '',
+          r.publicPrices.US ?? '',
+          r.publicPrices.CO ?? '',
+          r.publicPrices.GT ?? '',
+          flag(r, 'MX'),
+          flag(r, 'US'),
+          r.health.score === null ? '' : Math.round(r.health.score),
+          r.health.issues.map((i) => healthIssueLabel(i)).join('; '),
+          r.slug ?? '',
+          r.updatedAt ? r.updatedAt.slice(0, 10) : '',
+        ]),
+      );
+      downloadCsv(csv, `catalogo_productos_${fileDateStamp()}.csv`);
+      toast.success(`${formatNumber(all.length)} productos exportados`, { id: toastId });
+    } catch (err) {
+      toast.error(productAdminErrorMessage(err, 'No se pudo exportar el catálogo'), { id: toastId });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // ---------- Columnas ----------
+  const priceCountries: StoreCountryCode[] = country === 'MX' || country === 'US' ? ['MX', 'US'] : ['MX', 'US', country];
+
+  const columns: DataTableColumn<CatalogAdminRow>[] = [
     {
       key: 'name',
       header: 'Producto',
       sortable: true,
-      sortValue: (p) => p.name,
-      render: (product) => (
+      render: (row) => (
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-            {product.imageUrl ? (
-              <Image
-                src={product.imageUrl}
-                alt={product.name}
-                width={40}
-                height={40}
-                className="object-cover"
-              />
+          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-gray-100">
+            {row.imageUrl ? (
+              <Image src={row.imageUrl} alt="" fill sizes="40px" className="object-cover" />
             ) : (
-              <CubeIcon className="h-5 w-5 text-gray-400" />
+              <Package className="absolute inset-0 m-auto h-5 w-5 text-gray-500" aria-hidden />
             )}
           </div>
-          <div>
-            <p className="font-semibold text-gray-900">{product.name}</p>
-            {product.shortName && (
-              <p className="text-sm text-gray-500 truncate max-w-xs">{product.shortName}</p>
-            )}
+          <div className="min-w-0">
+            <Link
+              href={`/admin/productos/${row.id}/editar`}
+              className="font-semibold text-gray-900 underline-offset-2 hover:underline"
+            >
+              {row.name}
+            </Link>
+            <div className="mt-0.5 flex flex-wrap gap-1">
+              {!row.isActive ? <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-800">Inactivo</span> : null}
+              {row.isFeatured ? <span className="rounded-full bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-900">Destacado</span> : null}
+              {!row.availableInPos ? <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">Sin POS</span> : null}
+            </div>
           </div>
         </div>
       ),
     },
     {
       key: 'code',
-      header: 'SKU',
+      header: 'Clave',
       sortable: true,
-      sortValue: (p) => p.code,
-      render: (product) => (
-        <span className="inline-flex items-center rounded-md bg-gray-100 px-2.5 py-1 text-sm font-mono font-medium text-gray-800">
-          {product.code}
-        </span>
+      render: (row) => (
+        <span className="inline-flex rounded-md bg-gray-100 px-2 py-1 font-mono text-sm font-medium text-gray-900">{row.code}</span>
       ),
+    },
+    {
+      key: 'productType',
+      header: 'Tipo',
+      render: (row) => <span className="text-sm text-gray-800">{productTypeLabel(row.productType)}</span>,
     },
     {
       key: 'category',
       header: 'Categoría',
-      sortable: true,
-      sortValue: (p) => p.categoryName || '',
-      render: (product) =>
-        product.categoryName ? (
-          <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-            {product.categoryName}
-          </span>
+      render: (row) =>
+        row.categoryName ? (
+          <span className="text-sm text-gray-800">{row.categoryName}</span>
         ) : (
-          <span className="text-sm text-gray-400">Sin categoría</span>
+          <span className="text-sm font-medium text-amber-800">Sin categoría</span>
         ),
     },
+    ...priceCountries.map(
+      (cc): DataTableColumn<CatalogAdminRow> => ({
+        // Solo el país de referencia ordena en servidor (`sortBy=price` usa `country`).
+        key: cc === country ? 'price' : `price-${cc}`,
+        header: `Público ${cc}`,
+        sortable: cc === country,
+        headerClassName: 'text-right',
+        cellClassName: 'text-right',
+        render: (row) => {
+          const value = row.publicPrices[cc];
+          return value === null || value === undefined ? (
+            <span className="text-sm text-gray-600">Sin precio</span>
+          ) : (
+            <span className="text-sm font-semibold tabular-nums text-gray-900">
+              {formatCurrency(value, STORE_COUNTRY_CURRENCY[cc])}
+            </span>
+          );
+        },
+      }),
+    ),
     {
-      key: 'price',
-      header: 'Precio Público',
-      sortable: true,
-      sortValue: (p) => parseFloat(p.price || '0') || 0,
-      render: (product) => (
-        <span className="text-sm font-semibold text-gray-900">
-          {product.price ? formatCurrency(product.price) : '—'}
-        </span>
+      key: 'storefront',
+      header: 'En tienda',
+      render: (row) => (
+        <ul className="flex flex-col gap-1">
+          {(['MX', 'US'] as const).map((cc) => {
+            const f = row.storefront[cc];
+            if (!f) return null;
+            const reasons = f.reasons.map((r) => STOREFRONT_REASON_LABEL[r] ?? r).join('; ');
+            return (
+              <li key={cc} className="flex items-center gap-1.5 text-xs text-gray-800" title={reasons || undefined}>
+                <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${f.sellable ? 'bg-emerald-500' : 'bg-red-500'}`} aria-hidden />
+                <span>
+                  {cc}: {f.sellable ? 'se vende' : 'no aparece'}
+                  {!f.sellable && reasons ? <span className="sr-only"> ({reasons})</span> : null}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
       ),
     },
     {
-      key: 'countries',
-      header: 'Países',
-      render: (product) => {
-        const countries = product.activeCountries ?? [];
-        if (countries.length === 0) return <span className="text-sm text-gray-400">—</span>;
-        const flagMap: Record<string, string> = {
-          MX: '🇲🇽', US: '🇺🇸', CO: '🇨🇴', GT: '🇬🇹', FN: '🇲🇽',
-          SV: '🇸🇻', HN: '🇭🇳', NI: '🇳🇮', CR: '🇨🇷', PA: '🇵🇦',
-          PE: '🇵🇪', EC: '🇪🇨', CL: '🇨🇱', AR: '🇦🇷', BR: '🇧🇷', ES: '🇪🇸',
-        };
+      key: 'score',
+      header: 'Ficha',
+      sortable: true,
+      render: (row) => {
+        const score = row.health.score;
+        const issues = row.health.issues;
         return (
-          <div className="flex flex-wrap gap-1">
-            {countries.map((code) => (
-              <span key={code} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-medium" title={code}>
-                {flagMap[code] || '🏳️'} {code}
-              </span>
-            ))}
+          <div className="space-y-1">
+            <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${SCORE_TONE_CLASS[scoreTone(score)]}`}>
+              {score === null ? 'Sin dato' : `${Math.round(score)}%`}
+            </span>
+            {issues.length > 0 ? (
+              <div className="flex max-w-[220px] flex-wrap gap-1">
+                {issues.slice(0, 2).map((code) => (
+                  <Link
+                    key={code}
+                    href={`/admin/productos/${row.id}/editar?seccion=${healthIssueMeta(code).section}`}
+                    className="rounded-full border border-gray-300 px-2 py-0.5 text-xs text-gray-800 hover:bg-gray-100"
+                  >
+                    {healthIssueLabel(code, true)}
+                  </Link>
+                ))}
+                {issues.length > 2 ? <span className="px-1 text-xs text-gray-700">+{issues.length - 2}</span> : null}
+              </div>
+            ) : null}
           </div>
         );
       },
     },
     {
-      key: 'status',
-      header: 'Estado',
+      key: 'updatedAt',
+      header: 'Actualizado',
       sortable: true,
-      sortValue: (p) => (p.isFeatured ? 2 : p.isActive ? 1 : 0),
-      render: (product) => {
-        if (!product.isActive) {
-          return (
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
-              <XCircleIcon className="h-3 w-3" />
-              Inactivo
-            </span>
-          );
-        }
-        if (product.isFeatured) {
-          return (
-            <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-medium">
-              <TagIcon className="h-3 w-3" />
-              Destacado
-            </span>
-          );
-        }
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-            <CheckCircleIcon className="h-3 w-3" />
-            Activo
-          </span>
-        );
-      },
-    },
-    {
-      key: 'productType',
-      header: 'Tipo',
-      sortable: true,
-      sortValue: (p) => p.productType,
-      render: (product) => (
-        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-          product.productType === 'kit' ? 'bg-purple-100 text-purple-700' :
-          product.productType === 'pack' ? 'bg-sky-100 text-sky-700' :
-          product.productType === 'promotional' ? 'bg-orange-100 text-orange-700' :
-          'bg-gray-100 text-gray-700'
-        }`}>
-          {product.productType === 'pack' ? 'paquete' : product.productType}
+      render: (row) => (
+        <span className="text-sm text-gray-700">
+          {row.updatedAt ? new Date(row.updatedAt).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}
         </span>
-      ),
-    },
-    {
-      key: 'createdAt',
-      header: 'Creado',
-      sortable: true,
-      sortValue: (p) => p.createdAt,
-      render: (product) => (
-        <span className="text-sm text-gray-600">{formatDate(product.createdAt)}</span>
       ),
     },
     {
@@ -406,44 +508,91 @@ export function ProductosTab() {
       header: 'Acciones',
       headerClassName: 'text-right',
       cellClassName: 'text-right',
-      render: (product) => (
-        <div className="flex items-center justify-end gap-2">
-          <button
-            onClick={() => router.push(`/admin/inventario/kardex/${product.id}`)}
-            className="rounded-lg p-2 transition-colors hover:bg-teal-50"
-            title="Ver Kardex"
-          >
-            <ChartBarIcon className="h-4 w-4 text-[#3E667D]" />
-          </button>
-          <button
-            onClick={() => router.push(`/admin/productos/${product.id}/editar`)}
-            className="rounded-lg p-2 transition-colors hover:bg-green-50"
-            title="Editar producto"
-          >
-            <PencilIcon className="h-4 w-4 text-green-600" />
-          </button>
-          <button
-            onClick={() => handleDeleteClick(product)}
-            className="rounded-lg p-2 transition-colors hover:bg-red-50"
-            title="Eliminar producto"
-          >
-            <TrashIcon className="h-4 w-4 text-red-600" />
-          </button>
-        </div>
-      ),
+      render: (row) => {
+        const flagHere = row.storefront[country];
+        const storeHref = row.slug && flagHere?.sellable ? `/${COUNTRY_LOCALE[country]}/productos/${row.slug}` : null;
+        return (
+          <div className="flex items-center justify-end gap-1">
+            <Button asChild variant="ghost" size="sm" className="h-9">
+              <Link href={`/admin/productos/${row.id}/editar`} aria-label={`${permissions.canUpdate ? 'Editar' : 'Ver'} ${row.name}`}>
+                <Pencil className="h-4 w-4" aria-hidden />
+                <span className="ml-1 hidden xl:inline">{permissions.canUpdate ? 'Editar' : 'Ver'}</span>
+              </Link>
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="ghost" size="icon" className="h-9 w-9" aria-label={`Más acciones para ${row.name}`}>
+                  <MoreHorizontal className="h-4 w-4" aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {storeHref ? (
+                  <DropdownMenuItem asChild>
+                    <a href={storeHref} target="_blank" rel="noopener noreferrer" className="cursor-pointer">
+                      <ExternalLink className="h-4 w-4" aria-hidden /> Ver en tienda ({country})
+                    </a>
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem asChild>
+                    <Link href={`/admin/productos/${row.id}/editar?seccion=tienda`} className="cursor-pointer">
+                      <ExternalLink className="h-4 w-4" aria-hidden /> Por qué no sale en tienda
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem asChild>
+                  <Link href={`/admin/inventario/kardex/${row.id}`} className="cursor-pointer">
+                    <LineChart className="h-4 w-4" aria-hidden /> Ver kardex
+                  </Link>
+                </DropdownMenuItem>
+                {permissions.canCreate ? (
+                  <DropdownMenuItem onSelect={() => setDuplicateSource(row)}>
+                    <Copy className="h-4 w-4" aria-hidden /> Duplicar
+                  </DropdownMenuItem>
+                ) : null}
+                {(row.isActive ? permissions.canDelete : permissions.canUpdate) ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={() =>
+                        setActiveTarget({ id: row.id, code: row.code, name: row.name, slug: row.slug, isActive: row.isActive })
+                      }
+                      className={row.isActive ? 'text-red-700 focus:text-red-800' : undefined}
+                    >
+                      <Power className="h-4 w-4" aria-hidden /> {row.isActive ? 'Desactivar' : 'Reactivar'}
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        );
+      },
     },
   ];
 
-  if (isError && !productsData) {
+  // ---------- Chips de filtros ----------
+  const chips: { key: string; label: string; clear: () => void }[] = [];
+  if (search) chips.push({ key: 'search', label: `Búsqueda: ${search}`, clear: () => { setSearchInput(''); setParams({ search: null }); } });
+  if (sku) chips.push({ key: 'sku', label: `Clave: ${sku}`, clear: () => { setSkuInput(''); setParams({ sku: null }); } });
+  if (categoryId) chips.push({ key: 'cat', label: `Categoría: ${categories.find((c) => c.id === categoryId)?.name ?? '…'}`, clear: () => setParams({ categoryId: null }) });
+  if (tipo) chips.push({ key: 'tipo', label: `Tipo: ${productTypeLabel(tipo)}`, clear: () => setParams({ tipo: null }) });
+  if (status !== 'all') chips.push({ key: 'status', label: status === 'active' ? 'Activos' : 'Inactivos', clear: () => setParams({ status: null }) });
+  if (tienda) chips.push({ key: 'tienda', label: tienda === 'si' ? 'Visibles en tienda' : 'Ocultos de la tienda', clear: () => setParams({ tienda: null }) });
+  if (pos) chips.push({ key: 'pos', label: pos === 'si' ? 'Disponibles en POS' : 'Sin POS', clear: () => setParams({ pos: null }) });
+  if (destacado) chips.push({ key: 'dest', label: destacado === 'si' ? 'Destacados' : 'No destacados', clear: () => setParams({ destacado: null }) });
+  if (precio) chips.push({ key: 'precio', label: `${precio === 'con' ? 'Con' : 'Sin'} precio público en ${country}`, clear: () => setParams({ precio: null }) });
+  if (imagen) chips.push({ key: 'imagen', label: imagen === 'con' ? 'Con imagen' : 'Sin imagen', clear: () => setParams({ imagen: null }) });
+  for (const base of missing) {
+    chips.push({ key: `falta-${base}`, label: `Le falta: ${healthIssueLabel(issueCodeFor(base, country), true)}`, clear: () => toggleMissing(base) });
+  }
+
+  if (list.isError && !list.data) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <Card className="border-red-200 bg-red-50">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3 text-red-700">
-              <XCircleIcon className="h-6 w-6" />
-              <p>Error al cargar los productos. Por favor, intenta de nuevo.</p>
-            </div>
-            <Button variant="outline" className="mt-4" onClick={() => refetch()}>
+          <CardContent className="p-6" role="alert">
+            <p className="text-red-800">{productAdminErrorMessage(list.error, 'No se pudo cargar el catálogo de productos.')}</p>
+            <Button variant="outline" className="mt-4" onClick={() => void list.refetch()}>
               Reintentar
             </Button>
           </CardContent>
@@ -452,346 +601,435 @@ export function ProductosTab() {
     );
   }
 
+  const sellable = health.data?.totals.sellable ?? {};
+  const availableBulk = BULK_ACTIONS.filter((a) => (a.needsDelete ? permissions.canDelete : permissions.canUpdate));
+  const canSelect = availableBulk.length > 0;
+
   return (
     <>
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Total Productos</p>
-                  <p className="text-3xl font-bold text-gray-900">{formatNumber(stats.total)}</p>
-                </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <CubeIcon className="h-6 w-6 text-blue-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Productos Activos</p>
-                  <p className="text-3xl font-bold text-green-600">{formatNumber(stats.active)}</p>
-                </div>
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <CheckCircleIcon className="h-6 w-6 text-green-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Destacados</p>
-                  <p className="text-3xl font-bold text-yellow-600">{formatNumber(stats.featured)}</p>
-                </div>
-                <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <TagIcon className="h-6 w-6 text-yellow-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-gray-100 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 mb-1">Categorías</p>
-                  <p className="text-3xl font-bold text-purple-600">{formatNumber(stats.categories)}</p>
-                </div>
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                  <FunnelIcon className="h-6 w-6 text-purple-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* ---------- Indicadores (una sola llamada) ---------- */}
+        <div className="mb-8 grid grid-cols-2 gap-4 xl:grid-cols-4">
+          {[
+            { label: 'Resultados', value: list.data ? formatNumber(total) : '…', tone: 'text-gray-900' },
+            { label: 'Productos activos', value: health.data ? formatNumber(health.data.totals.active) : '…', tone: 'text-emerald-700' },
+            { label: 'Se venden en México', value: sellable.MX !== undefined ? formatNumber(sellable.MX) : '…', tone: 'text-[#2f5165]' },
+            { label: 'Se venden en Estados Unidos', value: sellable.US !== undefined ? formatNumber(sellable.US) : '…', tone: 'text-[#2f5165]' },
+          ].map((kpi) => (
+            <Card key={kpi.label} className="border-gray-100 shadow-sm">
+              <CardContent className="p-4 sm:p-6">
+                <p className="mb-1 text-sm text-gray-700">{kpi.label}</p>
+                <p className={`text-2xl font-bold sm:text-3xl ${kpi.tone}`}>{kpi.value}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
+        {/* ---------- Filtros ---------- */}
         <Card className="mb-6 border-gray-100 shadow-sm">
           <CardContent className="p-4 sm:p-6">
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm font-medium text-gray-700">Búsqueda y filtros</p>
+              <h2 className="text-sm font-semibold text-gray-900">Búsqueda y filtros</h2>
               <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="gap-2 text-gray-600"
-                  onClick={() => refetch()}
-                  disabled={isFetching}
-                >
-                  <ArrowPathIcon className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
-                  {isFetching ? 'Actualizando...' : 'Actualizar'}
+                <Button asChild variant="ghost" size="sm">
+                  <Link href={`/admin/productos/salud?pais=${country}`}>
+                    <ListChecks className="mr-2 h-4 w-4" aria-hidden />
+                    Salud del catálogo
+                  </Link>
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={handleExport}
-                  disabled={isExporting}
-                >
-                  <ArrowDownTrayIcon className="h-4 w-4" />
-                  {isExporting ? 'Exportando...' : 'Exportar Catálogo'}
+                <Button variant="ghost" size="sm" onClick={() => void list.refetch()} disabled={list.isFetching}>
+                  <RefreshCw className={`mr-2 h-4 w-4 ${list.isFetching ? 'animate-spin' : ''}`} aria-hidden />
+                  {list.isFetching ? 'Actualizando…' : 'Actualizar'}
                 </Button>
-                {hasActiveFilters && (
-                  <Button variant="outline" size="sm" onClick={resetFilters}>
-                    Limpiar filtros
-                  </Button>
-                )}
+                <Button variant="outline" size="sm" onClick={() => void handleExport()} disabled={isExporting}>
+                  <Download className="mr-2 h-4 w-4" aria-hidden />
+                  {isExporting ? 'Exportando…' : hasActiveFilters ? 'Exportar resultados (CSV)' : 'Exportar catálogo (CSV)'}
+                </Button>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:gap-4">
-              <div className="lg:col-span-4">
-                <label className="block text-xs font-medium text-gray-500 mb-1">Buscar por nombre</label>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-12">
+              <form
+                className="lg:col-span-5"
+                role="search"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setParams({ search: searchInput.trim() || null });
+                }}
+              >
+                <Label htmlFor={`${ids}-search`} className="mb-1 block text-xs">
+                  Buscar por nombre o clave
+                </Label>
+                <div className="flex gap-2">
                   <div className="relative flex-1">
-                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Nombre del producto..."
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" aria-hidden />
+                    <Input
+                      id={`${ids}-search`}
+                      type="search"
                       value={searchInput}
                       onChange={(e) => setSearchInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleSearch();
-                        }
-                      }}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
+                      placeholder="Ej.: colágeno"
+                      className="pl-9"
                     />
                   </div>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="h-10 px-4 sm:min-w-[96px]"
-                    onClick={handleSearch}
-                  >
-                    Buscar
+                  <Button type="submit">Buscar</Button>
+                </div>
+              </form>
+
+              <form
+                className="lg:col-span-3"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setParams({ sku: skuInput.trim().toUpperCase() || null });
+                }}
+              >
+                <Label htmlFor={`${ids}-sku`} className="mb-1 block text-xs">
+                  Clave exacta
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    id={`${ids}-sku`}
+                    value={skuInput}
+                    onChange={(e) => setSkuInput(e.target.value)}
+                    placeholder="Ej.: 3025"
+                    className="font-mono"
+                  />
+                  <Button type="submit" variant="outline">
+                    Ir
                   </Button>
                 </div>
-              </div>
+              </form>
 
-              <div className="lg:col-span-3">
-                <label className="block text-xs font-medium text-gray-500 mb-1">SKU exacto</label>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <div className="relative flex-1">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">#</span>
-                    <input
-                      type="text"
-                      placeholder="Ej: 9019"
-                      value={codeInput}
-                      onChange={(e) => setCodeInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleCodeSearch();
-                        }
-                      }}
-                      className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent font-mono"
-                    />
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-10 px-4 sm:min-w-[80px]"
-                    onClick={handleCodeSearch}
-                  >
-                    SKU
-                  </Button>
-                </div>
-              </div>
-
-              <div className="lg:col-span-3">
-                <label className="block text-xs font-medium text-gray-500 mb-1">Categoría</label>
+              <div className="lg:col-span-4">
+                <Label htmlFor={`${ids}-category`} className="mb-1 block text-xs">
+                  Categoría
+                </Label>
                 <SearchableSelect
-                  options={categories?.map((category) => ({ value: category.id, label: category.name })) || []}
-                  value={filterCategoryId}
-                  onChange={handleFilterCategory}
-                  allLabel="Todas las Categorías"
+                  id={`${ids}-category`}
+                  options={categories.map((c) => ({ value: c.id, label: c.name }))}
+                  value={categoryId}
+                  onChange={(v) => setParams({ categoryId: v || null })}
+                  allLabel="Todas las categorías"
                   className="w-full"
                 />
               </div>
 
-              <div className="lg:col-span-2">
-                <label className="block text-xs font-medium text-gray-500 mb-1">Estado</label>
+              <div className="lg:col-span-3">
+                <Label htmlFor={`${ids}-tipo`} className="mb-1 block text-xs">
+                  Tipo
+                </Label>
                 <SearchableSelect
+                  id={`${ids}-tipo`}
+                  options={PRODUCTS_TAB_TYPES.map((t) => ({ value: t, label: PRODUCT_TYPE_LABEL[t] ?? t }))}
+                  value={tipo}
+                  onChange={(v) => setParams({ tipo: v || null })}
+                  allLabel="Todos los tipos"
+                  className="w-full"
+                />
+              </div>
+              <div className="lg:col-span-3">
+                <Label htmlFor={`${ids}-status`} className="mb-1 block text-xs">
+                  Estado
+                </Label>
+                <SearchableSelect
+                  id={`${ids}-status`}
                   options={[
                     { value: 'active', label: 'Activos' },
                     { value: 'inactive', label: 'Inactivos' },
                   ]}
-                  value={filterStatus}
-                  onChange={handleFilterStatus}
-                  allLabel="Todos los Estados"
+                  value={status}
+                  onChange={(v) => setParams({ status: v })}
+                  allLabel="Activos e inactivos"
                   allValue="all"
                   className="w-full"
                 />
               </div>
+              <div className="lg:col-span-3">
+                <Label htmlFor={`${ids}-tienda`} className="mb-1 block text-xs">
+                  Visible en tienda
+                </Label>
+                <SearchableSelect id={`${ids}-tienda`} options={YES_NO} value={tienda} onChange={(v) => setParams({ tienda: v || null })} allLabel="Indistinto" className="w-full" />
+              </div>
+              <div className="lg:col-span-3">
+                <Label htmlFor={`${ids}-pos`} className="mb-1 block text-xs">
+                  Disponible en POS
+                </Label>
+                <SearchableSelect id={`${ids}-pos`} options={YES_NO} value={pos} onChange={(v) => setParams({ pos: v || null })} allLabel="Indistinto" className="w-full" />
+              </div>
+              <div className="lg:col-span-3">
+                <Label htmlFor={`${ids}-destacado`} className="mb-1 block text-xs">
+                  Destacado
+                </Label>
+                <SearchableSelect id={`${ids}-destacado`} options={YES_NO} value={destacado} onChange={(v) => setParams({ destacado: v || null })} allLabel="Indistinto" className="w-full" />
+              </div>
+              <div className="lg:col-span-3">
+                <Label htmlFor={`${ids}-pais`} className="mb-1 block text-xs">
+                  País de referencia
+                </Label>
+                <SearchableSelect
+                  id={`${ids}-pais`}
+                  options={STORE_COUNTRY_CODES.map((cc) => ({ value: cc, label: STORE_COUNTRY_NAME[cc] }))}
+                  value={country}
+                  onChange={(v) => setParams({ pais: v || 'MX' })}
+                  showAllOption={false}
+                  className="w-full"
+                />
+              </div>
+              <div className="lg:col-span-3">
+                <Label htmlFor={`${ids}-precio`} className="mb-1 block text-xs">
+                  Precio público en {country}
+                </Label>
+                <SearchableSelect
+                  id={`${ids}-precio`}
+                  options={[
+                    { value: 'con', label: 'Con precio' },
+                    { value: 'sin', label: 'Sin precio' },
+                  ]}
+                  value={precio}
+                  onChange={(v) => setParams({ precio: v || null })}
+                  allLabel="Indistinto"
+                  className="w-full"
+                />
+              </div>
+              <div className="lg:col-span-3">
+                <Label htmlFor={`${ids}-imagen`} className="mb-1 block text-xs">
+                  Imagen
+                </Label>
+                <SearchableSelect
+                  id={`${ids}-imagen`}
+                  options={[
+                    { value: 'con', label: 'Con imagen' },
+                    { value: 'sin', label: 'Sin imagen' },
+                  ]}
+                  value={imagen}
+                  onChange={(v) => setParams({ imagen: v || null })}
+                  allLabel="Indistinto"
+                  className="w-full"
+                />
+              </div>
+
+              <div className="lg:col-span-12">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="outline" className="w-full justify-between sm:w-auto">
+                      Le falta…{missing.length > 0 ? ` (${missing.length})` : ''}
+                      <ChevronDown className="ml-2 h-4 w-4" aria-hidden />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="start" className="max-h-80 w-80 overflow-y-auto">
+                    <fieldset>
+                      <legend className="mb-2 text-sm font-semibold text-gray-900">Productos a los que les falta…</legend>
+                      <ul className="space-y-1">
+                        {HEALTH_ISSUE_BASES.map((base) => {
+                          const checkboxId = `${ids}-falta-${base}`;
+                          return (
+                            <li key={base} className="flex min-h-9 items-center gap-2">
+                              <Checkbox id={checkboxId} checked={missing.includes(base)} onCheckedChange={() => toggleMissing(base)} />
+                              <Label htmlFor={checkboxId} className="cursor-pointer text-sm font-normal">
+                                {healthIssueLabel(issueCodeFor(base, country))}
+                              </Label>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </fieldset>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
 
-            {hasActiveFilters && (
-              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-                <span className="rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-700">
-                  Filtros activos
-                </span>
-                {searchQuery && (
-                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
-                    Búsqueda: {searchQuery}
+            {chips.length > 0 ? (
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                {chips.map((chip) => (
+                  <span key={chip.key} className="inline-flex items-center gap-1 rounded-full bg-gray-100 py-1 pl-3 pr-1 text-xs text-gray-900">
+                    {chip.label}
+                    <button
+                      type="button"
+                      onClick={chip.clear}
+                      className="flex h-6 w-6 items-center justify-center rounded-full hover:bg-gray-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3E667D]"
+                      aria-label={`Quitar filtro ${chip.label}`}
+                    >
+                      <X className="h-3.5 w-3.5" aria-hidden />
+                    </button>
                   </span>
-                )}
-                {filterCode && (
-                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700 font-mono">
-                    SKU: {filterCode}
-                  </span>
-                )}
-                {filterCategoryId && (
-                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
-                    Categoría: {categories?.find(c => c.id === filterCategoryId)?.name || filterCategoryId}
-                  </span>
-                )}
-                {filterStatus !== 'all' && (
-                  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
-                    Estado: {filterStatus === 'active' ? 'Activos' : 'Inactivos'}
-                  </span>
-                )}
+                ))}
+                <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={resetFilters}>
+                  Limpiar filtros
+                </Button>
               </div>
-            )}
+            ) : null}
           </CardContent>
         </Card>
 
+        {/* ---------- Tabla ---------- */}
         <Card className="border-gray-100 shadow-sm">
-          <CardContent className="p-6">
+          <CardContent className="p-4 sm:p-6">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-base font-semibold text-gray-900">Catálogo de productos</h2>
-              <p className="text-sm text-gray-600">
-                Mostrando {products.length} de {total}
+              <p className="text-sm text-gray-700" aria-live="polite">
+                Mostrando {rows.length} de {formatNumber(total)}
               </p>
             </div>
 
-            <div className="relative">
-              {isFetching && products.length > 0 && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-[1px] rounded-lg">
-                  <div className="flex items-center gap-2 bg-white border border-gray-200 shadow-sm rounded-full px-4 py-2">
-                    <ArrowPathIcon className="h-4 w-4 text-[#3E667D] animate-spin" />
-                    <span className="text-sm font-medium text-gray-600">Actualizando...</span>
-                  </div>
+            {canSelect && rows.length > 0 ? (
+              <div
+                className="mb-3 flex flex-col gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+                role="region"
+                aria-label="Acciones masivas"
+              >
+                <div className="flex flex-wrap items-center gap-2 text-sm text-gray-800">
+                  {selectedIds.length === 0 ? (
+                    <Button type="button" variant="link" size="sm" className="h-auto p-0" onClick={() => setSelectedIds(rows.map((r) => r.id))}>
+                      Seleccionar los {rows.length} de esta página
+                    </Button>
+                  ) : (
+                    <>
+                      <span className="font-semibold" aria-live="polite">
+                        {selectedIds.length} {selectedIds.length === 1 ? 'seleccionado' : 'seleccionados'} de esta página
+                      </span>
+                      <Button type="button" variant="link" size="sm" className="h-auto p-0" onClick={() => setSelectedIds([])}>
+                        Quitar selección
+                      </Button>
+                    </>
+                  )}
                 </div>
-              )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button type="button" variant="outline" size="sm" disabled={selectedIds.length === 0}>
+                      Acciones masivas
+                      <ChevronDown className="ml-1 h-4 w-4" aria-hidden />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    {availableBulk.map((meta) => (
+                      <DropdownMenuItem
+                        key={meta.action}
+                        onSelect={() => {
+                          setBulkCategoryId('');
+                          setBulkMeta(meta);
+                        }}
+                        className={meta.destructive ? 'text-red-700 focus:text-red-800' : undefined}
+                      >
+                        {meta.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            ) : null}
 
+            <div className={list.isFetching && rows.length > 0 ? 'opacity-60 transition-opacity' : undefined} aria-busy={list.isFetching}>
               <DataTable
                 columns={columns}
-                data={products}
-                isLoading={isLoading && !productsData}
-                getRowKey={(product) => product.id}
-                minWidthClassName="min-w-[1100px]"
+                data={rows}
+                isLoading={list.isLoading && !list.data}
+                getRowKey={(row) => row.id}
+                minWidthClassName="min-w-[1180px]"
+                sortingMode="server"
+                sortState={sortState}
+                onSortChange={handleSortChange}
+                enableRowSelection={canSelect}
+                selectedRowKeys={selectedIds}
+                onSelectedRowKeysChange={setSelectedIds}
+                rowClassName={(row) =>
+                  `border-b border-border transition-colors hover:bg-muted/50 ${row.isActive ? '' : 'bg-gray-50/70'}`
+                }
                 emptyState={
-                  <div className="py-2 text-center">
-                    <ShoppingBagIcon className="mx-auto mb-4 h-16 w-16 text-gray-400" />
-                    <h3 className="mb-2 text-xl font-bold text-gray-900">
-                      No se encontraron productos
-                    </h3>
-                    <p className="text-gray-600">
-                      Intenta ajustar los filtros de búsqueda o crear un nuevo producto.
+                  <div className="py-4 text-center">
+                    <Package className="mx-auto mb-3 h-12 w-12 text-gray-500" aria-hidden />
+                    <h3 className="mb-1 text-lg font-bold text-gray-900">No se encontraron productos</h3>
+                    <p className="text-sm text-gray-700">
+                      {hasActiveFilters ? 'Ningún producto cumple todos los filtros.' : 'Aún no hay productos en el catálogo.'}
                     </p>
                     <div className="mt-4 flex justify-center gap-2">
-                      {hasActiveFilters && (
+                      {hasActiveFilters ? (
                         <Button variant="outline" onClick={resetFilters}>
                           Limpiar filtros
                         </Button>
-                      )}
-                      <Link href="/admin/productos/nuevo">
-                        <Button variant="default">
-                          <PlusIcon className="h-4 w-4" />
-                          Nuevo Producto
+                      ) : null}
+                      {permissions.canCreate ? (
+                        <Button asChild>
+                          <Link href="/admin/productos/nuevo">
+                            <Plus className="mr-1 h-4 w-4" aria-hidden />
+                            Nuevo producto
+                          </Link>
                         </Button>
-                      </Link>
+                      ) : null}
                     </div>
                   </div>
                 }
               />
             </div>
 
-            {products.length > 0 && (
+            {rows.length > 0 ? (
               <DataTablePagination
                 currentPage={currentPage}
                 pageSize={pageSize}
                 totalItems={total}
-                isLoading={isLoading || isFetching}
+                isLoading={list.isFetching}
                 onPageChange={(p) => setParams({ page: String(p) })}
-                onPageSizeChange={handlePageSizeChange}
+                onPageSizeChange={(size) => setParams({ limit: String(size), page: null })}
                 pageSizeOptions={[10, 20, 50, 100]}
               />
-            )}
+            ) : null}
           </CardContent>
         </Card>
       </div>
 
-      {deleteModalOpen && productToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black/50" onClick={handleCloseDeleteModal} />
-          <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full mx-4">
-            <div className="bg-red-600 rounded-t-2xl px-6 py-4">
-              <div className="flex items-center gap-3">
-                <ExclamationTriangleIcon className="h-6 w-6 text-white" />
-                <h3 className="text-lg font-semibold text-white">Eliminar producto</h3>
-              </div>
+      {/* ---------- Confirmación de acción masiva: alcance real ---------- */}
+      <ConfirmDialog
+        open={!!bulkMeta}
+        onOpenChange={(open) => {
+          if (!open) setBulkMeta(null);
+        }}
+        title={bulkMeta ? `${bulkMeta.scope} ${selectedIds.length} ${selectedIds.length === 1 ? 'producto' : 'productos'}` : ''}
+        description={bulkMeta?.note ?? 'Solo afecta a los productos seleccionados en esta página.'}
+        confirmLabel={bulkMeta?.label ?? 'Confirmar'}
+        confirmText={bulkMeta?.confirmText}
+        destructive={bulkMeta?.destructive}
+        isPending={bulk.isPending}
+        disabled={bulkMeta?.action === 'set_category' && !bulkCategoryId}
+        onConfirm={runBulk}
+      >
+        <div className="space-y-3">
+          {bulkMeta?.action === 'set_category' ? (
+            <div className="space-y-1.5">
+              <Label htmlFor={`${ids}-bulk-category`}>Nueva categoría</Label>
+              <SearchableSelect
+                id={`${ids}-bulk-category`}
+                options={categories.map((c) => ({ value: c.id, label: c.name }))}
+                value={bulkCategoryId}
+                onChange={setBulkCategoryId}
+                showAllOption={false}
+                placeholder="Elige una categoría"
+                className="w-full"
+              />
             </div>
-
-            <div className="px-6 py-5">
-              <p className="text-gray-600 mb-4">
-                Estás a punto de eliminar el producto:
-              </p>
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
-                <p className="font-semibold text-gray-900">{productToDelete.name}</p>
-                <p className="text-sm text-gray-600">SKU: <code className="bg-red-100 px-1.5 py-0.5 rounded text-xs">{productToDelete.code}</code></p>
-                {productToDelete.categoryName && (
-                  <p className="text-sm text-gray-500 mt-1">Categoría: {productToDelete.categoryName}</p>
-                )}
-              </div>
-              <p className="text-sm text-red-700 font-medium mb-4">
-                Esta acción eliminará el producto del catálogo y no se puede deshacer.
-              </p>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Escribe <span className="font-bold text-red-600">ELIMINAR</span> para confirmar:
-                </label>
-                <input
-                  type="text"
-                  value={deleteConfirmText}
-                  onChange={(e) => setDeleteConfirmText(e.target.value)}
-                  placeholder="ELIMINAR"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-sm"
-                  autoFocus
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && deleteConfirmText === 'ELIMINAR') {
-                      handleConfirmDelete();
-                    }
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
-              <Button variant="outline" onClick={handleCloseDeleteModal} disabled={isDeleting}>
-                Cancelar
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleConfirmDelete}
-                disabled={isDeleting || (deleteConfirmText !== 'ELIMINAR' || isDeleting)}
-              >
-                {isDeleting && <Loader2 className="mr-2 size-4 animate-spin" />}
-                Eliminar producto
-              </Button>
-            </div>
-          </div>
+          ) : null}
+          <ul className="max-h-40 list-disc space-y-0.5 overflow-y-auto pl-5 text-sm">
+            {rows
+              .filter((r) => selectedIds.includes(r.id))
+              .map((r) => (
+                <li key={r.id}>
+                  <span className="font-mono text-xs">{r.code}</span> · {r.name}
+                </li>
+              ))}
+          </ul>
         </div>
-      )}
+      </ConfirmDialog>
+
+      <DuplicateProductDialog
+        source={duplicateSource ? { id: duplicateSource.id, code: duplicateSource.code, name: duplicateSource.name } : null}
+        onOpenChange={(open) => {
+          if (!open) setDuplicateSource(null);
+        }}
+      />
+      <ProductActiveDialog
+        target={activeTarget}
+        onOpenChange={(open) => {
+          if (!open) setActiveTarget(null);
+        }}
+      />
     </>
   );
 }
