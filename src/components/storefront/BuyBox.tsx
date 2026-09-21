@@ -41,7 +41,9 @@ export const BuyBox = forwardRef<HTMLDivElement, BuyBoxProps>(function BuyBox(
   const t = useTranslations('storefront.product');
   const soldOut = product.availability === 'out_of_stock';
   const { shipping } = product;
-  const freeFrom = formatStorePrice(shipping.freeThreshold, shipping.currencyCode, lang);
+  // El checkout nunca le da envío gratis por monto a un distribuidor: no se le promete.
+  const freeFrom =
+    shipping.freeShippingEligible === false ? null : formatStorePrice(shipping.freeThreshold, shipping.currencyCode, lang);
   const flatCost = formatStorePrice(shipping.flatCost, shipping.currencyCode, lang);
 
   return (

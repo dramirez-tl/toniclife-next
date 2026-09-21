@@ -51,6 +51,8 @@ export interface CartItem {
   pointsPerUnit?: number;
   /** Tope de la línea = min(disponible, máximo por línea) (API C1). */
   maxQuantity?: number;
+  /** Por qué la línea tiene ese tope: máximo por pedido de la tienda o existencias. */
+  maxQuantityReason?: 'order_max' | 'stock';
   productImageUrl?: string;
   lotNumber?: string;
   /** Stock disponible en el almacén del país; undefined = desconocido. */

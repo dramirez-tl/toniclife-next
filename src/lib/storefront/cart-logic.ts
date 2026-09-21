@@ -17,6 +17,8 @@ export interface CartLineLike {
   slug?: string | null;
   productSlug?: string | null;
   maxQuantity?: number | null;
+  /** Motivo del tope que manda el API: máximo por pedido o existencias. */
+  maxQuantityReason?: 'order_max' | 'stock' | null;
   availableStock?: number | null;
   inStock?: boolean;
 }
@@ -57,6 +59,8 @@ export interface LineLimit {
  * Sin ambos datos no se puede afirmar: se trata como existencias (texto previo).
  */
 export function capReason(item: CartLineLike): CapReason {
+  // El API ya no manda la existencia exacta, así que dice él mismo el motivo del tope.
+  if (item.maxQuantityReason === 'order_max' || item.maxQuantityReason === 'stock') return item.maxQuantityReason;
   const max = wholeOrNull(item.maxQuantity);
   const stock = wholeOrNull(item.availableStock);
   return max !== null && stock !== null && max > 0 && max < stock ? 'order_max' : 'stock';
@@ -258,6 +262,9 @@ export function freeShippingEligible(input: FreeShippingEligibilityInput): boole
   const cartCurrency = knownCartCurrency(input);
   const shippingCurrency = (input.shippingCurrencyCode || '').trim().toUpperCase();
   if (!cartCurrency || !shippingCurrency || cartCurrency !== shippingCurrency) return false;
+  // Sesión de distribuidor pero el API lo cotizó como anónimo (token vencido): su `true` es
+  // de anónimo; no se promete nada hasta que se recupere la sesión.
+  if (input.apiEligible && input.hasCustomerSession && input.distributorSession && input.priceTier === 'public') return false;
   if (typeof input.apiEligible === 'boolean') return input.apiEligible;
   // Provisional (API sin `freeShippingEligible`): el rol no distingue distribuidor de
   // preferente, así que con sesión de distribuidor solo es elegible a quien el API ya

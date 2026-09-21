@@ -115,6 +115,9 @@ describe('tope de cantidad', () => {
     expect(capReason({ quantity: 1, maxQuantity: 20 })).toBe('stock'); // sin existencias no se puede afirmar
     expect(capReason({ quantity: 1, availableStock: 50 })).toBe('stock');
     expect(capReason({ quantity: 1, maxQuantity: 0, availableStock: 9 })).toBe('stock'); // agotado, no "por pedido"
+    // El API ya no manda la existencia exacta (viaja topada): el motivo lo dice él.
+    expect(capReason({ quantity: 1, maxQuantity: 20, availableStock: 20, maxQuantityReason: 'order_max' })).toBe('order_max');
+    expect(capReason({ quantity: 1, maxQuantity: 3, availableStock: 3, maxQuantityReason: 'stock' })).toBe('stock');
   });
 
   it('agotado o negativo nunca deja el campo en 0', () => {
@@ -314,7 +317,10 @@ describe('freeShippingEligible (moneda garantizada + a quién el checkout SÍ le
   it('manda shipping.freeShippingEligible del API cuando viene (false para distribuidores)', () => {
     const base = { ...distributor, viewerCurrencyCode: 'MXN', countryCode: 'MX', shippingCurrencyCode: 'MXN' };
     expect(freeShippingEligible({ ...base, apiEligible: false, priceTier: 'public' })).toBe(false);
-    expect(freeShippingEligible({ ...base, apiEligible: true, priceTier: 'public' })).toBe(true);
+    expect(freeShippingEligible({ ...base, apiEligible: true, priceTier: 'preferred' })).toBe(true);
+    // Sesión de distribuidor cotizada como anónimo (token vencido): el `true` es de anónimo.
+    // No se promete nada hasta recuperar la sesión: nunca prometer de más.
+    expect(freeShippingEligible({ ...base, apiEligible: true, priceTier: 'public' })).toBe(false);
   });
 
   it('provisional sin el campo del API: sesión de distribuidor NO elegible aunque cotice a precio público', () => {
