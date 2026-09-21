@@ -1,6 +1,10 @@
 // labels.ts — textos en español y mapeos del catálogo admin (ficha, listado, salud).
 
-import type { StoreCountryCode } from '@/services/products-admin.service';
+import type {
+  CatalogAdminSortBy,
+  CatalogBulkAction,
+  StoreCountryCode,
+} from '@/services/products-admin.service';
 
 /** sessionStorage: filtros del listado, para que "Regresar" en la ficha vuelva a ellos. */
 export const PRODUCTS_LIST_RETURN_KEY = 'tl_admin_products_list_qs';
@@ -64,8 +68,15 @@ export const PRODUCT_TYPE_LABEL: Record<string, string> = {
 export const productTypeLabel = (type: string | null | undefined): string =>
   (type && PRODUCT_TYPE_LABEL[type]) || type || '—';
 
-/** Tipos que lista la pestaña Productos (kits y promociones tienen pestaña propia). */
-export const PRODUCTS_TAB_TYPES = ['finished_good', 'pack', 'raw_material', 'virtual', 'service'];
+/**
+ * Tipos que lista la pestaña Productos (kits y promociones tienen pestaña propia).
+ * DEBE ser subconjunto de CATALOG_PRODUCT_TYPES del API (`@IsIn` → 400 si no):
+ * `virtual` NO existe ni en el API ni en el CHECK de BD. Lo fija lib/labels.test.ts.
+ */
+export const PRODUCTS_TAB_TYPES = ['finished_good', 'pack', 'raw_material', 'service'];
+
+/** Tipos que ofrece el alta de producto (mismos de la pestaña: la BD rechaza cualquier otro). */
+export const CREATE_PRODUCT_TYPES = PRODUCTS_TAB_TYPES;
 
 /** Tipos que la tienda pública puede vender (candado de tienda, contrato §1.2). */
 export const SELLABLE_TYPES = ['finished_good', 'pack'];
@@ -215,4 +226,48 @@ export const PRICE_WARNING_LABEL: Record<string, string> = {
   PUBLIC_LT_DISTRIBUTOR: 'El precio público es menor que el de distribuidor.',
   PREFERRED_GT_PUBLIC: 'El precio preferente es mayor que el público.',
   ZERO_PRICE: 'Hay un precio en cero.',
+};
+
+// ================================
+// Listado: orden y acciones masivas (valores que VALIDA el API; los fija labels.test.ts)
+// ================================
+/** Columnas ordenables del listado: subconjunto de CATALOG_SORT_FIELDS del API. */
+export const CATALOG_LIST_SORT_KEYS: CatalogAdminSortBy[] = ['name', 'code', 'price', 'score', 'updatedAt'];
+
+export interface BulkActionMeta {
+  action: CatalogBulkAction;
+  label: string;
+  /** Verbo + complemento para el diálogo: "Ocultar de la tienda". */
+  scope: string;
+  needsDelete?: boolean;
+  destructive?: boolean;
+  confirmText?: string;
+  note?: string;
+}
+
+export const BULK_ACTIONS: BulkActionMeta[] = [
+  { action: 'show_store', label: 'Mostrar en tienda', scope: 'Mostrar en la tienda', note: 'Se omiten los tipos que la tienda no vende (solo productos y paquetes).' },
+  { action: 'hide_store', label: 'Ocultar de la tienda', scope: 'Ocultar de la tienda', destructive: true },
+  { action: 'enable_pos', label: 'Habilitar en POS', scope: 'Habilitar en el POS' },
+  { action: 'disable_pos', label: 'Quitar del POS', scope: 'Quitar del POS', destructive: true },
+  { action: 'feature', label: 'Destacar', scope: 'Marcar como destacados' },
+  { action: 'unfeature', label: 'Quitar destacado', scope: 'Quitar el destacado de' },
+  { action: 'set_category', label: 'Cambiar categoría', scope: 'Cambiar la categoría de' },
+  { action: 'activate', label: 'Activar', scope: 'Activar', needsDelete: true },
+  {
+    action: 'deactivate',
+    label: 'Desactivar',
+    scope: 'Desactivar',
+    needsDelete: true,
+    destructive: true,
+    confirmText: 'DESACTIVAR',
+    note: 'Dejarán de venderse en tienda y POS. Se pueden reactivar cuando quieras.',
+  },
+];
+
+export const BULK_SKIP_REASON_LABEL: Record<string, string> = {
+  enrollment_kit: 'kit de inscripción',
+  not_sellable_type: 'tipo que la tienda no vende',
+  not_found: 'ya no existe',
+  unchanged: 'ya estaba así',
 };

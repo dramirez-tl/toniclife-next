@@ -14,7 +14,7 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { KitPosition, ProductType } from '@/types/product';
 import type { AdminUpdateProductDto } from '@/services/products-admin.service';
-import { PRODUCT_TYPE_LABEL } from '../../lib/labels';
+import { CREATE_PRODUCT_TYPES, PRODUCT_TYPE_LABEL } from '../../lib/labels';
 import { useProductForm } from '../ProductFormContext';
 import { SectionCard } from '../SectionCard';
 import { SwitchField, TextField } from '../fields';
@@ -44,8 +44,6 @@ const schema = z.object({
 });
 
 type BasicValues = z.infer<typeof schema>;
-
-const CREATE_TYPES = ['finished_good', 'pack', 'raw_material', 'virtual', 'service'];
 
 export function BasicSection() {
   const { mode, product, patchProduct } = useProductForm();
@@ -122,7 +120,7 @@ export function BasicSection() {
   const productType = useWatch({ control, name: 'productType' });
 
   const typeOptions = useMemo(() => {
-    const codes = [...CREATE_TYPES];
+    const codes = [...CREATE_PRODUCT_TYPES];
     // Kits y promociones se crean en su propio módulo; solo se listan si el producto YA lo es.
     const own = product?.productType;
     if (own && !codes.includes(own)) codes.push(own);

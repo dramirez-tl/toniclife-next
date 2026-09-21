@@ -56,6 +56,9 @@ import { ProductActiveDialog, type ProductActiveTarget } from '@/components/admi
 import { buildCsv, downloadCsv, fileDateStamp } from '@/components/admin/products/lib/csv';
 import { productAdminErrorCode, productAdminErrorMessage } from '@/components/admin/products/lib/errors';
 import {
+  BULK_ACTIONS,
+  BULK_SKIP_REASON_LABEL,
+  CATALOG_LIST_SORT_KEYS,
   HEALTH_ISSUE_BASES,
   PRODUCTS_LIST_RETURN_KEY,
   PRODUCTS_TAB_TYPES,
@@ -69,6 +72,7 @@ import {
   issueCodeFor,
   productTypeLabel,
   scoreTone,
+  type BulkActionMeta,
 } from '@/components/admin/products/lib/labels';
 import { useProductPermissions } from '@/components/admin/products/lib/permissions';
 import {
@@ -85,7 +89,6 @@ import {
   type CatalogAdminListParams,
   type CatalogAdminRow,
   type CatalogAdminSortBy,
-  type CatalogBulkAction,
   type StoreCountryCode,
 } from '@/services/products-admin.service';
 
@@ -93,8 +96,7 @@ const formatNumber = (n: number) => new Intl.NumberFormat('es-MX').format(n);
 
 const FILTER_DEFAULTS = { status: 'all', page: '1', limit: '20', pais: 'MX' };
 
-const SORT_KEYS: CatalogAdminSortBy[] = ['name', 'code', 'price', 'score', 'updatedAt'];
-const isSortKey = (v: string): v is CatalogAdminSortBy => (SORT_KEYS as string[]).includes(v);
+const isSortKey = (v: string): v is CatalogAdminSortBy => (CATALOG_LIST_SORT_KEYS as string[]).includes(v);
 const isCountry = (v: string): v is StoreCountryCode => (STORE_COUNTRY_CODES as string[]).includes(v);
 
 const COUNTRY_LOCALE: Record<StoreCountryCode, string> = { MX: 'es-mx', US: 'en-us', CO: 'es-co', GT: 'es-gt' };
@@ -104,44 +106,6 @@ const YES_NO = [
   { value: 'no', label: 'No' },
 ];
 const triState = (v: string): boolean | undefined => (v === 'si' ? true : v === 'no' ? false : undefined);
-
-interface BulkActionMeta {
-  action: CatalogBulkAction;
-  label: string;
-  /** Verbo + complemento para el diálogo: "Ocultar de la tienda". */
-  scope: string;
-  needsDelete?: boolean;
-  destructive?: boolean;
-  confirmText?: string;
-  note?: string;
-}
-
-const BULK_ACTIONS: BulkActionMeta[] = [
-  { action: 'show_store', label: 'Mostrar en tienda', scope: 'Mostrar en la tienda', note: 'Se omiten los tipos que la tienda no vende (solo productos y paquetes).' },
-  { action: 'hide_store', label: 'Ocultar de la tienda', scope: 'Ocultar de la tienda', destructive: true },
-  { action: 'enable_pos', label: 'Habilitar en POS', scope: 'Habilitar en el POS' },
-  { action: 'disable_pos', label: 'Quitar del POS', scope: 'Quitar del POS', destructive: true },
-  { action: 'feature', label: 'Destacar', scope: 'Marcar como destacados' },
-  { action: 'unfeature', label: 'Quitar destacado', scope: 'Quitar el destacado de' },
-  { action: 'set_category', label: 'Cambiar categoría', scope: 'Cambiar la categoría de' },
-  { action: 'activate', label: 'Activar', scope: 'Activar', needsDelete: true },
-  {
-    action: 'deactivate',
-    label: 'Desactivar',
-    scope: 'Desactivar',
-    needsDelete: true,
-    destructive: true,
-    confirmText: 'DESACTIVAR',
-    note: 'Dejarán de venderse en tienda y POS. Se pueden reactivar cuando quieras.',
-  },
-];
-
-const SKIP_REASON_LABEL: Record<string, string> = {
-  enrollment_kit: 'kit de inscripción',
-  not_sellable_type: 'tipo que la tienda no vende',
-  not_found: 'ya no existe',
-  unchanged: 'ya estaba así',
-};
 
 export function ProductosTab() {
   const ids = useId();
@@ -284,7 +248,7 @@ export function ProductosTab() {
       const skippedByReason = new Map<string, number>();
       for (const s of result.skipped) skippedByReason.set(s.reason, (skippedByReason.get(s.reason) ?? 0) + 1);
       const skippedText = Array.from(skippedByReason.entries())
-        .map(([reason, n]) => `${n} ${SKIP_REASON_LABEL[reason] ?? reason}`)
+        .map(([reason, n]) => `${n} ${BULK_SKIP_REASON_LABEL[reason] ?? reason}`)
         .join(', ');
       const message = `${bulkMeta.label}: ${result.updated} ${result.updated === 1 ? 'actualizado' : 'actualizados'}${
         result.skipped.length > 0 ? ` · ${result.skipped.length} omitidos (${skippedText})` : ''
