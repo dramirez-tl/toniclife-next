@@ -16,6 +16,7 @@
 
 import { useId, useState, type ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
+import { matchesConfirmText, type ConfirmTextMatch } from '@/lib/confirm-text';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -40,6 +41,11 @@ export interface ConfirmDialogProps {
   cancelLabel?: string;
   /** Si viene, el usuario debe teclearlo EXACTO para habilitar el botón. */
   confirmText?: string;
+  /**
+   * Cómo se compara lo tecleado. `exact` (por defecto): idéntico. `loose`:
+   * ignora mayúsculas y acentos (para confirmar con un NOMBRE, p. ej. un país).
+   */
+  confirmMatch?: ConfirmTextMatch;
   isPending?: boolean;
   /** Bloquea el botón principal por reglas propias del que llama. */
   disabled?: boolean;
@@ -58,6 +64,7 @@ export function ConfirmDialog({
   confirmLabel = 'Confirmar',
   cancelLabel = 'Cancelar',
   confirmText,
+  confirmMatch = 'exact',
   isPending = false,
   disabled = false,
   destructive = false,
@@ -84,6 +91,7 @@ export function ConfirmDialog({
           confirmLabel={confirmLabel}
           cancelLabel={cancelLabel}
           confirmText={confirmText}
+          confirmMatch={confirmMatch}
           isPending={isPending}
           disabled={disabled}
           destructive={destructive}
@@ -103,6 +111,7 @@ type ConfirmDialogBodyProps = Pick<
 > & {
   confirmLabel: string;
   cancelLabel: string;
+  confirmMatch: ConfirmTextMatch;
   isPending: boolean;
   disabled: boolean;
   destructive: boolean;
@@ -117,6 +126,7 @@ function ConfirmDialogBody({
   confirmLabel,
   cancelLabel,
   confirmText,
+  confirmMatch,
   isPending,
   disabled,
   destructive,
@@ -128,7 +138,7 @@ function ConfirmDialogBody({
   const helpId = `${inputId}-help`;
 
   const needsText = !!confirmText;
-  const textOk = !needsText || typed.trim() === confirmText;
+  const textOk = !needsText || matchesConfirmText(typed, confirmText ?? '', confirmMatch);
   const canConfirm = !isPending && !disabled && textOk;
 
   return (
@@ -150,7 +160,7 @@ function ConfirmDialogBody({
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
             autoComplete="off"
-            autoCapitalize="characters"
+            autoCapitalize={confirmMatch === 'loose' ? 'words' : 'characters'}
             aria-describedby={helpId}
             aria-invalid={typed.length > 0 && !textOk}
             disabled={isPending}
