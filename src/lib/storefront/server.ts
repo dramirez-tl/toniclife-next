@@ -12,6 +12,7 @@ import { normalizeDetailResponse, normalizeListResponse } from './normalize';
 import { currencyForCountry } from './price';
 import { CATALOG_TAG, productTag } from './revalidate-input';
 import { isValidSlug } from './slug';
+import { BoundedTtlMap } from './ttl-map';
 import type {
   StorefrontCategory,
   StorefrontDetailResponse,
@@ -170,7 +171,7 @@ async function getJsonWithStatus(
   path: string,
   query: Record<string, string>,
   options: FetchOptions,
-): Promise<{ status: number | null; body: unknown }> {
+): Promise<StatusResponse> {
   const url = `${storefrontApiBase()}${path}?${new URLSearchParams(query).toString()}`;
   const startedAt = Date.now();
   const first = await getJsonOnce(url, options);
@@ -210,6 +211,38 @@ export async function fetchStorefrontList(
   return data ? { ok: true, data, fetchedAt: Date.now() } : { ok: false, status: body === null ? status : null };
 }
 
+// ─── Memoria corta de fallos del detalle (hallazgo L-3) ───────────────────────
+// Cuando la página del detalle LANZA (429/5xx), Next la renderiza dos veces en la
+// misma petición y `cache()` de React no deduplica entre esos renders: 2 llamadas
+// (intento + reintento) se volvían 4 justo cuando el API ya estaba limitando. El
+// fallo se recuerda unos segundos por país+slug en memoria del módulo: el segundo
+// render (y cualquier visita inmediata al mismo producto) responde el MISMO estado
+// sin tocar el API. Solo fallos transitorios (429, 5xx, sin respuesta): un 404 no se
+// recuerda y un fallo recordado NUNCA se convierte en 404. Es memoria del proceso
+// (cada instancia tiene la suya) y de tamaño acotado: optimización, no garantía.
+
+export const DETAIL_FAILURE_MEMORY_MS = 5 * 1000;
+/** Con `Retry-After` se recuerda lo que pide el API, acotado: la ficha nunca queda "caída" más de 15 s por esto. */
+export const DETAIL_FAILURE_MEMORY_MAX_MS = 15 * 1000;
+const DETAIL_FAILURE_MEMORY_ENTRIES = 500;
+const detailFailures = new BoundedTtlMap<{ status: number | null }>(
+  DETAIL_FAILURE_MEMORY_MS,
+  DETAIL_FAILURE_MEMORY_ENTRIES,
+);
+
+/** Cuánto recordar el fallo, o `null` si no es transitorio (404, 400…: no se recuerda). */
+export function detailFailureMemoryMs(status: number | null, retryAfter: string | null): number | null {
+  if (status !== null && !RETRYABLE_STATUSES.includes(status)) return null;
+  const seconds = status === 429 && retryAfter && /^\d{1,4}$/.test(retryAfter.trim()) ? Number(retryAfter.trim()) : null;
+  if (seconds === null) return DETAIL_FAILURE_MEMORY_MS;
+  return Math.min(DETAIL_FAILURE_MEMORY_MAX_MS, Math.max(DETAIL_FAILURE_MEMORY_MS, seconds * 1000));
+}
+
+/** Solo para pruebas. */
+export function resetDetailFailureMemoryForTests(): void {
+  detailFailures.clear();
+}
+
 /**
  * Detalle por slug, ANÓNIMO. Un slug con formato inválido responde 404 sin ir al
  * API (nunca 500). Respuesta discriminada: ok | moved | unavailable_in_country.
@@ -220,11 +253,20 @@ export async function fetchStorefrontDetail(
   slug: string,
 ): Promise<StorefrontFetch<StorefrontDetailResponse>> {
   if (!isValidSlug(slug)) return { ok: false, status: 404 };
-  const { status, body } = await getJsonWithStatus(
+  const memoryKey = `${country}:${slug}`;
+  const remembered = detailFailures.get(memoryKey, Date.now());
+  if (remembered) return { ok: false, status: remembered.status };
+
+  const { status, body, retryAfter } = await getJsonWithStatus(
     `/storefront/products/${encodeURIComponent(slug)}`,
     { country, lang },
     { revalidate: STOREFRONT_REVALIDATE_SECONDS, tags: [CATALOG_TAG, productTag(slug)] },
   );
+  if (body === null) {
+    const rememberMs = detailFailureMemoryMs(status, retryAfter);
+    if (rememberMs !== null) detailFailures.set(memoryKey, { status }, Date.now(), rememberMs);
+    return { ok: false, status };
+  }
   const data = normalizeDetailResponse(body, currencyForCountry(country));
-  return data ? { ok: true, data, fetchedAt: Date.now() } : { ok: false, status: body === null ? status : null };
+  return data ? { ok: true, data, fetchedAt: Date.now() } : { ok: false, status: null };
 }

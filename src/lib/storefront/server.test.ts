@@ -1,6 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CATALOG_STATE } from './catalog-params';
-import { fetchStorefrontDetail, fetchStorefrontList, retryDelayMs, shouldFetchListOnServer } from './server';
+import {
+  DETAIL_FAILURE_MEMORY_MAX_MS,
+  DETAIL_FAILURE_MEMORY_MS,
+  detailFailureMemoryMs,
+  fetchStorefrontDetail,
+  fetchStorefrontList,
+  resetDetailFailureMemoryForTests,
+  retryDelayMs,
+  shouldFetchListOnServer,
+} from './server';
 
 const LIST_BODY = {
   data: [],
@@ -19,6 +28,8 @@ function jsonResponse(status: number, body: unknown, headers: Record<string, str
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
+  resetDetailFailureMemoryForTests();
 });
 
 describe('retryDelayMs', () => {
@@ -98,5 +109,77 @@ describe('fetchStorefrontDetail', () => {
     expect(throttled).toHaveBeenCalledTimes(2);
     const init = throttled.mock.calls[0][1] as { next?: { tags?: string[] } };
     expect(init.next?.tags).toEqual(['catalog', 'product:3025-crema']);
+  });
+});
+
+describe('memoria corta de fallos del detalle (L-3)', () => {
+  it('detailFailureMemoryMs: solo fallos transitorios; Retry-After acotado', () => {
+    expect(detailFailureMemoryMs(429, null)).toBe(DETAIL_FAILURE_MEMORY_MS);
+    expect(detailFailureMemoryMs(429, '0')).toBe(DETAIL_FAILURE_MEMORY_MS);
+    expect(detailFailureMemoryMs(429, '8')).toBe(8000);
+    expect(detailFailureMemoryMs(429, '3600')).toBe(DETAIL_FAILURE_MEMORY_MAX_MS);
+    expect(detailFailureMemoryMs(429, 'Wed, 21 Oct 2026 07:28:00 GMT')).toBe(DETAIL_FAILURE_MEMORY_MS);
+    expect(detailFailureMemoryMs(503, '3600')).toBe(DETAIL_FAILURE_MEMORY_MS);
+    expect(detailFailureMemoryMs(null, null)).toBe(DETAIL_FAILURE_MEMORY_MS);
+    expect(detailFailureMemoryMs(404, null)).toBeNull();
+    expect(detailFailureMemoryMs(400, null)).toBeNull();
+  });
+
+  it('429 persistente + doble render del error: 2 llamadas en total, y sigue siendo 429 (nunca 404)', async () => {
+    const throttled = vi.fn().mockImplementation(async () => jsonResponse(429, {}, { 'Retry-After': '0' }));
+    vi.stubGlobal('fetch', throttled);
+    // generateMetadata + página + segundo render de la página al lanzar el error.
+    for (let render = 0; render < 3; render += 1) {
+      expect(await fetchStorefrontDetail('MX', 'es', '3025-crema')).toEqual({ ok: false, status: 429 });
+    }
+    expect(throttled).toHaveBeenCalledTimes(2);
+  });
+
+  it('la memoria es por país+slug: otro producto u otro país sí consultan al API', async () => {
+    const throttled = vi.fn().mockImplementation(async () => jsonResponse(429, {}, { 'Retry-After': '0' }));
+    vi.stubGlobal('fetch', throttled);
+    await fetchStorefrontDetail('MX', 'es', '3025-crema');
+    await fetchStorefrontDetail('MX', 'es', '3025-crema');
+    expect(throttled).toHaveBeenCalledTimes(2);
+    await fetchStorefrontDetail('MX', 'es', 'otro-producto');
+    expect(throttled).toHaveBeenCalledTimes(4);
+    await fetchStorefrontDetail('US', 'es', '3025-crema');
+    expect(throttled).toHaveBeenCalledTimes(6);
+  });
+
+  it('5xx y fallo de red también se recuerdan; un 404 NO (cada visita consulta)', async () => {
+    const down = vi.fn().mockImplementation(async () => jsonResponse(503, {}));
+    vi.stubGlobal('fetch', down);
+    expect(await fetchStorefrontDetail('MX', 'es', 'caido')).toEqual({ ok: false, status: 503 });
+    expect(await fetchStorefrontDetail('MX', 'es', 'caido')).toEqual({ ok: false, status: 503 });
+    expect(down).toHaveBeenCalledTimes(2);
+
+    const offline = vi.fn().mockRejectedValue(new TypeError('fetch failed'));
+    vi.stubGlobal('fetch', offline);
+    expect(await fetchStorefrontDetail('MX', 'es', 'sin-red')).toEqual({ ok: false, status: null });
+    expect(await fetchStorefrontDetail('MX', 'es', 'sin-red')).toEqual({ ok: false, status: null });
+    expect(offline).toHaveBeenCalledTimes(2);
+
+    const notFound = vi.fn().mockImplementation(async () => jsonResponse(404, { code: 'STF_PRODUCT_NOT_FOUND' }));
+    vi.stubGlobal('fetch', notFound);
+    await fetchStorefrontDetail('MX', 'es', 'no-existe');
+    await fetchStorefrontDetail('MX', 'es', 'no-existe');
+    expect(notFound).toHaveBeenCalledTimes(2);
+  });
+
+  it('pasados los segundos de memoria se vuelve a consultar al API', async () => {
+    const T0 = 1_800_000_000_000;
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(T0);
+    const throttled = vi.fn().mockImplementation(async () => jsonResponse(429, {}, { 'Retry-After': '0' }));
+    vi.stubGlobal('fetch', throttled);
+    await fetchStorefrontDetail('MX', 'es', '3025-crema');
+    expect(throttled).toHaveBeenCalledTimes(2);
+    vi.setSystemTime(T0 + DETAIL_FAILURE_MEMORY_MS - 1);
+    await fetchStorefrontDetail('MX', 'es', '3025-crema');
+    expect(throttled).toHaveBeenCalledTimes(2);
+    vi.setSystemTime(T0 + DETAIL_FAILURE_MEMORY_MS + 1);
+    await fetchStorefrontDetail('MX', 'es', '3025-crema');
+    expect(throttled).toHaveBeenCalledTimes(4);
   });
 });
