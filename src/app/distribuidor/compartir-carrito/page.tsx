@@ -34,6 +34,20 @@ interface Line {
   name: string;
   code: string;
   quantity: number;
+  /** Tope de piezas por línea que manda el API (`maxQuantity`); sin dato = sin tope aquí. */
+  maxQuantity?: number;
+}
+
+/**
+ * Tope por línea. Esta página NUNCA leyó `stock` (no decide disponibilidad ni pinta
+ * existencias): solo acota la cantidad cuando el API manda un `maxQuantity` positivo.
+ * Con 0 (agotado) o sin dato no se bloquea nada, igual que antes: la existencia se
+ * valida cuando el cliente abre el enlace y paga.
+ */
+function lineCap(maxQuantity: number | null | undefined): number | undefined {
+  return typeof maxQuantity === 'number' && Number.isFinite(maxQuantity) && maxQuantity >= 1
+    ? Math.floor(maxQuantity)
+    : undefined;
 }
 
 export default function CompartirCarritoPage() {
@@ -48,8 +62,8 @@ export default function CompartirCarritoPage() {
 function ProductThumb({ src, name }: { src?: string; name: string }) {
   const [error, setError] = useState(false);
   if (src && !error) {
-    // eslint-disable-next-line @next/next/no-img-element
     return (
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
         alt={name}
@@ -97,15 +111,19 @@ function CompartirCarritoContent() {
   const qtyOf = (productId: string) =>
     lines.find((l) => l.productId === productId)?.quantity ?? 0;
 
-  const addLine = (p: { id: string; name: string; code: string }) => {
+  const addLine = (p: { id: string; name: string; code: string; maxQuantity?: number }) => {
+    const cap = lineCap(p.maxQuantity);
     setLines((prev) => {
       const ex = prev.find((l) => l.productId === p.id);
       if (ex) {
+        const max = cap ?? ex.maxQuantity;
         return prev.map((l) =>
-          l.productId === p.id ? { ...l, quantity: l.quantity + 1 } : l,
+          l.productId === p.id
+            ? { ...l, maxQuantity: max, quantity: Math.min(l.quantity + 1, max ?? Infinity) }
+            : l,
         );
       }
-      return [...prev, { productId: p.id, name: p.name, code: p.code, quantity: 1 }];
+      return [...prev, { productId: p.id, name: p.name, code: p.code, quantity: 1, maxQuantity: cap }];
     });
   };
 
@@ -114,9 +132,14 @@ function CompartirCarritoContent() {
       qty <= 0
         ? prev.filter((l) => l.productId !== productId)
         : prev.map((l) =>
-            l.productId === productId ? { ...l, quantity: qty } : l,
+            l.productId === productId ? { ...l, quantity: Math.min(qty, l.maxQuantity ?? Infinity) } : l,
           ),
     );
+
+  const atCap = (productId: string) => {
+    const line = lines.find((l) => l.productId === productId);
+    return !!line && line.maxQuantity !== undefined && line.quantity >= line.maxQuantity;
+  };
 
   const removeLine = (productId: string) =>
     setLines((prev) => prev.filter((l) => l.productId !== productId));
@@ -332,7 +355,8 @@ function CompartirCarritoContent() {
                                 </span>
                                 <button
                                   onClick={() => setQty(p.id, q + 1)}
-                                  className="p-1.5 text-gray-600 hover:bg-gray-100"
+                                  disabled={atCap(p.id)}
+                                  className="p-1.5 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
                                   aria-label={t('catalog.addOne')}
                                 >
                                   <PlusIcon className="h-4 w-4" />
@@ -344,7 +368,7 @@ function CompartirCarritoContent() {
                                 variant="outline"
                                 className="w-full"
                                 onClick={() =>
-                                  addLine({ id: p.id, name: p.name, code: p.code })
+                                  addLine({ id: p.id, name: p.name, code: p.code, maxQuantity: p.maxQuantity })
                                 }
                               >
                                 <PlusIcon className="h-4 w-4" />
@@ -400,7 +424,8 @@ function CompartirCarritoContent() {
                         </span>
                         <button
                           onClick={() => setQty(l.productId, l.quantity + 1)}
-                          className="p-1 text-gray-600 hover:bg-gray-100"
+                          disabled={atCap(l.productId)}
+                          className="p-1 text-gray-600 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
                           aria-label={t('cart.addOne')}
                         >
                           <PlusIcon className="h-3.5 w-3.5" />

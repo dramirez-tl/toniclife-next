@@ -122,6 +122,20 @@ export interface Product {
   price?: string;
   priceCurrency?: string;
   activeCountries?: string[];
+
+  // Disponibilidad — SOLO cuando la consulta trae `branchId`. Un lector NO
+  // privilegiado (anónimo, cliente, distribuidor) ya no recibe la existencia exacta
+  // (API `toPublicProductDto`): `stock` vale el TOPE por línea (= `maxQuantity`),
+  // nunca las piezas reales. Para decidir disponibilidad usar `inStock`/`availability`
+  // (con fallback a `stock > 0` mientras el API desplegado no los mande) y JAMÁS
+  // pintar `stock` como "N disponibles". Staff y POS siguen recibiendo el stock real.
+  stock?: number;
+  inStock?: boolean;
+  availability?: 'in_stock' | 'low_stock' | 'out_of_stock';
+  /** Piezas restantes; solo viaja con `low_stock` ("últimas N"). */
+  stockLeft?: number | null;
+  /** Tope de piezas por línea; 0 = agotado. */
+  maxQuantity?: number;
   /** Solo promociones: países con regla de canje configurada (mig 036/099).
    *  Refleja la configuración multipaís real, no solo dónde hay precio. */
   promotionRuleCountries?: {
