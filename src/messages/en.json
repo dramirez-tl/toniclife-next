@@ -365,6 +365,7 @@
     "shippingTitle": "Shipping address",
     "deliveryHome": "Home delivery",
     "deliveryHomeDesc": "We ship it to your address",
+    "deliveryHomeUnavailable": "We don't offer home delivery to {country} for now",
     "deliveryPickup": "In-store pickup",
     "deliveryPickupDesc": "At any available branch",
     "pickupBranch": "Pickup branch *",

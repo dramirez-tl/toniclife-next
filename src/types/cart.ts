@@ -252,4 +252,11 @@ export interface CheckoutSummary {
     discount: string;
   };
   shippingOptions: ShippingQuote[];
+  /**
+   * Envío a domicilio según las rutas de surtido del país de la orden (opcional:
+   * un API anterior no lo manda, y el API lo omite si no pudo determinarlo).
+   * `shippingAvailable === false` = ningún almacén envía a ese país: pagar con
+   * envío respondería 422 FUL_NO_ROUTE. Ausente = se comporta como siempre.
+   */
+  delivery?: { shippingAvailable?: boolean };
 }

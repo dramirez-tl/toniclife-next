@@ -37,6 +37,8 @@ import { useReferralCode } from '@/hooks/useReferralCode';
 import { usePilotPublicState } from '@/hooks/usePilot';
 import { formatCurrency } from '@/lib/currency';
 import { useStoreCountry } from '@/hooks/useStoreCountry';
+import { useActiveCountries } from '@/hooks/useConfig';
+import { isDeliveryBlocked, isHomeDeliveryUnavailable, shouldWaitForStoreCountry, storeCountryName } from '@/lib/checkout/delivery-gates';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
 import {
@@ -181,6 +183,19 @@ export default function CheckoutContent() {
   const { data: pilotState } = usePilotPublicState();
   const checkoutEnabled = pilotState?.checkoutEnabled ?? false;
 
+  // Rutas de surtido (solo interfaz; no cambia montos ni el cuerpo del pedido):
+  //  · si el API dice que ningún almacén envía a este país, "Envío a domicilio" se
+  //    deshabilita (recoger en sucursal sigue igual). Campo ausente = como siempre.
+  //  · mientras la lista de países CARGA (misma consulta que useStoreCountry, con su
+  //    único reintento) pagar espera; si FALLÓ se paga sin countryId, como hoy.
+  const { isLoading: countriesLoading } = useActiveCountries();
+  const homeDeliveryUnavailable = isHomeDeliveryUnavailable(checkoutSummary);
+  const deliveryBlocked = isDeliveryBlocked(deliveryMode, checkoutSummary);
+  const waitingForCountry = shouldWaitForStoreCountry({ countryId, isLoading: countriesLoading });
+  const homeDeliveryUnavailableText = t('deliveryHomeUnavailable', {
+    country: storeCountryName(countryCode, lang),
+  });
+
   // Referral code from URL or localStorage
   const { referralCode: storedReferralCode } = useReferralCode();
 
@@ -267,6 +282,11 @@ export default function CheckoutContent() {
       return;
     }
 
+    if (deliveryBlocked) {
+      toast.error(homeDeliveryUnavailableText);
+      return;
+    }
+
     const requiredFields: (keyof CheckoutAddress)[] = [
       'fullName', 'phone', 'street', 'city', 'state', 'postalCode', 'country',
     ];
@@ -294,6 +314,14 @@ export default function CheckoutContent() {
       toast.error(t('toasts.mustAcceptTerms'));
       return;
     }
+
+    // Sin almacén que envíe a este país no se paga con envío a domicilio.
+    if (deliveryBlocked) {
+      toast.error(homeDeliveryUnavailableText);
+      return;
+    }
+    // El país de la tienda aún está cargando: el botón ya espera; esto cubre el Enter.
+    if (waitingForCountry) return;
 
     try {
       const isPickup = deliveryMode === 'pickup';
@@ -558,12 +586,13 @@ export default function CheckoutContent() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <button
                         type="button"
+                        disabled={homeDeliveryUnavailable}
                         onClick={() => {
                           setDeliveryMode('delivery');
                           setSelectedShippingMethod(ShippingMethod.STANDARD);
                         }}
-                        className={`flex items-center gap-3 rounded-lg border-2 p-4 text-left transition-all ${
-                          deliveryMode === 'delivery'
+                        className={`flex items-center gap-3 rounded-lg border-2 p-4 text-left transition-all disabled:cursor-not-allowed disabled:opacity-70 ${
+                          deliveryMode === 'delivery' && !homeDeliveryUnavailable
                             ? 'border-[#a7c1e2] bg-[#C8DDF2]/10'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
@@ -571,7 +600,9 @@ export default function CheckoutContent() {
                         <TruckIcon className="h-5 w-5 flex-shrink-0 text-[#3E667D]" />
                         <div>
                           <p className="font-medium text-gray-900">{t('deliveryHome')}</p>
-                          <p className="text-xs text-gray-500">{t('deliveryHomeDesc')}</p>
+                          <p className={`text-xs ${homeDeliveryUnavailable ? 'text-gray-700' : 'text-gray-500'}`}>
+                            {homeDeliveryUnavailable ? homeDeliveryUnavailableText : t('deliveryHomeDesc')}
+                          </p>
                         </div>
                       </button>
                       <button
@@ -631,7 +662,7 @@ export default function CheckoutContent() {
                       </div>
                     )}
 
-                    {deliveryMode === 'delivery' && (
+                    {deliveryMode === 'delivery' && !homeDeliveryUnavailable && (
                       <>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
@@ -791,7 +822,7 @@ export default function CheckoutContent() {
                       >
                         {t('back')}
                       </Button>
-                      <Button type="submit" size="lg" className="flex-1">
+                      <Button type="submit" size="lg" className="flex-1" disabled={deliveryBlocked}>
                         {t('continueToPayment')}
                       </Button>
                     </div>
@@ -863,10 +894,18 @@ export default function CheckoutContent() {
                         className="flex-1"
                         disabled={
                           !checkoutEnabled ||
+                          deliveryBlocked ||
+                          waitingForCountry ||
                           authenticatedCheckout.isPending ||
                           guestCheckout.isPending
                         }
-                        title={!checkoutEnabled ? t('pilot.blocked') : undefined}
+                        title={
+                          !checkoutEnabled
+                            ? t('pilot.blocked')
+                            : deliveryBlocked
+                              ? homeDeliveryUnavailableText
+                              : undefined
+                        }
                       >
                         {(authenticatedCheckout.isPending || guestCheckout.isPending) && (
                           <Loader2 className="mr-2 size-4 animate-spin" />

@@ -96,6 +96,9 @@ export const useActiveCountries = () => {
     queryKey: configKeys.countriesActive(),
     queryFn: () => configService.getActiveCountries(),
     staleTime: CATALOG_STALE_TIME,
+    // Un solo reintento, explícito: el checkout ESPERA mientras esto carga
+    // (isLoading cubre el reintento) y, si falla, deja pagar sin countryId.
+    retry: 1,
   });
 };
 

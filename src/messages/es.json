@@ -365,6 +365,7 @@
     "shippingTitle": "Dirección de envío",
     "deliveryHome": "Envío a domicilio",
     "deliveryHomeDesc": "Lo enviamos a tu dirección",
+    "deliveryHomeUnavailable": "Por ahora no hacemos envíos a domicilio a {country}",
     "deliveryPickup": "Recoger en sucursal",
     "deliveryPickupDesc": "En cualquier sucursal disponible",
     "pickupBranch": "Sucursal de recolección *",
