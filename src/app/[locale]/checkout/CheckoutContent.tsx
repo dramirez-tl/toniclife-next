@@ -39,6 +39,7 @@ import { formatCurrency } from '@/lib/currency';
 import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { useActiveCountries } from '@/hooks/useConfig';
 import { isDeliveryBlocked, isHomeDeliveryUnavailable, shouldWaitForStoreCountry, storeCountryName } from '@/lib/checkout/delivery-gates';
+import { reportCheckoutCountryMismatch } from '@/lib/storefront/cart-country-dialog-store';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
 import {
@@ -377,6 +378,8 @@ export default function CheckoutContent() {
         }
       }
     } catch (error: any) {
+      // 409 CHK_COUNTRY_MISMATCH (C2): el API no creó el pedido; aviso con enlace al carrito y a su tienda.
+      if (reportCheckoutCountryMismatch(error)) return;
       toast.error(error.response?.data?.message || t('toasts.orderError'));
     }
   };
