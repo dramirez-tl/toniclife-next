@@ -3,13 +3,17 @@
 // Detalle interactivo. Arranca con el producto del SSR (precio PÚBLICO, anónimo);
 // con sesión la misma query se repite con el Bearer y cambia a precio/puntos por
 // rol sin salto (`placeholderData`). Carrito: SOLO se consumen los hooks
-// existentes (`useAddCartItem` vía `useAddToCart`), sin modificarlos.
+// existentes (`useAddCartItem` vía `useAddToCart`). "Agregar" abre el CartDrawer;
+// "Comprar ahora" agrega y lleva al CHECKOUT (o al carrito si el piloto tiene el
+// pago en línea apagado: mismo interruptor que ya gobierna la página de checkout).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { track } from '@vercel/analytics';
+import { toast } from 'sonner';
 import { useRouter } from '@/i18n/routing';
 import { parseLocale } from '@/i18n/config';
+import { usePilotPublicState } from '@/hooks/usePilot';
 import { useStorefrontProduct, useStorefrontViewer } from '@/hooks/useStorefront';
 import { catalogHref } from '@/lib/storefront/catalog-params';
 import { formatProductName } from '@/lib/storefront/content-format';
@@ -32,6 +36,7 @@ interface ProductDetailClientProps {
 
 export function ProductDetailClient({ product: initialProduct, fetchedAt }: ProductDetailClientProps) {
   const t = useTranslations('storefront.product');
+  const tCart = useTranslations('storefront.cart.buyNow');
   const locale = useLocale();
   const router = useRouter();
   const { lang, country } = parseLocale(locale);
@@ -53,11 +58,24 @@ export function ProductDetailClient({ product: initialProduct, fetchedAt }: Prod
   const { add, isPending, justAdded, announcement } = useAddToCart();
   const addable = { id: product.id, code: product.code, name, price: product.price };
 
+  // Piloto (fail-closed): sin respuesta del API el pago en línea se considera apagado.
+  const { data: pilotState } = usePilotPublicState();
+  const checkoutEnabled = pilotState?.checkoutEnabled ?? false;
+
   const onAdd = () => void add(addable, quantity);
-  /** "Comprar ahora" SÍ agrega: primero la línea, después el carrito. */
+  /**
+   * "Comprar ahora" SÍ agrega: primero la línea, después el checkout. Si la línea ya
+   * estaba en su máximo ('unchanged') igual se continúa: el producto está en el carrito.
+   */
   const onBuyNow = async () => {
-    const ok = await add(addable, quantity, { silent: true });
-    if (ok) router.push('/carrito');
+    const outcome = await add(addable, quantity, { silent: true });
+    if (outcome === 'failed') return;
+    if (checkoutEnabled) {
+      router.push('/checkout');
+      return;
+    }
+    toast.info(tCart('checkoutSoon'));
+    router.push('/carrito');
   };
 
   // Barra fija en móvil: visible cuando los CTA del bloque de compra ya no se ven.

@@ -21,6 +21,12 @@ import { DEFAULT_LOCALE, buildLocale, countryMeta, localeCountry, localeLanguage
 import { getStoredLocale, setStoredLocale } from '@/lib/store-locale';
 import { readyAccountCountry } from '@/hooks/useStoreCountry';
 import { resolvePortal } from '@/lib/auth-roles';
+import { CartDrawer } from '@/components/cart/CartDrawer';
+import { openCartDrawer } from '@/lib/storefront/cart-drawer-store';
+
+// Objetivo táctil de 44 px (antes ~40) y foco visible.
+const CART_ICON_CLASS =
+  'relative flex size-11 items-center justify-center rounded-full hover:bg-gray-100 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3E667D]';
 
 interface NavItem {
   name: string;
@@ -86,6 +92,21 @@ export function Header() {
     const portal = resolvePortal(user?.roleCategory, userRoles[0]);
     return portal === 'admin' ? '/admin' : '/distribuidor';
   }, [isAuthenticated, user?.roleCategory, userRoles]);
+
+  const onCartPage = /\/carrito\/?$/.test(pathname);
+  const cartIcon = (
+    <>
+      <ShoppingCartIcon aria-hidden="true" className="h-6 w-6 text-[#3E667D]" />
+      {cartItemCount > 0 && (
+        <span
+          aria-hidden="true"
+          className="absolute -top-1 -right-1 bg-[#3E667D] text-white text-xs font-bold rounded-full h-5 min-w-5 px-1 flex items-center justify-center ring-2 ring-white"
+        >
+          {cartItemCount > 99 ? '99+' : cartItemCount}
+        </span>
+      )}
+    </>
+  );
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
@@ -227,18 +248,27 @@ export function Header() {
           <div className="flex items-center gap-2">
             <span className="hidden lg:block h-6 w-px bg-gray-200 mr-1" aria-hidden="true" />
             {/* Cart */}
-            <Link
-              href="/carrito"
-              aria-label={`Carrito${cartItemCount > 0 ? ` (${cartItemCount})` : ''}`}
-              className="relative p-2 rounded-full hover:bg-gray-100 transition-colors"
-            >
-              <ShoppingCartIcon className="h-6 w-6 text-[#3E667D]" />
-              {cartItemCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-[#3E667D] text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center ring-2 ring-white">
-                  {cartItemCount}
-                </span>
-              )}
-            </Link>
+            {/* En /carrito el icono es un enlace normal; en el resto abre el mini-carrito. */}
+            {onCartPage ? (
+              <Link
+                href="/carrito"
+                aria-current="page"
+                aria-label={t('storefront.cart.drawer.pageLabel', { count: cartItemCount })}
+                className={CART_ICON_CLASS}
+              >
+                {cartIcon}
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={openCartDrawer}
+                aria-haspopup="dialog"
+                aria-label={t('storefront.cart.drawer.openLabel', { count: cartItemCount })}
+                className={`${CART_ICON_CLASS} cursor-pointer`}
+              >
+                {cartIcon}
+              </button>
+            )}
 
             {/* CTA / Auth Button - Desktop */}
             <div className="hidden sm:block ml-2">
@@ -379,6 +409,9 @@ export function Header() {
         onSelect={handleSelectLocale}
         lockedCountry={accountCountry}
       />
+
+      {/* Mini-carrito: lo abren este icono y "Agregar" del catálogo/detalle. */}
+      <CartDrawer />
     </>
   );
 }
