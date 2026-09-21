@@ -4,7 +4,7 @@
 // Es como piensa el usuario ("este almacén manda a estos países"); el botón
 // "Elegir países" abre el atajo que escribe sobre el mismo borrador.
 
-import { MapPin, Warehouse } from 'lucide-react';
+import { MapPin, RefreshCw, TriangleAlert, Warehouse } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,6 +19,9 @@ interface WarehouseSummaryProps {
   legacyBranchIds: Set<string>;
   canEdit: boolean;
   warehouseOptions: SearchableSelectOption[];
+  /** No se pudo cargar la lista de sucursales: se dice y se ofrece reintentar (no un selector vacío). */
+  optionsError?: boolean;
+  onRetryOptions?: () => void;
   onChooseCountries: (branchId: string) => void;
 }
 
@@ -28,6 +31,8 @@ export function WarehouseSummary({
   legacyBranchIds,
   canEdit,
   warehouseOptions,
+  optionsError = false,
+  onRetryOptions,
   onChooseCountries,
 }: WarehouseSummaryProps) {
   const available = warehouseOptions.filter((o) => !warehouses.some((w) => w.branchId === o.value));
@@ -95,21 +100,47 @@ export function WarehouseSummary({
 
         {canEdit && (
           <div className="space-y-1.5">
-            <label htmlFor="agregar-almacen-general" className="block text-sm font-medium text-foreground">
-              {warehouses.length === 0 ? 'Agregar el primer almacén' : 'Agregar almacén'}
-            </label>
-            <SearchableSelect
-              id="agregar-almacen-general"
-              options={available}
-              value=""
-              onChange={(branchId) => {
-                if (branchId) onChooseCountries(branchId);
-              }}
-              showAllOption={false}
-              placeholder="Busca una sucursal por clave o nombre…"
-              className="w-full sm:max-w-md"
-            />
-            <p className="text-xs text-muted-foreground">Al elegirla te preguntamos a qué países envía.</p>
+            {optionsError ? (
+              <p className="text-sm font-medium text-foreground">
+                {warehouses.length === 0 ? 'Agregar el primer almacén' : 'Agregar almacén'}
+              </p>
+            ) : (
+              <label htmlFor="agregar-almacen-general" className="block text-sm font-medium text-foreground">
+                {warehouses.length === 0 ? 'Agregar el primer almacén' : 'Agregar almacén'}
+              </label>
+            )}
+            {optionsError ? (
+              <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-red-900">
+                <TriangleAlert aria-hidden className="size-4 shrink-0" />
+                <span>No se pudo cargar la lista de sucursales para agregar almacenes.</span>
+                {onRetryOptions && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9"
+                    onClick={onRetryOptions}
+                  >
+                    <RefreshCw aria-hidden /> Reintentar
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <>
+                <SearchableSelect
+                  id="agregar-almacen-general"
+                  options={available}
+                  value=""
+                  onChange={(branchId) => {
+                    if (branchId) onChooseCountries(branchId);
+                  }}
+                  showAllOption={false}
+                  placeholder="Busca una sucursal por clave o nombre…"
+                  className="w-full sm:max-w-md"
+                />
+                <p className="text-xs text-muted-foreground">Al elegirla te preguntamos a qué países envía.</p>
+              </>
+            )}
           </div>
         )}
       </CardContent>

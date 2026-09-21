@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { MAX_NOTES_LENGTH, type DraftRoute } from '@/lib/fulfillment/route-draft';
+import { MAX_NOTES_LENGTH, isActivationLocked, type DraftRoute } from '@/lib/fulfillment/route-draft';
 import { numberFormat, positionLabel, warehouseLabel } from './fulfillment-ui';
 
 export interface RouteStockInfo {
@@ -58,6 +58,9 @@ export function RouteRow({
 }: RouteRowProps) {
   const name = warehouseLabel(route);
   const dimmed = !route.isActive || !route.branchIsActive || (isCrossCountry && crossBlocked);
+  // Ruta en pausa + sucursal desactivada: activarla daría 422 FUL_BRANCH_INACTIVE al guardar.
+  const activationLocked = isActivationLocked(route);
+  const lockHintId = `activa-bloqueada-${countryName}-${route.branchId}`.replace(/[^\w-]+/g, '-');
 
   return (
     <li
@@ -107,6 +110,11 @@ export function RouteRow({
               Se puede guardar, pero todavía no surte pedidos: los envíos de un país a otro aún no están habilitados.
             </p>
           )}
+          {activationLocked && (
+            <p id={lockHintId} className="mt-2 text-xs text-red-800">
+              No se puede activar: la sucursal está desactivada. Actívala primero en Sucursales, o quítala de esta lista.
+            </p>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -114,8 +122,9 @@ export function RouteRow({
             <Switch
               checked={route.isActive}
               onCheckedChange={onToggleActive}
-              disabled={!canEdit}
+              disabled={!canEdit || activationLocked}
               aria-label={`Ruta ${name} a ${countryName} activa`}
+              aria-describedby={activationLocked ? lockHintId : undefined}
             />
             <span aria-hidden>Activa</span>
           </label>
@@ -160,6 +169,7 @@ export function RouteRow({
               type="button"
               variant="ghost"
               className="h-10 text-destructive hover:text-destructive"
+              data-remove
               onClick={onRemove}
               aria-label={`Quitar ${name} de ${countryName}`}
             >

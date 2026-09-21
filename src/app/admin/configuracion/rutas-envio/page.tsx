@@ -10,7 +10,7 @@
 // Permisos: ver = fulfillment:read | fulfillment:manage; editar = fulfillment:manage.
 // Sin la migración 144 (`schemaReady === false`) la pantalla queda en solo lectura.
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { TruckIcon } from '@heroicons/react/24/outline';
@@ -20,9 +20,14 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { CountryRouteCard } from '@/components/admin/fulfillment/CountryRouteCard';
 import { HistorySheet } from '@/components/admin/fulfillment/HistorySheet';
 import { SaveBar } from '@/components/admin/fulfillment/SaveBar';
-import { SaveSummaryDialog, type LosingCountry } from '@/components/admin/fulfillment/SaveSummaryDialog';
+import {
+  SaveSummaryDialog,
+  type GainingCountry,
+  type LosingCountry,
+} from '@/components/admin/fulfillment/SaveSummaryDialog';
 import { ScopeNote } from '@/components/admin/fulfillment/ScopeNote';
 import { SimulatorSheet } from '@/components/admin/fulfillment/SimulatorSheet';
+import { SkipToSave } from '@/components/admin/fulfillment/SkipToSave';
 import { StockModeSetting } from '@/components/admin/fulfillment/StockModeSetting';
 import { WarehouseCountriesDialog } from '@/components/admin/fulfillment/WarehouseCountriesDialog';
 import { WarehouseSummary } from '@/components/admin/fulfillment/WarehouseSummary';
@@ -33,6 +38,7 @@ import {
   useFulfillmentPermissions,
 } from '@/components/admin/fulfillment/useFulfillmentPermissions';
 import { useRouteDraft } from '@/components/admin/fulfillment/useRouteDraft';
+import { useUnsavedChangesGuard } from '@/components/admin/fulfillment/useUnsavedChangesGuard';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -50,9 +56,12 @@ import {
   isVersionConflict,
 } from '@/lib/fulfillment/fulfillment-error';
 import {
+  changeKey,
   countChanges,
   countriesChangingWarehouse,
+  countriesGainingShipping,
   countriesLosingShipping,
+  crossBlockedChangeKeys,
   describeStockModeChange,
   diffRoutes,
 } from '@/lib/fulfillment/route-diff';
@@ -77,6 +86,7 @@ import {
   warehousesFromDraft,
   type AddRouteError,
   type DraftWarehouse,
+  type RouteDraft,
 } from '@/lib/fulfillment/route-draft';
 import type { FulfillmentCountry } from '@/types/fulfillment';
 
@@ -120,7 +130,7 @@ function RutasEnvioContent() {
   const optionsQuery = useFulfillmentWarehouseOptions({ enabled: canEdit });
   const save = useSaveFulfillmentRoutes();
 
-  const { base, draft, isDirty, expectedVersion, update, reset } = useRouteDraft(data);
+  const { base, draft, isDirty, expectedVersion, update: updateDraft, reset } = useRouteDraft(data);
 
   const [announcement, setAnnouncement] = useState('');
   const [simulatorOpen, setSimulatorOpen] = useState(false);
@@ -129,19 +139,24 @@ function RutasEnvioContent() {
   const [discardOpen, setDiscardOpen] = useState(false);
   const [conflictOpen, setConflictOpen] = useState(false);
   const [dialogBranchId, setDialogBranchId] = useState<string | null>(null);
-  /** Países que el API pidió confirmar además de los que detectó el front. */
+  /**
+   * Países que el API pidió confirmar (409) además de los que detectó el front.
+   * Valen SOLO para el borrador que se mandó: cualquier edición posterior los
+   * limpia, para que el diálogo no siga siendo destructivo ni pida teclear el
+   * país cuando el usuario ya corrigió el borrador.
+   */
   const [serverLosing, setServerLosing] = useState<string[]>([]);
+  const update = useCallback(
+    (fn: (d: RouteDraft) => RouteDraft) => {
+      setServerLosing([]);
+      updateDraft(fn);
+    },
+    [updateDraft],
+  );
 
-  // Aviso del navegador al cerrar o recargar con cambios sin guardar.
-  useEffect(() => {
-    if (!isDirty) return;
-    const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = '';
-    };
-    window.addEventListener('beforeunload', handler);
-    return () => window.removeEventListener('beforeunload', handler);
-  }, [isDirty]);
+  // Cambios sin guardar: aviso del navegador al cerrar o recargar, y pregunta
+  // propia al pulsar cualquier enlace interno (sidebar, Configuración, etc.).
+  const leaveGuard = useUnsavedChangesGuard(isDirty);
 
   const ctx = useMemo(() => (data ? buildRoutingContext(data) : null), [data]);
   const countries = useMemo(() => data?.countries ?? [], [data]);
@@ -205,6 +220,19 @@ function RutasEnvioContent() {
         customers: c.customers,
       }));
   }, [base, draft, ctx, countries, serverLosing]);
+
+  const gaining = useMemo<GainingCountry[]>(() => {
+    if (!base || !draft || !ctx) return [];
+    return countriesGainingShipping(base.countries, draft.countries, ctx).map((g) => {
+      const country = countries.find((c) => c.countryCode === g.countryCode);
+      return {
+        countryCode: g.countryCode,
+        countryName: country?.countryName ?? g.countryCode,
+        customers: country?.customers ?? 0,
+        warehouseLabel: warehouseLabel(g.to),
+      };
+    });
+  }, [base, draft, ctx, countries]);
 
   const legacyBranchIds = useMemo(() => {
     const ids = new Set<string>();
@@ -384,16 +412,12 @@ function RutasEnvioContent() {
     return [...out.values()];
   })();
 
-  const crossBlocked =
-    ctx.crossCountry === 'allow'
-      ? []
-      : changes
-          .filter((c) => (c.type === 'added' || c.type === 'resumed') && c.branchId)
-          .filter((c) => {
-            const route = routeOf(c.countryCode, c.branchId as string);
-            return !!route && isCrossCountryRoute(route, c.countryCode, ctx);
-          })
-          .map((c) => `${c.branchCode ?? ''} · ${c.branchName ?? ''} → ${nameOf(c.countryCode)}`);
+  // Rutas hacia OTRO país fiscal con el candado puesto: quedan configuradas, pero
+  // todavía no surten. El resumen lo dice en cada renglón (no "almacén principal").
+  const crossBlockedKeys = crossBlockedChangeKeys(changes, draft.countries, ctx);
+  const crossBlocked = changes
+    .filter((c) => crossBlockedKeys.has(changeKey(c.countryCode, c.branchId)))
+    .map((c) => `${c.branchCode ?? ''} · ${c.branchName ?? ''} → ${nameOf(c.countryCode)}`);
 
   const renderCard = (country: FulfillmentCountry) => {
     const code = country.countryCode;
@@ -415,6 +439,9 @@ function RutasEnvioContent() {
         diagnostics={diagnosticsQuery.data?.countries.find((c) => c.countryCode === code) ?? null}
         warnings={warnings.filter((w) => w.countryCode === code && !STRUCTURAL_WARNING_CODES.has(w.code))}
         warehouseOptions={warehouseOptions}
+        optionsError={optionsQuery.isError}
+        onRetryOptions={() => void optionsQuery.refetch()}
+        showSkipToSave={changeCount > 0}
         countryNames={countryNames}
         copyFrom={copyFrom}
         onMove={(index, direction) => handleMove(code, index, direction)}
@@ -438,6 +465,8 @@ function RutasEnvioContent() {
           {announcement}
         </p>
 
+        {changeCount > 0 && <SkipToSave />}
+
         {!schemaReady && (
           <Alert>
             <Lock aria-hidden />
@@ -456,6 +485,28 @@ function RutasEnvioContent() {
           </Alert>
         )}
 
+        {diagnosticsQuery.isError && (
+          <Alert variant="destructive">
+            <TriangleAlert aria-hidden />
+            <AlertTitle>No se pudieron cargar las existencias ni los avisos de datos</AlertTitle>
+            <AlertDescription>
+              <p>
+                Puedes seguir editando, pero no ves cuántos productos tiene cada almacén ni los avisos de costos de envío e
+                impuestos. {fulfillmentErrorMessage(diagnosticsQuery.error, '')}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-2 h-10 text-foreground"
+                onClick={() => void diagnosticsQuery.refetch()}
+                disabled={diagnosticsQuery.isFetching}
+              >
+                <RefreshCw aria-hidden /> Reintentar
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         <WarningsBanner warnings={warnings} countryNames={countryNames} isDraft={isDirty} />
 
         <WarehouseSummary
@@ -464,6 +515,8 @@ function RutasEnvioContent() {
           legacyBranchIds={legacyBranchIds}
           canEdit={canEdit}
           warehouseOptions={warehouseOptions}
+          optionsError={optionsQuery.isError}
+          onRetryOptions={() => void optionsQuery.refetch()}
           onChooseCountries={setDialogBranchId}
         />
 
@@ -517,6 +570,8 @@ function RutasEnvioContent() {
           switching={countriesChangingWarehouse(base.countries, draft.countries, ctx)}
           pendingOrders={pendingOrders}
           crossBlocked={crossBlocked}
+          crossBlockedKeys={crossBlockedKeys}
+          gaining={gaining}
           isSaving={save.isPending}
           onClose={() => setSaveOpen(false)}
           onConfirm={handleSave}
@@ -532,6 +587,19 @@ function RutasEnvioContent() {
         cancelLabel="Seguir editando"
         destructive
         onConfirm={handleDiscard}
+      />
+
+      <ConfirmDialog
+        open={!!leaveGuard.pendingHref}
+        onOpenChange={(open) => {
+          if (!open) leaveGuard.cancel();
+        }}
+        title="¿Salir sin guardar?"
+        description="Tienes cambios sin guardar en Almacenes y envíos. Si sales ahora se pierden."
+        confirmLabel="Salir sin guardar"
+        cancelLabel="Seguir editando"
+        destructive
+        onConfirm={() => leaveGuard.confirm(reset)}
       />
 
       <ConfirmDialog
@@ -609,7 +677,7 @@ function Shell({
               )}
             </div>
           )}
-          <p className="mt-3 text-sm text-white/70">Los cambios aplican en la tienda en menos de un minuto.</p>
+          <p className="mt-3 text-sm text-white/90">Los cambios aplican en la tienda en menos de un minuto.</p>
         </div>
       </div>
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">{children}</div>

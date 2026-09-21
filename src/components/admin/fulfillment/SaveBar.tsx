@@ -5,6 +5,7 @@
 
 import { Button } from '@/components/ui/button';
 import { changesLabel } from '@/lib/fulfillment/route-diff';
+import { SAVE_BAR_ID, SAVE_BUTTON_ID } from './SkipToSave';
 
 interface SaveBarProps {
   changeCount: number;
@@ -19,9 +20,11 @@ export function SaveBar({ changeCount, isSaving, blockedReason, onDiscard, onRev
   if (changeCount <= 0) return null;
   return (
     <div
+      id={SAVE_BAR_ID}
+      tabIndex={-1}
       role="region"
       aria-label="Cambios sin guardar"
-      className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] backdrop-blur"
+      className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] outline-none backdrop-blur focus-visible:ring-2 focus-visible:ring-ring"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:px-6 lg:px-8">
@@ -34,6 +37,7 @@ export function SaveBar({ changeCount, isSaving, blockedReason, onDiscard, onRev
             Descartar
           </Button>
           <Button
+            id={SAVE_BUTTON_ID}
             type="button"
             className="h-10 flex-1 sm:flex-none"
             onClick={onReview}

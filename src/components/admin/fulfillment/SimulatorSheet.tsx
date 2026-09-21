@@ -5,7 +5,7 @@
 // almacén y lo que faltó. Puede probar con los cambios SIN guardar.
 
 import { useId, useState } from 'react';
-import { CircleCheck, CircleX, Loader2, Plus, Search, SkipForward, Trash2 } from 'lucide-react';
+import { CircleCheck, CircleX, Loader2, Plus, RefreshCw, Search, SkipForward, Trash2, TriangleAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,18 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { useSimulateFulfillment } from '@/hooks/useFulfillment';
 import { useProducts } from '@/hooks/useProducts';
 import { fulfillmentErrorMessage } from '@/lib/fulfillment/fulfillment-error';
-import { buildSimulateDraft, type RouteDraft } from '@/lib/fulfillment/route-draft';
+import {
+  MAX_ROUTES_PER_COUNTRY,
+  buildSimulateDraft,
+  isSimulateDraftTrimmed,
+  type RouteDraft,
+} from '@/lib/fulfillment/route-draft';
+import {
+  chosenCandidate,
+  simulationHeadline,
+  simulationOutcome,
+  type SimulationOutcome,
+} from '@/lib/fulfillment/simulation-outcome';
 import type {
   FulfillmentCountry,
   FulfillmentResolutionCandidate,
@@ -66,6 +77,7 @@ export function SimulatorSheet({ open, onOpenChange, countries, draft, isDirty }
   const selectable = countries.filter((c) => c.sellableProducts > 0 || c.routes.length > 0 || (draft?.countries[c.countryCode]?.length ?? 0) > 0);
   const country = countries.find((c) => c.countryCode === countryCode) ?? null;
   const withDraft = isDirty && useDraft && !!draft;
+  const draftTrimmed = withDraft && !!draft && !!countryCode && isSimulateDraftTrimmed(draft, countryCode);
 
   const clearResult = () => {
     setResult(null);
@@ -164,7 +176,15 @@ export function SimulatorSheet({ open, onOpenChange, countries, draft, isDirty }
                   <Loader2 aria-hidden className="size-4 animate-spin" /> Buscando…
                 </p>
               )}
-              {!search.isFetching && term.length >= 2 && found.length === 0 && (
+              {!search.isFetching && search.isError && term.length >= 2 && (
+                <div role="alert" className="space-y-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-900">
+                  <p>No se pudo buscar productos. Revisa tu conexión e inténtalo de nuevo.</p>
+                  <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => void search.refetch()}>
+                    <RefreshCw aria-hidden /> Reintentar
+                  </Button>
+                </div>
+              )}
+              {!search.isFetching && !search.isError && term.length >= 2 && found.length === 0 && (
                 <p className="text-sm text-muted-foreground">No encontramos productos con “{term}”.</p>
               )}
             </div>
@@ -254,6 +274,12 @@ export function SimulatorSheet({ open, onOpenChange, countries, draft, isDirty }
               <p className="text-muted-foreground">
                 {isDirty ? 'Si la apagas, la prueba usa lo que está guardado.' : 'No tienes cambios sin guardar: se usa lo guardado.'}
               </p>
+              {draftTrimmed && (
+                <p className="mt-1 text-amber-900">
+                  La prueba usa solo los primeros {MAX_ROUTES_PER_COUNTRY} almacenes de la lista, sin repetidos: es el
+                  máximo por país.
+                </p>
+              )}
             </div>
           </div>
 
@@ -276,19 +302,35 @@ export function SimulatorSheet({ open, onOpenChange, countries, draft, isDirty }
   );
 }
 
+const OUTCOME_STYLES: Record<SimulationOutcome, string> = {
+  ok: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+  stock_short: 'border-amber-300 bg-amber-50 text-amber-900',
+  no_route: 'border-red-200 bg-red-50 text-red-900',
+};
+
+const OUTCOME_ICONS: Record<SimulationOutcome, typeof CircleCheck> = {
+  ok: CircleCheck,
+  stock_short: TriangleAlert,
+  no_route: CircleX,
+};
+
 function SimulationResult({ result, countryName }: { result: FulfillmentSimulateResponse; countryName: string }) {
-  const ok = !!result.branchId;
+  // Tres estados (nunca solo color: ícono + titular). Que el API devuelva un
+  // almacén NO significa que el pedido pase: si le faltan existencias es ámbar.
+  const outcome = simulationOutcome(result);
+  const Icon = OUTCOME_ICONS[outcome];
+  const chosenId = chosenCandidate(result)?.branchId ?? null;
   return (
     <div className="space-y-3">
-      <div
-        className={`flex gap-2 rounded-md border p-3 text-sm ${
-          ok ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-red-200 bg-red-50 text-red-900'
-        }`}
-      >
-        {ok ? <CircleCheck aria-hidden className="mt-0.5 size-5 shrink-0" /> : <CircleX aria-hidden className="mt-0.5 size-5 shrink-0" />}
+      <div className={`flex gap-2 rounded-md border p-3 text-sm ${OUTCOME_STYLES[outcome]}`} data-outcome={outcome}>
+        <Icon aria-hidden className="mt-0.5 size-5 shrink-0" />
         <div>
-          <p className="font-semibold">{ok ? 'Sí se puede enviar' : `Hoy no se podría enviar a ${countryName}`}</p>
+          <p className="font-semibold">{simulationHeadline(result, countryName)}</p>
+          {/* El texto principal es el del API: explica el porqué con sus palabras. */}
           <p>{result.messageEs}</p>
+          {outcome === 'stock_short' && (
+            <p className="mt-1">En la tienda, ese pedido se rechazaría con el aviso de existencias insuficientes.</p>
+          )}
         </div>
       </div>
 
@@ -297,7 +339,12 @@ function SimulationResult({ result, countryName }: { result: FulfillmentSimulate
           <h3 className="mb-1 text-sm font-semibold text-foreground">Paso a paso</h3>
           <ol className="space-y-2">
             {result.candidates.map((c, index) => (
-              <CandidateStep key={c.routeId || c.branchId} candidate={c} index={index} />
+              <CandidateStep
+                key={c.routeId || c.branchId}
+                candidate={c}
+                index={index}
+                short={outcome === 'stock_short' && c.branchId === chosenId}
+              />
             ))}
           </ol>
         </div>
@@ -306,10 +353,26 @@ function SimulationResult({ result, countryName }: { result: FulfillmentSimulate
   );
 }
 
-function CandidateStep({ candidate, index }: { candidate: FulfillmentResolutionCandidate; index: number }) {
-  const Icon = candidate.status === 'chosen' ? CircleCheck : candidate.status === 'skipped' ? SkipForward : null;
-  const text =
-    candidate.status === 'chosen'
+function CandidateStep({
+  candidate,
+  index,
+  short,
+}: {
+  candidate: FulfillmentResolutionCandidate;
+  index: number;
+  /** Es el almacén al que le tocaría, pero no tiene todo el pedido. */
+  short: boolean;
+}) {
+  const Icon = short
+    ? TriangleAlert
+    : candidate.status === 'chosen'
+      ? CircleCheck
+      : candidate.status === 'skipped'
+        ? SkipForward
+        : null;
+  const text = short
+    ? 'Le tocaría a este almacén, pero no tiene todo el pedido.'
+    : candidate.status === 'chosen'
       ? 'Lo surtiría este almacén.'
       : candidate.status === 'skipped'
         ? `Se salta porque ${candidate.skipReason ? SKIP_REASON_LABELS[candidate.skipReason] ?? 'no puede surtir' : 'no puede surtir'}.`
@@ -319,7 +382,11 @@ function CandidateStep({ candidate, index }: { candidate: FulfillmentResolutionC
       <p className="font-medium text-foreground">
         {index + 1}. {warehouseLabel(candidate)}
       </p>
-      <p className={`flex items-center gap-1.5 ${candidate.status === 'chosen' ? 'text-emerald-800' : 'text-muted-foreground'}`}>
+      <p
+        className={`flex items-center gap-1.5 ${
+          short ? 'text-amber-900' : candidate.status === 'chosen' ? 'text-emerald-800' : 'text-muted-foreground'
+        }`}
+      >
         {Icon && <Icon aria-hidden className="size-4 shrink-0" />}
         {text}
       </p>

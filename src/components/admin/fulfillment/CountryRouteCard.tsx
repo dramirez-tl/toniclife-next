@@ -5,7 +5,7 @@
 // en cuanto se apaga o se quita la única ruta que surtía: no espera al guardado.
 
 import { useEffect, useRef } from 'react';
-import { CircleAlert, CircleCheck, Clock, Copy, Info, Store, TriangleAlert } from 'lucide-react';
+import { CircleAlert, CircleCheck, Clock, Copy, Info, RefreshCw, Store, TriangleAlert } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,7 @@ import type {
   FulfillmentWarning,
 } from '@/types/fulfillment';
 import { RouteRow, type RouteStockInfo } from './RouteRow';
+import { SkipToSave } from './SkipToSave';
 import {
   STORE_STATUS_LABELS,
   countryFlag,
@@ -44,6 +45,11 @@ interface CountryRouteCardProps {
   /** Avisos de datos de este país (existencias, costos de envío, impuestos…). */
   warnings: FulfillmentWarning[];
   warehouseOptions: SearchableSelectOption[];
+  /** No se pudo cargar la lista de sucursales: el selector "Agregar almacén" lo dice y ofrece reintentar. */
+  optionsError?: boolean;
+  onRetryOptions?: () => void;
+  /** Hay cambios sin guardar: al final de la tarjeta va el salto a "Revisar y guardar". */
+  showSkipToSave?: boolean;
   countryNames: Record<string, string>;
   /** País del que se pueden copiar los almacenes (FN → México), si aplica. */
   copyFrom: { countryCode: string; countryName: string } | null;
@@ -64,6 +70,9 @@ export function CountryRouteCard({
   diagnostics,
   warnings,
   warehouseOptions,
+  optionsError = false,
+  onRetryOptions,
+  showSkipToSave = false,
   countryNames,
   copyFrom,
   onMove,
@@ -81,17 +90,33 @@ export function CountryRouteCard({
   const flag = countryFlag(code);
   const losesShipping = resolvedBefore && !resolved;
 
-  // Conserva el foco en la fila que se movió (§7.4): el botón pulsado, o el
-  // contrario si quedó deshabilitado por llegar al tope de la lista.
-  const listRef = useRef<HTMLOListElement>(null);
-  const pendingFocus = useRef<{ branchId: string; direction: -1 | 1 } | null>(null);
+  // El foco nunca se pierde (§7.4):
+  //  · al MOVER una fila se queda en ella: el botón pulsado, o el contrario si
+  //    quedó deshabilitado por llegar al tope de la lista;
+  //  · al QUITAR una fila (se desmonta) pasa a "Quitar" de la fila que ocupa su
+  //    lugar (o de la anterior si era la última); si la lista queda vacía, al
+  //    selector "Agregar almacén" y, si no lo hay, a la propia tarjeta.
+  const cardRef = useRef<HTMLDivElement>(null);
+  const pendingFocus = useRef<
+    { kind: 'move'; branchId: string; direction: -1 | 1 } | { kind: 'remove'; index: number } | null
+  >(null);
   useEffect(() => {
     const pending = pendingFocus.current;
-    if (!pending || !listRef.current) return;
+    const card = cardRef.current;
+    if (!pending || !card) return;
     pendingFocus.current = null;
-    const row = [...listRef.current.querySelectorAll<HTMLElement>('[data-route]')].find(
-      (el) => el.dataset.route === pending.branchId,
-    );
+    const rows = [...card.querySelectorAll<HTMLElement>('[data-route]')];
+    if (pending.kind === 'remove') {
+      const row = rows[Math.min(pending.index, rows.length - 1)];
+      const target =
+        row?.querySelector<HTMLElement>('[data-remove]') ??
+        card.querySelector<HTMLElement>(`#${CSS.escape(`agregar-almacen-${code}`)}:not(:disabled)`) ??
+        card.querySelector<HTMLElement>('[data-retry-options]') ??
+        card;
+      target.focus();
+      return;
+    }
+    const row = rows.find((el) => el.dataset.route === pending.branchId);
     if (!row) return;
     const preferred = pending.direction === -1 ? 'up' : 'down';
     const fallback = pending.direction === -1 ? 'down' : 'up';
@@ -99,7 +124,7 @@ export function CountryRouteCard({
       row.querySelector<HTMLButtonElement>(`[data-move="${preferred}"]:not(:disabled)`) ??
       row.querySelector<HTMLButtonElement>(`[data-move="${fallback}"]:not(:disabled)`);
     button?.focus();
-  }, [routes]);
+  }, [routes, code]);
 
   const stockOf = (branchId: string): RouteStockInfo | null => {
     const w = diagnostics?.warehouses.find((x) => x.branchId === branchId);
@@ -117,7 +142,12 @@ export function CountryRouteCard({
   const selectId = `agregar-almacen-${code}`;
 
   return (
-    <Card id={`pais-${code}`} tabIndex={-1} className="scroll-mt-24 outline-none focus-visible:ring-2 focus-visible:ring-ring">
+    <Card
+      ref={cardRef}
+      id={`pais-${code}`}
+      tabIndex={-1}
+      className="scroll-mt-24 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
       <CardContent className="space-y-4 p-4 sm:p-5">
         <header className="space-y-2">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -130,7 +160,11 @@ export function CountryRouteCard({
             {country.currencyCode && <span className="text-sm text-muted-foreground">{country.currencyCode}</span>}
           </div>
           <div className="flex flex-wrap gap-1.5">
-            <Badge variant={store === 'open' ? 'success' : 'outline'} className="whitespace-normal">
+            {/* "Tienda abierta" lleva información: verde con contraste AA (la variante `success` da 1.8:1). */}
+            <Badge
+              variant="outline"
+              className={`whitespace-normal ${store === 'open' ? 'border-emerald-200 bg-emerald-100 text-emerald-900' : ''}`}
+            >
               {store === 'open' ? <Store aria-hidden /> : <Clock aria-hidden />}
               {STORE_STATUS_LABELS[store]}
             </Badge>
@@ -164,13 +198,25 @@ export function CountryRouteCard({
               {name} no tiene almacén: hoy no se puede enviar a clientes de {name}.
             </p>
             {canEdit && copyFrom && (
-              <Button type="button" variant="outline" className="mt-3 h-10 whitespace-normal text-left" onClick={onCopyFrom}>
-                <Copy aria-hidden /> Usar los mismos almacenes que {copyFrom.countryName}
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="mt-3 h-auto min-h-10 whitespace-normal text-left"
+                  onClick={onCopyFrom}
+                >
+                  <Copy aria-hidden /> Usar los mismos almacenes que {copyFrom.countryName}
+                </Button>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Al guardarlo, los carritos de los {numberFormat.format(country.customers)} clientes de {name} pasarán a
+                  mostrar las existencias reales de ese almacén (hoy ven todo como disponible). Lo revisas antes de
+                  guardar.
+                </p>
+              </>
             )}
           </div>
         ) : (
-          <ol ref={listRef} className="space-y-2" aria-label={`Almacenes que envían a ${name}, en orden de preferencia`}>
+          <ol className="space-y-2" aria-label={`Almacenes que envían a ${name}, en orden de preferencia`}>
             {routes.map((route, index) => {
               const cross = isCrossCountryRoute(route, code, ctx);
               return (
@@ -188,12 +234,15 @@ export function CountryRouteCard({
                   }
                   stock={stockOf(route.branchId)}
                   onMove={(direction) => {
-                    pendingFocus.current = { branchId: route.branchId, direction };
+                    pendingFocus.current = { kind: 'move', branchId: route.branchId, direction };
                     onMove(index, direction);
                   }}
                   onToggleActive={(isActive) => onToggleActive(route.branchId, isActive)}
                   onNotesChange={(notes) => onNotesChange(route.branchId, notes)}
-                  onRemove={() => onRemove(route.branchId)}
+                  onRemove={() => {
+                    pendingFocus.current = { kind: 'remove', index };
+                    onRemove(route.branchId);
+                  }}
                 />
               );
             })}
@@ -217,13 +266,27 @@ export function CountryRouteCard({
 
         {canEdit && (
           <footer className="space-y-1.5 border-t pt-3">
-            <label htmlFor={selectId} className="block text-sm font-medium text-foreground">
-              Agregar almacén
-            </label>
+            {isFull || optionsError ? (
+              <p className="text-sm font-medium text-foreground">Agregar almacén</p>
+            ) : (
+              <label htmlFor={selectId} className="block text-sm font-medium text-foreground">
+                Agregar almacén
+              </label>
+            )}
             {isFull ? (
               <p className="text-xs text-muted-foreground">
                 Este país ya tiene {MAX_ROUTES_PER_COUNTRY} almacenes, que es el máximo. Quita uno para agregar otro.
               </p>
+            ) : optionsError ? (
+              <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-red-900">
+                <TriangleAlert aria-hidden className="size-4 shrink-0" />
+                <span>No se pudo cargar la lista de sucursales.</span>
+                {onRetryOptions && (
+                  <Button type="button" variant="outline" size="sm" className="h-9" data-retry-options onClick={onRetryOptions}>
+                    <RefreshCw aria-hidden /> Reintentar
+                  </Button>
+                )}
+              </div>
             ) : (
               <>
                 <SearchableSelect
@@ -242,6 +305,7 @@ export function CountryRouteCard({
             )}
           </footer>
         )}
+        {showSkipToSave && <SkipToSave />}
       </CardContent>
     </Card>
   );

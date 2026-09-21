@@ -10,13 +10,22 @@
 // tecleado arrancan vacíos cada vez.
 
 import { useId, useState } from 'react';
-import { ArrowRight, TriangleAlert } from 'lucide-react';
+import { ArrowRight, ShoppingCart, TriangleAlert } from 'lucide-react';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MAX_NOTES_LENGTH, type DraftRoute } from '@/lib/fulfillment/route-draft';
-import { confirmTextForCountries, describeChange, type RouteChange } from '@/lib/fulfillment/route-diff';
+import { changeKey, confirmTextForCountries, describeChange, type RouteChange } from '@/lib/fulfillment/route-diff';
 import { numberFormat, storeStatus, warehouseLabel } from './fulfillment-ui';
+
+/** País que hoy no tiene almacén y con este guardado empieza a tenerlo (p. ej. Frontera con los de México). */
+export interface GainingCountry {
+  countryCode: string;
+  countryName: string;
+  customers: number;
+  /** "164 · Irapuato…": el almacén cuyas existencias pasarán a verse en los carritos. */
+  warehouseLabel: string;
+}
 
 export interface LosingCountry {
   countryCode: string;
@@ -37,6 +46,10 @@ interface SaveSummaryDialogProps {
   pendingOrders: Array<{ branchId: string; label: string; count: number }>;
   /** Rutas nuevas entre países: se guardan, pero todavía no surten. */
   crossBlocked: string[];
+  /** Llaves (`changeKey`) de los cambios cuya ruta va a otro país fiscal con el candado puesto. */
+  crossBlockedKeys: Set<string>;
+  /** Países que pasan de "sin almacén" a tener uno: cambia lo que ven los carritos de sus clientes. */
+  gaining: GainingCountry[];
   isSaving: boolean;
   onClose: () => void;
   onConfirm: (reason: string) => void;
@@ -50,6 +63,8 @@ export function SaveSummaryDialog({
   switching,
   pendingOrders,
   crossBlocked,
+  crossBlockedKeys,
+  gaining,
   isSaving,
   onClose,
   onConfirm,
@@ -102,7 +117,9 @@ export function SaveSummaryDialog({
           <ul className="list-disc space-y-1 pl-5">
             {changes.map((change, i) => (
               <li key={`${change.countryCode}-${change.type}-${change.branchId ?? 'orden'}-${i}`}>
-                {describeChange(change, countryNames[change.countryCode] ?? change.countryCode)}
+                {describeChange(change, countryNames[change.countryCode] ?? change.countryCode, {
+                  crossBlocked: crossBlockedKeys.has(changeKey(change.countryCode, change.branchId)),
+                })}
               </li>
             ))}
             {stockModeChange && <li>{stockModeChange}</li>}
@@ -126,6 +143,27 @@ export function SaveSummaryDialog({
           </section>
         )}
 
+        {gaining.length > 0 && (
+          <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900">
+            <p className="flex items-center gap-2 font-semibold">
+              <ShoppingCart aria-hidden className="size-4 shrink-0" />
+              Ojo: cambia lo que ven los clientes en su carrito
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {gaining.map((g) => (
+                <li key={g.countryCode}>
+                  <strong>{g.countryName}</strong>: los carritos de sus {numberFormat.format(g.customers)} clientes pasarán
+                  a mostrar las existencias reales de {g.warehouseLabel}.
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2">
+              Hoy, como ese país no tiene almacén, su carrito muestra todo como disponible. Al guardar, lo que no tenga
+              existencias en ese almacén les aparecerá como agotado, en menos de un minuto.
+            </p>
+          </div>
+        )}
+
         {crossBlocked.length > 0 && (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-900">
             <p className="font-semibold">Se guarda, pero todavía no surte pedidos:</p>
@@ -134,7 +172,10 @@ export function SaveSummaryDialog({
                 <li key={text}>{text}</li>
               ))}
             </ul>
-            <p className="mt-1">Los envíos de un país a otro aún no están habilitados. Cuando se habiliten, esta configuración ya estará lista.</p>
+            <p className="mt-1">
+              Por ahora un almacén solo surte pedidos de su mismo país (México y Frontera cuentan como uno). Los envíos de
+              un país a otro aún no están habilitados; cuando se habiliten, esta configuración ya estará lista.
+            </p>
           </div>
         )}
 
@@ -159,7 +200,9 @@ export function SaveSummaryDialog({
             placeholder="Ej. El almacén de Tulsa cierra por inventario"
             disabled={isSaving}
           />
-          <p className="text-xs text-muted-foreground">Queda en el historial para quien lo consulte después.</p>
+          <p className="text-xs text-muted-foreground">
+            Se guarda junto con el cambio y se ve en el Historial de esta pantalla.
+          </p>
         </div>
       </div>
     </ConfirmDialog>

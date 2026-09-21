@@ -3,6 +3,8 @@
 // HistorySheet — historial de cambios de las rutas (contrato §6.6 / §7.3-9).
 // `summaryEs` viene del API; sin autor = "Sistema" (mantenimiento, cascada o la
 // configuración inicial de la migración 144). Hora de negocio: Ciudad de México.
+// `reason` = el "Motivo del cambio" que se escribió al guardar (el API lo
+// persiste y lo devuelve por entrada); sin motivo no se pinta nada.
 
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -70,6 +72,11 @@ export function HistorySheet({ open, onOpenChange }: HistorySheetProps) {
               {entries.map((entry) => (
                 <li key={entry.id} className="rounded-md border p-3 text-sm">
                   <p className="break-words text-foreground">{entry.summaryEs}</p>
+                  {entry.reason?.trim() && (
+                    <p className="mt-1 break-words text-foreground">
+                      <span className="font-medium">Motivo:</span> {entry.reason.trim()}
+                    </p>
+                  )}
                   <p className="mt-1 break-words text-xs text-muted-foreground">
                     {entry.actor?.email ?? 'Sistema'} · <time dateTime={entry.at}>{formatWhen(entry.at)}</time>
                   </p>
