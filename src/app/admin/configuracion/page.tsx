@@ -8,11 +8,9 @@ import {
   useShippingSettings,
   useUpdateShippingSettings,
   useCountries,
-  useUpdateCountry,
   usePlatformSettings,
   useUpdatePlatformSettings,
 } from '@/hooks/useConfig';
-import { useActiveBranches } from '@/hooks/useBranches';
 import {
   Cog6ToothIcon,
   GlobeAltIcon,
@@ -21,7 +19,6 @@ import {
   EnvelopeIcon,
   BellIcon,
   ShieldCheckIcon,
-  KeyIcon,
   CreditCardIcon,
   BuildingStorefrontIcon,
   CheckCircleIcon,
@@ -147,46 +144,15 @@ export default function ConfiguracionPage() {
     }));
   }, [shippingData]);
 
-  // ── Tienda por país: almacén ecommerce (countries.default_shipping_branch_id) ──
+  // Países: solo para la moneda de los costos de envío. El almacén que surte
+  // cada país ya NO se edita aquí (countries.default_shipping_branch_id es un
+  // espejo de solo lectura): vive en /admin/configuracion/rutas-envio.
   const { data: countries } = useCountries();
-  const { data: branches } = useActiveBranches();
-  const updateCountry = useUpdateCountry();
 
   // Moneda del país de envío seleccionado (para etiquetas de costos).
   const shippingCurrency =
     (countries ?? []).find((c) => c.code === shippingCountry)?.currencyCode ||
     'MXN';
-  // Selección local por país (se inicializa con lo guardado y se edita antes de guardar).
-  const [warehouseByCountry, setWarehouseByCountry] = useState<
-    Record<string, string>
-  >({});
-
-  useEffect(() => {
-    if (!countries) return;
-    setWarehouseByCountry((prev) => {
-      const next = { ...prev };
-      for (const c of countries) {
-        if (next[c.id] === undefined)
-          next[c.id] = c.defaultShippingBranchId ?? '';
-      }
-      return next;
-    });
-  }, [countries]);
-
-  const handleSaveWarehouse = (countryId: string) => {
-    const branchId = warehouseByCountry[countryId];
-    if (!branchId) {
-      toast.error('Selecciona un almacén para este país');
-      return;
-    }
-    updateCountry.mutate(
-      { id: countryId, dto: { defaultShippingBranchId: branchId } },
-      {
-        onSuccess: () => toast.success('Almacén del país actualizado'),
-        onError: () => toast.error('No se pudo guardar el almacén del país'),
-      },
-    );
-  };
 
   const handleSaveShipping = () => {
     updateShipping.mutate(
@@ -204,8 +170,6 @@ export default function ConfiguracionPage() {
     );
   };
 
-  // Pestañas que tienen su propio guardado por fila/botón (no usan el botón global).
-  const SELF_MANAGED_TABS = ['store-countries', 'mlm', 'email'];
   const canSaveActiveTab =
     activeTab === 'shipping' || PLATFORM_TABS.includes(activeTab);
   const savingActiveTab =
@@ -251,7 +215,7 @@ export default function ConfiguracionPage() {
   const tabs = [
     { id: 'general', name: 'General', icon: Cog6ToothIcon },
     { id: 'business', name: 'Negocio', icon: BuildingStorefrontIcon },
-    { id: 'store-countries', name: 'Tienda por país', icon: GlobeAltIcon },
+    { id: 'store-countries', name: 'Almacenes y envíos', icon: GlobeAltIcon },
     { id: 'shipping', name: 'Envíos', icon: TruckIcon },
     { id: 'email', name: 'Correo', icon: EnvelopeIcon },
     { id: 'notifications', name: 'Notificaciones', icon: BellIcon },
@@ -487,105 +451,29 @@ export default function ConfiguracionPage() {
               </Card>
             )}
 
-            {/* Tienda por país: almacén ecommerce que surte cada país */}
+            {/* Almacenes y envíos: sustituye a la pestaña "Tienda por país" (rutas de surtido, mig 144) */}
             {activeTab === 'store-countries' && (
               <Card>
                 <CardContent className="p-6">
                   <h2 className="text-xl font-bold text-gray-900 mb-2">
-                    Tienda por país — Almacén de e-commerce
+                    Almacenes y envíos
                   </h2>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Ahora decides en una pantalla propia qué almacén envía los
+                    pedidos de la tienda a cada país: puedes poner varios
+                    almacenes por país, en orden de preferencia, y un mismo
+                    almacén puede enviar a varios países.
+                  </p>
                   <p className="text-sm text-gray-500 mb-6">
-                    Define qué sucursal/almacén surte los pedidos de la tienda en
-                    línea de cada país. Determina el inventario y los precios que ven
-                    los clientes de ese país, y desde dónde se despacha. Recoger en
-                    sucursal no se ve afectado.
+                    El almacén por país que se elegía aquí ya no se edita en
+                    esta pestaña. Recoger en sucursal no se ve afectado.
                   </p>
-
-                  <div className="space-y-4">
-                    {(countries ?? [])
-                      .filter((c) => c.isActive)
-                      .map((country) => {
-                        const countryBranches = (branches ?? []).filter(
-                          (b) => b.countryId === country.id,
-                        );
-                        const options = (
-                          countryBranches.length > 0 ? countryBranches : branches ?? []
-                        ).map((b) => ({
-                          value: b.id,
-                          label: `${b.code} — ${b.name}`,
-                        }));
-                        const selected = warehouseByCountry[country.id] ?? '';
-                        const dirty =
-                          selected !== (country.defaultShippingBranchId ?? '');
-                        return (
-                          <div
-                            key={country.id}
-                            className="flex flex-col gap-3 rounded-xl border border-gray-200 p-4 sm:flex-row sm:items-end"
-                          >
-                            <div className="sm:w-48">
-                              <p className="font-semibold text-gray-900">
-                                {country.name}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {country.code}
-                                {country.currencyCode
-                                  ? ` · ${country.currencyCode}`
-                                  : ''}
-                              </p>
-                              {country.defaultShippingBranchName && (
-                                <p className="mt-1 text-xs text-gray-400">
-                                  Actual: {country.defaultShippingBranchName}
-                                </p>
-                              )}
-                            </div>
-                            <div className="flex-1">
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Almacén de e-commerce
-                              </label>
-                              <SearchableSelect
-                                options={options}
-                                value={selected}
-                                onChange={(val) =>
-                                  setWarehouseByCountry((prev) => ({
-                                    ...prev,
-                                    [country.id]: val,
-                                  }))
-                                }
-                                showAllOption={false}
-                                placeholder="Selecciona una sucursal…"
-                                className="w-full"
-                              />
-                              {countryBranches.length === 0 && (
-                                <p className="mt-1 text-xs text-amber-600">
-                                  Este país no tiene sucursales propias; se listan
-                                  todas las sucursales activas.
-                                </p>
-                              )}
-                            </div>
-                            <Button
-                              variant="default"
-                              onClick={() => handleSaveWarehouse(country.id)}
-                              disabled={!dirty || updateCountry.isPending}
-                            >
-                              <CheckCircleIcon className="h-5 w-5" />
-                              Guardar
-                            </Button>
-                          </div>
-                        );
-                      })}
-
-                    {(countries ?? []).filter((c) => c.isActive).length === 0 && (
-                      <p className="text-sm text-gray-500">
-                        No hay países activos configurados.
-                      </p>
-                    )}
-                  </div>
-
-                  <p className="mt-6 text-xs text-gray-400">
-                    Nota: el almacén define el stock y precio que ve el país en la
-                    tienda. Asegúrate de que la sucursal tenga inventario y precios
-                    cargados para ese país.
-                  </p>
+                  <Button asChild variant="default">
+                    <Link href="/admin/configuracion/rutas-envio">
+                      <TruckIcon className="h-5 w-5" />
+                      Abrir Almacenes y envíos
+                    </Link>
+                  </Button>
                 </CardContent>
               </Card>
             )}

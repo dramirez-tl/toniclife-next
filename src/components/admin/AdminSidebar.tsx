@@ -34,11 +34,20 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutAsync, selectUser, selectUserPermissions } from '@/store/slices/authSlice';
 import { toast } from 'sonner';
 
+interface NavChild {
+  name: string;
+  href: string;
+  // Permisos PROPIOS del hijo (cualquiera de ellos). Sin ellos hereda los del
+  // padre. Con ellos se muestra aunque el rol no tenga los del padre (y el
+  // padre aparece solo con los hijos permitidos).
+  permissions?: string[];
+}
+
 interface NavItem {
   name: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
-  children?: { name: string; href: string }[];
+  children?: NavChild[];
   // Permisos requeridos para ver este elemento (cualquiera de ellos)
   permissions?: string[];
   // Visible EXCLUSIVAMENTE para el rol super_admin (ignora permisos)
@@ -239,6 +248,12 @@ const navigation: NavItem[] = [
     children: [
       { name: 'General', href: '/admin/configuracion' },
       { name: 'Catálogos', href: '/admin/configuracion/catalogos' },
+      // Rutas de surtido del ecommerce: qué almacén envía a qué país (mig 144).
+      {
+        name: 'Almacenes y envíos',
+        href: '/admin/configuracion/rutas-envio',
+        permissions: ['fulfillment:read', 'fulfillment:manage'],
+      },
     ],
   },
   {
@@ -312,9 +327,17 @@ export function AdminSidebar({ mobile = false, collapsed = false, onNavigate }: 
       return navigation;
     }
 
-    return navigation.filter(
-      (item) => !item.superAdminOnly && hasAnyPermission(userPermissions, item.permissions),
-    );
+    return navigation.flatMap((item) => {
+      if (item.superAdminOnly) return [];
+      const parentAllowed = hasAnyPermission(userPermissions, item.permissions);
+      if (!item.children) return parentAllowed ? [item] : [];
+      // Hijo con permisos propios: se decide por ellos. Sin permisos propios: hereda al padre.
+      const children = item.children.filter((child) =>
+        child.permissions ? hasAnyPermission(userPermissions, child.permissions) : parentAllowed,
+      );
+      if (children.length === 0) return parentAllowed ? [{ ...item, children: undefined }] : [];
+      return [{ ...item, children }];
+    });
   }, [user?.roles, userPermissions]);
 
   // Rol sin ningún módulo concedido: solo verá Panel Principal + aviso.
@@ -413,7 +436,7 @@ export function AdminSidebar({ mobile = false, collapsed = false, onNavigate }: 
     return pathname.startsWith(href);
   };
 
-  const isChildActive = (children?: { name: string; href: string }[]) => {
+  const isChildActive = (children?: NavChild[]) => {
     if (!children) return false;
     return children.some((child) => pathname === child.href || pathname.startsWith(child.href + '/'));
   };

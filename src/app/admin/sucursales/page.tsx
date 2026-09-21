@@ -61,6 +61,14 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { confirmAction } from '@/lib/utils';
+import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
+import { useFulfillmentRoutes } from '@/hooks/useFulfillment';
+import { useFulfillmentPermissions } from '@/components/admin/fulfillment/useFulfillmentPermissions';
+import {
+  deactivateBranchWarning,
+  shippingBadgeText,
+  shippingCountriesByBranch,
+} from '@/lib/fulfillment/branch-routes';
 import { PermissionGuard } from '@/components/auth';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
@@ -455,6 +463,15 @@ function SucursalesContent() {
   // Modal dedicado de licencias (lanzado desde el row action en la tabla).
   const [licensesBranch, setLicensesBranch] = useState<Branch | null>(null);
 
+  // Rutas de surtido del ecommerce (mig 144): solo lectura aquí. Sirve para el
+  // badge "Envía a: …" y para avisar ANTES de desactivar una sucursal que surte
+  // envíos (el país se quedaría sin envío sin pasar por Almacenes y envíos).
+  // Sin permiso de lectura no se consulta; si el API aún no lo tiene, no insiste.
+  const { canRead: canReadFulfillment } = useFulfillmentPermissions();
+  const { data: fulfillmentRoutes } = useFulfillmentRoutes({ enabled: canReadFulfillment, retry: false });
+  const shippingByBranch = useMemo(() => shippingCountriesByBranch(fulfillmentRoutes), [fulfillmentRoutes]);
+  const [deactivateTarget, setDeactivateTarget] = useState<Branch | null>(null);
+
   // Computed stats (server-side totals)
   const stats = useMemo(() => ({
     total: baseStatsData?.total ?? 0,
@@ -593,7 +610,12 @@ function SucursalesContent() {
     }
   };
 
-  const handleToggleActive = async (branch: Branch) => {
+  const handleToggleActive = async (branch: Branch, confirmed = false) => {
+    // Desactivar una sucursal con rutas de envío activas pide confirmación primero.
+    if (branch.isActive && !confirmed && deactivateBranchWarning(shippingByBranch[branch.id] ?? [])) {
+      setDeactivateTarget(branch);
+      return;
+    }
     try {
       await updateBranch.mutateAsync({
         id: branch.id,
@@ -657,6 +679,20 @@ function SucursalesContent() {
       badges.push(
         <Badge key="none" variant="outline" className="text-muted-foreground">
           Sin tipo
+        </Badge>
+      );
+    }
+    // Solo lectura: países a los que esta sucursal envía pedidos de la tienda.
+    const shipsTo = shippingByBranch[branch.id];
+    if (shipsTo && shipsTo.length > 0) {
+      badges.push(
+        <Badge
+          key="ships-to"
+          variant="info"
+          title={`Envía pedidos de la tienda a: ${shipsTo.map((c) => c.countryName).join(', ')}. Se configura en Almacenes y envíos.`}
+        >
+          <TruckIcon className="h-3 w-3" />
+          {shippingBadgeText(shipsTo)}
         </Badge>
       );
     }
@@ -1168,6 +1204,34 @@ function SucursalesContent() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Aviso: la sucursal surte envíos de la tienda (rutas de surtido) */}
+      <ConfirmDialog
+        open={!!deactivateTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeactivateTarget(null);
+        }}
+        title={deactivateTarget ? `¿Desactivar ${deactivateTarget.name}?` : '¿Desactivar sucursal?'}
+        description={deactivateTarget ? deactivateBranchWarning(shippingByBranch[deactivateTarget.id] ?? []) : undefined}
+        confirmLabel="Desactivar de todos modos"
+        cancelLabel="No desactivar"
+        destructive
+        isPending={updateBranch.isPending}
+        onConfirm={async () => {
+          const target = deactivateTarget;
+          if (!target) return;
+          await handleToggleActive(target, true);
+          setDeactivateTarget(null);
+        }}
+      >
+        <p>
+          Los pedidos que ya están hechos no cambian. Para elegir otro almacén ve a{' '}
+          <Link href="/admin/configuracion/rutas-envio" className="font-medium text-primary underline underline-offset-2">
+            Almacenes y envíos
+          </Link>
+          .
+        </p>
+      </ConfirmDialog>
 
       {/* Create/Edit Modal */}
       <BranchModal
