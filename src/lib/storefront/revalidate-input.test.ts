@@ -3,6 +3,7 @@ import {
   REVALIDATE_MAX_SLUGS,
   extractBearerToken,
   parseRevalidateBody,
+  slugsForRevalidateRequest,
   tagsToRevalidate,
 } from './revalidate-input';
 
@@ -77,5 +78,34 @@ describe('extractBearerToken', () => {
     expect(extractBearerToken(`Bearer ${jwt} extra`)).toBeNull();
     expect(extractBearerToken(`Bearer ${jwt}\r\nX-Injected: 1`)).toBeNull();
     expect(extractBearerToken(`Bearer ${'a'.repeat(20000)}.b.c`)).toBeNull();
+  });
+});
+
+describe('slugsForRevalidateRequest (lo que manda el admin, M-1)', () => {
+  const many = (n: number) => Array.from({ length: n }, (_, i) => `producto-${i + 1}`);
+
+  it('quita vacíos, nulos y duplicados', () => {
+    expect(slugsForRevalidateRequest(['a-1', null, undefined, '', '  ', 'a-1', ' b-2 '])).toEqual(['a-1', 'b-2']);
+    expect(slugsForRevalidateRequest([])).toEqual([]);
+  });
+
+  it('hasta 50 slugs viajan tal cual y la ruta los acepta', () => {
+    const slugs = slugsForRevalidateRequest(many(REVALIDATE_MAX_SLUGS));
+    expect(slugs).toHaveLength(REVALIDATE_MAX_SLUGS);
+    expect(parseRevalidateBody({ slugs })).toEqual({ ok: true, slugs });
+  });
+
+  it('más de 50 (página de 100 filas) = [] → la ruta invalida el catálogo en vez de responder 400', () => {
+    expect(parseRevalidateBody({ slugs: many(100) })).toEqual({ ok: false, reason: 'slugs_too_many' });
+    const slugs = slugsForRevalidateRequest(many(100));
+    expect(slugs).toEqual([]);
+    const parsed = parseRevalidateBody({ slugs });
+    expect(parsed).toEqual({ ok: true, slugs: [] });
+    expect(tagsToRevalidate(parsed.ok ? parsed.slugs : ['x'])).toEqual(['catalog']);
+  });
+
+  it('el tope se mide DESPUÉS de quitar duplicados', () => {
+    expect(slugsForRevalidateRequest([...many(40), ...many(40)])).toHaveLength(40);
+    expect(slugsForRevalidateRequest(many(REVALIDATE_MAX_SLUGS + 1))).toEqual([]);
   });
 });

@@ -11,6 +11,7 @@
 
 import api from '@/lib/axios';
 import { hydrateBlobErrorBody } from '@/components/admin/products/lib/errors';
+import { slugsForRevalidateRequest } from '@/lib/storefront/revalidate-input';
 import type {
   Product,
   ProductImage,
@@ -681,7 +682,8 @@ class ProductsAdminService {
       await fetch('/api/revalidate-catalog', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ slugs: slugs.filter((s): s is string => typeof s === 'string' && s.length > 0) }),
+        // Más de 50 slugs = `{ slugs: [] }`: la ruta respondería 400 sin invalidar nada (M-1).
+        body: JSON.stringify({ slugs: slugsForRevalidateRequest(slugs) }),
         keepalive: true,
       });
     } catch {

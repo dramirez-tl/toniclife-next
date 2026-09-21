@@ -46,6 +46,23 @@ export function parseRevalidateBody(body: unknown): RevalidateInput {
   return { ok: true, slugs: [...slugs] };
 }
 
+/**
+ * Slugs que el ADMIN manda a la ruta. Quita vacíos y duplicados; si aun así pasan
+ * de `REVALIDATE_MAX_SLUGS` (acción masiva sobre una página de 100 filas) manda
+ * `[]`: la ruta rechazaría la petición ENTERA con 400 y no invalidaría nada, y la
+ * etiqueta `catalog` ya cubre todos los detalles (`server.ts` etiqueta cada detalle
+ * con `[CATALOG_TAG, productTag(slug)]`).
+ */
+export function slugsForRevalidateRequest(slugs: readonly (string | null | undefined)[]): string[] {
+  const unique = new Set<string>();
+  for (const slug of slugs) {
+    if (typeof slug !== 'string') continue;
+    const clean = slug.trim();
+    if (clean.length > 0) unique.add(clean);
+  }
+  return unique.size > REVALIDATE_MAX_SLUGS ? [] : [...unique];
+}
+
 /** Etiquetas a invalidar: siempre el catálogo + una por slug válido. */
 export function tagsToRevalidate(slugs: readonly string[]): string[] {
   return [CATALOG_TAG, ...slugs.map(productTag)];
