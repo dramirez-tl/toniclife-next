@@ -10,6 +10,7 @@ import { QueryProvider } from "@/providers/QueryProvider";
 import { ReferralCodeCapture } from "@/components/ReferralCodeCapture";
 import { VersionChecker } from "@/components/VersionChecker";
 import { SessionSync } from "@/components/SessionSync";
+import { CartMergeOnLogin } from "@/components/cart/CartMergeOnLogin";
 import { DEFAULT_LOCALE, isSupportedLocale, localeLanguage } from "@/i18n/config";
 import { buildRootMetadata } from "@/lib/storefront/metadata";
 import esMessages from "@/messages/es.json";
@@ -91,6 +92,8 @@ export default async function RootLayout({
               <ReferralCodeCapture />
               <VersionChecker />
               <SessionSync />
+              {/* C3: mezcla el carrito de invitado tras un login/registro ya exitoso (solo LEE la sesión). */}
+              <CartMergeOnLogin />
               {children}
             </ReduxProvider>
           </QueryProvider>
