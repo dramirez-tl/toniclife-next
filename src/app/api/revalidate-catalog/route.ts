@@ -24,6 +24,7 @@ import {
   tagsToRevalidate,
 } from '@/lib/storefront/revalidate-input';
 import { storefrontApiBase } from '@/lib/storefront/server';
+import { BoundedTtlMap } from '@/lib/storefront/ttl-map';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -32,7 +33,18 @@ const AUTH_TIMEOUT_MS = 5000;
 /** Un guardado del admin dispara varias invalidaciones seguidas: el visto bueno del API se recuerda 60 s. */
 const AUTH_CACHE_MS = 60 * 1000;
 const AUTH_CACHE_MAX = 200;
-const authorizedUntil = new Map<string, number>();
+/**
+ * Caché NEGATIVO (L-1): un token que el API rechazó (401/403) no vuelve a gastar una
+ * llamada durante 60 s; se responde lo mismo desde memoria. Un 503 (API caído o con
+ * límite) NO se recuerda. Mapa aparte del de vistos buenos para que una ráfaga de
+ * tokens falsos no desaloje a los admins legítimos; ambos con tamaño acotado.
+ * Igual que el visto bueno, el rechazo puede sobrevivir 60 s a un cambio de permisos:
+ * solo retrasa una purga de caché que el TTL de 120 s cubre de todos modos.
+ */
+const DENIED_CACHE_MS = 60 * 1000;
+const DENIED_CACHE_MAX = 1000;
+const authorized = new BoundedTtlMap<true>(AUTH_CACHE_MS, AUTH_CACHE_MAX);
+const denied = new BoundedTtlMap<401 | 403>(DENIED_CACHE_MS, DENIED_CACHE_MAX);
 
 function reply(status: number, body: Record<string, unknown>): NextResponse {
   return NextResponse.json(body, {
@@ -45,19 +57,13 @@ function fingerprint(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
-function rememberAuthorized(key: string, now: number): void {
-  if (authorizedUntil.size >= AUTH_CACHE_MAX) {
-    for (const [k, until] of authorizedUntil) if (until <= now) authorizedUntil.delete(k);
-    if (authorizedUntil.size >= AUTH_CACHE_MAX) authorizedUntil.clear();
-  }
-  authorizedUntil.set(key, now + AUTH_CACHE_MS);
-}
-
 /** 200 del API = JWT de usuario vigente con `products:read`. Devuelve el estado HTTP a responder. */
 async function authorize(token: string): Promise<200 | 401 | 403 | 503> {
   const now = Date.now();
   const key = fingerprint(token);
-  if ((authorizedUntil.get(key) ?? 0) > now) return 200;
+  if (authorized.get(key, now)) return 200;
+  const rejectedAs = denied.get(key, now);
+  if (rejectedAs) return rejectedAs;
 
   try {
     const response = await fetch(`${storefrontApiBase()}/catalog-admin/slug-check?slug=x`, {
@@ -66,11 +72,13 @@ async function authorize(token: string): Promise<200 | 401 | 403 | 503> {
       signal: AbortSignal.timeout(AUTH_TIMEOUT_MS),
     });
     if (response.status === 200) {
-      rememberAuthorized(key, now);
+      authorized.set(key, true, now);
       return 200;
     }
-    if (response.status === 401) return 401;
-    if (response.status === 403) return 403;
+    if (response.status === 401 || response.status === 403) {
+      denied.set(key, response.status, now);
+      return response.status;
+    }
     return 503;
   } catch {
     return 503;
