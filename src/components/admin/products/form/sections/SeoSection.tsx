@@ -10,14 +10,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWatch } from 'react-hook-form';
-import { CheckCircle2, Loader2, Lock, RefreshCw, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Loader2, Lock, RefreshCw, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import type { AdminUpdateProductDto } from '@/services/products-admin.service';
 import { productAdminErrorMessage } from '../../lib/errors';
-import { buildProductSlug, isValidSlug } from '../../lib/slug';
+import { buildProductSlug, isLegacyInvalidSlug, isValidSlug, slugFieldError } from '../../lib/slug';
 import { useDeleteSlugHistory, useSlugCheck, useSlugHistory } from '../../useProductsAdmin';
 import { useProductForm } from '../ProductFormContext';
 import { SectionCard } from '../SectionCard';
@@ -27,19 +27,25 @@ import { textOrNull, useSectionForm } from '../useSectionForm';
 const META_TITLE_SOFT = 60;
 const META_DESCRIPTION_SOFT = 160;
 
-const schema = z.object({
-  slug: z
-    .string()
-    .trim()
-    .max(250, 'Máximo 250 caracteres')
-    .refine((v) => v === '' || isValidSlug(v), 'Solo minúsculas, números y guiones (sin acentos ni espacios)'),
-  metaTitle: z.string().max(200, 'Máximo 200 caracteres'),
-  metaDescription: z.string().max(500, 'Máximo 500 caracteres'),
-  metaTitleEn: z.string().max(200, 'Máximo 200 caracteres'),
-  metaDescriptionEn: z.string().max(500, 'Máximo 500 caracteres'),
-});
+// El formato de la URL solo se exige si el usuario la TOCÓ: una URL heredada
+// fuera de formato no debe impedir guardar los metadatos (la URL no viaja).
+const buildSchema = (savedSlug: string) =>
+  z.object({
+    slug: z
+      .string()
+      .trim()
+      .max(250, 'Máximo 250 caracteres')
+      .superRefine((v, ctx) => {
+        const message = slugFieldError(v, savedSlug);
+        if (message) ctx.addIssue({ code: 'custom', message });
+      }),
+    metaTitle: z.string().max(200, 'Máximo 200 caracteres'),
+    metaDescription: z.string().max(500, 'Máximo 500 caracteres'),
+    metaTitleEn: z.string().max(200, 'Máximo 200 caracteres'),
+    metaDescriptionEn: z.string().max(500, 'Máximo 500 caracteres'),
+  });
 
-type SeoValues = z.infer<typeof schema>;
+type SeoValues = z.infer<ReturnType<typeof buildSchema>>;
 
 function useDebounced(value: string, delayMs: number): string {
   const [debounced, setDebounced] = useState(value);
@@ -85,6 +91,7 @@ export function SeoSection() {
   const history = useSlugHistory(productId, true);
   const deleteRedirect = useDeleteSlugHistory(productId);
   const currentSlug = product?.slug ?? '';
+  const schema = useMemo(() => buildSchema(currentSlug), [currentSlug]);
 
   const values = useMemo<SeoValues>(
     () => ({
@@ -142,6 +149,12 @@ export function SeoSection() {
   }, [slugBlocked]);
 
   const regenerated = buildProductSlug(product?.code ?? '', product?.name ?? '');
+  // URL heredada fuera de formato y sin tocar: aviso NO bloqueante.
+  const legacySlugNotice = isLegacyInvalidSlug(currentSlug) && !slugChanged;
+  const regenerateFromNotice = () => {
+    setSlugUnlocked(true);
+    setValue('slug', regenerated, { shouldDirty: true, shouldValidate: true });
+  };
 
   const handleDeleteRedirect = async () => {
     if (!redirectToDelete) return;
@@ -203,6 +216,28 @@ export function SeoSection() {
                 )
               ) : null}
             </div>
+
+            {legacySlugNotice ? (
+              <div
+                className="flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between"
+                role="status"
+              >
+                <p className="flex items-start gap-2">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                  <span>
+                    La URL actual está fuera de formato (solo se admiten minúsculas, números y guiones, sin guion al
+                    inicio ni al final). Sigue funcionando y puedes guardar el resto de la sección sin cambiarla.
+                    {regenerated ? ' Si la regeneras, la anterior no quedará como redirección por no tener un formato válido.' : ''}
+                  </span>
+                </p>
+                {!section.readOnly && regenerated ? (
+                  <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={regenerateFromNotice}>
+                    <RefreshCw className="mr-2 h-4 w-4" aria-hidden />
+                    Regenerar URL
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
 
             {slugUnlocked ? (
               <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="note">

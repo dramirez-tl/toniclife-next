@@ -23,3 +23,23 @@ export function buildProductSlug(code: string, name: string): string {
 export function isValidSlug(slug: string): boolean {
   return slug.length > 0 && slug.length <= MAX_SLUG && SLUG_RE.test(slug);
 }
+
+export const SLUG_FORMAT_MESSAGE = 'Solo minúsculas, números y guiones (sin acentos ni espacios)';
+
+/**
+ * Error del campo URL en la ficha, o `null` si se puede guardar.
+ * El formato SOLO se exige cuando el usuario cambió la URL: un producto con una
+ * URL heredada fuera de formato (p. ej. terminada en guion) debe poder guardar
+ * sus metadatos sin que se le obligue a cambiarla (el PATCH ni siquiera la manda).
+ */
+export function slugFieldError(value: string, savedSlug: string | null | undefined): string | null {
+  const next = (value ?? '').trim();
+  if (next === '' || next === (savedSlug ?? '').trim()) return null;
+  return isValidSlug(next) ? null : SLUG_FORMAT_MESSAGE;
+}
+
+/** ¿La URL guardada está fuera de formato? (aviso NO bloqueante en "SEO y URL"). */
+export function isLegacyInvalidSlug(savedSlug: string | null | undefined): boolean {
+  const saved = (savedSlug ?? '').trim();
+  return saved !== '' && !isValidSlug(saved);
+}
