@@ -1,40 +1,108 @@
 // useCart.ts - React Query hooks for e-commerce cart
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.4 E-commerce
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
+import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { cartService } from '@/services/cart.service';
-
-/**
- * Aviso de error de las mutaciones del carrito. Antes fallaban en SILENCIO
- * (botón "Agregando..." que no agregaba nada, sin pista de la causa: sesión
- * vencida, producto sin precio, etc.). Muestra el mensaje real del API.
- */
-function toastCartError(err: unknown, fallback: string): void {
-  const e = err as {
-    response?: { status?: number; data?: { message?: string | string[] } };
-  };
-  if (e?.response?.status === 401) {
-    toast.error('Tu sesión expiró. Vuelve a iniciar sesión o continúa como invitado.');
-    return;
-  }
-  const msg = e?.response?.data?.message;
-  toast.error(Array.isArray(msg) ? msg.join(', ') : msg || fallback);
-}
+import { localeLanguage } from '@/i18n/config';
+import { catalogErrorMessage } from '@/lib/storefront/errors';
+import { mapCartError, planStockAdjust } from '@/lib/storefront/cart-logic';
 import type {
   Cart,
-  CartSummary,
   AddCartItemInput,
   UpdateCartItemInput,
   ApplyCouponInput,
-  CouponValidationResult,
   GuestCheckoutInput,
   AuthenticatedCheckoutInput,
-  CheckoutResponse,
-  CheckoutSummary,
-  SavedAddress,
   ShippingMethod,
 } from '@/types/cart';
+
+type CartErrorFallback = 'add' | 'update' | 'remove' | 'clear';
+
+/**
+ * Aviso de error de las mutaciones del carrito, por i18n (ES/EN) y por CÓDIGO del
+ * API (`CART_NOT_SELLABLE`, `CART_ENROLLMENT_KIT`, `CART_QTY_EXCEEDS_STOCK`). Contra
+ * un API sin códigos degrada al mensaje real del API (solo con la UI en español,
+ * porque viene en español) y, si no, al texto traducido de la operación.
+ * Antes fallaban en SILENCIO o con textos fijos en español.
+ */
+function useCartErrorToast(): (err: unknown, fallback: CartErrorFallback) => void {
+  const t = useTranslations('storefront.cart.errors');
+  const lang = localeLanguage(useLocale());
+  const router = useRouter();
+
+  return useCallback(
+    (err, fallback) => {
+      const info = mapCartError(err);
+      switch (info.kind) {
+        case 'session_expired':
+          toast.error(t('sessionExpired'));
+          return;
+        case 'not_sellable':
+          toast.error(t('notSellable'));
+          return;
+        case 'enrollment_kit': {
+          // `/registro/distribuidor` vive fuera de `[locale]`: router de Next, no el de next-intl.
+          const href = info.href;
+          toast.error(t('enrollmentKit'), {
+            duration: 10000,
+            action: href ? { label: t('enrollmentKitAction'), onClick: () => router.push(href) } : undefined,
+          });
+          return;
+        }
+        case 'qty_exceeds_stock':
+          if (info.maxQuantity === 0) toast.error(t('soldOut'));
+          else if (info.maxQuantity) toast.error(t('qtyExceeds', { max: info.maxQuantity }));
+          else toast.error(t('qtyExceedsUnknown'));
+          return;
+        default:
+          toast.error(catalogErrorMessage(err, t(fallback), { useApiMessage: lang === 'es' }));
+      }
+    },
+    [t, lang, router],
+  );
+}
+
+/** Carrito en caché o, si aún no se pidió, del API (para conocer la línea que hay que ajustar). */
+async function currentCart(queryClient: QueryClient): Promise<Cart> {
+  return queryClient.getQueryData<Cart>(cartKeys.cart()) ?? (await cartService.getCart());
+}
+
+/**
+ * `CART_QTY_EXCEEDS_STOCK` (API C1): deja la línea en el máximo que dijo el API y lo
+ * avisa. UN solo reintento; si no hay `maxQuantity`, está agotado o el reintento
+ * falla, el error sigue su camino normal (`onError`). Contra el API actual (sin
+ * ese código) nunca entra aquí.
+ */
+function useStockAdjust() {
+  const t = useTranslations('storefront.cart.errors');
+  const queryClient = useQueryClient();
+
+  return useCallback(
+    async (err: unknown, locate: (cart: Cart) => Cart['items'][number] | undefined, addProductId?: string): Promise<Cart> => {
+      const info = mapCartError(err);
+      if (info.kind !== 'qty_exceeds_stock') throw err;
+      const cart = await currentCart(queryClient);
+      const line = locate(cart);
+      const plan = planStockAdjust(info.maxQuantity, line?.quantity ?? 0);
+      if (plan.action === 'already_max') {
+        toast.info(t('alreadyMax', { max: plan.quantity }));
+        return cart;
+      }
+      if (plan.action !== 'set') throw err;
+      let adjusted: Cart;
+      if (line) adjusted = await cartService.updateItem(line.id, { quantity: plan.quantity });
+      else if (addProductId) adjusted = await cartService.addItem({ productId: addProductId, quantity: plan.quantity });
+      else throw err;
+      toast.info(t('adjusted', { max: plan.quantity }));
+      return adjusted;
+    },
+    [t, queryClient],
+  );
+}
 
 // ================================
 // QUERY KEYS
@@ -87,33 +155,49 @@ export const useCartSummary = () => {
 
 export const useAddCartItem = () => {
   const queryClient = useQueryClient();
+  const toastCartError = useCartErrorToast();
+  const adjustToStock = useStockAdjust();
 
   return useMutation({
-    mutationFn: (data: AddCartItemInput) => cartService.addItem(data),
+    mutationFn: async (data: AddCartItemInput) => {
+      try {
+        return await cartService.addItem(data);
+      } catch (err) {
+        return adjustToStock(err, (cart) => cart.items.find((i) => i.productId === data.productId), data.productId);
+      }
+    },
     onSuccess: (data) => {
       queryClient.setQueryData(cartKeys.cart(), data);
       queryClient.invalidateQueries({ queryKey: cartKeys.summary() });
     },
-    onError: (err) => toastCartError(err, 'No se pudo agregar el producto al carrito'),
+    onError: (err) => toastCartError(err, 'add'),
   });
 };
 
 export const useUpdateCartItem = () => {
   const queryClient = useQueryClient();
+  const toastCartError = useCartErrorToast();
+  const adjustToStock = useStockAdjust();
 
   return useMutation({
-    mutationFn: ({ itemId, data }: { itemId: string; data: UpdateCartItemInput }) =>
-      cartService.updateItem(itemId, data),
+    mutationFn: async ({ itemId, data }: { itemId: string; data: UpdateCartItemInput }) => {
+      try {
+        return await cartService.updateItem(itemId, data);
+      } catch (err) {
+        return adjustToStock(err, (cart) => cart.items.find((i) => i.id === itemId));
+      }
+    },
     onSuccess: (data) => {
       queryClient.setQueryData(cartKeys.cart(), data);
       queryClient.invalidateQueries({ queryKey: cartKeys.summary() });
     },
-    onError: (err) => toastCartError(err, 'No se pudo actualizar el carrito'),
+    onError: (err) => toastCartError(err, 'update'),
   });
 };
 
 export const useRemoveCartItem = () => {
   const queryClient = useQueryClient();
+  const toastCartError = useCartErrorToast();
 
   return useMutation({
     mutationFn: (itemId: string) => cartService.removeItem(itemId),
@@ -121,12 +205,13 @@ export const useRemoveCartItem = () => {
       queryClient.setQueryData(cartKeys.cart(), data);
       queryClient.invalidateQueries({ queryKey: cartKeys.summary() });
     },
-    onError: (err) => toastCartError(err, 'No se pudo quitar el producto'),
+    onError: (err) => toastCartError(err, 'remove'),
   });
 };
 
 export const useClearCart = () => {
   const queryClient = useQueryClient();
+  const toastCartError = useCartErrorToast();
 
   return useMutation({
     mutationFn: () => cartService.clearCart(),
@@ -134,7 +219,7 @@ export const useClearCart = () => {
       queryClient.setQueryData(cartKeys.cart(), data);
       queryClient.invalidateQueries({ queryKey: cartKeys.summary() });
     },
-    onError: (err) => toastCartError(err, 'No se pudo vaciar el carrito'),
+    onError: (err) => toastCartError(err, 'clear'),
   });
 };
 
