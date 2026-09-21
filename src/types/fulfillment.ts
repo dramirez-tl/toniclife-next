@@ -123,8 +123,11 @@ export interface FulfillmentAppliedChange {
   /** Lugar en la lista (1..n) antes y después; null si no aplica. */
   fromPriority: number | null;
   toPriority: number | null;
-  /** 'cross_country_blocked' = quedó configurada, pero todavía no surte pedidos. */
-  notice?: 'cross_country_blocked';
+  /**
+   * 'cross_country_blocked' = quedó configurada, pero todavía no surte pedidos.
+   * 'paused_branch_inactive' = el guardado la dejó EN PAUSA porque su sucursal está desactivada.
+   */
+  notice?: 'cross_country_blocked' | 'paused_branch_inactive';
 }
 
 export interface SaveFulfillmentRoutesResponse extends FulfillmentRoutesResponse {

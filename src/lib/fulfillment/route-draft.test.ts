@@ -12,8 +12,10 @@ import {
   canMove,
   changedCountryCodes,
   copyCountryRoutes,
+  copyableRoutes,
   countryStatus,
   draftFromServer,
+  fiscalParentName,
   isActivationLocked,
   isCrossCountryRoute,
   isDraftDirty,
@@ -173,6 +175,26 @@ describe('agregar, quitar, pausar y notas', () => {
       ['205', null],
     ]);
     expect(copyCountryRoutes(base, 'PE', 'FN')).toBe(base);
+  });
+
+  it('al copiar se excluyen las rutas hacia sucursales desactivadas (L-7)', () => {
+    // MX = [999 (sucursal desactivada), 164, 205 en pausa]: en FN cada copia es un ALTA
+    // y el API rechaza dar de alta una ruta hacia una sucursal desactivada.
+    const resp = seededResponse();
+    resp.countries[0] = country('MX', 'México', [route(WH_INACTIVE, 1), route(WH_164, 2), route(WH_205, 3, { isActive: false })]);
+    const draft = draftFromServer(resp);
+    expect(copyableRoutes(draft, 'MX').map((r) => r.branchCode)).toEqual(['164', '205']);
+    const copied = copyCountryRoutes(draft, 'MX', 'FN');
+    expect(copied.countries.FN.map((r) => [r.branchCode, r.isActive])).toEqual([
+      ['164', true],
+      ['205', false], // una ruta EN PAUSA de sucursal activa sí se copia, con su estado
+    ]);
+
+    // Si lo único que hay son sucursales desactivadas no hay nada que copiar.
+    resp.countries[0] = country('MX', 'México', [route(WH_INACTIVE, 1)]);
+    const onlyInactive = draftFromServer(resp);
+    expect(copyableRoutes(onlyInactive, 'MX')).toEqual([]);
+    expect(copyCountryRoutes(onlyInactive, 'MX', 'FN')).toBe(onlyInactive);
   });
 });
 
@@ -348,6 +370,27 @@ describe('avisos sobre el borrador', () => {
     expect(codesOf(base)).toEqual(['FN:SELLABLE_NO_ROUTE']);
   });
 
+  it('país sin tienda propia (Frontera): aviso INFORMATIVO que dice la verdad (L-3)', () => {
+    expect(fiscalParentName('FN', data.countries, ctx)).toBe('México');
+    expect(fiscalParentName('fn', data.countries, ctx)).toBe('México');
+    expect(fiscalParentName('MX', data.countries, ctx)).toBeNull();
+    expect(fiscalParentName('ZZ', data.countries, ctx)).toBeNull();
+
+    const [fn] = buildDraftWarnings(base, data.countries, ctx);
+    expect(fn).toMatchObject({ code: 'SELLABLE_NO_ROUTE', severity: 'info', countryCode: 'FN' });
+    expect(fn.message).toBe(
+      'Frontera no tiene tienda propia: sus clientes compran en la tienda de México y hoy les surte el almacén de México. Agregar un almacén aquí solo cambia las existencias que ven en su carrito.',
+    );
+    expect(fn.message).not.toContain('no se puede enviar');
+  });
+
+  it('un país CON tienda propia que se queda sin almacén sigue siendo error rojo', () => {
+    const draft = removeRoute(base, 'CO', WH_400.branchId);
+    const co = buildDraftWarnings(draft, data.countries, ctx).find((w) => w.countryCode === 'CO');
+    expect(co).toMatchObject({ code: 'SELLABLE_NO_ROUTE', severity: 'error' });
+    expect(co?.message).toContain('hoy no se puede enviar a Colombia');
+  });
+
   it('164 → CO con candado: aviso claro de que se guarda pero no surte', () => {
     const draft = addRoute(base, 'CO', WH_164).draft;
     const warning = buildDraftWarnings(draft, data.countries, ctx).find((w) => w.code === 'CROSS_COUNTRY_BLOCKED');
@@ -391,9 +434,9 @@ describe('avisos sobre el borrador', () => {
     const draft = removeRoute(base, 'CO', WH_400.branchId);
     const merged = mergeWarnings(buildDraftWarnings(draft, data.countries, ctx), diagnostics, draft);
     expect(merged.map((w) => `${w.countryCode}:${w.code}`)).toEqual([
-      'FN:SELLABLE_NO_ROUTE',
-      'CO:SELLABLE_NO_ROUTE', // borrador: se quitó su único almacén
+      'CO:SELLABLE_NO_ROUTE', // borrador: se quitó su único almacén (error)
       'CO:SHIPPING_COSTS_MISSING',
+      'FN:SELLABLE_NO_ROUTE', // sin tienda propia: informativo (L-3)
       'MX:LOW_COVERAGE',
       'null:NO_PICKUP_POINTS',
     ]);

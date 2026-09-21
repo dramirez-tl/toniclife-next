@@ -34,6 +34,27 @@ export function shippingCountriesByBranch(
   return out;
 }
 
+/**
+ * Quién puede consultar `GET /fulfillment/routes` desde /admin/sucursales: los
+ * de rutas Y todo el que puede desactivar o eliminar una sucursal (el API los
+ * admite en ese GET), para que el aviso le salga a quien puede cortar el envío.
+ */
+export const BRANCH_ROUTES_READ_PERMISSIONS = [
+  'fulfillment:read',
+  'fulfillment:manage',
+  'branches:update',
+  'branches:delete',
+] as const;
+
+/** Misma regla que PermissionGuard: super_admin y los comodines pasan; `modulo:*` cubre al módulo. */
+export function canReadBranchRoutes(userPermissions: string[], userRoles: string[]): boolean {
+  if (userRoles.includes('super_admin')) return true;
+  if (userPermissions.includes('*') || userPermissions.includes('*:*')) return true;
+  return BRANCH_ROUTES_READ_PERMISSIONS.some(
+    (p) => userPermissions.includes(p) || userPermissions.includes(`${p.split(':')[0]}:*`),
+  );
+}
+
 export function shippingBadgeText(countries: BranchShippingCountry[]): string {
   return `Envía a: ${countries.map((c) => c.countryCode).join(', ')}`;
 }
@@ -79,4 +100,23 @@ export function deactivateBranchWarning(
     );
   }
   return parts.join(' ');
+}
+
+/** No se pudieron leer las rutas: no se sabe si la sucursal surte envíos, y se dice. */
+export function unverifiedBranchWarning(action: BranchOffAction = 'deactivate'): string {
+  return `No se pudo comprobar si esta sucursal surte los envíos de la tienda en línea. Si los surte y la ${OFF_VERB[action]}, su país se queda sin envío a domicilio. Revísalo en Almacenes y envíos antes de continuar.`;
+}
+
+/**
+ * Texto del diálogo al desactivar o eliminar una sucursal; null = no hace falta
+ * preguntar por las rutas. `routesKnown=false` (la consulta falló o no ha
+ * llegado) NUNCA calla: advierte que no se pudo comprobar.
+ */
+export function branchOffDialogText(
+  countries: BranchShippingCountry[] | undefined,
+  action: BranchOffAction,
+  routesKnown: boolean,
+): string | null {
+  if (!routesKnown) return unverifiedBranchWarning(action);
+  return deactivateBranchWarning(countries ?? [], action);
 }

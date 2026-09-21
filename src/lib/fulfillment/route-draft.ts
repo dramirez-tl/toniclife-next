@@ -329,9 +329,22 @@ export function setWarehouseCountries(
   return { draft: next, skipped };
 }
 
-/** "Usar los mismos almacenes que México": copia la lista (mismo orden y estado, sin notas). */
+/**
+ * Rutas de un país que se pueden COPIAR a otro: las de sucursales activas. En
+ * el país destino cada ruta copiada es un ALTA, y el API rechaza dar de alta
+ * una ruta hacia una sucursal desactivada (422 FUL_BRANCH_INACTIVE).
+ */
+export function copyableRoutes(draft: RouteDraft, fromCountryCode: string): DraftRoute[] {
+  return routesOf(draft, fromCountryCode).filter((r) => r.branchIsActive);
+}
+
+/**
+ * "Usar los mismos almacenes que México": copia la lista (mismo orden y estado,
+ * sin notas) SIN las rutas hacia sucursales desactivadas. Sin nada que copiar
+ * devuelve el mismo borrador.
+ */
 export function copyCountryRoutes(draft: RouteDraft, fromCountryCode: string, toCountryCode: string): RouteDraft {
-  const source = routesOf(draft, fromCountryCode);
+  const source = copyableRoutes(draft, fromCountryCode);
   if (source.length === 0) return draft;
   return withCountry(
     draft,
@@ -498,6 +511,26 @@ const SEVERITY_ORDER: Record<FulfillmentWarningSeverity, number> = { error: 0, w
 
 const warehouseLabel = (r: Pick<DraftRoute, 'branchCode' | 'branchName'>) => `${r.branchCode} · ${r.branchName}`;
 
+/**
+ * Nombre del país FISCAL de un país sin tienda propia (Frontera → "México");
+ * null si el país es su propio país fiscal (tiene o tendrá su tienda).
+ */
+export function fiscalParentName(
+  countryCode: string,
+  countries: Array<Pick<FulfillmentCountry, 'countryCode' | 'countryName'>>,
+  ctx: RoutingContext,
+): string | null {
+  const code = norm(countryCode);
+  const fiscal = ctx.fiscalByCountry[code];
+  if (!fiscal || fiscal === code) return null;
+  return countries.find((c) => norm(c.countryCode) === fiscal)?.countryName ?? fiscal;
+}
+
+/** Lo que de verdad pasa hoy con un país sin tienda propia y sin almacén en su lista. */
+export function noOwnStoreText(countryName: string, fiscalName: string): string {
+  return `${countryName} no tiene tienda propia: sus clientes compran en la tienda de ${fiscalName} y hoy les surte el almacén de ${fiscalName}. Agregar un almacén aquí solo cambia las existencias que ven en su carrito.`;
+}
+
 export function buildDraftWarnings(
   draft: RouteDraft,
   countries: Array<Pick<FulfillmentCountry, 'countryCode' | 'countryName' | 'sellableProducts'>>,
@@ -511,7 +544,19 @@ export function buildDraftWarnings(
     const resolved = resolveCountry(routes, code, ctx);
 
     if (routes.length === 0) {
-      if (country.sellableProducts > 0) {
+      const fiscalName = fiscalParentName(code, countries, ctx);
+      if (country.sellableProducts > 0 && fiscalName) {
+        // País SIN tienda propia (Frontera → México): sus clientes compran en la
+        // tienda del país fiscal y el pedido sale del almacén de ESE país. No es
+        // un error: no hay nada roto que arreglar.
+        out.push({
+          code: 'SELLABLE_NO_ROUTE',
+          severity: 'info',
+          message: noOwnStoreText(name, fiscalName),
+          countryCode: code,
+          branchId: null,
+        });
+      } else if (country.sellableProducts > 0) {
         out.push({
           code: 'SELLABLE_NO_ROUTE',
           severity: 'error',
