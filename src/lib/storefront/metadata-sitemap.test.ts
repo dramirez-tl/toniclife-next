@@ -107,6 +107,15 @@ describe('buildCatalogMetadata', () => {
     expect(meta.alternates?.canonical).toBe(`${BASE}/es-mx/productos?categoria=cremas`);
   });
 
+  it('página de búsqueda: noindex,follow y canonical al catálogo (sin q ni su pagina)', () => {
+    const state = { ...DEFAULT_CATALOG_STATE, q: 'colageno', pagina: 3 };
+    const meta = buildCatalogMetadata({ locale: 'es-mx', state }, PROD);
+    expect(meta.robots).toEqual({ index: false, follow: true });
+    expect(meta.alternates?.canonical).toBe(`${BASE}/es-mx/productos`);
+    expect((meta.alternates?.languages as Record<string, string>)['en-US']).toBe(`${BASE}/en-us/productos`);
+    expect(buildCatalogMetadata({ locale: 'es-mx', state }, STAGING).robots).toEqual({ index: false, follow: false });
+  });
+
   it('description <= 155', () => {
     const meta = buildCatalogMetadata({ locale: 'en-us', state: DEFAULT_CATALOG_STATE }, PROD);
     expect((meta.description ?? '').length).toBeLessThanOrEqual(155);

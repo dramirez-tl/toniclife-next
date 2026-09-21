@@ -49,11 +49,19 @@ function read(params: RawSearchParams, key: string): string {
 
 const CATEGORY_SLUG_RE = /^[a-z0-9-]{1,120}$/;
 
-function parsePrice(raw: string): number | null {
-  if (!raw) return null;
-  const n = Number(raw);
+/** Mismo tope que el API (`@Max(99_999_999)` en minPrice/maxPrice): pasarlo daría 400. */
+export const CATALOG_PRICE_MAX = 99_999_999;
+// Solo decimal simple ("1500", "1500.5", ".5"). Fuera: signo, notación científica
+// ("1e12"), hexadecimal ("0x10"), "Infinity", separadores de miles y espacios internos.
+const PRICE_RE = /^(?:\d{1,12}(?:\.\d{0,6})?|\.\d{1,6})$/;
+
+/** Precio de la URL: `null` si no es un decimal simple >= 0; nunca lanza ni excede el tope del API. */
+export function parsePrice(raw: string | null | undefined): number | null {
+  const text = (raw ?? '').trim();
+  if (!text || !PRICE_RE.test(text)) return null;
+  const n = Number(text);
   if (!Number.isFinite(n) || n < 0) return null;
-  return Math.round(n * 100) / 100;
+  return Math.min(CATALOG_PRICE_MAX, Math.round(n * 100) / 100);
 }
 
 export function parseCatalogParams(params: RawSearchParams): CatalogState {

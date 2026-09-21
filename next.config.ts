@@ -16,6 +16,8 @@ const nextConfig: NextConfig = {
 
   // Image optimization settings
   images: {
+    // AVIF primero (menor peso en las fotos de producto), WebP de respaldo (contrato §9).
+    formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -85,6 +87,13 @@ const nextConfig: NextConfig = {
           { key: 'Content-Security-Policy-Report-Only', value: csp },
         ],
       },
+      // Áreas privadas y API interna: nunca indexables, aunque alguien las enlace
+      // (contrato §8). robots.txt solo pide no rastrear; esta cabecera impide indexar.
+      // `:path*` admite cero segmentos: cubre `/admin` y todo lo que cuelga de él.
+      ...['/admin', '/distribuidor', '/pos', '/api'].map((prefix) => ({
+        source: `${prefix}/:path*`,
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
+      })),
     ];
   },
 };

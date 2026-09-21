@@ -170,13 +170,16 @@ export function buildCatalogMetadata(input: CatalogMetadataInput, env: Env = pro
     DESCRIPTION_MAX,
   );
 
-  const canonical = canonicalFor(locale, '/productos', state, env);
+  // Vista filtrada (q, tipo, precio, agotados, orden) = noindex y canonical AL CATÁLOGO
+  // (con su categoría): su `pagina` no es la página N del catálogo, así que no viaja.
+  const canonicalState = isIndexable(state) ? state : { categoria: state.categoria, pagina: 1 };
+  const canonical = canonicalFor(locale, '/productos', canonicalState, env);
   return {
     title,
     description,
     alternates: {
       canonical,
-      languages: buildAlternates({ path: '/productos', state }, env),
+      languages: buildAlternates({ path: '/productos', state: canonicalState }, env),
     },
     robots: robotsFor(locale, isIndexable(state), env),
     openGraph: {

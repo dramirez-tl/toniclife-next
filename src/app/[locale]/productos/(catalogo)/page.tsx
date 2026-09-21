@@ -5,6 +5,13 @@
 // BreadcrumbList. La interacción (filtros en la URL, precio por rol con sesión)
 // vive en `CatalogClient`.
 //
+// DEGRADACIÓN (nunca `error.tsx` por el listado):
+//  - Búsquedas (`q`): no se piden en servidor (noindex; gastarían la cuota del
+//    throttle del API que comparte toda la IP de Vercel). Las resuelve el cliente.
+//  - 429/5xx del API: `fetchStorefrontList` reintenta una vez; si persiste se pinta
+//    la estructura y el cliente consulta desde la IP del visitante (`useQuery`),
+//    que ya tiene su propio estado de error con "Reintentar".
+//
 // Esta carpeta es un route group `(catalogo)`: su `loading.tsx` NO debe envolver
 // a `[slug]` (con streaming el detalle ya no podría responder 404/308 reales).
 
@@ -21,7 +28,6 @@ import {
   serializeCatalogParams,
   type RawSearchParams,
 } from '@/lib/storefront/catalog-params';
-import { StorefrontUnavailableError } from '@/lib/storefront/errors';
 import { buildBreadcrumbJsonLd, buildItemListJsonLd, safeJsonLd } from '@/lib/storefront/json-ld';
 import { buildCatalogMetadata, buildNoIndexMetadata } from '@/lib/storefront/metadata';
 import { canonicalFor, localizedPath } from '@/lib/storefront/seo';
@@ -78,19 +84,19 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
 
   const { state, stateKey } = readState(await searchParams);
   const result = await getList(country, lang, stateKey);
-  // API caído o respuesta fuera de contrato: lo atiende `error.tsx` ("Reintentar").
-  if (!result.ok) throw new StorefrontUnavailableError('/storefront/products', result.status);
+  // Sin datos de servidor (búsqueda, 429/5xx persistente o respuesta fuera de contrato): consulta el cliente.
+  const list = result.ok ? result.data : null;
 
-  const list = result.data;
   // Página fuera de rango (enlace viejo tras bajar el total): a la última página real.
-  if (list.data.length === 0 && state.pagina > 1 && list.total > 0) {
+  if (list && list.data.length === 0 && state.pagina > 1 && list.total > 0) {
     redirect(localizedPath(locale, catalogHref({ ...state, pagina: Math.min(state.pagina - 1, list.totalPages) })));
   }
 
   const t = await getTranslations({ locale, namespace: 'storefront.catalog' });
-  const categoryName = state.categoria
-    ? (list.facets.categories.find((c) => c.slug === state.categoria)?.name ?? null)
-    : null;
+  const categoryName =
+    list && state.categoria
+      ? (list.facets.categories.find((c) => c.slug === state.categoria)?.name ?? null)
+      : null;
   const breadcrumbs = [
     { name: t('breadcrumbHome'), url: canonicalFor(locale, '/') },
     { name: t('breadcrumbProducts'), url: canonicalFor(locale, '/productos') },
@@ -98,21 +104,22 @@ export default async function CatalogPage({ params, searchParams }: PageProps) {
       ? [{ name: categoryName, url: canonicalFor(locale, '/productos', { categoria: state.categoria, pagina: 1 }) }]
       : []),
   ];
-  const itemList = buildItemListJsonLd(
-    list.data,
-    absoluteUrl(localizedPath(locale, '/')),
-    (list.page - 1) * list.pageSize + 1,
-  );
+  const itemList =
+    list && list.data.length > 0
+      ? buildItemListJsonLd(list.data, absoluteUrl(localizedPath(locale, '/')), (list.page - 1) * list.pageSize + 1)
+      : null;
 
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(itemList) }} />
+      {itemList && (
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(itemList) }} />
+      )}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: safeJsonLd(buildBreadcrumbJsonLd(breadcrumbs)) }}
       />
       <Suspense fallback={null}>
-        <CatalogClient initial={{ data: list, stateKey, fetchedAt: result.fetchedAt }} />
+        <CatalogClient initial={result.ok ? { data: result.data, stateKey, fetchedAt: result.fetchedAt } : undefined} />
       </Suspense>
     </>
   );

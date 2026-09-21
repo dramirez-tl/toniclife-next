@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CATALOG_PRICE_MAX,
   DEFAULT_CATALOG_STATE,
   activeFilterCount,
   catalogHref,
   isIndexable,
   pageWindow,
   parseCatalogParams,
+  parsePrice,
   serializeCatalogParams,
   toStorefrontQuery,
 } from './catalog-params';
@@ -59,6 +61,37 @@ describe('parseCatalogParams', () => {
     const state = parseCatalogParams({ min: '900', max: '100', q: 'x'.repeat(200) });
     expect([state.min, state.max]).toEqual([100, 900]);
     expect(state.q).toHaveLength(80);
+  });
+});
+
+describe('parsePrice (L1: nunca provoca un 400 del API)', () => {
+  it('decimales simples, redondeados a centavos', () => {
+    expect(parsePrice('1500')).toBe(1500);
+    expect(parsePrice(' 99.999 ')).toBe(100);
+    expect(parsePrice('.5')).toBe(0.5);
+    expect(parsePrice('0')).toBe(0);
+  });
+
+  it('topa en el máximo del API', () => {
+    expect(parsePrice('99999999')).toBe(CATALOG_PRICE_MAX);
+    expect(parsePrice('100000000')).toBe(CATALOG_PRICE_MAX);
+    expect(parsePrice('999999999999')).toBe(CATALOG_PRICE_MAX);
+  });
+
+  it('descarta vacío, NaN, negativos y notaciones raras', () => {
+    for (const raw of ['', '   ', 'abc', 'NaN', '-1', '+5', '1e12', '1E3', '0x10', 'Infinity', '-Infinity', '1,500', '1 500', '1.2.3', '9'.repeat(13), null, undefined]) {
+      expect(parsePrice(raw)).toBeNull();
+    }
+  });
+
+  it('el estado y la query del API quedan dentro de rango', () => {
+    const state = parseCatalogParams({ min: '1e12', max: '999999999999' });
+    expect(state.min).toBeNull();
+    expect(state.max).toBe(CATALOG_PRICE_MAX);
+    expect(toStorefrontQuery(state, { country: 'mx', lang: 'es' }).maxPrice).toBe('99999999');
+    // Rango invertido tras el tope: se intercambia, nunca min > max.
+    const swapped = parseCatalogParams({ min: '999999999999', max: '10' });
+    expect([swapped.min, swapped.max]).toEqual([10, CATALOG_PRICE_MAX]);
   });
 });
 

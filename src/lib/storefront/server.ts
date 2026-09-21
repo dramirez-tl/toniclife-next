@@ -10,6 +10,7 @@ import type { CountryCode } from '@/i18n/config';
 import { toStorefrontQuery, type CatalogState } from './catalog-params';
 import { normalizeDetailResponse, normalizeListResponse } from './normalize';
 import { currencyForCountry } from './price';
+import { CATALOG_TAG, productTag } from './revalidate-input';
 import { isValidSlug } from './slug';
 import type {
   StorefrontCategory,
@@ -67,7 +68,7 @@ export async function fetchStorefrontSitemap(country: CountryCode): Promise<Stor
   const payload = await getJson(
     '/storefront/sitemap',
     { country },
-    { revalidate: 3600, tags: ['catalog', `catalog:${country}`] },
+    { revalidate: 3600, tags: [CATALOG_TAG, `${CATALOG_TAG}:${country}`] },
   );
   const items: StorefrontSitemapItem[] = [];
   for (const row of rows(payload)) {
@@ -87,7 +88,7 @@ export async function fetchStorefrontCategories(
   const payload = await getJson(
     '/storefront/categories',
     { country, lang },
-    { revalidate: 3600, tags: ['catalog', `catalog:${country}`] },
+    { revalidate: 3600, tags: [CATALOG_TAG, `${CATALOG_TAG}:${country}`] },
   );
   const categories: StorefrontCategory[] = [];
   for (const row of rows(payload)) {
@@ -119,42 +120,91 @@ export type StorefrontFetch<T> =
   /** `status` = estado HTTP del API; `null` = sin respuesta (red, timeout, JSON inválido). */
   | { ok: false; status: number | null };
 
-async function getJsonWithStatus(
-  path: string,
-  query: Record<string, string>,
-  options: FetchOptions | 'no-store',
-): Promise<{ status: number | null; body: unknown }> {
-  const url = `${storefrontApiBase()}${path}?${new URLSearchParams(query).toString()}`;
+/** Estados que ameritan UN reintento corto: throttle del API (429) y fallos transitorios (5xx). */
+const RETRYABLE_STATUSES: readonly number[] = [429, 500, 502, 503, 504];
+const RETRY_MIN_MS = 250;
+const RETRY_MAX_MS = 1500;
+const RETRY_DEFAULT_429_MS = 700;
+/** Un fallo de red que ya consumió este tiempo fue (casi seguro) un timeout: reintentar duplicaría la espera. */
+const RETRY_NETWORK_BUDGET_MS = 2000;
+
+/**
+ * Espera antes del ÚNICO reintento, o `null` si no se reintenta. El SSR sale por
+ * pocas IPs de Vercel y comparte la cuota del throttle del API (120/min en el
+ * listado): un 429 es esperable bajo rastreo y casi siempre cede en < 1 s.
+ * `Retry-After` se respeta, acotado: jamás se retiene el render más de 1.5 s.
+ */
+export function retryDelayMs(status: number | null, retryAfter: string | null, elapsedMs: number): number | null {
+  if (status === null) return elapsedMs < RETRY_NETWORK_BUDGET_MS ? RETRY_MIN_MS : null;
+  if (!RETRYABLE_STATUSES.includes(status)) return null;
+  if (status !== 429) return RETRY_MIN_MS;
+  const seconds = retryAfter && /^\d{1,4}$/.test(retryAfter.trim()) ? Number(retryAfter.trim()) : null;
+  const wanted = seconds === null ? RETRY_DEFAULT_429_MS : seconds * 1000;
+  return Math.min(RETRY_MAX_MS, Math.max(RETRY_MIN_MS, wanted));
+}
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+interface StatusResponse {
+  status: number | null;
+  body: unknown;
+  retryAfter: string | null;
+}
+
+async function getJsonOnce(url: string, options: FetchOptions): Promise<StatusResponse> {
   try {
     const response = await fetch(url, {
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      ...(options === 'no-store'
-        ? { cache: 'no-store' as const }
-        : { next: { revalidate: options.revalidate, tags: options.tags } }),
+      next: { revalidate: options.revalidate, tags: options.tags },
     });
-    if (!response.ok) return { status: response.status, body: null };
-    return { status: response.status, body: (await response.json()) as unknown };
+    if (!response.ok) return { status: response.status, body: null, retryAfter: response.headers.get('retry-after') };
+    return { status: response.status, body: (await response.json()) as unknown, retryAfter: null };
   } catch {
-    return { status: null, body: null };
+    return { status: null, body: null, retryAfter: null };
   }
 }
 
+/** GET con estado HTTP y UN reintento corto ante 429/5xx/red (Next no guarda en el Data Cache respuestas != 2xx). */
+async function getJsonWithStatus(
+  path: string,
+  query: Record<string, string>,
+  options: FetchOptions,
+): Promise<{ status: number | null; body: unknown }> {
+  const url = `${storefrontApiBase()}${path}?${new URLSearchParams(query).toString()}`;
+  const startedAt = Date.now();
+  const first = await getJsonOnce(url, options);
+  if (first.body !== null) return first;
+  const delay = retryDelayMs(first.status, first.retryAfter, Date.now() - startedAt);
+  if (delay === null) return first;
+  await sleep(delay);
+  return getJsonOnce(url, options);
+}
+
 /**
- * Página del catálogo, ANÓNIMA (precio público). Las búsquedas libres (`q`) no se
- * guardan en el Data Cache: su espacio de claves es ilimitado.
+ * Las búsquedas libres (`q`) NO se piden en el servidor: van `noindex`, su espacio
+ * de claves es ilimitado (no sirven al Data Cache) y cada una gastaría la cuota del
+ * throttle del API que comparten TODOS los visitantes detrás de la IP de Vercel.
+ * Las resuelve el navegador (`useQuery`, desde la IP del visitante).
+ */
+export function shouldFetchListOnServer(state: Pick<CatalogState, 'q'>): boolean {
+  return !state.q;
+}
+
+/**
+ * Página del catálogo, ANÓNIMA (precio público). Con `q` responde `{ ok:false,
+ * status:null }` sin tocar el API (ver `shouldFetchListOnServer`).
  */
 export async function fetchStorefrontList(
   country: CountryCode,
   lang: StorefrontLang,
   state: CatalogState,
 ): Promise<StorefrontFetch<StorefrontListResponse>> {
+  if (!shouldFetchListOnServer(state)) return { ok: false, status: null };
   const { status, body } = await getJsonWithStatus(
     '/storefront/products',
     toStorefrontQuery(state, { country, lang }),
-    state.q
-      ? 'no-store'
-      : { revalidate: STOREFRONT_REVALIDATE_SECONDS, tags: ['catalog', `catalog:${country}`] },
+    { revalidate: STOREFRONT_REVALIDATE_SECONDS, tags: [CATALOG_TAG, `${CATALOG_TAG}:${country}`] },
   );
   const data = normalizeListResponse(body, currencyForCountry(country));
   return data ? { ok: true, data, fetchedAt: Date.now() } : { ok: false, status: body === null ? status : null };
@@ -173,7 +223,7 @@ export async function fetchStorefrontDetail(
   const { status, body } = await getJsonWithStatus(
     `/storefront/products/${encodeURIComponent(slug)}`,
     { country, lang },
-    { revalidate: STOREFRONT_REVALIDATE_SECONDS, tags: ['catalog', `product:${slug}`] },
+    { revalidate: STOREFRONT_REVALIDATE_SECONDS, tags: [CATALOG_TAG, productTag(slug)] },
   );
   const data = normalizeDetailResponse(body, currencyForCountry(country));
   return data ? { ok: true, data, fetchedAt: Date.now() } : { ok: false, status: body === null ? status : null };

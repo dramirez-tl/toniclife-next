@@ -5,7 +5,10 @@
 //   moved                   → permanentRedirect (308) al slug canónico
 //   unavailable_in_country  → pantalla propia con `noindex`
 //   404                     → notFound() con HTTP 404 REAL (ver not-found.tsx)
-//   5xx / sin respuesta     → error.tsx
+//   429 / 5xx / sin respuesta → `fetchStorefrontDetail` reintenta UNA vez (el SSR comparte
+//                             la cuota del throttle del API tras la IP de Vercel); si
+//                             persiste, error.tsx con "Reintentar". NUNCA un 404 falso:
+//                             solo 404/400 del API llegan a notFound().
 //
 // Esta ruta NO tiene `loading.tsx` a propósito: con streaming Next ya habría
 // enviado el 200 y ni el 404 ni el 308 serían reales.
