@@ -11,6 +11,7 @@ import { ReferralCodeCapture } from "@/components/ReferralCodeCapture";
 import { VersionChecker } from "@/components/VersionChecker";
 import { SessionSync } from "@/components/SessionSync";
 import { DEFAULT_LOCALE, isSupportedLocale, localeLanguage } from "@/i18n/config";
+import { buildRootMetadata } from "@/lib/storefront/metadata";
 import esMessages from "@/messages/es.json";
 import enMessages from "@/messages/en.json";
 import "./globals.css";
@@ -56,36 +57,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'),
-  title: "Tonic Life | Tu Centro de Bienestar Natural",
-  description: "Descubre tu fórmula ideal de bienestar con productos naturales de alta calidad. Evaluación de Salud personalizada y recomendaciones únicas.",
-  keywords: "suplementos naturales, bienestar, salud, tonic life, evaluación de salud, productos naturales",
-  icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon.ico',
-    apple: '/images/logo/svg/logo-icon-blue-solid.svg',
-  },
-  openGraph: {
-    title: "Tonic Life | Tu Centro de Bienestar Natural",
-    description: "Bienestar Natural, Vida Plena - Descubre tu fórmula ideal de bienestar",
-    type: "website",
-    images: [
-      {
-        url: '/images/logo/svg/logo-text-blue-r.svg',
-        width: 1200,
-        height: 630,
-        alt: 'Tonic Life - Tu Centro de Bienestar Natural',
-      },
-    ],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: "Tonic Life | Tu Centro de Bienestar Natural",
-    description: "Bienestar Natural, Vida Plena - Descubre tu fórmula ideal de bienestar",
-    images: ['/images/logo/svg/logo-text-blue-r.svg'],
-  },
-};
+// metadataBase sale de NEXT_PUBLIC_BASE_URL (con respaldo seguro en Vercel: nunca
+// localhost en un despliegue) y la imagen Open Graph por defecto es un PNG real de
+// 1200x630 (antes un SVG, que las redes no renderizan). robots = noindex salvo
+// NEXT_PUBLIC_ALLOW_INDEXING=true. Ver src/lib/storefront/metadata.ts.
+export const metadata: Metadata = buildRootMetadata();
 
 export default async function RootLayout({
   children,

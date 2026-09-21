@@ -11,6 +11,9 @@ export const routing = defineRouting({
   defaultLocale: DEFAULT_LOCALE,
   localePrefix: 'always',
   localeCookie: { name: 'NEXT_LOCALE' },
+  // Hreflang propio (src/lib/storefront/seo.ts). La cabecera `Link` automática de
+  // next-intl anunciaba los 8 locales, incluidos CO/GT que aún no tienen tienda.
+  alternateLinks: false,
 });
 
 export const { Link, redirect, usePathname, useRouter, getPathname } =

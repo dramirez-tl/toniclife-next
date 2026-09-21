@@ -1,7 +1,9 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
 import { routing } from '@/i18n/routing';
+import { buildLocaleMetadata } from '@/lib/storefront/metadata';
 
 // Layout de las páginas públicas localizadas (/[locale]/...). El <html> y los
 // providers globales viven en el layout raíz; aquí solo se añade el provider de
@@ -9,6 +11,19 @@ import { routing } from '@/i18n/routing';
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
+}
+
+// Metadata base por locale: textos en el idioma de la URL, og:locale y noindex en
+// países sin tienda (CO/GT). Canonical y hreflang los pone cada PÁGINA (si vivieran
+// aquí, carrito/checkout/detalle heredarían una canónica ajena).
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
+  if (!routing.locales.includes(locale)) return {};
+  return buildLocaleMetadata(locale);
 }
 
 export default async function LocaleLayout({
