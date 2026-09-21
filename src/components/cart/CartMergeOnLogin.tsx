@@ -25,7 +25,7 @@ import { useMergeCarts } from '@/hooks/useCart';
 import { cartService } from '@/services/cart.service';
 import { useAppSelector } from '@/store/hooks';
 import { selectIsAuthenticated, selectIsInitialized, selectUser } from '@/store/slices/authSlice';
-import { MERGE_DONE_KEY, mergeAction, mergeHasNews, type MergeLineNote } from '@/lib/storefront/cart-merge';
+import { MERGE_DONE_KEY, mergeAction, mergeHasNews, mergeMovedNothing, type MergeLineNote } from '@/lib/storefront/cart-merge';
 
 const NAMES_SHOWN = 3;
 // Un intento por `x-session-id` y por carga de página (StrictMode monta los efectos dos veces).
@@ -87,6 +87,7 @@ export function CartMergeOnLogin() {
       .then((outcome) => {
         if (outcome.status === 'unsupported') return; // API previo a C3: silencio y sin marca.
         writeMark(guestSessionId);
+        if (outcome.status === 'not_applicable') return; // La sesión no es de cliente: nada que mezclar ni que avisar.
         if (outcome.status === 'country_mismatch' || outcome.summary.skipReason === 'country_mismatch') {
           toast.info(t('countryMismatchTitle'), { description: t('countryMismatchBody'), duration: 12000 });
           return;
@@ -97,7 +98,8 @@ export function CartMergeOnLogin() {
           summary.adjusted.length > 0 ? `${t('adjusted', { count: summary.adjusted.length })}${names(summary.adjusted)}.` : '',
           summary.rejected.length > 0 ? `${t('rejected', { count: summary.rejected.length })}${names(summary.rejected)}.` : '',
         ].filter(Boolean);
-        toast.info(t('title'), { description: lines.join(' '), duration: 12000, action: viewCart });
+        // Si NINGUNA línea pasó, el título no puede decir "pasamos tu carrito".
+        toast.info(t(mergeMovedNothing(summary) ? 'titleNone' : 'title'), { description: lines.join(' '), duration: 12000, action: viewCart });
       })
       .catch(() => {
         // Red, 401 o 5xx: sin aviso. El carrito de invitado sigue intacto y se reintenta en otra carga.

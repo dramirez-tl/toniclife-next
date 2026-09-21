@@ -4,6 +4,8 @@ import {
   isAuthEntryPath,
   mergeAction,
   mergeHasNews,
+  mergeMovedNothing,
+  newGuestSessionId,
   normalizeMergeResponse,
   type MergeViewerState,
 } from './cart-merge';
@@ -76,6 +78,7 @@ describe('normalizeMergeResponse (tolerante a la forma de la respuesta)', () => 
     expect(result.cart).toBe(cart);
     expect(result.summary).toEqual({
       merged: true,
+      addedLines: null,
       skipReason: null,
       adjusted: [{ name: 'Crema Spectra', requested: 30, quantity: 20 }],
       rejected: [{ name: 'Kit Solo US', requested: null, quantity: null }],
@@ -110,7 +113,7 @@ describe('normalizeMergeResponse (tolerante a la forma de la respuesta)', () => 
 
   it('`merged: false` sin motivo (no había carrito de invitado): sin novedades', () => {
     const { summary, cart: none } = normalizeMergeResponse({ merged: false, reason: 'no_guest_cart' });
-    expect(summary).toEqual({ merged: false, skipReason: null, adjusted: [], rejected: [] });
+    expect(summary).toEqual({ merged: false, addedLines: null, skipReason: null, adjusted: [], rejected: [] });
     expect(none).toBeNull();
     expect(mergeHasNews(summary)).toBe(false);
   });
@@ -144,5 +147,72 @@ describe('classifyMergeError', () => {
     expect(classifyMergeError(apiError(500))).toBe('retry_later');
     expect(classifyMergeError(apiError(409, { code: 'CART_LOCKED' }))).toBe('retry_later');
     expect(classifyMergeError(apiError(409, { message: 'otro país' }))).toBe('retry_later');
+  });
+});
+
+describe('merge: qué título lleva el aviso (L1) y el 403 de sesión sin cliente (L6)', () => {
+  it('`merge.addedLines` = 0 con rechazos: NO se puede decir "pasamos tu carrito"', () => {
+    const { summary } = normalizeMergeResponse({
+      id: 'c1',
+      items: [],
+      merge: { merged: true, addedLines: 0, adjusted: [], rejected: [{ productName: 'Kit Solo US' }] },
+    });
+    expect(summary.addedLines).toBe(0);
+    expect(mergeHasNews(summary)).toBe(true);
+    expect(mergeMovedNothing(summary)).toBe(true);
+  });
+
+  it('con líneas que sí pasaron, o sin el dato (API que no lo manda), el título de siempre', () => {
+    const some = normalizeMergeResponse({ merge: { merged: true, addedLines: 2, rejected: [{ productName: 'X' }] } }).summary;
+    expect(some.addedLines).toBe(2);
+    expect(mergeMovedNothing(some)).toBe(false);
+    const unknown = normalizeMergeResponse({ merged: true, rejected: [{ productName: 'X' }] }).summary;
+    expect(unknown.addedLines).toBeNull();
+    expect(mergeMovedNothing(unknown)).toBe(false);
+    expect(mergeMovedNothing(normalizeMergeResponse({ merge: { addedLines: '0' } }).summary)).toBe(false);
+  });
+
+  it('403 CART_MERGE_CUSTOMER_REQUIRED: no aplica (se marca y no se reintenta); otro 403 se reintenta', () => {
+    expect(classifyMergeError(apiError(403, { code: 'CART_MERGE_CUSTOMER_REQUIRED' }))).toBe('not_applicable');
+    expect(classifyMergeError(apiError(403, { code: 'PILOT_DISABLED' }))).toBe('retry_later');
+    expect(classifyMergeError(apiError(403))).toBe('retry_later');
+    expect(classifyMergeError(apiError(409, { code: 'CART_MERGE_CUSTOMER_REQUIRED' }))).toBe('retry_later');
+  });
+});
+
+describe('newGuestSessionId (identificador de invitado NUEVO, impredecible)', () => {
+  it('usa crypto.randomUUID cuando existe', () => {
+    const id = newGuestSessionId({ randomUUID: () => '3b241101-e2bb-4255-8caf-4136c566a962' });
+    expect(id).toBe('guest_3b241101-e2bb-4255-8caf-4136c566a962');
+  });
+
+  it('sin randomUUID (contexto no seguro): 16 bytes de getRandomValues en hexadecimal', () => {
+    const id = newGuestSessionId({
+      getRandomValues: (array) => {
+        array.forEach((_, index) => {
+          array[index] = index * 17;
+        });
+        return array;
+      },
+    });
+    expect(id).toBe('guest_00112233445566778899aabbccddeeff');
+  });
+
+  it('sin crypto, o con un crypto que truena: el formato histórico, nunca una excepción', () => {
+    expect(newGuestSessionId(null, () => 1700000000000)).toMatch(/^guest_1700000000000_[a-z0-9]+$/);
+    const broken = {
+      randomUUID: () => {
+        throw new Error('SecurityError');
+      },
+    };
+    expect(newGuestSessionId(broken, () => 5)).toMatch(/^guest_5_[a-z0-9]+$/);
+  });
+
+  it('con el crypto real: único, con prefijo y dentro de varchar(100)', () => {
+    const a = newGuestSessionId();
+    const b = newGuestSessionId();
+    expect(a).toMatch(/^guest_[0-9a-f-]{32,36}$/);
+    expect(a).not.toBe(b);
+    expect(a.length).toBeLessThanOrEqual(100);
   });
 });

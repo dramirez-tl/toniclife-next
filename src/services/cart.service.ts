@@ -3,7 +3,7 @@
 
 import api from '@/lib/api';
 import { addWithStoreCountry, createCountrySupportMemo } from '@/lib/storefront/cart-country';
-import { GUEST_SESSION_KEY } from '@/lib/storefront/cart-merge';
+import { GUEST_SESSION_KEY, newGuestSessionId } from '@/lib/storefront/cart-merge';
 import type {
   Cart,
   CartSummary,
@@ -26,7 +26,8 @@ const getSessionId = (): string => {
 
   let sessionId = localStorage.getItem('cart_session_id');
   if (!sessionId) {
-    sessionId = `guest_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    // Solo para un invitado NUEVO: un identificador ya guardado se conserva tal cual.
+    sessionId = newGuestSessionId();
     localStorage.setItem('cart_session_id', sessionId);
   }
   return sessionId;

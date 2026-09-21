@@ -12,6 +12,33 @@ export const GUEST_SESSION_KEY = 'cart_session_id';
 /** Llave de `localStorage`: `x-session-id` para el que YA se intentó el merge con esta sesión. */
 export const MERGE_DONE_KEY = 'cart_merge_done_for';
 
+interface CryptoLike {
+  randomUUID?: () => string;
+  getRandomValues?: <T extends Uint8Array>(array: T) => T;
+}
+
+/**
+ * `x-session-id` de un invitado NUEVO. Quien lo conoce puede leer, modificar y (con C3) absorber
+ * ese carrito, así que debe ser impredecible: `crypto.randomUUID()`; sin él (contexto no seguro
+ * o navegador viejo), 16 bytes de `crypto.getRandomValues`; y solo sin `crypto`, el formato
+ * histórico. Los identificadores YA guardados en el navegador no se tocan. Cabe en `varchar(100)`.
+ */
+export function newGuestSessionId(
+  cryptoApi: CryptoLike | null | undefined = (globalThis as { crypto?: CryptoLike }).crypto,
+  now: () => number = Date.now,
+): string {
+  try {
+    if (typeof cryptoApi?.randomUUID === 'function') return `guest_${cryptoApi.randomUUID()}`;
+    if (typeof cryptoApi?.getRandomValues === 'function') {
+      const bytes = cryptoApi.getRandomValues(new Uint8Array(16));
+      return `guest_${Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')}`;
+    }
+  } catch {
+    // Un `crypto` roto no debe impedir tener carrito: cae al respaldo.
+  }
+  return `guest_${now()}_${Math.random().toString(36).substring(2, 15)}`;
+}
+
 /** Páginas donde se INICIA una sesión: ahí nunca se mezcla (el login puede revertirse) y se rearma el merge. */
 const AUTH_ENTRY_PATHS = ['/login', '/registro', '/set-password', '/vincular-correo'] as const;
 
@@ -65,6 +92,8 @@ export type MergeSkipReason = 'country_mismatch';
 export interface MergeSummary {
   /** `false` = el API dijo explícitamente que NO mezcló. */
   merged: boolean;
+  /** Líneas del carrito de invitado que SÍ pasaron, si el API lo dice (`merge.addedLines`); `null` = sin dato. */
+  addedLines: number | null;
   skipReason: MergeSkipReason | null;
   /** Líneas recortadas (existencias o máximo por pedido). */
   adjusted: MergeLineNote[];
@@ -123,7 +152,7 @@ function looksLikeCart(value: Dict): boolean {
   return Array.isArray(value.items) && typeof value.id === 'string';
 }
 
-const EMPTY_SUMMARY: MergeSummary = { merged: true, skipReason: null, adjusted: [], rejected: [] };
+const EMPTY_SUMMARY: MergeSummary = { merged: true, addedLines: null, skipReason: null, adjusted: [], rejected: [] };
 
 /**
  * Lee la respuesta sin suponer una sola forma: `{ cart, merged, reason, adjusted, rejected }`,
@@ -145,11 +174,17 @@ export function normalizeMergeResponse<TCart>(data: unknown): MergeResult<TCart>
     cart: cart as TCart | null,
     summary: {
       merged,
+      addedLines: firstNumber(info, ['addedLines']),
       skipReason: skippedByCountry ? 'country_mismatch' : null,
       adjusted: lineNotes(info.adjusted ?? info.adjustedItems ?? info.clamped),
       rejected: lineNotes(info.rejected ?? info.rejectedItems ?? info.skipped ?? info.skippedItems),
     },
   };
+}
+
+/** `true` = el API dijo que NINGUNA línea pasó (todas rechazadas): el aviso no puede decir "pasamos tu carrito". */
+export function mergeMovedNothing(summary: MergeSummary): boolean {
+  return summary.addedLines === 0;
 }
 
 export function mergeHasNews(summary: MergeSummary): boolean {
@@ -163,14 +198,17 @@ export function mergeHasNews(summary: MergeSummary): boolean {
 /**
  * - `unsupported`: API sin el endpoint (404/405): silencio, y NO se marca como hecho.
  * - `country_mismatch`: el API respondió con error que el carrito de invitado es de otro país.
+ * - `not_applicable`: 403 `CART_MERGE_CUSTOMER_REQUIRED` (la sesión no es de cliente): silencio y
+ *   se marca como hecho, para no repetirlo en cada carga.
  * - `retry_later`: red, 401, 5xx…: silencio; se reintenta en la siguiente carga de página.
  */
-export type MergeFailure = 'unsupported' | 'country_mismatch' | 'retry_later';
+export type MergeFailure = 'unsupported' | 'country_mismatch' | 'not_applicable' | 'retry_later';
 
 export function classifyMergeError(err: unknown): MergeFailure {
   const status = catalogErrorStatus(err);
   if (status === 404 || status === 405) return 'unsupported';
   const code = catalogErrorCode(err);
+  if (status === 403 && code === 'CART_MERGE_CUSTOMER_REQUIRED') return 'not_applicable';
   if (code && /COUNTRY/.test(code) && (status === 409 || status === 422)) return 'country_mismatch';
   return 'retry_later';
 }
