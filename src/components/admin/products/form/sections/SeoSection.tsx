@@ -8,7 +8,7 @@
 //  - Meta título 60 / meta descripción 160 en español e inglés con contador y
 //    vista previa tipo buscador.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useWatch } from 'react-hook-form';
 import { CheckCircle2, Loader2, Lock, RefreshCw, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -97,10 +97,19 @@ export function SeoSection() {
     [product?.slug, product?.metaTitle, product?.metaDescription, product?.metaTitleEn, product?.metaDescriptionEn],
   );
 
-  const section = useSectionForm<SeoValues>({
+  // "Guardar todo" no pasa por el botón de la sección: la URL bloqueada se frena aquí.
+  const slugBlockedRef = useRef(false);
+  const beforeSave = useCallback(async () => {
+    if (!slugBlockedRef.current) return true as const;
+    toast.error('Revisa la URL del producto antes de guardar "SEO y URL".');
+    return false as const;
+  }, []);
+
+  const section = useSectionForm<SeoValues, true>({
     id: 'seo',
     schema,
     values,
+    beforeSave,
     save: async ({ values: v, dirty }) => {
       const dto: AdminUpdateProductDto = {};
       if (dirty.slug && v.slug !== '' && v.slug !== currentSlug) dto.slug = v.slug;
@@ -127,6 +136,10 @@ export function SeoSection() {
     slugChanged &&
     (slugEmptied ||
       (slugValue !== '' && (!isValidSlug(slugValue) || !slugSettled || check.isFetching || check.data?.available === false)));
+
+  useEffect(() => {
+    slugBlockedRef.current = slugBlocked;
+  }, [slugBlocked]);
 
   const regenerated = buildProductSlug(product?.code ?? '', product?.name ?? '');
 

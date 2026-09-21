@@ -93,7 +93,8 @@ export function useSectionForm<T extends FieldValues, E = undefined>(
         setIsSaving(true);
         try {
           await save({ values: current, dirty: dirtyKeys, extra });
-          form.reset(current, { keepValues: true });
+          // Lo guardado pasa a ser la base: la sección queda sin cambios pendientes.
+          form.reset(current);
           toast.success(successMessage ?? `${SECTION_LABEL[id]}: cambios guardados`);
           ok = true;
         } catch (err) {
