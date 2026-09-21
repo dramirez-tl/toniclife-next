@@ -53,14 +53,23 @@ export function effectiveCartCountry(cartCountryCode: unknown, storeCountryCode:
   return normalizeCountryCode(cartCountryCode) ?? storeCountryCode.toUpperCase();
 }
 
+/**
+ * Zonas de precio que NO tienen tienda propia: compran en la tienda de su país fiscal.
+ * Hoy solo Frontera MX-USA (FN), que compra en la tienda de México con su propia lista.
+ */
+const PRICE_ZONE_STORE: Record<string, CountryCode> = { FN: 'MX' };
+
 function knownCountry(code: string | null): CountryCode | null {
-  return COUNTRIES.find((country) => country.code === code)?.code ?? null;
+  const store = code ? (PRICE_ZONE_STORE[code] ?? code) : code;
+  return COUNTRIES.find((country) => country.code === store)?.code ?? null;
 }
 
 /** Nombre del país en el idioma de la UI; un ISO2 fuera del catálogo se muestra tal cual. */
 export function countryDisplayName(code: string, lang: LanguageCode): string {
-  const meta = COUNTRIES.find((country) => country.code === code.toUpperCase());
-  if (!meta) return code.toUpperCase();
+  const upper = code.toUpperCase();
+  if (upper === 'FN') return lang === 'en' ? 'Mexico (border zone)' : 'México (zona Frontera)';
+  const meta = COUNTRIES.find((country) => country.code === upper);
+  if (!meta) return upper;
   return lang === 'en' ? meta.nameEn : meta.name;
 }
 

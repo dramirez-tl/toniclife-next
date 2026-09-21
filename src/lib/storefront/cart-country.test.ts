@@ -111,6 +111,11 @@ describe('nombres y enlaces de tienda', () => {
     expect(countryDisplayName('US', 'es')).toBe('Estados Unidos');
     expect(countryDisplayName('us', 'en')).toBe('United States');
     expect(countryDisplayName('MX', 'en')).toBe('Mexico');
+    // Frontera no tiene tienda propia: compra en la de México y se nombra como tal.
+    expect(countryDisplayName('FN', 'es')).toBe('México (zona Frontera)');
+    expect(countryDisplayName('fn', 'en')).toBe('Mexico (border zone)');
+    expect(storeLocaleFor('es', 'FN')).toBe('es-mx');
+    expect(storeLocaleFor('en', 'fn')).toBe('en-mx');
     expect(countryDisplayName('BR', 'es')).toBe('BR');
   });
 
