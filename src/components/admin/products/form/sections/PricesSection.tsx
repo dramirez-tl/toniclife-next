@@ -11,6 +11,8 @@
 //  - Ayudas derivadas de `price_types.discountPercentage` (antes quemadas).
 //  - `effectiveFrom` solo viaja si el usuario lo cambió (el API conserva el
 //    vigente). Las vigencias son DATE: se tratan como texto YYYY-MM-DD.
+//  - "Vigente desde" NO admite fechas futuras (max = hoy en México): guardar una
+//    dejaría el producto sin precio vigente (POS en $0). Programar = PriceSchedulesPanel.
 //  - Los cambios programados (PriceSchedulesPanel) se conservan.
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
@@ -32,6 +34,7 @@ import type { ProductPrice } from '@/types/product';
 import type { Country, PriceType } from '@/types/config';
 import { productAdminErrorMessage } from '../../lib/errors';
 import { PRICE_WARNING_LABEL } from '../../lib/labels';
+import { effectiveFromError, todayInMexico } from '../../lib/price-dates';
 import { productsAdminKeys, useAdminProductPrices, useSetAdminProductPrice } from '../../useProductsAdmin';
 import { PriceSchedulesPanel } from '../../PriceSchedulesPanel';
 import { useProductForm } from '../ProductFormContext';
@@ -68,7 +71,7 @@ function toRowValues(price: ProductPrice): RowValues {
 
 const isNumber = (v: string) => v.trim() !== '' && Number.isFinite(Number(v));
 
-function validateRow(row: RowValues, allowZero: boolean): string | null {
+function validateRow(row: RowValues, allowZero: boolean, savedEffectiveFrom: string, today: string): string | null {
   if (!isNumber(row.price)) return 'Escribe el precio.';
   const price = Number(row.price);
   if (price < 0) return 'El precio no puede ser negativo.';
@@ -77,6 +80,8 @@ function validateRow(row: RowValues, allowZero: boolean): string | null {
   if (row.businessValue !== '' && (!isNumber(row.businessValue) || Number(row.businessValue) < 0)) {
     return 'Valor de negocio no válido.';
   }
+  const futureStart = effectiveFromError(row.effectiveFrom, savedEffectiveFrom, today);
+  if (futureStart) return futureStart;
   if (row.effectiveFrom && row.effectiveTo && row.effectiveTo < row.effectiveFrom) {
     return 'El fin de vigencia no puede ser anterior al inicio.';
   }
@@ -117,6 +122,7 @@ export function PricesSection() {
 
   const allQuery = useAdminProductPrices(productId, false, showInactive);
   const allowZero = product?.productType === 'promotional';
+  const today = todayInMexico();
 
   // Aunque el API aún no filtre, aquí NUNCA entra una fila inactiva.
   const activePrices = useMemo(
@@ -183,12 +189,13 @@ export function PricesSection() {
         return false;
       }
       const row = valuesOf(key);
-      const problem = validateRow(row, allowZero);
+      const base = serverRows[key]?.values ?? EMPTY_ROW;
+      // "Hoy" se recalcula al guardar: la ficha puede llevar abierta desde ayer.
+      const problem = validateRow(row, allowZero, base.effectiveFrom, todayInMexico());
       if (problem) {
         toast.error(`${country.name}: ${problem}`);
         return false;
       }
-      const base = serverRows[key]?.values ?? EMPTY_ROW;
       const dto: AdminSetPriceDto = {
         priceTypeId,
         countryId,
@@ -301,7 +308,9 @@ export function PricesSection() {
 
   return (
     <div className="space-y-6">
-      <PriceSchedulesPanel productId={productId} />
+      <div id="cambios-programados" className="scroll-mt-24">
+        <PriceSchedulesPanel productId={productId} />
+      </div>
 
       <SectionCard
         title="Precios por país y tipo"
@@ -337,6 +346,17 @@ export function PricesSection() {
           ) : null
         }
       >
+        <p className="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900" role="note">
+          El precio que guardas aquí aplica <strong>de inmediato</strong> en el POS y la tienda; por eso
+          «Vigente desde» no admite fechas futuras. Para que un precio cambie en una fecha futura usa{' '}
+          <a
+            href="#cambios-programados"
+            className="font-semibold underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-700 rounded-sm"
+          >
+            Cambios programados
+          </a>
+          .
+        </p>
         {isLoading ? (
           <p className="flex items-center gap-2 text-sm text-gray-600" role="status">
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Cargando precios…
@@ -430,6 +450,7 @@ export function PricesSection() {
                             isSaving={savingKey === rowKey(countryId, pt.id)}
                             readOnly={readOnly}
                             allowZero={allowZero}
+                            today={today}
                             publicPrice={publicPrice}
                             onChange={setField}
                             onSave={(key) => void saveRow(key)}
@@ -557,6 +578,8 @@ interface PriceRowProps {
   isSaving: boolean;
   readOnly: boolean;
   allowZero: boolean;
+  /** Hoy en México (YYYY-MM-DD): tope de "Vigente desde". */
+  today: string;
   publicPrice: number | null;
   onChange: (key: string, field: keyof RowValues, value: string) => void;
   onSave: (key: string) => void;
@@ -573,11 +596,13 @@ function PriceRow({
   isSaving,
   readOnly,
   allowZero,
+  today,
   publicPrice,
   onChange,
   onSave,
 }: PriceRowProps) {
-  const problem = isDirty ? validateRow(values, allowZero) : null;
+  const savedEffectiveFrom = saved ? dateOnly(saved.effectiveFrom) : '';
+  const problem = isDirty ? validateRow(values, allowZero, savedEffectiveFrom, today) : null;
   const discount = Number(priceType.discountPercentage) || 0;
   const suggested =
     discount > 0 && priceType.code !== 'public' && publicPrice !== null && publicPrice > 0
@@ -608,6 +633,8 @@ function PriceRow({
       disabled={readOnly || isSaving}
       onChange={(e) => onChange(rowId, field, e.target.value)}
       aria-label={`${aria}: ${label}`}
+      // Sin fechas futuras en "Vigente desde": programar va en "Cambios programados".
+      max={field === 'effectiveFrom' ? today : undefined}
       className="h-9 w-40"
     />
   );
