@@ -21,6 +21,7 @@ import {
   attemptViewerPriceRecovery,
   getServerViewerSessionStatus,
   getViewerSessionStatus,
+  reconcileViewerSession,
   subscribeViewerSession,
 } from '@/lib/storefront/viewer-session';
 import { useAppSelector } from '@/store/hooks';
@@ -116,7 +117,17 @@ function useViewerPriceRecovery(tier: StorefrontPriceTier | undefined): void {
  */
 export function useStorefrontSessionExpired(): boolean {
   const { hasCustomerSession } = useStorefrontViewer();
+  const user = useAppSelector(selectUser);
   const status = useSyncExternalStore(subscribeViewerSession, getViewerSessionStatus, getServerViewerSessionStatus);
+
+  // Volvió a iniciar sesión SIN recargar: el login deja un `user` nuevo en el store
+  // (y al regresar a la tienda el aviso se monta otra vez). Si ya hay un access token
+  // vigente y distinto del rechazado, el aviso se apaga. Solo lee el estado de auth.
+  useEffect(() => {
+    if (status !== 'expired') return;
+    reconcileViewerSession(authService.getAccessToken(), Date.now());
+  }, [status, user, hasCustomerSession]);
+
   return hasCustomerSession && status === 'expired';
 }
 

@@ -74,6 +74,8 @@ export type ViewerSessionStatus = 'idle' | 'recovering' | 'recovered' | 'expired
 let status: ViewerSessionStatus = 'idle';
 let lastAttemptAt: number | null = null;
 let inFlight = false;
+/** Access token que había en la pestaña cuando el refresh fue RECHAZADO. */
+let rejectedAccessToken: string | null = null;
 const listeners = new Set<() => void>();
 
 function setStatus(next: ViewerSessionStatus): void {
@@ -107,6 +109,34 @@ export interface RecoveryAttemptInput {
 }
 
 /**
+ * `true` solo si el API RECHAZÓ el refresh (`response.status` 401 o 403). Un fallo
+ * de red (sin `response`), un timeout, un 429 o un 5xx NO dicen que la sesión venció.
+ */
+export function isRefreshRejected(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const response = (error as { response?: unknown }).response;
+  if (typeof response !== 'object' || response === null) return false;
+  const code = (response as { status?: unknown }).status;
+  return code === 401 || code === 403;
+}
+
+/**
+ * Apaga el aviso de sesión vencida cuando el usuario VOLVIÓ A INICIAR SESIÓN sin
+ * recargar la página: hay un access token vigente y distinto del que tenía cuando
+ * el refresh fue rechazado. Solo LEE el token (no toca la política de auth). Libera
+ * también el minuto de espera: es una sesión nueva. Devuelve `true` si reinició.
+ */
+export function reconcileViewerSession(accessToken: string | null | undefined, nowMs: number): boolean {
+  if (status !== 'expired') return false;
+  if (!accessToken || accessToken === rejectedAccessToken) return false;
+  if (isAccessTokenExpired(accessToken, nowMs)) return false;
+  rejectedAccessToken = null;
+  lastAttemptAt = null;
+  setStatus('idle');
+  return true;
+}
+
+/**
  * Lanza (si procede) el ÚNICO intento de refresh. Resuelve `true` solo para quien
  * lo inició y solo si el refresh funcionó: ese llamador vuelve a pedir los datos.
  * Cualquier otro caso (`false`) no debe hacer nada.
@@ -128,13 +158,21 @@ export async function attemptViewerPriceRecovery(input: RecoveryAttemptInput): P
   setStatus('recovering');
   try {
     await input.refresh();
+    rejectedAccessToken = null;
     setStatus('recovered');
     return true;
-  } catch {
-    // Refresh rechazado: la sesión ya no es recuperable en silencio. No se limpian
-    // tokens ni se redirige (eso es del flujo de auth): la tienda sigue como visitante
-    // y la UI avisa que debe iniciar sesión para ver su precio.
-    setStatus('expired');
+  } catch (error) {
+    if (isRefreshRejected(error)) {
+      // Refresh RECHAZADO por el API (401/403): la sesión ya no es recuperable en
+      // silencio. No se limpian tokens ni se redirige (eso es del flujo de auth): la
+      // tienda sigue como visitante y la UI avisa que debe iniciar sesión.
+      rejectedAccessToken = input.getAccessToken();
+      setStatus('expired');
+    } else {
+      // Sin red, timeout, 5xx o 429: la sesión puede seguir viva. Sin aviso; el
+      // siguiente intento (pasado el minuto) lo vuelve a probar.
+      setStatus('idle');
+    }
     return false;
   } finally {
     inFlight = false;
@@ -146,5 +184,6 @@ export function resetViewerSessionForTests(): void {
   status = 'idle';
   lastAttemptAt = null;
   inFlight = false;
+  rejectedAccessToken = null;
   listeners.clear();
 }

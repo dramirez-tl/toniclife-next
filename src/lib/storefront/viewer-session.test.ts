@@ -4,8 +4,11 @@ import {
   attemptViewerPriceRecovery,
   getViewerSessionStatus,
   isAccessTokenExpired,
+  isRefreshRejected,
+  reconcileViewerSession,
   resetViewerSessionForTests,
   shouldRecoverViewerPrice,
+  subscribeViewerSession,
 } from './viewer-session';
 
 const NOW = 1_800_000_000_000;
@@ -17,6 +20,11 @@ function jwt(payload: Record<string, unknown>): string {
 
 const EXPIRED = jwt({ sub: 'u1', exp: NOW / 1000 - 60 });
 const VALID = jwt({ sub: 'u1', exp: NOW / 1000 + 900 });
+
+/** Error con la forma de un AxiosError respondido por el API. */
+function rejected(status: number): Error & { response: { status: number } } {
+  return Object.assign(new Error(`HTTP ${status}`), { response: { status } });
+}
 
 beforeEach(() => resetViewerSessionForTests());
 
@@ -89,7 +97,7 @@ describe('attemptViewerPriceRecovery', () => {
   });
 
   it('refresh rechazado: estado expired, sin reintentos dentro del minuto y sin lanzar', async () => {
-    const refresh = vi.fn().mockRejectedValue(new Error('401'));
+    const refresh = vi.fn().mockRejectedValue(rejected(401));
     let now = NOW;
     const input = { hasCustomerSession: true, tier: 'public' as const, getAccessToken: () => EXPIRED, refresh, now: () => now };
     expect(await attemptViewerPriceRecovery(input)).toBe(false);
@@ -114,5 +122,99 @@ describe('attemptViewerPriceRecovery', () => {
     expect(result).toBe(false);
     expect(refresh).not.toHaveBeenCalled();
     expect(getViewerSessionStatus()).toBe('idle');
+  });
+});
+
+describe('refresh fallido: rechazo del API vs. fallo de red (L-5)', () => {
+  const input = (refresh: () => Promise<unknown>, now: () => number = () => NOW) => ({
+    hasCustomerSession: true,
+    tier: 'public' as const,
+    getAccessToken: () => EXPIRED,
+    refresh,
+    now,
+  });
+
+  it('isRefreshRejected: solo response.status 401 o 403', () => {
+    expect(isRefreshRejected(rejected(401))).toBe(true);
+    expect(isRefreshRejected(rejected(403))).toBe(true);
+    for (const error of [
+      rejected(429),
+      rejected(500),
+      rejected(503),
+      new Error('Network Error'),
+      Object.assign(new Error('timeout'), { code: 'ECONNABORTED' }),
+      { response: null },
+      { response: { status: '401' } },
+      null,
+      undefined,
+      'boom',
+    ]) {
+      expect(isRefreshRejected(error)).toBe(false);
+    }
+  });
+
+  it('403 también marca la sesión como vencida', async () => {
+    expect(await attemptViewerPriceRecovery(input(vi.fn().mockRejectedValue(rejected(403))))).toBe(false);
+    expect(getViewerSessionStatus()).toBe('expired');
+  });
+
+  it('sin red, timeout o 5xx: NO hay aviso; vuelve a idle, respeta el minuto y no lanza', async () => {
+    for (const error of [new Error('Network Error'), rejected(500), rejected(429)]) {
+      resetViewerSessionForTests();
+      const refresh = vi.fn().mockRejectedValue(error);
+      let now = NOW;
+      expect(await attemptViewerPriceRecovery(input(refresh, () => now))).toBe(false);
+      expect(getViewerSessionStatus()).toBe('idle');
+      now += 30_000;
+      expect(await attemptViewerPriceRecovery(input(refresh, () => now))).toBe(false);
+      expect(refresh).toHaveBeenCalledTimes(1);
+    }
+  });
+});
+
+describe('reconcileViewerSession: el aviso se apaga al volver a iniciar sesión', () => {
+  const expire = () =>
+    attemptViewerPriceRecovery({
+      hasCustomerSession: true,
+      tier: 'public',
+      getAccessToken: () => EXPIRED,
+      refresh: vi.fn().mockRejectedValue(rejected(401)),
+      now: () => NOW,
+    });
+
+  it('sin estado expired no hace nada', () => {
+    expect(reconcileViewerSession(VALID, NOW)).toBe(false);
+    expect(getViewerSessionStatus()).toBe('idle');
+  });
+
+  it('mismo token rechazado, sin token o token vencido: el aviso sigue', async () => {
+    await expire();
+    for (const token of [EXPIRED, null, undefined, '', jwt({ sub: 'u1', exp: NOW / 1000 - 5 })]) {
+      expect(reconcileViewerSession(token, NOW)).toBe(false);
+      expect(getViewerSessionStatus()).toBe('expired');
+    }
+  });
+
+  it('token nuevo y vigente: vuelve a idle, avisa a los suscriptores y libera el minuto', async () => {
+    await expire();
+    const listener = vi.fn();
+    const unsubscribe = subscribeViewerSession(listener);
+    expect(reconcileViewerSession(VALID, NOW)).toBe(true);
+    expect(getViewerSessionStatus()).toBe('idle');
+    expect(listener).toHaveBeenCalledTimes(1);
+    unsubscribe();
+
+    // Sesión nueva: si otra vez vence, el intento no espera el minuto del anterior.
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    expect(
+      await attemptViewerPriceRecovery({
+        hasCustomerSession: true,
+        tier: 'public',
+        getAccessToken: () => EXPIRED,
+        refresh,
+        now: () => NOW + 1_000,
+      }),
+    ).toBe(true);
+    expect(refresh).toHaveBeenCalledTimes(1);
   });
 });
