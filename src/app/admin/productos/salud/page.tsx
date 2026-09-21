@@ -58,6 +58,7 @@ const HEALTH_CARDS: { id: string; title: string; help: string; bases: string[]; 
   { id: 'en', title: 'Sin traducción al inglés', help: 'La tienda en inglés muestra el español.', bases: ['no_en_name', 'no_en_description'] },
   { id: 'seo', title: 'Sin SEO', help: 'Sin meta título ni meta descripción.', bases: ['no_seo'] },
   { id: 'precios', title: 'Precios incoherentes o en cero', help: 'Público menor que distribuidor, preferente mayor que público o precio 0.', bases: ['price_incoherent', 'zero_price'] },
+  { id: 'preciobajo', title: 'Precio sospechosamente bajo', help: 'Ya se ven en la tienda con un precio público simbólico (material interno, cortesías). Revísalos y, si no deben venderse, ocúltalos de la tienda.', bases: ['suspicious_low_price'] },
   { id: 'nombres', title: 'Nombres por normalizar', help: 'En mayúsculas, con espacios sobrantes o duplicados.', bases: ['name_uppercase', 'name_untrimmed', 'duplicate_name'] },
   { id: 'slugs', title: 'URLs fuera de convención', help: 'Sin URL o que no siguen clave-nombre.', bases: ['no_slug', 'slug_off_convention'] },
   { id: 'fiscal', title: 'Sin regla fiscal o clave SAT', help: 'Necesarias para facturar en México.', bases: ['no_tax_rule', 'no_sat_code'], onlyCountry: 'MX' },

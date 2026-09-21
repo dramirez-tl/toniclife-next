@@ -38,6 +38,7 @@ export type HealthIssueBase =
   | 'no_public_price'
   | 'zero_price'
   | 'price_incoherent'
+  | 'suspicious_low_price'
   | 'no_tax_rule'
   | 'no_sat_code'
   | 'no_en_name'

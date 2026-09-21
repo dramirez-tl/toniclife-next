@@ -149,6 +149,8 @@ const HEALTH_ISSUE_META: Record<string, HealthIssueMeta> = {
   no_public_price: { label: 'Sin precio público', short: 'Precio público', section: 'precios' },
   zero_price: { label: 'Precio en cero', short: 'Precio en cero', section: 'precios' },
   price_incoherent: { label: 'Precios incoherentes', short: 'Precios incoherentes', section: 'precios' },
+  // Misma etiqueta que el CSV de salud del API (ISSUE_LABEL_ES). No bloquea la tienda: avisa.
+  suspicious_low_price: { label: 'Precio sospechosamente bajo', short: 'Precio muy bajo', section: 'precios' },
   no_tax_rule: { label: 'Sin regla fiscal', short: 'Regla fiscal', section: 'fiscal' },
   no_sat_code: { label: 'Sin clave SAT', short: 'Clave SAT', section: 'fiscal' },
   no_en_name: { label: 'Sin nombre en inglés', short: 'Nombre EN', section: 'traducciones' },
@@ -189,7 +191,7 @@ export function healthIssueLabel(code: string, short = false): string {
 export const HEALTH_ISSUE_BASES: string[] = Object.keys(HEALTH_ISSUE_META);
 
 /** Reglas que se evalúan por país (llegan como `<base>:<CC>`). */
-export const COUNTRY_SCOPED_ISSUES = new Set(['no_public_price', 'zero_price', 'price_incoherent']);
+export const COUNTRY_SCOPED_ISSUES = new Set(['no_public_price', 'zero_price', 'price_incoherent', 'suspicious_low_price']);
 
 /** Código completo de una regla para el país elegido. */
 export const issueCodeFor = (base: string, country: StoreCountryCode): string =>
@@ -245,11 +247,14 @@ export interface BulkActionMeta {
   note?: string;
 }
 
+/** Las acciones que APAGAN algo nunca tocan un kit de inscripción por lote (el API los omite con `enrollment_kit`). */
+const ENROLLMENT_KIT_BULK_NOTE = 'Los kits de inscripción se omiten: se administran desde Kits.';
+
 export const BULK_ACTIONS: BulkActionMeta[] = [
   { action: 'show_store', label: 'Mostrar en tienda', scope: 'Mostrar en la tienda', note: 'Se omiten los tipos que la tienda no vende (solo productos y paquetes).' },
-  { action: 'hide_store', label: 'Ocultar de la tienda', scope: 'Ocultar de la tienda', destructive: true },
+  { action: 'hide_store', label: 'Ocultar de la tienda', scope: 'Ocultar de la tienda', destructive: true, note: `Solo afecta a los productos seleccionados en esta página. ${ENROLLMENT_KIT_BULK_NOTE}` },
   { action: 'enable_pos', label: 'Habilitar en POS', scope: 'Habilitar en el POS' },
-  { action: 'disable_pos', label: 'Quitar del POS', scope: 'Quitar del POS', destructive: true },
+  { action: 'disable_pos', label: 'Quitar del POS', scope: 'Quitar del POS', destructive: true, note: `Solo afecta a los productos seleccionados en esta página. ${ENROLLMENT_KIT_BULK_NOTE}` },
   { action: 'feature', label: 'Destacar', scope: 'Marcar como destacados' },
   { action: 'unfeature', label: 'Quitar destacado', scope: 'Quitar el destacado de' },
   { action: 'set_category', label: 'Cambiar categoría', scope: 'Cambiar la categoría de' },
@@ -261,7 +266,7 @@ export const BULK_ACTIONS: BulkActionMeta[] = [
     needsDelete: true,
     destructive: true,
     confirmText: 'DESACTIVAR',
-    note: 'Dejarán de venderse en tienda y POS. Se pueden reactivar cuando quieras.',
+    note: `Dejarán de venderse en tienda y POS. Se pueden reactivar cuando quieras. ${ENROLLMENT_KIT_BULK_NOTE}`,
   },
 ];
 

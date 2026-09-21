@@ -27,6 +27,7 @@ import {
   scoreTone,
   type ProductSectionId,
 } from '../lib/labels';
+import { canToggleProductActive } from '../lib/permissions';
 import { storefrontSentence } from './StorefrontStatusPanel';
 
 interface ProductHeaderProps {
@@ -65,7 +66,7 @@ export function ProductHeader({
   const score = rowHealth?.health.score ?? null;
   const issues = rowHealth?.health.issues ?? [];
   const readyStorefront = (storefront ?? []).filter((e) => !e.reasons.includes('country_not_ready'));
-  const canToggleActive = product ? (product.isActive ? canDelete : canUpdate) : false;
+  const canToggleActive = product ? canToggleProductActive({ canUpdate, canDelete }, product.isActive) : false;
 
   return (
     <header

@@ -8,8 +8,9 @@
 //   src/modules/products/lib/storefront-status.lib.ts       → StorefrontBlockReason
 //
 // Si el API cambia una lista, se actualiza la copia de aquí Y el front a la vez.
-// Cuando el repo del API está junto a este (desarrollo local), la última prueba
-// compara las copias contra el archivo real para que no envejezcan en silencio.
+// Cuando el repo del API está junto a este (desarrollo local), el último bloque
+// compara las copias contra los archivos reales (DTO, catalog-health.lib,
+// catalog-health.service y storefront-status.lib) para que no envejezcan en silencio.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -24,6 +25,8 @@ import {
   PRODUCTS_TAB_TYPES,
   SELLABLE_TYPES,
   STOREFRONT_REASON_LABEL,
+  healthIssueLabel,
+  healthIssueMeta,
   issueCodeFor,
 } from './labels';
 
@@ -53,6 +56,7 @@ const API_HEALTH_RULE_CODES = [
   'no_public_price',
   'zero_price',
   'price_incoherent',
+  'suspicious_low_price',
   'no_tax_rule',
   'no_sat_code',
   'no_en_name',
@@ -67,7 +71,7 @@ const API_HEALTH_RULE_CODES = [
   'visible_not_sellable_type',
 ];
 // --- catalog-health.lib.ts (reglas con perCountry: true) ---
-const API_PER_COUNTRY_RULES = ['no_public_price', 'zero_price', 'price_incoherent'];
+const API_PER_COUNTRY_RULES = ['no_public_price', 'zero_price', 'price_incoherent', 'suspicious_low_price'];
 // --- storefront-status.lib.ts (StorefrontBlockReason) ---
 const API_STOREFRONT_REASONS = [
   'inactive',
@@ -135,7 +139,13 @@ describe('incidencias de salud ("Le falta…")', () => {
   it('las reglas por país coinciden y se mandan como <regla>:<CC>', () => {
     expect(Array.from(COUNTRY_SCOPED_ISSUES).sort()).toEqual([...API_PER_COUNTRY_RULES].sort());
     expect(issueCodeFor('no_public_price', 'US')).toBe('no_public_price:US');
+    expect(issueCodeFor('suspicious_low_price', 'US')).toBe('suspicious_low_price:US');
     expect(issueCodeFor('no_image', 'US')).toBe('no_image');
+  });
+
+  it('suspicious_low_price usa la etiqueta del CSV de salud del API y corrige en Precios', () => {
+    expect(healthIssueLabel('suspicious_low_price:MX')).toBe('Precio sospechosamente bajo (MX)');
+    expect(healthIssueMeta('suspicious_low_price:MX').section).toBe('precios');
   });
 
   it('marcar TODAS las incidencias cabe en los límites del DTO', () => {
@@ -147,23 +157,73 @@ describe('incidencias de salud ("Le falta…")', () => {
 });
 
 // Repo hermano (solo en desarrollo local; en Vercel/CI no existe y la prueba se omite).
-const API_DTO_PATH = resolve(
-  process.cwd(),
-  '../toniclife-api/src/modules/products/catalog-admin/dto/catalog-admin.dto.ts',
+const API_PRODUCTS_DIR = resolve(process.cwd(), '../toniclife-api/src/modules/products');
+const API_DTO_PATH = resolve(API_PRODUCTS_DIR, 'catalog-admin/dto/catalog-admin.dto.ts');
+const API_HEALTH_LIB_PATH = resolve(API_PRODUCTS_DIR, 'lib/catalog-health.lib.ts');
+const API_HEALTH_SERVICE_PATH = resolve(API_PRODUCTS_DIR, 'catalog-admin/catalog-health.service.ts');
+const API_STOREFRONT_LIB_PATH = resolve(API_PRODUCTS_DIR, 'lib/storefront-status.lib.ts');
+const HAS_API_REPO = [API_DTO_PATH, API_HEALTH_LIB_PATH, API_HEALTH_SERVICE_PATH, API_STOREFRONT_LIB_PATH].every((p) =>
+  existsSync(p),
 );
+
+const quoted = (text: string): string[] => Array.from(text.matchAll(/'([^']+)'/g)).map((m) => m[1]);
 
 function readConstList(source: string, name: string): string[] {
   const start = source.indexOf(`export const ${name} = [`);
   const end = start < 0 ? -1 : source.indexOf(']', start);
   if (start < 0 || end < 0) throw new Error(`No se encontró ${name} en el DTO del API`);
-  return Array.from(source.slice(start, end).matchAll(/'([^']+)'/g)).map((m) => m[1]);
+  return quoted(source.slice(start, end));
 }
 
-describe.skipIf(!existsSync(API_DTO_PATH))('copias literales vs DTO real del API', () => {
-  it('no envejecieron', () => {
+/** `export type X = | 'a' | 'b';` → ['a', 'b'] */
+function readUnionType(source: string, name: string): string[] {
+  const start = source.indexOf(`export type ${name} =`);
+  const end = start < 0 ? -1 : source.indexOf(';', start);
+  if (start < 0 || end < 0) throw new Error(`No se encontró el tipo ${name} en el API`);
+  return quoted(source.slice(start, end));
+}
+
+/** Códigos de HEALTH_RULES cuyo bloque declara `perCountry: true`. */
+function readPerCountryRules(source: string): string[] {
+  const start = source.indexOf('export const HEALTH_RULES');
+  const end = start < 0 ? -1 : source.indexOf('\n};', start);
+  if (start < 0 || end < 0) throw new Error('No se encontró HEALTH_RULES en el API');
+  const blocks = source.slice(start, end).matchAll(/code:\s*'([^']+)'[^}]*?perCountry:\s*(true|false)/g);
+  return Array.from(blocks)
+    .filter((m) => m[2] === 'true')
+    .map((m) => m[1]);
+}
+
+describe.skipIf(!HAS_API_REPO)('copias literales vs archivos reales del API', () => {
+  it('el DTO no envejeció', () => {
     const source = readFileSync(API_DTO_PATH, 'utf8');
     expect(readConstList(source, 'CATALOG_PRODUCT_TYPES')).toEqual(API_CATALOG_PRODUCT_TYPES);
     expect(readConstList(source, 'CATALOG_SORT_FIELDS')).toEqual(API_CATALOG_SORT_FIELDS);
     expect(readConstList(source, 'CATALOG_BULK_ACTIONS')).toEqual(API_CATALOG_BULK_ACTIONS);
+    expect(readUnionType(source, 'CatalogBulkSkipReason')).toEqual(API_BULK_SKIP_REASONS);
+  });
+
+  it('HealthRuleCode y las reglas perCountry no envejecieron', () => {
+    const source = readFileSync(API_HEALTH_LIB_PATH, 'utf8');
+    const codes = readUnionType(source, 'HealthRuleCode');
+    expect(codes).toEqual(API_HEALTH_RULE_CODES);
+    const perCountry = readPerCountryRules(source);
+    expect(perCountry.length).toBeGreaterThan(0);
+    expect([...perCountry].sort()).toEqual([...API_PER_COUNTRY_RULES].sort());
+    // El front y el API hablan de las mismas reglas, sin intermediarios.
+    expect([...HEALTH_ISSUE_BASES].sort()).toEqual([...codes].sort());
+    expect(Array.from(COUNTRY_SCOPED_ISSUES).sort()).toEqual([...perCountry].sort());
+  });
+
+  it('la etiqueta de suspicious_low_price es la del CSV de salud del API', () => {
+    const source = readFileSync(API_HEALTH_SERVICE_PATH, 'utf8');
+    const match = /suspicious_low_price:\s*'([^']+)'/.exec(source);
+    expect(match?.[1]).toBe('Precio sospechosamente bajo');
+    expect(healthIssueLabel('suspicious_low_price')).toBe(match?.[1]);
+  });
+
+  it('StorefrontBlockReason no envejeció', () => {
+    const source = readFileSync(API_STOREFRONT_LIB_PATH, 'utf8');
+    expect(readUnionType(source, 'StorefrontBlockReason')).toEqual(API_STOREFRONT_REASONS);
   });
 });

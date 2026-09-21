@@ -3,7 +3,8 @@
 // ProductActiveDialog — Desactivar / Reactivar UN producto con texto veraz.
 // "Eliminar" en el API es una baja lógica (is_active = false): nada se borra y
 // se puede revertir. Desactivar usa DELETE /products/:id (products:delete);
-// reactivar usa PATCH { isActive: true } (products:update).
+// reactivar usa PATCH { isActive: true } (products:update + products:delete:
+// el API responde 403 PRD_FORBIDDEN si `isActive` cambia sin products:delete).
 
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';

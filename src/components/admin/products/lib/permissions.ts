@@ -22,6 +22,19 @@ export interface ProductPermissions {
   canDelete: boolean;
 }
 
+/**
+ * ¿Puede activar/desactivar ESTE producto? CAMBIAR `isActive` exige
+ * `products:delete` en ambos sentidos (403 PRD_FORBIDDEN, field `isActive`):
+ * desactivar va por DELETE /products/:id y reactivar por PATCH { isActive: true },
+ * que además pide `products:update`.
+ */
+export function canToggleProductActive(
+  permissions: Pick<ProductPermissions, 'canUpdate' | 'canDelete'>,
+  isActive: boolean,
+): boolean {
+  return isActive ? permissions.canDelete : permissions.canDelete && permissions.canUpdate;
+}
+
 export function useProductPermissions(): ProductPermissions {
   const permissions = useAppSelector(selectUserPermissions);
   const roles = useAppSelector(selectUserRoles);

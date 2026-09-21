@@ -74,7 +74,7 @@ import {
   scoreTone,
   type BulkActionMeta,
 } from '@/components/admin/products/lib/labels';
-import { useProductPermissions } from '@/components/admin/products/lib/permissions';
+import { canToggleProductActive, useProductPermissions } from '@/components/admin/products/lib/permissions';
 import {
   useCatalogAdminProducts,
   useCatalogBulk,
@@ -513,7 +513,7 @@ export function ProductosTab() {
                     <Copy className="h-4 w-4" aria-hidden /> Duplicar
                   </DropdownMenuItem>
                 ) : null}
-                {(row.isActive ? permissions.canDelete : permissions.canUpdate) ? (
+                {canToggleProductActive(permissions, row.isActive) ? (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
