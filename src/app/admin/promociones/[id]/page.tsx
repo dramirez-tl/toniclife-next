@@ -41,6 +41,7 @@ import {
   useUploadPromotionRuleImage,
 } from '@/hooks/usePromotions';
 import { useProducts, useUpdateProduct } from '@/hooks/useProducts';
+import { LockedProductField, LockedProductLink } from '@/components/admin/products/LockedProductField';
 import { useActiveCountries } from '@/hooks/useConfig';
 import { ProductType } from '@/types/product';
 import type { Product } from '@/types/product';
@@ -84,6 +85,8 @@ function ComponentsEditor({
   const [dirty, setDirty] = useState(false);
   const [productSearch, setProductSearch] = useState('');
 
+  // Patrón heredado (copiar al formulario lo que llega del servidor); mismo criterio que SupplyFormModal.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (components) {
       setRows(
@@ -98,6 +101,7 @@ function ComponentsEditor({
       setDirty(false);
     }
   }, [components]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const { data: productSearchResults } = useProducts(
     productSearch.trim().length >= 2
@@ -645,7 +649,7 @@ function CountryCard({
                       <input
                         ref={imageInputRef}
                         type="file"
-                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        accept="image/jpeg,image/png,image/webp"
                         className="hidden"
                         onChange={(e) => handleUploadImage(e.target.files?.[0])}
                       />
@@ -688,7 +692,6 @@ export default function EditarPromocionPage({
   const upsertRule = useUpsertPromotionRule(id);
 
   // -------- datos del producto (BASE) --------
-  const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [shortName, setShortName] = useState('');
   const [description, setDescription] = useState('');
@@ -698,9 +701,10 @@ export default function EditarPromocionPage({
   const [isVisibleEcommerce, setIsVisibleEcommerce] = useState(true);
   const [confirmCancel, setConfirmCancel] = useState(false);
 
+  // Patrón heredado (copiar al formulario lo que llega del servidor); mismo criterio que SupplyFormModal.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (promo) {
-      setCode(promo.code);
       setName(promo.name);
       setShortName(promo.shortName ?? '');
       setDescription(promo.description ?? '');
@@ -710,21 +714,7 @@ export default function EditarPromocionPage({
       setIsVisibleEcommerce(promo.isVisibleEcommerce);
     }
   }, [promo]);
-
-  // Validación inline del código: no debe repetirse con OTRO producto.
-  const trimmedCode = code.trim();
-  const { data: codeMatches } = useProducts(
-    trimmedCode.length >= 2 ? { search: trimmedCode, limit: 10 } : { limit: 0 },
-  );
-  const codeConflict =
-    trimmedCode.length >= 2
-      ? (codeMatches?.data ?? []).find(
-          (p) =>
-            (p.code ?? '').toUpperCase() === trimmedCode.toUpperCase() &&
-            p.id !== promo?.id,
-        )
-      : undefined;
-  const codeTaken = !!codeConflict;
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // -------- agregar país --------
   const [newRuleCountry, setNewRuleCountry] = useState('');
@@ -736,29 +726,17 @@ export default function EditarPromocionPage({
 
   const handleSaveDetails = async () => {
     if (!promo) return;
-    if (!code.trim()) {
-      toast.error('El código es requerido');
-      return;
-    }
     if (!name.trim()) {
       toast.error(
         'El nombre base no puede quedar vacío: es el nombre interno de la promoción y el respaldo para países sin personalización. Si cada país ya tiene su propio nombre (abajo), el base solo se ve en el admin.',
       );
       return;
     }
-    if (/\s/.test(code)) {
-      toast.error('El código no debe contener espacios');
-      return;
-    }
-    if (codeTaken) {
-      toast.error('Ya existe un producto/promoción con ese código');
-      return;
-    }
     try {
       await updateProduct.mutateAsync({
         id: promo.id,
         dto: {
-          code: code.trim().toUpperCase(),
+          // La CLAVE no viaja: se cambia en la ficha del producto (confirmación + historial).
           name,
           // null (no undefined): vaciar el campo debe BORRARLO en BD.
           shortName: shortName.trim() || null,
@@ -888,36 +866,22 @@ export default function EditarPromocionPage({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Código
-                </label>
-                <input
-                  type="text"
-                  value={code}
-                  onChange={(e) =>
-                    setCode(e.target.value.toUpperCase().replace(/\s+/g, ''))
-                  }
-                  placeholder="PROMOTEST-MX"
-                  className={`w-full px-3 py-2 border rounded-md font-mono uppercase focus:outline-none focus:ring-2 ${
-                    codeTaken
-                      ? 'border-red-400 focus:ring-red-400'
-                      : 'border-gray-300 focus:ring-[#3E667D]'
-                  }`}
-                />
-                {codeTaken ? (
-                  <p className="mt-1 text-xs text-red-600">
-                    Ya existe{' '}
-                    {codeConflict?.isActive
-                      ? 'una promoción/producto activo'
-                      : 'un producto'}{' '}
-                    con el código “{trimmedCode}”. Usa otro.
-                  </p>
-                ) : (
-                  <p className="mt-1 text-xs text-gray-500">
-                    Identificador único (el MISMO en todos los países); es la
-                    clave por la que se busca en el POS.
-                  </p>
-                )}
+                <LockedProductField label="Clave" value={promo.code} mono />
+                <LockedProductLink
+                  productId={promo.id}
+                  section="basica"
+                  linkLabel="Cambiar la clave en la ficha del producto"
+                >
+                  Es la MISMA en todos los países y la llave con la que se busca
+                  en el POS: cambiarla pide confirmación y queda en el historial.
+                </LockedProductLink>
+                <LockedProductLink
+                  productId={promo.id}
+                  section="fiscal"
+                  linkLabel="Ver datos fiscales en la ficha del producto"
+                >
+                  Las claves SAT y la regla fiscal también se administran allá (con motivo).
+                </LockedProductLink>
               </div>
 
               <div>
@@ -1010,7 +974,7 @@ export default function EditarPromocionPage({
                   variant="default"
                   className="w-full"
                   onClick={handleSaveDetails}
-                  disabled={updateProduct.isPending || codeTaken}
+                  disabled={updateProduct.isPending}
                 >
                   {updateProduct.isPending && (
                     <Loader2 className="mr-2 size-4 animate-spin" />

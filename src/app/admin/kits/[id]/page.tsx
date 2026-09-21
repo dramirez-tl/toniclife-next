@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useKit } from '@/hooks/useKits';
-import { useProducts, useUpdateProduct } from '@/hooks/useProducts';
+import { useUpdateProduct } from '@/hooks/useProducts';
 import {
   KitType,
   KitPosition,
@@ -23,6 +23,7 @@ import { ProductInventoryByBranch } from '@/components/admin/products/ProductInv
 import { ProductMediaSection } from '@/components/admin/products/ProductMediaSection';
 import { KitBonusesSection } from '@/components/admin/products/KitBonusesSection';
 import { ProductComponentsSection } from '@/components/admin/products/ProductComponentsSection';
+import { LockedProductField, LockedProductLink } from '@/components/admin/products/LockedProductField';
 
 type Tab =
   | 'general'
@@ -54,7 +55,6 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
   const [activeTab, setActiveTab] = useState<Tab>('general');
 
   // -------- datos del kit --------
-  const [code, setCode] = useState('');
   const [name, setName] = useState('');
   const [shortName, setShortName] = useState('');
   const [description, setDescription] = useState('');
@@ -66,13 +66,12 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
   const [availableInPos, setAvailableInPos] = useState(true);
   const [isVisibleEcommerce, setIsVisibleEcommerce] = useState(true);
   const [isFeatured, setIsFeatured] = useState(false);
-  const [satProductCode, setSatProductCode] = useState('');
-  const [satUnitCode, setSatUnitCode] = useState('');
   const [isActive, setIsActive] = useState(true);
 
+  // Patrón heredado (copiar al formulario lo que llega del servidor); mismo criterio que SupplyFormModal.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (kit) {
-      setCode(kit.code);
       setName(kit.name);
       setShortName(kit.shortName ?? '');
       setDescription(kit.description ?? '');
@@ -84,41 +83,13 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
       setAvailableInPos(kit.availableInPos ?? true);
       setIsVisibleEcommerce(kit.isVisibleEcommerce ?? true);
       setIsFeatured(kit.isFeatured ?? false);
-      setSatProductCode(kit.satProductCode ?? '');
-      setSatUnitCode(kit.satUnitCode ?? '');
       setIsActive(kit.isActive);
     }
   }, [kit]);
-
-  // Validación inline de código único (excluye el kit actual)
-  const trimmedCode = code.trim();
-  const { data: codeMatches } = useProducts(
-    trimmedCode.length >= 2 ? { search: trimmedCode, limit: 10 } : { limit: 0 },
-  );
-  const codeConflict =
-    trimmedCode.length >= 2
-      ? (codeMatches?.data ?? []).find(
-          (p) =>
-            (p.code ?? '').toUpperCase() === trimmedCode.toUpperCase() &&
-            p.id !== kit?.id,
-        )
-      : undefined;
-  const codeTaken = !!codeConflict;
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleSaveDetails = async () => {
     if (!kit) return;
-    if (!code.trim()) {
-      toast.error('El código es requerido');
-      return;
-    }
-    if (/\s/.test(code)) {
-      toast.error('El código no debe contener espacios');
-      return;
-    }
-    if (codeTaken) {
-      toast.error('Ya existe un producto/kit con ese código');
-      return;
-    }
     if (isEnrollmentKit && !kitPosition) {
       toast.error('Un kit de inscripción requiere posición (Básico, Premium o Preferente)');
       return;
@@ -127,7 +98,8 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
       await updateProduct.mutateAsync({
         id: kit.id,
         dto: {
-          code: code.trim().toUpperCase(),
+          // La CLAVE y las claves SAT NO viajan: se cambian en la ficha del producto
+          // (confirmación / motivo + historial). Ver LockedProductField.
           name,
           // null (no undefined): vaciar el campo debe BORRARLO en BD.
           shortName: shortName.trim() || null,
@@ -140,8 +112,6 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
           availableInPos,
           isVisibleEcommerce,
           isFeatured,
-          satProductCode: satProductCode.trim() || undefined,
-          satUnitCode: satUnitCode.trim() || undefined,
           isActive,
         },
       });
@@ -228,27 +198,10 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className={labelClass}>
-                      Código <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={code}
-                      onChange={(e) => setCode(e.target.value.toUpperCase().replace(/\s+/g, ''))}
-                      placeholder="KBC02"
-                      className={`w-full px-3 py-2 border rounded-md font-mono uppercase focus:outline-none focus:ring-2 ${
-                        codeTaken ? 'border-red-400 focus:ring-red-400' : 'border-gray-300 focus:ring-[#3E667D]'
-                      }`}
-                    />
-                    {codeTaken ? (
-                      <p className="mt-1 text-xs text-red-600">
-                        Ya existe un producto/kit con el código “{trimmedCode}”. Usa otro.
-                      </p>
-                    ) : (
-                      <p className="mt-1 text-xs text-gray-500">
-                        Identificador único, sin espacios. Es la clave por la que se busca en el POS.
-                      </p>
-                    )}
+                    <LockedProductField label="Clave" value={kit.code} mono />
+                    <LockedProductLink productId={kit.id} section="basica" linkLabel="Cambiar la clave en la ficha del producto">
+                      Es la llave del kit en el POS y el inventario: cambiarla pide confirmación y queda en el historial.
+                    </LockedProductLink>
                   </div>
 
                   <div>
@@ -316,34 +269,19 @@ export default function EditarKitPage({ params }: { params: Promise<{ id: string
                 <div className="border-t pt-4">
                   <h3 className="text-sm font-semibold text-gray-700 mb-3">Datos SAT (México)</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className={labelClass}>Clave Producto SAT</label>
-                      <input
-                        type="text"
-                        value={satProductCode}
-                        onChange={(e) => setSatProductCode(e.target.value)}
-                        placeholder="c_ClaveProdServ"
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Clave Unidad SAT</label>
-                      <input
-                        type="text"
-                        value={satUnitCode}
-                        onChange={(e) => setSatUnitCode(e.target.value)}
-                        placeholder="c_ClaveUnidad"
-                        className={inputClass}
-                      />
-                    </div>
+                    <LockedProductField label="Clave Producto SAT" value={kit.satProductCode} mono />
+                    <LockedProductField label="Clave Unidad SAT" value={kit.satUnitCode} mono />
                   </div>
+                  <LockedProductLink productId={kit.id} section="fiscal" linkLabel="Editar datos fiscales en la ficha del producto">
+                    Las claves SAT, la exención y la regla fiscal se cambian con motivo (queda en auditoría).
+                  </LockedProductLink>
                 </div>
 
                 <div className="pt-2">
                   <Button
                     variant="default"
                     onClick={handleSaveDetails}
-                    disabled={updateProduct.isPending || codeTaken}
+                    disabled={updateProduct.isPending}
                   >
                     {updateProduct.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
                     <CheckIcon className="h-4 w-4" />
