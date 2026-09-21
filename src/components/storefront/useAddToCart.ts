@@ -14,6 +14,7 @@ import { track } from '@vercel/analytics';
 import { useQueryClient } from '@tanstack/react-query';
 import { cartKeys, useAddCartItem } from '@/hooks/useCart';
 import { openCartDrawer } from '@/lib/storefront/cart-drawer-store';
+import { addedQuantity } from '@/lib/storefront/cart-logic';
 import type { Cart } from '@/types/cart';
 
 const ADDED_FEEDBACK_MS = 2500;
@@ -64,9 +65,8 @@ export function useAddToCart() {
       } catch {
         return 'failed'; // `useAddCartItem` ya mostró el motivo real.
       }
-      const after = lineQuantity(cart, product.id) ?? quantity;
       // Sin carrito en caché no se conoce el "antes": lo agregado es lo pedido, acotado a lo que quedó.
-      const added = before === null ? Math.min(quantity, after) : after - before;
+      const added = addedQuantity(before, lineQuantity(cart, product.id), quantity);
       if (!options.silent) openCartDrawer(trigger);
       if (added <= 0) return 'unchanged';
 

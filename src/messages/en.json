@@ -300,23 +300,25 @@
         "remove": "Remove",
         "removeLabel": "Remove {name} from cart",
         "removed": "{name} was removed from your cart",
-        "viewProduct": "View {name}",
         "soldOut": "Sold out",
         "soldOutNote": "No longer in stock in your country",
         "exceeds": "You asked for {requested}, but only {available} left",
+        "exceedsOrderMax": "You asked for {requested}; the max per order is {available}",
         "adjust": "Set to {count}",
         "adjusted": "Quantity adjusted to what is available",
-        "lowStock": "{count, plural, one {Only # left} other {Only # left}}",
         "pointsPerUnit": "+{points} points per unit"
       },
       "quantity": {
         "label": "Quantity of {name}",
         "decrease": "Remove one {name}",
         "increase": "Add one {name}",
-        "max": "Max {max}",
+        "maxOrder": "Max {max} per order",
+        "maxStock": "{max, plural, one {Only # available} other {Only # available}}",
         "announce": "{name}: {count, plural, one {# piece} other {# pieces}}",
-        "announceMax": "{name}: {count, plural, one {# piece} other {# pieces}}. That is the maximum available.",
-        "clamped": "The maximum available is {max}; we set the quantity to {max}."
+        "announceMaxStock": "{name}: {count, plural, one {# piece} other {# pieces}}. That is the maximum available.",
+        "announceMaxOrder": "{name}: {count, plural, one {# piece} other {# pieces}}. That is the max per order.",
+        "clampedStock": "{max, plural, one {Only # available} other {Only # available}}; we set the quantity to {max}.",
+        "clampedOrder": "Max {max} per order; we set the quantity to {max}."
       },
       "freeShipping": {
         "remaining": "You're {amount} away from free shipping",
@@ -327,9 +329,10 @@
       "blocked": {
         "title": "Review your cart before paying",
         "soldOut": "{count, plural, one {# product is sold out} other {# products are sold out}}",
-        "exceeds": "{count, plural, one {# product exceeds available stock} other {# products exceed available stock}}",
+        "exceeds": "{count, plural, one {# product exceeds the allowed quantity} other {# products exceed the allowed quantity}}",
         "hint": "Remove sold-out items or adjust quantities to continue.",
-        "button": "Proceed to checkout"
+        "guestTitle": "Check the availability of your cart",
+        "guestHint": "You can continue and sign in: availability is confirmed with your account before you pay."
       },
       "coupon": {
         "removeLabel": "Remove coupon {code}",
@@ -351,10 +354,13 @@
         "enrollmentKit": "Enrollment kits are purchased when you sign up as a distributor, not from the cart.",
         "enrollmentKitAction": "Go to sign-up",
         "qtyExceeds": "Only {max, plural, one {# piece is available} other {# pieces are available}}.",
+        "qtyExceedsOrderMax": "Max {max} per order.",
         "qtyExceedsUnknown": "There is not enough stock for that quantity.",
         "soldOut": "This product is sold out.",
         "adjusted": "Only {max, plural, one {# piece is available} other {# pieces are available}}: we set the quantity to {max}.",
-        "alreadyMax": "Your cart already has the maximum available ({max})."
+        "adjustedOrderMax": "Max {max} per order: we set the quantity to {max}.",
+        "alreadyMax": "Your cart already has the maximum available ({max}).",
+        "alreadyMaxOrderMax": "Your cart already has the max per order ({max})."
       }
     }
   },
@@ -411,9 +417,7 @@
     "viewFullCart": "View Full Cart",
     "proceedCheckout": "Proceed to Checkout",
     "protectedPayment": "Protected & encrypted payment",
-    "trustSecure": "100% secure & encrypted purchase",
     "trustShipping": "Home delivery or in-store pickup",
-    "trustWarranty": "30-day warranty",
     "cardsAccepted": "Visa · Mastercard · American Express",
     "stripeProcessed": "Payment securely processed by Stripe",
     "securePaymentWith": "Secure payment with:"
@@ -603,9 +607,8 @@
       "linkCopied": "Link copied to clipboard",
       "copyError": "Couldn't copy to clipboard",
       "addedToCart": "{name} added to cart",
-      "addError": "Failed to add to cart",
       "bundleAdded": "Recommended products added to cart",
-      "bundleAddError": "Failed to add products",
+      "bundlePartial": "We added {added} of {total} recommended products; check the notices for the rest",
       "emailRequired": "Enter your email address",
       "emailSaved": "We'll email you your results"
     }

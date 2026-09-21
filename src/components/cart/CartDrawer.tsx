@@ -5,9 +5,13 @@
 // Header (`cart-drawer-store`). Líneas con miniatura, nombre con enlace, cantidad con
 // tope, "Quitar", barra de envío gratis por país, subtotal, "Ver carrito" y "Pagar".
 //
-// Accesibilidad: Radix atrapa el foco y lo DEVUELVE al elemento que abrió el drawer;
-// al abrir, el foco va al título (el lector anuncia "Tu carrito, N productos"); los
-// cambios de cantidad, las bajas y el bloqueo de pago se anuncian por aria-live.
+// Accesibilidad: Radix atrapa el foco, pero NO sabe a quién devolverlo: este Sheet es
+// controlado y no tiene `SheetTrigger`, así que su `triggerRef` es null y al cerrar el
+// foco caería en <body>. Por eso QUIEN ABRE pasa su elemento a `openCartDrawer(el)` (el
+// icono del Header y "Agregar") y `onCloseAutoFocus` le devuelve el foco. Al abrir, el
+// foco va al título (el lector anuncia "Tu carrito, N productos"); los cambios de
+// cantidad, las bajas y el bloqueo de pago se anuncian por aria-live. Escape dentro del
+// campo de cantidad con un borrador cancela la edición SIN cerrar el drawer.
 // Solo CONSUME los hooks del carrito; el checkout y el pago no se tocan.
 
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
@@ -30,6 +34,8 @@ import {
 } from '@/lib/storefront/cart-drawer-store';
 import {
   cartBlockers,
+  checkoutGate,
+  escapeCancelsQuantityDraft,
   lineIssue,
   lineLimit,
   linePointsPerUnit,
@@ -65,8 +71,12 @@ export function CartDrawer() {
           event.preventDefault();
           titleRef.current?.focus();
         }}
+        onEscapeKeyDown={(event) => {
+          // Radix oye Escape en `document` antes que el campo: aquí se evita el cierre.
+          if (escapeCancelsQuantityDraft(document.activeElement)) event.preventDefault();
+        }}
         onCloseAutoFocus={(event) => {
-          // "Agregar" pierde el foco al deshabilitarse durante la petición: se le devuelve aquí.
+          // Sin `SheetTrigger` Radix no tiene a quién devolver el foco: se le devuelve a quien abrió.
           const trigger = takeCartDrawerReturnFocus();
           if (!trigger) return;
           event.preventDefault();
@@ -101,16 +111,22 @@ function CartDrawerBody({ titleRef, closeLabel }: { titleRef: React.RefObject<HT
   const money = (amount: number | string) => formatCurrency(amount, cart?.currencyCode || currency, lang);
   const showPoints = resolveShowPoints(cart?.showPoints, hasCustomerSession);
   const blockers = cartBlockers(items);
+  // A un invitado se le AVISA pero no se le bloquea: puede continuar a iniciar sesión.
+  const gate = checkoutGate(blockers, hasCustomerSession);
   const slugs = items.map(lineSlug).filter((slug): slug is string => slug !== null);
   const busy = updateItem.isPending || removeItem.isPending;
 
+  // Con una petición en vuelo los controles ignoran el clic (`aria-disabled`, no
+  // `disabled`: el botón con foco no lo pierde).
   const setQuantity = (item: CartItem, quantity: number, announce?: string) => {
+    if (busy) return;
     updateItem.mutate(
       { itemId: item.id, data: { quantity } },
       { onSuccess: () => setStatus(announce ?? '') },
     );
   };
   const remove = (item: CartItem, name: string) => {
+    if (busy) return;
     removeItem.mutate(item.id, { onSuccess: () => setStatus(tLine('removed', { name })) });
   };
 
@@ -205,12 +221,17 @@ function CartDrawerBody({ titleRef, closeLabel }: { titleRef: React.RefObject<HT
                     )}
                     {issue === 'exceeds_stock' && (
                       <p className="flex flex-wrap items-center gap-x-2 text-xs font-medium text-amber-900">
-                        <span>{tLine('exceeds', { requested: item.quantity, available: limit.max })}</span>
+                        <span>
+                          {tLine(limit.reason === 'order_max' ? 'exceedsOrderMax' : 'exceeds', {
+                            requested: item.quantity,
+                            available: limit.max,
+                          })}
+                        </span>
                         <button
                           type="button"
                           onClick={() => setQuantity(item, limit.max, tLine('adjusted'))}
-                          disabled={busy}
-                          className={`inline-flex min-h-11 cursor-pointer items-center rounded-sm font-semibold text-[#2f5165] underline underline-offset-4 disabled:opacity-50 ${FOCUS_RING}`}
+                          aria-disabled={busy}
+                          className={`inline-flex min-h-11 cursor-pointer items-center rounded-sm font-semibold text-[#2f5165] underline underline-offset-4 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 ${FOCUS_RING}`}
                         >
                           {tLine('adjust', { count: limit.max })}
                         </button>
@@ -226,16 +247,17 @@ function CartDrawerBody({ titleRef, closeLabel }: { titleRef: React.RefObject<HT
                           value={item.quantity}
                           max={limit.max}
                           maxKnown={limit.known}
-                          disabled={busy}
+                          maxReason={limit.reason}
+                          busy={busy}
                           onCommit={(next) => setQuantity(item, next)}
                         />
                       )}
                       <button
                         type="button"
                         onClick={() => remove(item, name)}
-                        disabled={busy}
+                        aria-disabled={busy}
                         aria-label={tLine('removeLabel', { name })}
-                        className={`inline-flex min-h-11 cursor-pointer items-center rounded-sm px-1 text-sm font-medium text-gray-700 underline underline-offset-4 hover:text-red-700 disabled:opacity-50 ${FOCUS_RING}`}
+                        className={`inline-flex min-h-11 cursor-pointer items-center rounded-sm px-1 text-sm font-medium text-gray-700 underline underline-offset-4 hover:text-red-700 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 ${FOCUS_RING}`}
                       >
                         {tLine('remove')}
                       </button>
@@ -256,12 +278,12 @@ function CartDrawerBody({ titleRef, closeLabel }: { titleRef: React.RefObject<HT
             </div>
             <p className="text-xs text-gray-700">{t('shippingNote')}</p>
 
-            {blockers.blocked && (
+            {gate.showNotice && (
               <p id={blockedId} role="status" className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-950">
-                <span className="font-semibold">{tBlocked('title')}. </span>
+                <span className="font-semibold">{tBlocked(gate.blocked ? 'title' : 'guestTitle')}. </span>
                 {blockers.soldOut > 0 && <span>{tBlocked('soldOut', { count: blockers.soldOut })}. </span>}
                 {blockers.exceedsStock > 0 && <span>{tBlocked('exceeds', { count: blockers.exceedsStock })}. </span>}
-                <span>{tBlocked('hint')}</span>
+                <span>{tBlocked(gate.blocked ? 'hint' : 'guestHint')}</span>
               </p>
             )}
 
@@ -271,7 +293,7 @@ function CartDrawerBody({ titleRef, closeLabel }: { titleRef: React.RefObject<HT
                   {t('viewCart')}
                 </Link>
               </Button>
-              {blockers.blocked ? (
+              {gate.blocked ? (
                 // `aria-disabled` (no `disabled`): sigue en el orden del tabulador y el lector lee el motivo.
                 <Button
                   type="button"
@@ -283,7 +305,7 @@ function CartDrawerBody({ titleRef, closeLabel }: { titleRef: React.RefObject<HT
                 </Button>
               ) : (
                 <Button asChild className="min-h-12 flex-1">
-                  <Link href="/checkout" onClick={closeCartDrawer}>
+                  <Link href="/checkout" onClick={closeCartDrawer} aria-describedby={gate.showNotice ? blockedId : undefined}>
                     {t('checkout')}
                   </Link>
                 </Button>

@@ -4,8 +4,9 @@
 // En el servidor siempre está cerrado.
 
 let open = false;
-// Quién abrió el drawer. "Agregar" queda `disabled` mientras dura la petición y el
-// navegador le quita el foco: sin esto, al cerrar el foco caería en <body>.
+// Quién abrió el drawer. El Sheet es controlado y SIN `SheetTrigger`: Radix no tiene a
+// quién devolverle el foco, así que TODO el que abre (icono del Header, "Agregar") pasa
+// su elemento; sin esto, al cerrar el foco caería en <body> (WCAG 2.4.3).
 let returnFocusTo: HTMLElement | null = null;
 const listeners = new Set<() => void>();
 
@@ -34,7 +35,7 @@ export function setCartDrawerOpen(next: boolean): void {
   emit();
 }
 
-/** `trigger`: elemento al que vuelve el foco al cerrar (por defecto, el que Radix recuerde). */
+/** `trigger`: elemento al que vuelve el foco al cerrar. Sin él, el foco se pierde: pásalo siempre que haya uno. */
 export function openCartDrawer(trigger?: Element | null): void {
   returnFocusTo = typeof HTMLElement !== 'undefined' && trigger instanceof HTMLElement ? trigger : null;
   setCartDrawerOpen(true);

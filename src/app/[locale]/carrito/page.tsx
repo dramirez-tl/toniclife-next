@@ -4,7 +4,11 @@
 //   en el tope de la línea (`maxQuantity` del API C1 o `availableStock` del actual).
 // - Puntos POR UNIDAD y solo si `showPoints` (API C1) o, sin el campo, solo a una
 //   sesión de cliente; nunca a invitados.
-// - "Proceder al pago" bloqueado con aviso claro si hay agotados o excesos.
+// - "Proceder al pago" bloqueado con aviso claro si hay agotados o excesos, SOLO con
+//   sesión de cliente; a un invitado se le avisa pero puede continuar a iniciar sesión
+//   (hasta C2 su carrito se resuelve como MX y nunca llega a una orden).
+// - Durante una petición los controles usan `aria-disabled` e ignoran el clic (con
+//   `disabled` el control con foco lo perdía).
 // - Los errores de las mutaciones los avisa `useCart` (i18n y por código): aquí NO se
 //   repite el toast. El checkout y el pago no se tocan.
 'use client';
@@ -16,9 +20,7 @@ import {
   TrashIcon,
   ShoppingBagIcon,
   TruckIcon,
-  ShieldCheckIcon,
   ArrowLeftIcon,
-  ArrowPathIcon,
   CreditCardIcon,
   SparklesIcon,
   TicketIcon,
@@ -46,6 +48,7 @@ import { formatProductName } from '@/lib/storefront/content-format';
 import { productPath } from '@/lib/storefront/slug';
 import {
   cartBlockers,
+  checkoutGate,
   lineIssue,
   lineLimit,
   linePointsPerUnit,
@@ -55,6 +58,7 @@ import {
 import type { CartItem } from '@/types/cart';
 
 const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3E667D]';
+const BUSY_STYLE = 'aria-disabled:cursor-not-allowed aria-disabled:opacity-50';
 
 /** Campo para aplicar/quitar cupón de descuento en el resumen del carrito. */
 function CouponBox({ couponCode, useApiMessage }: { couponCode?: string; useApiMessage: boolean }) {
@@ -155,12 +159,16 @@ export default function CartPage() {
   const fmt = (n: number | string) => formatCurrency(n, cart?.currencyCode || currency, lang);
   const showPoints = resolveShowPoints(cart?.showPoints, hasCustomerSession);
   const blockers = cartBlockers(items);
+  // A un invitado se le AVISA pero no se le bloquea: puede continuar a iniciar sesión.
+  const gate = checkoutGate(blockers, hasCustomerSession);
   const soldOutItems = items.filter((item) => lineIssue(item) === 'sold_out');
   const slugs = items.map(lineSlug).filter((slug): slug is string => slug !== null);
   const busy = updateItem.isPending || removeItem.isPending;
 
   // Los errores los avisa el hook (`useCart`): aquí solo el camino feliz.
+  // Con una petición en vuelo se ignora la acción (`aria-disabled`, sin perder el foco).
   const setQuantity = (item: CartItem, quantity: number, done?: string) => {
+    if (busy) return;
     updateItem.mutate(
       { itemId: item.id, data: { quantity } },
       {
@@ -173,6 +181,7 @@ export default function CartPage() {
   };
 
   const handleRemoveItem = (item: CartItem, name: string) => {
+    if (busy) return;
     removeItem.mutate(item.id, {
       onSuccess: () => {
         setStatus(tLine('removed', { name }));
@@ -182,6 +191,7 @@ export default function CartPage() {
   };
 
   const handleClearCart = () => {
+    if (clearCart.isPending) return;
     toast(t('confirmEmptyTitle'), {
       description: t('confirmEmptyDesc'),
       action: {
@@ -196,6 +206,7 @@ export default function CartPage() {
   };
 
   const handleRemoveSoldOut = async () => {
+    if (busy) return;
     try {
       for (const item of soldOutItems) {
         await removeItem.mutateAsync(item.id);
@@ -292,9 +303,9 @@ export default function CartPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="mt-3 min-h-11 border-amber-400 text-amber-950 hover:bg-amber-100"
+                      className={`mt-3 min-h-11 border-amber-400 text-amber-950 hover:bg-amber-100 ${BUSY_STYLE}`}
                       onClick={() => void handleRemoveSoldOut()}
-                      disabled={busy}
+                      aria-disabled={busy}
                     >
                       {t('removeSoldOut')}
                     </Button>
@@ -355,13 +366,15 @@ export default function CartPage() {
                                   {issue === 'exceeds_stock' && (
                                     <div className="mt-1 flex flex-wrap items-center gap-x-2">
                                       <span className="text-xs text-amber-900">
-                                        {t('exceedsStock', { requested: item.quantity, available: limit.max })}
+                                        {limit.reason === 'order_max'
+                                          ? tLine('exceedsOrderMax', { requested: item.quantity, available: limit.max })
+                                          : t('exceedsStock', { requested: item.quantity, available: limit.max })}
                                       </span>
                                       <button
                                         type="button"
                                         onClick={() => setQuantity(item, limit.max, t('quantityAdjusted'))}
-                                        disabled={busy}
-                                        className={`inline-flex min-h-11 cursor-pointer items-center rounded-sm text-xs font-semibold text-[#2f5165] underline underline-offset-4 hover:no-underline disabled:opacity-50 ${FOCUS_RING}`}
+                                        aria-disabled={busy}
+                                        className={`inline-flex min-h-11 cursor-pointer items-center rounded-sm text-xs font-semibold text-[#2f5165] underline underline-offset-4 hover:no-underline ${BUSY_STYLE} ${FOCUS_RING}`}
                                       >
                                         {t('adjustToStock', { count: limit.max })}
                                       </button>
@@ -395,8 +408,8 @@ export default function CartPage() {
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveItem(item, name)}
-                                  disabled={busy}
-                                  className={`flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-red-50 hover:text-red-700 disabled:opacity-50 ${FOCUS_RING}`}
+                                  aria-disabled={busy}
+                                  className={`flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-red-50 hover:text-red-700 ${BUSY_STYLE} ${FOCUS_RING}`}
                                   aria-label={tLine('removeLabel', { name })}
                                 >
                                   <TrashIcon aria-hidden="true" className="h-5 w-5" />
@@ -413,7 +426,8 @@ export default function CartPage() {
                                     value={item.quantity}
                                     max={limit.max}
                                     maxKnown={limit.known}
-                                    disabled={busy}
+                                    maxReason={limit.reason}
+                                    busy={busy}
                                     onCommit={(next) => setQuantity(item, next)}
                                   />
                                 )}
@@ -434,8 +448,8 @@ export default function CartPage() {
                   <button
                     type="button"
                     onClick={handleClearCart}
-                    disabled={clearCart.isPending}
-                    className={`min-h-11 cursor-pointer rounded-lg px-3 py-1.5 text-sm text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50 ${FOCUS_RING}`}
+                    aria-disabled={clearCart.isPending}
+                    className={`min-h-11 cursor-pointer rounded-lg px-3 py-1.5 text-sm text-red-700 transition-colors hover:bg-red-50 ${BUSY_STYLE} ${FOCUS_RING}`}
                   >
                     {t('clearCart')}
                   </button>
@@ -458,8 +472,8 @@ export default function CartPage() {
                   {/* Envío gratis por país (umbral real configurable; sin dato no se pinta) */}
                   <FreeShippingBar subtotal={subtotal} cartCurrencyCode={cart.currencyCode} slugs={slugs} className="mb-4" />
 
-                  {/* Order Details */}
-                  <div className="space-y-3 text-sm" aria-live="polite">
+                  {/* Order Details. `aria-live` SOLO en el total: en todo el bloque se releía completo con cada cambio. */}
+                  <div className="space-y-3 text-sm">
                     <div className="flex justify-between gap-2">
                       <span className="text-gray-700">{t('subtotal', { count: itemCount })}</span>
                       <span className="font-medium tabular-nums">{fmt(subtotal)}</span>
@@ -488,7 +502,9 @@ export default function CartPage() {
 
                     <div className="flex items-baseline justify-between gap-2 pt-3 border-t border-gray-200">
                       <span className="text-base font-bold text-gray-900">{t('total')}</span>
-                      <span className="text-2xl font-bold tabular-nums text-[#2f5165]">{fmt(total)}</span>
+                      <span className="text-2xl font-bold tabular-nums text-[#2f5165]" aria-live="polite" aria-atomic="true">
+                        {fmt(total)}
+                      </span>
                     </div>
 
                     {/* Puntos: solo para quien ve puntos */}
@@ -500,20 +516,20 @@ export default function CartPage() {
                     )}
                   </div>
 
-                  {/* Bloqueo de pago: agotados o cantidades por encima de lo disponible */}
-                  {blockers.blocked && (
+                  {/* Agotados o cantidades por encima del tope: bloquea a la sesión de cliente; al invitado solo le avisa */}
+                  {gate.showNotice && (
                     <div id={blockedId} role="status" className="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
-                      <p className="font-semibold">{tBlocked('title')}</p>
+                      <p className="font-semibold">{tBlocked(gate.blocked ? 'title' : 'guestTitle')}</p>
                       <ul className="mt-1 list-disc pl-5">
                         {blockers.soldOut > 0 && <li>{tBlocked('soldOut', { count: blockers.soldOut })}</li>}
                         {blockers.exceedsStock > 0 && <li>{tBlocked('exceeds', { count: blockers.exceedsStock })}</li>}
                       </ul>
-                      <p className="mt-1">{tBlocked('hint')}</p>
+                      <p className="mt-1">{tBlocked(gate.blocked ? 'hint' : 'guestHint')}</p>
                     </div>
                   )}
 
                   {/* Checkout Button */}
-                  {blockers.blocked ? (
+                  {gate.blocked ? (
                     // `aria-disabled` (no `disabled`): sigue en el tabulador y el lector lee el motivo.
                     <Button
                       type="button"
@@ -525,25 +541,19 @@ export default function CartPage() {
                       {t('checkout')}
                     </Button>
                   ) : (
-                    <Button asChild size="lg" className="mt-6 min-h-12 w-full">
-                      <Link href="/checkout">{t('checkout')}</Link>
+                    <Button asChild size="lg" className={`${gate.showNotice ? 'mt-3' : 'mt-6'} min-h-12 w-full`}>
+                      <Link href="/checkout" aria-describedby={gate.showNotice ? blockedId : undefined}>
+                        {t('checkout')}
+                      </Link>
                     </Button>
                   )}
                   <p className="mt-2 text-center text-xs text-gray-700">{t('protectedPayment')}</p>
 
-                  {/* Confianza */}
+                  {/* Solo lo que el sistema SÍ cumple (decisión 10: sin garantías ni promesas inventadas) */}
                   <div className="mt-6 space-y-2.5 border-t border-gray-100 pt-6 text-sm text-gray-700">
-                    <div className="flex items-center gap-2">
-                      <ShieldCheckIcon aria-hidden="true" className="h-5 w-5 shrink-0 text-[#3E667D]" />
-                      <span>{t('trustSecure')}</span>
-                    </div>
                     <div className="flex items-center gap-2">
                       <TruckIcon aria-hidden="true" className="h-5 w-5 shrink-0 text-[#3E667D]" />
                       <span>{t('trustShipping')}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <ArrowPathIcon aria-hidden="true" className="h-5 w-5 shrink-0 text-[#3E667D]" />
-                      <span>{t('trustWarranty')}</span>
                     </div>
                   </div>
 

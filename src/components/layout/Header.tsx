@@ -261,7 +261,8 @@ export function Header() {
             ) : (
               <button
                 type="button"
-                onClick={() => openCartDrawer()}
+                // Se pasa ESTE botón: el drawer no tiene `SheetTrigger` y, sin él, al cerrar el foco caería en <body>.
+                onClick={(event) => openCartDrawer(event.currentTarget)}
                 aria-haspopup="dialog"
                 aria-label={t('storefront.cart.drawer.openLabel', { count: cartItemCount })}
                 className={`${CART_ICON_CLASS} cursor-pointer`}

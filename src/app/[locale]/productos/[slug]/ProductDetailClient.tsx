@@ -5,16 +5,21 @@
 // rol sin salto (`placeholderData`). Carrito: SOLO se consumen los hooks
 // existentes (`useAddCartItem` vía `useAddToCart`). "Agregar" abre el CartDrawer;
 // "Comprar ahora" agrega y lleva al CHECKOUT (o al carrito si el piloto tiene el
-// pago en línea apagado: mismo interruptor que ya gobierna la página de checkout).
+// pago en línea apagado: mismo interruptor que ya gobierna la página de checkout, o
+// si el carrito trae líneas que bloquean el pago: ahí se explica cuáles y por qué).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { track } from '@vercel/analytics';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from '@/i18n/routing';
 import { parseLocale } from '@/i18n/config';
 import { usePilotPublicState } from '@/hooks/usePilot';
 import { useStorefrontProduct, useStorefrontViewer } from '@/hooks/useStorefront';
+import { cartKeys } from '@/hooks/useCart';
+import { buyNowDestination } from '@/lib/storefront/cart-logic';
+import type { Cart } from '@/types/cart';
 import { catalogHref } from '@/lib/storefront/catalog-params';
 import { formatProductName } from '@/lib/storefront/content-format';
 import { Breadcrumbs, type BreadcrumbEntry } from '@/components/storefront/Breadcrumbs';
@@ -50,6 +55,7 @@ export function ProductDetailClient({ product: initialProduct, fetchedAt }: Prod
   const product = data?.status === 'ok' ? data.product : initialProduct;
   // Puntos SOLO para distribuidor/preferente CON sesión (el SSR anónimo nunca los trae).
   const { hasSession } = useStorefrontViewer();
+  const queryClient = useQueryClient();
   const showPoints = hasSession && product.priceTier !== 'public' && product.points !== null;
   const name = formatProductName(product.name);
 
@@ -70,12 +76,12 @@ export function ProductDetailClient({ product: initialProduct, fetchedAt }: Prod
   const onBuyNow = async () => {
     const outcome = await add(addable, quantity, { silent: true });
     if (outcome === 'failed') return;
-    if (checkoutEnabled) {
-      router.push('/checkout');
-      return;
-    }
-    toast.info(tCart('checkoutSoon'));
-    router.push('/carrito');
+    // Carrito YA actualizado (la mutación dejó la respuesta del API en la caché).
+    const items = queryClient.getQueryData<Cart>(cartKeys.cart())?.items ?? [];
+    const destination = buyNowDestination({ checkoutEnabled, items });
+    // Con líneas agotadas o por encima del tope /carrito ya explica cuáles: sin toast.
+    if (destination.reason === 'checkout_off') toast.info(tCart('checkoutSoon'));
+    router.push(destination.href);
   };
 
   // Barra fija en móvil: visible cuando los CTA del bloque de compra ya no se ven.

@@ -19,8 +19,11 @@ import {
   ShieldCheckIcon,
   EnvelopeIcon,
 } from '@heroicons/react/24/outline';
+import { useQueryClient } from '@tanstack/react-query';
 import type { QuizResult, ProductRecommendation } from '@/types/quiz';
-import { useAddCartItem } from '@/hooks/useCart';
+import type { Cart } from '@/types/cart';
+import { cartKeys, useAddCartItem } from '@/hooks/useCart';
+import { addedQuantity, bundleAddOutcome } from '@/lib/storefront/cart-logic';
 import { useTrackCartAdd } from '@/hooks/useQuiz';
 import { CartFreeShippingBar } from '@/components/cart/FreeShippingBar';
 import { toast } from 'sonner';
@@ -102,6 +105,7 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
   const [name, setName] = useState('');
 
   const addToCart = useAddCartItem();
+  const queryClient = useQueryClient();
   const trackCartAdd = useTrackCartAdd();
 
   // Moneda del país de la sesión (todas las recomendaciones comparten país).
@@ -143,46 +147,46 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
     }
   };
 
-  const handleAddToCart = async (product: ProductRecommendation) => {
+  /**
+   * Agrega UNA pieza y devuelve cuántas ENTRARON (línea después − antes, como
+   * `useAddToCart`). 0 = el API rechazó (el motivo ya lo avisó `useAddCartItem`: aquí
+   * NO se repite el toast) o la línea ya estaba en su máximo (el hook también lo avisa).
+   */
+  const addOne = async (product: ProductRecommendation): Promise<number> => {
+    const lineQty = (cart: Cart | undefined): number | null =>
+      cart ? (cart.items.find((item) => item.productId === product.productId)?.quantity ?? 0) : null;
+    const before = lineQty(queryClient.getQueryData<Cart>(cartKeys.cart()));
+    let cart: Cart;
     try {
-      await addToCart.mutateAsync({
-        productId: product.productId,
-        quantity: 1,
-      });
-
-      // Track cart add for analytics
-      if (result.sessionToken) {
-        trackCartAdd.mutate({
-          sessionToken: result.sessionToken,
-          productId: product.productId,
-        });
-      }
-
-      toast.success(t('addedToCart', { name: product.productName }));
-    } catch (error) {
-      toast.error(t('addError'));
+      cart = await addToCart.mutateAsync({ productId: product.productId, quantity: 1 });
+    } catch {
+      return 0;
     }
+    const added = addedQuantity(before, lineQty(cart), 1);
+    // Analítica del quiz: solo si de verdad entró al carrito.
+    if (added > 0 && result.sessionToken) {
+      trackCartAdd.mutate({ sessionToken: result.sessionToken, productId: product.productId });
+    }
+    return added;
+  };
+
+  const handleAddToCart = async (product: ProductRecommendation) => {
+    const added = await addOne(product);
+    if (added > 0) toast.success(t('addedToCart', { name: product.productName }));
   };
 
   const handleAddAllToCart = async () => {
-    try {
-      for (const product of result.recommendations.slice(0, 3)) {
-        await addToCart.mutateAsync({
-          productId: product.productId,
-          quantity: 1,
-        });
-
-        if (result.sessionToken) {
-          trackCartAdd.mutate({
-            sessionToken: result.sessionToken,
-            productId: product.productId,
-          });
-        }
-      }
-      toast.success(t('bundleAdded'));
-    } catch (error) {
-      toast.error(t('bundleAddError'));
+    // Un 409 (agotado, tope) o un 422 de UN producto no aborta el paquete: sigue con el resto.
+    const added: number[] = [];
+    for (const product of result.recommendations.slice(0, 3)) {
+      added.push(await addOne(product));
     }
+    const outcome = bundleAddOutcome(added);
+    if (outcome === 'all') toast.success(t('bundleAdded'));
+    else if (outcome === 'partial') {
+      toast.info(t('bundlePartial', { added: added.filter((n) => n > 0).length, total: added.length }));
+    }
+    // 'none': cada motivo ya se avisó; no se anuncia un "agregado" que no ocurrió.
   };
 
   const handleSaveEmail = () => {

@@ -9,7 +9,8 @@ import { toast } from 'sonner';
 import { cartService } from '@/services/cart.service';
 import { localeLanguage } from '@/i18n/config';
 import { catalogErrorMessage } from '@/lib/storefront/errors';
-import { mapCartError, planStockAdjust } from '@/lib/storefront/cart-logic';
+import { capReason, mapCartError, planStockAdjust, type CapReason } from '@/lib/storefront/cart-logic';
+import { cartKeys, invalidateCartDerived } from '@/lib/storefront/cart-query-keys';
 import type {
   Cart,
   AddCartItemInput,
@@ -21,6 +22,17 @@ import type {
 } from '@/types/cart';
 
 type CartErrorFallback = 'add' | 'update' | 'remove' | 'clear';
+type LocateLine = (cart: Cart) => Cart['items'][number] | undefined;
+
+/**
+ * Motivo del tope de la línea según el carrito en caché: "Máximo N por pedido" cuando
+ * el tope es el de la tienda y SÍ hay existencias; sin línea o sin dato, existencias.
+ */
+function cachedCapReason(queryClient: QueryClient, locate: LocateLine): CapReason {
+  const cart = queryClient.getQueryData<Cart>(cartKeys.cart());
+  const line = cart ? locate(cart) : undefined;
+  return line ? capReason(line) : 'stock';
+}
 
 /**
  * Aviso de error de las mutaciones del carrito, por i18n (ES/EN) y por CÓDIGO del
@@ -29,13 +41,13 @@ type CartErrorFallback = 'add' | 'update' | 'remove' | 'clear';
  * porque viene en español) y, si no, al texto traducido de la operación.
  * Antes fallaban en SILENCIO o con textos fijos en español.
  */
-function useCartErrorToast(): (err: unknown, fallback: CartErrorFallback) => void {
+function useCartErrorToast(): (err: unknown, fallback: CartErrorFallback, reason?: CapReason) => void {
   const t = useTranslations('storefront.cart.errors');
   const lang = localeLanguage(useLocale());
   const router = useRouter();
 
   return useCallback(
-    (err, fallback) => {
+    (err, fallback, reason = 'stock') => {
       const info = mapCartError(err);
       switch (info.kind) {
         case 'session_expired':
@@ -55,7 +67,9 @@ function useCartErrorToast(): (err: unknown, fallback: CartErrorFallback) => voi
         }
         case 'qty_exceeds_stock':
           if (info.maxQuantity === 0) toast.error(t('soldOut'));
-          else if (info.maxQuantity) toast.error(t('qtyExceeds', { max: info.maxQuantity }));
+          else if (info.maxQuantity) {
+            toast.error(t(reason === 'order_max' ? 'qtyExceedsOrderMax' : 'qtyExceeds', { max: info.maxQuantity }));
+          }
           else toast.error(t('qtyExceedsUnknown'));
           return;
         default:
@@ -74,22 +88,25 @@ async function currentCart(queryClient: QueryClient): Promise<Cart> {
 /**
  * `CART_QTY_EXCEEDS_STOCK` (API C1): deja la línea en el máximo que dijo el API y lo
  * avisa. UN solo reintento; si no hay `maxQuantity`, está agotado o el reintento
- * falla, el error sigue su camino normal (`onError`). Contra el API actual (sin
- * ese código) nunca entra aquí.
+ * falla, el error sigue su camino normal (`onError`). Una línea que YA estaba por
+ * encima del tope NO se baja en silencio: sale el error de cantidad excedida y el
+ * usuario decide (la línea ofrece "Ajustar a N"). Contra el API actual (sin ese
+ * código) nunca entra aquí.
  */
 function useStockAdjust() {
   const t = useTranslations('storefront.cart.errors');
   const queryClient = useQueryClient();
 
   return useCallback(
-    async (err: unknown, locate: (cart: Cart) => Cart['items'][number] | undefined, addProductId?: string): Promise<Cart> => {
+    async (err: unknown, locate: LocateLine, addProductId?: string): Promise<Cart> => {
       const info = mapCartError(err);
       if (info.kind !== 'qty_exceeds_stock') throw err;
       const cart = await currentCart(queryClient);
       const line = locate(cart);
       const plan = planStockAdjust(info.maxQuantity, line?.quantity ?? 0);
+      const orderMax = line ? capReason(line) === 'order_max' : false;
       if (plan.action === 'already_max') {
-        toast.info(t('alreadyMax', { max: plan.quantity }));
+        toast.info(t(orderMax ? 'alreadyMaxOrderMax' : 'alreadyMax', { max: plan.quantity }));
         return cart;
       }
       if (plan.action !== 'set') throw err;
@@ -97,7 +114,7 @@ function useStockAdjust() {
       if (line) adjusted = await cartService.updateItem(line.id, { quantity: plan.quantity });
       else if (addProductId) adjusted = await cartService.addItem({ productId: addProductId, quantity: plan.quantity });
       else throw err;
-      toast.info(t('adjusted', { max: plan.quantity }));
+      toast.info(t(orderMax ? 'adjustedOrderMax' : 'adjusted', { max: plan.quantity }));
       return adjusted;
     },
     [t, queryClient],
@@ -108,24 +125,8 @@ function useStockAdjust() {
 // QUERY KEYS
 // ================================
 
-export const cartKeys = {
-  all: ['cart'] as const,
-  cart: () => [...cartKeys.all, 'detail'] as const,
-  summary: () => [...cartKeys.all, 'summary'] as const,
-  checkout: () => [...cartKeys.all, 'checkout'] as const,
-  checkoutSummary: (
-    shippingMethod?: ShippingMethod,
-    postalCode?: string,
-    countryId?: string,
-    state?: string,
-  ) =>
-    [
-      ...cartKeys.checkout(),
-      'summary',
-      { shippingMethod, postalCode, countryId, state },
-    ] as const,
-  addresses: () => [...cartKeys.checkout(), 'addresses'] as const,
-};
+// Mismas keys de siempre; viven en `cart-query-keys` (probadas sin React) y se re-exportan.
+export { cartKeys };
 
 // ================================
 // CART QUERIES
@@ -168,9 +169,10 @@ export const useAddCartItem = () => {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(cartKeys.cart(), data);
-      queryClient.invalidateQueries({ queryKey: cartKeys.summary() });
+      invalidateCartDerived(queryClient);
     },
-    onError: (err) => toastCartError(err, 'add'),
+    onError: (err, data) =>
+      toastCartError(err, 'add', cachedCapReason(queryClient, (cart) => cart.items.find((i) => i.productId === data.productId))),
   });
 };
 
@@ -189,9 +191,10 @@ export const useUpdateCartItem = () => {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(cartKeys.cart(), data);
-      queryClient.invalidateQueries({ queryKey: cartKeys.summary() });
+      invalidateCartDerived(queryClient);
     },
-    onError: (err) => toastCartError(err, 'update'),
+    onError: (err, { itemId }) =>
+      toastCartError(err, 'update', cachedCapReason(queryClient, (cart) => cart.items.find((i) => i.id === itemId))),
   });
 };
 
@@ -203,7 +206,7 @@ export const useRemoveCartItem = () => {
     mutationFn: (itemId: string) => cartService.removeItem(itemId),
     onSuccess: (data) => {
       queryClient.setQueryData(cartKeys.cart(), data);
-      queryClient.invalidateQueries({ queryKey: cartKeys.summary() });
+      invalidateCartDerived(queryClient);
     },
     onError: (err) => toastCartError(err, 'remove'),
   });
@@ -217,7 +220,7 @@ export const useClearCart = () => {
     mutationFn: () => cartService.clearCart(),
     onSuccess: (data) => {
       queryClient.setQueryData(cartKeys.cart(), data);
-      queryClient.invalidateQueries({ queryKey: cartKeys.summary() });
+      invalidateCartDerived(queryClient);
     },
     onError: (err) => toastCartError(err, 'clear'),
   });

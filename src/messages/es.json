@@ -300,23 +300,25 @@
         "remove": "Quitar",
         "removeLabel": "Quitar {name} del carrito",
         "removed": "{name} se quitó del carrito",
-        "viewProduct": "Ver {name}",
         "soldOut": "Agotado",
         "soldOutNote": "Ya no hay existencias en tu país",
         "exceeds": "Pediste {requested}, pero solo hay {available}",
+        "exceedsOrderMax": "Pediste {requested}; el máximo por pedido es {available}",
         "adjust": "Ajustar a {count}",
         "adjusted": "Cantidad ajustada a lo disponible",
-        "lowStock": "{count, plural, one {Solo queda # pieza} other {Solo quedan # piezas}}",
         "pointsPerUnit": "+{points} puntos por unidad"
       },
       "quantity": {
         "label": "Cantidad de {name}",
         "decrease": "Quitar una pieza de {name}",
         "increase": "Agregar una pieza de {name}",
-        "max": "Máximo {max}",
+        "maxOrder": "Máximo {max} por pedido",
+        "maxStock": "{max, plural, one {Solo hay # disponible} other {Solo hay # disponibles}}",
         "announce": "{name}: {count, plural, one {# pieza} other {# piezas}}",
-        "announceMax": "{name}: {count, plural, one {# pieza} other {# piezas}}. Es el máximo disponible.",
-        "clamped": "El máximo disponible es {max}; dejamos la cantidad en {max}."
+        "announceMaxStock": "{name}: {count, plural, one {# pieza} other {# piezas}}. Es el máximo disponible.",
+        "announceMaxOrder": "{name}: {count, plural, one {# pieza} other {# piezas}}. Es el máximo por pedido.",
+        "clampedStock": "{max, plural, one {Solo hay # disponible} other {Solo hay # disponibles}}; dejamos la cantidad en {max}.",
+        "clampedOrder": "Máximo {max} por pedido; dejamos la cantidad en {max}."
       },
       "freeShipping": {
         "remaining": "Te faltan {amount} para envío gratis",
@@ -327,9 +329,10 @@
       "blocked": {
         "title": "Revisa tu carrito antes de pagar",
         "soldOut": "{count, plural, one {# producto está agotado} other {# productos están agotados}}",
-        "exceeds": "{count, plural, one {# producto rebasa las existencias} other {# productos rebasan las existencias}}",
+        "exceeds": "{count, plural, one {# producto rebasa la cantidad permitida} other {# productos rebasan la cantidad permitida}}",
         "hint": "Quita los agotados o ajusta las cantidades para continuar.",
-        "button": "Proceder al pago"
+        "guestTitle": "Revisa la disponibilidad de tu carrito",
+        "guestHint": "Puedes continuar e iniciar sesión: la disponibilidad se confirma con tu cuenta antes de pagar."
       },
       "coupon": {
         "removeLabel": "Quitar cupón {code}",
@@ -351,10 +354,13 @@
         "enrollmentKit": "Los kits de inscripción se compran al registrarte como distribuidor, no desde el carrito.",
         "enrollmentKitAction": "Ir al registro",
         "qtyExceeds": "Solo hay {max, plural, one {# pieza disponible} other {# piezas disponibles}}.",
+        "qtyExceedsOrderMax": "Máximo {max} por pedido.",
         "qtyExceedsUnknown": "No hay existencias suficientes para esa cantidad.",
         "soldOut": "Este producto se agotó.",
         "adjusted": "Solo hay {max, plural, one {# pieza disponible} other {# piezas disponibles}}: ajustamos la cantidad a {max}.",
-        "alreadyMax": "Ya tienes en el carrito el máximo disponible ({max})."
+        "adjustedOrderMax": "Máximo {max} por pedido: ajustamos la cantidad a {max}.",
+        "alreadyMax": "Ya tienes en el carrito el máximo disponible ({max}).",
+        "alreadyMaxOrderMax": "Ya tienes en el carrito el máximo por pedido ({max})."
       }
     }
   },
@@ -411,9 +417,7 @@
     "viewFullCart": "Ver Carrito Completo",
     "proceedCheckout": "Proceder al Checkout",
     "protectedPayment": "Pago protegido y cifrado",
-    "trustSecure": "Compra 100% segura y cifrada",
     "trustShipping": "Envío a domicilio o recoge en sucursal",
-    "trustWarranty": "30 días de garantía",
     "cardsAccepted": "Visa · Mastercard · American Express",
     "stripeProcessed": "Pago procesado de forma segura por Stripe",
     "securePaymentWith": "Pago seguro con:"
@@ -603,9 +607,8 @@
       "linkCopied": "Enlace copiado al portapapeles",
       "copyError": "No se pudo copiar al portapapeles",
       "addedToCart": "{name} agregado al carrito",
-      "addError": "Error al agregar al carrito",
       "bundleAdded": "Productos recomendados agregados al carrito",
-      "bundleAddError": "Error al agregar productos",
+      "bundlePartial": "Agregamos {added} de {total} productos recomendados; revisa los avisos de los demás",
       "emailRequired": "Ingresa tu correo electrónico",
       "emailSaved": "Te enviaremos tus resultados por correo"
     }
