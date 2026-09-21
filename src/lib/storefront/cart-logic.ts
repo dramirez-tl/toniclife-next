@@ -1,0 +1,262 @@
+// Lógica PURA del carrito web (contrato ecommerce 7.3, bloque C1). Sin React ni DOM.
+//
+// Todo lo que el API de C1 agrega es OPCIONAL aquí (`pointsPerUnit`, `slug`,
+// `maxQuantity`, `showPoints`, códigos `CART_*`): contra el API actual cada función
+// degrada al comportamiento previo sin inventar datos.
+
+import { catalogErrorCode, catalogErrorDetails, catalogErrorStatus } from './errors';
+
+/** Tope del DTO del API (`AddCartItemDto.quantity` 1..999) cuando no hay dato de stock. */
+export const CART_LINE_HARD_MAX = 999;
+
+/** Forma mínima de una línea que estas funciones necesitan (subconjunto de `CartItem`). */
+export interface CartLineLike {
+  quantity: number;
+  points?: number;
+  pointsPerUnit?: number | null;
+  slug?: string | null;
+  productSlug?: string | null;
+  maxQuantity?: number | null;
+  availableStock?: number | null;
+  inStock?: boolean;
+}
+
+function wholeOrNull(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.trunc(value) : null;
+}
+
+/** Topes que el API informó para la línea (no negativos). Vacío = sin dato. */
+function knownLimits(item: CartLineLike): number[] {
+  return [wholeOrNull(item.maxQuantity), wholeOrNull(item.availableStock)].filter(
+    (n): n is number => n !== null && n >= 0,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Tope de cantidad
+// ---------------------------------------------------------------------------
+
+export interface LineLimit {
+  /** Máximo que la línea admite (>= 1 para que el campo siga siendo usable). */
+  max: number;
+  /** `true` si el tope viene del API (maxQuantity o stock); `false` = solo el tope del DTO. */
+  known: boolean;
+}
+
+/**
+ * Tope de la línea: `maxQuantity` (API C1) y/o `availableStock` (API actual); si
+ * llegan ambos gana el menor; sin ninguno, 999. Un tope <= 0 (agotado) se reporta
+ * como 1: la línea agotada se bloquea por `lineIssue`, no por el stepper.
+ */
+export function lineLimit(item: CartLineLike): LineLimit {
+  const limits = knownLimits(item);
+  if (limits.length === 0) return { max: CART_LINE_HARD_MAX, known: false };
+  return { max: Math.max(1, Math.min(CART_LINE_HARD_MAX, ...limits)), known: true };
+}
+
+export function clampQuantity(value: number, max: number): number {
+  const limit = Math.max(1, Math.min(CART_LINE_HARD_MAX, Math.trunc(max) || 1));
+  if (!Number.isFinite(value)) return 1;
+  return Math.min(limit, Math.max(1, Math.trunc(value)));
+}
+
+export interface QuantityCommit {
+  /** Cantidad a mandar al API, o `null` si no hay nada que mandar (sin cambio o texto inválido). */
+  next: number | null;
+  /** `true` si lo tecleado rebasaba el tope (o era 0) y se recortó. */
+  clamped: boolean;
+}
+
+/**
+ * Commit del campo de cantidad (blur / Enter): UN solo PATCH con el valor final.
+ * Vacío, no numérico o igual al actual = sin petición.
+ */
+export function commitQuantityDraft(draft: string, current: number, max: number): QuantityCommit {
+  const digits = draft.trim();
+  if (!/^\d{1,4}$/.test(digits)) return { next: null, clamped: false };
+  const parsed = Number.parseInt(digits, 10);
+  const next = clampQuantity(parsed, max);
+  return { next: next === current ? null : next, clamped: parsed !== next };
+}
+
+// ---------------------------------------------------------------------------
+// Líneas que bloquean el pago
+// ---------------------------------------------------------------------------
+
+export type LineIssue = 'sold_out' | 'exceeds_stock';
+
+/** Agotada (`inStock === false` o tope 0) o con más piezas de las disponibles. `null` = sin problema o sin dato. */
+export function lineIssue(item: CartLineLike): LineIssue | null {
+  if (item.inStock === false) return 'sold_out';
+  const limits = knownLimits(item);
+  if (limits.length === 0) return null;
+  const available = Math.min(...limits);
+  if (available <= 0) return 'sold_out';
+  return item.quantity > available ? 'exceeds_stock' : null;
+}
+
+export interface CartBlockers {
+  soldOut: number;
+  exceedsStock: number;
+  /** `true` = "Proceder al pago" deshabilitado. */
+  blocked: boolean;
+}
+
+export function cartBlockers(items: readonly CartLineLike[]): CartBlockers {
+  let soldOut = 0;
+  let exceedsStock = 0;
+  for (const item of items) {
+    const issue = lineIssue(item);
+    if (issue === 'sold_out') soldOut += 1;
+    else if (issue === 'exceeds_stock') exceedsStock += 1;
+  }
+  return { soldOut, exceedsStock, blocked: soldOut + exceedsStock > 0 };
+}
+
+// ---------------------------------------------------------------------------
+// Puntos y slug
+// ---------------------------------------------------------------------------
+
+/**
+ * ¿Se muestran puntos? Manda `cart.showPoints` (API C1). Sin el campo (API actual):
+ * solo a una sesión de CLIENTE (distribuidor/preferente); nunca a invitados.
+ */
+export function resolveShowPoints(cartShowPoints: boolean | null | undefined, hasCustomerSession: boolean): boolean {
+  return typeof cartShowPoints === 'boolean' ? cartShowPoints : hasCustomerSession;
+}
+
+/**
+ * Puntos POR UNIDAD de la línea. `pointsPerUnit` (API C1) o, sin él, `points / quantity`
+ * (`points` es el total de la línea: mostrarlo "por unidad" lo triplicaba con 3 piezas).
+ */
+export function linePointsPerUnit(item: CartLineLike, showPoints: boolean): number | null {
+  if (!showPoints) return null;
+  const direct = item.pointsPerUnit;
+  let perUnit: number | null = null;
+  if (typeof direct === 'number' && Number.isFinite(direct)) perUnit = direct;
+  else if (typeof item.points === 'number' && item.quantity > 0) perUnit = item.points / item.quantity;
+  if (perUnit === null || !Number.isFinite(perUnit) || perUnit <= 0) return null;
+  return Math.round(perUnit * 100) / 100;
+}
+
+const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/i;
+
+/** Slug del producto de la línea (`slug` de C1 o `productSlug` actual); `null` = sin enlace. */
+export function lineSlug(item: CartLineLike): string | null {
+  for (const candidate of [item.slug, item.productSlug]) {
+    if (typeof candidate === 'string' && SLUG_RE.test(candidate.trim())) return candidate.trim();
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Envío gratis por país
+// ---------------------------------------------------------------------------
+
+export interface StoreShippingInfo {
+  freeThreshold: number | null;
+  currencyCode: string;
+}
+
+export interface FreeShippingInput {
+  /** Envío REAL del país (`system_settings.shipping` vía `/storefront`); `null` = país sin dato. */
+  shipping: StoreShippingInfo | null | undefined;
+  subtotal: number;
+  /** Moneda del carrito si el API la manda (C2). Si no coincide con la del envío, no hay barra. */
+  cartCurrencyCode?: string | null;
+  /**
+   * `false` para quien el checkout NUNCA da envío gratis por monto (distribuidores:
+   * `checkout.service` cobra siempre el estándar). No se promete lo que no se cumple.
+   */
+  eligible: boolean;
+}
+
+export interface FreeShippingProgress {
+  threshold: number;
+  remaining: number;
+  reached: boolean;
+  /** 0..100, entero. */
+  percent: number;
+  currencyCode: string;
+}
+
+/** `null` = NO se pinta la barra (sin dato del país, umbral inválido, moneda distinta o viewer no elegible). */
+export function freeShippingProgress(input: FreeShippingInput): FreeShippingProgress | null {
+  const { shipping, eligible, cartCurrencyCode } = input;
+  if (!eligible || !shipping) return null;
+  const threshold = shipping.freeThreshold;
+  if (typeof threshold !== 'number' || !Number.isFinite(threshold) || threshold <= 0) return null;
+  const currencyCode = (shipping.currencyCode || '').toUpperCase();
+  if (!currencyCode) return null;
+  if (cartCurrencyCode && cartCurrencyCode.toUpperCase() !== currencyCode) return null;
+  const subtotal = Number.isFinite(input.subtotal) ? Math.max(0, input.subtotal) : 0;
+  const remaining = Math.max(0, Math.round((threshold - subtotal) * 100) / 100);
+  const reached = remaining === 0;
+  const percent = reached ? 100 : Math.min(99, Math.max(0, Math.floor((subtotal / threshold) * 100)));
+  return { threshold, remaining, reached, percent, currencyCode };
+}
+
+// ---------------------------------------------------------------------------
+// Errores del API de carrito
+// ---------------------------------------------------------------------------
+
+export const ENROLLMENT_FALLBACK_HREF = '/registro/distribuidor';
+
+export type CartErrorKind =
+  | 'not_sellable'
+  | 'enrollment_kit'
+  | 'qty_exceeds_stock'
+  | 'session_expired'
+  | 'other';
+
+export interface CartErrorInfo {
+  kind: CartErrorKind;
+  /** Solo `enrollment_kit`: ruta INTERNA a donde mandar al visitante. */
+  href?: string;
+  /** Solo `qty_exceeds_stock`: máximo que admite la línea (0 = agotado); `null` si el API no lo dijo. */
+  maxQuantity?: number | null;
+}
+
+/** Solo rutas internas (`/algo`): nunca `//host`, `http:`, `javascript:` ni con espacios o backslash. */
+export function safeInternalHref(value: unknown, fallback: string): string {
+  if (typeof value !== 'string') return fallback;
+  const href = value.trim();
+  if (!/^\/(?!\/)[A-Za-z0-9\-._~/?#=&%]*$/.test(href)) return fallback;
+  return href;
+}
+
+/** Clasifica un error de `/cart/*` por `code` (nunca por el texto). Sin código (API actual) = 'other'. */
+export function mapCartError(err: unknown): CartErrorInfo {
+  const code = catalogErrorCode(err);
+  if (code === 'CART_NOT_SELLABLE') return { kind: 'not_sellable' };
+  if (code === 'CART_ENROLLMENT_KIT') {
+    return { kind: 'enrollment_kit', href: safeInternalHref(catalogErrorDetails(err).href, ENROLLMENT_FALLBACK_HREF) };
+  }
+  if (code === 'CART_QTY_EXCEEDS_STOCK') {
+    const raw = catalogErrorDetails(err).maxQuantity;
+    const parsed = typeof raw === 'string' && /^\d+$/.test(raw) ? Number.parseInt(raw, 10) : wholeOrNull(raw);
+    return {
+      kind: 'qty_exceeds_stock',
+      maxQuantity: parsed !== null && parsed >= 0 ? Math.min(parsed, CART_LINE_HARD_MAX) : null,
+    };
+  }
+  if (catalogErrorStatus(err) === 401) return { kind: 'session_expired' };
+  return { kind: 'other' };
+}
+
+export type StockAdjustPlan =
+  | { action: 'set'; quantity: number }
+  | { action: 'already_max'; quantity: number }
+  | { action: 'sold_out' }
+  | { action: 'none' };
+
+/**
+ * Qué hacer tras un `CART_QTY_EXCEEDS_STOCK`: dejar la línea en el máximo.
+ * `currentQuantity` = piezas que la línea YA tiene en el carrito (0 si no existe).
+ */
+export function planStockAdjust(maxQuantity: number | null | undefined, currentQuantity: number): StockAdjustPlan {
+  if (maxQuantity === null || maxQuantity === undefined) return { action: 'none' };
+  if (maxQuantity <= 0) return { action: 'sold_out' };
+  if (currentQuantity === maxQuantity) return { action: 'already_max', quantity: maxQuantity };
+  return { action: 'set', quantity: maxQuantity };
+}

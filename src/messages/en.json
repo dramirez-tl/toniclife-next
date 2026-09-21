@@ -277,6 +277,87 @@
         "retry": "Try again",
         "home": "Go to home"
       }
+    },
+    "cart": {
+      "drawer": {
+        "title": "Your cart",
+        "count": "{count, plural, =0 {No items} one {# item} other {# items}}",
+        "close": "Close cart",
+        "openLabel": "{count, plural, =0 {Open cart, empty} one {Open cart, # item} other {Open cart, # items}}",
+        "pageLabel": "{count, plural, =0 {Cart, empty} one {Cart, # item} other {Cart, # items}}",
+        "loading": "Loading your cart…",
+        "loadError": "We couldn't load your cart.",
+        "retry": "Try again",
+        "empty": "Your cart is empty",
+        "emptyBody": "Add products from the catalog and they will show up here.",
+        "emptyCta": "Browse products",
+        "listLabel": "Products in your cart",
+        "subtotal": "Subtotal",
+        "shippingNote": "Shipping and taxes are calculated at checkout.",
+        "viewCart": "View cart",
+        "checkout": "Checkout"
+      },
+      "line": {
+        "unitPrice": "{price} each",
+        "remove": "Remove",
+        "removeLabel": "Remove {name} from cart",
+        "removed": "{name} was removed from your cart",
+        "viewProduct": "View {name}",
+        "soldOut": "Sold out",
+        "soldOutNote": "No longer in stock in your country",
+        "exceeds": "You asked for {requested}, but only {available} left",
+        "adjust": "Set to {count}",
+        "adjusted": "Quantity adjusted to what is available",
+        "lowStock": "{count, plural, one {Only # left} other {Only # left}}",
+        "pointsPerUnit": "+{points} points per unit"
+      },
+      "quantity": {
+        "label": "Quantity of {name}",
+        "decrease": "Remove one {name}",
+        "increase": "Add one {name}",
+        "max": "Max {max}",
+        "announce": "{name}: {count, plural, one {# piece} other {# pieces}}",
+        "announceMax": "{name}: {count, plural, one {# piece} other {# pieces}}. That is the maximum available.",
+        "clamped": "The maximum available is {max}; we set the quantity to {max}."
+      },
+      "freeShipping": {
+        "remaining": "You're {amount} away from free shipping",
+        "reached": "You've unlocked free standard shipping!",
+        "progressLabel": "Progress toward free shipping",
+        "note": "Applies to standard home delivery."
+      },
+      "blocked": {
+        "title": "Review your cart before paying",
+        "soldOut": "{count, plural, one {# product is sold out} other {# products are sold out}}",
+        "exceeds": "{count, plural, one {# product exceeds available stock} other {# products exceed available stock}}",
+        "hint": "Remove sold-out items or adjust quantities to continue.",
+        "button": "Proceed to checkout"
+      },
+      "coupon": {
+        "removeLabel": "Remove coupon {code}",
+        "removed": "Coupon removed",
+        "removeError": "We couldn't remove the coupon",
+        "invalid": "Invalid coupon",
+        "inputLabel": "Coupon code"
+      },
+      "buyNow": {
+        "checkoutSoon": "Online payment opens very soon. Your product is already in the cart."
+      },
+      "errors": {
+        "add": "We couldn't add the product to your cart",
+        "update": "We couldn't update the quantity",
+        "remove": "We couldn't remove the product",
+        "clear": "We couldn't empty the cart",
+        "sessionExpired": "Your session expired. Sign in again or continue as a guest.",
+        "notSellable": "This product is no longer available in the store.",
+        "enrollmentKit": "Enrollment kits are purchased when you sign up as a distributor, not from the cart.",
+        "enrollmentKitAction": "Go to sign-up",
+        "qtyExceeds": "Only {max, plural, one {# piece is available} other {# pieces are available}}.",
+        "qtyExceedsUnknown": "There is not enough stock for that quantity.",
+        "soldOut": "This product is sold out.",
+        "adjusted": "Only {max, plural, one {# piece is available} other {# pieces are available}}: we set the quantity to {max}.",
+        "alreadyMax": "Your cart already has the maximum available ({max})."
+      }
     }
   },
   "cart": {

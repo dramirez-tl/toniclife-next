@@ -277,6 +277,87 @@
         "retry": "Reintentar",
         "home": "Ir al inicio"
       }
+    },
+    "cart": {
+      "drawer": {
+        "title": "Tu carrito",
+        "count": "{count, plural, =0 {Sin productos} one {# producto} other {# productos}}",
+        "close": "Cerrar carrito",
+        "openLabel": "{count, plural, =0 {Abrir carrito, vacío} one {Abrir carrito, # producto} other {Abrir carrito, # productos}}",
+        "pageLabel": "{count, plural, =0 {Carrito, vacío} one {Carrito, # producto} other {Carrito, # productos}}",
+        "loading": "Cargando tu carrito…",
+        "loadError": "No pudimos cargar tu carrito.",
+        "retry": "Reintentar",
+        "empty": "Tu carrito está vacío",
+        "emptyBody": "Agrega productos del catálogo y aparecerán aquí.",
+        "emptyCta": "Ver productos",
+        "listLabel": "Productos en tu carrito",
+        "subtotal": "Subtotal",
+        "shippingNote": "El envío y los impuestos se calculan al pagar.",
+        "viewCart": "Ver carrito",
+        "checkout": "Pagar"
+      },
+      "line": {
+        "unitPrice": "{price} c/u",
+        "remove": "Quitar",
+        "removeLabel": "Quitar {name} del carrito",
+        "removed": "{name} se quitó del carrito",
+        "viewProduct": "Ver {name}",
+        "soldOut": "Agotado",
+        "soldOutNote": "Ya no hay existencias en tu país",
+        "exceeds": "Pediste {requested}, pero solo hay {available}",
+        "adjust": "Ajustar a {count}",
+        "adjusted": "Cantidad ajustada a lo disponible",
+        "lowStock": "{count, plural, one {Solo queda # pieza} other {Solo quedan # piezas}}",
+        "pointsPerUnit": "+{points} puntos por unidad"
+      },
+      "quantity": {
+        "label": "Cantidad de {name}",
+        "decrease": "Quitar una pieza de {name}",
+        "increase": "Agregar una pieza de {name}",
+        "max": "Máximo {max}",
+        "announce": "{name}: {count, plural, one {# pieza} other {# piezas}}",
+        "announceMax": "{name}: {count, plural, one {# pieza} other {# piezas}}. Es el máximo disponible.",
+        "clamped": "El máximo disponible es {max}; dejamos la cantidad en {max}."
+      },
+      "freeShipping": {
+        "remaining": "Te faltan {amount} para envío gratis",
+        "reached": "¡Ya tienes envío estándar gratis!",
+        "progressLabel": "Avance hacia el envío gratis",
+        "note": "Aplica al envío estándar a domicilio."
+      },
+      "blocked": {
+        "title": "Revisa tu carrito antes de pagar",
+        "soldOut": "{count, plural, one {# producto está agotado} other {# productos están agotados}}",
+        "exceeds": "{count, plural, one {# producto rebasa las existencias} other {# productos rebasan las existencias}}",
+        "hint": "Quita los agotados o ajusta las cantidades para continuar.",
+        "button": "Proceder al pago"
+      },
+      "coupon": {
+        "removeLabel": "Quitar cupón {code}",
+        "removed": "Cupón quitado",
+        "removeError": "No se pudo quitar el cupón",
+        "invalid": "Cupón inválido",
+        "inputLabel": "Código de cupón"
+      },
+      "buyNow": {
+        "checkoutSoon": "El pago en línea se habilita muy pronto. Tu producto ya está en el carrito."
+      },
+      "errors": {
+        "add": "No se pudo agregar el producto al carrito",
+        "update": "No se pudo actualizar la cantidad",
+        "remove": "No se pudo quitar el producto",
+        "clear": "No se pudo vaciar el carrito",
+        "sessionExpired": "Tu sesión venció. Inicia sesión de nuevo o continúa como invitado.",
+        "notSellable": "Este producto ya no está disponible en la tienda.",
+        "enrollmentKit": "Los kits de inscripción se compran al registrarte como distribuidor, no desde el carrito.",
+        "enrollmentKitAction": "Ir al registro",
+        "qtyExceeds": "Solo hay {max, plural, one {# pieza disponible} other {# piezas disponibles}}.",
+        "qtyExceedsUnknown": "No hay existencias suficientes para esa cantidad.",
+        "soldOut": "Este producto se agotó.",
+        "adjusted": "Solo hay {max, plural, one {# pieza disponible} other {# piezas disponibles}}: ajustamos la cantidad a {max}.",
+        "alreadyMax": "Ya tienes en el carrito el máximo disponible ({max})."
+      }
     }
   },
   "cart": {

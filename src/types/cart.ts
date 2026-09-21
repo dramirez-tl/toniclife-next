@@ -45,6 +45,12 @@ export interface CartItem {
   productName: string;
   productCode: string;
   productSlug?: string;
+  /** Slug del producto (API C1). Hasta entonces el API manda `productSlug`. */
+  slug?: string;
+  /** Puntos POR UNIDAD (API C1). `points` es el total de la línea. */
+  pointsPerUnit?: number;
+  /** Tope de la línea = min(disponible, máximo por línea) (API C1). */
+  maxQuantity?: number;
   productImageUrl?: string;
   lotNumber?: string;
   /** Stock disponible en el almacén del país; undefined = desconocido. */
@@ -77,6 +83,10 @@ export interface Cart {
   itemCount: number;
   requiresShipping: boolean;
   status: string;
+  /** `true` = el viewer ve puntos (API C1). Ausente = API previo (el front decide por sesión). */
+  showPoints?: boolean;
+  /** Moneda del carrito (API C2). Ausente = se formatea con la moneda del país de la tienda. */
+  currencyCode?: string;
   createdAt: string;
   updatedAt: string;
   items: CartItem[];
