@@ -1,19 +1,22 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
+import { Link as StoreLink } from '@/i18n/routing';
 import { useTranslations } from 'next-intl';
 import { Input, Button } from '@/components/ui';
 
 // `key` = clave i18n (footer.links.<key>); el texto visible lo resuelve t().
 const footerLinks = {
   productos: [
-    { key: 'energy', href: '/productos/energia' },
-    { key: 'detox', href: '/productos/detox' },
-    { key: 'beauty', href: '/productos/belleza' },
-    { key: 'stress', href: '/productos/estres' },
-    { key: 'womensHealth', href: '/productos/hormonal' },
-    { key: 'mensHealth', href: '/productos/masculino' }
+    // Categorías REALES del catálogo (slugs de product_categories). Antes apuntaban
+    // a /productos/energia, /productos/detox… que caían en el detalle de un producto
+    // inexistente.
+    { key: 'allProducts', href: '/productos' },
+    { key: 'capsules', href: '/productos?categoria=capsulas' },
+    { key: 'powders', href: '/productos?categoria=polvos' },
+    { key: 'liquids', href: '/productos?categoria=liquidos' },
+    { key: 'creams', href: '/productos?categoria=cremas' },
+    { key: 'cleaning', href: '/productos?categoria=limpieza' }
   ],
   soporte: [
     { key: 'shipping', href: '/envios' },
@@ -110,14 +113,14 @@ export function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
           {/* Brand Column */}
           <div className="col-span-2 md:col-span-3 lg:col-span-2">
-            <Link href="/" className="inline-block">
+            <StoreLink href="/" className="inline-block">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/images/logo/svg/logo-text-white-r.svg"
                 alt="Tonic Life - Tu Centro de Bienestar"
                 className="w-[180px] lg:w-[220px] h-auto"
               />
-            </Link>
+            </StoreLink>
             <p className="mt-4 text-white/70 text-sm leading-relaxed">
               {t('brandDescription')}
             </p>
@@ -145,12 +148,12 @@ export function Footer() {
             <ul className="space-y-2">
               {footerLinks.productos.map((link) => (
                 <li key={link.key}>
-                  <Link
+                  <StoreLink
                     href={link.href}
                     className="text-white/70 hover:text-white transition-colors text-sm"
                   >
                     {t(`links.${link.key}`)}
-                  </Link>
+                  </StoreLink>
                 </li>
               ))}
             </ul>

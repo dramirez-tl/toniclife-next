@@ -1,10 +1,9 @@
 'use client';
 
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { useTranslations } from 'next-intl';
 import { Card, Badge, Button } from '@/components/ui';
 import { ShoppingCartIcon, CheckIcon } from '@heroicons/react/24/outline';
-import { StarIcon } from '@heroicons/react/24/solid';
 import { useAddCartItem } from '@/hooks/useCart';
 import { useState } from 'react';
 import type { Product } from '@/types';
@@ -66,10 +65,13 @@ function ProductCard({ product, lang = 'es' }: { product: Product; lang?: Langua
   const addToCart = useAddCartItem();
   const [added, setAdded] = useState(false);
   const [imgError, setImgError] = useState(false);
+  // Sin precio vigente en el país no hay venta: nunca se usan los puntos como precio.
+  const hasPrice = product.price !== null && product.price > 0;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!hasPrice) return;
     addToCart.mutate(
       { productId: product.id, quantity: 1 },
       {
@@ -88,11 +90,6 @@ function ProductCard({ product, lang = 'es' }: { product: Product; lang?: Langua
       >
         {/* Badges */}
         <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
-          {product.compareAtPrice && (
-            <Badge variant="outline" className="border-red-200 bg-red-100 text-red-700">
-              -{Math.round((1 - product.price / product.compareAtPrice) * 100)}%
-            </Badge>
-          )}
           {product.featured && (
             <Badge variant="outline" className="border-green-200 bg-green-100 text-green-700">{t('featured')}</Badge>
           )}
@@ -102,6 +99,7 @@ function ProductCard({ product, lang = 'es' }: { product: Product; lang?: Langua
         <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center overflow-hidden">
           <div className="relative w-full h-full flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
             {product.image && !imgError ? (
+              // eslint-disable-next-line @next/next/no-img-element -- pasa a next/image con la tarjeta nueva del catálogo
               <img
                 src={product.image}
                 alt={product.name}
@@ -132,32 +130,23 @@ function ProductCard({ product, lang = 'es' }: { product: Product; lang?: Langua
             </Badge>
           )}
 
-          {/* Rating */}
-          <div className="flex items-center gap-1 mt-2">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <StarIcon key={star} className="h-4 w-4 text-yellow-400" />
-            ))}
-            <span className="text-xs text-gray-500 ml-1">(24)</span>
-          </div>
-
           {/* Price & Add to Cart — pushed to bottom */}
           <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-100">
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xl font-bold text-[#3E667D]">
-                  {formatCurrency(product.price, product.currencyCode || 'MXN', lang)}
-                </span>
-                {product.compareAtPrice && (
-                  <span className="text-sm text-gray-400 line-through">
-                    ${product.compareAtPrice.toFixed(2)}
+                {hasPrice ? (
+                  <span className="text-xl font-bold text-[#3E667D]">
+                    {formatCurrency(product.price, product.currencyCode || 'MXN', lang)}
                   </span>
+                ) : (
+                  <span className="text-sm font-medium text-gray-600">{t('priceUnavailable')}</span>
                 )}
               </div>
             </div>
             <Button
               size="sm"
               onClick={handleAddToCart}
-              disabled={addToCart.isPending}
+              disabled={addToCart.isPending || !hasPrice}
               variant={added ? 'success' : 'default'}
               className="cursor-pointer"
             >
@@ -177,10 +166,13 @@ function ProductListItem({ product, lang = 'es' }: { product: Product; lang?: La
   const addToCart = useAddCartItem();
   const [added, setAdded] = useState(false);
   const [imgError, setImgError] = useState(false);
+  // Sin precio vigente en el país no hay venta: nunca se usan los puntos como precio.
+  const hasPrice = product.price !== null && product.price > 0;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!hasPrice) return;
     addToCart.mutate(
       { productId: product.id, quantity: 1 },
       {
@@ -199,6 +191,7 @@ function ProductListItem({ product, lang = 'es' }: { product: Product; lang?: La
           {/* Product Image */}
           <div className="sm:w-48 aspect-square sm:aspect-auto bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center flex-shrink-0">
             {product.image && !imgError ? (
+              // eslint-disable-next-line @next/next/no-img-element -- pasa a next/image con la tarjeta nueva del catálogo
               <img
                 src={product.image}
                 alt={product.name}
@@ -222,11 +215,6 @@ function ProductListItem({ product, lang = 'es' }: { product: Product; lang?: La
                   </span>
                   {product.featured && (
                     <Badge variant="outline" className="border-green-200 bg-green-100 text-green-700 px-1.5 py-0 text-[10px]">{t('featured')}</Badge>
-                  )}
-                  {product.compareAtPrice && (
-                    <Badge variant="outline" className="border-red-200 bg-red-100 text-red-700 px-1.5 py-0 text-[10px]">
-                      -{Math.round((1 - product.price / product.compareAtPrice) * 100)}%
-                    </Badge>
                   )}
                 </div>
 
@@ -256,33 +244,24 @@ function ProductListItem({ product, lang = 'es' }: { product: Product; lang?: La
                     </span>
                   ))}
                 </div>
-
-                {/* Rating */}
-                <div className="flex items-center gap-1 mt-3">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <StarIcon key={star} className="h-4 w-4 text-yellow-400" />
-                  ))}
-                  <span className="text-xs text-gray-500 ml-1">{t('reviews', { count: 24 })}</span>
-                </div>
               </div>
 
               {/* Price & Actions */}
               <div className="flex sm:flex-col items-center sm:items-end gap-4 sm:gap-2">
                 <div className="text-right">
-                  {product.compareAtPrice && (
-                    <span className="text-sm text-gray-400 line-through block">
-                      ${product.compareAtPrice.toFixed(2)}
-                    </span>
-                  )}
                   <div className="flex items-center gap-2 justify-end">
-                    <span className="text-2xl font-bold text-[#3E667D]">
-                      {formatCurrency(product.price, product.currencyCode || 'MXN', lang)}
-                    </span>
+                    {hasPrice ? (
+                      <span className="text-2xl font-bold text-[#3E667D]">
+                        {formatCurrency(product.price, product.currencyCode || 'MXN', lang)}
+                      </span>
+                    ) : (
+                      <span className="text-sm font-medium text-gray-600">{t('priceUnavailable')}</span>
+                    )}
                   </div>
                 </div>
                 <Button
                   onClick={handleAddToCart}
-                  disabled={addToCart.isPending}
+                  disabled={addToCart.isPending || !hasPrice}
                   variant={added ? 'success' : 'default'}
                   className="cursor-pointer"
                 >

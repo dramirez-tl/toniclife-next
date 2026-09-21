@@ -3,8 +3,8 @@
 import { useState, use } from 'react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import Link from 'next/link';
-import { ShoppingCartIcon, StarIcon, CheckCircleIcon, TruckIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
+import { Link } from '@/i18n/routing';
+import { ShoppingCartIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -16,6 +16,8 @@ import { formatCurrency } from '@/lib/currency';
 import { Header, Footer } from '@/components/layout';
 import type { Product as APIProduct } from '@/types/product';
 import type { Product as MockProduct } from '@/types';
+import { parseApiPrice } from '@/lib/storefront/price';
+import { PRODUCT_PLACEHOLDER_IMAGE } from '@/lib/storefront/site';
 
 function getInitials(name: string): string {
   const words = name.split(/\s+/).filter(w => w.length > 0);
@@ -34,6 +36,20 @@ function ProductImageWithFallback({ src, name, fill, width, height, className, t
       <Image src={src} alt={name} fill className={className} onError={() => setError(true)} />
     ) : (
       <Image src={src} alt={name} width={width} height={height} className={className} onError={() => setError(true)} />
+    );
+  }
+
+  // Respaldo de la imagen principal: placeholder de marca que SÍ existe en /public
+  // (antes se pedía /images/product-placeholder.jpg, inexistente => 404).
+  if (fill) {
+    return (
+      <Image
+        src={PRODUCT_PLACEHOLDER_IMAGE}
+        alt=""
+        fill
+        sizes="(min-width: 1024px) 50vw, 100vw"
+        className="rounded-2xl object-cover"
+      />
     );
   }
 
@@ -61,23 +77,23 @@ function adaptAPIProductToMock(apiProduct: APIProduct, lang: string): MockProduc
     fullDescription: longDesc,
     benefits: apiProduct.healthBenefits || [],
     usage: {
-      ideal: apiProduct.usageInstructions || 'Tomar segun las indicaciones del producto.',
+      ideal: apiProduct.usageInstructions || '',
       regular: apiProduct.usageFormat,
     },
     dosage: apiProduct.usageFormat,
     ingredients: apiProduct.ingredients?.split(',').map((i) => i.trim()),
     category: apiProduct.categoryName?.toLowerCase() as MockProduct['category'] || 'energia',
     tags: [],
-    price: parseFloat(apiProduct.price || apiProduct.pointsValue || '0'),
+    // Sin precio en el país => null ("No disponible"). NUNCA los puntos como precio.
+    price: parseApiPrice(apiProduct.price),
     compareAtPrice: undefined,
     originalPrice: undefined,
     currencyCode: apiProduct.priceCurrency || 'MXN',
-    image: apiProduct.imageUrl || '/images/product-placeholder.jpg',
+    // Sin imagen => monograma de marca (ProductImageWithFallback); antes se pedía
+    // un archivo inexistente (404) antes de caer al respaldo.
+    image: apiProduct.imageUrl || '',
     images: apiProduct.galleryUrls,
     inStock: apiProduct.isActive,
-    stock: 100,
-    rating: 5,
-    reviews: 0,
     badge: apiProduct.isFeatured ? 'Destacado' : undefined,
     featured: apiProduct.isFeatured,
   };
@@ -106,7 +122,6 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const {
     data: apiProduct,
     isLoading,
-    error,
   } = useProductBySlug(slug, true, countryId);
 
   // Obtener componentes si es kit o paquete
@@ -168,8 +183,16 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
     );
   }
 
+  // Sin precio vigente en el país no hay venta (ni "Agregar" ni "Comprar ahora").
+  const hasPrice = product.price !== null && product.price > 0;
+
+  // Pestañas solo con contenido real: nada de "próximamente" ni textos inventados.
+  const hasBenefits = product.benefits.length > 0;
+  const hasUsage = !!(product.dosage || product.usage.ideal || product.usage.regular);
+  const hasIngredients = !!product.ingredients && product.ingredients.length > 0;
+
   const handleAddToCart = () => {
-    if (!apiProduct) return;
+    if (!apiProduct || !hasPrice) return;
 
     addToCart.mutate(
       { productId: apiProduct.id, quantity },
@@ -245,31 +268,6 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 </div>
               )}
             </div>
-
-            {/* Trust Badges */}
-            <div className="grid grid-cols-3 gap-4">
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <TruckIcon className="h-8 w-8 text-[#3E667D] mx-auto mb-2" />
-                  <p className="text-xs font-medium text-gray-900">{t('trust.shipping')}</p>
-                  <p className="text-xs text-gray-500">{t('trust.shippingDesc')}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <ShieldCheckIcon className="h-8 w-8 text-[#3E667D] mx-auto mb-2" />
-                  <p className="text-xs font-medium text-gray-900">{t('trust.secure')}</p>
-                  <p className="text-xs text-gray-500">{t('trust.secureDesc')}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4 text-center">
-                  <CheckCircleIcon className="h-8 w-8 text-[#3E667D] mx-auto mb-2" />
-                  <p className="text-xs font-medium text-gray-900">{t('trust.warranty')}</p>
-                  <p className="text-xs text-gray-500">{t('trust.warrantyDesc')}</p>
-                </CardContent>
-              </Card>
-            </div>
           </div>
 
           {/* Product Info */}
@@ -291,7 +289,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
               )}
 
               {/* MLM Points (from API) */}
-              {apiProduct && parseFloat(apiProduct.pointsValue || '0') > 0 && (
+              {apiProduct && hasPrice && parseFloat(apiProduct.pointsValue || '0') > 0 && (
                 <div className="bg-[#3E667D]/5 rounded-lg p-3 mb-4">
                   <p className="text-sm text-[#3E667D] font-medium">
                     {t('earnPoints', { points: apiProduct.pointsValue ?? '0' })}
@@ -299,33 +297,16 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 </div>
               )}
 
-              {/* Rating */}
-              {product.rating && product.reviews !== undefined && (
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="flex items-center">
-                    {[...Array(5)].map((_, i) => (
-                      <StarIcon
-                        key={i}
-                        className={`h-5 w-5 ${
-                          i < Math.floor(product.rating!)
-                            ? 'text-yellow-400 fill-yellow-400'
-                            : 'text-gray-300'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-sm text-gray-600">
-                    {product.rating} {t('reviews', { count: product.reviews ?? 0 })}
-                  </span>
-                </div>
-              )}
-
               {/* Price */}
               <div className="flex items-baseline gap-3 mb-6">
-                <span className="text-4xl font-bold text-[#3E667D]">
-                  {formatCurrency(product.price, product.currencyCode || 'MXN', lang)}
-                </span>
-                {product.originalPrice && (
+                {hasPrice ? (
+                  <span className="text-4xl font-bold text-[#3E667D]">
+                    {formatCurrency(product.price, product.currencyCode || 'MXN', lang)}
+                  </span>
+                ) : (
+                  <span className="text-xl font-semibold text-gray-700">{t('priceUnavailable')}</span>
+                )}
+                {hasPrice && product.price !== null && product.originalPrice && (
                   <>
                     <span className="text-2xl text-gray-400 line-through">
                       {formatCurrency(product.originalPrice, product.currencyCode || 'MXN', lang)}
@@ -391,9 +372,6 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                     +
                   </button>
                 </div>
-                <span className="text-sm text-gray-500">
-                  {product.stock && product.stock > 10 ? t('inStock') : product.stock ? t('onlyAvailable', { count: product.stock }) : t('inStock')}
-                </span>
               </div>
             </div>
 
@@ -404,18 +382,22 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 size="lg"
                 className="flex-1"
                 onClick={handleAddToCart}
-                disabled={addToCart.isPending}
+                disabled={addToCart.isPending || !hasPrice}
               >
                 <ShoppingCartIcon className="h-5 w-5 mr-2" />
                 {addToCart.isPending ? t('adding') : t('addToCart')}
               </Button>
             </div>
 
-            <Link href="/carrito">
-              <Button variant="secondary" size="lg" className="w-full">
-                {t('buyNow')}
-              </Button>
-            </Link>
+            {hasPrice ? (
+              <Link href="/carrito">
+                <Button variant="secondary" size="lg" className="w-full">
+                  {t('buyNow')}
+                </Button>
+              </Link>
+            ) : (
+              <p className="text-sm text-gray-600">{t('priceUnavailableHint')}</p>
+            )}
           </div>
         </div>
 
@@ -434,36 +416,42 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                 >
                   {t('tabs.description')}
                 </button>
-                <button
-                  onClick={() => setActiveTab('benefits')}
-                  className={`px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap ${
-                    activeTab === 'benefits'
-                      ? 'border-[#3E667D] text-[#3E667D]'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  {t('tabs.benefits')}
-                </button>
-                <button
-                  onClick={() => setActiveTab('usage')}
-                  className={`px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap ${
-                    activeTab === 'usage'
-                      ? 'border-[#3E667D] text-[#3E667D]'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  {t('tabs.usage')}
-                </button>
-                <button
-                  onClick={() => setActiveTab('ingredients')}
-                  className={`px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap ${
-                    activeTab === 'ingredients'
-                      ? 'border-[#3E667D] text-[#3E667D]'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  {t('tabs.ingredients')}
-                </button>
+                {hasBenefits && (
+                  <button
+                    onClick={() => setActiveTab('benefits')}
+                    className={`px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap ${
+                      activeTab === 'benefits'
+                        ? 'border-[#3E667D] text-[#3E667D]'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    {t('tabs.benefits')}
+                  </button>
+                )}
+                {hasUsage && (
+                  <button
+                    onClick={() => setActiveTab('usage')}
+                    className={`px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap ${
+                      activeTab === 'usage'
+                        ? 'border-[#3E667D] text-[#3E667D]'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    {t('tabs.usage')}
+                  </button>
+                )}
+                {hasIngredients && (
+                  <button
+                    onClick={() => setActiveTab('ingredients')}
+                    className={`px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap ${
+                      activeTab === 'ingredients'
+                        ? 'border-[#3E667D] text-[#3E667D]'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    {t('tabs.ingredients')}
+                  </button>
+                )}
               </nav>
             </div>
 
@@ -493,9 +481,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                         </div>
                       </div>
                     ))
-                  ) : (
-                    <p className="text-gray-600">{t('benefitsSoon')}</p>
-                  )}
+                  ) : null}
                 </div>
               )}
 
@@ -531,9 +517,7 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <p className="text-gray-600">{t('ingredientsSoon')}</p>
-                  )}
+                  ) : null}
                 </div>
               )}
             </div>
@@ -567,9 +551,13 @@ export default function ProductDetailPage({ params }: ProductDetailPageProps) {
                         {relatedProduct.name}
                       </h3>
                       <div className="flex items-baseline gap-2 mb-3">
-                        <span className="text-xl font-bold text-[#3E667D]">
-                          {formatCurrency(relatedProduct.price, relatedProduct.currencyCode || 'MXN', lang)}
-                        </span>
+                        {relatedProduct.price !== null ? (
+                          <span className="text-xl font-bold text-[#3E667D]">
+                            {formatCurrency(relatedProduct.price, relatedProduct.currencyCode || 'MXN', lang)}
+                          </span>
+                        ) : (
+                          <span className="text-sm font-medium text-gray-600">{t('priceUnavailable')}</span>
+                        )}
                         {relatedProduct.originalPrice && (
                           <span className="text-sm text-gray-400 line-through">
                             {formatCurrency(relatedProduct.originalPrice, relatedProduct.currencyCode || 'MXN', lang)}

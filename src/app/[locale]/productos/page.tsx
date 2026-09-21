@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, use } from 'react';
 import { useTranslations } from 'next-intl';
 import { Header, Footer } from '@/components/layout';
 import { ProductGrid } from '@/components/products/ProductGrid';
@@ -14,6 +14,7 @@ import { selectUserRoles } from '@/store/slices/authSlice';
 import { SparklesIcon } from '@heroicons/react/24/solid';
 import type { Product as APIProduct, Category } from '@/types/product';
 import type { Product as MockProduct } from '@/types';
+import { parseApiPrice } from '@/lib/storefront/price';
 
 type SortOption = 'featured' | 'price-asc' | 'price-desc' | 'name' | 'newest';
 type ViewMode = 'grid' | 'list';
@@ -43,15 +44,13 @@ function adaptAPIProductToMock(apiProduct: APIProduct, lang: string): MockProduc
     // Use categoryName from API directly, fallback to 'General' if not present
     category: (apiProduct.categoryName || 'General') as MockProduct['category'],
     tags: [],
-    price: parseFloat(apiProduct.price || apiProduct.pointsValue || '0'),
+    // Sin precio en el país => null ("No disponible"). NUNCA los puntos como precio.
+    price: parseApiPrice(apiProduct.price),
     compareAtPrice: undefined,
     currencyCode: apiProduct.priceCurrency || 'MXN',
     image: apiProduct.imageUrl || '',
     images: apiProduct.galleryUrls,
     inStock: apiProduct.isActive,
-    stock: 100,
-    rating: 5,
-    reviews: 0,
     badge: apiProduct.isFeatured ? 'Destacado' : undefined,
     featured: apiProduct.isFeatured,
   };
@@ -68,15 +67,42 @@ function adaptAPICategory(apiCategory: Category, lang: string) {
   };
 }
 
-export default function ProductsPage() {
+/** Primer valor de un parámetro de la URL (puede llegar repetido). */
+function firstParam(value: string | string[] | undefined): string {
+  return (Array.isArray(value) ? value[0] : value) ?? '';
+}
+
+export default function ProductsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const t = useTranslations('products');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<SortOption>('featured');
+  // Estado inicial desde la URL: ?categoria=<slug real> (home y footer) y ?q= (/buscar).
+  const initialParams = use(searchParams);
+  const initialCategorySlug = firstParam(initialParams.categoria).trim().toLowerCase();
+  const initialQuery = firstParam(initialParams.q).trim().slice(0, 80);
+  // null = el visitante aún no elige: manda la categoría de la URL (si existe).
+  const [pickedCategory, setPickedCategory] = useState<string | null>(null);
+  const [sortBy, setSortByState] = useState<SortOption>('featured');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [showFilters, setShowFilters] = useState(false);
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTermState] = useState(initialQuery);
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Cambiar un filtro regresa a la página 1 (en el propio manejador, sin efecto).
+  const setSelectedCategory = (categoryId: string) => {
+    setPickedCategory(categoryId);
+    setCurrentPage(1);
+  };
+  const setSortBy = (value: SortOption) => {
+    setSortByState(value);
+    setCurrentPage(1);
+  };
+  const setSearchTerm = (value: string) => {
+    setSearchTermState(value);
+    setCurrentPage(1);
+  };
   const limit = 20;
 
   // ¿El visitante es distribuidor? La API ya resuelve el precio (distribuidor si
@@ -87,6 +113,21 @@ export default function ProductsPage() {
   // País de la tienda (del locale): el API filtra stock por el almacén del país
   // y devuelve el precio en su moneda. Gateamos hasta tener el countryId.
   const { countryId, lang } = useStoreCountry();
+
+  const { data: categoriesData, error: categoriesError } = useCategories({ isActive: true });
+
+  // ?categoria=<slug> -> id de la categoría real. Un slug inexistente se ignora y
+  // el catálogo muestra todo. Con slug en la URL se espera a que las categorías
+  // respondan (o fallen) para no pedir el catálogo dos veces.
+  const urlCategoryId = useMemo(
+    () =>
+      initialCategorySlug
+        ? categoriesData?.find((c) => c.slug === initialCategorySlug)?.id
+        : undefined,
+    [categoriesData, initialCategorySlug],
+  );
+  const categoriesSettled = !initialCategorySlug || !!categoriesData || !!categoriesError;
+  const selectedCategory = pickedCategory ?? urlCategoryId ?? 'all';
 
   // Obtener datos del API
   const {
@@ -106,16 +147,10 @@ export default function ProductsPage() {
       sortBy: sortBy === 'newest' ? 'createdAt' : sortBy === 'price-asc' || sortBy === 'price-desc' ? 'basePrice' : sortBy === 'name' ? 'name' : 'sortOrder',
       sortDir: sortBy === 'price-desc' ? 'desc' : sortBy === 'newest' ? 'desc' : 'asc',
     },
-    { enabled: !!countryId },
+    { enabled: !!countryId && categoriesSettled },
   );
   // Mientras se resuelve el país (catálogo) tratamos como "cargando".
-  const productsLoading = rawProductsLoading || !countryId;
-
-  const {
-    data: categoriesData,
-    isLoading: categoriesLoading,
-    error: categoriesError,
-  } = useCategories({ isActive: true });
+  const productsLoading = rawProductsLoading || !countryId || !categoriesSettled;
 
   // Productos adaptados del API
   const products = useMemo(() => {
@@ -136,11 +171,6 @@ export default function ProductsPage() {
   // Pagination info
   const totalProducts = productsData?.total || 0;
   const totalPages = productsData?.totalPages || 1;
-
-  // Reset page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [selectedCategory, searchTerm, sortBy]);
 
   return (
     <>
@@ -293,7 +323,7 @@ export default function ProductsPage() {
 
                 {/* Results count */}
                 <span className="text-sm text-gray-500">
-                  {t('resultsCount', { count: products.length })}
+                  {t('resultsCount', { count: totalProducts })}
                 </span>
               </div>
             </div>
@@ -305,8 +335,6 @@ export default function ProductsPage() {
                   categories={categories}
                   selectedCategory={selectedCategory}
                   onCategoryChange={setSelectedCategory}
-                  priceRange={priceRange}
-                  onPriceRangeChange={setPriceRange}
                 />
               </div>
             )}
@@ -321,8 +349,6 @@ export default function ProductsPage() {
                   categories={categories}
                   selectedCategory={selectedCategory}
                   onCategoryChange={setSelectedCategory}
-                  priceRange={priceRange}
-                  onPriceRangeChange={setPriceRange}
                 />
               </div>
             </aside>
@@ -385,7 +411,6 @@ export default function ProductsPage() {
                   <button
                     onClick={() => {
                       setSelectedCategory('all');
-                      setPriceRange([0, 10000]);
                       setSearchTerm('');
                     }}
                     className="mt-4 text-[#3E667D] hover:underline"

@@ -15,11 +15,11 @@
     "pauseVideo": "Pause video",
     "categoriesTitle": "Our products",
     "categories": {
-      "digestive": "Digestive Care",
-      "vitamins": "Vitamins & nutrients",
-      "beauty": "Beauty & Personal Care",
-      "general": "General Care",
-      "shakes": "Shakes & smoothies"
+      "capsules": "Capsules",
+      "powders": "Powders",
+      "liquids": "Liquids",
+      "creams": "Creams",
+      "cleaning": "Cleaning"
     },
     "evaluation": {
       "title": "Not sure where to start?",
@@ -45,12 +45,12 @@
     "scheduleWeek": "Mon - Sat: 9 a.m. - 7 p.m.",
     "rights": "All rights reserved.",
     "links": {
-      "energy": "Energy",
-      "detox": "Detox",
-      "beauty": "Beauty",
-      "stress": "Stress & Sleep",
-      "womensHealth": "Women's Health",
-      "mensHealth": "Men's Health",
+      "allProducts": "All products",
+      "capsules": "Capsules",
+      "powders": "Powders",
+      "liquids": "Liquids",
+      "creams": "Creams",
+      "cleaning": "Cleaning",
       "shipping": "Shipping",
       "contact": "Contact",
       "faq": "FAQ",
@@ -87,24 +87,7 @@
     "filters": {
       "categories": "Categories",
       "allProducts": "All products",
-      "price": "Price",
-      "min": "Minimum",
-      "max": "Maximum",
-      "priceUnder30": "Under $30",
-      "price30to50": "$30 - $50",
-      "priceOver50": "Over $50",
-      "benefits": "Benefits",
       "reset": "Clear filters"
-    },
-    "benefits": {
-      "energy": "Energy",
-      "digestion": "Digestion",
-      "immunity": "Immunity",
-      "skin": "Skin",
-      "sleep": "Sleep",
-      "weight": "Weight",
-      "hormones": "Hormones",
-      "circulation": "Circulation"
     },
     "card": {
       "featured": "Featured",
@@ -112,7 +95,7 @@
       "added": "Added",
       "addShort": "Add",
       "addToCart": "Add to Cart",
-      "reviews": "({count} reviews)"
+      "priceUnavailable": "Unavailable"
     }
   },
   "productDetail": {
@@ -122,23 +105,12 @@
     "breadcrumbHome": "Home",
     "breadcrumbProducts": "Products",
     "badgeFeatured": "Featured",
-    "trust": {
-      "shipping": "Shipping",
-      "shippingDesc": "Home delivery",
-      "secure": "100% Secure",
-      "secureDesc": "Protected payment",
-      "warranty": "Warranty",
-      "warrantyDesc": "30 days"
-    },
     "code": "Code",
     "category": "Category",
     "earnPoints": "Earn {points} points with this purchase",
-    "reviews": "({count} reviews)",
     "kitIncludes": "This kit includes:",
     "packIncludes": "This pack includes:",
     "quantity": "Quantity",
-    "inStock": "In stock",
-    "onlyAvailable": "Only {count} available",
     "adding": "Adding...",
     "addToCart": "Add to cart",
     "buyNow": "Buy now",
@@ -151,13 +123,13 @@
       "ingredients": "Ingredients"
     },
     "warnings": "Warnings",
-    "benefitsSoon": "Benefit information coming soon.",
     "recommendedDose": "Recommended dose",
     "instructions": "Instructions",
     "activeIngredients": "Active ingredients",
-    "ingredientsSoon": "Ingredient information coming soon.",
     "relatedProducts": "Related products",
-    "viewDetails": "View details"
+    "viewDetails": "View details",
+    "priceUnavailable": "Unavailable",
+    "priceUnavailableHint": "This product doesn't have a price in your country yet, so it can't be added to the cart."
   },
   "cart": {
     "title": "Your Cart",

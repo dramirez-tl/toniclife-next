@@ -22,7 +22,8 @@ export interface Product {
   combinations?: string[];
   category: ProductCategory | string;
   tags: string[];
-  price: number;
+  /** null = sin precio vigente en el país de la tienda (no vendible). */
+  price: number | null;
   compareAtPrice?: number;
   originalPrice?: number;
   currencyCode?: string;

@@ -1,11 +1,11 @@
 'use client';
 
-import Link from 'next/link';
+import { Link } from '@/i18n/routing';
 import { useTranslations } from 'next-intl';
 
 interface CategoryTile {
   /** clave i18n bajo home.categories */
-  labelKey: 'digestive' | 'vitamins' | 'beauty' | 'general' | 'shakes';
+  labelKey: 'capsules' | 'powders' | 'liquids' | 'creams' | 'cleaning';
   href: string;
   image: string;
   /** clases de posicionamiento dentro del grid en lg */
@@ -16,35 +16,39 @@ interface CategoryTile {
  * Mosaico tipo bento de la sección "Nuestros productos" (propuesta 2026).
  * 4 mosaicos pequeños (2x2) a la izquierda + 1 mosaico alto a la derecha.
  * Las imágenes viven como background para tener fallback de color mientras se suben.
+ *
+ * Los mosaicos enlazan a las categorías REALES del catálogo (slugs de
+ * product_categories: por presentación), no a "necesidades" que no existen en la
+ * BD. `Link` de next-intl antepone el locale de la tienda (sin 307 intermedio).
  */
 const tiles: CategoryTile[] = [
   {
-    labelKey: 'digestive',
-    href: '/productos?categoria=sistema-digestivo',
+    labelKey: 'liquids',
+    href: '/productos?categoria=liquidos',
     image: '/images/landing/cat-digestivo.webp',
     area: 'lg:col-start-1 lg:row-start-1',
   },
   {
-    labelKey: 'vitamins',
-    href: '/productos?categoria=energia-vitalidad',
+    labelKey: 'capsules',
+    href: '/productos?categoria=capsulas',
     image: '/images/landing/cat-vitaminas.webp',
     area: 'lg:col-start-2 lg:row-start-1',
   },
   {
-    labelKey: 'beauty',
-    href: '/productos?categoria=belleza-cuidado',
+    labelKey: 'creams',
+    href: '/productos?categoria=cremas',
     image: '/images/landing/cat-belleza.webp',
     area: 'lg:col-start-3 lg:row-start-1 lg:row-span-2',
   },
   {
-    labelKey: 'general',
-    href: '/productos?categoria=sistema-inmunologico',
+    labelKey: 'cleaning',
+    href: '/productos?categoria=limpieza',
     image: '/images/landing/cat-general.webp',
     area: 'lg:col-start-1 lg:row-start-2',
   },
   {
-    labelKey: 'shakes',
-    href: '/productos?categoria=control-de-peso',
+    labelKey: 'powders',
+    href: '/productos?categoria=polvos',
     image: '/images/landing/cat-batidos.webp',
     area: 'lg:col-start-2 lg:row-start-2',
   },
