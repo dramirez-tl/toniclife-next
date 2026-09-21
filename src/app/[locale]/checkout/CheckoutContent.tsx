@@ -39,6 +39,7 @@ import { formatCurrency } from '@/lib/currency';
 import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { useActiveCountries } from '@/hooks/useConfig';
 import { isDeliveryBlocked, isHomeDeliveryUnavailable, shouldWaitForStoreCountry, storeCountryName } from '@/lib/checkout/delivery-gates';
+import { cartDisplayCurrency } from '@/lib/storefront/cart-country';
 import { reportCheckoutCountryMismatch } from '@/lib/storefront/cart-country-dialog-store';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
@@ -115,7 +116,7 @@ export default function CheckoutContent() {
   const t = useTranslations('checkout');
   // País + idioma de la tienda (locale): moneda, impuesto, envío y estados.
   const { countryId, countryCode, currency, lang } = useStoreCountry();
-  const fmt = (n: number | string) => formatCurrency(n, currency, lang);
+  const fmt = (n: number | string) => formatCurrency(n, cartDisplayCurrency(cart?.currencyCode, currency), lang);
   const statesForCountry = STATES_BY_COUNTRY[countryCode] ?? MEXICAN_STATES;
   const taxIncluded = countryCode === 'MX';
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('info');
