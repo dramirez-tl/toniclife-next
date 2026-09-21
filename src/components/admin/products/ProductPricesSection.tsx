@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   PlusIcon,
   XMarkIcon,
@@ -23,14 +23,15 @@ import {
   useDeactivateCountryPrices,
   useProductTaxes,
   useAssignProductTax,
-  useUpdateProductTax,
-  useRemoveProductTax,
+  productKeys,
 } from '@/hooks/useProducts';
+import { useQueryClient } from '@tanstack/react-query';
+import { productsAdminService } from '@/services/products-admin.service';
+import { productAdminErrorMessage } from './lib/errors';
 import { useActiveCountries, useActivePriceTypes, useActiveTaxRules } from '@/hooks/useConfig';
 import { PriceSchedulesPanel } from './PriceSchedulesPanel';
 import { SatCodeSearch } from '@/components/admin/billing/SatCodeSearch';
-import type { ProductPrice, ProductTax } from '@/types/product';
-import type { Country, PriceType, TaxRule } from '@/types/config';
+import type { PriceType } from '@/types/config';
 
 interface ProductPricesSectionProps {
   productId: string;
@@ -85,8 +86,8 @@ export function ProductPricesSection({
   const createPrice = useCreateProductPrice();
   const deactivateCountry = useDeactivateCountryPrices();
   const assignTax = useAssignProductTax();
-  const updateTax = useUpdateProductTax();
-  const removeTax = useRemoveProductTax();
+  const queryClient = useQueryClient();
+  const [taxActionPending, setTaxActionPending] = useState(false);
 
   // Countries currently shown in the UI (those with prices + manually added)
   const [activeCountryIds, setActiveCountryIds] = useState<string[]>([]);
@@ -139,6 +140,8 @@ export function ProductPricesSection({
       // Use countryId directly from the price record
       const countryId = price.countryId;
       if (!countryId || !countries.some((c) => c.id === countryId)) continue;
+      // Un precio desactivado ("Quitar país") NO revive al recargar.
+      if (price.isActive === false) continue;
 
       countriesWithPrices.add(countryId);
       const key = priceKey(countryId, price.priceTypeId);
@@ -1100,43 +1103,41 @@ export function ProductPricesSection({
                       type="button"
                       variant={isRemove ? 'destructive' : 'default'}
                       size="sm"
-                      disabled={taxActionReason.trim().length < 5}
-                      onClick={() => {
-                        if (isRemove) {
-                          removeTax.mutate(
-                            {
-                              productId: pendingTaxAction.productId,
-                              taxRuleId: pendingTaxAction.taxRuleId,
-                            },
-                            {
-                              onSuccess: () => {
-                                toast.success(`${pendingTaxAction.taxRuleName} removida`);
-                                setPendingTaxAction(null);
-                                setTaxActionReason('');
-                              },
-                              onError: () => toast.error('Error al remover regla fiscal'),
-                            }
-                          );
-                        } else {
-                          updateTax.mutate(
-                            {
-                              productId: pendingTaxAction.productId,
-                              taxRuleId: pendingTaxAction.taxRuleId,
-                              isIncludedInPrice: !pendingTaxAction.currentIncluded,
-                            },
-                            {
-                              onSuccess: () => {
-                                toast.success(
-                                  pendingTaxAction.currentIncluded
-                                    ? 'Se calculará adicional al precio'
-                                    : 'Marcado como incluido en precio'
-                                );
-                                setPendingTaxAction(null);
-                                setTaxActionReason('');
-                              },
-                              onError: () => toast.error('Error al actualizar'),
-                            }
-                          );
+                      disabled={taxActionReason.trim().length < 5 || taxActionPending}
+                      onClick={async () => {
+                        // El motivo SÍ viaja al API (`reason`) y queda en auditoría.
+                        const reason = taxActionReason.trim();
+                        setTaxActionPending(true);
+                        try {
+                          if (isRemove) {
+                            await productsAdminService.removeProductTax(
+                              pendingTaxAction.productId,
+                              pendingTaxAction.taxRuleId,
+                              reason,
+                            );
+                            toast.success(`${pendingTaxAction.taxRuleName} removida`);
+                          } else {
+                            await productsAdminService.updateProductTax(
+                              pendingTaxAction.productId,
+                              pendingTaxAction.taxRuleId,
+                              !pendingTaxAction.currentIncluded,
+                              reason,
+                            );
+                            toast.success(
+                              pendingTaxAction.currentIncluded
+                                ? 'Se calculará adicional al precio'
+                                : 'Marcado como incluido en precio',
+                            );
+                          }
+                          await queryClient.invalidateQueries({
+                            queryKey: productKeys.taxes(pendingTaxAction.productId),
+                          });
+                          setPendingTaxAction(null);
+                          setTaxActionReason('');
+                        } catch (err) {
+                          toast.error(productAdminErrorMessage(err, 'No se pudo aplicar el cambio fiscal'));
+                        } finally {
+                          setTaxActionPending(false);
                         }
                       }}
                     >
