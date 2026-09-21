@@ -261,7 +261,7 @@ export function Header() {
             ) : (
               <button
                 type="button"
-                onClick={openCartDrawer}
+                onClick={() => openCartDrawer()}
                 aria-haspopup="dialog"
                 aria-label={t('storefront.cart.drawer.openLabel', { count: cartItemCount })}
                 className={`${CART_ICON_CLASS} cursor-pointer`}

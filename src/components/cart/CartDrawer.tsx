@@ -26,6 +26,7 @@ import {
   getServerCartDrawerOpen,
   setCartDrawerOpen,
   subscribeCartDrawer,
+  takeCartDrawerReturnFocus,
 } from '@/lib/storefront/cart-drawer-store';
 import {
   cartBlockers,
@@ -63,6 +64,13 @@ export function CartDrawer() {
         onOpenAutoFocus={(event) => {
           event.preventDefault();
           titleRef.current?.focus();
+        }}
+        onCloseAutoFocus={(event) => {
+          // "Agregar" pierde el foco al deshabilitarse durante la petición: se le devuelve aquí.
+          const trigger = takeCartDrawerReturnFocus();
+          if (!trigger) return;
+          event.preventDefault();
+          trigger.focus();
         }}
         className="w-full max-w-none gap-0 p-0 sm:max-w-md"
         style={{

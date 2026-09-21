@@ -4,6 +4,9 @@
 // En el servidor siempre está cerrado.
 
 let open = false;
+// Quién abrió el drawer. "Agregar" queda `disabled` mientras dura la petición y el
+// navegador le quita el foco: sin esto, al cerrar el foco caería en <body>.
+let returnFocusTo: HTMLElement | null = null;
 const listeners = new Set<() => void>();
 
 function emit(): void {
@@ -31,11 +34,24 @@ export function setCartDrawerOpen(next: boolean): void {
   emit();
 }
 
-export const openCartDrawer = (): void => setCartDrawerOpen(true);
+/** `trigger`: elemento al que vuelve el foco al cerrar (por defecto, el que Radix recuerde). */
+export function openCartDrawer(trigger?: Element | null): void {
+  returnFocusTo = typeof HTMLElement !== 'undefined' && trigger instanceof HTMLElement ? trigger : null;
+  setCartDrawerOpen(true);
+}
+
+/** Elemento que abrió el drawer, si sigue en el documento. Se consume al leerlo. */
+export function takeCartDrawerReturnFocus(): HTMLElement | null {
+  const target = returnFocusTo;
+  returnFocusTo = null;
+  return target && target.isConnected ? target : null;
+}
+
 export const closeCartDrawer = (): void => setCartDrawerOpen(false);
 
 /** Solo pruebas. */
 export function resetCartDrawerForTests(): void {
   open = false;
+  returnFocusTo = null;
   listeners.clear();
 }

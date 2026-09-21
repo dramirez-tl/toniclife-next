@@ -56,6 +56,7 @@ export function useAddToCart() {
   const add = useCallback(
     async (product: AddableProduct, quantity: number, options: { silent?: boolean } = {}): Promise<AddToCartOutcome> => {
       if (product.price === null || quantity < 1) return 'failed';
+      const trigger = typeof document === 'undefined' ? null : document.activeElement;
       const before = lineQuantity(queryClient.getQueryData<Cart>(cartKeys.cart()), product.id);
       let cart: Cart;
       try {
@@ -66,7 +67,7 @@ export function useAddToCart() {
       const after = lineQuantity(cart, product.id) ?? quantity;
       // Sin carrito en caché no se conoce el "antes": lo agregado es lo pedido, acotado a lo que quedó.
       const added = before === null ? Math.min(quantity, after) : after - before;
-      if (!options.silent) openCartDrawer();
+      if (!options.silent) openCartDrawer(trigger);
       if (added <= 0) return 'unchanged';
 
       track('add_to_cart', { code: product.code, quantity: added, value: product.price * added });
