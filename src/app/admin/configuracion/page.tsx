@@ -461,8 +461,13 @@ export default function ConfiguracionPage() {
                   <p className="text-sm text-gray-500 mb-4">
                     Ahora decides en una pantalla propia qué almacén envía los
                     pedidos de la tienda a cada país: puedes poner varios
-                    almacenes por país, en orden de preferencia, y un mismo
-                    almacén puede enviar a varios países.
+                    almacenes por país, en orden de preferencia.
+                  </p>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Por ahora un almacén solo surte pedidos de su mismo país
+                    (México y Frontera cuentan como uno). Una ruta hacia otro
+                    país, por ejemplo de un almacén de México a Colombia, se
+                    puede dejar configurada, pero todavía no surte pedidos.
                   </p>
                   <p className="text-sm text-gray-500 mb-6">
                     El almacén por país que se elegía aquí ya no se edita en

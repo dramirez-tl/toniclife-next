@@ -66,6 +66,7 @@ import { useFulfillmentRoutes } from '@/hooks/useFulfillment';
 import { useFulfillmentPermissions } from '@/components/admin/fulfillment/useFulfillmentPermissions';
 import {
   deactivateBranchWarning,
+  type BranchOffAction,
   shippingBadgeText,
   shippingCountriesByBranch,
 } from '@/lib/fulfillment/branch-routes';
@@ -470,7 +471,9 @@ function SucursalesContent() {
   const { canRead: canReadFulfillment } = useFulfillmentPermissions();
   const { data: fulfillmentRoutes } = useFulfillmentRoutes({ enabled: canReadFulfillment, retry: false });
   const shippingByBranch = useMemo(() => shippingCountriesByBranch(fulfillmentRoutes), [fulfillmentRoutes]);
-  const [deactivateTarget, setDeactivateTarget] = useState<Branch | null>(null);
+  // Desactivar y ELIMINAR pasan por el mismo aviso: eliminar es un borrado lógico
+  // (is_active = false), así que deja sin envío a los mismos países.
+  const [deactivateTarget, setDeactivateTarget] = useState<{ branch: Branch; action: BranchOffAction } | null>(null);
 
   // Computed stats (server-side totals)
   const stats = useMemo(() => ({
@@ -613,7 +616,7 @@ function SucursalesContent() {
   const handleToggleActive = async (branch: Branch, confirmed = false) => {
     // Desactivar una sucursal con rutas de envío activas pide confirmación primero.
     if (branch.isActive && !confirmed && deactivateBranchWarning(shippingByBranch[branch.id] ?? [])) {
-      setDeactivateTarget(branch);
+      setDeactivateTarget({ branch, action: 'deactivate' });
       return;
     }
     try {
@@ -629,9 +632,17 @@ function SucursalesContent() {
     }
   };
 
-  const handleDeleteBranch = async (branch: Branch) => {
-    const ok = await confirmAction(`¿Estás seguro de eliminar la sucursal "${branch.name}"? Esta acción no se puede deshacer.`);
-    if (!ok) return;
+  const handleDeleteBranch = async (branch: Branch, confirmed = false) => {
+    // Una sucursal activa con rutas de envío activas: el MISMO aviso que al desactivarla
+    // (sustituye a la confirmación genérica, no se pregunta dos veces).
+    if (!confirmed) {
+      if (branch.isActive && deactivateBranchWarning(shippingByBranch[branch.id] ?? [], 'delete')) {
+        setDeactivateTarget({ branch, action: 'delete' });
+        return;
+      }
+      const ok = await confirmAction(`¿Estás seguro de eliminar la sucursal "${branch.name}"? Esta acción no se puede deshacer.`);
+      if (!ok) return;
+    }
     try {
       await deleteBranch.mutateAsync(branch.id);
       toast.success('Sucursal eliminada correctamente');
@@ -1211,20 +1222,30 @@ function SucursalesContent() {
         onOpenChange={(open) => {
           if (!open) setDeactivateTarget(null);
         }}
-        title={deactivateTarget ? `¿Desactivar ${deactivateTarget.name}?` : '¿Desactivar sucursal?'}
-        description={deactivateTarget ? deactivateBranchWarning(shippingByBranch[deactivateTarget.id] ?? []) : undefined}
-        confirmLabel="Desactivar de todos modos"
-        cancelLabel="No desactivar"
+        title={
+          deactivateTarget
+            ? `¿${deactivateTarget.action === 'delete' ? 'Eliminar' : 'Desactivar'} ${deactivateTarget.branch.name}?`
+            : '¿Desactivar sucursal?'
+        }
+        description={
+          deactivateTarget
+            ? deactivateBranchWarning(shippingByBranch[deactivateTarget.branch.id] ?? [], deactivateTarget.action)
+            : undefined
+        }
+        confirmLabel={deactivateTarget?.action === 'delete' ? 'Eliminar de todos modos' : 'Desactivar de todos modos'}
+        cancelLabel={deactivateTarget?.action === 'delete' ? 'No eliminar' : 'No desactivar'}
         destructive
-        isPending={updateBranch.isPending}
+        isPending={updateBranch.isPending || deleteBranch.isPending}
         onConfirm={async () => {
           const target = deactivateTarget;
           if (!target) return;
-          await handleToggleActive(target, true);
+          if (target.action === 'delete') await handleDeleteBranch(target.branch, true);
+          else await handleToggleActive(target.branch, true);
           setDeactivateTarget(null);
         }}
       >
         <p>
+          {deactivateTarget?.action === 'delete' ? 'Eliminar una sucursal no se puede deshacer desde esta pantalla. ' : ''}
           Los pedidos que ya están hechos no cambian. Para elegir otro almacén ve a{' '}
           <Link href="/admin/configuracion/rutas-envio" className="font-medium text-primary underline underline-offset-2">
             Almacenes y envíos
