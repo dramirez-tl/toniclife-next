@@ -59,77 +59,221 @@
       "cookies": "Cookie Policy"
     }
   },
-  "products": {
-    "heroBadge": "Natural wellness since 2004",
-    "heroTitlePrefix": "Our",
-    "heroTitleHighlight": "products",
-    "heroSubtitle": "Supplements, beauty and personal care, formulated to support your wellness every day.",
-    "distributorPriceTitle": "Distributor pricing.",
-    "distributorPriceBody": "You're seeing your account's prices and the points each product earns. If your kit isn't active yet, you'll see public pricing until you complete it. Home delivery is always charged; you can choose free in-store pickup.",
-    "searchPlaceholder": "Search products...",
-    "allCategory": "All ({count})",
-    "filtersButton": "Filters",
-    "resultsCount": "{count} products",
-    "sort": {
-      "featured": "Featured",
-      "newest": "Newest",
-      "priceAsc": "Price: Low to High",
-      "priceDesc": "Price: High to Low",
-      "name": "Name A-Z"
+  "storefront": {
+    "common": {
+      "price": {
+        "unavailable": "Not available",
+        "yourPriceDistributor": "Your distributor price",
+        "yourPricePreferred": "Your preferred price",
+        "publicPriceLabel": "Retail price:",
+        "taxIncluded": "Tax included",
+        "taxAtCheckout": "+ tax at checkout",
+        "savings": "You save {amount}",
+        "points": "{points} pts"
+      },
+      "availability": {
+        "inStock": "In stock",
+        "lowStock": "{count, plural, one {Last one} other {Only # left}}",
+        "lowStockGeneric": "Only a few left",
+        "outOfStock": "Sold out",
+        "unknown": "Availability confirmed when added"
+      },
+      "cart": {
+        "addedAnnouncement": "{count, plural, one {# unit of {name} added to the cart} other {# units of {name} added to the cart}}",
+        "addedToast": "{name} was added to your cart",
+        "viewCart": "View cart"
+      },
+      "countryNotReady": {
+        "eyebrow": "Coming soon",
+        "title": "Our store in {country} opens very soon",
+        "body": "We are getting the catalog, prices and shipping ready for {country}. In the meantime you can shop in the stores that are already open.",
+        "openStores": "Open stores",
+        "shopIn": "Shop in {country}",
+        "metaTitle": "Coming soon to {country} | Tonic Life"
+      }
     },
-    "loading": "Loading products...",
-    "loadError": "Failed to load products. Please check your connection and try again.",
-    "prev": "Previous",
-    "next": "Next",
-    "pageOf": "Page {current} of {total}",
-    "empty": "No products found with the selected filters.",
-    "clearFilters": "Clear filters",
-    "filters": {
-      "categories": "Categories",
-      "allProducts": "All products",
-      "reset": "Clear filters"
+    "catalog": {
+      "title": "Products",
+      "breadcrumbHome": "Home",
+      "breadcrumbProducts": "Products",
+      "breadcrumbLabel": "Breadcrumb",
+      "viewerDistributor": "You are seeing your distributor price",
+      "viewerPreferred": "You are seeing your preferred price",
+      "loading": "Loading products",
+      "card": {
+        "badgesLabel": "Product labels",
+        "badge": {
+          "outOfStock": "Sold out",
+          "lowStock": "{count, plural, one {Last one} other {Only # left}}",
+          "new": "New",
+          "featured": "Featured",
+          "pack": "Bundle"
+        },
+        "add": "Add",
+        "adding": "Adding…",
+        "added": "Added",
+        "soldOut": "Sold out",
+        "addLabel": "Add {name} to cart",
+        "soldOutLabel": "{name}: sold out"
+      },
+      "search": {
+        "label": "Search products",
+        "placeholder": "Search by name or item number",
+        "clear": "Clear search",
+        "viewAll": "See all results for “{q}”",
+        "products": "Products",
+        "categories": "Categories"
+      },
+      "filters": {
+        "title": "Filters",
+        "description": "Filter the catalog by category, type, price and availability.",
+        "button": "{count, plural, =0 {Filters} other {Filters (#)}}",
+        "category": "Category",
+        "allCategories": "All categories",
+        "type": "Type",
+        "allTypes": "All",
+        "typeProduct": "Products",
+        "typePack": "Bundles",
+        "price": "Price ({currency})",
+        "priceMin": "Minimum",
+        "priceMax": "Maximum",
+        "priceApply": "Apply price",
+        "includeSoldOut": "Include sold out",
+        "clear": "Clear",
+        "viewResults": "{count, plural, =0 {No products} one {View # product} other {View # products}}"
+      },
+      "chips": {
+        "groupLabel": "Active filters",
+        "search": "Search: {q}",
+        "typeProduct": "Products",
+        "typePack": "Bundles",
+        "priceRange": "{min} – {max}",
+        "priceFrom": "From {min}",
+        "priceTo": "Up to {max}",
+        "includeSoldOut": "Includes sold out",
+        "remove": "Remove filter: {label}",
+        "clearAll": "Clear filters"
+      },
+      "toolbar": {
+        "results": "{count, plural, =0 {No products} one {# product} other {# products}}",
+        "sortLabel": "Sort by",
+        "sort": {
+          "featured": "Featured",
+          "newest": "Newest",
+          "price_asc": "Price: low to high",
+          "price_desc": "Price: high to low",
+          "name_asc": "Name A-Z"
+        }
+      },
+      "pagination": {
+        "label": "Catalog pagination",
+        "previous": "Previous page",
+        "next": "Next page",
+        "page": "Page {page}"
+      },
+      "empty": {
+        "title": "No products available yet",
+        "titleFiltered": "We couldn't find products with those filters",
+        "body": "We are updating the catalog. Please come back in a few minutes.",
+        "bodyFiltered": "Try another search, remove a filter or include sold-out products.",
+        "clear": "Clear filters",
+        "suggested": "Browse by category",
+        "quizPrompt": "Not sure where to start?",
+        "quizLink": "Take the health assessment"
+      },
+      "error": {
+        "title": "We couldn't load the catalog",
+        "body": "Something went wrong while loading the products. Your cart is safe; please try again in a moment.",
+        "retry": "Try again",
+        "home": "Go to home"
+      }
     },
-    "card": {
-      "featured": "Featured",
-      "adding": "Adding...",
-      "added": "Added",
+    "product": {
+      "breadcrumbHome": "Home",
+      "breadcrumbProducts": "Products",
+      "breadcrumbLabel": "Breadcrumb",
+      "code": "Item no. {code}",
+      "addToCart": "Add to cart",
       "addShort": "Add",
-      "addToCart": "Add to Cart",
-      "priceUnavailable": "Unavailable"
+      "adding": "Adding…",
+      "added": "Added",
+      "buyNow": "Buy now",
+      "soldOut": "Sold out",
+      "priceUnavailable": "Not available",
+      "addQuantityLabel": "{count, plural, one {Add # unit of {name} to cart} other {Add # units of {name} to cart}}",
+      "shipping": {
+        "freeFrom": "Free shipping from {amount}",
+        "flat": "Home delivery: {amount}"
+      },
+      "quantity": {
+        "label": "Quantity",
+        "decrease": "Decrease quantity",
+        "increase": "Increase quantity",
+        "max": "Maximum {max} per order",
+        "announce": "Quantity: {count}",
+        "announceMax": "Quantity: {count}. That is the maximum of {max} per order."
+      },
+      "gallery": {
+        "carousel": "carousel",
+        "slide": "image",
+        "label": "Images of {name}",
+        "imageAlt": "{name}, image {n} of {total}",
+        "position": "{n} of {total}",
+        "zoom": "Enlarge image",
+        "thumbnails": "Thumbnails",
+        "viewImage": "View image {n} of {total}",
+        "lightboxTitle": "Images of {name}",
+        "lightboxHelp": "Use the left and right arrow keys to change the image and Escape to close.",
+        "previous": "Previous image",
+        "next": "Next image",
+        "zoomIn": "Zoom in",
+        "zoomOut": "Zoom out"
+      },
+      "sections": {
+        "description": "Description",
+        "benefits": "Benefits",
+        "ingredients": "Ingredients",
+        "usage": "How to use",
+        "warnings": "Warnings"
+      },
+      "pack": {
+        "title": "This bundle includes",
+        "quantity": "{quantity} ×",
+        "componentSoldOut": "Sold out separately"
+      },
+      "related": {
+        "title": "You may also like"
+      },
+      "share": {
+        "button": "Share",
+        "title": "Share this product",
+        "withReferral": "The link includes your distributor code",
+        "whatsapp": "Send via WhatsApp",
+        "copy": "Copy link",
+        "copied": "Link copied",
+        "copyError": "The link could not be copied",
+        "shareText": "Check out {name} at Tonic Life:"
+      },
+      "unavailable": {
+        "message": "This product is not available in {country}.",
+        "availableIn": "Available in",
+        "viewIn": "View in {country}",
+        "browseCatalog": "See products available in {country}"
+      },
+      "notFound": {
+        "metaTitle": "Product not found | Tonic Life",
+        "title": "We couldn't find this product",
+        "body": "The link may have changed or the product may no longer be for sale. Browse the catalog or let us recommend something.",
+        "viewCatalog": "Browse the catalog",
+        "takeQuiz": "Take the health assessment"
+      },
+      "error": {
+        "title": "We couldn't load this product",
+        "body": "Something went wrong while loading the product. Your cart is safe; please try again in a moment.",
+        "retry": "Try again",
+        "home": "Go to home"
+      }
     }
-  },
-  "productDetail": {
-    "loading": "Loading product...",
-    "notFound": "Product not found",
-    "viewAll": "View all products",
-    "breadcrumbHome": "Home",
-    "breadcrumbProducts": "Products",
-    "badgeFeatured": "Featured",
-    "code": "Code",
-    "category": "Category",
-    "earnPoints": "Earn {points} points with this purchase",
-    "kitIncludes": "This kit includes:",
-    "packIncludes": "This pack includes:",
-    "quantity": "Quantity",
-    "adding": "Adding...",
-    "addToCart": "Add to cart",
-    "buyNow": "Buy now",
-    "addedToCart": "{quantity}x {name} added to cart",
-    "addError": "Failed to add to cart",
-    "tabs": {
-      "description": "Description",
-      "benefits": "Benefits",
-      "usage": "How to use",
-      "ingredients": "Ingredients"
-    },
-    "warnings": "Warnings",
-    "recommendedDose": "Recommended dose",
-    "instructions": "Instructions",
-    "activeIngredients": "Active ingredients",
-    "relatedProducts": "Related products",
-    "viewDetails": "View details",
-    "priceUnavailable": "Unavailable",
-    "priceUnavailableHint": "This product doesn't have a price in your country yet, so it can't be added to the cart."
   },
   "cart": {
     "title": "Your Cart",

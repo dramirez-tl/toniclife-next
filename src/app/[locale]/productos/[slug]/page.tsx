@@ -1,582 +1,142 @@
-'use client';
+// Detalle de producto — SERVER COMPONENT.
+// Fetch ANÓNIMO a `/storefront/products/:slug` (Data Cache 120 s, tags `catalog` y
+// `product:<slug>`) con respuesta DISCRIMINADA:
+//   ok                      → HTML con h1, precio, imagen, JSON-LD Product/Offer/BreadcrumbList
+//   moved                   → permanentRedirect (308) al slug canónico
+//   unavailable_in_country  → pantalla propia con `noindex`
+//   404                     → notFound() con HTTP 404 REAL (ver not-found.tsx)
+//   5xx / sin respuesta     → error.tsx
+//
+// Esta ruta NO tiene `loading.tsx` a propósito: con streaming Next ya habría
+// enviado el 200 y ni el 404 ni el 308 serían reales.
 
-import { useState, use } from 'react';
-import { useTranslations } from 'next-intl';
-import Image from 'next/image';
-import { Link } from '@/i18n/routing';
-import { ShoppingCartIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { toast } from 'sonner';
-import { useProductBySlug, useProducts, useProductComponents } from '@/hooks/useProducts';
-import { useAddCartItem } from '@/hooks/useCart';
-import { useStoreCountry } from '@/hooks/useStoreCountry';
-import { formatCurrency } from '@/lib/currency';
-import { Header, Footer } from '@/components/layout';
-import type { Product as APIProduct } from '@/types/product';
-import type { Product as MockProduct } from '@/types';
-import { parseApiPrice } from '@/lib/storefront/price';
-import { PRODUCT_PLACEHOLDER_IMAGE } from '@/lib/storefront/site';
+import { cache } from 'react';
+import type { Metadata } from 'next';
+import { notFound, permanentRedirect } from 'next/navigation';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { CountryNotReady } from '@/components/storefront/CountryNotReady';
+import { UnavailableInCountry } from '@/components/storefront/UnavailableInCountry';
+import { countryMeta, parseLocale, type CountryCode, type LanguageCode } from '@/i18n/config';
+import { routing } from '@/i18n/routing';
+import { formatProductName } from '@/lib/storefront/content-format';
+import { StorefrontUnavailableError } from '@/lib/storefront/errors';
+import { buildBreadcrumbJsonLd, buildProductJsonLd, safeJsonLd } from '@/lib/storefront/json-ld';
+import { buildNoIndexMetadata, buildProductMetadata } from '@/lib/storefront/metadata';
+import { canonicalFor, localizedPath } from '@/lib/storefront/seo';
+import { fetchStorefrontDetail } from '@/lib/storefront/server';
+import { isValidSlug, productPath } from '@/lib/storefront/slug';
+import { ProductDetailClient } from './ProductDetailClient';
 
-function getInitials(name: string): string {
-  const words = name.split(/\s+/).filter(w => w.length > 0);
-  return words.length >= 2
-    ? (words[0][0] + words[1][0]).toUpperCase()
-    : name.substring(0, 2).toUpperCase();
+interface PageProps {
+  params: Promise<{ locale: string; slug: string }>;
 }
 
-function ProductImageWithFallback({ src, name, fill, width, height, className, textSize = 'text-6xl' }: {
-  src?: string; name: string; fill?: boolean; width?: number; height?: number; className?: string; textSize?: string;
-}) {
-  const [error, setError] = useState(false);
+// Una sola lectura por request para `generateMetadata` y la página.
+const getDetail = cache((country: CountryCode, lang: LanguageCode, slug: string) =>
+  fetchStorefrontDetail(country, lang, slug),
+);
 
-  if (src && !error) {
-    return fill ? (
-      <Image src={src} alt={name} fill className={className} onError={() => setError(true)} />
-    ) : (
-      <Image src={src} alt={name} width={width} height={height} className={className} onError={() => setError(true)} />
-    );
+/** El slug llega en minúsculas canónicas; cualquier otra cosa se normaliza antes de validar. */
+function readSlug(raw: string): string {
+  try {
+    return decodeURIComponent(raw).trim().toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { locale, slug: rawSlug } = await params;
+  if (!routing.locales.includes(locale)) return {};
+  const { lang, country } = parseLocale(locale);
+  const t = await getTranslations({ locale, namespace: 'storefront' });
+
+  if (!countryMeta(country).ready) {
+    const meta = countryMeta(country);
+    return buildNoIndexMetadata(t('common.countryNotReady.metaTitle', { country: lang === 'en' ? meta.nameEn : meta.name }));
   }
 
-  // Respaldo de la imagen principal: placeholder de marca que SÍ existe en /public
-  // (antes se pedía /images/product-placeholder.jpg, inexistente => 404).
-  if (fill) {
+  const slug = readSlug(rawSlug);
+  if (!isValidSlug(slug)) return buildNoIndexMetadata(t('product.notFound.metaTitle'));
+  const result = await getDetail(country, lang, slug);
+  if (!result.ok) {
+    const missing = result.status === 404 || result.status === 400;
+    return buildNoIndexMetadata(missing ? t('product.notFound.metaTitle') : t('product.error.title'));
+  }
+  if (result.data.status === 'ok') {
+    const product = result.data.product;
+    return buildProductMetadata({ locale, product: { ...product, name: formatProductName(product.name) } });
+  }
+  if (result.data.status === 'unavailable_in_country') {
+    return buildNoIndexMetadata(`${formatProductName(result.data.product.name)} | Tonic Life`);
+  }
+  return {}; // moved: la página redirige antes de pintar nada.
+}
+
+export default async function ProductDetailPage({ params }: PageProps) {
+  const { locale, slug: rawSlug } = await params;
+  if (!routing.locales.includes(locale)) notFound();
+  setRequestLocale(locale);
+  const { lang, country } = parseLocale(locale);
+
+  if (!countryMeta(country).ready) {
+    return <CountryNotReady country={country} lang={lang} />;
+  }
+
+  const slug = readSlug(rawSlug);
+  if (!isValidSlug(slug)) notFound();
+
+  const result = await getDetail(country, lang, slug);
+  if (!result.ok) {
+    // 404 (no existe, oculto, kit, sin slug…) o 400 (slug que el API rechaza) = no encontrado.
+    if (result.status === 404 || result.status === 400) notFound();
+    throw new StorefrontUnavailableError('/storefront/products/:slug', result.status);
+  }
+
+  const detail = result.data;
+  if (detail.status === 'moved') {
+    if (!isValidSlug(detail.canonicalSlug) || detail.canonicalSlug === slug) notFound();
+    permanentRedirect(localizedPath(locale, productPath(detail.canonicalSlug)));
+  }
+
+  if (detail.status === 'unavailable_in_country') {
     return (
-      <Image
-        src={PRODUCT_PLACEHOLDER_IMAGE}
-        alt=""
-        fill
-        sizes="(min-width: 1024px) 50vw, 100vw"
-        className="rounded-2xl object-cover"
+      <UnavailableInCountry
+        product={detail.product}
+        sellableCountries={detail.sellableCountries}
+        country={country}
+        lang={lang}
       />
     );
   }
 
-  return (
-    <div className="w-full h-full bg-gradient-to-br from-[#C8DDF2]/30 to-[#3E667D]/20 rounded-2xl flex items-center justify-center">
-      <span className={`${textSize} font-bold text-[#3E667D]/70`}>{getInitials(name)}</span>
-    </div>
-  );
-}
+  const product = detail.product;
+  // La URL pide un slug que no es el canónico del producto (p. ej. mayúsculas): 308 al canónico.
+  if (product.slug !== rawSlug) permanentRedirect(localizedPath(locale, productPath(product.slug)));
 
-// Adapter para convertir productos del API al formato mock para compatibilidad
-function adaptAPIProductToMock(apiProduct: APIProduct, lang: string): MockProduct {
-  const en = lang === 'en';
-  const name = (en && apiProduct.nameEn) || apiProduct.name;
-  const shortDesc = (en && apiProduct.shortNameEn) || apiProduct.shortName || '';
-  const desc = (en && apiProduct.descriptionEn) || apiProduct.description || '';
-  const longDesc =
-    (en && apiProduct.longDescriptionEn) || apiProduct.longDescription || desc;
-  return {
-    id: apiProduct.id,
-    name,
-    slug: apiProduct.slug || '',
-    description: desc,
-    shortDescription: shortDesc,
-    fullDescription: longDesc,
-    benefits: apiProduct.healthBenefits || [],
-    usage: {
-      ideal: apiProduct.usageInstructions || '',
-      regular: apiProduct.usageFormat,
-    },
-    dosage: apiProduct.usageFormat,
-    ingredients: apiProduct.ingredients?.split(',').map((i) => i.trim()),
-    category: apiProduct.categoryName?.toLowerCase() as MockProduct['category'] || 'energia',
-    tags: [],
-    // Sin precio en el país => null ("No disponible"). NUNCA los puntos como precio.
-    price: parseApiPrice(apiProduct.price),
-    compareAtPrice: undefined,
-    originalPrice: undefined,
-    currencyCode: apiProduct.priceCurrency || 'MXN',
-    // Sin imagen => monograma de marca (ProductImageWithFallback); antes se pedía
-    // un archivo inexistente (404) antes de caer al respaldo.
-    image: apiProduct.imageUrl || '',
-    images: apiProduct.galleryUrls,
-    inStock: apiProduct.isActive,
-    badge: apiProduct.isFeatured ? 'Destacado' : undefined,
-    featured: apiProduct.isFeatured,
-  };
-}
-
-interface ProductDetailPageProps {
-  params: Promise<{ slug: string }>;
-}
-
-export default function ProductDetailPage({ params }: ProductDetailPageProps) {
-  // Unwrap params using React.use()
-  const { slug } = use(params);
-
-  const t = useTranslations('productDetail');
-  const [selectedImage, setSelectedImage] = useState(0);
-  const [quantity, setQuantity] = useState(1);
-  const [activeTab, setActiveTab] = useState<'description' | 'benefits' | 'usage' | 'ingredients'>('description');
-
-  // Cart mutation
-  const addToCart = useAddCartItem();
-
-  // País de la tienda (del locale): precio/moneda del producto por país.
-  const { countryId, lang } = useStoreCountry();
-
-  // Obtener datos del API
-  const {
-    data: apiProduct,
-    isLoading,
-  } = useProductBySlug(slug, true, countryId);
-
-  // Obtener componentes si es kit o paquete
-  const { data: components } = useProductComponents(
-    apiProduct?.id || '',
-    apiProduct?.productType === 'kit' || apiProduct?.productType === 'pack'
-  );
-
-  // Producto del API
-  const product = apiProduct ? adaptAPIProductToMock(apiProduct, lang) : null;
-
-  // Obtener productos relacionados
-  const { data: relatedProductsData } = useProducts({
-    categoryId: apiProduct?.categoryId,
-    isActive: true,
-    isVisibleEcommerce: true,
-    countryId,
-    limit: 5,
-  });
-
-  const relatedProducts = relatedProductsData?.data
-    ? relatedProductsData.data
-        .filter((p) => p.id !== apiProduct?.id)
-        .slice(0, 4)
-        .map((p) => adaptAPIProductToMock(p, lang))
-    : [];
-
-  // Loading state
-  if (isLoading) {
-    return (
-      <>
-        <Header />
-        <div className="min-h-screen flex items-center justify-center pt-20">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#a7c1e2] mx-auto"></div>
-            <p className="mt-4 text-gray-500">{t('loading')}</p>
-          </div>
-        </div>
-        <Footer />
-      </>
-    );
-  }
-
-  // Not found state
-  if (!product) {
-    return (
-      <>
-        <Header />
-        <div className="min-h-screen flex items-center justify-center pt-20">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">{t('notFound')}</h1>
-            <Link href="/productos">
-              <Button>{t('viewAll')}</Button>
-            </Link>
-          </div>
-        </div>
-        <Footer />
-      </>
-    );
-  }
-
-  // Sin precio vigente en el país no hay venta (ni "Agregar" ni "Comprar ahora").
-  const hasPrice = product.price !== null && product.price > 0;
-
-  // Pestañas solo con contenido real: nada de "próximamente" ni textos inventados.
-  const hasBenefits = product.benefits.length > 0;
-  const hasUsage = !!(product.dosage || product.usage.ideal || product.usage.regular);
-  const hasIngredients = !!product.ingredients && product.ingredients.length > 0;
-
-  const handleAddToCart = () => {
-    if (!apiProduct || !hasPrice) return;
-
-    addToCart.mutate(
-      { productId: apiProduct.id, quantity },
-      {
-        onSuccess: () => {
-          toast.success(t('addedToCart', { quantity, name: product?.name ?? '' }));
-        },
-        onError: () => {
-          toast.error(t('addError'));
-        },
-      }
-    );
-  };
+  const t = await getTranslations({ locale, namespace: 'storefront.product' });
+  const name = formatProductName(product.name);
+  const url = canonicalFor(locale, productPath(product.slug));
+  const breadcrumbs = [
+    { name: t('breadcrumbHome'), url: canonicalFor(locale, '/') },
+    { name: t('breadcrumbProducts'), url: canonicalFor(locale, '/productos') },
+    ...(product.category
+      ? [{ name: product.category.name, url: canonicalFor(locale, '/productos', { categoria: product.category.slug, pagina: 1 }) }]
+      : []),
+    { name, url },
+  ];
 
   return (
     <>
-      <Header />
-      <div className="min-h-screen bg-gray-50 pt-20">
-
-        {/* Breadcrumbs */}
-        <div className="bg-white border-b">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <nav className="flex items-center space-x-2 text-sm">
-              <Link href="/" className="text-gray-500 hover:text-[#3E667D]">{t('breadcrumbHome')}</Link>
-              <span className="text-gray-400">/</span>
-              <Link href="/productos" className="text-gray-500 hover:text-[#3E667D]">{t('breadcrumbProducts')}</Link>
-              <span className="text-gray-400">/</span>
-              <span className="text-gray-900 font-medium">{product.name}</span>
-            </nav>
-          </div>
-        </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 mb-12">
-          {/* Product Images */}
-          <div>
-            <div className="bg-white rounded-2xl p-6 mb-4 relative">
-              {product.badge && (
-                <Badge variant="outline" className={`absolute top-4 left-4 z-10 ${product.badge === 'Nuevo' ? 'border-green-200 bg-green-100 text-green-700' : 'border-yellow-200 bg-yellow-100 text-yellow-700'}`}>
-                  {t('badgeFeatured')}
-                </Badge>
-              )}
-              <div className="aspect-square relative mb-4">
-                <ProductImageWithFallback
-                  src={product.image}
-                  name={product.name}
-                  fill
-                  className="object-contain"
-                />
-              </div>
-
-              {/* Image Gallery Thumbnails */}
-              {product.images && product.images.length > 1 && (
-                <div className="flex gap-2 justify-center">
-                  {product.images.map((img, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setSelectedImage(index)}
-                      className={`w-16 h-16 rounded-lg overflow-hidden border-2 ${
-                        selectedImage === index ? 'border-[#a7c1e2]' : 'border-transparent'
-                      }`}
-                    >
-                      <ProductImageWithFallback
-                        src={img}
-                        name={product.name}
-                        width={64}
-                        height={64}
-                        className="object-cover"
-                        textSize="text-sm"
-                      />
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Product Info */}
-          <div>
-            <div className="mb-6">
-              <h1 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-3">
-                {product.name}
-              </h1>
-              <p className="text-lg text-gray-600 mb-4">{product.description}</p>
-
-              {/* SKU & Category (from API) */}
-              {apiProduct && (
-                <div className="flex gap-4 text-sm text-gray-500 mb-4">
-                  <span>{t('code')}: {apiProduct.code}</span>
-                  {apiProduct.categoryName && (
-                    <span>{t('category')}: {apiProduct.categoryName}</span>
-                  )}
-                </div>
-              )}
-
-              {/* MLM Points (from API) */}
-              {apiProduct && hasPrice && parseFloat(apiProduct.pointsValue || '0') > 0 && (
-                <div className="bg-[#3E667D]/5 rounded-lg p-3 mb-4">
-                  <p className="text-sm text-[#3E667D] font-medium">
-                    {t('earnPoints', { points: apiProduct.pointsValue ?? '0' })}
-                  </p>
-                </div>
-              )}
-
-              {/* Price */}
-              <div className="flex items-baseline gap-3 mb-6">
-                {hasPrice ? (
-                  <span className="text-4xl font-bold text-[#3E667D]">
-                    {formatCurrency(product.price, product.currencyCode || 'MXN', lang)}
-                  </span>
-                ) : (
-                  <span className="text-xl font-semibold text-gray-700">{t('priceUnavailable')}</span>
-                )}
-                {hasPrice && product.price !== null && product.originalPrice && (
-                  <>
-                    <span className="text-2xl text-gray-400 line-through">
-                      {formatCurrency(product.originalPrice, product.currencyCode || 'MXN', lang)}
-                    </span>
-                    <Badge variant="outline" className="border-red-200 bg-red-100 text-red-700">
-                      -{Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}%
-                    </Badge>
-                  </>
-                )}
-              </div>
-
-              {/* Benefits Pills */}
-              {product.benefits && product.benefits.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-6">
-                  {product.benefits.map((benefit, index) => (
-                    <Badge key={index} variant="outline">
-                      {benefit}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Kit Components (if applicable) */}
-            {components && components.length > 0 && (
-              <div className="bg-gray-50 rounded-lg p-4 mb-6">
-                <h4 className="font-semibold text-gray-900 mb-3">
-                  {apiProduct?.productType === 'pack' ? t('packIncludes') : t('kitIncludes')}
-                </h4>
-                <ul className="space-y-2">
-                  {components.map((comp) => (
-                    <li key={comp.id} className="flex items-center gap-2">
-                      <CheckCircleIcon className="h-5 w-5 text-[#3E667D]" />
-                      <span className="text-gray-700">
-                        {comp.quantity}x {comp.componentProductName || comp.componentName || comp.componentProductCode}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {/* Quantity Selector */}
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                {t('quantity')}
-              </label>
-              <div className="flex items-center gap-3">
-                <div className="flex items-center border border-gray-300 rounded-lg">
-                  <button
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="px-4 py-2 text-gray-600 hover:bg-gray-50"
-                  >
-                    -
-                  </button>
-                  <span className="px-6 py-2 font-medium text-gray-900 border-x border-gray-300">
-                    {quantity}
-                  </span>
-                  <button
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="px-4 py-2 text-gray-600 hover:bg-gray-50"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-3 mb-6">
-              <Button
-                variant="default"
-                size="lg"
-                className="flex-1"
-                onClick={handleAddToCart}
-                disabled={addToCart.isPending || !hasPrice}
-              >
-                <ShoppingCartIcon className="h-5 w-5 mr-2" />
-                {addToCart.isPending ? t('adding') : t('addToCart')}
-              </Button>
-            </div>
-
-            {hasPrice ? (
-              <Link href="/carrito">
-                <Button variant="secondary" size="lg" className="w-full">
-                  {t('buyNow')}
-                </Button>
-              </Link>
-            ) : (
-              <p className="text-sm text-gray-600">{t('priceUnavailableHint')}</p>
-            )}
-          </div>
-        </div>
-
-        {/* Product Details Tabs */}
-        <Card className="mb-12">
-          <CardContent className="p-0">
-            <div className="border-b border-gray-200">
-              <nav className="flex -mb-px overflow-x-auto">
-                <button
-                  onClick={() => setActiveTab('description')}
-                  className={`px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap ${
-                    activeTab === 'description'
-                      ? 'border-[#3E667D] text-[#3E667D]'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  {t('tabs.description')}
-                </button>
-                {hasBenefits && (
-                  <button
-                    onClick={() => setActiveTab('benefits')}
-                    className={`px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap ${
-                      activeTab === 'benefits'
-                        ? 'border-[#3E667D] text-[#3E667D]'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    {t('tabs.benefits')}
-                  </button>
-                )}
-                {hasUsage && (
-                  <button
-                    onClick={() => setActiveTab('usage')}
-                    className={`px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap ${
-                      activeTab === 'usage'
-                        ? 'border-[#3E667D] text-[#3E667D]'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    {t('tabs.usage')}
-                  </button>
-                )}
-                {hasIngredients && (
-                  <button
-                    onClick={() => setActiveTab('ingredients')}
-                    className={`px-6 py-4 text-sm font-medium border-b-2 whitespace-nowrap ${
-                      activeTab === 'ingredients'
-                        ? 'border-[#3E667D] text-[#3E667D]'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    {t('tabs.ingredients')}
-                  </button>
-                )}
-              </nav>
-            </div>
-
-            <div className="p-6">
-              {activeTab === 'description' && (
-                <div className="prose max-w-none">
-                  <p className="text-gray-700 leading-relaxed">
-                    {product.fullDescription || product.description}
-                  </p>
-                  {apiProduct?.warnings && (
-                    <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-yellow-800 mb-2">{t('warnings')}</h4>
-                      <p className="text-yellow-700 text-sm">{apiProduct.warnings}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeTab === 'benefits' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {product.benefits && product.benefits.length > 0 ? (
-                    product.benefits.map((benefit, index) => (
-                      <div key={index} className="flex items-start gap-3">
-                        <CheckCircleIcon className="h-6 w-6 text-[#3E667D] flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="font-medium text-gray-900">{benefit}</p>
-                        </div>
-                      </div>
-                    ))
-                  ) : null}
-                </div>
-              )}
-
-              {activeTab === 'usage' && (
-                <div className="space-y-4">
-                  {product.dosage && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-[#3E667D] mb-2">{t('recommendedDose')}</h4>
-                      <p className="text-gray-700">{product.dosage}</p>
-                    </div>
-                  )}
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">{t('instructions')}</h4>
-                    <p className="text-gray-700 mb-2">{product.usage.ideal}</p>
-                    {product.usage.regular && (
-                      <p className="text-gray-700 mb-2">{product.usage.regular}</p>
-                    )}
-                    {product.usage.notes && (
-                      <p className="text-sm text-gray-600 italic">{product.usage.notes}</p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'ingredients' && (
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-4">{t('activeIngredients')}</h4>
-                  {product.ingredients && product.ingredients.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {product.ingredients.map((ingredient, index) => (
-                        <div key={index} className="bg-gray-50 rounded-lg p-3">
-                          <p className="text-gray-900 font-medium">{ingredient}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Related Products */}
-        {relatedProducts.length > 0 && (
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">{t('relatedProducts')}</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {relatedProducts.map((relatedProduct) => (
-                <Link key={relatedProduct.id} href={`/productos/${relatedProduct.slug}`}>
-                  <Card className="group hover:shadow-xl transition-all duration-300 cursor-pointer h-full">
-                    <CardContent className="p-4">
-                      <div className="aspect-square relative mb-4 bg-gray-50 rounded-lg overflow-hidden">
-                        {relatedProduct.badge && (
-                          <Badge variant="outline" className={`absolute top-2 left-2 z-10 ${relatedProduct.badge === 'Nuevo' ? 'border-green-200 bg-green-100 text-green-700' : 'border-yellow-200 bg-yellow-100 text-yellow-700'}`}>
-                            {t('badgeFeatured')}
-                          </Badge>
-                        )}
-                        <ProductImageWithFallback
-                          src={relatedProduct.image}
-                          name={relatedProduct.name}
-                          fill
-                          className="object-contain group-hover:scale-105 transition-transform duration-300"
-                          textSize="text-2xl"
-                        />
-                      </div>
-                      <h3 className="font-semibold text-gray-900 mb-2 group-hover:text-[#3E667D] transition-colors">
-                        {relatedProduct.name}
-                      </h3>
-                      <div className="flex items-baseline gap-2 mb-3">
-                        {relatedProduct.price !== null ? (
-                          <span className="text-xl font-bold text-[#3E667D]">
-                            {formatCurrency(relatedProduct.price, relatedProduct.currencyCode || 'MXN', lang)}
-                          </span>
-                        ) : (
-                          <span className="text-sm font-medium text-gray-600">{t('priceUnavailable')}</span>
-                        )}
-                        {relatedProduct.originalPrice && (
-                          <span className="text-sm text-gray-400 line-through">
-                            {formatCurrency(relatedProduct.originalPrice, relatedProduct.currencyCode || 'MXN', lang)}
-                          </span>
-                        )}
-                      </div>
-                      <Button variant="outline" size="sm" className="w-full">
-                        {t('viewDetails')}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-      <Footer />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(buildProductJsonLd({ ...product, name }, url, product.currencyCode)) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(buildBreadcrumbJsonLd(breadcrumbs)) }}
+      />
+      <ProductDetailClient product={product} fetchedAt={result.fetchedAt} />
     </>
   );
 }

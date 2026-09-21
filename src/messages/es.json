@@ -59,77 +59,221 @@
       "cookies": "Política de Cookies"
     }
   },
-  "products": {
-    "heroBadge": "Bienestar natural desde 2004",
-    "heroTitlePrefix": "Nuestros",
-    "heroTitleHighlight": "productos",
-    "heroSubtitle": "Suplementos, belleza y cuidado personal, formulados para acompañar tu bienestar todos los días.",
-    "distributorPriceTitle": "Precios de distribuidor.",
-    "distributorPriceBody": "Estás viendo los precios de tu cuenta y los puntos que suma cada producto. Si tu kit aún no está activo, verás precio público hasta completarlo. El envío a domicilio se cobra siempre; puedes elegir recoger en sucursal sin costo.",
-    "searchPlaceholder": "Buscar productos...",
-    "allCategory": "Todos ({count})",
-    "filtersButton": "Filtros",
-    "resultsCount": "{count} productos",
-    "sort": {
-      "featured": "Destacados",
-      "newest": "Más Recientes",
-      "priceAsc": "Precio: Menor a Mayor",
-      "priceDesc": "Precio: Mayor a Menor",
-      "name": "Nombre A-Z"
+  "storefront": {
+    "common": {
+      "price": {
+        "unavailable": "No disponible",
+        "yourPriceDistributor": "Tu precio de distribuidor",
+        "yourPricePreferred": "Tu precio preferente",
+        "publicPriceLabel": "Precio público:",
+        "taxIncluded": "IVA incluido",
+        "taxAtCheckout": "+ impuestos al pagar",
+        "savings": "Ahorras {amount}",
+        "points": "{points} pts"
+      },
+      "availability": {
+        "inStock": "Disponible",
+        "lowStock": "{count, plural, one {Última pieza} other {Últimas # piezas}}",
+        "lowStockGeneric": "Últimas piezas",
+        "outOfStock": "Agotado",
+        "unknown": "Disponibilidad por confirmar al agregar"
+      },
+      "cart": {
+        "addedAnnouncement": "{count, plural, one {Se agregó # pieza de {name} al carrito} other {Se agregaron # piezas de {name} al carrito}}",
+        "addedToast": "{name} se agregó al carrito",
+        "viewCart": "Ver carrito"
+      },
+      "countryNotReady": {
+        "eyebrow": "Muy pronto",
+        "title": "Nuestra tienda en {country} abre muy pronto",
+        "body": "Estamos preparando el catálogo, los precios y los envíos para {country}. Mientras tanto puedes comprar en las tiendas que ya están abiertas.",
+        "openStores": "Tiendas abiertas",
+        "shopIn": "Comprar en {country}",
+        "metaTitle": "Muy pronto en {country} | Tonic Life"
+      }
     },
-    "loading": "Cargando productos...",
-    "loadError": "Error al cargar los productos. Por favor, verifica tu conexión e intenta de nuevo.",
-    "prev": "Anterior",
-    "next": "Siguiente",
-    "pageOf": "Página {current} de {total}",
-    "empty": "No se encontraron productos con los filtros seleccionados.",
-    "clearFilters": "Limpiar filtros",
-    "filters": {
-      "categories": "Categorías",
-      "allProducts": "Todos los productos",
-      "reset": "Limpiar filtros"
+    "catalog": {
+      "title": "Productos",
+      "breadcrumbHome": "Inicio",
+      "breadcrumbProducts": "Productos",
+      "breadcrumbLabel": "Ruta de navegación",
+      "viewerDistributor": "Estás viendo tu precio de distribuidor",
+      "viewerPreferred": "Estás viendo tu precio preferente",
+      "loading": "Cargando productos",
+      "card": {
+        "badgesLabel": "Etiquetas del producto",
+        "badge": {
+          "outOfStock": "Agotado",
+          "lowStock": "{count, plural, one {Última pieza} other {Últimas #}}",
+          "new": "Nuevo",
+          "featured": "Destacado",
+          "pack": "Paquete"
+        },
+        "add": "Agregar",
+        "adding": "Agregando…",
+        "added": "Agregado",
+        "soldOut": "Agotado",
+        "addLabel": "Agregar {name} al carrito",
+        "soldOutLabel": "{name}: agotado"
+      },
+      "search": {
+        "label": "Buscar productos",
+        "placeholder": "Buscar por nombre o clave",
+        "clear": "Borrar búsqueda",
+        "viewAll": "Ver todos los resultados de “{q}”",
+        "products": "Productos",
+        "categories": "Categorías"
+      },
+      "filters": {
+        "title": "Filtros",
+        "description": "Filtra el catálogo por categoría, tipo, precio y disponibilidad.",
+        "button": "{count, plural, =0 {Filtros} other {Filtros (#)}}",
+        "category": "Categoría",
+        "allCategories": "Todas las categorías",
+        "type": "Tipo",
+        "allTypes": "Todos",
+        "typeProduct": "Productos",
+        "typePack": "Paquetes",
+        "price": "Precio ({currency})",
+        "priceMin": "Mínimo",
+        "priceMax": "Máximo",
+        "priceApply": "Aplicar precio",
+        "includeSoldOut": "Incluir agotados",
+        "clear": "Limpiar",
+        "viewResults": "{count, plural, =0 {Sin productos} one {Ver # producto} other {Ver # productos}}"
+      },
+      "chips": {
+        "groupLabel": "Filtros activos",
+        "search": "Búsqueda: {q}",
+        "typeProduct": "Productos",
+        "typePack": "Paquetes",
+        "priceRange": "{min} – {max}",
+        "priceFrom": "Desde {min}",
+        "priceTo": "Hasta {max}",
+        "includeSoldOut": "Incluye agotados",
+        "remove": "Quitar filtro: {label}",
+        "clearAll": "Limpiar filtros"
+      },
+      "toolbar": {
+        "results": "{count, plural, =0 {Sin productos} one {# producto} other {# productos}}",
+        "sortLabel": "Ordenar por",
+        "sort": {
+          "featured": "Destacados",
+          "newest": "Más recientes",
+          "price_asc": "Precio: menor a mayor",
+          "price_desc": "Precio: mayor a menor",
+          "name_asc": "Nombre A-Z"
+        }
+      },
+      "pagination": {
+        "label": "Paginación del catálogo",
+        "previous": "Página anterior",
+        "next": "Página siguiente",
+        "page": "Página {page}"
+      },
+      "empty": {
+        "title": "Aún no hay productos disponibles",
+        "titleFiltered": "No encontramos productos con esos filtros",
+        "body": "Estamos actualizando el catálogo. Vuelve en unos minutos.",
+        "bodyFiltered": "Prueba con otra búsqueda, quita algún filtro o incluye los productos agotados.",
+        "clear": "Limpiar filtros",
+        "suggested": "Explora por categoría",
+        "quizPrompt": "¿No sabes por dónde empezar?",
+        "quizLink": "Haz la evaluación de salud"
+      },
+      "error": {
+        "title": "No pudimos cargar el catálogo",
+        "body": "Tuvimos un problema al consultar los productos. Tu carrito está a salvo; inténtalo de nuevo en un momento.",
+        "retry": "Reintentar",
+        "home": "Ir al inicio"
+      }
     },
-    "card": {
-      "featured": "Destacado",
-      "adding": "Agregando...",
-      "added": "Agregado",
+    "product": {
+      "breadcrumbHome": "Inicio",
+      "breadcrumbProducts": "Productos",
+      "breadcrumbLabel": "Ruta de navegación",
+      "code": "Clave {code}",
+      "addToCart": "Agregar al carrito",
       "addShort": "Agregar",
-      "addToCart": "Agregar al Carrito",
-      "priceUnavailable": "No disponible"
+      "adding": "Agregando…",
+      "added": "Agregado",
+      "buyNow": "Comprar ahora",
+      "soldOut": "Agotado",
+      "priceUnavailable": "No disponible",
+      "addQuantityLabel": "{count, plural, one {Agregar # pieza de {name} al carrito} other {Agregar # piezas de {name} al carrito}}",
+      "shipping": {
+        "freeFrom": "Envío gratis desde {amount}",
+        "flat": "Envío a domicilio: {amount}"
+      },
+      "quantity": {
+        "label": "Cantidad",
+        "decrease": "Disminuir cantidad",
+        "increase": "Aumentar cantidad",
+        "max": "Máximo {max} por pedido",
+        "announce": "Cantidad: {count}",
+        "announceMax": "Cantidad: {count}. Es el máximo de {max} por pedido."
+      },
+      "gallery": {
+        "carousel": "carrusel",
+        "slide": "imagen",
+        "label": "Imágenes de {name}",
+        "imageAlt": "{name}, imagen {n} de {total}",
+        "position": "{n} de {total}",
+        "zoom": "Ampliar imagen",
+        "thumbnails": "Miniaturas",
+        "viewImage": "Ver imagen {n} de {total}",
+        "lightboxTitle": "Imágenes de {name}",
+        "lightboxHelp": "Usa las flechas izquierda y derecha para cambiar de imagen y Escape para cerrar.",
+        "previous": "Imagen anterior",
+        "next": "Imagen siguiente",
+        "zoomIn": "Acercar",
+        "zoomOut": "Alejar"
+      },
+      "sections": {
+        "description": "Descripción",
+        "benefits": "Beneficios",
+        "ingredients": "Ingredientes",
+        "usage": "Modo de uso",
+        "warnings": "Advertencias"
+      },
+      "pack": {
+        "title": "Este paquete incluye",
+        "quantity": "{quantity} ×",
+        "componentSoldOut": "Agotado por separado"
+      },
+      "related": {
+        "title": "También te puede interesar"
+      },
+      "share": {
+        "button": "Compartir",
+        "title": "Compartir este producto",
+        "withReferral": "El enlace incluye tu código de distribuidor",
+        "whatsapp": "Enviar por WhatsApp",
+        "copy": "Copiar enlace",
+        "copied": "Enlace copiado",
+        "copyError": "No se pudo copiar el enlace",
+        "shareText": "Mira {name} en Tonic Life:"
+      },
+      "unavailable": {
+        "message": "Este producto no está disponible en {country}.",
+        "availableIn": "Disponible en",
+        "viewIn": "Ver en {country}",
+        "browseCatalog": "Ver productos disponibles en {country}"
+      },
+      "notFound": {
+        "metaTitle": "Producto no encontrado | Tonic Life",
+        "title": "No encontramos este producto",
+        "body": "Puede que el enlace haya cambiado o que el producto ya no esté a la venta. Explora el catálogo o deja que te recomendemos algo.",
+        "viewCatalog": "Ver el catálogo",
+        "takeQuiz": "Hacer la evaluación de salud"
+      },
+      "error": {
+        "title": "No pudimos cargar este producto",
+        "body": "Tuvimos un problema al consultar el producto. Tu carrito está a salvo; inténtalo de nuevo en un momento.",
+        "retry": "Reintentar",
+        "home": "Ir al inicio"
+      }
     }
-  },
-  "productDetail": {
-    "loading": "Cargando producto...",
-    "notFound": "Producto no encontrado",
-    "viewAll": "Ver todos los productos",
-    "breadcrumbHome": "Inicio",
-    "breadcrumbProducts": "Productos",
-    "badgeFeatured": "Destacado",
-    "code": "Código",
-    "category": "Categoría",
-    "earnPoints": "Gana {points} puntos con esta compra",
-    "kitIncludes": "Este kit incluye:",
-    "packIncludes": "Este paquete incluye:",
-    "quantity": "Cantidad",
-    "adding": "Agregando...",
-    "addToCart": "Agregar al carrito",
-    "buyNow": "Comprar ahora",
-    "addedToCart": "{quantity}x {name} agregado al carrito",
-    "addError": "Error al agregar al carrito",
-    "tabs": {
-      "description": "Descripción",
-      "benefits": "Beneficios",
-      "usage": "Modo de uso",
-      "ingredients": "Ingredientes"
-    },
-    "warnings": "Advertencias",
-    "recommendedDose": "Dosis recomendada",
-    "instructions": "Instrucciones",
-    "activeIngredients": "Ingredientes activos",
-    "relatedProducts": "Productos relacionados",
-    "viewDetails": "Ver detalles",
-    "priceUnavailable": "No disponible",
-    "priceUnavailableHint": "Este producto aún no tiene precio en tu país, por eso no se puede agregar al carrito."
   },
   "cart": {
     "title": "Tu Carrito",
