@@ -2,10 +2,19 @@ import { describe, expect, it } from 'vitest';
 import {
   CART_LINE_HARD_MAX,
   ENROLLMENT_FALLBACK_HREF,
+  QTY_DRAFT_ATTR,
+  addedQuantity,
+  bundleAddOutcome,
+  buyNowDestination,
+  capReason,
   cartBlockers,
+  checkoutGate,
   clampQuantity,
   commitQuantityDraft,
+  escapeCancelsQuantityDraft,
+  freeShippingEligible,
   freeShippingProgress,
+  knownCartCurrency,
   lineIssue,
   lineLimit,
   linePointsPerUnit,
@@ -81,19 +90,36 @@ describe('freeShippingProgress (umbral de envío gratis POR PAÍS)', () => {
 
 describe('tope de cantidad', () => {
   it('API actual (solo availableStock) y API C1 (maxQuantity): gana el menor', () => {
-    expect(lineLimit({ quantity: 1, availableStock: 7 })).toEqual({ max: 7, known: true });
-    expect(lineLimit({ quantity: 1, maxQuantity: 20 })).toEqual({ max: 20, known: true });
-    expect(lineLimit({ quantity: 1, maxQuantity: 20, availableStock: 3 })).toEqual({ max: 3, known: true });
+    expect(lineLimit({ quantity: 1, availableStock: 7 })).toEqual({ max: 7, known: true, reason: 'stock' });
+    expect(lineLimit({ quantity: 1, maxQuantity: 20 })).toEqual({ max: 20, known: true, reason: 'stock' });
+    expect(lineLimit({ quantity: 1, maxQuantity: 20, availableStock: 3 })).toEqual({ max: 3, known: true, reason: 'stock' });
   });
 
   it('sin dato: tope del DTO (999) y known=false', () => {
-    expect(lineLimit({ quantity: 1 })).toEqual({ max: CART_LINE_HARD_MAX, known: false });
-    expect(lineLimit({ quantity: 1, maxQuantity: null, availableStock: null })).toEqual({ max: 999, known: false });
+    expect(lineLimit({ quantity: 1 })).toEqual({ max: CART_LINE_HARD_MAX, known: false, reason: 'stock' });
+    expect(lineLimit({ quantity: 1, maxQuantity: null, availableStock: null })).toEqual({
+      max: 999,
+      known: false,
+      reason: 'stock',
+    });
+  });
+
+  it('motivo del tope: "Máximo N por pedido" SOLO si hay más existencias que el tope', () => {
+    // CI6296: 403 armables y tope de tienda 20 → no se dice "solo hay 20".
+    expect(lineLimit({ quantity: 20, maxQuantity: 20, availableStock: 403 })).toEqual({
+      max: 20,
+      known: true,
+      reason: 'order_max',
+    });
+    expect(capReason({ quantity: 1, maxQuantity: 7, availableStock: 7 })).toBe('stock');
+    expect(capReason({ quantity: 1, maxQuantity: 20 })).toBe('stock'); // sin existencias no se puede afirmar
+    expect(capReason({ quantity: 1, availableStock: 50 })).toBe('stock');
+    expect(capReason({ quantity: 1, maxQuantity: 0, availableStock: 9 })).toBe('stock'); // agotado, no "por pedido"
   });
 
   it('agotado o negativo nunca deja el campo en 0', () => {
-    expect(lineLimit({ quantity: 2, availableStock: 0 })).toEqual({ max: 1, known: true });
-    expect(lineLimit({ quantity: 2, availableStock: -4 })).toEqual({ max: 999, known: false });
+    expect(lineLimit({ quantity: 2, availableStock: 0 })).toEqual({ max: 1, known: true, reason: 'stock' });
+    expect(lineLimit({ quantity: 2, availableStock: -4 })).toEqual({ max: 999, known: false, reason: 'stock' });
     expect(lineLimit({ quantity: 2, maxQuantity: 5000 }).max).toBe(999);
   });
 
@@ -229,7 +255,11 @@ describe('planStockAdjust (tras CART_QTY_EXCEEDS_STOCK)', () => {
   it('deja la línea en el máximo', () => {
     expect(planStockAdjust(4, 0)).toEqual({ action: 'set', quantity: 4 });
     expect(planStockAdjust(4, 2)).toEqual({ action: 'set', quantity: 4 });
-    expect(planStockAdjust(4, 9)).toEqual({ action: 'set', quantity: 4 });
+  });
+
+  it('línea que YA estaba por encima del tope: NO se baja en silencio (sale el error)', () => {
+    expect(planStockAdjust(20, 30)).toEqual({ action: 'over_max', quantity: 20 });
+    expect(planStockAdjust(4, 9)).toEqual({ action: 'over_max', quantity: 4 });
   });
 
   it('ya está en el máximo: no repite la petición', () => {
@@ -240,5 +270,147 @@ describe('planStockAdjust (tras CART_QTY_EXCEEDS_STOCK)', () => {
     expect(planStockAdjust(0, 2)).toEqual({ action: 'sold_out' });
     expect(planStockAdjust(null, 2)).toEqual({ action: 'none' });
     expect(planStockAdjust(undefined, 2)).toEqual({ action: 'none' });
+  });
+});
+
+describe('freeShippingEligible (moneda garantizada + a quién el checkout SÍ le da envío gratis)', () => {
+  const guest = { hasCustomerSession: false, distributorSession: false };
+  const distributor = { hasCustomerSession: true, distributorSession: true };
+
+  it('TODO(C2) invitado: su carrito se resuelve como MX; solo se garantiza la moneda en la tienda MX', () => {
+    expect(knownCartCurrency({ ...guest, countryCode: 'MX' })).toBe('MXN');
+    expect(knownCartCurrency({ ...guest, countryCode: 'US' })).toBeNull();
+    expect(freeShippingEligible({ ...guest, countryCode: 'MX', shippingCurrencyCode: 'MXN', priceTier: 'public' })).toBe(true);
+    // /en-us: subtotal en pesos contra umbral de 100 USD → decía "alcanzado" con casi cualquier producto.
+    expect(freeShippingEligible({ ...guest, countryCode: 'US', shippingCurrencyCode: 'USD', priceTier: 'public' })).toBe(false);
+    // Ni aunque el API diga que es elegible: la moneda no está garantizada.
+    expect(
+      freeShippingEligible({ ...guest, countryCode: 'US', shippingCurrencyCode: 'USD', priceTier: 'public', apiEligible: true }),
+    ).toBe(false);
+    // La moneda de una cuenta SIN sesión de cliente no cuenta.
+    expect(knownCartCurrency({ ...guest, countryCode: 'US', viewerCurrencyCode: 'USD' })).toBeNull();
+  });
+
+  it('con cart.currencyCode (C2) manda la moneda del carrito', () => {
+    expect(knownCartCurrency({ ...guest, countryCode: 'US', cartCurrencyCode: ' usd ' })).toBe('USD');
+    expect(
+      freeShippingEligible({ ...guest, countryCode: 'US', cartCurrencyCode: 'USD', shippingCurrencyCode: 'usd', priceTier: 'public' }),
+    ).toBe(true);
+    expect(
+      freeShippingEligible({ ...guest, countryCode: 'US', cartCurrencyCode: 'MXN', shippingCurrencyCode: 'USD', priceTier: 'public' }),
+    ).toBe(false);
+  });
+
+  it('con sesión de cliente: la moneda es la de SU cuenta', () => {
+    const us = { hasCustomerSession: true, distributorSession: true, viewerCurrencyCode: 'USD', countryCode: 'US' };
+    expect(knownCartCurrency(us)).toBe('USD');
+    expect(freeShippingEligible({ ...us, shippingCurrencyCode: 'USD', apiEligible: true })).toBe(true);
+    // Cuenta de Colombia navegando la tienda MX: pesos colombianos contra umbral en MXN.
+    expect(
+      freeShippingEligible({ ...us, viewerCurrencyCode: 'COP', countryCode: 'MX', shippingCurrencyCode: 'MXN', apiEligible: true }),
+    ).toBe(false);
+  });
+
+  it('manda shipping.freeShippingEligible del API cuando viene (false para distribuidores)', () => {
+    const base = { ...distributor, viewerCurrencyCode: 'MXN', countryCode: 'MX', shippingCurrencyCode: 'MXN' };
+    expect(freeShippingEligible({ ...base, apiEligible: false, priceTier: 'public' })).toBe(false);
+    expect(freeShippingEligible({ ...base, apiEligible: true, priceTier: 'public' })).toBe(true);
+  });
+
+  it('provisional sin el campo del API: sesión de distribuidor NO elegible aunque cotice a precio público', () => {
+    const base = { ...distributor, viewerCurrencyCode: 'MXN', countryCode: 'MX', shippingCurrencyCode: 'MXN' };
+    // Los 1,053 distribuidores sin kit activo: precio público, pero el checkout les cobra el estándar.
+    expect(freeShippingEligible({ ...base, priceTier: 'public' })).toBe(false);
+    expect(freeShippingEligible({ ...base, priceTier: 'distributor' })).toBe(false);
+    expect(freeShippingEligible({ ...base, apiEligible: null, priceTier: 'public' })).toBe(false);
+    // El rol no distingue al preferente: solo si el API ya lo cotizó como tal.
+    expect(freeShippingEligible({ ...base, priceTier: 'preferred' })).toBe(true);
+    // Colaborador (sesión sin cliente) en MX: como invitado.
+    expect(
+      freeShippingEligible({ hasCustomerSession: false, distributorSession: false, countryCode: 'MX', shippingCurrencyCode: 'MXN', priceTier: 'public' }),
+    ).toBe(true);
+  });
+
+  it('sin moneda del envío: no elegible', () => {
+    expect(freeShippingEligible({ ...guest, countryCode: 'MX', shippingCurrencyCode: '', priceTier: 'public' })).toBe(false);
+  });
+});
+
+describe('checkoutGate (el pago solo se bloquea a una sesión de cliente)', () => {
+  const soldOut = cartBlockers([{ quantity: 1, inStock: false }]);
+  const clean = cartBlockers([{ quantity: 1, availableStock: 5 }]);
+
+  it('invitado: aviso informativo, puede continuar a iniciar sesión', () => {
+    expect(checkoutGate(soldOut, false)).toEqual({ showNotice: true, blocked: false });
+  });
+
+  it('sesión de cliente: el bloqueo sigue', () => {
+    expect(checkoutGate(soldOut, true)).toEqual({ showNotice: true, blocked: true });
+  });
+
+  it('sin agotados ni excesos: ni aviso ni bloqueo', () => {
+    expect(checkoutGate(clean, true)).toEqual({ showNotice: false, blocked: false });
+    expect(checkoutGate(clean, false)).toEqual({ showNotice: false, blocked: false });
+  });
+});
+
+describe('buyNowDestination ("Comprar ahora" con el carrito YA actualizado)', () => {
+  const ok = [{ quantity: 1, availableStock: 5 }];
+  const withSoldOut = [...ok, { quantity: 2, inStock: false }];
+  const withExcess = [{ quantity: 30, maxQuantity: 20, availableStock: 400 }];
+
+  it('carrito sano y pago encendido: al checkout', () => {
+    expect(buyNowDestination({ checkoutEnabled: true, items: ok })).toEqual({ href: '/checkout', reason: 'ok' });
+  });
+
+  it('líneas agotadas o por encima del tope (aunque sean OTRAS líneas): a /carrito, que lo explica', () => {
+    expect(buyNowDestination({ checkoutEnabled: true, items: withSoldOut })).toEqual({ href: '/carrito', reason: 'blocked_lines' });
+    expect(buyNowDestination({ checkoutEnabled: true, items: withExcess })).toEqual({ href: '/carrito', reason: 'blocked_lines' });
+  });
+
+  it('piloto con el pago apagado (fail-closed): a /carrito con su aviso', () => {
+    expect(buyNowDestination({ checkoutEnabled: false, items: ok })).toEqual({ href: '/carrito', reason: 'checkout_off' });
+    expect(buyNowDestination({ checkoutEnabled: false, items: withSoldOut }).reason).toBe('checkout_off');
+  });
+});
+
+describe('addedQuantity / bundleAddOutcome (no anunciar "agregado" si no entró nada)', () => {
+  it('después − antes', () => {
+    expect(addedQuantity(2, 3, 1)).toBe(1);
+    expect(addedQuantity(0, 4, 10)).toBe(4); // el API ajustó al máximo
+  });
+
+  it('la línea ya estaba en su máximo: 0', () => {
+    expect(addedQuantity(20, 20, 1)).toBe(0);
+    expect(addedQuantity(20, 18, 1)).toBe(0); // nunca negativo
+  });
+
+  it('sin carrito en caché: lo pedido, acotado a lo que quedó', () => {
+    expect(addedQuantity(null, 5, 1)).toBe(1);
+    expect(addedQuantity(null, 2, 3)).toBe(2);
+    expect(addedQuantity(null, null, 3)).toBe(3);
+  });
+
+  it('paquete del quiz: todo, parcial (un 409 no aborta el resto) o nada', () => {
+    expect(bundleAddOutcome([1, 1, 1])).toBe('all');
+    expect(bundleAddOutcome([1, 0, 1])).toBe('partial');
+    expect(bundleAddOutcome([0, 0, 0])).toBe('none');
+    expect(bundleAddOutcome([])).toBe('none');
+  });
+});
+
+describe('escapeCancelsQuantityDraft (Escape en el campo de cantidad no cierra el drawer)', () => {
+  const el = (value: string | null) => ({ getAttribute: (name: string) => (name === QTY_DRAFT_ATTR ? value : null) });
+
+  it('campo CON borrador: el drawer no se cierra', () => {
+    expect(escapeCancelsQuantityDraft(el('true'))).toBe(true);
+  });
+
+  it('campo sin borrador, otro elemento o sin foco: Escape cierra el drawer', () => {
+    expect(escapeCancelsQuantityDraft(el(null))).toBe(false);
+    expect(escapeCancelsQuantityDraft(el('false'))).toBe(false);
+    expect(escapeCancelsQuantityDraft(null)).toBe(false);
+    expect(escapeCancelsQuantityDraft(undefined)).toBe(false);
+    expect(escapeCancelsQuantityDraft({})).toBe(false);
   });
 });

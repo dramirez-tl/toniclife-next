@@ -244,6 +244,8 @@ export function normalizeDetail(value: unknown, fallbackCurrency: string): Store
       freeThreshold: positive(shipping.freeThreshold),
       flatCost: num(shipping.flatCost),
       currencyCode: shippingCurrency,
+      // Solo si el API lo manda como booleano: ausente = el front decide de forma provisional.
+      ...(typeof shipping.freeShippingEligible === 'boolean' ? { freeShippingEligible: shipping.freeShippingEligible } : {}),
     },
     disclaimer: str(value.disclaimer),
     updatedAt: str(value.updatedAt) ?? '',

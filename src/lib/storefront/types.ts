@@ -74,7 +74,13 @@ export interface StorefrontProductDetail extends StorefrontProductCard {
   components: StorefrontProductComponent[];
   seo: { title: string | null; description: string | null };
   sellableCountries: string[];
-  shipping: { freeThreshold: number | null; flatCost: number | null; currencyCode: string };
+  shipping: {
+    freeThreshold: number | null;
+    flatCost: number | null;
+    currencyCode: string;
+    /** `false` = el checkout NUNCA le da envío gratis por monto a este viewer (distribuidor). Ausente en el API previo. */
+    freeShippingEligible?: boolean;
+  };
   disclaimer: string | null;
   updatedAt: string;
 }

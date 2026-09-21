@@ -162,6 +162,20 @@ describe('normalizeDetailResponse', () => {
     ]);
   });
 
+  it('shipping.freeShippingEligible: solo si el API lo manda como booleano (false para distribuidores)', () => {
+    const withFlag = (flag: unknown) =>
+      normalizeDetailResponse({ status: 'ok', product: { ...product, shipping: { ...product.shipping, freeShippingEligible: flag } } }, 'MXN');
+    const no = withFlag(false);
+    expect(no?.status === 'ok' && no.product.shipping.freeShippingEligible).toBe(false);
+    const yes = withFlag(true);
+    expect(yes?.status === 'ok' && yes.product.shipping.freeShippingEligible).toBe(true);
+    // API previo (sin el campo) o basura: ausente, y el front decide de forma provisional.
+    for (const junk of [undefined, null, 'false', 0]) {
+      const out = withFlag(junk);
+      expect(out?.status === 'ok' && 'freeShippingEligible' in out.product.shipping).toBe(false);
+    }
+  });
+
   it('moved y unavailable_in_country', () => {
     expect(normalizeDetailResponse({ status: 'moved', canonicalSlug: 'nuevo' }, 'MXN')).toEqual({
       status: 'moved',

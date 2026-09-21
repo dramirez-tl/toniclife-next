@@ -36,11 +36,30 @@ function knownLimits(item: CartLineLike): number[] {
 // Tope de cantidad
 // ---------------------------------------------------------------------------
 
+/**
+ * POR QUÉ la línea tiene ese tope: `order_max` = máximo por pedido de la tienda
+ * (`storefront.max_quantity_per_line`), NO falta de existencias; `stock` = existencias.
+ */
+export type CapReason = 'order_max' | 'stock';
+
 export interface LineLimit {
   /** Máximo que la línea admite (>= 1 para que el campo siga siendo usable). */
   max: number;
   /** `true` si el tope viene del API (maxQuantity o stock); `false` = solo el tope del DTO. */
   known: boolean;
+  /** Motivo del tope (para no decir "solo hay 20" cuando hay 400 y el tope es por pedido). */
+  reason: CapReason;
+}
+
+/**
+ * `maxQuantity` (API C1) = existencias topadas por el máximo por pedido. Si el API
+ * también manda las existencias y son MAYORES, el tope es el máximo por pedido.
+ * Sin ambos datos no se puede afirmar: se trata como existencias (texto previo).
+ */
+export function capReason(item: CartLineLike): CapReason {
+  const max = wholeOrNull(item.maxQuantity);
+  const stock = wholeOrNull(item.availableStock);
+  return max !== null && stock !== null && max > 0 && max < stock ? 'order_max' : 'stock';
 }
 
 /**
@@ -50,8 +69,8 @@ export interface LineLimit {
  */
 export function lineLimit(item: CartLineLike): LineLimit {
   const limits = knownLimits(item);
-  if (limits.length === 0) return { max: CART_LINE_HARD_MAX, known: false };
-  return { max: Math.max(1, Math.min(CART_LINE_HARD_MAX, ...limits)), known: true };
+  if (limits.length === 0) return { max: CART_LINE_HARD_MAX, known: false, reason: 'stock' };
+  return { max: Math.max(1, Math.min(CART_LINE_HARD_MAX, ...limits)), known: true, reason: capReason(item) };
 }
 
 export function clampQuantity(value: number, max: number): number {
@@ -111,6 +130,23 @@ export function cartBlockers(items: readonly CartLineLike[]): CartBlockers {
     else if (issue === 'exceeds_stock') exceedsStock += 1;
   }
   return { soldOut, exceedsStock, blocked: soldOut + exceedsStock > 0 };
+}
+
+export interface CheckoutGate {
+  /** Hay agotados o excesos: el aviso se muestra SIEMPRE. */
+  showNotice: boolean;
+  /** "Proceder al pago" deshabilitado. */
+  blocked: boolean;
+}
+
+/**
+ * El pago solo se BLOQUEA a una sesión de cliente. A un INVITADO se le informa pero
+ * puede continuar a iniciar sesión: hasta C2 su carrito se resuelve como MX aunque
+ * navegue otra tienda (existencias de otro país), y no hay checkout de invitado ni
+ * merge (C3), así que su carrito nunca llega a una orden.
+ */
+export function checkoutGate(blockers: CartBlockers, hasCustomerSession: boolean): CheckoutGate {
+  return { showNotice: blockers.blocked, blocked: blockers.blocked && hasCustomerSession };
 }
 
 // ---------------------------------------------------------------------------
@@ -180,6 +216,57 @@ export interface FreeShippingProgress {
   currencyCode: string;
 }
 
+export interface FreeShippingEligibilityInput {
+  /** `shipping.freeShippingEligible` del API (false para distribuidores); ausente en el API previo. */
+  apiEligible?: boolean | null;
+  /** Nivel de precio con el que el API cotizó al viewer. */
+  priceTier?: 'public' | 'preferred' | 'distributor' | null;
+  hasCustomerSession: boolean;
+  /** Sesión cuyo rol/tipo es de distribuidor (portal de cliente). */
+  distributorSession: boolean;
+  /** Moneda del carrito si el API la manda (C2). */
+  cartCurrencyCode?: string | null;
+  /** Moneda de la CUENTA del viewer con sesión (`user.currencyCode`). */
+  viewerCurrencyCode?: string | null;
+  /** País de la tienda visitada (ISO2). */
+  countryCode: string;
+  /** Moneda del umbral de envío gratis. */
+  shippingCurrencyCode?: string | null;
+}
+
+/**
+ * Moneda en la que se puede GARANTIZAR que está el subtotal del carrito; `null` = no se puede.
+ * TODO(C2): cuando el API mande `cart.currencyCode` sobran los dos respaldos.
+ */
+export function knownCartCurrency(
+  input: Pick<FreeShippingEligibilityInput, 'cartCurrencyCode' | 'viewerCurrencyCode' | 'hasCustomerSession' | 'countryCode'>,
+): string | null {
+  const fromCart = (input.cartCurrencyCode || '').trim().toUpperCase();
+  if (fromCart) return fromCart;
+  // Con sesión de cliente el carrito se cotiza en el país de SU cuenta.
+  const fromViewer = (input.viewerCurrencyCode || '').trim().toUpperCase();
+  if (input.hasCustomerSession && fromViewer) return fromViewer;
+  // Invitado (o cuenta sin moneda): el API resuelve su carrito como MX aunque navegue /en-us.
+  return input.countryCode.toUpperCase() === 'MX' ? 'MXN' : null;
+}
+
+/**
+ * ¿Se le puede prometer envío gratis por monto? NO cuando no se garantiza que subtotal
+ * y umbral están en la misma moneda, ni a quien el checkout nunca se lo da (distribuidor).
+ */
+export function freeShippingEligible(input: FreeShippingEligibilityInput): boolean {
+  const cartCurrency = knownCartCurrency(input);
+  const shippingCurrency = (input.shippingCurrencyCode || '').trim().toUpperCase();
+  if (!cartCurrency || !shippingCurrency || cartCurrency !== shippingCurrency) return false;
+  if (typeof input.apiEligible === 'boolean') return input.apiEligible;
+  // Provisional (API sin `freeShippingEligible`): el rol no distingue distribuidor de
+  // preferente, así que con sesión de distribuidor solo es elegible a quien el API ya
+  // cotizó como preferente. Un distribuidor cotizado a precio público NO ve la promesa.
+  if (input.priceTier === 'distributor') return false;
+  if (input.hasCustomerSession && input.distributorSession) return input.priceTier === 'preferred';
+  return true;
+}
+
 /** `null` = NO se pinta la barra (sin dato del país, umbral inválido, moneda distinta o viewer no elegible). */
 export function freeShippingProgress(input: FreeShippingInput): FreeShippingProgress | null {
   const { shipping, eligible, cartCurrencyCode } = input;
@@ -247,6 +334,8 @@ export function mapCartError(err: unknown): CartErrorInfo {
 export type StockAdjustPlan =
   | { action: 'set'; quantity: number }
   | { action: 'already_max'; quantity: number }
+  /** La línea YA estaba por encima del tope: no se baja en silencio, se muestra el error. */
+  | { action: 'over_max'; quantity: number }
   | { action: 'sold_out' }
   | { action: 'none' };
 
@@ -258,5 +347,70 @@ export function planStockAdjust(maxQuantity: number | null | undefined, currentQ
   if (maxQuantity === null || maxQuantity === undefined) return { action: 'none' };
   if (maxQuantity <= 0) return { action: 'sold_out' };
   if (currentQuantity === maxQuantity) return { action: 'already_max', quantity: maxQuantity };
+  if (currentQuantity > maxQuantity) return { action: 'over_max', quantity: maxQuantity };
   return { action: 'set', quantity: maxQuantity };
+}
+
+// ---------------------------------------------------------------------------
+// Lo que REALMENTE entró al carrito
+// ---------------------------------------------------------------------------
+
+/**
+ * Piezas que entraron tras un `POST /cart/items`: cantidad de la línea después − antes.
+ * `before === null` = no se conocía el carrito: lo pedido, acotado a lo que quedó.
+ * 0 = no entró nada (la línea ya estaba en su máximo): NO se anuncia "agregado".
+ */
+export function addedQuantity(before: number | null, after: number | null, requested: number): number {
+  const final = after ?? requested;
+  const added = before === null ? Math.min(requested, final) : final - before;
+  return Math.max(0, added);
+}
+
+export type BundleAddOutcome = 'all' | 'partial' | 'none';
+
+/** Resultado de agregar un paquete producto por producto (cada fallo ya lo avisó el hook). */
+export function bundleAddOutcome(addedPerProduct: readonly number[]): BundleAddOutcome {
+  const entered = addedPerProduct.filter((n) => n > 0).length;
+  if (entered === 0) return 'none';
+  return entered === addedPerProduct.length ? 'all' : 'partial';
+}
+
+// ---------------------------------------------------------------------------
+// Escape dentro del campo de cantidad (drawer)
+// ---------------------------------------------------------------------------
+
+/** Atributo que el campo de cantidad lleva SOLO mientras tiene un borrador sin confirmar. */
+export const QTY_DRAFT_ATTR = 'data-cart-qty-draft';
+
+/**
+ * Radix escucha Escape en `document` (captura), ANTES que el `onKeyDown` de React del
+ * campo: un `stopPropagation` ahí no evita que el drawer se cierre. El `SheetContent`
+ * pregunta esto en `onEscapeKeyDown` y, si es `true`, hace `preventDefault()`: el primer
+ * Escape solo cancela la edición; el siguiente ya cierra el drawer.
+ */
+export function escapeCancelsQuantityDraft(
+  active: { getAttribute?: (name: string) => string | null } | null | undefined,
+): boolean {
+  return typeof active?.getAttribute === 'function' && active.getAttribute(QTY_DRAFT_ATTR) === 'true';
+}
+
+// ---------------------------------------------------------------------------
+// "Comprar ahora"
+// ---------------------------------------------------------------------------
+
+export interface BuyNowDestination {
+  href: '/checkout' | '/carrito';
+  /** `checkout_off` = piloto con el pago apagado (se avisa con toast); `blocked_lines` = /carrito lo explica. */
+  reason: 'ok' | 'checkout_off' | 'blocked_lines';
+}
+
+/**
+ * A dónde lleva "Comprar ahora" DESPUÉS de agregar, con el carrito ya actualizado. El
+ * checkout no revisa existencias al pintarse (solo el API al pagar): si el carrito trae
+ * líneas agotadas o por encima del tope se manda a /carrito, donde se explica cuáles.
+ */
+export function buyNowDestination(input: { checkoutEnabled: boolean; items: readonly CartLineLike[] }): BuyNowDestination {
+  if (!input.checkoutEnabled) return { href: '/carrito', reason: 'checkout_off' };
+  if (cartBlockers(input.items).blocked) return { href: '/carrito', reason: 'blocked_lines' };
+  return { href: '/checkout', reason: 'ok' };
 }
