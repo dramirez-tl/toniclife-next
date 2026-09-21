@@ -40,7 +40,7 @@ import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Link } from '@/i18n/routing';
 import { formatCurrency } from '@/lib/currency';
-import { useStoreCountry } from '@/hooks/useStoreCountry';
+import { useAccountStoreCountry, useStoreCountry } from '@/hooks/useStoreCountry';
 import { useStorefrontViewer } from '@/hooks/useStorefront';
 import { CartCountryNotice } from '@/components/cart/CartCountryNotice';
 import { CartLineQuantity } from '@/components/cart/CartLineQuantity';
@@ -54,8 +54,8 @@ import {
   cartCountryMismatch,
   cartDisplayCurrency,
   effectiveCartCountry,
+  mismatchCheckoutLocale,
   pinnedCartCountry,
-  storeLocaleFor,
 } from '@/lib/storefront/cart-country';
 import {
   cartBlockers,
@@ -157,6 +157,7 @@ export default function CartPage() {
   const tBlocked = useTranslations('storefront.cart.blocked');
   const { currency, lang, countryCode } = useStoreCountry();
   const { hasCustomerSession } = useStorefrontViewer();
+  const accountStoreCountry = useAccountStoreCountry();
   const { data: cart, isLoading } = useCart();
   // País FIJADO en el carrito (C2); `null` = carrito sin país fijado: todo como antes de C2.
   const pinnedCountry = pinnedCartCountry(cart);
@@ -182,7 +183,8 @@ export default function CartPage() {
     itemCount: items.length,
   });
   // Carrito de otro país: se paga en SU tienda (el checkout de esta respondería CHK_COUNTRY_MISMATCH).
-  const checkoutLocale = countryMismatch ? storeLocaleFor(lang, countryMismatch.cartCountry) ?? undefined : undefined;
+  // Con sesión manda la cuenta: sin salto de locale (el aviso ofrece vaciar el carrito).
+  const checkoutLocale = mismatchCheckoutLocale(lang, countryMismatch, accountStoreCountry);
   const soldOutItems = items.filter((item) => lineIssue(item) === 'sold_out');
   const slugs = items.map(lineSlug).filter((slug): slug is string => slug !== null);
   const busy = updateItem.isPending || removeItem.isPending;

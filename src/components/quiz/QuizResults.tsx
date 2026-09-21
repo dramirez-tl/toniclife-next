@@ -23,7 +23,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { QuizResult, ProductRecommendation } from '@/types/quiz';
 import type { Cart } from '@/types/cart';
 import { cartKeys, useAddCartItem } from '@/hooks/useCart';
-import { addedQuantity, bundleAddOutcome } from '@/lib/storefront/cart-logic';
+import { addedQuantity, bundleAddOutcome, bundlePendingAfterCountryChange, mapCartError } from '@/lib/storefront/cart-logic';
+import { addPendingToCartCountryChange } from '@/lib/storefront/cart-country-dialog-store';
 import { useTrackCartAdd } from '@/hooks/useQuiz';
 import { CartFreeShippingBar } from '@/components/cart/FreeShippingBar';
 import { toast } from 'sonner';
@@ -151,16 +152,17 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
    * Agrega UNA pieza y devuelve cuántas ENTRARON (línea después − antes, como
    * `useAddToCart`). 0 = el API rechazó (el motivo ya lo avisó `useAddCartItem`: aquí
    * NO se repite el toast) o la línea ya estaba en su máximo (el hook también lo avisa).
+   * `'country_change'` = 409 `CART_COUNTRY_CHANGE`: el hook ya abrió el diálogo "Vaciar y cambiar".
    */
-  const addOne = async (product: ProductRecommendation): Promise<number> => {
+  const addOne = async (product: ProductRecommendation): Promise<number | 'country_change'> => {
     const lineQty = (cart: Cart | undefined): number | null =>
       cart ? (cart.items.find((item) => item.productId === product.productId)?.quantity ?? 0) : null;
     const before = lineQty(queryClient.getQueryData<Cart>(cartKeys.cart()));
     let cart: Cart;
     try {
       cart = await addToCart.mutateAsync({ productId: product.productId, quantity: 1 });
-    } catch {
-      return 0;
+    } catch (err) {
+      return mapCartError(err).kind === 'country_change' ? 'country_change' : 0;
     }
     const added = addedQuantity(before, lineQty(cart), 1);
     // Analítica del quiz: solo si de verdad entró al carrito.
@@ -172,14 +174,24 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
 
   const handleAddToCart = async (product: ProductRecommendation) => {
     const added = await addOne(product);
-    if (added > 0) toast.success(t('addedToCart', { name: product.productName }));
+    if (added !== 'country_change' && added > 0) toast.success(t('addedToCart', { name: product.productName }));
   };
 
   const handleAddAllToCart = async () => {
     // Un 409 (agotado, tope) o un 422 de UN producto no aborta el paquete: sigue con el resto.
     const added: number[] = [];
-    for (const product of result.recommendations.slice(0, 3)) {
-      added.push(await addOne(product));
+    const bundle = result.recommendations.slice(0, 3);
+    for (const [index, product] of bundle.entries()) {
+      const outcome = await addOne(product);
+      if (outcome === 'country_change') {
+        // Carrito de OTRO país: el lote se corta aquí (los demás darían el mismo 409) y el diálogo
+        // recuerda TODO el paquete para re-agregarlo tras "Vaciar y cambiar". Sin toast: decide el diálogo.
+        addPendingToCartCountryChange(
+          bundlePendingAfterCountryChange(bundle, added, index).map((item) => ({ productId: item.productId, quantity: 1 })),
+        );
+        return;
+      }
+      added.push(outcome);
     }
     const outcome = bundleAddOutcome(added);
     if (outcome === 'all') toast.success(t('bundleAdded'));

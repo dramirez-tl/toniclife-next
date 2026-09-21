@@ -401,6 +401,20 @@ export function bundleAddOutcome(addedPerProduct: readonly number[]): BundleAddO
   return entered === addedPerProduct.length ? 'all' : 'partial';
 }
 
+/**
+ * Paquete cortado por un 409 `CART_COUNTRY_CHANGE` en el producto `conflictIndex`: productos
+ * que "Vaciar y cambiar" debe re-agregar, EN ORDEN. Son los que ya habían entrado en este lote
+ * (vaciar el carrito se los lleva), el del conflicto y los que faltaban por intentar. Los que
+ * el API rechazó por otro motivo (agotado, sin precio…) no se repiten: ya se avisaron.
+ */
+export function bundlePendingAfterCountryChange<T>(
+  products: readonly T[],
+  addedBefore: readonly number[],
+  conflictIndex: number,
+): T[] {
+  return products.filter((_, index) => (index < conflictIndex ? (addedBefore[index] ?? 0) > 0 : true));
+}
+
 // ---------------------------------------------------------------------------
 // Escape dentro del campo de cantidad (drawer)
 // ---------------------------------------------------------------------------

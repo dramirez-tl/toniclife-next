@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ProductImage } from '@/components/storefront/ProductImage';
 import { useCart, useRemoveCartItem, useUpdateCartItem } from '@/hooks/useCart';
-import { useStoreCountry } from '@/hooks/useStoreCountry';
+import { useAccountStoreCountry, useStoreCountry } from '@/hooks/useStoreCountry';
 import { useStorefrontViewer } from '@/hooks/useStorefront';
 import { Link, usePathname } from '@/i18n/routing';
 import {
@@ -39,8 +39,8 @@ import {
   cartCountryKnown,
   cartCountryMismatch,
   cartDisplayCurrency,
+  mismatchCheckoutLocale,
   pinnedCartCountry,
-  storeLocaleFor,
 } from '@/lib/storefront/cart-country';
 import {
   cartBlockers,
@@ -112,6 +112,7 @@ function CartDrawerBody({ titleRef, closeLabel }: { titleRef: React.RefObject<HT
   const tBlocked = useTranslations('storefront.cart.blocked');
   const { currency, lang, countryCode } = useStoreCountry();
   const { hasCustomerSession } = useStorefrontViewer();
+  const accountStoreCountry = useAccountStoreCountry();
   const { data: cart, isLoading, isError, refetch } = useCart();
   const updateItem = useUpdateCartItem();
   const removeItem = useRemoveCartItem();
@@ -134,7 +135,8 @@ function CartDrawerBody({ titleRef, closeLabel }: { titleRef: React.RefObject<HT
     itemCount: items.length,
   });
   // Carrito de otro país: se paga en SU tienda (el checkout de esta respondería CHK_COUNTRY_MISMATCH).
-  const checkoutLocale = countryMismatch ? storeLocaleFor(lang, countryMismatch.cartCountry) ?? undefined : undefined;
+  // Con sesión manda la cuenta: sin salto de locale (el aviso ofrece vaciar el carrito).
+  const checkoutLocale = mismatchCheckoutLocale(lang, countryMismatch, accountStoreCountry);
   const slugs = items.map(lineSlug).filter((slug): slug is string => slug !== null);
   const busy = updateItem.isPending || removeItem.isPending;
 

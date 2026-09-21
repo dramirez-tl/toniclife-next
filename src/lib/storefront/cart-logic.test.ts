@@ -5,6 +5,7 @@ import {
   QTY_DRAFT_ATTR,
   addedQuantity,
   bundleAddOutcome,
+  bundlePendingAfterCountryChange,
   buyNowDestination,
   capReason,
   cartBlockers,
@@ -458,5 +459,27 @@ describe('escapeCancelsQuantityDraft (Escape en el campo de cantidad no cierra e
     expect(escapeCancelsQuantityDraft(null)).toBe(false);
     expect(escapeCancelsQuantityDraft(undefined)).toBe(false);
     expect(escapeCancelsQuantityDraft({})).toBe(false);
+  });
+});
+
+describe('bundlePendingAfterCountryChange (paquete del quiz cortado por CART_COUNTRY_CHANGE)', () => {
+  const bundle = ['a', 'b', 'c'];
+
+  it('conflicto en el PRIMER producto (lo normal): quedan pendientes los tres', () => {
+    expect(bundlePendingAfterCountryChange(bundle, [], 0)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('lo que ya había entrado en el lote también se re-agrega: vaciar el carrito se lo lleva', () => {
+    expect(bundlePendingAfterCountryChange(bundle, [1], 1)).toEqual(['a', 'b', 'c']);
+    expect(bundlePendingAfterCountryChange(bundle, [1, 1], 2)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('lo que el API rechazó por OTRO motivo antes del conflicto no se repite', () => {
+    expect(bundlePendingAfterCountryChange(bundle, [0], 1)).toEqual(['b', 'c']);
+    expect(bundlePendingAfterCountryChange(bundle, [1, 0], 2)).toEqual(['a', 'c']);
+  });
+
+  it('paquete vacío: nada', () => {
+    expect(bundlePendingAfterCountryChange([], [], 0)).toEqual([]);
   });
 });

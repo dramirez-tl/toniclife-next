@@ -4,12 +4,15 @@ import {
   cartCountryKnown,
   cartCountryMismatch,
   cartDisplayCurrency,
+  conflictItemCount,
+  countryConflictAction,
   countryConflictOf,
   countryDisplayName,
   createCountrySupportMemo,
   effectiveCartCountry,
   isCheckoutCountryMismatch,
   isUnknownCountryFieldError,
+  mismatchCheckoutLocale,
   normalizeCountryCode,
   normalizeCurrencyCode,
   pinnedCartCountry,
@@ -231,5 +234,61 @@ describe('compatibilidad con un API que aún no conoce `country`', () => {
     expect(send).toHaveBeenNthCalledWith(1, { productId: 'p1', quantity: 1 });
     expect(send).toHaveBeenNthCalledWith(2, { productId: 'p1', quantity: 1 });
     expect(memo.shouldSend()).toBe(true);
+  });
+});
+
+describe('countryConflictAction (con sesión manda la CUENTA)', () => {
+  it('cuenta con tienda propia distinta a la del carrito: la salida es vaciar y fijar el país de la cuenta', () => {
+    expect(countryConflictAction({ accountStoreCountry: 'MX', cartCountry: 'US' })).toEqual({ kind: 'empty_for_account', accountCountry: 'MX' });
+    expect(countryConflictAction({ accountStoreCountry: 'us', cartCountry: 'MX' })).toEqual({ kind: 'empty_for_account', accountCountry: 'US' });
+  });
+
+  it('carrito de país desconocido cuenta como distinto (el API ya dijo que no coincide)', () => {
+    expect(countryConflictAction({ accountStoreCountry: 'MX', cartCountry: null })).toEqual({ kind: 'empty_for_account', accountCountry: 'MX' });
+    expect(countryConflictAction({ accountStoreCountry: 'MX', cartCountry: undefined })).toEqual({ kind: 'empty_for_account', accountCountry: 'MX' });
+  });
+
+  it('invitado, o cuenta sin tienda propia (FN, CO, GT: manda el locale): se conserva el enlace a la tienda del carrito', () => {
+    expect(countryConflictAction({ accountStoreCountry: undefined, cartCountry: 'US' })).toEqual({ kind: 'cart_store_link' });
+    expect(countryConflictAction({ accountStoreCountry: null, cartCountry: 'MX' })).toEqual({ kind: 'cart_store_link' });
+    expect(countryConflictAction({ accountStoreCountry: '', cartCountry: 'MX' })).toEqual({ kind: 'cart_store_link' });
+  });
+
+  it('el carrito YA es del país de la cuenta: nada que vaciar por la cuenta', () => {
+    expect(countryConflictAction({ accountStoreCountry: 'MX', cartCountry: 'mx' })).toEqual({ kind: 'cart_store_link' });
+  });
+});
+
+describe('mismatchCheckoutLocale ("Pagar" con carrito de otro país)', () => {
+  const mismatch = { cartCountry: 'US', storeCountry: 'MX' };
+
+  it('invitado: al checkout de la tienda DEL CARRITO, en el idioma actual', () => {
+    expect(mismatchCheckoutLocale('es', mismatch, undefined)).toBe('es-us');
+    expect(mismatchCheckoutLocale('en', mismatch, null)).toBe('en-us');
+  });
+
+  it('sesión con tienda propia de la cuenta: sin salto de locale (no serviría: manda la cuenta)', () => {
+    expect(mismatchCheckoutLocale('es', mismatch, 'MX')).toBeUndefined();
+  });
+
+  it('sin carrito de otro país, o país sin tienda: sin salto', () => {
+    expect(mismatchCheckoutLocale('es', null, undefined)).toBeUndefined();
+    expect(mismatchCheckoutLocale('es', { cartCountry: 'AR', storeCountry: 'MX' }, undefined)).toBeUndefined();
+  });
+});
+
+describe('conflictItemCount (cuántos productos se pierden al vaciar)', () => {
+  it('lee details.itemCount del 409 CART_COUNTRY_CHANGE', () => {
+    const err = apiError(409, { code: 'CART_COUNTRY_CHANGE', details: { cartCountry: 'MX', requestedCountry: 'US', itemCount: 3 } });
+    expect(conflictItemCount(err)).toBe(3);
+  });
+
+  it('sin dato, cero, negativo, decimal o texto: null (el diálogo usa el carrito en caché)', () => {
+    expect(conflictItemCount(apiError(409, { code: 'CHK_COUNTRY_MISMATCH', details: { cartCountry: 'MX' } }))).toBeNull();
+    for (const itemCount of [0, -1, 1.5, '3', null]) {
+      expect(conflictItemCount(apiError(409, { code: 'CART_COUNTRY_CHANGE', details: { itemCount } }))).toBeNull();
+    }
+    expect(conflictItemCount(new Error('Network Error'))).toBeNull();
+    expect(conflictItemCount(undefined)).toBeNull();
   });
 });

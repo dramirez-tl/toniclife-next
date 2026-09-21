@@ -32,6 +32,17 @@ export function readyAccountCountry(code?: string | null): CountryCode | undefin
   return COUNTRIES.find((c) => c.code === up && c.ready)?.code;
 }
 
+/**
+ * País con tienda de la CUENTA en sesión (MX/US), o `undefined` para un invitado o una cuenta
+ * cuyo país aún no tiene tienda propia. Es la MISMA regla con la que `useStoreCountry` decide
+ * que la cuenta manda sobre el locale: con este país se agregan productos y se paga.
+ */
+export function useAccountStoreCountry(): CountryCode | undefined {
+  const user = useAppSelector(selectUser);
+  const isAuth = useAppSelector(selectIsAuthenticated);
+  return isAuth ? readyAccountCountry(user?.countryCode) : undefined;
+}
+
 export interface StoreCountry {
   locale: string;
   countryCode: CountryCode;

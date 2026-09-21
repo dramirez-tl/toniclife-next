@@ -4,7 +4,7 @@
 // (`CartCountryDialog`, montado una vez en el layout de `[locale]`) lo lee con
 // `useSyncExternalStore`. En el servidor siempre está cerrado.
 
-import { countryConflictOf, isCheckoutCountryMismatch, type CountryConflict } from './cart-country';
+import { conflictItemCount, countryConflictOf, isCheckoutCountryMismatch, type CountryConflict } from './cart-country';
 
 /** Alta que el API rechazó por país; se repite tal cual tras "Vaciar y cambiar". */
 export interface PendingCartAdd {
@@ -12,9 +12,18 @@ export interface PendingCartAdd {
   quantity: number;
 }
 
+interface ConflictInfo extends CountryConflict {
+  /** Líneas que se pierden al vaciar, si el API lo dijo (`details.itemCount`); si no, el diálogo usa el carrito en caché. */
+  itemCount: number | null;
+}
+
 export type CartCountryDialogState =
-  | ({ kind: 'cart_country_change'; pending: PendingCartAdd } & CountryConflict)
-  | ({ kind: 'checkout_country_mismatch' } & CountryConflict);
+  /**
+   * `pending`: TODAS las altas por repetir tras vaciar, en orden. Una sola desde el catálogo;
+   * el paquete completo desde el quiz; vacío cuando lo abre el aviso del carrito (solo vaciar).
+   */
+  | ({ kind: 'cart_country_change'; pending: PendingCartAdd[] } & ConflictInfo)
+  | ({ kind: 'checkout_country_mismatch' } & ConflictInfo);
 
 let state: CartCountryDialogState | null = null;
 // El diálogo es controlado y SIN trigger de Radix: quien lo provoca deja aquí el
@@ -52,9 +61,50 @@ function open(next: CartCountryDialogState): void {
   emit();
 }
 
-/** 409 `CART_COUNTRY_CHANGE` al agregar: ofrece "Vaciar y cambiar" o seguir en la tienda del carrito. */
-export function openCartCountryChange(conflict: CountryConflict, pending: PendingCartAdd): void {
-  open({ kind: 'cart_country_change', pending, ...conflict });
+/** Una entrada por producto (la primera gana) y solo cantidades válidas. */
+function cleanPending(list: readonly PendingCartAdd[]): PendingCartAdd[] {
+  const seen = new Set<string>();
+  const out: PendingCartAdd[] = [];
+  for (const item of list) {
+    if (!item || typeof item.productId !== 'string' || !item.productId || seen.has(item.productId)) continue;
+    if (!Number.isFinite(item.quantity) || item.quantity <= 0) continue;
+    seen.add(item.productId);
+    out.push({ productId: item.productId, quantity: item.quantity });
+  }
+  return out;
+}
+
+/**
+ * 409 `CART_COUNTRY_CHANGE` al agregar (o el aviso del carrito, con `pending` vacío): ofrece
+ * vaciar el carrito y cambiarlo de país, o conservarlo.
+ */
+export function openCartCountryChange(
+  conflict: CountryConflict & { itemCount?: number | null },
+  pending: PendingCartAdd | readonly PendingCartAdd[],
+): void {
+  const list = Array.isArray(pending) ? (pending as readonly PendingCartAdd[]) : [pending as PendingCartAdd];
+  open({
+    kind: 'cart_country_change',
+    cartCountry: conflict.cartCountry,
+    requestedCountry: conflict.requestedCountry,
+    itemCount: conflict.itemCount ?? null,
+    pending: cleanPending(list),
+  });
+}
+
+/**
+ * Lote (paquete del quiz): tras el PRIMER `CART_COUNTRY_CHANGE` el lote se corta y aquí se
+ * anotan los demás productos, para que "Vaciar y cambiar" los re-agregue TODOS y no solo el
+ * último. Sin diálogo de cambio de país abierto no hace nada. Devuelve cuántos quedaron pendientes.
+ */
+export function addPendingToCartCountryChange(extra: readonly PendingCartAdd[]): number {
+  if (state?.kind !== 'cart_country_change') return 0;
+  const pending = cleanPending([...state.pending, ...extra]);
+  if (pending.length !== state.pending.length) {
+    state = { ...state, pending };
+    emit();
+  }
+  return pending.length;
 }
 
 /**
@@ -64,7 +114,7 @@ export function openCartCountryChange(conflict: CountryConflict, pending: Pendin
  */
 export function reportCheckoutCountryMismatch(err: unknown): boolean {
   if (!isCheckoutCountryMismatch(err)) return false;
-  open({ kind: 'checkout_country_mismatch', ...countryConflictOf(err) });
+  open({ kind: 'checkout_country_mismatch', ...countryConflictOf(err), itemCount: conflictItemCount(err) });
   return true;
 }
 

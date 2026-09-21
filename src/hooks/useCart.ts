@@ -10,7 +10,7 @@ import { cartService } from '@/services/cart.service';
 import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { localeLanguage } from '@/i18n/config';
 import { catalogErrorMessage, catalogErrorStatus } from '@/lib/storefront/errors';
-import { countryConflictOf, countryDisplayName, normalizeCountryCode } from '@/lib/storefront/cart-country';
+import { conflictItemCount, countryConflictOf, countryDisplayName, normalizeCountryCode } from '@/lib/storefront/cart-country';
 import { openCartCountryChange } from '@/lib/storefront/cart-country-dialog-store';
 import { capReason, mapCartError, planStockAdjust, type CapReason } from '@/lib/storefront/cart-logic';
 import { classifyMergeError, normalizeMergeResponse, type MergeResult } from '@/lib/storefront/cart-merge';
@@ -204,7 +204,10 @@ export const useAddCartItem = () => {
       if (mapCartError(err).kind === 'country_change') {
         const cached = queryClient.getQueryData<Cart>(cartKeys.cart());
         openCartCountryChange(
-          countryConflictOf(err, { cartCountry: cached?.countryCode, requestedCountry: data.country ?? countryCode }),
+          {
+            ...countryConflictOf(err, { cartCountry: cached?.countryCode, requestedCountry: data.country ?? countryCode }),
+            itemCount: conflictItemCount(err),
+          },
           { productId: data.productId, quantity: data.quantity },
         );
         // El carrito en caché puede ser viejo (otra pestaña o dispositivo): que el aviso de país lo vea.
@@ -338,7 +341,9 @@ export type MergeCartsOutcome =
   /** El API respondió con ERROR que el carrito de invitado es de otro país: no se mezcló. */
   | { status: 'country_mismatch' }
   /** API sin `POST /cart/merge` (404/405): silencio, y no se marca como hecho. */
-  | { status: 'unsupported' };
+  | { status: 'unsupported' }
+  /** 403 `CART_MERGE_CUSTOMER_REQUIRED`: la sesión no es de cliente; silencio y se marca como hecho. */
+  | { status: 'not_applicable' };
 
 /**
  * C3: `POST /cart/merge` con el `x-session-id` de INVITADO que se le pasa (nunca crea uno).

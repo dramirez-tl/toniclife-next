@@ -135,6 +135,53 @@ export function countryConflictOf(
   };
 }
 
+/** `details.itemCount` del 409 `CART_COUNTRY_CHANGE`: líneas que se perderían al vaciar; `null` si no viene. */
+export function conflictItemCount(err: unknown): number | null {
+  const value = catalogErrorDetails(err).itemCount;
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null;
+}
+
+// ---------------------------------------------------------------------------
+// Con sesión manda la CUENTA
+// ---------------------------------------------------------------------------
+
+/**
+ * Salida que se ofrece ante un carrito de OTRO país.
+ * - `empty_for_account`: hay sesión y la cuenta tiene tienda propia (MX/US) distinta a la del
+ *   carrito. Con sesión el front manda SIEMPRE el país de la cuenta (altas y checkout), así que
+ *   un enlace a la tienda del carrito no resuelve nada: la única salida real es vaciar el
+ *   carrito y fijarle el país de la cuenta (`PUT /cart/country { country, clearItems: true }`).
+ * - `cart_store_link`: invitado, o cuenta cuyo país aún no tiene tienda (ahí manda el locale):
+ *   el enlace a la tienda del país del carrito sí funciona.
+ */
+export type CountryConflictAction = { kind: 'empty_for_account'; accountCountry: string } | { kind: 'cart_store_link' };
+
+export function countryConflictAction(input: {
+  /** País con tienda de la CUENTA en sesión (`useAccountStoreCountry`); vacío = invitado o cuenta sin tienda propia. */
+  accountStoreCountry: unknown;
+  /** País del carrito; desconocido cuenta como distinto (el API ya dijo que no coincide). */
+  cartCountry: unknown;
+}): CountryConflictAction {
+  const account = normalizeCountryCode(input.accountStoreCountry);
+  if (!account || account === normalizeCountryCode(input.cartCountry)) return { kind: 'cart_store_link' };
+  return { kind: 'empty_for_account', accountCountry: account };
+}
+
+/**
+ * Locale del enlace "Pagar" cuando el carrito es de otro país: el de la tienda DEL CARRITO
+ * (ahí el checkout manda su mismo país). Con sesión y tienda propia de la cuenta NO se salta
+ * de locale: en cualquier URL el checkout mandaría el país de la cuenta.
+ */
+export function mismatchCheckoutLocale(
+  lang: LanguageCode,
+  mismatch: CartCountryMismatch | null,
+  accountStoreCountry: unknown,
+): string | undefined {
+  if (!mismatch) return undefined;
+  if (countryConflictAction({ accountStoreCountry, cartCountry: mismatch.cartCountry }).kind === 'empty_for_account') return undefined;
+  return storeLocaleFor(lang, mismatch.cartCountry) ?? undefined;
+}
+
 /** 409 del checkout autenticado: el país del pedido no es el del carrito (fail-closed del API). */
 export function isCheckoutCountryMismatch(err: unknown): boolean {
   return catalogErrorCode(err) === 'CHK_COUNTRY_MISMATCH';
