@@ -63,9 +63,9 @@ import { toast } from 'sonner';
 import { confirmAction } from '@/lib/utils';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { useFulfillmentRoutes } from '@/hooks/useFulfillment';
-import { useFulfillmentPermissions } from '@/components/admin/fulfillment/useFulfillmentPermissions';
 import {
-  deactivateBranchWarning,
+  branchOffDialogText,
+  canReadBranchRoutes,
   type BranchOffAction,
   shippingBadgeText,
   shippingCountriesByBranch,
@@ -467,10 +467,13 @@ function SucursalesContent() {
   // Rutas de surtido del ecommerce (mig 144): solo lectura aquí. Sirve para el
   // badge "Envía a: …" y para avisar ANTES de desactivar una sucursal que surte
   // envíos (el país se quedaría sin envío sin pasar por Almacenes y envíos).
-  // Sin permiso de lectura no se consulta; si el API aún no lo tiene, no insiste.
-  const { canRead: canReadFulfillment } = useFulfillmentPermissions();
-  const { data: fulfillmentRoutes } = useFulfillmentRoutes({ enabled: canReadFulfillment, retry: false });
+  // La consulta corre para TODO el que puede desactivar o eliminar (branches:update /
+  // branches:delete) además de los de rutas: el API los admite en GET /fulfillment/routes.
+  // Si la consulta falla (o no ha llegado), el diálogo lo dice: nunca se calla.
+  const canReadBranchRouting = canReadBranchRoutes(sucUserPermissions, sucUserRoles);
+  const { data: fulfillmentRoutes } = useFulfillmentRoutes({ enabled: canReadBranchRouting, retry: false });
   const shippingByBranch = useMemo(() => shippingCountriesByBranch(fulfillmentRoutes), [fulfillmentRoutes]);
+  const branchRoutesKnown = !canReadBranchRouting || !!fulfillmentRoutes;
   // Desactivar y ELIMINAR pasan por el mismo aviso: eliminar es un borrado lógico
   // (is_active = false), así que deja sin envío a los mismos países.
   const [deactivateTarget, setDeactivateTarget] = useState<{ branch: Branch; action: BranchOffAction } | null>(null);
@@ -615,7 +618,7 @@ function SucursalesContent() {
 
   const handleToggleActive = async (branch: Branch, confirmed = false) => {
     // Desactivar una sucursal con rutas de envío activas pide confirmación primero.
-    if (branch.isActive && !confirmed && deactivateBranchWarning(shippingByBranch[branch.id] ?? [])) {
+    if (branch.isActive && !confirmed && branchOffDialogText(shippingByBranch[branch.id], 'deactivate', branchRoutesKnown)) {
       setDeactivateTarget({ branch, action: 'deactivate' });
       return;
     }
@@ -636,7 +639,7 @@ function SucursalesContent() {
     // Una sucursal activa con rutas de envío activas: el MISMO aviso que al desactivarla
     // (sustituye a la confirmación genérica, no se pregunta dos veces).
     if (!confirmed) {
-      if (branch.isActive && deactivateBranchWarning(shippingByBranch[branch.id] ?? [], 'delete')) {
+      if (branch.isActive && branchOffDialogText(shippingByBranch[branch.id], 'delete', branchRoutesKnown)) {
         setDeactivateTarget({ branch, action: 'delete' });
         return;
       }
@@ -1229,7 +1232,7 @@ function SucursalesContent() {
         }
         description={
           deactivateTarget
-            ? deactivateBranchWarning(shippingByBranch[deactivateTarget.branch.id] ?? [], deactivateTarget.action)
+            ? branchOffDialogText(shippingByBranch[deactivateTarget.branch.id], deactivateTarget.action, branchRoutesKnown)
             : undefined
         }
         confirmLabel={deactivateTarget?.action === 'delete' ? 'Eliminar de todos modos' : 'Desactivar de todos modos'}

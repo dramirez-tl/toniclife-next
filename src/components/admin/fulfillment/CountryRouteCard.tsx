@@ -15,10 +15,12 @@ import {
   MAX_ROUTES_PER_COUNTRY,
   countryStatus,
   isCrossCountryRoute,
+  noOwnStoreText,
   resolveCountry,
   type DraftRoute,
   type RoutingContext,
 } from '@/lib/fulfillment/route-draft';
+import { noOnlineShippingText } from '@/lib/fulfillment/route-texts';
 import type {
   FulfillmentCountry,
   FulfillmentDiagnosticsCountry,
@@ -53,6 +55,11 @@ interface CountryRouteCardProps {
   countryNames: Record<string, string>;
   /** País del que se pueden copiar los almacenes (FN → México), si aplica. */
   copyFrom: { countryCode: string; countryName: string } | null;
+  /**
+   * País SIN tienda propia (Frontera): nombre de su país fiscal. Sus clientes compran en
+   * esa tienda y les surte ese almacén, así que "sin almacén" aquí es informativo, no un error.
+   */
+  fiscalParentName?: string | null;
   onMove: (index: number, direction: -1 | 1) => void;
   onToggleActive: (branchId: string, isActive: boolean) => void;
   onNotesChange: (branchId: string, notes: string | null) => void;
@@ -75,6 +82,7 @@ export function CountryRouteCard({
   showSkipToSave = false,
   countryNames,
   copyFrom,
+  fiscalParentName = null,
   onMove,
   onToggleActive,
   onNotesChange,
@@ -89,6 +97,8 @@ export function CountryRouteCard({
   const store = storeStatus(code);
   const flag = countryFlag(code);
   const losesShipping = resolvedBefore && !resolved;
+  // Sin tienda propia y sin almacén: compra en la tienda de su país fiscal (no es un error).
+  const buysInParentStore = status === 'no_warehouse' && !!fiscalParentName;
 
   // El foco nunca se pierde (§7.4):
   //  · al MOVER una fila se queda en ella: el botón pulsado, o el contrario si
@@ -169,11 +179,11 @@ export function CountryRouteCard({
               {STORE_STATUS_LABELS[store]}
             </Badge>
             <Badge
-              variant={status === 'ready' ? 'info' : status === 'no_warehouse' && country.sellableProducts === 0 ? 'outline' : status === 'cross_pending' ? 'warning' : 'destructive'}
+              variant={status === 'ready' ? 'info' : buysInParentStore || (status === 'no_warehouse' && country.sellableProducts === 0) ? 'outline' : status === 'cross_pending' ? 'warning' : 'destructive'}
               className="whitespace-normal text-left"
             >
-              {status === 'ready' ? <CircleCheck aria-hidden /> : <CircleAlert aria-hidden />}
-              {shippingStatusLabel(status, resolved)}
+              {status === 'ready' ? <CircleCheck aria-hidden /> : buysInParentStore ? <Info aria-hidden /> : <CircleAlert aria-hidden />}
+              {buysInParentStore ? `Compra en la tienda de ${fiscalParentName}` : shippingStatusLabel(status, resolved)}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -187,7 +197,7 @@ export function CountryRouteCard({
             <TriangleAlert aria-hidden />
             <AlertTitle>Con este cambio {name} se queda sin envío a domicilio</AlertTitle>
             <AlertDescription>
-              Nadie podrá pedir con envío a {name} hasta que haya un almacén activo en esta lista.
+              {noOnlineShippingText(`a ${name}`, 'haya un almacén activo en esta lista')}
             </AlertDescription>
           </Alert>
         )}
@@ -195,7 +205,9 @@ export function CountryRouteCard({
         {routes.length === 0 ? (
           <div className="rounded-lg border border-dashed p-4 text-sm">
             <p className="text-foreground">
-              {name} no tiene almacén: hoy no se puede enviar a clientes de {name}.
+              {fiscalParentName
+                ? noOwnStoreText(name, fiscalParentName)
+                : `${name} no tiene almacén: hoy no se puede enviar a clientes de ${name}.`}
             </p>
             {canEdit && copyFrom && (
               <>

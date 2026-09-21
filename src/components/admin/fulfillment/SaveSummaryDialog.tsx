@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MAX_NOTES_LENGTH, type DraftRoute } from '@/lib/fulfillment/route-draft';
 import { changeKey, confirmTextForCountries, describeChange, type RouteChange } from '@/lib/fulfillment/route-diff';
+import { GAINING_STOCK_NOTE, SAVE_SUMMARY_DESCRIPTION, noOnlineShippingText } from '@/lib/fulfillment/route-texts';
 import { numberFormat, storeStatus, warehouseLabel } from './fulfillment-ui';
 
 /** País que hoy no tiene almacén y con este guardado empieza a tenerlo (p. ej. Frontera con los de México). */
@@ -82,7 +83,7 @@ export function SaveSummaryDialog({
       open
       onOpenChange={(open) => !open && onClose()}
       title={destructive ? 'Revisa bien: un país se queda sin envío' : 'Revisar y guardar'}
-      description="Esto es lo que va a cambiar. Aplica en la tienda en menos de un minuto."
+      description={SAVE_SUMMARY_DESCRIPTION}
       confirmLabel={destructive ? 'Guardar de todos modos' : 'Guardar cambios'}
       cancelLabel="Seguir editando"
       confirmText={confirmText}
@@ -108,7 +109,7 @@ export function SaveSummaryDialog({
                 </li>
               ))}
             </ul>
-            <p className="mt-2">Nadie podrá pedir con envío a domicilio ahí hasta que vuelvas a poner un almacén activo.</p>
+            <p className="mt-2">{noOnlineShippingText('ahí', 'vuelvas a poner un almacén activo')}</p>
           </div>
         )}
 
@@ -157,10 +158,7 @@ export function SaveSummaryDialog({
                 </li>
               ))}
             </ul>
-            <p className="mt-2">
-              Hoy, como ese país no tiene almacén, su carrito muestra todo como disponible. Al guardar, lo que no tenga
-              existencias en ese almacén les aparecerá como agotado, en menos de un minuto.
-            </p>
+            <p className="mt-2">{GAINING_STOCK_NOTE}</p>
           </div>
         )}
 

@@ -65,6 +65,7 @@ import {
   describeStockModeChange,
   diffRoutes,
 } from '@/lib/fulfillment/route-diff';
+import { PROPAGATION_NOTE, SAVED_TOAST_TITLE, appliedNoticeMessages, routingSubtitle } from '@/lib/fulfillment/route-texts';
 import {
   STRUCTURAL_WARNING_CODES,
   addRoute,
@@ -73,6 +74,8 @@ import {
   buildRoutingContext,
   buildSavePayload,
   copyCountryRoutes,
+  copyableRoutes,
+  fiscalParentName,
   isCrossCountryRoute,
   mergeWarnings,
   moveRoute,
@@ -88,7 +91,8 @@ import {
   type DraftWarehouse,
   type RouteDraft,
 } from '@/lib/fulfillment/route-draft';
-import type { FulfillmentCountry } from '@/types/fulfillment';
+import { productsAdminService } from '@/services/products-admin.service';
+import type { FulfillmentCountry, FulfillmentStockMode } from '@/types/fulfillment';
 
 const ADD_ERROR_TEXT: Record<AddRouteError, string> = {
   duplicate: 'Ese almacén ya está en la lista de este país.',
@@ -361,11 +365,13 @@ function RutasEnvioContent() {
         reset();
         setServerLosing([]);
         setSaveOpen(false);
-        toast.success('Cambios guardados. Aplican en la tienda en menos de un minuto.');
-        setAnnouncement('Cambios guardados.');
-        if (response.applied?.some((a) => a.notice === 'cross_country_blocked')) {
-          toast.info('Una ruta entre países quedó configurada, pero todavía no surte pedidos.');
-        }
+        toast.success(SAVED_TOAST_TITLE, { description: PROPAGATION_NOTE });
+        setAnnouncement(`${SAVED_TOAST_TITLE} ${PROPAGATION_NOTE}`);
+        // La disponibilidad del catálogo sale de las rutas: se pide a Next invalidarlo ya.
+        // Es una optimización que nunca lanza (sin products:read la ruta responde 403 y
+        // queda el TTL); por eso el texto no promete el catálogo "en menos de un minuto".
+        void productsAdminService.revalidateCatalog([]);
+        for (const n of appliedNoticeMessages(response.applied, countryNames)) toast.info(n.message);
       },
       onError: (error) => {
         if (isVersionConflict(error)) {
@@ -424,8 +430,9 @@ function RutasEnvioContent() {
     const routes = draft.countries[code] ?? [];
     const fiscal = ctx.fiscalByCountry[code];
     const parent = fiscal && fiscal !== code ? countries.find((c) => c.countryCode === fiscal) : undefined;
+    // Solo se ofrece copiar lo que el API aceptaría: rutas hacia sucursales activas.
     const copyFrom =
-      routes.length === 0 && parent && (draft.countries[parent.countryCode] ?? []).length > 0
+      routes.length === 0 && parent && copyableRoutes(draft, parent.countryCode).length > 0
         ? { countryCode: parent.countryCode, countryName: parent.countryName }
         : null;
     return (
@@ -444,6 +451,7 @@ function RutasEnvioContent() {
         showSkipToSave={changeCount > 0}
         countryNames={countryNames}
         copyFrom={copyFrom}
+        fiscalParentName={fiscalParentName(code, countries, ctx)}
         onMove={(index, direction) => handleMove(code, index, direction)}
         onToggleActive={(branchId, isActive) => handleToggle(code, branchId, isActive)}
         onNotesChange={(branchId, notes) => update((d) => setRouteNotes(d, code, branchId, notes))}
@@ -459,7 +467,7 @@ function RutasEnvioContent() {
   };
 
   return (
-    <Shell onSimulate={() => setSimulatorOpen(true)} onHistory={() => setHistoryOpen(true)}>
+    <Shell stockMode={draft.stockMode} onSimulate={() => setSimulatorOpen(true)} onHistory={() => setHistoryOpen(true)}>
       <div className={`space-y-5 ${changeCount > 0 ? 'pb-32 sm:pb-24' : ''}`}>
         <p aria-live="polite" role="status" className="sr-only">
           {announcement}
@@ -638,10 +646,13 @@ function RutasEnvioContent() {
 
 function Shell({
   children,
+  stockMode = null,
   onSimulate,
   onHistory,
 }: {
   children: React.ReactNode;
+  /** Modo de varios almacenes del borrador: el subtítulo lo refleja (null = aún no cargó). */
+  stockMode?: FulfillmentStockMode | null;
   onSimulate: (() => void) | null;
   onHistory: (() => void) | null;
 }) {
@@ -659,10 +670,7 @@ function Shell({
             <TruckIcon aria-hidden className="h-9 w-9 shrink-0" />
             <h1 className="text-2xl font-bold sm:text-4xl">¿Desde dónde enviamos a cada país?</h1>
           </div>
-          <p className="max-w-3xl text-base text-white/80 sm:text-lg">
-            Elige qué almacén surte los pedidos con envío a domicilio de cada país. Si un país tiene varios almacenes, se
-            usa el primero de la lista que pueda surtir el pedido completo.
-          </p>
+          <p className="max-w-3xl text-base text-white/80 sm:text-lg">{routingSubtitle(stockMode)}</p>
           {(onSimulate || onHistory) && (
             <div className="mt-4 flex flex-wrap gap-2">
               {onSimulate && (
@@ -677,7 +685,7 @@ function Shell({
               )}
             </div>
           )}
-          <p className="mt-3 text-sm text-white/90">Los cambios aplican en la tienda en menos de un minuto.</p>
+          <p className="mt-3 max-w-3xl text-sm text-white/90">{PROPAGATION_NOTE}</p>
         </div>
       </div>
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">{children}</div>
