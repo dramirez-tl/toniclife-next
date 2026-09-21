@@ -9,10 +9,12 @@ export const BRAND_NAME = 'Tonic Life';
 
 type JsonLd = Record<string, unknown>;
 
-const AVAILABILITY_URL: Record<StorefrontAvailability, string> = {
+const AVAILABILITY_URL: Record<StorefrontAvailability, string | null> = {
   in_stock: 'https://schema.org/InStock',
   low_stock: 'https://schema.org/InStock',
   out_of_stock: 'https://schema.org/OutOfStock',
+  // Sin dato de disponibilidad no se declara ninguna (mejor omitir que inventar).
+  unknown: null,
 };
 
 /** Precio con 2 decimales y punto decimal, como pide schema.org ("1121.00"). */
@@ -60,7 +62,9 @@ export function buildProductJsonLd(
       url,
       price: priceString(product.price),
       priceCurrency: currencyCode.toUpperCase(),
-      availability: AVAILABILITY_URL[product.availability],
+      ...(AVAILABILITY_URL[product.availability]
+        ? { availability: AVAILABILITY_URL[product.availability] }
+        : {}),
       itemCondition: 'https://schema.org/NewCondition',
     },
   };

@@ -159,3 +159,17 @@ export function toStorefrontQuery(
   if (state.max !== null) query.maxPrice = String(state.max);
   return query;
 }
+
+/** 1 … 4 [5] 6 … 12 (siempre primera, última y vecinas de la actual). */
+export function pageWindow(current: number, totalPages: number): (number | 'gap')[] {
+  const pages = new Set<number>([1, totalPages, current - 1, current, current + 1]);
+  if (current <= 3) [2, 3, 4].forEach((p) => pages.add(p));
+  if (current >= totalPages - 2) [totalPages - 1, totalPages - 2, totalPages - 3].forEach((p) => pages.add(p));
+  const sorted = [...pages].filter((p) => p >= 1 && p <= totalPages).sort((a, b) => a - b);
+  const out: (number | 'gap')[] = [];
+  sorted.forEach((page, index) => {
+    if (index > 0 && page - sorted[index - 1] > 1) out.push('gap');
+    out.push(page);
+  });
+  return out;
+}

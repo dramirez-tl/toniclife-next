@@ -1,7 +1,9 @@
 // Tipos del contrato público `/storefront/*` (API, sección 6.1 del contrato
 // ecommerce). DTOs en camelCase, números como `number`, opcionales como `null`.
 
-export type StorefrontAvailability = 'in_stock' | 'low_stock' | 'out_of_stock';
+// 'unknown' NO lo emite el API: es el valor del front cuando la disponibilidad no
+// llega o no se reconoce (no se promete existencia ni se marca Agotado).
+export type StorefrontAvailability = 'in_stock' | 'low_stock' | 'out_of_stock' | 'unknown';
 export type StorefrontPriceTier = 'public' | 'preferred' | 'distributor';
 export type StorefrontProductType = 'product' | 'pack';
 export type StorefrontLang = 'es' | 'en';
@@ -59,6 +61,12 @@ export interface StorefrontProductComponent {
 }
 
 export interface StorefrontProductDetail extends StorefrontProductCard {
+  /**
+   * Moneda del precio. El contrato del detalle no la trae suelta: el front la toma
+   * de `currencyCode` si el API la manda, si no de `shipping.currencyCode` (misma
+   * moneda: ambas salen de `countries.currency_code`) y, en ultimo caso, del pais.
+   */
+  currencyCode: string;
   description: string | null;
   longDescription: string | null;
   content: StorefrontProductContent;
@@ -111,4 +119,24 @@ export interface StorefrontSitemapItem {
   slug: string;
   updatedAt: string | null;
   imageUrl: string | null;
+}
+
+export interface StorefrontSuggestProduct {
+  slug: string;
+  name: string;
+  imageUrl: string | null;
+  price: number | null;
+  currencyCode: string;
+}
+
+/** `GET /storefront/products/suggest`. */
+export interface StorefrontSuggestResponse {
+  products: StorefrontSuggestProduct[];
+  categories: StorefrontCategoryRef[];
+}
+
+/** Contexto común de toda lectura de tienda: país ISO2 + idioma. */
+export interface StorefrontContext {
+  country: string;
+  lang: StorefrontLang;
 }

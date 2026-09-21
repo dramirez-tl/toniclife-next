@@ -7,7 +7,17 @@
 // y el llamador degrada (sitemap sin productos) en vez de romper el build.
 
 import type { CountryCode } from '@/i18n/config';
-import type { StorefrontCategory, StorefrontLang, StorefrontSitemapItem } from './types';
+import { toStorefrontQuery, type CatalogState } from './catalog-params';
+import { normalizeDetailResponse, normalizeListResponse } from './normalize';
+import { currencyForCountry } from './price';
+import { isValidSlug } from './slug';
+import type {
+  StorefrontCategory,
+  StorefrontDetailResponse,
+  StorefrontLang,
+  StorefrontListResponse,
+  StorefrontSitemapItem,
+} from './types';
 
 const DEFAULT_API_URL = 'http://localhost:3001/api/v1';
 const FETCH_TIMEOUT_MS = 8000;
@@ -93,4 +103,78 @@ export async function fetchStorefrontCategories(
     });
   }
   return categories;
+}
+
+// ─── SSR de catálogo y detalle ───────────────────────────────────────────────
+// A diferencia del sitemap (que degrada a vacío), aquí el llamador necesita
+// distinguir 404 (notFound real) de una caída del API (error.tsx): se devuelve
+// el estado HTTP en vez de tragarlo.
+
+/** TTL de garantía del Data Cache (contrato, decisión 15). */
+export const STOREFRONT_REVALIDATE_SECONDS = 120;
+
+export type StorefrontFetch<T> =
+  /** `fetchedAt` (ms) = cuando el servidor leyo la respuesta: siembra `initialDataUpdatedAt` en el cliente. */
+  | { ok: true; data: T; fetchedAt: number }
+  /** `status` = estado HTTP del API; `null` = sin respuesta (red, timeout, JSON inválido). */
+  | { ok: false; status: number | null };
+
+async function getJsonWithStatus(
+  path: string,
+  query: Record<string, string>,
+  options: FetchOptions | 'no-store',
+): Promise<{ status: number | null; body: unknown }> {
+  const url = `${storefrontApiBase()}${path}?${new URLSearchParams(query).toString()}`;
+  try {
+    const response = await fetch(url, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      ...(options === 'no-store'
+        ? { cache: 'no-store' as const }
+        : { next: { revalidate: options.revalidate, tags: options.tags } }),
+    });
+    if (!response.ok) return { status: response.status, body: null };
+    return { status: response.status, body: (await response.json()) as unknown };
+  } catch {
+    return { status: null, body: null };
+  }
+}
+
+/**
+ * Página del catálogo, ANÓNIMA (precio público). Las búsquedas libres (`q`) no se
+ * guardan en el Data Cache: su espacio de claves es ilimitado.
+ */
+export async function fetchStorefrontList(
+  country: CountryCode,
+  lang: StorefrontLang,
+  state: CatalogState,
+): Promise<StorefrontFetch<StorefrontListResponse>> {
+  const { status, body } = await getJsonWithStatus(
+    '/storefront/products',
+    toStorefrontQuery(state, { country, lang }),
+    state.q
+      ? 'no-store'
+      : { revalidate: STOREFRONT_REVALIDATE_SECONDS, tags: ['catalog', `catalog:${country}`] },
+  );
+  const data = normalizeListResponse(body, currencyForCountry(country));
+  return data ? { ok: true, data, fetchedAt: Date.now() } : { ok: false, status: body === null ? status : null };
+}
+
+/**
+ * Detalle por slug, ANÓNIMO. Un slug con formato inválido responde 404 sin ir al
+ * API (nunca 500). Respuesta discriminada: ok | moved | unavailable_in_country.
+ */
+export async function fetchStorefrontDetail(
+  country: CountryCode,
+  lang: StorefrontLang,
+  slug: string,
+): Promise<StorefrontFetch<StorefrontDetailResponse>> {
+  if (!isValidSlug(slug)) return { ok: false, status: 404 };
+  const { status, body } = await getJsonWithStatus(
+    `/storefront/products/${encodeURIComponent(slug)}`,
+    { country, lang },
+    { revalidate: STOREFRONT_REVALIDATE_SECONDS, tags: ['catalog', `product:${slug}`] },
+  );
+  const data = normalizeDetailResponse(body, currencyForCountry(country));
+  return data ? { ok: true, data, fetchedAt: Date.now() } : { ok: false, status: body === null ? status : null };
 }

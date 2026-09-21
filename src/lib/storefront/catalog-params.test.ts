@@ -4,6 +4,7 @@ import {
   activeFilterCount,
   catalogHref,
   isIndexable,
+  pageWindow,
   parseCatalogParams,
   serializeCatalogParams,
   toStorefrontQuery,
@@ -129,5 +130,23 @@ describe('toStorefrontQuery / activeFilterCount', () => {
         agotados: true,
       }),
     ).toBe(3);
+  });
+});
+
+describe('pageWindow', () => {
+  it('sin huecos cuando hay pocas páginas', () => {
+    expect(pageWindow(1, 1)).toEqual([1]);
+    expect(pageWindow(2, 4)).toEqual([1, 2, 3, 4]);
+  });
+
+  it('primera, última y vecinas de la actual con huecos', () => {
+    expect(pageWindow(1, 12)).toEqual([1, 2, 3, 4, 'gap', 12]);
+    expect(pageWindow(6, 12)).toEqual([1, 'gap', 5, 6, 7, 'gap', 12]);
+    expect(pageWindow(12, 12)).toEqual([1, 'gap', 9, 10, 11, 12]);
+  });
+
+  it('nunca sale del rango', () => {
+    expect(pageWindow(3, 3)).toEqual([1, 2, 3]);
+    expect(pageWindow(1, 2)).toEqual([1, 2]);
   });
 });
