@@ -279,6 +279,12 @@ export interface FulfillmentHistoryEntry {
   summaryEs: string;
   /** "Motivo del cambio" que escribió quien guardó (PUT `reason`); null o ausente = no dejó motivo. */
   reason?: string | null;
+  /** save = un guardado de la pantalla (agrupa sus filas en `details`); route/setting = fila suelta; seed = migración 144. */
+  kind?: 'save' | 'route' | 'setting' | 'seed' | (string & {});
+  /** Países del guardado (en `save`, todos). */
+  countryCodes?: string[];
+  /** Cambios fila por fila del mismo guardado (solo `save`). */
+  details?: FulfillmentHistoryEntry[];
 }
 
 export interface FulfillmentHistoryResponse {

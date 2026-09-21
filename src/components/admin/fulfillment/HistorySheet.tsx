@@ -77,6 +77,15 @@ export function HistorySheet({ open, onOpenChange }: HistorySheetProps) {
                       <span className="font-medium">Motivo:</span> {entry.reason.trim()}
                     </p>
                   )}
+                  {(entry.details?.length ?? 0) > 0 && (
+                    <ul className="mt-1 list-disc space-y-0.5 pl-5 text-muted-foreground" aria-label="Detalle del cambio">
+                      {entry.details?.map((detail) => (
+                        <li key={detail.id} className="break-words">
+                          {detail.summaryEs}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   <p className="mt-1 break-words text-xs text-muted-foreground">
                     {entry.actor?.email ?? 'Sistema'} · <time dateTime={entry.at}>{formatWhen(entry.at)}</time>
                   </p>
