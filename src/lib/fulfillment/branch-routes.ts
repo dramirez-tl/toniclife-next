@@ -55,6 +55,13 @@ export function canReadBranchRoutes(userPermissions: string[], userRoles: string
   );
 }
 
+/** Quién puede ABRIR la pantalla Almacenes y envíos (no basta con poder desactivar sucursales). */
+export function canOpenRoutesScreen(userPermissions: string[], userRoles: string[]): boolean {
+  if (userRoles.includes('super_admin')) return true;
+  if (userPermissions.includes('*') || userPermissions.includes('*:*')) return true;
+  return ['fulfillment:read', 'fulfillment:manage', 'fulfillment:*'].some((p) => userPermissions.includes(p));
+}
+
 export function shippingBadgeText(countries: BranchShippingCountry[]): string {
   return `Envía a: ${countries.map((c) => c.countryCode).join(', ')}`;
 }

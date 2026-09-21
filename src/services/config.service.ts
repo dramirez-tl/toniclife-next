@@ -33,7 +33,9 @@ class ConfigService {
    * Get active countries (public)
    */
   async getActiveCountries(): Promise<Country[]> {
-    const response = await api.get<Country[]>('/config/countries/active');
+    // Tope de 15 s: el checkout espera esta consulta para pagar; si se cuelga cuenta como fallo
+    // y se paga sin countryId, como siempre (el API usa el país del cliente).
+    const response = await api.get<Country[]>('/config/countries/active', { timeout: 15000 });
     return response.data;
   }
 

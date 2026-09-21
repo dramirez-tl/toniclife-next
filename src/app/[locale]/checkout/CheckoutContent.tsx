@@ -191,7 +191,8 @@ export default function CheckoutContent() {
   const { isLoading: countriesLoading } = useActiveCountries();
   const homeDeliveryUnavailable = isHomeDeliveryUnavailable(checkoutSummary);
   const deliveryBlocked = isDeliveryBlocked(deliveryMode, checkoutSummary);
-  const waitingForCountry = shouldWaitForStoreCountry({ countryId, isLoading: countriesLoading });
+  // Un invitado no manda countryId en su pedido: no tiene nada que esperar.
+  const waitingForCountry = shouldWaitForStoreCountry({ countryId, isLoading: isAuthenticated && countriesLoading });
   const homeDeliveryUnavailableText = t('deliveryHomeUnavailable', {
     country: storeCountryName(countryCode, lang),
   });

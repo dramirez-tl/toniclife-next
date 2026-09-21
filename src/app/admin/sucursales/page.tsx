@@ -66,6 +66,7 @@ import { useFulfillmentRoutes } from '@/hooks/useFulfillment';
 import {
   branchOffDialogText,
   canReadBranchRoutes,
+  canOpenRoutesScreen,
   type BranchOffAction,
   shippingBadgeText,
   shippingCountriesByBranch,
@@ -1249,11 +1250,18 @@ function SucursalesContent() {
       >
         <p>
           {deactivateTarget?.action === 'delete' ? 'Eliminar una sucursal no se puede deshacer desde esta pantalla. ' : ''}
-          Los pedidos que ya están hechos no cambian. Para elegir otro almacén ve a{' '}
-          <Link href="/admin/configuracion/rutas-envio" className="font-medium text-primary underline underline-offset-2">
-            Almacenes y envíos
-          </Link>
-          .
+          Los pedidos que ya están hechos no cambian.{' '}
+          {canOpenRoutesScreen(sucUserPermissions, sucUserRoles) ? (
+            <>
+              Para elegir otro almacén ve a{' '}
+              <Link href="/admin/configuracion/rutas-envio" className="font-medium text-primary underline underline-offset-2">
+                Almacenes y envíos
+              </Link>
+              .
+            </>
+          ) : (
+            'Para elegir otro almacén, pídeselo a quien administra Almacenes y envíos.'
+          )}
         </p>
       </ConfirmDialog>
 
