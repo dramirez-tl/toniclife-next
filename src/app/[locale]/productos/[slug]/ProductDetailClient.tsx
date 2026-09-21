@@ -19,6 +19,7 @@ import { PackContents } from '@/components/storefront/PackContents';
 import { ProductContentSections } from '@/components/storefront/ProductContentSections';
 import { ProductGallery } from '@/components/storefront/ProductGallery';
 import { RelatedProducts } from '@/components/storefront/RelatedProducts';
+import { SessionExpiredNotice } from '@/components/storefront/SessionExpiredNotice';
 import { StickyBuyBar } from '@/components/storefront/StickyBuyBar';
 import { useAddToCart } from '@/components/storefront/useAddToCart';
 import type { StorefrontProductDetail } from '@/types/storefront';
@@ -90,6 +91,7 @@ export function ProductDetailClient({ product: initialProduct, fetchedAt }: Prod
       <div className="grid gap-6 lg:grid-cols-2 lg:gap-12">
         <ProductGallery images={product.images} name={name} className="lg:sticky lg:top-36 lg:self-start" />
         <div className="px-4 sm:px-6 lg:px-0">
+          <SessionExpiredNotice className="mb-4" />
           <BuyBox
             ref={ctaRef}
             product={product}

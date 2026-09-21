@@ -90,6 +90,10 @@
         "openStores": "Tiendas abiertas",
         "shopIn": "Comprar en {country}",
         "metaTitle": "Muy pronto en {country} | Tonic Life"
+      },
+      "sessionExpired": {
+        "message": "Tu sesión venció, por eso ves el precio público.",
+        "login": "Inicia sesión para ver tu precio"
       }
     },
     "catalog": {
