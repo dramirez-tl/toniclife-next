@@ -245,6 +245,15 @@ export interface StorefrontStatusEntry {
 }
 
 // ================================
+// Unidades de medida (catálogo product_units)
+// ================================
+export interface ProductUnitOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
+// ================================
 // Duplicar
 // ================================
 export interface DuplicateProductDto {
@@ -506,6 +515,21 @@ class ProductsAdminService {
       suggestion: str(body.suggestion),
       isRedirectOf: str(body.isRedirectOf),
     };
+  }
+
+  /**
+   * Unidades de medida para el selector de la ficha: `[{ id, code, name }]`.
+   * Lanza si el endpoint no existe (404) o falla: quien llama degrada al campo libre.
+   */
+  async listUnits(): Promise<ProductUnitOption[]> {
+    const response = await api.get<unknown>('/catalog-admin/units');
+    const body = response.data;
+    const rows = Array.isArray(body) ? body : isDict(body) && Array.isArray(body.data) ? body.data : null;
+    if (rows === null) throw new Error('Respuesta de unidades con forma inesperada');
+    return rows
+      .filter(isDict)
+      .map((u) => ({ id: str(u.id) ?? '', code: str(u.code) ?? '', name: str(u.name) ?? '' }))
+      .filter((u) => u.id !== '');
   }
 
   async bulk(dto: CatalogBulkDto): Promise<CatalogBulkResult> {

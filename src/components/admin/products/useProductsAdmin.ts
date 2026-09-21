@@ -36,11 +36,28 @@ export const productsAdminKeys = {
   historyRoot: (id: string) => [...productsAdminKeys.all, 'history', id] as const,
   storefrontStatus: (id: string) => [...productsAdminKeys.all, 'storefront-status', id] as const,
   rowHealth: (id: string) => [...productsAdminKeys.all, 'row-health', id] as const,
+  units: () => ['products-admin-units'] as const,
 };
 
 // ================================
 // Colección
 // ================================
+/**
+ * Unidades de medida para el selector de la ficha. Sin reintentos: si el API aún
+ * no expone GET /catalog-admin/units (404) o falla, la ficha degrada de inmediato
+ * al campo libre en vez de quedarse esperando.
+ */
+export function useProductUnits(enabled = true) {
+  return useQuery({
+    queryKey: productsAdminKeys.units(),
+    queryFn: () => productsAdminService.listUnits(),
+    staleTime: 30 * 60 * 1000,
+    retry: false,
+    refetchOnWindowFocus: false,
+    enabled,
+  });
+}
+
 export function useCatalogAdminProducts(params: CatalogAdminListParams, enabled = true) {
   return useQuery({
     queryKey: productsAdminKeys.list(params),

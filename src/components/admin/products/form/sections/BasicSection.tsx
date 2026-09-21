@@ -15,6 +15,8 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { KitPosition, ProductType } from '@/types/product';
 import type { AdminUpdateProductDto } from '@/services/products-admin.service';
 import { CREATE_PRODUCT_TYPES, PRODUCT_TYPE_LABEL } from '../../lib/labels';
+import { buildUnitOptions } from '../../lib/units';
+import { useProductUnits } from '../../useProductsAdmin';
 import { useProductForm } from '../ProductFormContext';
 import { SectionCard } from '../SectionCard';
 import { SwitchField, TextField } from '../fields';
@@ -49,9 +51,19 @@ export function BasicSection() {
   const { mode, product, patchProduct } = useProductForm();
   const typeSelectId = useId();
   const positionSelectId = useId();
+  const unitSelectId = useId();
+  const unitHelpId = useId();
   const codeConfirm = useAsyncConfirm<{ from: string; to: string }, true>();
 
   const isEnrollmentKit = product?.isEnrollmentKit === true;
+
+  // Unidad: selector con buscador sobre el catálogo. Si el endpoint no existe
+  // (404) o falla, se degrada al campo de identificador para no romper la ficha.
+  const unitsQuery = useProductUnits();
+  const unitOptions = useMemo(
+    () => (unitsQuery.data && unitsQuery.data.length > 0 ? buildUnitOptions(unitsQuery.data, product?.unitId) : null),
+    [unitsQuery.data, product?.unitId],
+  );
   const currentCode = product?.code ?? '';
 
   const values = useMemo<BasicValues>(
@@ -183,13 +195,52 @@ export function BasicSection() {
             help="Déjalo vacío si el producto no tiene."
           />
           <TextField control={control} name="brand" label="Marca" maxLength={100} />
-          <TextField
-            control={control}
-            name="unitId"
-            label="Unidad (identificador)"
-            mono
-            help="Identificador de la unidad de medida. Déjalo vacío para quitarla."
-          />
+          {unitOptions ? (
+            <div className="space-y-1.5">
+              <Label htmlFor={unitSelectId}>Unidad de medida</Label>
+              <Controller
+                control={control}
+                name="unitId"
+                render={({ field, fieldState }) => (
+                  <>
+                    <SearchableSelect
+                      id={unitSelectId}
+                      options={unitOptions}
+                      value={field.value}
+                      onChange={field.onChange}
+                      allLabel="Sin unidad"
+                      placeholder="Buscar unidad…"
+                      disabled={section.readOnly}
+                      aria-describedby={unitHelpId}
+                      aria-invalid={!!fieldState.error}
+                      className="w-full"
+                    />
+                    {fieldState.error ? (
+                      <p className="text-xs font-medium text-red-700" role="alert">
+                        {fieldState.error.message}
+                      </p>
+                    ) : null}
+                  </>
+                )}
+              />
+              <p id={unitHelpId} className="text-xs text-gray-600">
+                Busca por nombre o clave. Elige «Sin unidad» para quitarla.
+              </p>
+            </div>
+          ) : unitsQuery.isLoading ? (
+            <div className="space-y-1.5" role="status">
+              <Label>Unidad de medida</Label>
+              <p className="flex h-9 items-center text-sm text-gray-600">Cargando unidades…</p>
+            </div>
+          ) : (
+            <TextField
+              control={control}
+              name="unitId"
+              label="Unidad (identificador)"
+              mono
+              help="No se pudo cargar el catálogo de unidades: captura el identificador de la unidad o déjalo vacío para quitarla."
+            />
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor={typeSelectId}>Tipo de producto</Label>
