@@ -2,13 +2,14 @@
 // Ref: TONIC_LIFE_2.0_MASTER.md - Sección 5.4 E-commerce
 
 import api from '@/lib/api';
+import { addWithStoreCountry, createCountrySupportMemo } from '@/lib/storefront/cart-country';
+import { GUEST_SESSION_KEY } from '@/lib/storefront/cart-merge';
 import type {
   Cart,
   CartSummary,
   AddCartItemInput,
   UpdateCartItemInput,
   ApplyCouponInput,
-  MergeCartsInput,
   CouponValidationResult,
   GuestCheckoutInput,
   AuthenticatedCheckoutInput,
@@ -30,6 +31,10 @@ const getSessionId = (): string => {
   }
   return sessionId;
 };
+
+// Un API previo a C2 rechaza `country` (400 del validador): se recuerda 5 min para no
+// pagar ese 400 en cada alta, y caduca solo para empezar a mandarlo tras el despliegue.
+const countrySupport = createCountrySupportMemo(5 * 60 * 1000);
 
 class CartService {
   // ================================
@@ -56,11 +61,37 @@ class CartService {
   // CART ITEMS
   // ================================
 
+  /**
+   * `data.country` (ISO2, C2) = país de la TIENDA elegida; el API lo persiste en el
+   * carrito. Contra un API que aún no lo conoce se reintenta UNA vez sin él (la petición
+   * de siempre). Sin `country` la petición es idéntica a la de antes.
+   */
   async addItem(data: AddCartItemInput): Promise<Cart> {
     const sessionId = getSessionId();
-    const response = await api.post<Cart>('/cart/items', data, {
-      headers: { 'x-session-id': sessionId },
-    });
+    const { result } = await addWithStoreCountry(
+      data,
+      async (body) => {
+        const response = await api.post<Cart>('/cart/items', body, {
+          headers: { 'x-session-id': sessionId },
+        });
+        return response.data;
+      },
+      countrySupport,
+    );
+    return result;
+  }
+
+  /**
+   * C2, "Vaciar y cambiar": `PUT /cart/country { country, clearItems: true }` vacía el carrito y
+   * le fija el país de la tienda en UNA transacción del API.
+   */
+  async switchCountry(country: string): Promise<Cart> {
+    const sessionId = getSessionId();
+    const response = await api.put<Cart>(
+      '/cart/country',
+      { country, clearItems: true },
+      { headers: { 'x-session-id': sessionId } },
+    );
     return response.data;
   }
 
@@ -123,9 +154,15 @@ class CartService {
   // CART MERGE
   // ================================
 
-  // TODO: Endpoint no implementado en backend
-  async mergeCarts(data: MergeCartsInput): Promise<Cart> {
-    const response = await api.post<Cart>('/cart/merge', data);
+  /**
+   * C3: mezcla el carrito de invitado (`x-session-id`) en el del cliente con sesión (JWT).
+   * SIN cuerpo: el `ValidationPipe` del API rechaza propiedades que no conoce. La
+   * respuesta se lee con `normalizeMergeResponse` (no se supone una sola forma).
+   */
+  async mergeGuestCart(guestSessionId: string): Promise<unknown> {
+    const response = await api.post<unknown>('/cart/merge', undefined, {
+      headers: { 'x-session-id': guestSessionId },
+    });
     return response.data;
   }
 
@@ -215,8 +252,14 @@ class CartService {
     return labels[method] || method;
   }
 
-  getSessionIdForMerge(): string {
-    return getSessionId();
+  /** `x-session-id` de invitado que YA existe en este navegador; nunca crea uno (`null` = no hubo carrito de invitado). */
+  peekGuestSessionId(): string | null {
+    if (typeof window === 'undefined') return null;
+    try {
+      return localStorage.getItem(GUEST_SESSION_KEY) || null;
+    } catch {
+      return null;
+    }
   }
 }
 

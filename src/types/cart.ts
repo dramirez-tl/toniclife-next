@@ -88,7 +88,14 @@ export interface Cart {
   /** `true` = el viewer ve puntos (API C1). Ausente = API previo (el front decide por sesión). */
   showPoints?: boolean;
   /** Moneda del carrito (API C2). Ausente = se formatea con la moneda del país de la tienda. */
-  currencyCode?: string;
+  currencyCode?: string | null;
+  /**
+   * País del carrito, ISO2 (API C2). OJO: viene SIEMPRE; sin `countryId` es el país que el API
+   * DEDUCE (sucursal > cliente > is_usa > MX), no uno fijado. Ver `pinnedCartCountry`.
+   */
+  countryCode?: string | null;
+  /** UUID del país FIJADO en el carrito (C2). Ausente = carrito sin país fijado: comportamiento previo. */
+  countryId?: string | null;
   createdAt: string;
   updatedAt: string;
   items: CartItem[];
@@ -108,6 +115,8 @@ export interface CartSummary {
 export interface AddCartItemInput {
   productId: string;
   quantity: number;
+  /** País de la TIENDA elegida, ISO2 (C2). `useAddCartItem` lo pone solo; sin él la petición es la de antes. */
+  country?: string;
 }
 
 export interface UpdateCartItemInput {
@@ -116,10 +125,6 @@ export interface UpdateCartItemInput {
 
 export interface ApplyCouponInput {
   code: string;
-}
-
-export interface MergeCartsInput {
-  sessionId: string;
 }
 
 export interface CouponValidationResult {

@@ -280,7 +280,7 @@ describe('freeShippingEligible (moneda garantizada + a quién el checkout SÍ le
   const guest = { hasCustomerSession: false, distributorSession: false };
   const distributor = { hasCustomerSession: true, distributorSession: true };
 
-  it('TODO(C2) invitado: su carrito se resuelve como MX; solo se garantiza la moneda en la tienda MX', () => {
+  it('carrito SIN país (API previo a C2) de invitado: se resuelve como MX; solo se garantiza la moneda en la tienda MX', () => {
     expect(knownCartCurrency({ ...guest, countryCode: 'MX' })).toBe('MXN');
     expect(knownCartCurrency({ ...guest, countryCode: 'US' })).toBeNull();
     expect(freeShippingEligible({ ...guest, countryCode: 'MX', shippingCurrencyCode: 'MXN', priceTier: 'public' })).toBe(true);
@@ -342,12 +342,18 @@ describe('freeShippingEligible (moneda garantizada + a quién el checkout SÍ le
   });
 });
 
-describe('checkoutGate (el pago solo se bloquea a una sesión de cliente)', () => {
+describe('checkoutGate (bloquea a la sesión de cliente y, con C2, al invitado con carrito de país conocido)', () => {
   const soldOut = cartBlockers([{ quantity: 1, inStock: false }]);
   const clean = cartBlockers([{ quantity: 1, availableStock: 5 }]);
 
-  it('invitado: aviso informativo, puede continuar a iniciar sesión', () => {
+  it('invitado con carrito SIN país (API previo a C2): aviso informativo, puede continuar a iniciar sesión', () => {
     expect(checkoutGate(soldOut, false)).toEqual({ showNotice: true, blocked: false });
+    expect(checkoutGate(soldOut, false, false)).toEqual({ showNotice: true, blocked: false });
+  });
+
+  it('C2: invitado con carrito de país CONOCIDO vuelve a tener bloqueo por agotados', () => {
+    expect(checkoutGate(soldOut, false, true)).toEqual({ showNotice: true, blocked: true });
+    expect(checkoutGate(clean, false, true)).toEqual({ showNotice: false, blocked: false });
   });
 
   it('sesión de cliente: el bloqueo sigue', () => {
@@ -357,6 +363,36 @@ describe('checkoutGate (el pago solo se bloquea a una sesión de cliente)', () =
   it('sin agotados ni excesos: ni aviso ni bloqueo', () => {
     expect(checkoutGate(clean, true)).toEqual({ showNotice: false, blocked: false });
     expect(checkoutGate(clean, false)).toEqual({ showNotice: false, blocked: false });
+  });
+});
+
+describe('mapCartError: códigos de país (C2)', () => {
+  it('409 CART_COUNTRY_CHANGE trae los países de details', () => {
+    const err = apiError(409, { code: 'CART_COUNTRY_CHANGE', message: 'x', details: { cartCountry: 'mx', requestedCountry: 'US' } });
+    expect(mapCartError(err)).toEqual({ kind: 'country_change', cartCountry: 'MX', requestedCountry: 'US' });
+  });
+
+  it('409 CART_COUNTRY_CHANGE sin details: países null (el hook los completa con el carrito en caché)', () => {
+    expect(mapCartError(apiError(409, { code: 'CART_COUNTRY_CHANGE' }))).toEqual({
+      kind: 'country_change',
+      cartCountry: null,
+      requestedCountry: null,
+    });
+  });
+
+  it('422 CART_NO_PRICE_IN_COUNTRY', () => {
+    expect(mapCartError(apiError(422, { code: 'CART_NO_PRICE_IN_COUNTRY', details: { country: 'US' } }))).toEqual({
+      kind: 'no_price_in_country',
+      requestedCountry: 'US',
+    });
+    expect(mapCartError(apiError(422, { code: 'CART_NO_PRICE_IN_COUNTRY' }))).toEqual({
+      kind: 'no_price_in_country',
+      requestedCountry: null,
+    });
+  });
+
+  it('un 409 SIN código (API previo) sigue siendo "other"', () => {
+    expect(mapCartError(apiError(409, { message: 'Conflicto' }))).toEqual({ kind: 'other' });
   });
 });
 

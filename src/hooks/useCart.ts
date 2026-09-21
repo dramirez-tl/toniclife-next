@@ -7,9 +7,13 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { cartService } from '@/services/cart.service';
+import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { localeLanguage } from '@/i18n/config';
-import { catalogErrorMessage } from '@/lib/storefront/errors';
+import { catalogErrorMessage, catalogErrorStatus } from '@/lib/storefront/errors';
+import { countryConflictOf, countryDisplayName, normalizeCountryCode } from '@/lib/storefront/cart-country';
+import { openCartCountryChange } from '@/lib/storefront/cart-country-dialog-store';
 import { capReason, mapCartError, planStockAdjust, type CapReason } from '@/lib/storefront/cart-logic';
+import { classifyMergeError, normalizeMergeResponse, type MergeResult } from '@/lib/storefront/cart-merge';
 import { cartKeys, invalidateCartDerived } from '@/lib/storefront/cart-query-keys';
 import type {
   Cart,
@@ -36,7 +40,8 @@ function cachedCapReason(queryClient: QueryClient, locate: LocateLine): CapReaso
 
 /**
  * Aviso de error de las mutaciones del carrito, por i18n (ES/EN) y por CÓDIGO del
- * API (`CART_NOT_SELLABLE`, `CART_ENROLLMENT_KIT`, `CART_QTY_EXCEEDS_STOCK`). Contra
+ * API (`CART_NOT_SELLABLE`, `CART_ENROLLMENT_KIT`, `CART_QTY_EXCEEDS_STOCK` y, con C2,
+ * `CART_NO_PRICE_IN_COUNTRY` y `CART_COUNTRY_CHANGE`). Contra
  * un API sin códigos degrada al mensaje real del API (solo con la UI en español,
  * porque viene en español) y, si no, al texto traducido de la operación.
  * Antes fallaban en SILENCIO o con textos fijos en español.
@@ -45,11 +50,23 @@ function useCartErrorToast(): (err: unknown, fallback: CartErrorFallback, reason
   const t = useTranslations('storefront.cart.errors');
   const lang = localeLanguage(useLocale());
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { countryCode: storeCountry } = useStoreCountry();
 
   return useCallback(
     (err, fallback, reason = 'stock') => {
       const info = mapCartError(err);
+      // País del carrito: el que dijo el API, el del carrito en caché o el de la tienda.
+      const cartCountry = () =>
+        normalizeCountryCode(queryClient.getQueryData<Cart>(cartKeys.cart())?.countryCode) ?? storeCountry;
       switch (info.kind) {
+        case 'no_price_in_country':
+          toast.error(t('noPriceInCountry', { country: countryDisplayName(info.requestedCountry ?? cartCountry(), lang) }));
+          return;
+        case 'country_change':
+          // Al AGREGAR lo atiende el diálogo "Vaciar y cambiar" (`useAddCartItem`); aquí solo el aviso.
+          toast.error(t('countryChange', { country: countryDisplayName(info.cartCountry ?? cartCountry(), lang) }));
+          return;
         case 'session_expired':
           toast.error(t('sessionExpired'));
           return;
@@ -76,7 +93,7 @@ function useCartErrorToast(): (err: unknown, fallback: CartErrorFallback, reason
           toast.error(catalogErrorMessage(err, t(fallback), { useApiMessage: lang === 'es' }));
       }
     },
-    [t, lang, router],
+    [t, lang, router, queryClient, storeCountry],
   );
 }
 
@@ -98,7 +115,7 @@ function useStockAdjust() {
   const queryClient = useQueryClient();
 
   return useCallback(
-    async (err: unknown, locate: LocateLine, addProductId?: string): Promise<Cart> => {
+    async (err: unknown, locate: LocateLine, addData?: AddCartItemInput): Promise<Cart> => {
       const info = mapCartError(err);
       if (info.kind !== 'qty_exceeds_stock') throw err;
       const cart = await currentCart(queryClient);
@@ -112,7 +129,7 @@ function useStockAdjust() {
       if (plan.action !== 'set') throw err;
       let adjusted: Cart;
       if (line) adjusted = await cartService.updateItem(line.id, { quantity: plan.quantity });
-      else if (addProductId) adjusted = await cartService.addItem({ productId: addProductId, quantity: plan.quantity });
+      else if (addData) adjusted = await cartService.addItem({ ...addData, quantity: plan.quantity });
       else throw err;
       toast.info(t(orderMax ? 'adjustedOrderMax' : 'adjusted', { max: plan.quantity }));
       return adjusted;
@@ -154,25 +171,45 @@ export const useCartSummary = () => {
 // CART ITEM MUTATIONS
 // ================================
 
+/**
+ * C2: TODA alta al carrito lleva `country` = país de la TIENDA elegida (`useStoreCountry`:
+ * el del locale de la URL o, con sesión, el de la cuenta; es el MISMO país que el checkout
+ * manda como `countryId`). Vive en el hook para que ningún consumidor lo olvide (catálogo,
+ * detalle, "Comprar ahora", quiz y el reintento por existencias). Un 409
+ * `CART_COUNTRY_CHANGE` no es un toast: abre el diálogo "Vaciar y cambiar".
+ */
 export const useAddCartItem = () => {
   const queryClient = useQueryClient();
   const toastCartError = useCartErrorToast();
   const adjustToStock = useStockAdjust();
+  const { countryCode } = useStoreCountry();
 
   return useMutation({
-    mutationFn: async (data: AddCartItemInput) => {
+    mutationFn: async (input: AddCartItemInput) => {
+      const data: AddCartItemInput = { ...input, country: input.country ?? countryCode };
       try {
         return await cartService.addItem(data);
       } catch (err) {
-        return adjustToStock(err, (cart) => cart.items.find((i) => i.productId === data.productId), data.productId);
+        return adjustToStock(err, (cart) => cart.items.find((i) => i.productId === data.productId), data);
       }
     },
     onSuccess: (data) => {
       queryClient.setQueryData(cartKeys.cart(), data);
       invalidateCartDerived(queryClient);
     },
-    onError: (err, data) =>
-      toastCartError(err, 'add', cachedCapReason(queryClient, (cart) => cart.items.find((i) => i.productId === data.productId))),
+    onError: (err, data) => {
+      if (mapCartError(err).kind === 'country_change') {
+        const cached = queryClient.getQueryData<Cart>(cartKeys.cart());
+        openCartCountryChange(
+          countryConflictOf(err, { cartCountry: cached?.countryCode, requestedCountry: data.country ?? countryCode }),
+          { productId: data.productId, quantity: data.quantity },
+        );
+        // El carrito en caché puede ser viejo (otra pestaña o dispositivo): que el aviso de país lo vea.
+        void queryClient.invalidateQueries({ queryKey: cartKeys.cart() });
+        return;
+      }
+      toastCartError(err, 'add', cachedCapReason(queryClient, (cart) => cart.items.find((i) => i.productId === data.productId)));
+    },
   });
 };
 
@@ -226,6 +263,33 @@ export const useClearCart = () => {
   });
 };
 
+/**
+ * C2, "Vaciar y cambiar": vacía el carrito y le fija el país de la tienda en una sola
+ * transacción del API (`PUT /cart/country`). Si esa ruta no existiera (404/405) degrada a
+ * vaciar el carrito: el alta que sigue, con `country`, fija el país en el carrito ya vacío.
+ */
+export const useSwitchCartCountry = () => {
+  const queryClient = useQueryClient();
+  const toastCartError = useCartErrorToast();
+
+  return useMutation({
+    mutationFn: async (country: string) => {
+      try {
+        return await cartService.switchCountry(country);
+      } catch (err) {
+        const status = catalogErrorStatus(err);
+        if (status !== 404 && status !== 405) throw err;
+        return cartService.clearCart();
+      }
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(cartKeys.cart(), data);
+      invalidateCartDerived(queryClient);
+    },
+    onError: (err) => toastCartError(err, 'clear'),
+  });
+};
+
 // ================================
 // COUPON MUTATIONS
 // ================================
@@ -266,14 +330,41 @@ export const useValidateCoupon = () => {
 // CART MERGE
 // ================================
 
+export type MergeCartsOutcome =
+  | ({ status: 'merged' } & MergeResult<Cart>)
+  /** El API respondió con ERROR que el carrito de invitado es de otro país: no se mezcló. */
+  | { status: 'country_mismatch' }
+  /** API sin `POST /cart/merge` (404/405): silencio, y no se marca como hecho. */
+  | { status: 'unsupported' };
+
+/**
+ * C3: `POST /cart/merge` con el `x-session-id` de INVITADO que se le pasa (nunca crea uno).
+ * Antes mandaba `{ sessionId }` en el cuerpo y sin cabecera, contra un endpoint que no
+ * existía, y nadie lo consumía. Su único consumidor es `CartMergeOnLogin` (layout raíz).
+ * Resuelve con un resultado también para 404/405 y para "es de otro país"; cualquier otro
+ * fallo (red, 401, 5xx) rechaza y quien lo llama reintenta en la siguiente carga de página.
+ * Invalida TODO lo del carrito: el de la sesión pudo cambiar aunque la respuesta no lo traiga.
+ */
 export const useMergeCarts = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => cartService.mergeCarts({ sessionId: cartService.getSessionIdForMerge() }),
-    onSuccess: (data) => {
-      queryClient.setQueryData(cartKeys.cart(), data);
-      queryClient.invalidateQueries({ queryKey: cartKeys.summary() });
+    mutationFn: async (guestSessionId: string): Promise<MergeCartsOutcome> => {
+      try {
+        const data = await cartService.mergeGuestCart(guestSessionId);
+        return { status: 'merged', ...normalizeMergeResponse<Cart>(data) };
+      } catch (err) {
+        const failure = classifyMergeError(err);
+        if (failure === 'retry_later') throw err;
+        return { status: failure };
+      }
+    },
+    onSuccess: (outcome) => {
+      if (outcome.status === 'unsupported') return;
+      if (outcome.status === 'merged' && outcome.cart) queryClient.setQueryData(cartKeys.cart(), outcome.cart);
+      // También con el carrito en mano: un `GET /cart` que iba en vuelo ANTES del merge lo pisaría
+      // con el estado viejo; invalidar lo cancela y vuelve a pedir (detalle, resumen y checkout).
+      void queryClient.invalidateQueries({ queryKey: cartKeys.all });
     },
   });
 };

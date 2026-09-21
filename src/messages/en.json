@@ -360,7 +360,36 @@
         "adjusted": "Only {max, plural, one {# piece is available} other {# pieces are available}}: we set the quantity to {max}.",
         "adjustedOrderMax": "Max {max} per order: we set the quantity to {max}.",
         "alreadyMax": "Your cart already has the maximum available ({max}).",
-        "alreadyMaxOrderMax": "Your cart already has the max per order ({max})."
+        "alreadyMaxOrderMax": "Your cart already has the max per order ({max}).",
+        "noPriceInCountry": "This product has no price in the {country} store, so it can't be added to the cart.",
+        "countryChange": "Your cart belongs to the {country} store. To shop in another store it has to be emptied."
+      },
+      "country": {
+        "changeTitle": "Your cart belongs to another store",
+        "changeBody": "Your cart belongs to the {cartCountry} store. To shop in {storeCountry} it has to be emptied.",
+        "changeBodyUnknown": "Your cart belongs to another country's store. To shop in {storeCountry} it has to be emptied.",
+        "emptyAndSwitch": "Empty and switch",
+        "stayIn": "Stay in {country}",
+        "keepCart": "Keep my cart",
+        "working": "Emptying the cart and adding the product…",
+        "noticeTitle": "Your cart belongs to the {cartCountry} store",
+        "noticeBody": "You are browsing the {storeCountry} store. That cart is paid in the {cartCountry} store; to shop in {storeCountry} it has to be emptied.",
+        "noticeGoToStore": "Go to the {country} store",
+        "checkoutTitle": "The order country doesn't match your cart",
+        "checkoutBody": "Your cart belongs to the {cartCountry} store and you are paying in the {storeCountry} store.",
+        "checkoutBodyUnknown": "Your cart belongs to another country's store and you are paying in the {storeCountry} store.",
+        "checkoutNoCharge": "No order was created and nothing was charged.",
+        "checkoutGoToStore": "Pay in the {country} store",
+        "checkoutViewCart": "View my cart"
+      },
+      "merge": {
+        "title": "We moved the cart you built before signing in to your account",
+        "adjusted": "{count, plural, one {# product ended up with fewer units (stock or per-order maximum)} other {# products ended up with fewer units (stock or per-order maximum)}}",
+        "rejected": "{count, plural, one {# product couldn't be moved to your cart} other {# products couldn't be moved to your cart}}",
+        "andMore": "and {count} more",
+        "countryMismatchTitle": "We didn't merge the cart you built before signing in",
+        "countryMismatchBody": "It belongs to another country's store. The cart in your account is unchanged.",
+        "viewCart": "View cart"
       }
     }
   },

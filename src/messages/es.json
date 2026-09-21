@@ -360,7 +360,36 @@
         "adjusted": "Solo hay {max, plural, one {# pieza disponible} other {# piezas disponibles}}: ajustamos la cantidad a {max}.",
         "adjustedOrderMax": "Máximo {max} por pedido: ajustamos la cantidad a {max}.",
         "alreadyMax": "Ya tienes en el carrito el máximo disponible ({max}).",
-        "alreadyMaxOrderMax": "Ya tienes en el carrito el máximo por pedido ({max})."
+        "alreadyMaxOrderMax": "Ya tienes en el carrito el máximo por pedido ({max}).",
+        "noPriceInCountry": "Este producto no tiene precio en la tienda de {country}, así que no se puede agregar al carrito.",
+        "countryChange": "Tu carrito es de la tienda de {country}. Para comprar en otra tienda hay que vaciarlo."
+      },
+      "country": {
+        "changeTitle": "Tu carrito es de otra tienda",
+        "changeBody": "Tu carrito es de la tienda de {cartCountry}. Para comprar en {storeCountry} hay que vaciarlo.",
+        "changeBodyUnknown": "Tu carrito es de la tienda de otro país. Para comprar en {storeCountry} hay que vaciarlo.",
+        "emptyAndSwitch": "Vaciar y cambiar",
+        "stayIn": "Seguir en {country}",
+        "keepCart": "Conservar mi carrito",
+        "working": "Vaciando el carrito y agregando el producto…",
+        "noticeTitle": "Tu carrito es de la tienda de {cartCountry}",
+        "noticeBody": "Estás viendo la tienda de {storeCountry}. Ese carrito se paga en la tienda de {cartCountry}; para comprar en {storeCountry} hay que vaciarlo.",
+        "noticeGoToStore": "Ir a la tienda de {country}",
+        "checkoutTitle": "El país del pedido no coincide con tu carrito",
+        "checkoutBody": "Tu carrito es de la tienda de {cartCountry} y estás pagando en la tienda de {storeCountry}.",
+        "checkoutBodyUnknown": "Tu carrito es de la tienda de otro país y estás pagando en la tienda de {storeCountry}.",
+        "checkoutNoCharge": "No se creó ningún pedido ni se hizo ningún cobro.",
+        "checkoutGoToStore": "Pagar en la tienda de {country}",
+        "checkoutViewCart": "Ver mi carrito"
+      },
+      "merge": {
+        "title": "Pasamos a tu cuenta el carrito que armaste antes de iniciar sesión",
+        "adjusted": "{count, plural, one {# producto quedó con menos piezas (existencias o máximo por pedido)} other {# productos quedaron con menos piezas (existencias o máximo por pedido)}}",
+        "rejected": "{count, plural, one {# producto no se pudo pasar a tu carrito} other {# productos no se pudieron pasar a tu carrito}}",
+        "andMore": "y {count} más",
+        "countryMismatchTitle": "No mezclamos el carrito que armaste antes de iniciar sesión",
+        "countryMismatchBody": "Es de la tienda de otro país. El carrito de tu cuenta quedó igual.",
+        "viewCart": "Ver carrito"
       }
     }
   },

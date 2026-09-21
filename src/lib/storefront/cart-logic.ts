@@ -4,6 +4,7 @@
 // `maxQuantity`, `showPoints`, códigos `CART_*`): contra el API actual cada función
 // degrada al comportamiento previo sin inventar datos.
 
+import { countryConflictOf } from './cart-country';
 import { catalogErrorCode, catalogErrorDetails, catalogErrorStatus } from './errors';
 
 /** Tope del DTO del API (`AddCartItemDto.quantity` 1..999) cuando no hay dato de stock. */
@@ -144,13 +145,15 @@ export interface CheckoutGate {
 }
 
 /**
- * El pago solo se BLOQUEA a una sesión de cliente. A un INVITADO se le informa pero
- * puede continuar a iniciar sesión: hasta C2 su carrito se resuelve como MX aunque
- * navegue otra tienda (existencias de otro país), y no hay checkout de invitado ni
- * merge (C3), así que su carrito nunca llega a una orden.
+ * El pago se BLOQUEA a una sesión de cliente y, desde C2, también a un INVITADO cuyo
+ * carrito YA trae su país (`cart.countryCode`): sus existencias y topes son los de ese
+ * país y, con el merge de C3, ese carrito sí llega a una orden.
+ * Carrito SIN país (API previo a C2 o `country_id` NULL): el del invitado se resuelve
+ * como MX aunque navegue otra tienda (existencias de otro país), así que solo se le
+ * informa y puede continuar a iniciar sesión, como antes.
  */
-export function checkoutGate(blockers: CartBlockers, hasCustomerSession: boolean): CheckoutGate {
-  return { showNotice: blockers.blocked, blocked: blockers.blocked && hasCustomerSession };
+export function checkoutGate(blockers: CartBlockers, hasCustomerSession: boolean, cartCountryKnown = false): CheckoutGate {
+  return { showNotice: blockers.blocked, blocked: blockers.blocked && (hasCustomerSession || cartCountryKnown) };
 }
 
 // ---------------------------------------------------------------------------
@@ -240,7 +243,8 @@ export interface FreeShippingEligibilityInput {
 
 /**
  * Moneda en la que se puede GARANTIZAR que está el subtotal del carrito; `null` = no se puede.
- * TODO(C2): cuando el API mande `cart.currencyCode` sobran los dos respaldos.
+ * Con C2 manda `cart.currencyCode` (la barra compara en la moneda DEL CARRITO). Los dos
+ * respaldos quedan SOLO para un carrito sin ese campo (API previo a C2 o `country_id` NULL).
  */
 export function knownCartCurrency(
   input: Pick<FreeShippingEligibilityInput, 'cartCurrencyCode' | 'viewerCurrencyCode' | 'hasCustomerSession' | 'countryCode'>,
@@ -250,7 +254,7 @@ export function knownCartCurrency(
   // Con sesión de cliente el carrito se cotiza en el país de SU cuenta.
   const fromViewer = (input.viewerCurrencyCode || '').trim().toUpperCase();
   if (input.hasCustomerSession && fromViewer) return fromViewer;
-  // Invitado (o cuenta sin moneda): el API resuelve su carrito como MX aunque navegue /en-us.
+  // Invitado (o cuenta sin moneda) con carrito SIN país: el API lo resuelve como MX aunque navegue /en-us.
   return input.countryCode.toUpperCase() === 'MX' ? 'MXN' : null;
 }
 
@@ -300,11 +304,19 @@ export type CartErrorKind =
   | 'not_sellable'
   | 'enrollment_kit'
   | 'qty_exceeds_stock'
+  /** 409 `CART_COUNTRY_CHANGE` (C2): el carrito no vacío es de OTRO país; se ofrece vaciarlo. */
+  | 'country_change'
+  /** 422 `CART_NO_PRICE_IN_COUNTRY` (C2): el producto no tiene precio en el país del carrito. */
+  | 'no_price_in_country'
   | 'session_expired'
   | 'other';
 
 export interface CartErrorInfo {
   kind: CartErrorKind;
+  /** Solo `country_change`: país del carrito (ISO2) si el API lo dijo. */
+  cartCountry?: string | null;
+  /** `country_change` y `no_price_in_country`: país desde el que se intentó (ISO2) si el API lo dijo. */
+  requestedCountry?: string | null;
   /** Solo `enrollment_kit`: ruta INTERNA a donde mandar al visitante. */
   href?: string;
   /** Solo `qty_exceeds_stock`: máximo que admite la línea (0 = agotado); `null` si el API no lo dijo. */
@@ -333,6 +345,10 @@ export function mapCartError(err: unknown): CartErrorInfo {
       kind: 'qty_exceeds_stock',
       maxQuantity: parsed !== null && parsed >= 0 ? Math.min(parsed, CART_LINE_HARD_MAX) : null,
     };
+  }
+  if (code === 'CART_COUNTRY_CHANGE') return { kind: 'country_change', ...countryConflictOf(err) };
+  if (code === 'CART_NO_PRICE_IN_COUNTRY') {
+    return { kind: 'no_price_in_country', requestedCountry: countryConflictOf(err).requestedCountry };
   }
   if (catalogErrorStatus(err) === 401) return { kind: 'session_expired' };
   return { kind: 'other' };
