@@ -12,6 +12,9 @@
 // foco va al título (el lector anuncia "Tu carrito, N productos"); los cambios de
 // cantidad, las bajas y el bloqueo de pago se anuncian por aria-live. Escape dentro del
 // campo de cantidad con un borrador cancela la edición SIN cerrar el drawer.
+// C2: los importes van en la moneda DEL CARRITO (`cart.currencyCode`) y, si el carrito tiene
+// FIJADO otro país que la tienda visitada, sale un aviso no bloqueante y "Pagar" lleva al
+// checkout de la tienda del carrito. Sin esos campos (API previo) todo queda como antes.
 // Solo CONSUME los hooks del carrito; el checkout y el pago no se tocan.
 
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
@@ -33,6 +36,13 @@ import {
   takeCartDrawerReturnFocus,
 } from '@/lib/storefront/cart-drawer-store';
 import {
+  cartCountryKnown,
+  cartCountryMismatch,
+  cartDisplayCurrency,
+  pinnedCartCountry,
+  storeLocaleFor,
+} from '@/lib/storefront/cart-country';
+import {
   cartBlockers,
   checkoutGate,
   escapeCancelsQuantityDraft,
@@ -46,6 +56,7 @@ import { formatProductName } from '@/lib/storefront/content-format';
 import { formatCurrency } from '@/lib/currency';
 import { productPath } from '@/lib/storefront/slug';
 import type { CartItem } from '@/types/cart';
+import { CartCountryNotice } from './CartCountryNotice';
 import { CartLineQuantity } from './CartLineQuantity';
 import { FreeShippingBar } from './FreeShippingBar';
 
@@ -99,7 +110,7 @@ function CartDrawerBody({ titleRef, closeLabel }: { titleRef: React.RefObject<HT
   const t = useTranslations('storefront.cart.drawer');
   const tLine = useTranslations('storefront.cart.line');
   const tBlocked = useTranslations('storefront.cart.blocked');
-  const { currency, lang } = useStoreCountry();
+  const { currency, lang, countryCode } = useStoreCountry();
   const { hasCustomerSession } = useStorefrontViewer();
   const { data: cart, isLoading, isError, refetch } = useCart();
   const updateItem = useUpdateCartItem();
@@ -108,11 +119,22 @@ function CartDrawerBody({ titleRef, closeLabel }: { titleRef: React.RefObject<HT
   const blockedId = useId();
 
   const items = cart?.items ?? [];
-  const money = (amount: number | string) => formatCurrency(amount, cart?.currencyCode || currency, lang);
+  // Moneda DEL CARRITO si el API la manda (C2); si no, la del país de la tienda (como antes).
+  const money = (amount: number | string) => formatCurrency(amount, cartDisplayCurrency(cart?.currencyCode, currency), lang);
   const showPoints = resolveShowPoints(cart?.showPoints, hasCustomerSession);
   const blockers = cartBlockers(items);
-  // A un invitado se le AVISA pero no se le bloquea: puede continuar a iniciar sesión.
-  const gate = checkoutGate(blockers, hasCustomerSession);
+  // Se bloquea a la sesión de cliente y al invitado cuyo carrito YA trae su país (C2); al
+  // invitado con carrito sin país solo se le AVISA: puede continuar a iniciar sesión.
+  // País FIJADO en el carrito (C2); `null` = carrito sin país fijado: todo como antes de C2.
+  const pinnedCountry = pinnedCartCountry(cart);
+  const gate = checkoutGate(blockers, hasCustomerSession, cartCountryKnown(pinnedCountry));
+  const countryMismatch = cartCountryMismatch({
+    cartCountryCode: pinnedCountry,
+    storeCountryCode: countryCode,
+    itemCount: items.length,
+  });
+  // Carrito de otro país: se paga en SU tienda (el checkout de esta respondería CHK_COUNTRY_MISMATCH).
+  const checkoutLocale = countryMismatch ? storeLocaleFor(lang, countryMismatch.cartCountry) ?? undefined : undefined;
   const slugs = items.map(lineSlug).filter((slug): slug is string => slug !== null);
   const busy = updateItem.isPending || removeItem.isPending;
 
@@ -269,7 +291,13 @@ function CartDrawerBody({ titleRef, closeLabel }: { titleRef: React.RefObject<HT
           </ul>
 
           <div className="flex flex-col gap-3 border-t border-gray-200 bg-white px-4 py-4">
-            <FreeShippingBar subtotal={Number.parseFloat(cart?.subtotal ?? '0')} cartCurrencyCode={cart?.currencyCode} slugs={slugs} />
+            <CartCountryNotice mismatch={countryMismatch} lang={lang} onNavigate={closeCartDrawer} />
+            <FreeShippingBar
+              subtotal={Number.parseFloat(cart?.subtotal ?? '0')}
+              cartCurrencyCode={cart?.currencyCode}
+              cartCountryCode={pinnedCountry}
+              slugs={slugs}
+            />
             <div className="flex items-baseline justify-between">
               <span className="text-base font-semibold text-gray-900">{t('subtotal')}</span>
               <span className="text-xl font-bold tabular-nums text-[#2f5165]" aria-live="polite">
@@ -305,7 +333,12 @@ function CartDrawerBody({ titleRef, closeLabel }: { titleRef: React.RefObject<HT
                 </Button>
               ) : (
                 <Button asChild className="min-h-12 flex-1">
-                  <Link href="/checkout" onClick={closeCartDrawer} aria-describedby={gate.showNotice ? blockedId : undefined}>
+                  <Link
+                    href="/checkout"
+                    locale={checkoutLocale}
+                    onClick={closeCartDrawer}
+                    aria-describedby={gate.showNotice ? blockedId : undefined}
+                  >
                     {t('checkout')}
                   </Link>
                 </Button>

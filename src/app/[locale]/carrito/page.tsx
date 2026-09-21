@@ -4,9 +4,11 @@
 //   en el tope de la línea (`maxQuantity` del API C1 o `availableStock` del actual).
 // - Puntos POR UNIDAD y solo si `showPoints` (API C1) o, sin el campo, solo a una
 //   sesión de cliente; nunca a invitados.
-// - "Proceder al pago" bloqueado con aviso claro si hay agotados o excesos, SOLO con
-//   sesión de cliente; a un invitado se le avisa pero puede continuar a iniciar sesión
-//   (hasta C2 su carrito se resuelve como MX y nunca llega a una orden).
+// - "Proceder al pago" bloqueado con aviso claro si hay agotados o excesos: a la sesión
+//   de cliente y, con C2, al invitado cuyo carrito YA trae su país. Al invitado con un
+//   carrito SIN país fijado (anterior a C2: se resuelve como MX) se le avisa pero puede continuar.
+// - C2: importes en la moneda DEL CARRITO (`cart.currencyCode`); si el carrito tiene FIJADO
+//   otro país que la tienda visitada, aviso no bloqueante y el pago lleva a la tienda del carrito.
 // - Durante una petición los controles usan `aria-disabled` e ignoran el clic (con
 //   `disabled` el control con foco lo perdía).
 // - Los errores de las mutaciones los avisa `useCart` (i18n y por código): aquí NO se
@@ -40,12 +42,21 @@ import { Link } from '@/i18n/routing';
 import { formatCurrency } from '@/lib/currency';
 import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { useStorefrontViewer } from '@/hooks/useStorefront';
+import { CartCountryNotice } from '@/components/cart/CartCountryNotice';
 import { CartLineQuantity } from '@/components/cart/CartLineQuantity';
 import { FreeShippingBar } from '@/components/cart/FreeShippingBar';
 import { ProductImage } from '@/components/storefront/ProductImage';
 import { catalogErrorMessage } from '@/lib/storefront/errors';
 import { formatProductName } from '@/lib/storefront/content-format';
 import { productPath } from '@/lib/storefront/slug';
+import {
+  cartCountryKnown,
+  cartCountryMismatch,
+  cartDisplayCurrency,
+  effectiveCartCountry,
+  pinnedCartCountry,
+  storeLocaleFor,
+} from '@/lib/storefront/cart-country';
 import {
   cartBlockers,
   checkoutGate,
@@ -146,8 +157,11 @@ export default function CartPage() {
   const tBlocked = useTranslations('storefront.cart.blocked');
   const { currency, lang, countryCode } = useStoreCountry();
   const { hasCustomerSession } = useStorefrontViewer();
-  const taxIncluded = countryCode === 'MX';
   const { data: cart, isLoading } = useCart();
+  // País FIJADO en el carrito (C2); `null` = carrito sin país fijado: todo como antes de C2.
+  const pinnedCountry = pinnedCartCountry(cart);
+  // El impuesto incluido es regla del país DEL CARRITO; sin país fijado, el de la tienda.
+  const taxIncluded = effectiveCartCountry(pinnedCountry, countryCode) === 'MX';
   const clearCart = useClearCart();
   const updateItem = useUpdateCartItem();
   const removeItem = useRemoveCartItem();
@@ -156,11 +170,19 @@ export default function CartPage() {
 
   const items = cart?.items ?? [];
   // Moneda del carrito si el API la manda (C2); si no, la del país de la tienda (como hoy).
-  const fmt = (n: number | string) => formatCurrency(n, cart?.currencyCode || currency, lang);
+  const fmt = (n: number | string) => formatCurrency(n, cartDisplayCurrency(cart?.currencyCode, currency), lang);
   const showPoints = resolveShowPoints(cart?.showPoints, hasCustomerSession);
   const blockers = cartBlockers(items);
-  // A un invitado se le AVISA pero no se le bloquea: puede continuar a iniciar sesión.
-  const gate = checkoutGate(blockers, hasCustomerSession);
+  // Se bloquea a la sesión de cliente y al invitado cuyo carrito YA trae su país (C2); al
+  // invitado con carrito sin país solo se le AVISA: puede continuar a iniciar sesión.
+  const gate = checkoutGate(blockers, hasCustomerSession, cartCountryKnown(pinnedCountry));
+  const countryMismatch = cartCountryMismatch({
+    cartCountryCode: pinnedCountry,
+    storeCountryCode: countryCode,
+    itemCount: items.length,
+  });
+  // Carrito de otro país: se paga en SU tienda (el checkout de esta respondería CHK_COUNTRY_MISMATCH).
+  const checkoutLocale = countryMismatch ? storeLocaleFor(lang, countryMismatch.cartCountry) ?? undefined : undefined;
   const soldOutItems = items.filter((item) => lineIssue(item) === 'sold_out');
   const slugs = items.map(lineSlug).filter((slug): slug is string => slug !== null);
   const busy = updateItem.isPending || removeItem.isPending;
@@ -295,6 +317,9 @@ export default function CartPage() {
             <div className="grid lg:grid-cols-3 gap-8">
               {/* Cart Items */}
               <div className="lg:col-span-2 space-y-4">
+                {/* Carrito de la tienda de OTRO país (C2): aviso no bloqueante */}
+                <CartCountryNotice mismatch={countryMismatch} lang={lang} className="rounded-xl p-4" />
+
                 {/* Aviso de productos agotados (con opción de continuar con el resto) */}
                 {soldOutItems.length > 0 && (
                   <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
@@ -470,7 +495,13 @@ export default function CartPage() {
                   <CouponBox couponCode={cart.couponCode} useApiMessage={lang === 'es'} />
 
                   {/* Envío gratis por país (umbral real configurable; sin dato no se pinta) */}
-                  <FreeShippingBar subtotal={subtotal} cartCurrencyCode={cart.currencyCode} slugs={slugs} className="mb-4" />
+                  <FreeShippingBar
+                    subtotal={subtotal}
+                    cartCurrencyCode={cart.currencyCode}
+                    cartCountryCode={pinnedCountry}
+                    slugs={slugs}
+                    className="mb-4"
+                  />
 
                   {/* Order Details. `aria-live` SOLO en el total: en todo el bloque se releía completo con cada cambio. */}
                   <div className="space-y-3 text-sm">
@@ -542,7 +573,7 @@ export default function CartPage() {
                     </Button>
                   ) : (
                     <Button asChild size="lg" className={`${gate.showNotice ? 'mt-3' : 'mt-6'} min-h-12 w-full`}>
-                      <Link href="/checkout" aria-describedby={gate.showNotice ? blockedId : undefined}>
+                      <Link href="/checkout" locale={checkoutLocale} aria-describedby={gate.showNotice ? blockedId : undefined}>
                         {t('checkout')}
                       </Link>
                     </Button>

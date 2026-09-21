@@ -6,9 +6,11 @@
 // Sin dato del país, sin poder GARANTIZAR que subtotal y umbral están en la misma moneda
 // o para un distribuidor: no se pinta NADA (tampoco el contenedor).
 //
-// TODO(C2): mientras el API no mande `cart.currencyCode`, el carrito de un INVITADO se
-// resuelve como MX aunque navegue /en-us: a un invitado solo se le pinta la barra en la
-// tienda MX (si no, compararía pesos contra el umbral en dólares y diría "alcanzado").
+// C2: la barra compara en la moneda DEL CARRITO (`cart.currencyCode`) y, si el carrito tiene
+// su país FIJADO, contra el umbral de envío de ESE país (no el de la tienda visitada).
+// Carrito SIN moneda (API previo a C2): el de un INVITADO se
+// resuelve como MX aunque navegue /en-us, así que a un invitado solo se le pinta la barra
+// en la tienda MX (si no, compararía pesos contra el umbral en dólares y diría "alcanzado").
 
 import { useTranslations } from 'next-intl';
 import { TruckIcon } from '@heroicons/react/24/outline';
@@ -19,6 +21,7 @@ import { useStorefrontViewer } from '@/hooks/useStorefront';
 import { useAppSelector } from '@/store/hooks';
 import { selectUser } from '@/store/slices/authSlice';
 import { resolvePortal } from '@/lib/auth-roles';
+import { effectiveCartCountry, normalizeCurrencyCode, pinnedCartCountry } from '@/lib/storefront/cart-country';
 import {
   freeShippingEligible,
   freeShippingProgress,
@@ -33,14 +36,17 @@ interface FreeShippingSource {
   subtotal: number;
   /** Moneda del carrito si el API la manda (C2). */
   cartCurrencyCode?: string | null;
+  /** País FIJADO en el carrito (`pinnedCartCountry`, C2): de ahí sale el umbral de envío gratis. */
+  cartCountryCode?: string | null;
   /** Slugs de las líneas del carrito (de ahí sale el detalle que trae el envío del país). */
   slugs: readonly string[];
 }
 
-function useFreeShipping({ subtotal, cartCurrencyCode, slugs }: FreeShippingSource) {
+function useFreeShipping({ subtotal, cartCurrencyCode, cartCountryCode, slugs }: FreeShippingSource) {
   const t = useTranslations('storefront.cart.freeShipping');
   const { countryCode, lang } = useStoreCountry();
-  const { data } = useStoreShipping(countryCode, lang, slugs);
+  // El envío que se promete es el del país DEL CARRITO; sin ese dato, el de la tienda (como antes).
+  const { data } = useStoreShipping(effectiveCartCountry(cartCountryCode, countryCode), lang, slugs);
   const { hasCustomerSession } = useStorefrontViewer();
   const user = useAppSelector(selectUser);
 
@@ -48,7 +54,7 @@ function useFreeShipping({ subtotal, cartCurrencyCode, slugs }: FreeShippingSour
     hasCustomerSession,
     // Solo lectura del rol de la sesión (sin tocar auth): portal de cliente = distribuidor.
     distributorSession: hasCustomerSession && resolvePortal(user?.roleCategory, user?.roles?.[0]) === 'distributor',
-    cartCurrencyCode,
+    cartCurrencyCode: normalizeCurrencyCode(cartCurrencyCode),
     viewerCurrencyCode: hasCustomerSession ? user?.currencyCode : null,
     countryCode,
   };
@@ -127,6 +133,7 @@ export function CartFreeShippingBar({ className, barClassName }: { className?: s
   const state = useFreeShipping({
     subtotal: Number.parseFloat(cart?.subtotal ?? '0'),
     cartCurrencyCode: cart?.currencyCode,
+    cartCountryCode: pinnedCartCountry(cart),
     slugs: items.map(lineSlug).filter((slug): slug is string => slug !== null),
   });
   if (!state || items.length === 0) return null;

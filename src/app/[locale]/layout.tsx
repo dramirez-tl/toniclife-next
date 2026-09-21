@@ -3,11 +3,13 @@ import { notFound } from 'next/navigation';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
 import { routing } from '@/i18n/routing';
+import { CartCountryDialog } from '@/components/cart/CartCountryDialog';
 import { buildLocaleMetadata } from '@/lib/storefront/metadata';
 
 // Layout de las páginas públicas localizadas (/[locale]/...). El <html> y los
 // providers globales viven en el layout raíz; aquí solo se añade el provider de
 // next-intl. admin/ y distribuidor/ NO pasan por aquí (no se localizan).
+// `CartCountryDialog` (C2) vive aquí y no en el Header porque el checkout no lo monta.
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -43,6 +45,7 @@ export default async function LocaleLayout({
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
       {children}
+      <CartCountryDialog />
     </NextIntlClientProvider>
   );
 }
