@@ -391,6 +391,10 @@ describe('mapCartError: códigos de país (C2)', () => {
     });
   });
 
+  it('400 CART_COUNTRY_INVALID: la tienda de ese país aún no vende en línea', () => {
+    expect(mapCartError(apiError(400, { code: 'CART_COUNTRY_INVALID', details: { country: 'CO' } }))).toEqual({ kind: 'country_invalid' });
+  });
+
   it('un 409 SIN código (API previo) sigue siendo "other"', () => {
     expect(mapCartError(apiError(409, { message: 'Conflicto' }))).toEqual({ kind: 'other' });
   });

@@ -362,7 +362,8 @@
         "alreadyMax": "Ya tienes en el carrito el máximo disponible ({max}).",
         "alreadyMaxOrderMax": "Ya tienes en el carrito el máximo por pedido ({max}).",
         "noPriceInCountry": "Este producto no tiene precio en la tienda de {country}, así que no se puede agregar al carrito.",
-        "countryChange": "Tu carrito es de la tienda de {country}. Para comprar en otra tienda hay que vaciarlo."
+        "countryChange": "Tu carrito es de la tienda de {country}. Para comprar en otra tienda hay que vaciarlo.",
+        "countryInvalid": "Esta tienda aún no vende en línea en este país."
       },
       "country": {
         "changeTitle": "Tu carrito es de otra tienda",

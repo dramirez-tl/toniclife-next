@@ -126,6 +126,11 @@ describe('countryConflictOf (409 CART_COUNTRY_CHANGE / CHK_COUNTRY_MISMATCH)', (
     expect(countryConflictOf(err, { cartCountry: 'CO', requestedCountry: 'GT' })).toEqual({ cartCountry: 'MX', requestedCountry: 'US' });
   });
 
+  it('CHK_COUNTRY_MISMATCH del checkout: details { cartCountry, orderCountry }', () => {
+    const err = apiError(409, { code: 'CHK_COUNTRY_MISMATCH', details: { cartCountry: 'MX', orderCountry: 'US' } });
+    expect(countryConflictOf(err)).toEqual({ cartCountry: 'MX', requestedCountry: 'US' });
+  });
+
   it('sin details: el respaldo (carrito en caché y país enviado)', () => {
     const err = apiError(409, { code: 'CART_COUNTRY_CHANGE' });
     expect(countryConflictOf(err, { cartCountry: 'MX', requestedCountry: 'us' })).toEqual({ cartCountry: 'MX', requestedCountry: 'US' });

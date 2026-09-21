@@ -146,9 +146,9 @@ export interface CheckoutGate {
 
 /**
  * El pago se BLOQUEA a una sesión de cliente y, desde C2, también a un INVITADO cuyo
- * carrito YA trae su país (`cart.countryCode`): sus existencias y topes son los de ese
- * país y, con el merge de C3, ese carrito sí llega a una orden.
- * Carrito SIN país (API previo a C2 o `country_id` NULL): el del invitado se resuelve
+ * carrito YA tiene su país FIJADO (`pinnedCartCountry`): sus existencias y topes son los de
+ * ese país y, con el merge de C3, ese carrito sí llega a una orden.
+ * Carrito SIN país fijado (API previo a C2 o `country_id` NULL): el del invitado se resuelve
  * como MX aunque navegue otra tienda (existencias de otro país), así que solo se le
  * informa y puede continuar a iniciar sesión, como antes.
  */
@@ -308,6 +308,8 @@ export type CartErrorKind =
   | 'country_change'
   /** 422 `CART_NO_PRICE_IN_COUNTRY` (C2): el producto no tiene precio en el país del carrito. */
   | 'no_price_in_country'
+  /** 400 `CART_COUNTRY_INVALID` (C2): el país de la tienda visitada aún no vende en línea. */
+  | 'country_invalid'
   | 'session_expired'
   | 'other';
 
@@ -350,6 +352,7 @@ export function mapCartError(err: unknown): CartErrorInfo {
   if (code === 'CART_NO_PRICE_IN_COUNTRY') {
     return { kind: 'no_price_in_country', requestedCountry: countryConflictOf(err).requestedCountry };
   }
+  if (code === 'CART_COUNTRY_INVALID') return { kind: 'country_invalid' };
   if (catalogErrorStatus(err) === 401) return { kind: 'session_expired' };
   return { kind: 'other' };
 }

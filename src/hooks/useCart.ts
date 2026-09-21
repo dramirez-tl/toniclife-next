@@ -63,6 +63,9 @@ function useCartErrorToast(): (err: unknown, fallback: CartErrorFallback, reason
         case 'no_price_in_country':
           toast.error(t('noPriceInCountry', { country: countryDisplayName(info.requestedCountry ?? cartCountry(), lang) }));
           return;
+        case 'country_invalid':
+          toast.error(t('countryInvalid'));
+          return;
         case 'country_change':
           // Al AGREGAR lo atiende el diálogo "Vaciar y cambiar" (`useAddCartItem`); aquí solo el aviso.
           toast.error(t('countryChange', { country: countryDisplayName(info.cartCountry ?? cartCountry(), lang) }));

@@ -362,7 +362,8 @@
         "alreadyMax": "Your cart already has the maximum available ({max}).",
         "alreadyMaxOrderMax": "Your cart already has the max per order ({max}).",
         "noPriceInCountry": "This product has no price in the {country} store, so it can't be added to the cart.",
-        "countryChange": "Your cart belongs to the {country} store. To shop in another store it has to be emptied."
+        "countryChange": "Your cart belongs to the {country} store. To shop in another store it has to be emptied.",
+        "countryInvalid": "This store doesn't sell online in this country yet."
       },
       "country": {
         "changeTitle": "Your cart belongs to another store",

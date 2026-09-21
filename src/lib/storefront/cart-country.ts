@@ -104,6 +104,9 @@ const CART_COUNTRY_KEYS = ['cartCountry', 'cartCountryCode', 'currentCountry', '
 const REQUESTED_COUNTRY_KEYS = [
   'requestedCountry',
   'requestedCountryCode',
+  // `CHK_COUNTRY_MISMATCH` del checkout: details { cartCountry, orderCountry }.
+  'orderCountry',
+  'orderCountryCode',
   'storeCountry',
   'storeCountryCode',
   'country',
