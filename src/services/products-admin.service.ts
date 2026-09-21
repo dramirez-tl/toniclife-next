@@ -10,6 +10,7 @@
 // se trata como opcional/nullable y los normalizadores de abajo nunca lanzan.
 
 import api from '@/lib/axios';
+import { hydrateBlobErrorBody } from '@/components/admin/products/lib/errors';
 import type {
   Product,
   ProductImage,
@@ -458,22 +459,6 @@ function cleanParams(params: CatalogAdminListParams): Record<string, string | nu
   return out;
 }
 
-const CONTROL_KEYS = ['expectedUpdatedAt', 'fiscalReason', 'confirmCodeChange'] as const;
-
-/** Llaves de control que un API aún sin el DTO ampliado rechazó con 400 "property X should not exist". */
-function rejectedControlKeys(err: unknown): string[] {
-  const response = (err as { response?: { status?: number; data?: unknown } } | null)?.response;
-  if (response?.status !== 400 || !isDict(response.data)) return [];
-  const raw = response.data.message;
-  const messages = Array.isArray(raw) ? raw.filter((m): m is string => typeof m === 'string') : typeof raw === 'string' ? [raw] : [];
-  const unknownProps = messages
-    .map((m) => /^property (\w+) should not exist$/.exec(m)?.[1])
-    .filter((p): p is string => !!p);
-  // Si el API rechazó también llaves de DATOS, no se reintenta: el error debe verse.
-  if (unknownProps.length === 0 || unknownProps.some((p) => !(CONTROL_KEYS as readonly string[]).includes(p))) return [];
-  return unknownProps;
-}
-
 /** Claves repetidas (no `key[]=`): las entienden el parser `simple` y el `extended` de Express. */
 const REPEAT_ARRAYS = { indexes: null } as const;
 
@@ -497,11 +482,17 @@ class ProductsAdminService {
 
   /** CSV generado en el servidor (celdas ya neutralizadas contra fórmulas). */
   async exportHealthCsv(country?: StoreCountryCode): Promise<Blob> {
-    const response = await api.get<Blob>('/catalog-admin/health/export', {
-      params: country ? { country } : undefined,
-      responseType: 'blob',
-    });
-    return response.data;
+    try {
+      const response = await api.get<Blob>('/catalog-admin/health/export', {
+        params: country ? { country } : undefined,
+        responseType: 'blob',
+      });
+      return response.data;
+    } catch (err) {
+      // El cuerpo del error también llega como Blob: se lee para mostrar el mensaje del API.
+      await hydrateBlobErrorBody(err);
+      throw err;
+    }
   }
 
   async checkSlug(slug: string, excludeId?: string): Promise<SlugCheckResult> {
@@ -534,20 +525,8 @@ class ProductsAdminService {
   }
 
   async updateProduct(id: string, dto: AdminUpdateProductDto): Promise<AdminProduct> {
-    try {
-      const response = await api.patch<AdminProduct>(`/products/${id}`, dto);
-      return response.data;
-    } catch (err) {
-      // Compatibilidad de despliegue: un API anterior al DTO ampliado rechaza
-      // (forbidNonWhitelisted) las llaves de CONTROL nuevas. Se reintenta UNA vez
-      // sin ellas; nunca se quitan llaves de datos (eso sí sería perder cambios).
-      const rejected = rejectedControlKeys(err);
-      if (rejected.length === 0) throw err;
-      const retry: Record<string, unknown> = { ...dto };
-      for (const key of rejected) delete retry[key];
-      const response = await api.patch<AdminProduct>(`/products/${id}`, retry);
-      return response.data;
-    }
+    const response = await api.patch<AdminProduct>(`/products/${id}`, dto);
+    return response.data;
   }
 
   async duplicate(id: string, dto: DuplicateProductDto): Promise<AdminProduct> {

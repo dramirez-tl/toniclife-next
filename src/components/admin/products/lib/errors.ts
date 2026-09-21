@@ -65,9 +65,23 @@ export function productAdminErrorCode(err: unknown): string | null {
   return parseProductAdminError(err).code;
 }
 
+/**
+ * Códigos que el API lanza por VARIOS motivos con un `message` distinto cada vez
+ * (PRD_PRICE_INVALID: precio en 0, promocional distinto de 0, fecha de vigencia
+ * futura, país sin moneda; PRD_FORBIDDEN: qué permiso falta). Aquí manda el
+ * mensaje del API; el texto fijo solo cubre el caso de que no venga.
+ */
+const PREFER_API_MESSAGE = new Set(['PRD_PRICE_INVALID', 'PRD_FORBIDDEN']);
+
+const FORBIDDEN_MESSAGE = 'No tienes permiso para realizar esta acción.';
+
+const isUseful = (message: string | null): message is string =>
+  !!message && !GENERIC.some((g) => message.toLowerCase().includes(g));
+
 export function productAdminErrorMessage(err: unknown, fallback: string): string {
   const body = parseProductAdminError(err);
-  if (body.status === 403) return 'No tienes permiso para realizar esta acción.';
+  if (body.code && PREFER_API_MESSAGE.has(body.code) && isUseful(body.message)) return body.message;
+  if (body.status === 403) return FORBIDDEN_MESSAGE;
   if (body.code && CODE_MESSAGES[body.code]) {
     const suggestion = body.details?.suggestion;
     if (body.code === 'PRD_SLUG_TAKEN' && typeof suggestion === 'string') {
@@ -75,8 +89,24 @@ export function productAdminErrorMessage(err: unknown, fallback: string): string
     }
     return CODE_MESSAGES[body.code];
   }
-  if (body.message && !GENERIC.some((g) => body.message!.toLowerCase().includes(g))) {
-    return body.message;
-  }
+  if (isUseful(body.message)) return body.message;
   return fallback;
+}
+
+/**
+ * Con `responseType: 'blob'` axios entrega TAMBIÉN el cuerpo del error como Blob
+ * y `parseProductAdminError` no lo puede leer. Esto lo convierte en el JSON que
+ * mandó el API (mutando `err.response.data`) para que el mensaje llegue al
+ * usuario. Nunca lanza: si el cuerpo no es JSON, el error queda como estaba.
+ */
+export async function hydrateBlobErrorBody(err: unknown): Promise<void> {
+  const response = (err as AxiosLikeError | null | undefined)?.response;
+  const data = response?.data;
+  if (!response || typeof Blob === 'undefined' || !(data instanceof Blob)) return;
+  try {
+    const parsed: unknown = JSON.parse(await data.text());
+    if (typeof parsed === 'object' && parsed !== null) response.data = parsed;
+  } catch {
+    // Cuerpo vacío o no-JSON (p. ej. HTML de un proxy): se usa el texto de respaldo.
+  }
 }
