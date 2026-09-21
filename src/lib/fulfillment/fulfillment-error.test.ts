@@ -12,6 +12,30 @@ const httpError = (status: number, data: unknown) => ({
   response: { status, data },
 });
 
+describe('FUL_BRANCH_INACTIVE muestra el mensaje del API (M-4)', () => {
+  it('gana el texto del API, que nombra la sucursal', () => {
+    const message = 'La sucursal 164 · Irapuato Almacén General está desactivada: actívala en Sucursales antes de usarla.';
+    expect(fulfillmentErrorMessage(httpError(422, { statusCode: 422, code: 'FUL_BRANCH_INACTIVE', message }))).toBe(message);
+    // También cuando Nest lo anida.
+    expect(
+      fulfillmentErrorMessage(httpError(422, { statusCode: 422, message: { code: 'FUL_BRANCH_INACTIVE', message } })),
+    ).toBe(message);
+  });
+
+  it('sin mensaje útil del API cae a la tabla; los demás códigos siguen saliendo de la tabla', () => {
+    expect(
+      fulfillmentErrorMessage(httpError(422, { code: 'FUL_BRANCH_INACTIVE', message: 'Unprocessable Entity' })),
+    ).toContain('está desactivada. Actívala primero en Sucursales');
+    expect(fulfillmentErrorMessage(httpError(422, { code: 'FUL_BRANCH_INACTIVE' }))).toContain('Actívala primero en Sucursales');
+    expect(fulfillmentErrorMessage(httpError(400, { code: 'FUL_DUPLICATE_ROUTE', message: 'texto del API' }))).toBe(
+      'El mismo almacén aparece dos veces en la lista de un país.',
+    );
+    expect(fulfillmentErrorMessage(httpError(400, { code: 'FUL_TOO_MANY_ROUTES', message: 'x' }))).toBe(
+      'Un país puede tener hasta 5 almacenes.',
+    );
+  });
+});
+
 describe('fulfillment-error', () => {
   it('lee el cuerpo plano y el anidado de Nest', () => {
     expect(parseFulfillmentError(httpError(409, { code: 'FUL_VERSION_CONFLICT', message: 'x' })).code).toBe(

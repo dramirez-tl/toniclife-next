@@ -41,12 +41,28 @@ export function shippingBadgeText(countries: BranchShippingCountry[]): string {
 const joinNames = (names: string[]) =>
   names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}`;
 
-/** Texto del aviso al desactivar una sucursal que surte envíos; null = no hace falta avisar. */
-export function deactivateBranchWarning(countries: BranchShippingCountry[]): string | null {
+/**
+ * Cómo deja de estar activa la sucursal. "Eliminar" en /admin/sucursales es un
+ * borrado LÓGICO (`DELETE /branches/:id` → is_active = false), así que para los
+ * envíos tiene exactamente el mismo efecto que desactivarla.
+ */
+export type BranchOffAction = 'deactivate' | 'delete';
+
+const OFF_VERB: Record<BranchOffAction, string> = { deactivate: 'desactivas', delete: 'eliminas' };
+
+/**
+ * Texto del aviso al desactivar O eliminar una sucursal que surte envíos;
+ * null = no hace falta avisar.
+ */
+export function deactivateBranchWarning(
+  countries: BranchShippingCountry[],
+  action: BranchOffAction = 'deactivate',
+): string | null {
+  const verb = OFF_VERB[action];
   const affected = countries.filter((c) => c.resolvesHere);
   if (affected.length === 0) {
     return countries.length > 0
-      ? `Esta sucursal es almacén de respaldo para los envíos de ${joinNames(countries.map((c) => c.countryName))}; si la desactivas deja de ser una opción.`
+      ? `Esta sucursal es almacén de respaldo para los envíos de ${joinNames(countries.map((c) => c.countryName))}; si la ${verb} deja de ser una opción.`
       : null;
   }
   const losing = affected.filter((c) => !c.hasBackup).map((c) => c.countryName);
@@ -54,12 +70,12 @@ export function deactivateBranchWarning(countries: BranchShippingCountry[]): str
   const parts: string[] = [`Esta sucursal surte los envíos de ${joinNames(affected.map((c) => c.countryName))}.`];
   if (losing.length > 0) {
     parts.push(
-      `Si la desactivas, ${joinNames(losing)} ${losing.length === 1 ? 'se queda' : 'se quedan'} sin envío a domicilio.`,
+      `Si la ${verb}, ${joinNames(losing)} ${losing.length === 1 ? 'se queda' : 'se quedan'} sin envío a domicilio.`,
     );
   }
   if (moving.length > 0) {
     parts.push(
-      `${losing.length > 0 ? 'Los pedidos de' : 'Si la desactivas, los pedidos de'} ${joinNames(moving)} pasan a su almacén de respaldo.`,
+      `${losing.length > 0 ? 'Los pedidos de' : `Si la ${verb}, los pedidos de`} ${joinNames(moving)} pasan a su almacén de respaldo.`,
     );
   }
   return parts.join(' ');

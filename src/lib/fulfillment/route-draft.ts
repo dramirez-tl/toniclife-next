@@ -218,12 +218,28 @@ export function setRouteActive(
   isActive: boolean,
 ): RouteDraft {
   const routes = routesOf(draft, countryCode);
-  if (!routes.some((r) => r.branchId === branchId && r.isActive !== isActive)) return draft;
+  const target = routes.find((r) => r.branchId === branchId && r.isActive !== isActive);
+  if (!target) return draft;
+  // Activar una ruta hacia una sucursal desactivada = 422 FUL_BRANCH_INACTIVE en el API.
+  if (isActive && !canActivateRoute(target)) return draft;
   return withCountry(
     draft,
     countryCode,
     routes.map((r) => (r.branchId === branchId ? { ...r, isActive } : r)),
   );
+}
+
+/**
+ * Una ruta en pausa solo se puede reactivar si su sucursal está activa (el API
+ * responde 422 FUL_BRANCH_INACTIVE). Pausarla o quitarla siempre se puede.
+ */
+export function canActivateRoute(route: Pick<DraftRoute, 'branchIsActive'>): boolean {
+  return route.branchIsActive;
+}
+
+/** El interruptor "Activa" queda bloqueado solo en ese caso: ruta en pausa + sucursal desactivada. */
+export function isActivationLocked(route: Pick<DraftRoute, 'isActive' | 'branchIsActive'>): boolean {
+  return !route.isActive && !canActivateRoute(route);
 }
 
 export function setRouteNotes(
@@ -440,12 +456,28 @@ export function buildSavePayload(input: {
   return payload;
 }
 
-/** Borrador de UN país para "Probar con mis cambios sin guardar" (§6.5). */
+/**
+ * Borrador de UN país para "Probar con mis cambios sin guardar" (§6.5).
+ * Mismas reglas que el guardado: sin almacenes repetidos (gana el primero) y
+ * máximo 5 por país. El API rechaza lo contrario con FUL_DUPLICATE_ROUTE /
+ * FUL_TOO_MANY_ROUTES, así que aquí nunca se le manda.
+ */
 export function buildSimulateDraft(draft: RouteDraft, countryCode: string): FulfillmentSimulateDraft {
+  const seen = new Set<string>();
+  const unique = routesOf(draft, countryCode).filter((r) => {
+    if (seen.has(r.branchId)) return false;
+    seen.add(r.branchId);
+    return true;
+  });
   return {
     countryCode: norm(countryCode),
-    routes: routesOf(draft, countryCode).map((r) => ({ branchId: r.branchId, isActive: r.isActive })),
+    routes: unique.slice(0, MAX_ROUTES_PER_COUNTRY).map((r) => ({ branchId: r.branchId, isActive: r.isActive })),
   };
+}
+
+/** true = la prueba NO usa la lista completa del país (había repetidos o más de 5): la pantalla lo avisa. */
+export function isSimulateDraftTrimmed(draft: RouteDraft, countryCode: string): boolean {
+  return buildSimulateDraft(draft, countryCode).routes.length !== routesOf(draft, countryCode).length;
 }
 
 // ────────────────────────────────────────────────────────────────────────────

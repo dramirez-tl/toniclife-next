@@ -46,6 +46,12 @@ export const FULFILLMENT_ERROR_LABELS: Record<string, string> = {
     'Todavía no se puede guardar: Sistemas debe aplicar la actualización de la base de datos de esta pantalla (migración 144).',
 };
 
+/**
+ * Códigos donde el mensaje del API dice MÁS que la tabla (nombra la sucursal:
+ * "La sucursal 164 · … está desactivada"): gana el del API si no es genérico.
+ */
+const PREFER_API_MESSAGE = new Set<string>(['FUL_BRANCH_INACTIVE']);
+
 export interface ParsedFulfillmentError {
   status: number | null;
   code: string | null;
@@ -94,6 +100,9 @@ const isGeneric = (message: string) => {
 /** Texto para el usuario: tabla por código → mensaje del API (si no es genérico) → por estado HTTP. */
 export function fulfillmentErrorMessage(error: unknown, fallback = 'No se pudo completar la acción.'): string {
   const parsed = parseFulfillmentError(error);
+  if (parsed.code && PREFER_API_MESSAGE.has(parsed.code) && parsed.message && !isGeneric(parsed.message)) {
+    return parsed.message;
+  }
   if (parsed.code && FULFILLMENT_ERROR_LABELS[parsed.code]) return FULFILLMENT_ERROR_LABELS[parsed.code];
   if (parsed.message && !isGeneric(parsed.message)) return parsed.message;
   if (parsed.status === 403) return 'No tienes permiso para esta acción.';

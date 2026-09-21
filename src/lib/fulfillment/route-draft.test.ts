@@ -8,13 +8,16 @@ import {
   buildRoutingContext,
   buildSavePayload,
   buildSimulateDraft,
+  canActivateRoute,
   canMove,
   changedCountryCodes,
   copyCountryRoutes,
   countryStatus,
   draftFromServer,
+  isActivationLocked,
   isCrossCountryRoute,
   isDraftDirty,
+  isSimulateDraftTrimmed,
   mergeWarnings,
   moveRoute,
   normalizeNotes,
@@ -277,6 +280,61 @@ describe('validación y cuerpo del PUT', () => {
         { branchId: 'b-205', isActive: false },
       ],
     });
+    expect(isSimulateDraftTrimmed(draft, 'MX')).toBe(false);
+  });
+
+  it('borrador para el simulador: sin almacenes repetidos y máximo 5 (el API lo rechaza: FUL_DUPLICATE_ROUTE / FUL_TOO_MANY_ROUTES)', () => {
+    const row = (n: number, isActive = true) => ({
+      ...draftFromServer(seededResponse()).countries.MX[0],
+      branchId: `b-${n}`,
+      branchCode: String(n),
+      isActive,
+    });
+    // Forzado por fuera de la pantalla (p. ej. filas metidas por SQL): repetido + 7 almacenes.
+    const forced = {
+      ...base,
+      countries: { ...base.countries, MX: [row(1), row(1, false), row(2), row(3), row(4), row(5), row(6)] },
+    };
+    const sim = buildSimulateDraft(forced, 'MX');
+    expect(sim.routes.map((r) => r.branchId)).toEqual(['b-1', 'b-2', 'b-3', 'b-4', 'b-5']);
+    expect(sim.routes).toHaveLength(MAX_ROUTES_PER_COUNTRY);
+    // Del repetido gana el PRIMERO (su estado es el que cuenta).
+    expect(sim.routes[0]).toEqual({ branchId: 'b-1', isActive: true });
+    expect(new Set(sim.routes.map((r) => r.branchId)).size).toBe(sim.routes.length);
+    expect(isSimulateDraftTrimmed(forced, 'MX')).toBe(true);
+    expect(buildSimulateDraft(base, 'PE')).toEqual({ countryCode: 'PE', routes: [] });
+  });
+});
+
+describe('interruptor "Activa" con la sucursal desactivada (M-4)', () => {
+  const withInactive = (isActive: boolean) => {
+    const data = seededResponse();
+    data.countries[0].routes = [route(WH_164, 1), route(WH_INACTIVE, 2, { isActive, usable: false })];
+    return draftFromServer(data);
+  };
+
+  it('una ruta en pausa hacia una sucursal desactivada NO se puede reactivar (el API daría 422 FUL_BRANCH_INACTIVE)', () => {
+    const draft = withInactive(false);
+    expect(canActivateRoute(draft.countries.MX[1])).toBe(false);
+    expect(isActivationLocked(draft.countries.MX[1])).toBe(true);
+    expect(setRouteActive(draft, 'MX', WH_INACTIVE.branchId, true)).toBe(draft);
+  });
+
+  it('una ruta que ya estaba activa hacia una sucursal desactivada sí se puede pausar (y quitar)', () => {
+    const draft = withInactive(true);
+    expect(isActivationLocked(draft.countries.MX[1])).toBe(false);
+    const paused = setRouteActive(draft, 'MX', WH_INACTIVE.branchId, false);
+    expect(paused.countries.MX[1].isActive).toBe(false);
+    // Una vez en pausa ya no se puede volver a activar hasta que la sucursal se active.
+    expect(isActivationLocked(paused.countries.MX[1])).toBe(true);
+    expect(setRouteActive(paused, 'MX', WH_INACTIVE.branchId, true)).toBe(paused);
+    expect(removeRoute(draft, 'MX', WH_INACTIVE.branchId).countries.MX).toHaveLength(1);
+  });
+
+  it('con la sucursal activa el interruptor funciona en ambos sentidos', () => {
+    const paused = setRouteActive(base, 'MX', WH_164.branchId, false);
+    expect(isActivationLocked(paused.countries.MX[0])).toBe(false);
+    expect(setRouteActive(paused, 'MX', WH_164.branchId, true).countries.MX[0].isActive).toBe(true);
   });
 });
 

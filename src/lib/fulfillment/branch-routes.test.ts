@@ -28,4 +28,22 @@ describe('branch-routes', () => {
     expect(deactivateBranchWarning(mx164.filter((c) => !c.resolvesHere))).toContain('almacén de respaldo para los envíos de Estados Unidos');
     expect(deactivateBranchWarning([])).toBeNull();
   });
+
+  it('eliminar (borrado lógico) usa el MISMO aviso, con su verbo (M-2)', () => {
+    const data = seededResponse();
+    data.countries[2].routes = [route(WH_205, 1), route(WH_164, 2)]; // US con respaldo
+    const map = shippingCountriesByBranch(data);
+    const mx164 = map[WH_164.branchId];
+    expect(deactivateBranchWarning(mx164.filter((c) => c.resolvesHere), 'delete')).toBe(
+      'Esta sucursal surte los envíos de México. Si la eliminas, México se queda sin envío a domicilio.',
+    );
+    expect(deactivateBranchWarning(map[WH_205.branchId], 'delete')).toBe(
+      'Esta sucursal surte los envíos de Estados Unidos. Si la eliminas, los pedidos de Estados Unidos pasan a su almacén de respaldo.',
+    );
+    expect(deactivateBranchWarning(mx164.filter((c) => !c.resolvesHere), 'delete')).toContain(
+      'si la eliminas deja de ser una opción',
+    );
+    // Sin rutas activas no hay aviso de rutas: eliminar sigue con su confirmación de siempre.
+    expect(deactivateBranchWarning([], 'delete')).toBeNull();
+  });
 });

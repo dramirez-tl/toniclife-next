@@ -6,7 +6,13 @@
 // Mismos 6 tipos de cambio que `diffRoutes` del API.
 
 import type { FulfillmentRouteChangeType, FulfillmentStockMode } from '@/types/fulfillment';
-import { resolveCountry, normalizeNotes, type DraftRoute, type RoutingContext } from './route-draft';
+import {
+  isCrossCountryRoute,
+  normalizeNotes,
+  resolveCountry,
+  type DraftRoute,
+  type RoutingContext,
+} from './route-draft';
 
 export interface RouteChange {
   type: FulfillmentRouteChangeType;
@@ -114,6 +120,50 @@ export function countriesChangingWarehouse(
   return out;
 }
 
+/**
+ * Países que HOY no resuelven almacén y con el borrador empiezan a resolver
+ * (p. ej. Frontera con "Usar los mismos almacenes que México"). Importa porque
+ * el carrito de sus clientes deja de mostrar todo como disponible y pasa a
+ * mostrar las existencias REALES de ese almacén: el resumen de guardado lo avisa.
+ */
+export function countriesGainingShipping(
+  before: RoutesByCountry,
+  after: RoutesByCountry,
+  ctx: RoutingContext,
+): Array<{ countryCode: string; to: DraftRoute }> {
+  const out: Array<{ countryCode: string; to: DraftRoute }> = [];
+  for (const code of Object.keys(after).sort()) {
+    if (resolveCountry(before[code], code, ctx) !== null) continue;
+    const to = resolveCountry(after[code], code, ctx);
+    if (to) out.push({ countryCode: code, to });
+  }
+  return out;
+}
+
+export const changeKey = (countryCode: string, branchId: string | null) => `${countryCode}|${branchId ?? ''}`;
+
+/**
+ * Cambios (agregar o reactivar) cuya ruta va hacia OTRO país fiscal con el
+ * candado puesto: se guardan, pero todavía no surten. Devuelve sus llaves
+ * (`changeKey`) para que el resumen no prometa "almacén principal".
+ */
+export function crossBlockedChangeKeys(
+  changes: RouteChange[],
+  after: RoutesByCountry,
+  ctx: RoutingContext,
+): Set<string> {
+  const keys = new Set<string>();
+  if (ctx.crossCountry === 'allow') return keys;
+  for (const change of changes) {
+    if ((change.type !== 'added' && change.type !== 'resumed') || !change.branchId) continue;
+    const route = (after[change.countryCode] ?? []).find((r) => r.branchId === change.branchId);
+    if (route && isCrossCountryRoute(route, change.countryCode, ctx)) {
+      keys.add(changeKey(change.countryCode, change.branchId));
+    }
+  }
+  return keys;
+}
+
 export function countChanges(changes: RouteChange[], stockModeChanged: boolean): number {
   return changes.length + (stockModeChanged ? 1 : 0);
 }
@@ -122,9 +172,26 @@ export function changesLabel(count: number): string {
   return count === 1 ? '1 cambio sin guardar' : `${count} cambios sin guardar`;
 }
 
-/** Texto llano de un cambio, para una persona no técnica. */
-export function describeChange(change: RouteChange, countryName: string): string {
+const CROSS_BLOCKED_SUFFIX =
+  'queda configurado, pero todavía no surte pedidos (los envíos de un país a otro aún no están habilitados)';
+
+/**
+ * Texto llano de un cambio, para una persona no técnica.
+ * `crossBlocked` = la ruta va hacia otro país fiscal con el candado puesto: el
+ * texto NO dice "almacén principal" ni "respaldo", porque no va a surtir.
+ */
+export function describeChange(
+  change: RouteChange,
+  countryName: string,
+  options: { crossBlocked?: boolean } = {},
+): string {
   const warehouse = `${change.branchCode ?? ''} · ${change.branchName ?? ''}`;
+  if (options.crossBlocked && change.type === 'added') {
+    return `${countryName}: se agrega ${warehouse} a la lista; ${CROSS_BLOCKED_SUFFIX}.`;
+  }
+  if (options.crossBlocked && change.type === 'resumed') {
+    return `${countryName}: se reactiva ${warehouse}; ${CROSS_BLOCKED_SUFFIX}.`;
+  }
   switch (change.type) {
     case 'added':
       return change.position === 1

@@ -33,7 +33,8 @@ export interface FulfillmentRoute {
   isCrossCountry: boolean;
   usable: boolean;
   notes: string | null;
-  updatedAt: string;
+  /** null en el candidato sintético (sin la migración 144 no hay fila que fechar). */
+  updatedAt: string | null;
 }
 
 export interface FulfillmentCountry {
@@ -276,6 +277,8 @@ export interface FulfillmentHistoryEntry {
   before: Record<string, unknown> | null;
   after: Record<string, unknown> | null;
   summaryEs: string;
+  /** "Motivo del cambio" que escribió quien guardó (PUT `reason`); null o ausente = no dejó motivo. */
+  reason?: string | null;
 }
 
 export interface FulfillmentHistoryResponse {
