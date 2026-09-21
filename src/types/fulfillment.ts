@@ -112,15 +112,18 @@ export type FulfillmentRouteChangeType =
   | 'reordered'
   | 'notes_changed';
 
-/** Cambio aplicado que devuelve el PUT (`applied`). */
+/** Cambio aplicado que devuelve el PUT (`applied`): espejo de `RouteChange` de la lib del API. */
 export interface FulfillmentAppliedChange {
   type: FulfillmentRouteChangeType;
   countryCode: string;
-  branchId?: string | null;
-  branchCode?: string | null;
-  branchName?: string | null;
+  branchId: string;
+  branchCode: string;
+  branchName: string;
+  /** Lugar en la lista (1..n) antes y después; null si no aplica. */
+  fromPriority: number | null;
+  toPriority: number | null;
   /** 'cross_country_blocked' = quedó configurada, pero todavía no surte pedidos. */
-  notice?: 'cross_country_blocked' | null;
+  notice?: 'cross_country_blocked';
 }
 
 export interface SaveFulfillmentRoutesResponse extends FulfillmentRoutesResponse {
@@ -294,7 +297,8 @@ export type FulfillmentErrorCode =
   | 'FUL_NOTES_TOO_LONG'
   | 'FUL_PRODUCT_INVALID'
   | 'FUL_USE_ROUTES_SCREEN'
-  | 'FUL_NO_ROUTE';
+  | 'FUL_NO_ROUTE'
+  | 'FUL_MIGRATION_PENDING';
 
 export interface FulfillmentErrorBody {
   statusCode?: number;

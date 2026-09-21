@@ -42,6 +42,8 @@ export const FULFILLMENT_ERROR_LABELS: Record<string, string> = {
   FUL_NOTES_TOO_LONG: 'Las notas admiten hasta 300 caracteres.',
   FUL_PRODUCT_INVALID: 'Uno de los productos de la prueba no existe o no está activo.',
   FUL_USE_ROUTES_SCREEN: 'El almacén de envío ahora se configura en Almacenes y envíos.',
+  FUL_MIGRATION_PENDING:
+    'Todavía no se puede guardar: Sistemas debe aplicar la actualización de la base de datos de esta pantalla (migración 144).',
 };
 
 export interface ParsedFulfillmentError {
