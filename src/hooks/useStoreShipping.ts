@@ -11,21 +11,25 @@
 // país y viewer, 10 min). Sin dato (CO/GT, carrito sin slugs, error) = `null` y la
 // barra NO se pinta: nunca hay umbrales quemados.
 //
-// El mismo detalle trae el `priceTier` del viewer: a un distribuidor el checkout le
-// cobra SIEMPRE el envío estándar (`checkout.service`, `alwaysChargeStandard`), así
-// que para él `eligible = false` y no se le promete envío gratis.
+// A un distribuidor el checkout le cobra SIEMPRE el envío estándar (`checkout.service`,
+// `alwaysChargeStandard`, por `customer_type`). Este hook solo ENTREGA los datos del
+// detalle: `shipping.freeShippingEligible` (si el API ya lo manda) y el `priceTier`
+// del viewer. La decisión (moneda garantizada + elegibilidad) es de `freeShippingEligible`
+// en `cart-logic`, que la barra llama con la sesión del viewer.
 
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { storefrontKeys, useStorefrontViewer } from '@/hooks/useStorefront';
 import { storefrontService } from '@/services/storefront.service';
 import type { LanguageCode } from '@/i18n/config';
 import type { StoreShippingInfo } from '@/lib/storefront/cart-logic';
-import type { StorefrontDetailResponse } from '@/types/storefront';
+import type { StorefrontDetailResponse, StorefrontPriceTier } from '@/types/storefront';
 
 export interface StoreShippingState {
   shipping: StoreShippingInfo;
-  /** `false` = el checkout nunca le da envío gratis por monto (distribuidor). */
-  eligible: boolean;
+  /** `shipping.freeShippingEligible` del API (false para distribuidores); `null` = el API aún no lo manda. */
+  apiEligible: boolean | null;
+  /** Nivel de precio con el que el API cotizó al viewer (respaldo provisional sin `apiEligible`). */
+  priceTier: StorefrontPriceTier;
 }
 
 const STALE_MS = 10 * 60 * 1000;
@@ -37,7 +41,8 @@ function fromDetail(detail: StorefrontDetailResponse | undefined): StoreShipping
   if (shipping.freeThreshold === null) return null;
   return {
     shipping: { freeThreshold: shipping.freeThreshold, currencyCode: shipping.currencyCode },
-    eligible: priceTier !== 'distributor',
+    apiEligible: typeof shipping.freeShippingEligible === 'boolean' ? shipping.freeShippingEligible : null,
+    priceTier,
   };
 }
 

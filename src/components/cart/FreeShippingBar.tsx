@@ -3,15 +3,29 @@
 // "Te faltan $X para envío gratis", POR PAÍS y con el umbral REAL configurable
 // (ver `useStoreShipping`). Sustituye los umbrales MXN quemados de `useCartIncentive`
 // ("Kit Básico" $1,577 / "Kit Prosperity" $5,000, comparados contra cualquier moneda).
-// Sin dato del país, con moneda distinta o para un distribuidor: no se pinta NADA
-// (tampoco el contenedor).
+// Sin dato del país, sin poder GARANTIZAR que subtotal y umbral están en la misma moneda
+// o para un distribuidor: no se pinta NADA (tampoco el contenedor).
+//
+// TODO(C2): mientras el API no mande `cart.currencyCode`, el carrito de un INVITADO se
+// resuelve como MX aunque navegue /en-us: a un invitado solo se le pinta la barra en la
+// tienda MX (si no, compararía pesos contra el umbral en dólares y diría "alcanzado").
 
 import { useTranslations } from 'next-intl';
 import { TruckIcon } from '@heroicons/react/24/outline';
 import { useCart } from '@/hooks/useCart';
 import { useStoreCountry } from '@/hooks/useStoreCountry';
 import { useStoreShipping } from '@/hooks/useStoreShipping';
-import { freeShippingProgress, lineSlug, type FreeShippingProgress } from '@/lib/storefront/cart-logic';
+import { useStorefrontViewer } from '@/hooks/useStorefront';
+import { useAppSelector } from '@/store/hooks';
+import { selectUser } from '@/store/slices/authSlice';
+import { resolvePortal } from '@/lib/auth-roles';
+import {
+  freeShippingEligible,
+  freeShippingProgress,
+  knownCartCurrency,
+  lineSlug,
+  type FreeShippingProgress,
+} from '@/lib/storefront/cart-logic';
 import { formatStorePrice } from '@/lib/storefront/price';
 import { cn } from '@/lib/utils';
 
@@ -27,12 +41,29 @@ function useFreeShipping({ subtotal, cartCurrencyCode, slugs }: FreeShippingSour
   const t = useTranslations('storefront.cart.freeShipping');
   const { countryCode, lang } = useStoreCountry();
   const { data } = useStoreShipping(countryCode, lang, slugs);
+  const { hasCustomerSession } = useStorefrontViewer();
+  const user = useAppSelector(selectUser);
 
+  const viewer = {
+    hasCustomerSession,
+    // Solo lectura del rol de la sesión (sin tocar auth): portal de cliente = distribuidor.
+    distributorSession: hasCustomerSession && resolvePortal(user?.roleCategory, user?.roles?.[0]) === 'distributor',
+    cartCurrencyCode,
+    viewerCurrencyCode: hasCustomerSession ? user?.currencyCode : null,
+    countryCode,
+  };
   const progress = freeShippingProgress({
     shipping: data?.shipping,
     subtotal,
-    cartCurrencyCode,
-    eligible: data?.eligible ?? false,
+    cartCurrencyCode: knownCartCurrency(viewer),
+    eligible:
+      !!data &&
+      freeShippingEligible({
+        ...viewer,
+        apiEligible: data.apiEligible,
+        priceTier: data.priceTier,
+        shippingCurrencyCode: data.shipping.currencyCode,
+      }),
   });
   if (!progress) return null;
   const message = progress.reached
