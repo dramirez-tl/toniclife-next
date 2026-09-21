@@ -79,9 +79,7 @@
         "unknown": "Availability confirmed when added"
       },
       "cart": {
-        "addedAnnouncement": "{count, plural, one {# unit of {name} added to the cart} other {# units of {name} added to the cart}}",
-        "addedToast": "{name} was added to your cart",
-        "viewCart": "View cart"
+        "addedAnnouncement": "{count, plural, one {# unit of {name} added to the cart} other {# units of {name} added to the cart}}"
       },
       "countryNotReady": {
         "eyebrow": "Coming soon",

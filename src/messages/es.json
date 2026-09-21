@@ -79,9 +79,7 @@
         "unknown": "Disponibilidad por confirmar al agregar"
       },
       "cart": {
-        "addedAnnouncement": "{count, plural, one {Se agregó # pieza de {name} al carrito} other {Se agregaron # piezas de {name} al carrito}}",
-        "addedToast": "{name} se agregó al carrito",
-        "viewCart": "Ver carrito"
+        "addedAnnouncement": "{count, plural, one {Se agregó # pieza de {name} al carrito} other {Se agregaron # piezas de {name} al carrito}}"
       },
       "countryNotReady": {
         "eyebrow": "Muy pronto",

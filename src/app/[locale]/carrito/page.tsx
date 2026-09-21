@@ -1,15 +1,19 @@
-// app/carrito/page.tsx - Cart page with API integration
+// app/[locale]/carrito/page.tsx - Carrito completo (contrato ecommerce 7.3, bloque C1)
+//
+// - Cantidad con commit en blur/Enter (antes: un PATCH por tecla) y "+" deshabilitado
+//   en el tope de la línea (`maxQuantity` del API C1 o `availableStock` del actual).
+// - Puntos POR UNIDAD y solo si `showPoints` (API C1) o, sin el campo, solo a una
+//   sesión de cliente; nunca a invitados.
+// - "Proceder al pago" bloqueado con aviso claro si hay agotados o excesos.
+// - Los errores de las mutaciones los avisa `useCart` (i18n y por código): aquí NO se
+//   repite el toast. El checkout y el pago no se tocan.
 'use client';
 
-import Link from 'next/link';
-import Image from 'next/image';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Header, Footer } from '@/components/layout';
 import { Button, Card, Badge } from '@/components/ui';
 import {
   TrashIcon,
-  PlusIcon,
-  MinusIcon,
   ShoppingBagIcon,
   TruckIcon,
   ShieldCheckIcon,
@@ -29,23 +33,35 @@ import {
   useRemoveCoupon,
 } from '@/hooks/useCart';
 import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
+import { Link } from '@/i18n/routing';
 import { formatCurrency } from '@/lib/currency';
 import { useStoreCountry } from '@/hooks/useStoreCountry';
-import { toast } from 'sonner';
+import { useStorefrontViewer } from '@/hooks/useStorefront';
+import { CartLineQuantity } from '@/components/cart/CartLineQuantity';
+import { FreeShippingBar } from '@/components/cart/FreeShippingBar';
+import { ProductImage } from '@/components/storefront/ProductImage';
+import { catalogErrorMessage } from '@/lib/storefront/errors';
+import { formatProductName } from '@/lib/storefront/content-format';
+import { productPath } from '@/lib/storefront/slug';
+import {
+  cartBlockers,
+  lineIssue,
+  lineLimit,
+  linePointsPerUnit,
+  lineSlug,
+  resolveShowPoints,
+} from '@/lib/storefront/cart-logic';
+import type { CartItem } from '@/types/cart';
+
+const FOCUS_RING = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3E667D]';
 
 /** Campo para aplicar/quitar cupón de descuento en el resumen del carrito. */
-function CouponBox({
-  couponCode,
-  applyLabel,
-  placeholder,
-  appliedLabel,
-}: {
-  couponCode?: string;
-  applyLabel: string;
-  placeholder: string;
-  appliedLabel: string;
-}) {
+function CouponBox({ couponCode, useApiMessage }: { couponCode?: string; useApiMessage: boolean }) {
+  const t = useTranslations('cart');
+  const tCoupon = useTranslations('storefront.cart.coupon');
   const [code, setCode] = useState('');
+  const inputId = useId();
   const applyCoupon = useApplyCoupon();
   const removeCoupon = useRemoveCoupon();
 
@@ -54,39 +70,38 @@ function CouponBox({
     if (!value) return;
     try {
       await applyCoupon.mutateAsync({ code: value });
-      toast.success(`${appliedLabel}: ${value.toUpperCase()}`);
+      toast.success(`${t('couponApplied')}: ${value.toUpperCase()}`);
       setCode('');
-    } catch (e: unknown) {
-      const msg =
-        (e as { response?: { data?: { message?: string | string[] } } })?.response
-          ?.data?.message || 'Cupón inválido';
-      toast.error(Array.isArray(msg) ? msg[0] : msg);
+    } catch (err) {
+      // El motivo real lo da el API (en español): en inglés se usa el texto traducido.
+      toast.error(catalogErrorMessage(err, tCoupon('invalid'), { useApiMessage }));
     }
   };
 
   const handleRemove = async () => {
     try {
       await removeCoupon.mutateAsync();
-      toast.success('Cupón removido');
+      toast.success(tCoupon('removed'));
     } catch {
-      toast.error('No se pudo quitar el cupón');
+      toast.error(tCoupon('removeError'));
     }
   };
 
   if (couponCode) {
     return (
-      <div className="mb-4 flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
-        <span className="flex items-center gap-2 text-sm font-medium text-emerald-700">
-          <TicketIcon className="h-4 w-4" />
+      <div className="mb-4 flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1">
+        <span className="flex items-center gap-2 text-sm font-medium text-emerald-800">
+          <TicketIcon aria-hidden="true" className="h-4 w-4" />
           {couponCode}
         </span>
         <button
-          onClick={handleRemove}
+          type="button"
+          onClick={() => void handleRemove()}
           disabled={removeCoupon.isPending}
-          className="rounded p-1 text-emerald-600 transition-colors hover:bg-emerald-100 disabled:opacity-50"
-          title="Quitar cupón"
+          aria-label={tCoupon('removeLabel', { code: couponCode })}
+          className={`flex size-11 cursor-pointer items-center justify-center rounded text-emerald-800 transition-colors hover:bg-emerald-100 disabled:opacity-50 ${FOCUS_RING}`}
         >
-          <XMarkIcon className="h-4 w-4" />
+          <XMarkIcon aria-hidden="true" className="h-4 w-4" />
         </button>
       </div>
     );
@@ -94,84 +109,76 @@ function CouponBox({
 
   return (
     <div className="mb-4 grid grid-cols-[1fr_auto] gap-2">
+      <label htmlFor={inputId} className="sr-only">
+        {tCoupon('inputLabel')}
+      </label>
       <input
+        id={inputId}
         value={code}
         onChange={(e) => setCode(e.target.value.toUpperCase())}
-        onKeyDown={(e) => e.key === 'Enter' && handleApply()}
-        placeholder={placeholder}
-        className="w-full rounded-lg border border-gray-200 px-3 py-2 font-mono text-sm uppercase placeholder:font-sans placeholder:normal-case focus:border-[#3E667D] focus:outline-none focus:ring-1 focus:ring-[#a7c1e2]"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') void handleApply();
+        }}
+        placeholder={t('couponPlaceholder')}
+        className="min-h-11 w-full min-w-0 rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm uppercase placeholder:font-sans placeholder:normal-case placeholder:text-gray-600 focus:border-[#3E667D] focus:outline-none focus:ring-1 focus:ring-[#a7c1e2]"
         maxLength={40}
       />
       <Button
         size="sm"
         variant="outline"
-        className="h-full border-[#a7c1e2] text-[#3E667D] hover:bg-[#C8DDF2]/20 hover:text-[#2f5165]"
-        onClick={handleApply}
+        className="h-full min-h-11 border-[#a7c1e2] text-[#2f5165] hover:bg-[#C8DDF2]/20 hover:text-[#2f5165]"
+        onClick={() => void handleApply()}
         disabled={applyCoupon.isPending || !code.trim()}
       >
-        {applyCoupon.isPending ? '…' : applyLabel}
+        {applyCoupon.isPending ? '…' : t('couponApply')}
       </Button>
     </div>
   );
 }
 
-/** Renders a product image with initials fallback on error */
-function CartProductImage({ src, name, width, height, className }: { src?: string; name: string; width: number; height: number; className?: string }) {
-  const [error, setError] = useState(false);
-  const initials = (() => {
-    const words = name.split(/\s+/).filter(w => w.length > 0);
-    return words.length >= 2
-      ? (words[0][0] + words[1][0]).toUpperCase()
-      : name.substring(0, 2).toUpperCase();
-  })();
-
-  if (src && !error) {
-    return (
-      <Image
-        src={src}
-        alt={name}
-        width={width}
-        height={height}
-        className={className}
-        onError={() => setError(true)}
-      />
-    );
-  }
-
-  return (
-    <div className="w-24 h-24 bg-gradient-to-br from-[#C8DDF2]/30 to-[#3E667D]/20 rounded-2xl flex items-center justify-center">
-      <span className="text-2xl font-bold text-[#3E667D]/70">{initials}</span>
-    </div>
-  );
-}
-
-
 export default function CartPage() {
   const t = useTranslations('cart');
+  const tLine = useTranslations('storefront.cart.line');
+  const tBlocked = useTranslations('storefront.cart.blocked');
   const { currency, lang, countryCode } = useStoreCountry();
-  const fmt = (n: number | string) => formatCurrency(n, currency, lang);
+  const { hasCustomerSession } = useStorefrontViewer();
   const taxIncluded = countryCode === 'MX';
   const { data: cart, isLoading } = useCart();
   const clearCart = useClearCart();
   const updateItem = useUpdateCartItem();
   const removeItem = useRemoveCartItem();
+  const [status, setStatus] = useState('');
+  const blockedId = useId();
 
-  const handleUpdateQuantity = async (itemId: string, newQuantity: number) => {
-    if (newQuantity < 1) return;
-    try {
-      await updateItem.mutateAsync({ itemId, data: { quantity: newQuantity } });
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || t('updateError'));
-    }
+  const items = cart?.items ?? [];
+  // Moneda del carrito si el API la manda (C2); si no, la del país de la tienda (como hoy).
+  const fmt = (n: number | string) => formatCurrency(n, cart?.currencyCode || currency, lang);
+  const showPoints = resolveShowPoints(cart?.showPoints, hasCustomerSession);
+  const blockers = cartBlockers(items);
+  const soldOutItems = items.filter((item) => lineIssue(item) === 'sold_out');
+  const slugs = items.map(lineSlug).filter((slug): slug is string => slug !== null);
+  const busy = updateItem.isPending || removeItem.isPending;
+
+  // Los errores los avisa el hook (`useCart`): aquí solo el camino feliz.
+  const setQuantity = (item: CartItem, quantity: number, done?: string) => {
+    updateItem.mutate(
+      { itemId: item.id, data: { quantity } },
+      {
+        onSuccess: () => {
+          setStatus(done ?? '');
+          if (done) toast.success(done);
+        },
+      },
+    );
   };
 
-  const handleRemoveItem = async (itemId: string) => {
-    try {
-      await removeItem.mutateAsync(itemId);
-      toast.success(t('removed'));
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || t('removeError'));
-    }
+  const handleRemoveItem = (item: CartItem, name: string) => {
+    removeItem.mutate(item.id, {
+      onSuccess: () => {
+        setStatus(tLine('removed', { name }));
+        toast.success(t('removed'));
+      },
+    });
   };
 
   const handleClearCart = () => {
@@ -179,14 +186,7 @@ export default function CartPage() {
       description: t('confirmEmptyDesc'),
       action: {
         label: t('emptyAction'),
-        onClick: async () => {
-          try {
-            await clearCart.mutateAsync();
-            toast.success(t('emptied'));
-          } catch (error: any) {
-            toast.error(error.response?.data?.message || t('emptyError'));
-          }
-        },
+        onClick: () => clearCart.mutate(undefined, { onSuccess: () => toast.success(t('emptied')) }),
       },
       cancel: {
         label: t('cancel'),
@@ -195,34 +195,23 @@ export default function CartPage() {
     });
   };
 
+  const handleRemoveSoldOut = async () => {
+    try {
+      for (const item of soldOutItems) {
+        await removeItem.mutateAsync(item.id);
+      }
+      setStatus(t('soldOutRemoved'));
+      toast.success(t('soldOutRemoved'));
+    } catch {
+      // `useRemoveCartItem` ya avisó el motivo.
+    }
+  };
+
   // Calculations
   const subtotal = cart ? parseFloat(cart.subtotal) : 0;
   const discount = cart ? parseFloat(cart.discountAmount) : 0;
   const total = cart ? parseFloat(cart.total) : 0;
   const itemCount = cart?.itemCount || 0;
-  // Ítems agotados en el almacén del país (backend marca inStock=false).
-  const outOfStockItems = (cart?.items ?? []).filter((i) => i.inStock === false);
-
-  const handleRemoveOutOfStock = async () => {
-    try {
-      for (const it of outOfStockItems) {
-        await removeItem.mutateAsync(it.id);
-      }
-      toast.success(t('soldOutRemoved'));
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || t('removeError'));
-    }
-  };
-
-  // Ajusta la cantidad de un ítem al stock disponible (cuando pediste de más).
-  const handleAdjustToStock = async (itemId: string, available: number) => {
-    try {
-      await updateItem.mutateAsync({ itemId, data: { quantity: available } });
-      toast.success(t('quantityAdjusted'));
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || t('updateError'));
-    }
-  };
 
   return (
     <>
@@ -233,9 +222,9 @@ export default function CartPage() {
           <div className="mb-8">
             <Link
               href="/productos"
-              className="inline-flex items-center gap-2 text-gray-500 hover:text-[#3E667D] transition-colors"
+              className={`inline-flex min-h-11 items-center gap-2 rounded-sm text-gray-700 transition-colors hover:text-[#2f5165] ${FOCUS_RING}`}
             >
-              <ArrowLeftIcon className="h-4 w-4" />
+              <ArrowLeftIcon aria-hidden="true" className="h-4 w-4" />
               {t('keepShopping')}
             </Link>
           </div>
@@ -245,52 +234,50 @@ export default function CartPage() {
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="rounded-2xl bg-[#3E667D]/10 p-3">
-                  <ShoppingBagIcon className="h-8 w-8 text-[#3E667D]" />
+                  <ShoppingBagIcon aria-hidden="true" className="h-8 w-8 text-[#3E667D]" />
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold text-[#3E667D]">{t('title')}</h1>
-                  <p className="text-gray-500">
-                    {t('items', { count: itemCount })}
-                  </p>
+                  <h1 className="text-3xl font-bold text-[#2f5165]">{t('title')}</h1>
+                  <p className="text-gray-700">{t('items', { count: itemCount })}</p>
                 </div>
               </div>
-              <Badge variant="outline" className="border-[#3E667D]/30 bg-[#C8DDF2]/30 text-[#3E667D] text-xs sm:text-sm">
+              <Badge variant="outline" className="border-[#3E667D]/30 bg-[#C8DDF2]/30 text-[#2f5165] text-xs sm:text-sm">
                 {t('secureBadge')}
               </Badge>
             </div>
           </div>
 
+          <span className="sr-only" role="status" aria-live="polite">
+            {status}
+          </span>
+
           {isLoading ? (
             <div className="space-y-4 py-4">
               {[...Array(3)].map((_, i) => (
                 <Card key={i} className="border-gray-100 shadow-sm p-0">
-                  <div className="animate-pulse p-5">
+                  <div className="animate-pulse p-5 motion-reduce:animate-none">
                     <div className="mb-4 h-4 w-44 rounded bg-gray-200" />
-                    <div className="h-3 w-64 rounded bg-gray-100" />
+                    <div className="h-3 w-64 max-w-full rounded bg-gray-100" />
                     <div className="mt-4 h-10 w-full rounded bg-gray-100" />
                   </div>
                 </Card>
               ))}
             </div>
-          ) : !cart || cart.items.length === 0 ? (
+          ) : !cart || items.length === 0 ? (
             /* Empty Cart */
             <Card className="border-dashed border-gray-200 py-16 text-center">
               <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#3E667D]/5">
-                <ShoppingBagIcon className="h-10 w-10 text-[#3E667D]/60" />
+                <ShoppingBagIcon aria-hidden="true" className="h-10 w-10 text-[#3E667D]/60" />
               </div>
-              <h2 className="mb-2 text-2xl font-bold text-[#3E667D]">
-                {t('empty')}
-              </h2>
-              <p className="mb-8 max-w-md mx-auto text-gray-500">
-                {t('emptyDesc')}
-              </p>
-              <div className="flex flex-col justify-center gap-4 sm:flex-row">
-                <Link href="/productos">
-                  <Button size="lg">{t('viewProducts')}</Button>
-                </Link>
-                <Link href="/quiz">
-                  <Button variant="outline" size="lg">{t('startQuiz')}</Button>
-                </Link>
+              <h2 className="mb-2 text-2xl font-bold text-[#2f5165]">{t('empty')}</h2>
+              <p className="mb-8 max-w-md mx-auto px-4 text-gray-700">{t('emptyDesc')}</p>
+              <div className="flex flex-col justify-center gap-4 px-4 sm:flex-row">
+                <Button asChild size="lg" className="min-h-11">
+                  <Link href="/productos">{t('viewProducts')}</Link>
+                </Button>
+                <Button asChild variant="outline" size="lg" className="min-h-11">
+                  <Link href="/quiz">{t('startQuiz')}</Link>
+                </Button>
               </div>
             </Card>
           ) : (
@@ -298,20 +285,16 @@ export default function CartPage() {
               {/* Cart Items */}
               <div className="lg:col-span-2 space-y-4">
                 {/* Aviso de productos agotados (con opción de continuar con el resto) */}
-                {outOfStockItems.length > 0 && (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                    <p className="font-semibold text-amber-800">
-                      {t('soldOutBannerTitle')}
-                    </p>
-                    <p className="mt-1 text-sm text-amber-700">
-                      {t('soldOutBannerBody')}
-                    </p>
+                {soldOutItems.length > 0 && (
+                  <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+                    <p className="font-semibold text-amber-950">{t('soldOutBannerTitle')}</p>
+                    <p className="mt-1 text-sm text-amber-900">{t('soldOutBannerBody')}</p>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="mt-3 border-amber-300 text-amber-800 hover:bg-amber-100"
-                      onClick={handleRemoveOutOfStock}
-                      disabled={removeItem.isPending}
+                      className="mt-3 min-h-11 border-amber-400 text-amber-950 hover:bg-amber-100"
+                      onClick={() => void handleRemoveSoldOut()}
+                      disabled={busy}
                     >
                       {t('removeSoldOut')}
                     </Button>
@@ -319,183 +302,140 @@ export default function CartPage() {
                 )}
 
                 {/* Cart Items List */}
-                {cart.items.map((item) => (
-                  <Card key={item.id} className="overflow-hidden border-gray-100 shadow-sm transition-all hover:shadow-md p-0">
-                    <div className="flex flex-col sm:flex-row">
-                      {/* Product Image */}
-                      <div className="sm:w-40 h-40 bg-gray-50 sm:border-r border-b sm:border-b-0 border-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden p-3">
-                        {item.productSlug ? (
-                          <Link
-                            href={`/productos/${item.productSlug}`}
-                            className="flex h-full w-full items-center justify-center"
-                            aria-label={`Ver ${item.productName}`}
-                          >
-                            <CartProductImage
-                              src={item.productImageUrl}
-                              name={item.productName}
-                              width={160}
-                              height={160}
-                              className="max-h-full w-auto object-contain transition-transform hover:scale-105"
-                            />
-                          </Link>
-                        ) : (
-                          <CartProductImage
-                            src={item.productImageUrl}
-                            name={item.productName}
-                            width={160}
-                            height={160}
-                            className="max-h-full w-auto object-contain"
-                          />
-                        )}
-                      </div>
-
-                      {/* Product Info */}
-                      <div className="flex-grow p-5">
-                        <div className="flex justify-between items-start gap-4">
-                          <div className="flex-grow">
-                            <p className="text-xs text-gray-500 mb-1">
-                              SKU: {item.productCode}
-                            </p>
-                            <h3 className="font-bold text-lg text-[#3E667D]">
-                              {item.productSlug ? (
-                                <Link
-                                  href={`/productos/${item.productSlug}`}
-                                  className="hover:underline"
-                                >
-                                  {item.productName}
-                                </Link>
-                              ) : (
-                                item.productName
-                              )}
-                            </h3>
-
-                            {/* Aviso de agotado en el país */}
-                            {item.inStock === false && (
-                              <div className="mt-1">
-                                <Badge
-                                  variant="outline"
-                                  className="border-amber-300 bg-amber-50 text-amber-700"
-                                >
-                                  {t('soldOut')}
-                                </Badge>
-                                <span className="ml-2 text-xs text-amber-700">
-                                  {t('soldOutNote')}
-                                </span>
-                              </div>
-                            )}
-
-                            {/* Pediste más de lo disponible → ofrecer ajustar */}
-                            {item.inStock !== false &&
-                              item.availableStock != null &&
-                              item.availableStock < item.quantity && (
-                                <div className="mt-1 flex flex-wrap items-center gap-2">
-                                  <span className="text-xs text-amber-700">
-                                    {t('exceedsStock', {
-                                      requested: item.quantity,
-                                      available: item.availableStock,
-                                    })}
-                                  </span>
-                                  <button
-                                    onClick={() =>
-                                      handleAdjustToStock(item.id, item.availableStock!)
-                                    }
-                                    disabled={updateItem.isPending}
-                                    className="text-xs font-medium text-[#3E667D] underline hover:no-underline disabled:opacity-50"
-                                  >
-                                    {t('adjustToStock', { count: item.availableStock })}
-                                  </button>
-                                </div>
-                              )}
-
-                            {/* Stock bajo (suficiente pero pocas piezas) */}
-                            {item.inStock !== false &&
-                              item.availableStock != null &&
-                              item.availableStock >= item.quantity &&
-                              item.availableStock <= 5 && (
-                                <p className="mt-1 text-xs text-amber-600">
-                                  {t('lowStockLeft', { count: item.availableStock })}
-                                </p>
-                              )}
-
-                            {/* Unit Price */}
-                            <div className="flex items-center gap-2 mt-2">
-                              <span className="text-sm text-gray-500">
-                                {fmt(item.unitPrice)} {t('perUnit')}
-                              </span>
-                              {item.originalPrice && (
-                                <span className="text-xs text-gray-400 line-through">
-                                  {fmt(item.originalPrice)}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Points */}
-                            {item.points > 0 && (
-                              <p className="text-xs text-[#3E667D] mt-1">
-                                {t('pointsUnit', { points: item.points })}
-                              </p>
-                            )}
-                          </div>
-
-                          {/* Remove Button */}
-                          <button
-                            onClick={() => handleRemoveItem(item.id)}
-                            disabled={removeItem.isPending}
-                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                            aria-label={`Eliminar ${item.productName} del carrito`}
-                          >
-                            <TrashIcon className="h-5 w-5" />
-                          </button>
-                        </div>
-
-                        {/* Quantity & Total */}
-                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                          {/* Quantity Controls */}
-                          <div className="flex items-center gap-3">
-                            <span className="text-sm text-gray-500">{t('quantity')}</span>
-                            <div className="flex items-center rounded-lg border border-gray-200 bg-white">
-                              <button
-                                onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
-                                disabled={item.quantity <= 1 || updateItem.isPending}
-                                className="p-2 text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
-                              >
-                                <MinusIcon className="h-4 w-4" />
-                              </button>
-                              <input
-                                type="number"
-                                min={1}
-                                value={item.quantity}
-                                onChange={(e) => handleUpdateQuantity(item.id, parseInt(e.target.value) || 1)}
-                                className="w-14 border-x border-gray-200 py-2 text-center focus:outline-none"
+                <ul className="space-y-4" aria-label={t('title')}>
+                  {items.map((item) => {
+                    const name = formatProductName(item.productName);
+                    const slug = lineSlug(item);
+                    const issue = lineIssue(item);
+                    const limit = lineLimit(item);
+                    const perUnit = linePointsPerUnit(item, showPoints);
+                    const lowStock =
+                      issue === null && item.availableStock != null && item.availableStock > 0 && item.availableStock <= 5;
+                    return (
+                      <li key={item.id}>
+                        <Card className="overflow-hidden border-gray-100 shadow-sm transition-all hover:shadow-md p-0">
+                          <div className="flex flex-col sm:flex-row">
+                            {/* Product Image (decorativa: el nombre enlazado está al lado) */}
+                            <div className="relative h-40 shrink-0 overflow-hidden border-b border-gray-100 bg-gray-50 sm:w-40 sm:border-b-0 sm:border-r">
+                              <ProductImage
+                                src={item.productImageUrl}
+                                alt=""
+                                name={name}
+                                sizes="160px"
+                                className="p-3"
                               />
-                              <button
-                                onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                                disabled={updateItem.isPending}
-                                className="p-2 text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
-                              >
-                                <PlusIcon className="h-4 w-4" />
-                              </button>
+                            </div>
+
+                            {/* Product Info */}
+                            <div className="min-w-0 flex-grow p-5">
+                              <div className="flex justify-between items-start gap-4">
+                                <div className="min-w-0 flex-grow">
+                                  <p className="text-xs text-gray-700 mb-1">SKU: {item.productCode}</p>
+                                  <h2 className="font-bold text-lg text-[#2f5165]">
+                                    {slug ? (
+                                      <Link href={productPath(slug)} className={`rounded-sm underline-offset-4 hover:underline ${FOCUS_RING}`}>
+                                        {name}
+                                      </Link>
+                                    ) : (
+                                      name
+                                    )}
+                                  </h2>
+
+                                  {/* Aviso de agotado en el país */}
+                                  {issue === 'sold_out' && (
+                                    <div className="mt-1">
+                                      <Badge variant="outline" className="border-amber-400 bg-amber-50 text-amber-950">
+                                        {t('soldOut')}
+                                      </Badge>
+                                      <span className="ml-2 text-xs text-amber-900">{t('soldOutNote')}</span>
+                                    </div>
+                                  )}
+
+                                  {/* Pediste más de lo disponible → ofrecer ajustar */}
+                                  {issue === 'exceeds_stock' && (
+                                    <div className="mt-1 flex flex-wrap items-center gap-x-2">
+                                      <span className="text-xs text-amber-900">
+                                        {t('exceedsStock', { requested: item.quantity, available: limit.max })}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setQuantity(item, limit.max, t('quantityAdjusted'))}
+                                        disabled={busy}
+                                        className={`inline-flex min-h-11 cursor-pointer items-center rounded-sm text-xs font-semibold text-[#2f5165] underline underline-offset-4 hover:no-underline disabled:opacity-50 ${FOCUS_RING}`}
+                                      >
+                                        {t('adjustToStock', { count: limit.max })}
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {/* Stock bajo (suficiente pero pocas piezas) */}
+                                  {lowStock && (
+                                    <p className="mt-1 text-xs text-amber-900">
+                                      {t('lowStockLeft', { count: item.availableStock ?? 0 })}
+                                    </p>
+                                  )}
+
+                                  {/* Unit Price */}
+                                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                                    <span className="text-sm text-gray-700">
+                                      {fmt(item.unitPrice)} {t('perUnit')}
+                                    </span>
+                                    {item.originalPrice && (
+                                      <span className="text-xs text-gray-600 line-through">{fmt(item.originalPrice)}</span>
+                                    )}
+                                  </div>
+
+                                  {/* Puntos POR UNIDAD, solo para quien ve puntos */}
+                                  {perUnit !== null && (
+                                    <p className="text-xs text-[#2f5165] mt-1">{t('pointsUnit', { points: perUnit })}</p>
+                                  )}
+                                </div>
+
+                                {/* Remove Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveItem(item, name)}
+                                  disabled={busy}
+                                  className={`flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-red-50 hover:text-red-700 disabled:opacity-50 ${FOCUS_RING}`}
+                                  aria-label={tLine('removeLabel', { name })}
+                                >
+                                  <TrashIcon aria-hidden="true" className="h-5 w-5" />
+                                </button>
+                              </div>
+
+                              {/* Quantity & Total */}
+                              <div className="flex flex-wrap items-end justify-between gap-3 mt-4 pt-4 border-t border-gray-100">
+                                {issue === 'sold_out' ? (
+                                  <span />
+                                ) : (
+                                  <CartLineQuantity
+                                    name={name}
+                                    value={item.quantity}
+                                    max={limit.max}
+                                    maxKnown={limit.known}
+                                    disabled={busy}
+                                    onCommit={(next) => setQuantity(item, next)}
+                                  />
+                                )}
+
+                                {/* Line Total */}
+                                <span className="text-xl font-bold tabular-nums text-[#2f5165]">{fmt(item.lineTotal)}</span>
+                              </div>
                             </div>
                           </div>
-
-                          {/* Line Total */}
-                          <div className="text-right">
-                            <span className="text-xl font-bold text-[#3E667D]">
-                              {fmt(item.lineTotal)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
+                        </Card>
+                      </li>
+                    );
+                  })}
+                </ul>
 
                 {/* Clear Cart Button */}
                 <div className="text-center">
                   <button
+                    type="button"
                     onClick={handleClearCart}
                     disabled={clearCart.isPending}
-                    className="rounded-lg px-3 py-1.5 text-sm text-red-500 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                    className={`min-h-11 cursor-pointer rounded-lg px-3 py-1.5 text-sm text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50 ${FOCUS_RING}`}
                   >
                     {t('clearCart')}
                   </button>
@@ -505,104 +445,115 @@ export default function CartPage() {
               {/* Order Summary */}
               <div className="lg:col-span-1">
                 <Card className="sticky top-32 border-gray-100 shadow-sm p-6">
-                  <div className="mb-6 flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-[#3E667D]">
-                      {t('summaryTitle')}
-                    </h2>
-                    <Badge variant="outline" className="border-[#3E667D]/30 bg-[#C8DDF2]/30 text-[#3E667D]">
+                  <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+                    <h2 className="text-xl font-bold text-[#2f5165]">{t('summaryTitle')}</h2>
+                    <Badge variant="outline" className="border-[#3E667D]/30 bg-[#C8DDF2]/30 text-[#2f5165]">
                       {t('itemsShort', { count: itemCount })}
                     </Badge>
                   </div>
 
                   {/* Cupón de descuento */}
-                  <CouponBox
-                    couponCode={cart.couponCode}
-                    applyLabel={t('couponApply')}
-                    placeholder={t('couponPlaceholder')}
-                    appliedLabel={t('couponApplied')}
-                  />
+                  <CouponBox couponCode={cart.couponCode} useApiMessage={lang === 'es'} />
+
+                  {/* Envío gratis por país (umbral real configurable; sin dato no se pinta) */}
+                  <FreeShippingBar subtotal={subtotal} cartCurrencyCode={cart.currencyCode} slugs={slugs} className="mb-4" />
 
                   {/* Order Details */}
-                  <div className="space-y-3 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">{t('subtotal', { count: itemCount })}</span>
-                      <span className="font-medium">{fmt(subtotal)}</span>
+                  <div className="space-y-3 text-sm" aria-live="polite">
+                    <div className="flex justify-between gap-2">
+                      <span className="text-gray-700">{t('subtotal', { count: itemCount })}</span>
+                      <span className="font-medium tabular-nums">{fmt(subtotal)}</span>
                     </div>
 
                     {discount > 0 && (
-                      <div className="flex justify-between text-green-600">
+                      <div className="flex justify-between gap-2 text-green-800">
                         <span>
                           {t('discount')}
                           {cart.couponCode ? ` (${cart.couponCode})` : ''}
                         </span>
-                        <span>-{fmt(discount)}</span>
+                        <span className="tabular-nums">-{fmt(discount)}</span>
                       </div>
                     )}
 
                     {taxIncluded && (
-                      <div className="flex justify-between text-gray-500 text-sm">
+                      <div className="flex justify-between text-gray-700 text-sm">
                         <span>{t('taxIncluded')}</span>
                       </div>
                     )}
 
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">{t('shipping')}</span>
-                      <span className="text-[#3E667D] font-medium">
-                        {t('shippingAtCheckout')}
-                      </span>
+                    <div className="flex justify-between gap-2">
+                      <span className="text-gray-700">{t('shipping')}</span>
+                      <span className="text-[#2f5165] font-medium">{t('shippingAtCheckout')}</span>
                     </div>
 
-                    <div className="flex items-baseline justify-between pt-3 border-t border-gray-200">
+                    <div className="flex items-baseline justify-between gap-2 pt-3 border-t border-gray-200">
                       <span className="text-base font-bold text-gray-900">{t('total')}</span>
-                      <span className="text-2xl font-bold text-[#3E667D]">
-                        {fmt(total)}
-                      </span>
+                      <span className="text-2xl font-bold tabular-nums text-[#2f5165]">{fmt(total)}</span>
                     </div>
 
-                    {/* Points */}
-                    {cart.totalPoints > 0 && (
-                      <div className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-[#C8DDF2]/30 py-2 text-sm font-medium text-[#3E667D]">
-                        <SparklesIcon className="h-4 w-4" />
+                    {/* Puntos: solo para quien ve puntos */}
+                    {showPoints && cart.totalPoints > 0 && (
+                      <div className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-[#C8DDF2]/30 px-2 py-2 text-center text-sm font-medium text-[#2f5165]">
+                        <SparklesIcon aria-hidden="true" className="h-4 w-4 shrink-0" />
                         {t('earnPoints', { points: cart.totalPoints })}
                       </div>
                     )}
                   </div>
 
+                  {/* Bloqueo de pago: agotados o cantidades por encima de lo disponible */}
+                  {blockers.blocked && (
+                    <div id={blockedId} role="status" className="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+                      <p className="font-semibold">{tBlocked('title')}</p>
+                      <ul className="mt-1 list-disc pl-5">
+                        {blockers.soldOut > 0 && <li>{tBlocked('soldOut', { count: blockers.soldOut })}</li>}
+                        {blockers.exceedsStock > 0 && <li>{tBlocked('exceeds', { count: blockers.exceedsStock })}</li>}
+                      </ul>
+                      <p className="mt-1">{tBlocked('hint')}</p>
+                    </div>
+                  )}
+
                   {/* Checkout Button */}
-                  <Link href="/checkout">
-                    <Button size="lg" className="w-full mt-6">
+                  {blockers.blocked ? (
+                    // `aria-disabled` (no `disabled`): sigue en el tabulador y el lector lee el motivo.
+                    <Button
+                      type="button"
+                      size="lg"
+                      aria-disabled="true"
+                      aria-describedby={blockedId}
+                      className="mt-3 min-h-12 w-full cursor-not-allowed opacity-50 hover:bg-primary"
+                    >
                       {t('checkout')}
                     </Button>
-                  </Link>
-                  <p className="mt-2 text-center text-xs text-gray-400">
-                    {t('protectedPayment')}
-                  </p>
+                  ) : (
+                    <Button asChild size="lg" className="mt-6 min-h-12 w-full">
+                      <Link href="/checkout">{t('checkout')}</Link>
+                    </Button>
+                  )}
+                  <p className="mt-2 text-center text-xs text-gray-700">{t('protectedPayment')}</p>
 
                   {/* Confianza */}
-                  <div className="mt-6 space-y-2.5 border-t border-gray-100 pt-6 text-sm text-gray-500">
+                  <div className="mt-6 space-y-2.5 border-t border-gray-100 pt-6 text-sm text-gray-700">
                     <div className="flex items-center gap-2">
-                      <ShieldCheckIcon className="h-5 w-5 text-[#3E667D]" />
+                      <ShieldCheckIcon aria-hidden="true" className="h-5 w-5 shrink-0 text-[#3E667D]" />
                       <span>{t('trustSecure')}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <TruckIcon className="h-5 w-5 text-[#3E667D]" />
+                      <TruckIcon aria-hidden="true" className="h-5 w-5 shrink-0 text-[#3E667D]" />
                       <span>{t('trustShipping')}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <ArrowPathIcon className="h-5 w-5 text-[#3E667D]" />
+                      <ArrowPathIcon aria-hidden="true" className="h-5 w-5 shrink-0 text-[#3E667D]" />
                       <span>{t('trustWarranty')}</span>
                     </div>
                   </div>
 
                   {/* Métodos de pago */}
                   <div className="mt-6 border-t border-gray-100 pt-6">
-                    <div className="flex items-center justify-center gap-2 text-xs font-medium text-gray-500">
-                      <CreditCardIcon className="h-4 w-4 text-[#3E667D]" />
+                    <div className="flex items-center justify-center gap-2 text-xs font-medium text-gray-700">
+                      <CreditCardIcon aria-hidden="true" className="h-4 w-4 text-[#3E667D]" />
                       <span>{t('cardsAccepted')}</span>
                     </div>
-                    <p className="mt-1.5 text-center text-[11px] text-gray-400">
-                      {t('stripeProcessed')}
-                    </p>
+                    <p className="mt-1.5 text-center text-[11px] text-gray-700">{t('stripeProcessed')}</p>
                   </div>
                 </Card>
               </div>

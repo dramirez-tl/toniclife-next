@@ -2,7 +2,7 @@
 
 // Bloque de compra del detalle: h1, clave, precio/puntos por rol, disponibilidad
 // REAL, cantidad con tope, "Agregar al carrito", "Comprar ahora" (que SÍ agrega y
-// después va al carrito), envío real del país y compartir.
+// después va al checkout), envío real del país y compartir.
 
 import { forwardRef } from 'react';
 import { useTranslations } from 'next-intl';

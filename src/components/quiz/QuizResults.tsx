@@ -22,7 +22,7 @@ import {
 import type { QuizResult, ProductRecommendation } from '@/types/quiz';
 import { useAddCartItem } from '@/hooks/useCart';
 import { useTrackCartAdd } from '@/hooks/useQuiz';
-import { CartIncentiveBar } from '@/components/cart/CartIncentiveBar';
+import { CartFreeShippingBar } from '@/components/cart/FreeShippingBar';
 import { toast } from 'sonner';
 
 interface QuizResultsProps {
@@ -463,16 +463,17 @@ export function QuizResults({ result, onRestart, onSaveEmail }: QuizResultsProps
           </div>
         </div>
 
-        {/* Desktop sticky sidebar — incentive bar */}
-        <div className="hidden lg:block lg:w-72 xl:w-80 lg:flex-shrink-0">
-          <div className="sticky top-28">
-            <CartIncentiveBar variant="inline" />
-          </div>
-        </div>
+        {/* Desktop sticky sidebar — envío gratis del país (umbral real; sin dato no existe la columna) */}
+        <CartFreeShippingBar
+          className="hidden lg:block lg:w-72 xl:w-80 lg:flex-shrink-0"
+          barClassName="sticky top-28"
+        />
       </div>
 
       {/* Mobile floating bar */}
-      <CartIncentiveBar variant="floating" className="lg:hidden" />
+      <CartFreeShippingBar
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white px-4 pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] shadow-[0_-4px_12px_rgba(0,0,0,0.08)] lg:hidden"
+      />
     </div>
   );
 }
