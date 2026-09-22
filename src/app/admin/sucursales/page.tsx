@@ -18,7 +18,7 @@ import {
   useCreatePosUser,
   useDeactivatePosUser,
 } from '@/hooks/useBranches';
-import type { Branch, BranchQueryParams, CreateBranchDto, UpdateBranchDto, PosUser } from '@/types/branch';
+import type { Branch, BranchQueryParams, CreateBranchDto, PosUser } from '@/types/branch';
 import {
   usePosLicensesByBranch,
   useCreatePosLicense,
@@ -77,6 +77,7 @@ import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { useActiveCountries } from '@/hooks/useConfig';
 import type { Country } from '@/types/config';
 import { getTimezoneLabel, getTimezoneShortLabel, resolveTimeZone } from '@/lib/timezone-utils';
+import { toCreateBranchPayload, toUpdateBranchPayload } from '@/lib/branches/branch-form-payload';
 
 // ================================
 // TIMEZONE OPTIONS
@@ -589,24 +590,16 @@ function SucursalesContent() {
     }
 
     try {
+      // Normalización del payload (opcionales vacíos no viajan, sin `code` al
+      // editar, timezone en ambos): lib/branches/branch-form-payload.ts.
       if (editingBranch) {
-        const { code, ...updateFields } = formData;
-        // Normaliza campos UUID opcionales: '' no pasa @IsUUID en el backend.
-        // stateId '' => null (limpia el estado, p.ej. al cambiar a un país sin
-        // estados); addressEmail '' => undefined.
-        const dto: UpdateBranchDto = {
-          ...updateFields,
-          addressEmail: updateFields.addressEmail?.trim() || undefined,
-          stateId: updateFields.stateId ? updateFields.stateId : null,
-        };
-        await updateBranch.mutateAsync({ id: editingBranch.id, dto });
+        await updateBranch.mutateAsync({
+          id: editingBranch.id,
+          dto: toUpdateBranchPayload(formData),
+        });
         toast.success('Sucursal actualizada correctamente');
       } else {
-        // stateId '' => undefined (el backend lo guarda como NULL).
-        await createBranch.mutateAsync({
-          ...formData,
-          stateId: formData.stateId || undefined,
-        });
+        await createBranch.mutateAsync(toCreateBranchPayload(formData));
         toast.success('Sucursal creada correctamente');
       }
       handleCloseModal();
