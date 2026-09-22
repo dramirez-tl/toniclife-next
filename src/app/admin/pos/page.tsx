@@ -1067,12 +1067,16 @@ export default function PosPage() {
               currentPriceTypeId,
             );
 
-            // 2. Agregar el kit al carrito. Si está agotado en la sucursal
-            //    (stock 0 = no se puede armar / sin existencia) no se agrega:
-            //    el servidor lo rechazaría al reservar y el carrito toparía la
-            //    cantidad en 0. Se avisa en claro; el alta NO se bloquea (D9).
+            // 2. Agregar el kit al carrito. Si el catálogo lo reporta agotado
+            //    en la sucursal (stock 0 = no se puede armar / sin existencia)
+            //    se agrega IGUAL, cantidad 1 sin tope (con stock 0 el carrito
+            //    no lo aceptaría y el alta ya ocurrió), como hace Electron: el
+            //    cajero puede intentar el cobro cuando llegue el traspaso o
+            //    quitarlo, y el servidor es quien rechaza (V1). Se avisa en
+            //    ámbar; el alta NO se bloquea (D9).
             if (pendingKit) {
               if (pendingKit.stock !== undefined && pendingKit.stock <= 0) {
+                store.addItem({ ...pendingKit, stock: undefined }, 1);
                 toast.warning(posKitEnrolledSoldOutToast(pendingKit.sku, selectedBranch?.name), {
                   duration: Infinity,
                   action: { label: 'Entendido', onClick: () => {} },

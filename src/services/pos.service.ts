@@ -36,7 +36,7 @@ import type {
   // Quick Product
   QuickProduct,
 } from '@/types/pos';
-import { normalizeStockMode } from '@/lib/kits/kit-availability';
+import { normalizeStockMode, posOwnRowStock } from '@/lib/kits/kit-availability';
 
 /** `stock` del catálogo POS como número; sin dato (null/undefined/basura) ⇒ undefined = "no limitar". */
 const toStock = (v: unknown): number | undefined => {
@@ -377,6 +377,7 @@ class PosService {
       if (!p.availableInPos) return null;
 
       const isKit = p.productType === 'kit' || p.productType === 'pack';
+      const kitStockMode = isKit ? toKitStockMode(p) : undefined;
 
       return {
         id: p.id,
@@ -386,15 +387,18 @@ class PosService {
         imageUrl: p.imageUrl,
         basePrice: parseFloat(p.price || '0'),
         categoryName: p.categoryName,
-        // Kits: `stock` = armables (se arma) o existencia propia (prearmado); ver searchProducts.
-        stock: toStock(p.stock),
+        // GET /products/code/:sku reporta SOLO la fila propia de stock_levels
+        // (no calcula armables como el listado). Para un kit/paquete que se
+        // ARMA se descarta (undefined = sin tope, el servidor decide) y el grid
+        // la toma del catálogo cargado, como Electron. Prearmado: pieza propia.
+        stock: posOwnRowStock({ productType: p.productType, kitStockMode, stock: toStock(p.stock) }),
         isActive: p.isActive,
         taxRate: p.taxRate != null ? Number(p.taxRate) : undefined,
         isIncludedInPrice: p.taxIncludedInPrice,
         productType: p.productType,
         kitPosition: p.kitPosition,
         isEnrollmentKit: p.isEnrollmentKit === true,
-        ...(isKit && { kitStockMode: toKitStockMode(p), limitingComponent: toLimitingComponent(p.limitingComponent) }),
+        ...(isKit && { kitStockMode, limitingComponent: toLimitingComponent(p.limitingComponent) }),
       };
     } catch {
       return null;

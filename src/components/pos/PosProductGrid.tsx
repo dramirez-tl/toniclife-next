@@ -80,6 +80,22 @@ export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbo
     toast.success(`${product.name} agregado`);
   };
 
+  /**
+   * GET /products/code/:sku reporta solo la fila propia de existencias, así que
+   * para un kit/paquete que se arma `posService` deja `stock` en undefined. Si
+   * el catálogo de la sucursal ya lo tiene, se toma de ahí la cifra real de
+   * armables (mismo criterio que Electron); si no, sin tope: el servidor decide.
+   */
+  const withCatalogStock = useCallback(
+    (product: QuickProduct): QuickProduct => {
+      if (product.stock !== undefined) return product;
+      const inCatalog = (products || []).find((c) => c.id === product.id);
+      if (!inCatalog || inCatalog.stock === undefined) return product;
+      return { ...product, stock: inCatalog.stock, limitingComponent: product.limitingComponent ?? inCatalog.limitingComponent };
+    },
+    [products],
+  );
+
   // Handle SKU,qty barcode input
   const handleSkuSubmit = useCallback(async (input: string) => {
     const parts = input.split(',');
@@ -87,7 +103,8 @@ export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbo
     const qty = parts.length > 1 ? parseInt(parts[1].trim(), 10) : 1;
     const quantity = isNaN(qty) || qty < 1 ? 1 : qty;
 
-    const product = await posService.getProductBySku(sku, countryId, branchId, priceTypeId);
+    const found = await posService.getProductBySku(sku, countryId, branchId, priceTypeId);
+    const product = found ? withCatalogStock(found) : null;
     if (product) {
       // Si es un kit de inscripción, delegar al padre
       if (product.isEnrollmentKit && onKitDetected) {
@@ -122,7 +139,7 @@ export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbo
     } else {
       toast.error(`Producto no encontrado: ${sku}`);
     }
-  }, [addItem, countryId, branchId, priceTypeId, onKitDetected]);
+  }, [addItem, countryId, branchId, priceTypeId, onKitDetected, withCatalogStock]);
 
   const handleSkuKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && skuQuery.trim().length > 0) {
@@ -159,7 +176,7 @@ export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbo
       bulkLines.map(async ({ sku, quantity }) => {
         const product = await posService.getProductBySku(sku, countryId, branchId, priceTypeId);
         if (!product) throw new Error(sku);
-        return { product, quantity, sku };
+        return { product: withCatalogStock(product), quantity, sku };
       })
     );
 
@@ -201,7 +218,7 @@ export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbo
     setBulkProcessing(false);
     setBulkText('');
     setBulkMode(false);
-  }, [bulkLines, countryId, branchId, priceTypeId, addItem]);
+  }, [bulkLines, countryId, branchId, priceTypeId, addItem, withCatalogStock]);
 
   if (isLoading) {
     return (
