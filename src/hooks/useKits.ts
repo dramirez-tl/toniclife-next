@@ -10,6 +10,7 @@ import type {
   UpdateKitBonusInput,
 } from '@/types/kit';
 import { productKeys } from './useProducts';
+import { kitAvailabilityKeys } from './useKitAvailability';
 
 export const kitKeys = {
   all: ['kits'] as const,
@@ -69,6 +70,8 @@ export const useReplaceKitComponents = (kitId: string) => {
       queryClient.invalidateQueries({ queryKey: kitKeys.components(kitId) });
       queryClient.invalidateQueries({ queryKey: kitKeys.detail(kitId) });
       queryClient.invalidateQueries({ queryKey: productKeys.detail(kitId) });
+      // La receta cambió: la disponibilidad (listado y ficha) se recalcula.
+      queryClient.invalidateQueries({ queryKey: kitAvailabilityKeys.all });
     },
   });
 };

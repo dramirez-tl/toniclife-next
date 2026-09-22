@@ -7,8 +7,12 @@
 
 import { useMemo, useState } from 'react';
 import { z } from 'zod';
+import { TriangleAlert } from 'lucide-react';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
+import { useKitAvailability } from '@/hooks/useKitAvailability';
+import { resolveStockMode } from '@/lib/kits/kit-availability';
 import type { AdminUpdateProductDto } from '@/services/products-admin.service';
+import { KitAvailabilityByBranch } from '../../KitAvailabilityByBranch';
 import { ProductInventoryByBranch } from '../../ProductInventoryByBranch';
 import { useProductForm } from '../ProductFormContext';
 import { SectionCard } from '../SectionCard';
@@ -110,6 +114,16 @@ export function InventorySection() {
 
   const { control, setValue } = section.form;
 
+  // Kits y paquetes: la existencia que cuenta depende de cómo se surten. Un kit
+  // que SE ARMA no tiene existencia propia (el POS la ignora): en su lugar se
+  // muestra la disponibilidad por sucursal (contrato kits §5.2). Si el servidor
+  // aún no la calcula (404) se vuelve a la tabla de existencias con un aviso.
+  const kitStockMode = mode === 'edit' && product ? resolveStockMode(product) : null;
+  const isAssembledKit = kitStockMode === 'assemble_on_sale';
+  const availabilityProbe = useKitAvailability(productId, undefined, isAssembledKit);
+  const availabilityMissing = isAssembledKit && availabilityProbe.data === null;
+  const showOwnStock = mode === 'edit' && !!product && (!isAssembledKit || availabilityMissing);
+
   // En la ficha, encender/apagar pide confirmación; en el alta no hay nada que proteger aún.
   const guardToggle = (field: ToggleField) => (next: boolean) => {
     if (mode === 'create') return true;
@@ -167,7 +181,21 @@ export function InventorySection() {
         </div>
       </SectionCard>
 
-      {mode === 'edit' && product ? (
+      {mode === 'edit' && product && kitStockMode ? (
+        <KitAvailabilityByBranch productId={productId} productCode={product.code} stockMode={kitStockMode} />
+      ) : null}
+
+      {availabilityMissing && product ? (
+        <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
+          <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
+          <p>
+            <strong>{product.code} se arma al vender:</strong> la existencia propia de abajo NO cuenta para venderlo; el POS
+            solo mira sus componentes. Se muestra mientras el servidor no calcule la disponibilidad por sucursal.
+          </p>
+        </div>
+      ) : null}
+
+      {showOwnStock && product ? (
         <ProductInventoryByBranch
           productId={productId}
           defaults={{

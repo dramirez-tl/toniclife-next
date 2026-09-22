@@ -424,6 +424,45 @@ export function recipeHeadline(sellable: number | null, branchName: string): str
   return `Con esta receta hoy se ${plural(sellable, 'puede vender 1', `pueden vender ${fmt(sellable)}`)} en ${branchName}.`;
 }
 
+export interface RecipeSellable {
+  /** Kits que se pueden vender con ESTA receta (la del borrador) en la sucursal. */
+  sellable: number;
+  /** Componente que limita (el de menor cociente), si hay receta y dato. */
+  limiting: { componentProductId: string; buildable: number } | null;
+  /** Renglones sin dato de existencias en la sucursal (no se cuentan). */
+  unknown: number;
+}
+
+/**
+ * Cuántos kits se pueden armar HOY con la receta que se está editando: por
+ * renglón `FLOOR(disponible / cantidad)`; el mínimo manda. Un componente sin
+ * dato de existencias no cuenta (se reporta en `unknown`) para no inventar ceros.
+ * Sin receta ⇒ 0.
+ */
+export function recipeSellableAt(
+  rows: { componentProductId: string; quantity: number }[],
+  availableById: Map<string, { available: number }>,
+): RecipeSellable {
+  let sellable: number | null = null;
+  let limiting: RecipeSellable['limiting'] = null;
+  let unknown = 0;
+  for (const row of rows) {
+    const stock = availableById.get(row.componentProductId);
+    if (!stock) {
+      unknown += 1;
+      continue;
+    }
+    const qty = Number.isFinite(row.quantity) && row.quantity > 0 ? row.quantity : 1;
+    const buildable = Math.max(0, Math.floor(stock.available / qty));
+    if (sellable === null || buildable < sellable) {
+      sellable = buildable;
+      limiting = { componentProductId: row.componentProductId, buildable };
+    }
+  }
+  if (rows.length === 0) return { sellable: 0, limiting: null, unknown: 0 };
+  return { sellable: sellable ?? 0, limiting, unknown };
+}
+
 /** "Falta \"Omega sobre\" (8050M): requiere 1, hay 0." */
 export function shortageText(l: KitLimitingDetail): string {
   const name = l.name ? `"${l.name}" (${l.code})` : l.code;

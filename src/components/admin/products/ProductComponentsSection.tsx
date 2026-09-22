@@ -11,7 +11,7 @@
 // - `controller` (opcional) permite a la ficha enterarse de los cambios sin
 //   guardar y dispararlos desde "Guardar todo".
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Check, Loader2, Plus, Search, Trash2, TriangleAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,6 +23,7 @@ import { useProducts } from '@/hooks/useProducts';
 import { ProductType } from '@/types/product';
 import type { Product } from '@/types/product';
 import type { BulkComponentItem } from '@/types/kit';
+import { fmt, recipeHeadline, recipeSellableAt } from '@/lib/kits/kit-availability';
 import { productAdminErrorMessage } from './lib/errors';
 
 type CompRow = BulkComponentItem & {
@@ -35,6 +36,14 @@ export interface ComponentsSectionController {
   bind: (handle: { save: () => Promise<boolean>; discard: () => void }) => void;
 }
 
+/** Existencias de los componentes en la sucursal elegida (solo lectura, contrato kits §5.2). */
+export interface ComponentsStockContext {
+  branchName: string;
+  /** Por `componentProductId`. Un componente ausente = sin dato en esa sucursal. */
+  byComponent: Map<string, { available: number; onHand: number; reserved: number; isActive: boolean }>;
+  loading?: boolean;
+}
+
 interface ProductComponentsSectionProps {
   productId: string;
   /** TRUE cuando el producto descuenta inventario de componentes al venderse
@@ -45,6 +54,10 @@ interface ProductComponentsSectionProps {
   readOnly?: boolean;
   controller?: ComponentsSectionController;
   onSaved?: () => void;
+  /** Selector de sucursal u otros controles que se pintan bajo el encabezado. */
+  toolbar?: ReactNode;
+  /** Con esto cada renglón muestra cuánto hay del componente y el encabezado cuántos kits salen. */
+  stockContext?: ComponentsStockContext;
 }
 
 const sameRows = (a: CompRow[], b: CompRow[]): boolean =>
@@ -58,6 +71,8 @@ export function ProductComponentsSection({
   readOnly = false,
   controller,
   onSaved,
+  toolbar,
+  stockContext,
 }: ProductComponentsSectionProps) {
   const searchId = useId();
   const { data: components, isLoading: compsLoading } = useKitComponents(productId);
@@ -157,6 +172,13 @@ export function ProductComponentsSection({
 
   const results = searchEnabled ? (productSearchResults?.data ?? []) : [];
 
+  // Con la receta que se está editando (borrador incluido) y las existencias de
+  // la sucursal elegida: cuántos kits salen hoy y qué renglón limita.
+  const recipeStock = useMemo(
+    () => (stockContext && !compsLoading ? recipeSellableAt(rows, stockContext.byComponent) : null),
+    [stockContext, rows, compsLoading],
+  );
+
   return (
     <Card className="p-0">
       <CardContent className="space-y-4 p-4 sm:p-6">
@@ -192,6 +214,22 @@ export function ProductComponentsSection({
             </div>
           ) : null}
         </div>
+
+        {toolbar ? <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">{toolbar}</div> : null}
+
+        {stockContext && rows.length > 0 ? (
+          <p className="text-sm font-semibold text-gray-900" role="status" aria-live="polite">
+            {stockContext.loading
+              ? `Consultando existencias en ${stockContext.branchName}…`
+              : recipeStock
+                ? `${recipeHeadline(recipeStock.sellable, stockContext.branchName)}${
+                    recipeStock.unknown > 0
+                      ? ` (sin contar ${recipeStock.unknown} ${recipeStock.unknown === 1 ? 'componente sin dato' : 'componentes sin dato'})`
+                      : ''
+                  }${isDirty ? ' Con la receta sin guardar.' : ''}`
+                : ''}
+          </p>
+        ) : null}
 
         {deductsInventory && !compsLoading && rows.length === 0 && (
           <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -281,14 +319,50 @@ export function ProductComponentsSection({
             {rows.map((row) => {
               const qtyId = `${searchId}-qty-${row.componentProductId}`;
               const invalid = !Number.isFinite(row.quantity) || row.quantity <= 0;
+              const stock = stockContext && !stockContext.loading ? stockContext.byComponent.get(row.componentProductId) : undefined;
+              const qtyForStock = invalid ? 1 : row.quantity;
+              const short = stock ? stock.available < qtyForStock : false;
+              const limitsRecipe = recipeStock?.limiting?.componentProductId === row.componentProductId && rows.length > 1;
               return (
                 <li
                   key={row.componentProductId}
-                  className="flex flex-wrap items-center gap-3 rounded-md border border-gray-200 p-3"
+                  className={`flex flex-wrap items-center gap-3 rounded-md border p-3 ${
+                    short || (stock && !stock.isActive) ? 'border-red-200 bg-red-50/40' : 'border-gray-200'
+                  }`}
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-gray-900">{row.productName}</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {row.productName}
+                      {stock && !stock.isActive ? (
+                        <span className="ml-2 rounded-full bg-red-100 px-1.5 py-0.5 text-[11px] font-medium text-red-800">Inactivo</span>
+                      ) : null}
+                    </p>
                     <p className="font-mono text-xs text-gray-600">{row.productCode}</p>
+                    {stockContext ? (
+                      <p className="mt-1 text-xs text-gray-700">
+                        {stockContext.loading ? (
+                          'Consultando…'
+                        ) : !stock ? (
+                          <span className="text-gray-500">Sin dato en {stockContext.branchName}</span>
+                        ) : (
+                          <>
+                            Hay <span className={short ? 'font-semibold text-red-700' : 'font-semibold'}>{fmt(stock.available)}</span> en{' '}
+                            {stockContext.branchName}
+                            {stock.reserved > 0 ? ` (${fmt(stock.onHand)} en piso, ${fmt(stock.reserved)} apartadas)` : ''} · se pueden armar{' '}
+                            <span className="font-semibold">{fmt(Math.floor(stock.available / qtyForStock))}</span>
+                            {short ? (
+                              <span className="ml-2 rounded-full bg-red-100 px-1.5 py-0.5 text-[11px] font-semibold text-red-800">
+                                Falta {fmt(qtyForStock - stock.available)}
+                              </span>
+                            ) : limitsRecipe ? (
+                              <span className="ml-2 rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-800">
+                                Es el que limita
+                              </span>
+                            ) : null}
+                          </>
+                        )}
+                      </p>
+                    ) : null}
                   </div>
                   <div className="flex items-center gap-2">
                     <Label htmlFor={qtyId} className="text-xs text-gray-700">

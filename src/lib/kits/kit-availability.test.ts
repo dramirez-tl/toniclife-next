@@ -16,6 +16,7 @@ import {
   posKitEnrolledSoldOutToast,
   posKitStockLabel,
   recipeHeadline,
+  recipeSellableAt,
   resolveStockMode,
   shortageOptions,
   shortageText,
@@ -198,6 +199,39 @@ describe('kit-availability · ficha', () => {
       'Tiene 1,380 piezas propias en 69 sucursales que ninguna venta usa: este kit se arma al vender y solo cuentan sus componentes.',
     );
     expect(phantomSentence({ rows: 1, units: 1 })).toContain('1 pieza propia en 1 sucursal');
+  });
+});
+
+describe('kit-availability · receta del borrador contra existencias de la sucursal', () => {
+  const stock = new Map([
+    ['c1', { available: 5 }],
+    ['c2', { available: 3 }],
+    ['c3', { available: 0 }],
+  ]);
+
+  it('el mínimo manda; cantidad 2 divide; 0 de un componente deja el kit en cero', () => {
+    expect(recipeSellableAt([{ componentProductId: 'c1', quantity: 1 }, { componentProductId: 'c2', quantity: 1 }], stock)).toEqual({
+      sellable: 3,
+      limiting: { componentProductId: 'c2', buildable: 3 },
+      unknown: 0,
+    });
+    expect(recipeSellableAt([{ componentProductId: 'c1', quantity: 2 }], stock).sellable).toBe(2);
+    expect(recipeSellableAt([{ componentProductId: 'c1', quantity: 1 }, { componentProductId: 'c3', quantity: 1 }], stock)).toMatchObject({
+      sellable: 0,
+      limiting: { componentProductId: 'c3', buildable: 0 },
+    });
+  });
+
+  it('sin receta ⇒ 0; componente sin dato no cuenta pero se reporta; cantidad inválida cuenta como 1', () => {
+    expect(recipeSellableAt([], stock)).toEqual({ sellable: 0, limiting: null, unknown: 0 });
+    expect(recipeSellableAt([{ componentProductId: 'nuevo', quantity: 1 }, { componentProductId: 'c1', quantity: 1 }], stock)).toEqual({
+      sellable: 5,
+      limiting: { componentProductId: 'c1', buildable: 5 },
+      unknown: 1,
+    });
+    expect(recipeSellableAt([{ componentProductId: 'nuevo', quantity: 1 }], stock)).toEqual({ sellable: 0, limiting: null, unknown: 1 });
+    expect(recipeSellableAt([{ componentProductId: 'c1', quantity: Number.NaN }], stock).sellable).toBe(5);
+    expect(recipeSellableAt([{ componentProductId: 'c1', quantity: 0 }], stock).sellable).toBe(5);
   });
 });
 
