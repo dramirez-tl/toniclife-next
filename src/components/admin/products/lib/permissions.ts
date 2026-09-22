@@ -7,6 +7,7 @@
 import { useMemo } from 'react';
 import { useAppSelector } from '@/store/hooks';
 import { selectUserPermissions, selectUserRoles } from '@/store/slices/authSlice';
+import { canEditKitFields } from '@/lib/kits/kit-editor';
 
 function hasPermission(userPermissions: string[], required: string): boolean {
   const [module] = required.split(':');
@@ -20,6 +21,12 @@ export interface ProductPermissions {
   canCreate: boolean;
   canUpdate: boolean;
   canDelete: boolean;
+  /**
+   * Campos sensibles de un kit (cómo se surte, inscripción, posición, receta,
+   * bonos, vaciar existencia): `products:kits_manage` O `products:update`
+   * (respaldo del contrato de kits §4.2). Sin ninguno, la sección Kit es de lectura.
+   */
+  canManageKits: boolean;
 }
 
 /**
@@ -40,13 +47,14 @@ export function useProductPermissions(): ProductPermissions {
   const roles = useAppSelector(selectUserRoles);
   return useMemo(() => {
     if (roles.includes('super_admin')) {
-      return { canRead: true, canCreate: true, canUpdate: true, canDelete: true };
+      return { canRead: true, canCreate: true, canUpdate: true, canDelete: true, canManageKits: true };
     }
     return {
       canRead: hasPermission(permissions, 'products:read'),
       canCreate: hasPermission(permissions, 'products:create'),
       canUpdate: hasPermission(permissions, 'products:update'),
       canDelete: hasPermission(permissions, 'products:delete'),
+      canManageKits: canEditKitFields(permissions, roles),
     };
   }, [permissions, roles]);
 }

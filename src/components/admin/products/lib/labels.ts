@@ -41,6 +41,10 @@ export const PRODUCT_SECTIONS: { id: ProductSectionId; label: string; descriptio
   { id: 'historial', label: 'Historial', description: 'Quién cambió qué y cuándo' },
 ];
 
+export const KIT_LIKE_TYPES = ['kit', 'pack'];
+export const isKitLikeType = (productType: string | null | undefined): boolean =>
+  !!productType && KIT_LIKE_TYPES.includes(productType);
+
 export const SECTION_LABEL: Record<ProductSectionId, string> = Object.fromEntries(
   PRODUCT_SECTIONS.map((s) => [s.id, s.label]),
 ) as Record<ProductSectionId, string>;
@@ -287,7 +291,13 @@ export const HISTORY_SOURCE_LABEL: Record<string, string> = {
   price: 'Precio',
   image: 'Imagen',
   content: 'Contenido',
+  // Kits (product-history.lib del API): receta y reglas de bono de inscripción.
+  components: 'Componentes',
+  bonus: 'Bono de inscripción',
 };
+
+/** Orden de los filtros del historial (todas las fuentes que manda el API). */
+export const HISTORY_SOURCES: string[] = Object.keys(HISTORY_SOURCE_LABEL);
 
 // ================================
 // Avisos de coherencia de precios (price-coherence.lib del API)

@@ -71,7 +71,22 @@ export function productAdminErrorCode(err: unknown): string | null {
  * futura, país sin moneda; PRD_FORBIDDEN: qué permiso falta). Aquí manda el
  * mensaje del API; el texto fijo solo cubre el caso de que no venga.
  */
-const PREFER_API_MESSAGE = new Set(['PRD_PRICE_INVALID', 'PRD_FORBIDDEN']);
+const PREFER_API_MESSAGE = new Set([
+  'PRD_PRICE_INVALID',
+  'PRD_FORBIDDEN',
+  // Contrato de kits §4.5: el API redacta el mensaje con los datos del caso
+  // ("Este kit tiene 1,380 piezas propias en 69 sucursales…", "Componente no
+  // válido: 8050M (está inactivo)").
+  'KIT_RECIPE_EMPTY',
+  'KIT_COMPONENT_INVALID',
+  'KIT_RECIPE_LOCKED',
+  'KIT_MODE_HAS_OWN_STOCK',
+  'KIT_POSITION_REQUIRED',
+  'KIT_NOT_READY',
+  'KIT_NO_OWN_STOCK',
+  'KIT_OWN_STOCK_RESERVED',
+  'KIT_BONUS_CLOSED',
+]);
 
 const FORBIDDEN_MESSAGE = 'No tienes permiso para realizar esta acción.';
 

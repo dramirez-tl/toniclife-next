@@ -207,7 +207,7 @@ export const PRODUCT_CONTENT_KEYS: (keyof ProductContent)[] = [
 // ================================
 // Historial
 // ================================
-export type ProductHistorySource = 'product' | 'price' | 'image' | 'content' | string;
+export type ProductHistorySource = 'product' | 'price' | 'image' | 'content' | 'components' | 'bonus' | string;
 
 export interface ProductHistoryChange {
   field: string;
@@ -268,6 +268,8 @@ export interface DuplicateProductDto {
   copyComponents?: boolean;
   copyTaxes?: boolean;
   copyContent?: boolean;
+  /** Imágenes (default del API: no; en kits de inscripción: sí). */
+  copyImages?: boolean;
 }
 
 // ================================
@@ -277,6 +279,17 @@ export type AdminProduct = Product & {
   metaTitleEn?: string | null;
   metaDescriptionEn?: string | null;
 };
+
+/**
+ * Avisos NO bloqueantes que PATCH /products/:id agrega a la respuesta
+ * (`warnings: string[]`, p. ej. "Como prearmado arranca en 0"). `Product`
+ * tipa `warnings` como el texto de advertencias del producto: aquí se lee
+ * defensivamente y solo se aceptan cadenas.
+ */
+export function patchWarnings(updated: unknown): string[] {
+  const raw = isDict(updated) ? updated.warnings : undefined;
+  return Array.isArray(raw) ? raw.filter((w): w is string => typeof w === 'string' && w.length > 0) : [];
+}
 
 /**
  * PATCH /products/:id — parcial. `undefined` = no tocar; `null` = VACIAR en BD.
@@ -299,8 +312,18 @@ export interface AdminUpdateProductDto {
   longDescriptionEn?: string | null;
   categoryId?: string | null;
   productType?: ProductType;
+  /** Solo kits de inscripción; obligatoria si `isEnrollmentKit` (422 KIT_POSITION_REQUIRED). Exige products:kits_manage. */
   kitPosition?: KitPosition | null;
+  /** Compatibilidad: en kit/pack equivale a `kitStockMode` (true = se arma al vender). Gana `kitStockMode`. */
   kitDeductsInventory?: boolean;
+  /**
+   * Cómo se surte un kit/paquete (contrato de kits §4.2, mig 146). A "se arma"
+   * con existencia propia ⇒ 409 KIT_MODE_HAS_OWN_STOCK; sin receta ⇒ 409
+   * KIT_RECIPE_EMPTY. Exige products:kits_manage (respaldo products:update).
+   */
+  kitStockMode?: 'assemble_on_sale' | 'prebuilt';
+  /** Kit de inscripción (solo tipo kit). Exige products:kits_manage. */
+  isEnrollmentKit?: boolean;
   qualifiesForCommission?: boolean;
   satProductCode?: string | null;
   satUnitCode?: string | null;

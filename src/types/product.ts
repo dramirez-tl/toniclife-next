@@ -386,10 +386,13 @@ export interface CreateProductDto {
   unitId?: string;
   brand?: string;
   productType?: ProductType;
+  /** OBSOLETO (mig 146): el API lo acepta y lo ignora; el modo real es `kitStockMode`. */
   kitType?: KitType;
   kitPosition?: KitPosition;
   isEnrollmentKit?: boolean;
   kitDeductsInventory?: boolean;
+  /** Cómo se surte un kit/paquete (contrato de kits §4.2); gana sobre `kitDeductsInventory`. */
+  kitStockMode?: 'assemble_on_sale' | 'prebuilt';
   pointsValue?: number;
   businessVolume?: number;
   qualifiesForCommission?: boolean;

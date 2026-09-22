@@ -5,6 +5,7 @@
 // de `useProducts` para que el resto del admin vea los cambios.
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { kitAdminKeys } from '@/hooks/useKitAdmin';
 import { productKeys } from '@/hooks/useProducts';
 import {
   productsAdminService,
@@ -110,6 +111,8 @@ export function useInvalidateProductDerived(id: string) {
     queryClient.invalidateQueries({ queryKey: productsAdminKeys.healthRoot() });
     queryClient.invalidateQueries({ queryKey: productKeys.lists() });
     queryClient.invalidateQueries({ queryKey: productKeys.detail(id) });
+    // Kits: "¿Está listo para vender?" depende de precios, receta, modo y bonos.
+    queryClient.invalidateQueries({ queryKey: kitAdminKeys.readiness(id) });
   };
 }
 

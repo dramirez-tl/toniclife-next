@@ -1,7 +1,11 @@
 // React Query hooks for kits (products con product_type='kit')
+//
+// El detalle del kit ya no vive aquí: la ficha única (/admin/productos/[id]/
+// editar?seccion=kit) lee el producto con useAdminProduct (contrato de kits
+// §5.2). Quedan el listado de la pestaña Kits, la receta y los bonos.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { kitsService } from '@/services/kits.service';
+import { kitsService, type KitComponentsScope } from '@/services/kits.service';
 import type {
   BulkReplaceComponentsDto,
   KitEnrollmentRequest,
@@ -10,6 +14,7 @@ import type {
   UpdateKitBonusInput,
 } from '@/types/kit';
 import { productKeys } from './useProducts';
+import { kitAdminKeys } from './useKitAdmin';
 import { kitAvailabilityKeys } from './useKitAvailability';
 
 export const kitKeys = {
@@ -18,7 +23,8 @@ export const kitKeys = {
   list: (params: KitListQueryParams) => [...kitKeys.lists(), params] as const,
   details: () => [...kitKeys.all, 'detail'] as const,
   detail: (id: string) => [...kitKeys.details(), id] as const,
-  components: (id: string) => [...kitKeys.detail(id), 'components'] as const,
+  components: (id: string, scope: KitComponentsScope = 'all') => [...kitKeys.detail(id), 'components', scope] as const,
+  componentsRoot: (id: string) => [...kitKeys.detail(id), 'components'] as const,
   bonuses: (id: string) => [...kitKeys.detail(id), 'bonuses'] as const,
 };
 
@@ -47,12 +53,13 @@ export const useKit = (id: string | undefined) => {
 };
 
 /**
- * Componentes (BoM) del kit.
+ * Componentes (BoM) del kit. `scope: 'global'` = solo la receta global
+ * (la que edita la ficha y reemplaza PUT components/bulk sin país).
  */
-export const useKitComponents = (kitId: string | undefined) => {
+export const useKitComponents = (kitId: string | undefined, scope: KitComponentsScope = 'all') => {
   return useQuery({
-    queryKey: kitId ? kitKeys.components(kitId) : kitKeys.components('disabled'),
-    queryFn: () => kitsService.getComponents(kitId!),
+    queryKey: kitId ? kitKeys.components(kitId, scope) : kitKeys.components('disabled', scope),
+    queryFn: () => kitsService.getComponents(kitId!, scope),
     enabled: !!kitId,
     staleTime: 60 * 1000,
   });
@@ -67,11 +74,12 @@ export const useReplaceKitComponents = (kitId: string) => {
     mutationFn: (dto: BulkReplaceComponentsDto) =>
       kitsService.replaceComponents(kitId, dto),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: kitKeys.components(kitId) });
+      queryClient.invalidateQueries({ queryKey: kitKeys.componentsRoot(kitId) });
       queryClient.invalidateQueries({ queryKey: kitKeys.detail(kitId) });
       queryClient.invalidateQueries({ queryKey: productKeys.detail(kitId) });
-      // La receta cambió: la disponibilidad (listado y ficha) se recalcula.
+      // La receta cambió: la disponibilidad (listado y ficha) y "listo para vender" se recalculan.
       queryClient.invalidateQueries({ queryKey: kitAvailabilityKeys.all });
+      queryClient.invalidateQueries({ queryKey: kitAdminKeys.readiness(kitId) });
     },
   });
 };
@@ -97,6 +105,7 @@ export const useCreateKitBonus = (kitId: string) => {
       kitsService.createBonus(kitId, dto),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: kitKeys.bonuses(kitId) });
+      queryClient.invalidateQueries({ queryKey: kitAdminKeys.readiness(kitId) });
     },
   });
 };
@@ -113,6 +122,7 @@ export const useUpdateKitBonus = (kitId: string) => {
     }) => kitsService.updateBonus(kitId, bonusId, dto),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: kitKeys.bonuses(kitId) });
+      queryClient.invalidateQueries({ queryKey: kitAdminKeys.readiness(kitId) });
     },
   });
 };
@@ -124,6 +134,7 @@ export const useDeactivateKitBonus = (kitId: string) => {
       kitsService.deactivateBonus(kitId, bonusId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: kitKeys.bonuses(kitId) });
+      queryClient.invalidateQueries({ queryKey: kitAdminKeys.readiness(kitId) });
     },
   });
 };

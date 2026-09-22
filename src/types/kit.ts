@@ -75,6 +75,8 @@ export interface KitBonus {
   /** TRUE si es la regla vigente (is_active && valid_until === null). */
   isCurrent: boolean;
   notes: string | null;
+  /** Regla a la que sustituye (mig 148): la que se cerró al cambiar importe/moneda. */
+  supersedesId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -88,10 +90,15 @@ export interface CreateKitBonusInput {
   notes?: string;
 }
 
+/**
+ * Cambiar `bonusAmount` / `currencyCode` NO edita en sitio: el API cierra la
+ * vigente y crea una nueva desde hoy (devuelve la nueva). Solo `notes` se
+ * edita en sitio; `null` explícito las borra.
+ */
 export interface UpdateKitBonusInput {
   bonusAmount?: number;
   currencyCode?: string;
-  notes?: string;
+  notes?: string | null;
 }
 
 export interface KitEnrollmentResponse {

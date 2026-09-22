@@ -16,6 +16,9 @@ import type {
   UpdateKitBonusInput,
 } from '@/types/kit';
 
+/** `all` = todos los renglones activos (histórico); `global` = solo los sin país. */
+export type KitComponentsScope = 'all' | 'global';
+
 class KitsService {
   /**
    * Lista kits de inscripción. Filtra por defecto a is_enrollment_kit=TRUE
@@ -43,11 +46,15 @@ class KitsService {
   }
 
   /**
-   * Componentes del kit.
+   * Componentes del kit (solo renglones activos, contrato de kits §4.4).
+   * `scope: 'global'` = solo la receta global (`?countryId=global`), que es la
+   * que edita la ficha y la que reemplaza PUT components/bulk sin país.
    */
-  async getComponents(kitId: string): Promise<KitComponent[]> {
-    const response = await api.get<KitComponent[]>(`/products/${kitId}/components`);
-    return response.data;
+  async getComponents(kitId: string, scope: KitComponentsScope = 'all'): Promise<KitComponent[]> {
+    const response = await api.get<KitComponent[]>(`/products/${kitId}/components`, {
+      params: scope === 'global' ? { countryId: 'global' } : undefined,
+    });
+    return Array.isArray(response.data) ? response.data : [];
   }
 
   /**
