@@ -26,6 +26,16 @@ export interface ProductFormContextValue {
   product: AdminProduct | null;
   /** Sin `products:update` (o `products:create` en el alta) la ficha es de solo lectura. */
   readOnly: boolean;
+  /**
+   * La sección Kit está en la ficha (kit/paquete, o alta con `?tipo=kit`): la
+   * posición, cómo se surte y los canales del kit se editan AHÍ, no en
+   * Información básica ni en Clasificación y tienda.
+   */
+  hasKitSection: boolean;
+  /** Alta: tipo preseleccionado por `?tipo=` (p. ej. `kit`); null si no viene. */
+  createType: string | null;
+  /** Abre el diálogo Desactivar / Reactivar del encabezado (solo ficha). */
+  requestToggleActive?: () => void;
   /** PATCH /products/:id con `expectedUpdatedAt`; actualiza caché, derivados y tienda. */
   patchProduct: (dto: AdminUpdateProductDto) => Promise<AdminProduct>;
   /** Para escrituras que NO pasan por `patchProduct` (precios, imágenes, contenido…). */

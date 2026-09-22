@@ -14,6 +14,7 @@ import { resolveStockMode } from '@/lib/kits/kit-availability';
 import type { AdminUpdateProductDto } from '@/services/products-admin.service';
 import { KitAvailabilityByBranch } from '../../KitAvailabilityByBranch';
 import { ProductInventoryByBranch } from '../../ProductInventoryByBranch';
+import { useProductPermissions } from '../../lib/permissions';
 import { useProductForm } from '../ProductFormContext';
 import { SectionCard } from '../SectionCard';
 import { SwitchField, TextField } from '../fields';
@@ -58,7 +59,8 @@ const TOGGLE_INFO: Record<ToggleField, { title: string; on: string; off: string 
 };
 
 export function InventorySection() {
-  const { mode, productId, product, patchProduct } = useProductForm();
+  const { mode, productId, product, patchProduct, readOnly } = useProductForm();
+  const permissions = useProductPermissions();
   const [pendingToggle, setPendingToggle] = useState<{ field: ToggleField; next: boolean } | null>(null);
 
   const values = useMemo<InventoryValues>(
@@ -189,6 +191,7 @@ export function InventorySection() {
           productCode={product.code}
           stockMode={kitStockMode}
           showBranchTable={isAssembledKit}
+          canClearOwnStock={!readOnly && permissions.canManageKits}
         />
       ) : null}
 

@@ -1,45 +1,40 @@
 'use client';
 
-// KitBonusesSection — gobierna kit_enrollment_bonuses para un kit.
-// El "bono de kit" es el monto que se paga al patrocinador (o upline/compañia)
-// al inscribir un nuevo distribuidor con este kit. La regla vive por
-// (kit, pais, destinatario) con versionamiento por vigencia: crear una regla
-// nueva cierra la anterior (queda en el historico). Backend: /products/:id/bonuses
+// KitBonusesSection — bono de inscripción del kit (kit_enrollment_bonuses),
+// bloque 5 de la sección Kit (contrato de kits §5.2). Una regla VIGENTE por
+// (país, destinatario, moneda). Backend: /products/:id/bonuses con supersede:
+//   - crear una regla cierra la vigente de esa combinación (sin hueco);
+//   - cambiar el importe o la moneda NO edita en sitio: el API cierra la
+//     vigente (ayer) y crea una nueva desde hoy (devuelve la nueva);
+//   - solo las notas se editan en sitio (`notes: null` las borra);
+//   - una regla histórica es de solo lectura (409 KIT_BONUS_CLOSED).
+// Solo los kits de INSCRIPCIÓN admiten escrituras (400 en el API).
+// shadcn: Card, Badge, Input, SearchableSelect y AlertDialog (KitConfirmDialog).
 
-import { useMemo, useState } from 'react';
-import {
-  GiftIcon,
-  PlusIcon,
-  PencilSquareIcon,
-  XMarkIcon,
-  CheckIcon,
-  InformationCircleIcon,
-  ClockIcon,
-} from '@heroicons/react/24/outline';
-import { Loader2 } from 'lucide-react';
+import { useId, useMemo, useState } from 'react';
+import { Clock, Gift, Info, Loader2, Pencil, Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
-import {
-  useKitBonuses,
-  useCreateKitBonus,
-  useUpdateKitBonus,
-  useDeactivateKitBonus,
-} from '@/hooks/useKits';
 import { useActiveCountries } from '@/hooks/useConfig';
-import type {
-  KitBonus,
-  BonusRecipientRole,
-  CreateKitBonusInput,
-} from '@/types/kit';
+import { useCreateKitBonus, useDeactivateKitBonus, useKitBonuses, useUpdateKitBonus } from '@/hooks/useKits';
+import { parseQuantity } from '@/lib/kits/kit-editor';
+import type { BonusRecipientRole, CreateKitBonusInput, KitBonus } from '@/types/kit';
+import { KitConfirmDialog } from './KitConfirmDialog';
+import { productAdminErrorMessage } from './lib/errors';
 
 interface KitBonusesSectionProps {
   kitId: string;
-  /** Si el kit no es de inscripcion, el bono casi nunca aplica: avisamos. */
+  /** Solo los kits de inscripción admiten reglas nuevas (el API responde 400 si no). */
   isEnrollmentKit?: boolean;
+  /** Sin products:kits_manage / products:update: solo lectura. */
+  readOnly?: boolean;
+  /** Tras cualquier escritura (readiness: "Sin bono en FN"). */
+  onChanged?: () => void;
 }
 
 const RECIPIENT_OPTIONS: { value: BonusRecipientRole; label: string }[] = [
@@ -57,42 +52,36 @@ const RECIPIENT_LABEL: Record<BonusRecipientRole, string> = {
 function formatMoney(amount: string, currency: string): string {
   const n = Number(amount);
   if (Number.isNaN(n)) return `${amount} ${currency}`;
-  return `${n.toLocaleString('es-MX', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })} ${currency}`;
+  return `${n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
 }
 
-export function KitBonusesSection({
-  kitId,
-  isEnrollmentKit,
-}: KitBonusesSectionProps) {
-  const { data: bonuses, isLoading } = useKitBonuses(kitId);
+const day = (iso: string | null | undefined): string => (iso ? iso.slice(0, 10) : '—');
+
+export function KitBonusesSection({ kitId, isEnrollmentKit = false, readOnly = false, onChanged }: KitBonusesSectionProps) {
+  const ids = useId();
+  const { data: bonuses, isLoading, isError, error } = useKitBonuses(kitId);
   const { data: countries } = useActiveCountries();
   const createBonus = useCreateKitBonus(kitId);
   const updateBonus = useUpdateKitBonus(kitId);
   const deactivateBonus = useDeactivateKitBonus(kitId);
+  const canWrite = !readOnly && isEnrollmentKit;
 
-  // -------- form de alta --------
+  // -------- alta --------
   const [showForm, setShowForm] = useState(false);
   const [countryId, setCountryId] = useState('');
-  const [recipientRole, setRecipientRole] =
-    useState<BonusRecipientRole>('sponsor');
+  const [recipientRole, setRecipientRole] = useState<BonusRecipientRole>('sponsor');
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState('');
   const [notes, setNotes] = useState('');
 
-  // -------- edicion inline --------
-  const [editingId, setEditingId] = useState<string | null>(null);
+  // -------- edición de la vigente --------
+  const [editing, setEditing] = useState<KitBonus | null>(null);
   const [editAmount, setEditAmount] = useState('');
   const [editNotes, setEditNotes] = useState('');
+  const [closing, setClosing] = useState<KitBonus | null>(null);
 
   const countryOptions = useMemo(
-    () =>
-      (countries ?? []).map((c) => ({
-        value: c.id,
-        label: `${c.name} (${c.code})`,
-      })),
+    () => (countries ?? []).map((c) => ({ value: c.id, label: `${c.name} (${c.code})` })),
     [countries],
   );
 
@@ -110,8 +99,12 @@ export function KitBonusesSection({
 
   const onCountryChange = (id: string) => {
     setCountryId(id);
-    const c = countries?.find((x) => x.id === id);
-    setCurrency(c?.currencyCode ?? '');
+    setCurrency(countries?.find((x) => x.id === id)?.currencyCode ?? '');
+  };
+
+  const parsedAmount = (text: string): number | null => {
+    const n = parseQuantity(text);
+    return n === null || Number.isNaN(n) || n < 0 ? null : n;
   };
 
   const handleCreate = async () => {
@@ -119,359 +112,338 @@ export function KitBonusesSection({
       toast.error('Selecciona un país.');
       return;
     }
-    const parsed = Number(amount);
-    if (amount === '' || Number.isNaN(parsed) || parsed < 0) {
-      toast.error('Ingresa un monto válido (>= 0).');
+    const value = parsedAmount(amount);
+    if (value === null) {
+      toast.error('Escribe un importe válido (0 o más).');
       return;
     }
     const dto: CreateKitBonusInput = {
       countryId,
-      bonusAmount: parsed,
+      bonusAmount: value,
       recipientRole,
       currencyCode: currency ? currency.toUpperCase() : undefined,
       notes: notes.trim() || undefined,
     };
-    const existsCurrent = currentBonuses.find(
-      (b) => b.countryId === countryId && b.recipientRole === recipientRole,
-    );
+    const replaces = currentBonuses.some((b) => b.countryId === countryId && b.recipientRole === recipientRole);
     try {
       await createBonus.mutateAsync(dto);
-      toast.success(
-        existsCurrent
-          ? 'Bono actualizado (la regla anterior pasó al histórico).'
-          : 'Bono creado.',
-      );
+      toast.success(replaces ? 'Nueva regla creada; la anterior pasó al histórico.' : 'Bono creado.');
       resetForm();
-    } catch (e) {
-      const msg =
-        (e as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message ?? 'No se pudo crear el bono.';
-      toast.error(Array.isArray(msg) ? msg.join(', ') : msg);
+      onChanged?.();
+    } catch (err) {
+      toast.error(productAdminErrorMessage(err, 'No se pudo crear el bono.'));
     }
   };
 
   const startEdit = (b: KitBonus) => {
-    setEditingId(b.id);
+    setEditing(b);
     setEditAmount(Number(b.bonusAmount).toString());
     setEditNotes(b.notes ?? '');
   };
 
-  const handleUpdate = async (bonusId: string) => {
-    const parsed = Number(editAmount);
-    if (editAmount === '' || Number.isNaN(parsed) || parsed < 0) {
-      toast.error('Ingresa un monto válido (>= 0).');
+  const handleUpdate = async () => {
+    if (!editing) return;
+    const value = parsedAmount(editAmount);
+    if (value === null) {
+      toast.error('Escribe un importe válido (0 o más).');
+      return;
+    }
+    const amountChanged = value !== Number(editing.bonusAmount);
+    const trimmed = editNotes.trim();
+    const notesChanged = trimmed !== (editing.notes ?? '');
+    if (!amountChanged && !notesChanged) {
+      setEditing(null);
       return;
     }
     try {
-      await updateBonus.mutateAsync({
-        bonusId,
-        dto: { bonusAmount: parsed, notes: editNotes.trim() || undefined },
+      const result = await updateBonus.mutateAsync({
+        bonusId: editing.id,
+        dto: {
+          ...(amountChanged ? { bonusAmount: value } : {}),
+          // '' explícito = borrar las notas (el API entiende `null`).
+          ...(notesChanged ? { notes: trimmed === '' ? null : trimmed } : {}),
+        },
       });
-      toast.success('Bono actualizado.');
-      setEditingId(null);
-    } catch (e) {
-      const msg =
-        (e as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message ?? 'No se pudo actualizar el bono.';
-      toast.error(Array.isArray(msg) ? msg.join(', ') : msg);
+      toast.success(
+        amountChanged && result.id !== editing.id
+          ? 'Importe cambiado: se creó una regla nueva desde hoy y la anterior quedó en el histórico.'
+          : 'Bono actualizado.',
+      );
+      setEditing(null);
+      onChanged?.();
+    } catch (err) {
+      toast.error(productAdminErrorMessage(err, 'No se pudo actualizar el bono.'));
     }
   };
 
-  const handleDeactivate = async (b: KitBonus) => {
-    if (
-      !window.confirm(
-        `¿Cerrar el bono de ${b.countryName} (${RECIPIENT_LABEL[b.recipientRole]})? ` +
-          'Dejará de pagarse a partir de hoy. El histórico se conserva.',
-      )
-    ) {
-      return;
-    }
+  const handleClose = async () => {
+    if (!closing) return;
     try {
-      await deactivateBonus.mutateAsync(b.id);
-      toast.success('Bono desactivado.');
-    } catch {
-      toast.error('No se pudo desactivar el bono.');
+      await deactivateBonus.mutateAsync(closing.id);
+      toast.success('Bono cerrado. El histórico se conserva.');
+      setClosing(null);
+      onChanged?.();
+    } catch (err) {
+      toast.error(productAdminErrorMessage(err, 'No se pudo cerrar el bono.'));
     }
   };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12 text-gray-500">
-        <Loader2 className="h-6 w-6 animate-spin" />
-      </div>
-    );
-  }
 
   return (
-    <div className="space-y-6">
-      {/* Encabezado + explicacion */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="rounded-lg bg-primary/10 p-2 text-primary">
-            <GiftIcon className="h-6 w-6" />
+    <Card className="p-0">
+      <CardContent className="space-y-5 p-4 sm:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="rounded-lg bg-[#3E667D]/10 p-2 text-[#3E667D]">
+              <Gift className="h-6 w-6" aria-hidden />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Bono de inscripción</h2>
+              <p className="max-w-2xl text-sm text-gray-600">
+                Importe para el patrocinador (o línea superior / compañía) al inscribir a un distribuidor con este kit. Una regla
+                vigente por país y destinatario; cambiar el importe crea una regla nueva y la anterior queda en el histórico.
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Bono de inscripción
-            </h3>
-            <p className="max-w-2xl text-sm text-gray-500">
-              Monto que se paga al patrocinador (o línea superior / compañía)
-              cuando se inscribe a un nuevo distribuidor con este kit. Hay una
-              regla vigente por país y destinatario.
+          {canWrite && !showForm ? (
+            <Button type="button" onClick={() => setShowForm(true)} className="shrink-0">
+              <Plus className="mr-1 h-4 w-4" aria-hidden />
+              Agregar bono
+            </Button>
+          ) : null}
+        </div>
+
+        <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900" role="note">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <p>
+            <strong>Bono informativo.</strong> Hoy este sistema no lo paga: se guarda al activar al distribuidor para que se pueda
+            liquidar aparte.
+          </p>
+        </div>
+
+        {!isEnrollmentKit ? (
+          <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900" role="status">
+            <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+            <p>
+              Este kit no está marcado como <strong>kit de inscripción</strong>: el bono solo aplica al inscribir distribuidores.
+              Márcalo arriba y guarda para poder capturar reglas.
             </p>
           </div>
-        </div>
-        {!showForm && (
-          <Button onClick={() => setShowForm(true)} className="shrink-0">
-            <PlusIcon className="mr-1 h-4 w-4" />
-            Agregar bono
-          </Button>
-        )}
-      </div>
+        ) : null}
 
-      {!isEnrollmentKit && (
-        <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-          <InformationCircleIcon className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>
-            Este kit no está marcado como <strong>kit de inscripción</strong>.
-            El bono solo se paga en el flujo de inscripción de distribuidores;
-            configúralo si aplica.
-          </span>
-        </div>
-      )}
-
-      {/* Form de alta */}
-      {showForm && (
-        <Card className="border-primary/30">
-          <CardContent className="space-y-4 p-5">
+        {showForm && canWrite ? (
+          <div className="space-y-4 rounded-lg border border-[#3E667D]/30 p-4">
             <div className="flex items-center justify-between">
-              <h4 className="font-medium text-gray-900">Nueva regla de bono</h4>
-              <Button variant="ghost" size="sm" onClick={resetForm}>
-                <XMarkIcon className="h-4 w-4" />
+              <h3 className="font-medium text-gray-900">Nueva regla de bono</h3>
+              <Button type="button" variant="ghost" size="sm" onClick={resetForm} aria-label="Cerrar formulario">
+                <X className="h-4 w-4" aria-hidden />
               </Button>
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
-                  País
-                </label>
+              <div className="space-y-1.5">
+                <Label htmlFor={`${ids}-country`}>País</Label>
                 <SearchableSelect
+                  id={`${ids}-country`}
                   options={countryOptions}
                   value={countryId}
                   onChange={onCountryChange}
                   placeholder="Selecciona un país"
                   showAllOption={false}
+                  className="w-full"
                 />
               </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Destinatario
-                </label>
+              <div className="space-y-1.5">
+                <Label htmlFor={`${ids}-recipient`}>Destinatario</Label>
                 <SearchableSelect
+                  id={`${ids}-recipient`}
                   options={RECIPIENT_OPTIONS}
                   value={recipientRole}
                   onChange={(v) => setRecipientRole(v as BonusRecipientRole)}
                   showAllOption={false}
+                  className="w-full"
                 />
               </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Monto del bono
-                </label>
+              <div className="space-y-1.5">
+                <Label htmlFor={`${ids}-amount`}>Importe del bono</Label>
                 <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
+                  id={`${ids}-amount`}
+                  inputMode="decimal"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0.00"
+                  autoComplete="off"
                 />
               </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Moneda
-                </label>
+              <div className="space-y-1.5">
+                <Label htmlFor={`${ids}-currency`}>Moneda</Label>
                 <Input
+                  id={`${ids}-currency`}
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value.toUpperCase())}
                   placeholder="MXN"
                   maxLength={3}
+                  className="font-mono"
+                  autoComplete="off"
                 />
-                <p className="mt-1 text-xs text-gray-400">
-                  Por defecto la moneda del país.
-                </p>
+                <p className="text-xs text-gray-600">Por defecto, la moneda del país.</p>
               </div>
-              <div className="md:col-span-2">
-                <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Notas (opcional)
-                </label>
+              <div className="space-y-1.5 md:col-span-2">
+                <Label htmlFor={`${ids}-notes`}>Notas (opcional)</Label>
                 <Input
+                  id={`${ids}-notes`}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Ej. vigente desde campaña 2026"
+                  placeholder="Ej.: vigente desde la campaña 2026"
+                  maxLength={1000}
                 />
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={resetForm}>
+              <Button type="button" variant="outline" onClick={resetForm} disabled={createBonus.isPending}>
                 Cancelar
               </Button>
-              <Button onClick={handleCreate} disabled={createBonus.isPending}>
-                {createBonus.isPending && (
-                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                )}
+              <Button type="button" onClick={() => void handleCreate()} disabled={createBonus.isPending} aria-busy={createBonus.isPending}>
+                {createBonus.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden /> : null}
                 Guardar bono
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Reglas vigentes */}
-      <div>
-        <h4 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">
-          Reglas vigentes
-        </h4>
-        {currentBonuses.length === 0 ? (
-          <div className="rounded-md border border-dashed border-gray-300 px-4 py-8 text-center text-sm text-gray-500">
-            No hay bonos configurados para este kit.
           </div>
-        ) : (
-          <div className="space-y-2">
-            {currentBonuses.map((b) => (
-              <Card key={b.id}>
-                <CardContent className="p-4">
-                  {editingId === b.id ? (
+        ) : null}
+
+        {/* Vigentes */}
+        <div>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">Reglas vigentes</h3>
+          {isLoading ? (
+            <p className="flex items-center gap-2 text-sm text-gray-600" role="status">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Cargando bonos…
+            </p>
+          ) : isError ? (
+            <p className="text-sm text-red-700" role="alert">
+              {productAdminErrorMessage(error, 'No se pudieron cargar los bonos del kit.')}
+            </p>
+          ) : currentBonuses.length === 0 ? (
+            <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-600">
+              No hay bonos vigentes para este kit.
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {currentBonuses.map((b) => (
+                <li key={b.id} className="rounded-lg border border-gray-200 p-3">
+                  {editing?.id === b.id ? (
                     <div className="space-y-3">
-                      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-600">
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-700">
                         <Badge variant="info">{b.countryName}</Badge>
-                        <Badge variant="secondary">
-                          {RECIPIENT_LABEL[b.recipientRole]}
-                        </Badge>
-                        <span className="text-gray-400">{b.currencyCode}</span>
+                        <Badge variant="secondary">{RECIPIENT_LABEL[b.recipientRole]}</Badge>
+                        <span className="font-mono text-xs text-gray-600">{b.currencyCode}</span>
                       </div>
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div>
-                          <label className="mb-1 block text-xs font-medium text-gray-700">
-                            Monto
-                          </label>
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`${ids}-edit-amount`}>Importe</Label>
                           <Input
-                            type="number"
-                            min={0}
-                            step="0.01"
+                            id={`${ids}-edit-amount`}
+                            inputMode="decimal"
                             value={editAmount}
                             onChange={(e) => setEditAmount(e.target.value)}
+                            autoComplete="off"
                           />
+                          <p className="text-xs text-gray-600">Cambiarlo crea una regla nueva desde hoy; esta pasa al histórico.</p>
                         </div>
-                        <div>
-                          <label className="mb-1 block text-xs font-medium text-gray-700">
-                            Notas
-                          </label>
-                          <Input
-                            value={editNotes}
-                            onChange={(e) => setEditNotes(e.target.value)}
-                          />
+                        <div className="space-y-1.5">
+                          <Label htmlFor={`${ids}-edit-notes`}>Notas</Label>
+                          <Input id={`${ids}-edit-notes`} value={editNotes} onChange={(e) => setEditNotes(e.target.value)} maxLength={1000} />
+                          <p className="text-xs text-gray-600">Se editan en sitio; vacías = se borran.</p>
                         </div>
                       </div>
                       <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setEditingId(null)}
-                        >
+                        <Button type="button" variant="outline" size="sm" onClick={() => setEditing(null)} disabled={updateBonus.isPending}>
                           Cancelar
                         </Button>
-                        <Button
-                          size="sm"
-                          onClick={() => handleUpdate(b.id)}
-                          disabled={updateBonus.isPending}
-                        >
-                          {updateBonus.isPending ? (
-                            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                          ) : (
-                            <CheckIcon className="mr-1 h-4 w-4" />
-                          )}
+                        <Button type="button" size="sm" onClick={() => void handleUpdate()} disabled={updateBonus.isPending} aria-busy={updateBonus.isPending}>
+                          {updateBonus.isPending ? <Loader2 className="mr-1 h-4 w-4 animate-spin" aria-hidden /> : null}
                           Guardar
                         </Button>
                       </div>
                     </div>
                   ) : (
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex flex-wrap items-center gap-3">
-                        <span className="text-lg font-semibold text-gray-900">
-                          {formatMoney(b.bonusAmount, b.currencyCode)}
-                        </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-lg font-semibold text-gray-900">{formatMoney(b.bonusAmount, b.currencyCode)}</span>
                         <Badge variant="info">{b.countryName}</Badge>
-                        <Badge variant="secondary">
-                          {RECIPIENT_LABEL[b.recipientRole]}
-                        </Badge>
-                        <Badge variant="success">Vigente</Badge>
-                        {b.notes && (
-                          <span className="text-xs text-gray-400">
-                            {b.notes}
-                          </span>
-                        )}
+                        <Badge variant="secondary">{RECIPIENT_LABEL[b.recipientRole]}</Badge>
+                        <Badge variant="success">Vigente desde {day(b.validFrom)}</Badge>
+                        {b.notes ? <span className="text-xs text-gray-600">{b.notes}</span> : null}
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => startEdit(b)}
-                        >
-                          <PencilSquareIcon className="mr-1 h-4 w-4" />
-                          Editar
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          onClick={() => handleDeactivate(b)}
-                          disabled={deactivateBonus.isPending}
-                        >
-                          <XMarkIcon className="mr-1 h-4 w-4" />
-                          Desactivar
-                        </Button>
-                      </div>
+                      {canWrite ? (
+                        <div className="flex items-center gap-1">
+                          <Button type="button" variant="ghost" size="sm" onClick={() => startEdit(b)}>
+                            <Pencil className="mr-1 h-4 w-4" aria-hidden />
+                            Editar
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-700 hover:text-red-800"
+                            onClick={() => setClosing(b)}
+                            disabled={deactivateBonus.isPending}
+                          >
+                            <X className="mr-1 h-4 w-4" aria-hidden />
+                            Cerrar
+                          </Button>
+                        </div>
+                      ) : null}
                     </div>
                   )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Historico */}
-      {historicBonuses.length > 0 && (
-        <div>
-          <h4 className="mb-2 flex items-center gap-1 text-sm font-semibold uppercase tracking-wide text-gray-400">
-            <ClockIcon className="h-4 w-4" />
-            Histórico
-          </h4>
-          <div className="space-y-1.5">
-            {historicBonuses.map((b) => (
-              <div
-                key={b.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-gray-100 bg-gray-50 px-4 py-2 text-sm text-gray-500"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium text-gray-600">
-                    {formatMoney(b.bonusAmount, b.currencyCode)}
-                  </span>
-                  <span>{b.countryName}</span>
-                  <span className="text-gray-400">
-                    · {RECIPIENT_LABEL[b.recipientRole]}
-                  </span>
-                </div>
-                <span className="text-xs text-gray-400">
-                  {b.validFrom?.slice(0, 10)} →{' '}
-                  {b.validUntil ? b.validUntil.slice(0, 10) : '—'}
-                </span>
-              </div>
-            ))}
-          </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-      )}
-    </div>
+
+        {/* Histórico (solo lectura) */}
+        {historicBonuses.length > 0 ? (
+          <div>
+            <h3 className="mb-2 flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <Clock className="h-4 w-4" aria-hidden />
+              Histórico (solo lectura)
+            </h3>
+            <ul className="space-y-1.5">
+              {historicBonuses.map((b) => (
+                <li
+                  key={b.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-600"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-gray-700">{formatMoney(b.bonusAmount, b.currencyCode)}</span>
+                    <span>{b.countryName}</span>
+                    <span className="text-gray-500">· {RECIPIENT_LABEL[b.recipientRole]}</span>
+                    {b.notes ? <span className="text-xs text-gray-500">· {b.notes}</span> : null}
+                  </div>
+                  <span className="text-xs text-gray-500">
+                    {day(b.validFrom)} → {day(b.validUntil)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </CardContent>
+
+      <KitConfirmDialog
+        open={!!closing}
+        onOpenChange={(open) => {
+          if (!open) setClosing(null);
+        }}
+        title="Cerrar regla de bono"
+        description={
+          closing
+            ? `El bono de ${closing.countryName} (${RECIPIENT_LABEL[closing.recipientRole]}) dejará de aplicar a partir de hoy. El histórico se conserva.`
+            : ''
+        }
+        confirmLabel="Cerrar bono"
+        destructive
+        isPending={deactivateBonus.isPending}
+        onConfirm={handleClose}
+      />
+    </Card>
   );
 }

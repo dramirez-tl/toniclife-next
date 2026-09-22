@@ -6,7 +6,6 @@
 // kits de inscripción.
 
 import { useCallback, useId, useMemo } from 'react';
-import Link from 'next/link';
 import { Controller, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { Label } from '@/components/ui/label';
@@ -48,7 +47,7 @@ const schema = z.object({
 type BasicValues = z.infer<typeof schema>;
 
 export function BasicSection() {
-  const { mode, product, patchProduct } = useProductForm();
+  const { mode, product, patchProduct, hasKitSection, createType, goToSection } = useProductForm();
   const typeSelectId = useId();
   const positionSelectId = useId();
   const unitSelectId = useId();
@@ -74,11 +73,11 @@ export function BasicSection() {
       barcode: product?.barcode ?? '',
       brand: mode === 'create' ? 'Tonic Life' : toFormText(product?.brand),
       unitId: product?.unitId ?? '',
-      productType: product?.productType ?? 'finished_good',
+      productType: product?.productType ?? createType ?? 'finished_good',
       kitPosition: product?.kitPosition ?? '',
       kitDeductsInventory: product?.kitDeductsInventory ?? false,
     }),
-    [mode, product],
+    [mode, product, createType],
   );
 
   const requestCodeConfirm = codeConfirm.request;
@@ -107,10 +106,12 @@ export function BasicSection() {
       if (dirty.brand) dto.brand = textOrNull(v.brand);
       if (dirty.unitId) dto.unitId = textOrNull(v.unitId);
       if (dirty.productType) dto.productType = v.productType as ProductType;
-      if (dirty.kitPosition || dirty.productType) {
+      // Con la sección Kit en la ficha, la posición y cómo se surte se guardan AHÍ
+      // (con sus guardas y confirmaciones); aquí solo se limpian al cambiar de tipo.
+      if (dirty.kitPosition || (dirty.productType && !hasKitSection)) {
         dto.kitPosition = v.productType === 'kit' && v.kitPosition ? (v.kitPosition as KitPosition) : null;
       }
-      if (dirty.kitDeductsInventory || dirty.productType) {
+      if (dirty.kitDeductsInventory || (dirty.productType && !hasKitSection)) {
         dto.kitDeductsInventory =
           v.productType === 'kit' || v.productType === 'pack' ? v.kitDeductsInventory : false;
       }
@@ -124,7 +125,8 @@ export function BasicSection() {
       brand: textOrNull(v.brand) ?? undefined,
       unitId: textOrNull(v.unitId) ?? undefined,
       productType: v.productType as ProductType,
-      kitDeductsInventory: v.productType === 'pack' ? v.kitDeductsInventory : false,
+      // En el alta de un kit el modo lo aporta la sección Kit (kitStockMode).
+      ...(hasKitSection ? {} : { kitDeductsInventory: v.productType === 'pack' ? v.kitDeductsInventory : false }),
     }),
   });
 
@@ -133,11 +135,11 @@ export function BasicSection() {
 
   const typeOptions = useMemo(() => {
     const codes = [...CREATE_PRODUCT_TYPES];
-    // Kits y promociones se crean en su propio módulo; solo se listan si el producto YA lo es.
-    const own = product?.productType;
+    // Kits y promociones se crean en su propio módulo (o con ?tipo=kit); solo se listan si el producto YA lo es.
+    const own = product?.productType ?? createType;
     if (own && !codes.includes(own)) codes.push(own);
     return codes.map((code) => ({ value: code, label: PRODUCT_TYPE_LABEL[code] ?? code }));
-  }, [product?.productType]);
+  }, [product?.productType, createType]);
 
   return (
     <>
@@ -262,10 +264,10 @@ export function BasicSection() {
             <p className="text-xs text-gray-600">
               {isEnrollmentKit ? (
                 <>
-                  Es un kit de inscripción: el tipo no se cambia aquí. Se administra en{' '}
-                  <Link href={`/admin/kits/${product?.id ?? ''}`} className="font-medium text-[#3E667D] underline">
-                    Kits
-                  </Link>
+                  Es un kit de inscripción: el tipo no se cambia aquí. Su inscripción, posición y surtido están en la sección{' '}
+                  <button type="button" className="font-medium text-[#3E667D] underline" onClick={() => goToSection('kit')}>
+                    Kit
+                  </button>
                   .
                 </>
               ) : (
@@ -274,7 +276,17 @@ export function BasicSection() {
             </p>
           </div>
 
-          {productType === 'kit' ? (
+          {hasKitSection && (productType === 'kit' || productType === 'pack') ? (
+            <p className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700 md:col-span-2">
+              Cómo se surte {productType === 'kit' ? 'el kit (y su posición)' : 'el paquete'} se define en la sección{' '}
+              <button type="button" className="font-medium text-[#3E667D] underline" onClick={() => goToSection('kit')}>
+                {productType === 'kit' ? 'Kit' : 'Paquete'}
+              </button>
+              .
+            </p>
+          ) : null}
+
+          {!hasKitSection && productType === 'kit' ? (
             <div className="space-y-1.5">
               <Label htmlFor={positionSelectId}>Posición del kit (rango)</Label>
               <Controller
@@ -299,7 +311,7 @@ export function BasicSection() {
             </div>
           ) : null}
 
-          {productType === 'kit' || productType === 'pack' ? (
+          {!hasKitSection && (productType === 'kit' || productType === 'pack') ? (
             <SwitchField
               control={control}
               name="kitDeductsInventory"

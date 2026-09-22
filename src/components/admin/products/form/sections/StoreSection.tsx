@@ -34,20 +34,22 @@ const schema = z.object({
 type StoreValues = z.infer<typeof schema>;
 
 export function StoreSection() {
-  const { mode, productId, product, patchProduct, goToSection } = useProductForm();
+  const { mode, productId, product, patchProduct, goToSection, hasKitSection } = useProductForm();
   const categorySelectId = useId();
   const { data: categories = [] } = useCategories({ isActive: true });
   const status = useStorefrontStatus(productId, mode === 'edit');
 
+  // Kits y paquetes: "Punto de venta" e "Inscripción en línea" se editan en la
+  // sección Kit (un solo formulario por campo); un kit nuevo nace fuera de ambos.
   const values = useMemo<StoreValues>(
     () => ({
       categoryId: product?.categoryId ?? '',
-      isVisibleEcommerce: product?.isVisibleEcommerce ?? true,
-      availableInPos: product?.availableInPos ?? true,
+      isVisibleEcommerce: product?.isVisibleEcommerce ?? !hasKitSection,
+      availableInPos: product?.availableInPos ?? !hasKitSection,
       isFeatured: product?.isFeatured ?? false,
       sortOrder: String(product?.sortOrder ?? 0),
     }),
-    [product?.categoryId, product?.isVisibleEcommerce, product?.availableInPos, product?.isFeatured, product?.sortOrder],
+    [product?.categoryId, product?.isVisibleEcommerce, product?.availableInPos, product?.isFeatured, product?.sortOrder, hasKitSection],
   );
 
   const section = useSectionForm<StoreValues>({
@@ -57,16 +59,15 @@ export function StoreSection() {
     save: async ({ values: v, dirty }) => {
       const dto: AdminUpdateProductDto = {};
       if (dirty.categoryId) dto.categoryId = v.categoryId || null;
-      if (dirty.isVisibleEcommerce) dto.isVisibleEcommerce = v.isVisibleEcommerce;
-      if (dirty.availableInPos) dto.availableInPos = v.availableInPos;
+      if (dirty.isVisibleEcommerce && !hasKitSection) dto.isVisibleEcommerce = v.isVisibleEcommerce;
+      if (dirty.availableInPos && !hasKitSection) dto.availableInPos = v.availableInPos;
       if (dirty.isFeatured) dto.isFeatured = v.isFeatured;
       if (dirty.sortOrder) dto.sortOrder = v.sortOrder === '' ? 0 : Number(v.sortOrder);
       await patchProduct(dto);
     },
     toCreate: (v) => ({
       categoryId: v.categoryId || undefined,
-      isVisibleEcommerce: v.isVisibleEcommerce,
-      availableInPos: v.availableInPos,
+      ...(hasKitSection ? {} : { isVisibleEcommerce: v.isVisibleEcommerce, availableInPos: v.availableInPos }),
       isFeatured: v.isFeatured,
       sortOrder: v.sortOrder === '' ? 0 : Number(v.sortOrder),
     }),
@@ -126,22 +127,35 @@ export function StoreSection() {
 
         <fieldset className="space-y-3">
           <legend className="mb-1 text-sm font-semibold text-gray-900">Visibilidad por canal</legend>
-          <SwitchField
-            control={control}
-            name="isVisibleEcommerce"
-            label="Visible en tienda"
-            help={
-              notSellableType
-                ? `La tienda no vende productos de tipo "${productTypeLabel(product?.productType)}" aunque este interruptor esté encendido.`
-                : 'Además debe estar activo, tener URL y precio público vigente en el país.'
-            }
-          />
-          <SwitchField
-            control={control}
-            name="availableInPos"
-            label="Disponible en POS"
-            help="El punto de venta lo ofrece en los países donde tenga precio."
-          />
+          {hasKitSection ? (
+            <p className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700">
+              El punto de venta y la inscripción en línea de un {product?.productType === 'pack' ? 'paquete' : 'kit'} se
+              encienden en la sección{' '}
+              <button type="button" className="font-medium text-[#3E667D] underline" onClick={() => goToSection('kit')}>
+                {product?.productType === 'pack' ? 'Paquete' : 'Kit'}
+              </button>
+              .
+            </p>
+          ) : (
+            <>
+              <SwitchField
+                control={control}
+                name="isVisibleEcommerce"
+                label="Visible en tienda"
+                help={
+                  notSellableType
+                    ? `La tienda no vende productos de tipo "${productTypeLabel(product?.productType)}" aunque este interruptor esté encendido.`
+                    : 'Además debe estar activo, tener URL y precio público vigente en el país.'
+                }
+              />
+              <SwitchField
+                control={control}
+                name="availableInPos"
+                label="Disponible en POS"
+                help="El punto de venta lo ofrece en los países donde tenga precio."
+              />
+            </>
+          )}
           <SwitchField
             control={control}
             name="isFeatured"

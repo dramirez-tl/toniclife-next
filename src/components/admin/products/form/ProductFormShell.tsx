@@ -27,10 +27,14 @@ import { DuplicateProductDialog } from '../DuplicateProductDialog';
 import { ProductActiveDialog } from '../ProductActiveDialog';
 import { productAdminErrorCode, productAdminErrorMessage } from '../lib/errors';
 import {
+  CREATE_KIT_SECTIONS,
   CREATE_SECTIONS,
+  CREATE_TYPE_PARAM,
+  KIT_ONLY_SECTIONS,
   PRODUCTS_LIST_RETURN_KEY,
   PRODUCT_SECTIONS,
   SECTION_LABEL,
+  isKitLikeType,
   isProductSectionId,
   type ProductSectionId,
 } from '../lib/labels';
@@ -56,6 +60,8 @@ import { FiscalSection } from './sections/FiscalSection';
 import { HistorySection } from './sections/HistorySection';
 import { ImagesSection } from './sections/ImagesSection';
 import { InventorySection } from './sections/InventorySection';
+import { KitSalesSection } from './sections/KitSalesSection';
+import { KitSection } from './sections/KitSection';
 import { MlmSection } from './sections/MlmSection';
 import { PricesSection } from './sections/PricesSection';
 import { SeoSection } from './sections/SeoSection';
@@ -64,6 +70,7 @@ import { TranslationsSection } from './sections/TranslationsSection';
 
 const SECTION_COMPONENT: Record<ProductSectionId, () => ReactNode> = {
   basica: () => <BasicSection />,
+  kit: () => <KitSection />,
   contenido: () => <ContentSection />,
   traducciones: () => <TranslationsSection />,
   tienda: () => <StoreSection />,
@@ -73,6 +80,7 @@ const SECTION_COMPONENT: Record<ProductSectionId, () => ReactNode> = {
   fiscal: () => <FiscalSection />,
   componentes: () => <ComponentsSection />,
   inventario: () => <InventorySection />,
+  ventas: () => <KitSalesSection />,
   mlm: () => <MlmSection />,
   historial: () => <HistorySection />,
 };
@@ -112,12 +120,26 @@ export function ProductFormShell({ mode, productId = '' }: ProductFormShellProps
 
   const readOnly = isEdit ? !permissions.canUpdate : !permissions.canCreate;
 
+  // Alta con tipo preseleccionado (`/admin/productos/nuevo?tipo=kit`): la
+  // sección Kit entra al alta y el kit nace como borrador (inactivo, fuera del
+  // POS y de la inscripción en línea) con "Se arma al vender".
+  const tipoParam = searchParams.get('tipo');
+  const createType = !isEdit && tipoParam ? (CREATE_TYPE_PARAM[tipoParam] ?? null) : null;
+
   // ---------- Secciones disponibles y activa ----------
   const sections = useMemo(() => {
-    if (!isEdit) return PRODUCT_SECTIONS.filter((s) => CREATE_SECTIONS.includes(s.id));
-    const withComponents = WITH_COMPONENTS.includes(product?.productType ?? '');
-    return PRODUCT_SECTIONS.filter((s) => s.id !== 'componentes' || withComponents);
-  }, [isEdit, product?.productType]);
+    if (!isEdit) {
+      const ids = createType === 'kit' ? CREATE_KIT_SECTIONS : CREATE_SECTIONS;
+      return PRODUCT_SECTIONS.filter((s) => ids.includes(s.id));
+    }
+    const type = product?.productType ?? '';
+    const withComponents = WITH_COMPONENTS.includes(type);
+    const kitLike = isKitLikeType(type);
+    return PRODUCT_SECTIONS.filter(
+      (s) => (s.id !== 'componentes' || withComponents) && (!KIT_ONLY_SECTIONS.includes(s.id) || kitLike),
+    );
+  }, [isEdit, createType, product?.productType]);
+  const hasKitSection = sections.some((s) => s.id === 'kit');
 
   const requested = searchParams.get('seccion');
   const active: ProductSectionId =
@@ -223,7 +245,10 @@ export function ProductFormShell({ mode, productId = '' }: ProductFormShellProps
     setIsCreating(true);
     try {
       let payload: Partial<CreateProductDto> = {};
-      for (const section of sections) {
+      // La sección Kit se reúne AL FINAL: sus canales (POS / inscripción en
+      // línea) y su modo de surtido mandan sobre lo que aporten las demás.
+      const ordered = [...sections].sort((a, b) => Number(a.id === 'kit') - Number(b.id === 'kit'));
+      for (const section of ordered) {
         const part = await registry.current.get(section.id)?.collectCreate?.();
         if (part === null) {
           toast.error(`Revisa los campos marcados en "${section.label}"`);
@@ -240,8 +265,13 @@ export function ProductFormShell({ mode, productId = '' }: ProductFormShellProps
       const created = await productsService.createProduct({ ...payload, code: payload.code, name: payload.name });
       queryClient.invalidateQueries({ queryKey: productKeys.lists() });
       queryClient.invalidateQueries({ queryKey: productsAdminKeys.lists() });
-      toast.success('Producto creado. Ahora captura sus precios.');
-      router.push(`/admin/productos/${created.id}/editar?seccion=precios`);
+      if (isKitLikeType(created.productType)) {
+        toast.success('Kit creado como borrador (inactivo). Captura su receta, precios y bono antes de activarlo.');
+        router.push(`/admin/productos/${created.id}/editar?seccion=componentes`);
+      } else {
+        toast.success('Producto creado. Ahora captura sus precios.');
+        router.push(`/admin/productos/${created.id}/editar?seccion=precios`);
+      }
     } catch (err) {
       toast.error(productAdminErrorMessage(err, 'No se pudo crear el producto'));
       if (productAdminErrorCode(err) === 'PRD_CODE_TAKEN') goToSection('basica');
@@ -253,6 +283,7 @@ export function ProductFormShell({ mode, productId = '' }: ProductFormShellProps
   // ---------- Diálogos del encabezado ----------
   const [duplicateOpen, setDuplicateOpen] = useState(false);
   const [activeDialogOpen, setActiveDialogOpen] = useState(false);
+  const requestToggleActive = useCallback(() => setActiveDialogOpen(true), []);
 
   const contextValue = useMemo<ProductFormContextValue>(
     () => ({
@@ -260,13 +291,30 @@ export function ProductFormShell({ mode, productId = '' }: ProductFormShellProps
       productId,
       product,
       readOnly,
+      hasKitSection,
+      createType,
+      requestToggleActive: isEdit ? requestToggleActive : undefined,
       patchProduct,
       notifyWrite,
       registerSection,
       setSectionDirty,
       goToSection,
     }),
-    [mode, productId, product, readOnly, patchProduct, notifyWrite, registerSection, setSectionDirty, goToSection],
+    [
+      mode,
+      productId,
+      product,
+      readOnly,
+      hasKitSection,
+      createType,
+      isEdit,
+      requestToggleActive,
+      patchProduct,
+      notifyWrite,
+      registerSection,
+      setSectionDirty,
+      goToSection,
+    ],
   );
 
   // ---------- Estados de carga / error ----------
@@ -397,7 +445,17 @@ export function ProductFormShell({ mode, productId = '' }: ProductFormShellProps
       {product ? (
         <>
           <DuplicateProductDialog
-            source={duplicateOpen ? { id: product.id, code: product.code, name: product.name } : null}
+            source={
+              duplicateOpen
+                ? {
+                    id: product.id,
+                    code: product.code,
+                    name: product.name,
+                    productType: product.productType,
+                    isEnrollmentKit: product.isEnrollmentKit,
+                  }
+                : null
+            }
             onOpenChange={(open) => {
               if (!open) setDuplicateOpen(false);
             }}
@@ -405,7 +463,14 @@ export function ProductFormShell({ mode, productId = '' }: ProductFormShellProps
           <ProductActiveDialog
             target={
               activeDialogOpen
-                ? { id: product.id, code: product.code, name: product.name, slug: product.slug, isActive: product.isActive }
+                ? {
+                    id: product.id,
+                    code: product.code,
+                    name: product.name,
+                    slug: product.slug,
+                    isActive: product.isActive,
+                    productType: product.productType,
+                  }
                 : null
             }
             onOpenChange={(open) => {

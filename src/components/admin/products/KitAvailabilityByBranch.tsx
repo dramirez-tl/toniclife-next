@@ -19,6 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useActiveBranches } from '@/hooks/useBranches';
 import { useKitAvailability } from '@/hooks/useKitAvailability';
 import { useKitBranchChoice } from '@/stores/kit-branch-choice.store';
+import { KitClearOwnStockDialog } from './KitClearOwnStockDialog';
 import {
   AVAILABILITY_TONE_CLASS,
   availabilitySentence,
@@ -42,13 +43,22 @@ interface KitAvailabilityByBranchProps {
   stockMode: KitStockMode;
   /** `false` = solo resumen y avisos (la tabla por sucursal la pone quien llama, p. ej. existencias propias del prearmado). */
   showBranchTable?: boolean;
+  /** Con products:kits_manage / products:update: botón "Dejar en cero…" sobre la existencia fantasma. */
+  canClearOwnStock?: boolean;
 }
 
 const UNAVAILABLE_TEXT =
   'Este servidor aún no calcula la disponibilidad de kits. Se activará cuando se despliegue el API; mientras, el POS sigue validando cada componente al vender.';
 
-export function KitAvailabilityByBranch({ productId, productCode, stockMode, showBranchTable = true }: KitAvailabilityByBranchProps) {
+export function KitAvailabilityByBranch({
+  productId,
+  productCode,
+  stockMode,
+  showBranchTable = true,
+  canClearOwnStock = false,
+}: KitAvailabilityByBranchProps) {
   const isAssemble = stockMode === 'assemble_on_sale';
+  const [clearOpen, setClearOpen] = useState(false);
   const allQuery = useKitAvailability(productId);
   // La existencia fantasma (piezas propias de un kit que se arma) viaja en el
   // propio detalle (KitAvailabilityDetailDto.ownStockPhantom); un API previo la omite.
@@ -165,13 +175,22 @@ export function KitAvailabilityByBranch({ productId, productCode, stockMode, sho
         </div>
 
         {phantom ? (
-          <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
+          <div className="flex flex-wrap items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
             <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
-            <p>
-              <strong>Existencia fantasma.</strong> {phantomSentence(phantom)} Se deja en cero con un ajuste formal
-              (pendiente de liberar).
+            <p className="min-w-0 flex-1">
+              <strong>Existencia fantasma.</strong> {phantomSentence(phantom)} Se deja en cero con un movimiento de salida por
+              sucursal (queda en el kardex y en la auditoría).
             </p>
+            {canClearOwnStock ? (
+              <Button type="button" variant="outline" size="sm" className="h-8 shrink-0" onClick={() => setClearOpen(true)}>
+                Dejar en cero…
+              </Button>
+            ) : null}
           </div>
+        ) : null}
+
+        {canClearOwnStock ? (
+          <KitClearOwnStockDialog productId={productId} productCode={productCode} open={clearOpen} onOpenChange={setClearOpen} />
         ) : null}
 
         {!isAssemble && detail.hasKardex === false ? (

@@ -14,6 +14,7 @@ export const PRODUCTS_LIST_RETURN_KEY = 'tl_admin_products_list_qs';
 // ================================
 export type ProductSectionId =
   | 'basica'
+  | 'kit'
   | 'contenido'
   | 'traducciones'
   | 'tienda'
@@ -23,11 +24,14 @@ export type ProductSectionId =
   | 'fiscal'
   | 'componentes'
   | 'inventario'
+  | 'ventas'
   | 'mlm'
   | 'historial';
 
 export const PRODUCT_SECTIONS: { id: ProductSectionId; label: string; description: string }[] = [
   { id: 'basica', label: 'Información básica', description: 'Nombre, clave, código de barras, marca y tipo' },
+  // Solo kits y paquetes (contrato de kits §5.2): cómo se surte, inscripción, canales, bono y "listo para vender".
+  { id: 'kit', label: 'Kit', description: 'Cómo se surte, inscripción, dónde se ofrece, bono y si está listo para vender' },
   { id: 'contenido', label: 'Contenido (español)', description: 'Descripciones, beneficios, ingredientes y modo de uso' },
   { id: 'traducciones', label: 'Traducciones (inglés)', description: 'Textos para la tienda en inglés' },
   { id: 'tienda', label: 'Clasificación y tienda', description: 'Categoría, visibilidad por canal y dónde se vende' },
@@ -37,10 +41,14 @@ export const PRODUCT_SECTIONS: { id: ProductSectionId; label: string; descriptio
   { id: 'fiscal', label: 'Fiscal', description: 'Claves SAT, exención y reglas fiscales por país' },
   { id: 'componentes', label: 'Componentes', description: 'Composición de kits, paquetes y promociones' },
   { id: 'inventario', label: 'Inventario', description: 'Control de existencias, alertas y stock por sucursal' },
+  // Solo kits y paquetes: ventas por periodo de negocio (26 → 25).
+  { id: 'ventas', label: 'Ventas', description: 'Cobradas y canceladas por periodo, canal y sucursal' },
   { id: 'mlm', label: 'MLM', description: 'Puntos y valor de negocio (solo lectura)' },
   { id: 'historial', label: 'Historial', description: 'Quién cambió qué y cuándo' },
 ];
 
+/** Secciones que solo tienen sentido en kits y paquetes. */
+export const KIT_ONLY_SECTIONS: ProductSectionId[] = ['kit', 'ventas'];
 export const KIT_LIKE_TYPES = ['kit', 'pack'];
 export const isKitLikeType = (productType: string | null | undefined): boolean =>
   !!productType && KIT_LIKE_TYPES.includes(productType);
@@ -55,6 +63,12 @@ export function isProductSectionId(v: string | null | undefined): v is ProductSe
 
 /** Secciones visibles en el alta (el resto necesita que el producto exista). */
 export const CREATE_SECTIONS: ProductSectionId[] = ['basica', 'contenido', 'tienda', 'inventario'];
+
+/** Alta de un kit (`/admin/productos/nuevo?tipo=kit`): además la sección Kit. */
+export const CREATE_KIT_SECTIONS: ProductSectionId[] = ['basica', 'kit', 'contenido', 'tienda', 'inventario'];
+
+/** Valor de `?tipo=` que preselecciona el tipo en el alta (hoy solo kit). */
+export const CREATE_TYPE_PARAM: Record<string, string> = { kit: 'kit' };
 
 // ================================
 // Tipos de producto
