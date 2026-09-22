@@ -22,9 +22,11 @@ import { buyNowDestination } from '@/lib/storefront/cart-logic';
 import type { Cart } from '@/types/cart';
 import { catalogHref } from '@/lib/storefront/catalog-params';
 import { formatProductName } from '@/lib/storefront/content-format';
+import { viewerPriceZone } from '@/lib/storefront/price-zone';
 import { Breadcrumbs, type BreadcrumbEntry } from '@/components/storefront/Breadcrumbs';
 import { BuyBox } from '@/components/storefront/BuyBox';
 import { PackContents } from '@/components/storefront/PackContents';
+import { PriceZoneNotice } from '@/components/storefront/PriceZoneNotice';
 import { ProductContentSections } from '@/components/storefront/ProductContentSections';
 import { ProductGallery } from '@/components/storefront/ProductGallery';
 import { RelatedProducts } from '@/components/storefront/RelatedProducts';
@@ -57,6 +59,8 @@ export function ProductDetailClient({ product: initialProduct, fetchedAt }: Prod
   const { hasSession } = useStorefrontViewer();
   const queryClient = useQueryClient();
   const showPoints = hasSession && product.priceTier !== 'public' && product.points !== null;
+  // Cuenta de ZONA (Frontera): el `viewer` viaja junto al producto solo con el API que lo manda.
+  const priceZone = hasSession && data?.status === 'ok' ? viewerPriceZone(data.viewer) : null;
   const name = formatProductName(product.name);
 
   const [rawQuantity, setQuantity] = useState(1);
@@ -115,6 +119,7 @@ export function ProductDetailClient({ product: initialProduct, fetchedAt }: Prod
       <div className="grid gap-6 lg:grid-cols-2 lg:gap-12">
         <ProductGallery images={product.images} name={name} className="lg:sticky lg:top-36 lg:self-start" />
         <div className="px-4 sm:px-6 lg:px-0">
+          <PriceZoneNotice zone={priceZone} className="mb-4" />
           <SessionExpiredNotice className="mb-4" />
           <BuyBox
             ref={ctaRef}

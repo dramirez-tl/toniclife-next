@@ -5,6 +5,7 @@ import {
   normalizeDetailResponse,
   normalizeListResponse,
   normalizeSuggest,
+  normalizeViewer,
 } from './normalize';
 import { catalogErrorCode, catalogErrorMessage, catalogErrorStatus } from './errors';
 
@@ -118,6 +119,32 @@ describe('normalizeListResponse', () => {
     expect(out?.currencyCode).toBe('USD');
     expect(out?.facets.categories).toEqual([]);
   });
+
+  it('viewer de zona (Frontera): priceZone y priceZoneName solo cuando el API los manda', () => {
+    const zone = normalizeListResponse(
+      { ...payload, viewer: { tier: 'distributor', showPoints: true, priceZone: 'fn', priceZoneName: 'Frontera MX-USA' } },
+      'MXN',
+    );
+    expect(zone?.viewer).toStrictEqual({ tier: 'distributor', showPoints: true, priceZone: 'FN', priceZoneName: 'Frontera MX-USA' });
+    // Sin nombre: solo el código (nunca `priceZoneName: null`).
+    const codeOnly = normalizeListResponse({ ...payload, viewer: { tier: 'distributor', showPoints: true, priceZone: 'FN' } }, 'MXN');
+    expect(codeOnly?.viewer).toStrictEqual({ tier: 'distributor', showPoints: true, priceZone: 'FN' });
+  });
+
+  it('viewer sin zona (anónimo, cuenta de país, API previo): la forma de siempre, sin claves extra', () => {
+    expect(normalizeListResponse(payload, 'MXN')?.viewer).toStrictEqual({ tier: 'public', showPoints: false });
+    const country = normalizeListResponse({ ...payload, viewer: { tier: 'distributor', showPoints: true } }, 'MXN');
+    expect(country?.viewer).toStrictEqual({ tier: 'distributor', showPoints: true });
+    // Zona basura o nombre sin código: se ignoran.
+    for (const junk of [null, '', 7, 'frontera mx-usa', 'X', {}]) {
+      const out = normalizeListResponse({ ...payload, viewer: { tier: 'distributor', showPoints: true, priceZone: junk } }, 'MXN');
+      expect(out?.viewer).toStrictEqual({ tier: 'distributor', showPoints: true });
+    }
+    expect(normalizeViewer({ tier: 'distributor', showPoints: true, priceZoneName: 'Frontera MX-USA' })).toStrictEqual({
+      tier: 'distributor',
+      showPoints: true,
+    });
+  });
 });
 
 describe('normalizeDetailResponse', () => {
@@ -153,6 +180,18 @@ describe('normalizeDetailResponse', () => {
     ]);
     expect(out.product.sellableCountries).toEqual(['MX', 'US']);
     expect(out.product.shipping).toEqual({ freeThreshold: 1500, flatCost: 150, currencyCode: 'MXN' });
+  });
+
+  it('ok con viewer (API con zonas): se conserva normalizado; sin viewer (API previo) no se inventa', () => {
+    const withZone = normalizeDetailResponse(
+      { status: 'ok', product, viewer: { tier: 'distributor', showPoints: true, priceZone: 'FN' }, fulfillment: {} },
+      'MXN',
+    );
+    expect(withZone?.status === 'ok' && withZone.viewer).toStrictEqual({ tier: 'distributor', showPoints: true, priceZone: 'FN' });
+    const withoutZone = normalizeDetailResponse({ status: 'ok', product, viewer: { tier: 'distributor', showPoints: true } }, 'MXN');
+    expect(withoutZone?.status === 'ok' && withoutZone.viewer).toStrictEqual({ tier: 'distributor', showPoints: true });
+    const previous = normalizeDetailResponse({ status: 'ok', product }, 'MXN');
+    expect(previous?.status === 'ok' && 'viewer' in previous).toBe(false);
   });
 
   it('ok sin galería: usa la imagen de la tarjeta', () => {

@@ -92,6 +92,21 @@ export interface StorefrontFacets {
   availability: { inStock: number; outOfStock: number };
 }
 
+/**
+ * Con qué lista cotizó el API: el tipo de precio del viewer y, si su cuenta
+ * pertenece a una ZONA de precios con lista propia dentro de la tienda del país
+ * (hoy solo Frontera MX-USA, `FN`, dentro de la tienda de México), la zona.
+ * `priceZone`/`priceZoneName` no viajan para anónimos ni cuentas de país: ausentes.
+ */
+export interface StorefrontViewerInfo {
+  tier: StorefrontPriceTier;
+  showPoints: boolean;
+  /** Código de la zona (p. ej. 'FN'). Solo cuando la cuenta cotiza con lista de zona. */
+  priceZone?: string;
+  /** Nombre de la zona que manda el API (en el idioma pedido), si lo manda. */
+  priceZoneName?: string;
+}
+
 export interface StorefrontListResponse {
   data: StorefrontProductCard[];
   total: number;
@@ -99,13 +114,14 @@ export interface StorefrontListResponse {
   pageSize: number;
   totalPages: number;
   currencyCode: string;
-  viewer: { tier: StorefrontPriceTier; showPoints: boolean };
+  viewer: StorefrontViewerInfo;
   facets: StorefrontFacets;
 }
 
 /** Respuesta discriminada de `GET /storefront/products/:slug`. */
 export type StorefrontDetailResponse =
-  | { status: 'ok'; product: StorefrontProductDetail }
+  /** `viewer` llega junto al producto (API con zonas); el API previo no lo manda. */
+  | { status: 'ok'; product: StorefrontProductDetail; viewer?: StorefrontViewerInfo }
   | { status: 'moved'; canonicalSlug: string }
   | {
       status: 'unavailable_in_country';

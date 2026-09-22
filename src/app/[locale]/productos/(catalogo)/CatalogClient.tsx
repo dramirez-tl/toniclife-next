@@ -31,6 +31,7 @@ import {
 } from '@/lib/storefront/catalog-params';
 import { buildCatalogMetadata } from '@/lib/storefront/metadata';
 import { currencyForCountry } from '@/lib/storefront/price';
+import { viewerPriceZone } from '@/lib/storefront/price-zone';
 import { localizedPath } from '@/lib/storefront/seo';
 import { cn } from '@/lib/utils';
 import { ActiveFilterChips } from '@/components/storefront/ActiveFilterChips';
@@ -39,6 +40,7 @@ import { CatalogFilters } from '@/components/storefront/CatalogFilters';
 import { CatalogToolbar } from '@/components/storefront/CatalogToolbar';
 import { FiltersSheet } from '@/components/storefront/FiltersSheet';
 import { Pagination } from '@/components/storefront/Pagination';
+import { PriceZoneNotice } from '@/components/storefront/PriceZoneNotice';
 import { ProductCard, ProductCardSkeleton } from '@/components/storefront/ProductCard';
 import { SearchBox } from '@/components/storefront/SearchBox';
 import { SessionExpiredNotice } from '@/components/storefront/SessionExpiredNotice';
@@ -118,6 +120,8 @@ export function CatalogClient({ initial }: CatalogClientProps) {
   // Puntos SOLO para distribuidor CON sesión y cuando el API lo autoriza (`viewer.showPoints`).
   const { hasSession } = useStorefrontViewer();
   const showPoints = hasSession && (data?.viewer.showPoints ?? false);
+  // Cuenta de ZONA (Frontera): el API cotizó con la lista de su zona y se le avisa. Sin sesión nunca.
+  const priceZone = hasSession ? viewerPriceZone(data?.viewer) : null;
   const filtersActive = activeFilterCount(state) + (state.q ? 1 : 0);
   const loadingFirst = !data && isFetching;
   const stale = isFetching && isPlaceholderData;
@@ -139,6 +143,7 @@ export function CatalogClient({ initial }: CatalogClientProps) {
             {data.viewer.tier === 'distributor' ? t('viewerDistributor') : t('viewerPreferred')}
           </p>
         )}
+        <PriceZoneNotice zone={priceZone} className="mt-3" />
         <SessionExpiredNotice className="mt-3" />
       </header>
 

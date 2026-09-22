@@ -22,6 +22,7 @@ export type {
   StorefrontSitemapItem,
   StorefrontSuggestProduct,
   StorefrontSuggestResponse,
+  StorefrontViewerInfo,
 } from '@/lib/storefront/types';
 export type { CatalogSort, CatalogState } from '@/lib/storefront/catalog-params';
 export type { ContentBlock } from '@/lib/storefront/content-format';

@@ -18,6 +18,7 @@ import type {
   StorefrontProductImage,
   StorefrontProductType,
   StorefrontSuggestResponse,
+  StorefrontViewerInfo,
 } from './types';
 
 type Row = Record<string, unknown>;
@@ -141,6 +142,29 @@ function normalizeFacets(value: unknown): StorefrontFacets {
   };
 }
 
+// Código de zona de precios: corto, alfanumérico, en mayúsculas ('FN'). Otra cosa = sin zona.
+const ZONE_CODE = /^[A-Z0-9]{2,8}$/;
+
+function zoneCode(value: unknown): string | null {
+  const code = str(value)?.toUpperCase() ?? null;
+  return code && ZONE_CODE.test(code) ? code : null;
+}
+
+/**
+ * `viewer` del listado y del detalle. `priceZone`/`priceZoneName` SOLO se agregan
+ * cuando el API manda una zona válida: sin zona la forma es exactamente la de
+ * siempre (`{ tier, showPoints }`), y el nombre nunca viaja sin su código.
+ */
+export function normalizeViewer(value: unknown): StorefrontViewerInfo {
+  const viewer = isRow(value) ? value : {};
+  const viewerTier = tier(viewer.tier);
+  const base: StorefrontViewerInfo = { tier: viewerTier, showPoints: viewerTier !== 'public' && viewer.showPoints === true };
+  const priceZone = zoneCode(viewer.priceZone);
+  if (!priceZone) return base;
+  const priceZoneName = str(viewer.priceZoneName);
+  return { ...base, priceZone, ...(priceZoneName ? { priceZoneName } : {}) };
+}
+
 /** `GET /storefront/products`. `null` si el cuerpo no tiene la forma del contrato. */
 export function normalizeListResponse(payload: unknown, fallbackCurrency: string): StorefrontListResponse | null {
   if (!isRow(payload) || !Array.isArray(payload.data)) return null;
@@ -150,8 +174,6 @@ export function normalizeListResponse(payload: unknown, fallbackCurrency: string
   });
   const pageSize = Math.max(1, int(payload.pageSize, 24));
   const total = Math.max(data.length, int(payload.total, data.length));
-  const viewer = isRow(payload.viewer) ? payload.viewer : {};
-  const viewerTier = tier(viewer.tier);
   return {
     data,
     total,
@@ -159,7 +181,7 @@ export function normalizeListResponse(payload: unknown, fallbackCurrency: string
     pageSize,
     totalPages: Math.max(1, int(payload.totalPages, Math.ceil(total / pageSize))),
     currencyCode: (str(payload.currencyCode) ?? fallbackCurrency).toUpperCase(),
-    viewer: { tier: viewerTier, showPoints: viewerTier !== 'public' && viewer.showPoints === true },
+    viewer: normalizeViewer(payload.viewer),
     facets: normalizeFacets(payload.facets),
   };
 }
@@ -272,7 +294,9 @@ export function normalizeDetailResponse(payload: unknown, fallbackCurrency: stri
   }
   if (payload.status === 'ok') {
     const product = normalizeDetail(payload.product, fallbackCurrency);
-    return product ? { status: 'ok', product } : null;
+    if (!product) return null;
+    // `viewer` solo si el API lo manda (API previo: no). Sin él la forma no cambia.
+    return isRow(payload.viewer) ? { status: 'ok', product, viewer: normalizeViewer(payload.viewer) } : { status: 'ok', product };
   }
   return null;
 }

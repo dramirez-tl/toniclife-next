@@ -89,6 +89,9 @@
         "shopIn": "Shop in {country}",
         "metaTitle": "Coming soon to {country} | Tonic Life"
       },
+      "priceZone": {
+        "message": "Your prices are for the {zone} zone"
+      },
       "sessionExpired": {
         "message": "Your session expired, so you are seeing the public price.",
         "login": "Sign in to see your price"
