@@ -2,11 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
   CHANNEL_LABEL,
   normalizeKitSales,
+  normalizeKitSalesSummary,
+  periodRange,
   periodSentence,
   periodTitle,
   periodTotals,
   saleHref,
   saleStatusLabel,
+  salesCellText,
+  salesCellTitle,
   shortPeriodDate,
   topBranchesSentence,
   totalPaid,
@@ -33,9 +37,33 @@ const API_BODY = {
         { branchId: 'b-164', code: '164', name: 'Sucursal 164', units: 12 },
       ],
       lastSales: [
-        { id: 's-1', folio: 'V-000123', at: '2026-09-21T15:00:00.000Z', branchCode: '268', status: 'completed', quantity: 1, channel: 'pos' },
-        { id: 'o-1', folio: 'ORD-9', at: '2026-09-20T15:00:00.000Z', branchCode: null, status: 'cancelled', quantity: '2', channel: 'web' },
-        { id: 'm-1', folio: 'M-77', at: '2026-09-19T15:00:00.000Z', branchCode: '164', status: 'completed', quantity: 1, channel: 'pos_migrated' },
+        {
+          id: 's-1',
+          folio: 'V-000123',
+          at: '2026-09-21T15:00:00.000Z',
+          branchCode: '268',
+          status: 'completed',
+          quantity: 1,
+          channel: 'pos',
+        },
+        {
+          id: 'o-1',
+          folio: 'ORD-9',
+          at: '2026-09-20T15:00:00.000Z',
+          branchCode: null,
+          status: 'cancelled',
+          quantity: '2',
+          channel: 'web',
+        },
+        {
+          id: 'm-1',
+          folio: 'M-77',
+          at: '2026-09-19T15:00:00.000Z',
+          branchCode: '164',
+          status: 'completed',
+          quantity: 1,
+          channel: 'pos_migrated',
+        },
       ],
     },
     {
@@ -69,7 +97,10 @@ describe('normalizeKitSales', () => {
   });
 
   it('degrada cuerpos parciales y descarta renglones sin id', () => {
-    const s = normalizeKitSales({ productId: 'p', periods: [{ name: 'X', lastSales: [{ folio: 'sin id' }, 'basura'], topBranches: [{}] }] });
+    const s = normalizeKitSales({
+      productId: 'p',
+      periods: [{ name: 'X', lastSales: [{ folio: 'sin id' }, 'basura'], topBranches: [{}] }],
+    });
     expect(s?.periods[0].units).toEqual({ paid: 0, cancelled: 0 });
     expect(s?.periods[0].lastSales).toEqual([]);
     expect(s?.periods[0].topBranches).toEqual([]);
@@ -90,7 +121,9 @@ describe('textos', () => {
     const [current] = normalizeKitSales(API_BODY)!.periods;
     expect(periodTitle(current)).toBe('Septiembre 2026 (26-ago → 25-sep)');
     expect(periodTotals(current)).toBe('77 cobradas, 1 cancelada · POS 77 · Migradas 0 · En línea 0');
-    expect(periodSentence(current)).toBe('Septiembre 2026 (26-ago → 25-sep): 77 cobradas, 1 cancelada · POS 77 · Migradas 0 · En línea 0');
+    expect(periodSentence(current)).toBe(
+      'Septiembre 2026 (26-ago → 25-sep): 77 cobradas, 1 cancelada · POS 77 · Migradas 0 · En línea 0',
+    );
     expect(periodTitle({ name: 'Sin fechas', startDate: '', endDate: '' })).toBe('Sin fechas');
   });
 
@@ -104,5 +137,61 @@ describe('textos', () => {
     expect(saleHref({ id: 'o-1', channel: 'web' })).toBe('/admin/pedidos/o-1');
     expect(saleHref({ id: 's-1', channel: 'pos' })).toBe('/admin/pos');
     expect(totalPaid(normalizeKitSales(API_BODY)!.periods)).toBe(117);
+  });
+});
+
+describe('kit-sales · resumen del periodo (pestaña Kits)', () => {
+  const SUMMARY_BODY = {
+    periodId: 'per-74',
+    periodNumber: 74,
+    name: 'Septiembre 2026',
+    startDate: '2026-08-26',
+    endDate: '2026-09-25',
+    isCurrent: true,
+    items: [
+      { productId: 'p-1', code: 'KPM05', unitsPaid: 77, unitsCancelled: 1 },
+      { productId: 'p-2', code: 'KBM10', unitsPaid: '0', unitsCancelled: null },
+      { code: 'sin-id' },
+      null,
+    ],
+  };
+
+  it('normaliza el cuerpo del API y descarta filas sin productId', () => {
+    const s = normalizeKitSalesSummary(SUMMARY_BODY)!;
+    expect(s.periodNumber).toBe(74);
+    expect(s.name).toBe('Septiembre 2026');
+    expect(s.startDate).toBe('2026-08-26');
+    expect(s.endDate).toBe('2026-09-25');
+    expect(s.isCurrent).toBe(true);
+    expect(s.items).toEqual([
+      { productId: 'p-1', code: 'KPM05', unitsPaid: 77, unitsCancelled: 1 },
+      { productId: 'p-2', code: 'KBM10', unitsPaid: 0, unitsCancelled: 0 },
+    ]);
+    expect(normalizeKitSalesSummary(null)).toBeNull();
+    expect(normalizeKitSalesSummary({ items: [] })).toBeNull();
+    expect(normalizeKitSalesSummary({ periodNumber: 3 })!.name).toBe('Periodo 3');
+  });
+
+  it('muestra el rango tal como viene (26 → 25) y la celda "77 en Septiembre 2026"', () => {
+    const s = normalizeKitSalesSummary(SUMMARY_BODY)!;
+    expect(periodRange(s)).toBe('26-ago → 25-sep');
+    expect(periodRange({ startDate: '', endDate: '' })).toBe('');
+    expect(salesCellText(77, s.name)).toBe('77 en Septiembre 2026');
+    expect(salesCellText(0, s.name)).toBe('0 en Septiembre 2026');
+    expect(salesCellText(1234, s.name)).toBe('1,234 en Septiembre 2026');
+  });
+
+  it('tooltip con cobradas y canceladas', () => {
+    const s = normalizeKitSalesSummary(SUMMARY_BODY)!;
+    expect(salesCellTitle(s.items[0], s)).toBe('77 cobradas y 1 cancelada en Septiembre 2026 (26-ago → 25-sep).');
+    expect(salesCellTitle({ unitsPaid: 1, unitsCancelled: 0 }, s)).toBe(
+      '1 cobrada en Septiembre 2026 (26-ago → 25-sep).',
+    );
+    expect(salesCellTitle(undefined, s)).toBe(
+      'Sin ventas cobradas ni canceladas en Septiembre 2026 (26-ago → 25-sep).',
+    );
+    expect(salesCellTitle(undefined, { name: 'Octubre 2026', startDate: '', endDate: '' })).toBe(
+      'Sin ventas cobradas ni canceladas en Octubre 2026.',
+    );
   });
 });

@@ -193,3 +193,85 @@ export function saleHref(line: Pick<KitSaleLine, 'id' | 'channel'>): string {
 /** Total de unidades cobradas en los periodos recibidos. */
 export const totalPaid = (periods: readonly KitSalesPeriod[]): number =>
   periods.reduce((acc, p) => acc + p.units.paid, 0);
+
+// ================================
+// Resumen de TODOS los kits en UN periodo (pestaña Kits, columna "Ventas del
+// periodo"). Fuente: GET /products/kits/sales-summary?periodNumber=
+// (KitSalesSummaryDto). El periodo lo elige y lo delimita el API
+// (commission_periods, 26 → 25): aquí solo se muestra.
+// ================================
+export interface KitSalesSummaryItem {
+  productId: string;
+  code: string;
+  unitsPaid: number;
+  unitsCancelled: number;
+}
+
+export interface KitSalesSummary {
+  periodId: string;
+  periodNumber: number;
+  name: string;
+  /** YYYY-MM-DD, tal cual lo manda el API. */
+  startDate: string;
+  endDate: string;
+  isCurrent: boolean;
+  /** Todos los kits/paquetes (0 si no vendieron). */
+  items: KitSalesSummaryItem[];
+}
+
+function normalizeSummaryItem(raw: unknown): KitSalesSummaryItem | null {
+  if (!isRecord(raw)) return null;
+  const productId = str(raw.productId);
+  if (!productId) return null;
+  return {
+    productId,
+    code: str(raw.code),
+    unitsPaid: num(raw.unitsPaid),
+    unitsCancelled: num(raw.unitsCancelled),
+  };
+}
+
+/** `null` si el cuerpo no tiene la forma mínima (nombre o número de periodo). */
+export function normalizeKitSalesSummary(raw: unknown): KitSalesSummary | null {
+  if (!isRecord(raw)) return null;
+  const name = str(raw.name);
+  const periodNumber = num(raw.periodNumber, -1);
+  if (!name && periodNumber < 0) return null;
+  return {
+    periodId: str(raw.periodId),
+    periodNumber,
+    name: name || `Periodo ${periodNumber}`,
+    startDate: str(raw.startDate),
+    endDate: str(raw.endDate),
+    isCurrent: bool(raw.isCurrent),
+    items: (Array.isArray(raw.items) ? raw.items : [])
+      .map(normalizeSummaryItem)
+      .filter((i): i is KitSalesSummaryItem => i !== null),
+  };
+}
+
+/** "26-ago → 25-sep" (vacío si el API no mandó fechas). */
+export function periodRange(p: Pick<KitSalesSummary, 'startDate' | 'endDate'>): string {
+  if (!p.startDate && !p.endDate) return '';
+  return `${shortPeriodDate(p.startDate)} → ${shortPeriodDate(p.endDate)}`;
+}
+
+/** Celda del listado: "77 en Septiembre 2026". */
+export function salesCellText(unitsPaid: number, periodName: string): string {
+  return `${n(unitsPaid)} en ${periodName}`;
+}
+
+/** Tooltip de la celda: "77 cobradas y 1 cancelada en Septiembre 2026 (26-ago → 25-sep)." */
+export function salesCellTitle(
+  item: Pick<KitSalesSummaryItem, 'unitsPaid' | 'unitsCancelled'> | undefined,
+  period: Pick<KitSalesSummary, 'name' | 'startDate' | 'endDate'>,
+): string {
+  const paid = item?.unitsPaid ?? 0;
+  const cancelled = item?.unitsCancelled ?? 0;
+  const range = periodRange(period);
+  const when = `${period.name}${range ? ` (${range})` : ''}`;
+  if (paid <= 0 && cancelled <= 0) return `Sin ventas cobradas ni canceladas en ${when}.`;
+  const paidText = `${n(paid)} ${paid === 1 ? 'cobrada' : 'cobradas'}`;
+  const cancelledText = cancelled > 0 ? ` y ${n(cancelled)} ${cancelled === 1 ? 'cancelada' : 'canceladas'}` : '';
+  return `${paidText}${cancelledText} en ${when}.`;
+}
