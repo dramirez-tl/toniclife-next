@@ -3,9 +3,8 @@
 // los endpoints de /products + el endpoint nuevo /customers/kit-enrollment.
 
 import api from '@/lib/axios';
-import { ProductType, type Product, type ProductListResponse } from '@/types/product';
+import { ProductType, type ProductListResponse } from '@/types/product';
 import type {
-  Kit,
   KitComponent,
   KitListQueryParams,
   BulkReplaceComponentsDto,
@@ -34,14 +33,6 @@ class KitsService {
         productType: ProductType.KIT,
       },
     });
-    return response.data;
-  }
-
-  /**
-   * Detalle de un kit por ID. Reusa /products/:id.
-   */
-  async getKit(id: string): Promise<Kit> {
-    const response = await api.get<Product>(`/products/${id}`);
     return response.data;
   }
 

@@ -41,18 +41,6 @@ export const useKits = (params: KitListQueryParams = {}) => {
 };
 
 /**
- * Detalle de un kit por id.
- */
-export const useKit = (id: string | undefined) => {
-  return useQuery({
-    queryKey: id ? kitKeys.detail(id) : kitKeys.detail('disabled'),
-    queryFn: () => kitsService.getKit(id!),
-    enabled: !!id,
-    staleTime: 60 * 1000,
-  });
-};
-
-/**
  * Componentes (BoM) del kit. `scope: 'global'` = solo la receta global
  * (la que edita la ficha y reemplaza PUT components/bulk sin país).
  */

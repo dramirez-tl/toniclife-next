@@ -478,7 +478,7 @@ export function KitsTab() {
           </Link>
           <button
             type="button"
-            onClick={() => router.push(`/admin/kits/${kit.id}`)}
+            onClick={() => router.push(`/admin/productos/${kit.id}/editar?seccion=kit`)}
             className="rounded-lg p-2 transition-colors hover:bg-green-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3E667D]"
             title="Editar kit"
             aria-label={`Editar kit ${kit.code}`}
@@ -792,7 +792,7 @@ export function KitsTab() {
                         Limpiar filtros
                       </Button>
                     )}
-                    <Link href="/admin/kits/nuevo">
+                    <Link href="/admin/productos/nuevo?tipo=kit">
                       <Button variant="default">
                         <PlusIcon className="h-4 w-4" />
                         Nuevo Kit

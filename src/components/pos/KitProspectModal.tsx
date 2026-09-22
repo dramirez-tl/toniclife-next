@@ -120,7 +120,7 @@ export function KitProspectModal({
       return;
     }
     if (kitInvalid) {
-      toast.error('El kit no tiene posición definida (configúrala en /admin/kits)');
+      toast.error('El kit no tiene posición definida (configúrala en la ficha del kit, sección Kit)');
       return;
     }
 
@@ -293,7 +293,7 @@ export function KitProspectModal({
               )}
               {kitInvalid && !sponsorInvalid && (
                 <div className="bg-red-50 border border-red-200 text-red-800 px-3 py-2 rounded text-sm">
-                  Este kit no tiene posición definida. Edítalo en /admin/kits y asígnale Básico, Premium o Preferente.
+                  Este kit no tiene posición definida. Edítalo en Productos › Kits (ficha del kit, sección Kit) y asígnale Básico, Premium o Preferente.
                 </div>
               )}
               {soldOutWarning && (

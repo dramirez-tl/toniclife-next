@@ -44,7 +44,7 @@ const TABS: TabConfig[] = [
     label: 'Kits',
     icon: GiftIcon,
     subtitle: 'Kits Básico, Premium y Preferente que se venden para inscribir distribuidores',
-    newHref: '/admin/kits/nuevo',
+    newHref: '/admin/productos/nuevo?tipo=kit',
     newLabel: 'Nuevo Kit',
   },
   {
