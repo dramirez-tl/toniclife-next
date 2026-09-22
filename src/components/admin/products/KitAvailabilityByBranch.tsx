@@ -17,7 +17,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useActiveBranches } from '@/hooks/useBranches';
-import { useKitAvailability } from '@/hooks/useKitAvailability';
+import { useKitAvailability, useKitsAvailability } from '@/hooks/useKitAvailability';
 import { useKitBranchChoice } from '@/stores/kit-branch-choice.store';
 import {
   AVAILABILITY_TONE_CLASS,
@@ -28,6 +28,7 @@ import {
   limitingSentence,
   missingForOne,
   phantomSentence,
+  reasonSentence,
   recipeHeadline,
   stockModeLabel,
   summarizeBranches,
@@ -39,13 +40,23 @@ interface KitAvailabilityByBranchProps {
   productId: string;
   productCode: string;
   stockMode: KitStockMode;
+  /** `false` = solo resumen y avisos (la tabla por sucursal la pone quien llama, p. ej. existencias propias del prearmado). */
+  showBranchTable?: boolean;
 }
 
 const UNAVAILABLE_TEXT =
   'Este servidor aún no calcula la disponibilidad de kits. Se activará cuando se despliegue el API; mientras, el POS sigue validando cada componente al vender.';
 
-export function KitAvailabilityByBranch({ productId, productCode, stockMode }: KitAvailabilityByBranchProps) {
+export function KitAvailabilityByBranch({ productId, productCode, stockMode, showBranchTable = true }: KitAvailabilityByBranchProps) {
+  const isAssemble = stockMode === 'assemble_on_sale';
   const allQuery = useKitAvailability(productId);
+  // La existencia fantasma (piezas propias de un kit que se arma) solo viaja en
+  // el listado (KitAvailabilitySummaryDto.ownStockPhantom), no en el detalle.
+  const listQuery = useKitsAvailability(undefined, { onlyActive: false, enabled: isAssemble });
+  const phantom = useMemo(
+    () => (isAssemble ? listQuery.data?.find((r) => r.productId === productId)?.ownStockPhantom ?? null : null),
+    [isAssemble, listQuery.data, productId],
+  );
   const { data: branches = [] } = useActiveBranches();
   const branchId = useKitBranchChoice((s) => s.branchId);
   const setBranchId = useKitBranchChoice((s) => s.setBranchId);
@@ -87,7 +98,6 @@ export function KitAvailabilityByBranch({ productId, productCode, stockMode }: K
     if (id) componentsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const isAssemble = stockMode === 'assemble_on_sale';
   const title = 'Disponibilidad por sucursal';
 
   // ---------- Estados ----------
@@ -151,18 +161,19 @@ export function KitAvailabilityByBranch({ productId, productCode, stockMode }: K
         {/* Encabezado en claro */}
         <div className={`rounded-lg px-4 py-3 ${AVAILABILITY_TONE_CLASS[tone]}`} role="status">
           <p className="text-sm font-semibold">{availabilitySentence({ branchesTotal: summary.total, branchesSellable: summary.sellable }, productCode)}</p>
+          {detail.reason ? <p className="mt-1 text-sm font-medium">{reasonSentence(detail.reason)}</p> : null}
           {limiting ? <p className="mt-1 text-sm">{limiting}</p> : null}
           {summary.total > 0 && summary.sellable > 0 ? (
             <p className="mt-1 text-xs opacity-90">Máximo en una sola sucursal: {fmt(summary.maxSellable)}.</p>
           ) : null}
         </div>
 
-        {isAssemble && detail.ownStockPhantom ? (
+        {phantom ? (
           <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
             <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
             <p>
-              <strong>Existencia fantasma.</strong> {phantomSentence(detail.ownStockPhantom)} Se deja en cero con un ajuste
-              formal (pendiente de liberar).
+              <strong>Existencia fantasma.</strong> {phantomSentence(phantom)} Se deja en cero con un ajuste formal
+              (pendiente de liberar).
             </p>
           </div>
         ) : null}
@@ -179,7 +190,7 @@ export function KitAvailabilityByBranch({ productId, productCode, stockMode }: K
         ) : null}
 
         {/* Tabla por sucursal */}
-        {rows.length === 0 ? (
+        {!showBranchTable ? null : rows.length === 0 ? (
           <p className="rounded-lg border-2 border-dashed border-gray-200 py-6 text-center text-sm text-gray-600">
             No hay sucursales con punto de venta y precio vigente para este kit.
           </p>

@@ -70,11 +70,15 @@ export interface KitLimitingDetail {
   available: number;
 }
 
+/** Por qué un kit que se arma da 0 en todas partes aunque haya existencias (DTO `reason`). */
+export type KitUnsellableReason = 'recipe_empty' | 'component_inactive';
+
 /** Respuesta de GET /products/:id/kit-availability (con o sin `branchId`). */
 export interface KitAvailabilityDetail {
   stockMode: KitStockMode | null;
-  /** Solo con `branchId`: cuántos se pueden vender ahí. */
+  /** Con `branchId`: cuántos se pueden vender ahí; sin él: el máximo entre las sucursales. */
   sellable: number | null;
+  reason: KitUnsellableReason | null;
   limiting: KitLimitingDetail | null;
   components: KitAvailabilityComponentRow[];
   /** Sin `branchId`: todas las sucursales del universo. */
@@ -83,7 +87,6 @@ export interface KitAvailabilityDetail {
   ownStock: number | null;
   /** Prearmado: `false` = existencia sin movimientos de kardex ("sin respaldo"). */
   hasKardex: boolean | null;
-  ownStockPhantom: { rows: number; units: number } | null;
 }
 
 // ================================
@@ -107,6 +110,19 @@ function normalizePhantom(v: unknown): { rows: number; units: number } | null {
   const rows = num(v.rows);
   const units = num(v.units);
   return rows > 0 || units > 0 ? { rows, units } : null;
+}
+
+/**
+ * Filas del listado tal como las manda el API: `{ generatedAt, countryId,
+ * onlyActive, kits: [...] }` (`KitAvailabilityListDto`). Se aceptan también un
+ * arreglo pelado o `{ data: [...] }` como respaldo; cualquier otra cosa ⇒ [].
+ */
+export function unwrapKitAvailabilityList(body: unknown): unknown[] {
+  if (Array.isArray(body)) return body;
+  if (!isRecord(body)) return [];
+  if (Array.isArray(body.kits)) return body.kits;
+  if (Array.isArray(body.data)) return body.data;
+  return [];
 }
 
 export function normalizeKitAvailabilitySummary(raw: unknown): KitAvailabilitySummary | null {
@@ -133,6 +149,9 @@ export function normalizeKitAvailabilitySummary(raw: unknown): KitAvailabilitySu
     unbackedOwnStock: bool(raw.unbackedOwnStock),
   };
 }
+
+const normalizeReason = (v: unknown): KitUnsellableReason | null =>
+  v === 'recipe_empty' || v === 'component_inactive' ? v : null;
 
 export function normalizeKitAvailabilityDetail(raw: unknown): KitAvailabilityDetail | null {
   if (!isRecord(raw)) return null;
@@ -173,12 +192,12 @@ export function normalizeKitAvailabilityDetail(raw: unknown): KitAvailabilityDet
   return {
     stockMode: normalizeStockMode(raw.stockMode),
     sellable: raw.sellable === null || raw.sellable === undefined ? null : num(raw.sellable),
+    reason: normalizeReason(raw.reason),
     limiting: limiting && limiting.code ? limiting : null,
     components,
     branches,
     ownStock: raw.ownStock === null || raw.ownStock === undefined ? null : num(raw.ownStock),
     hasKardex: typeof raw.hasKardex === 'boolean' ? raw.hasKardex : null,
-    ownStockPhantom: normalizePhantom(raw.ownStockPhantom),
   };
 }
 
@@ -469,6 +488,15 @@ export function shortageText(l: KitLimitingDetail): string {
   return `Falta ${name}: requiere ${fmt(l.need)}, hay ${fmt(l.available)}.`;
 }
 
+/** Encabezado de la ficha cuando el API explica por qué el kit da 0 en todas las sucursales. */
+export const REASON_SENTENCE: Record<KitUnsellableReason, string> = {
+  recipe_empty: 'No tiene receta: no hay qué armar.',
+  component_inactive: 'Un componente de la receta está desactivado.',
+};
+
+export const reasonSentence = (reason: KitUnsellableReason | null | undefined): string =>
+  reason ? REASON_SENTENCE[reason] : '';
+
 /** Aviso de existencia propia sembrada en un kit que se arma. */
 export function phantomSentence(p: { rows: number; units: number }): string {
   return `Tiene ${fmt(p.units)} ${plural(p.units, 'pieza propia', 'piezas propias')} en ${fmt(p.rows)} ${plural(
@@ -513,11 +541,33 @@ export function posKitEnrollWarning(p: {
 }): string {
   const where = p.branchName ? ` en ${p.branchName}` : ' en esta sucursal';
   const why = p.limitingComponent ? ` ${shortageText(p.limitingComponent)}` : '';
-  return `${p.kitCode} está agotado${where}.${why} Puedes registrar al distribuidor, pero no podrás cobrarle este kit aquí hasta que haya existencias: pide traspaso o elige otro kit.`;
+  return `${p.kitCode} está agotado${where}.${why} Puedes registrar al distribuidor, pero el cobro de este kit se rechazará hasta que haya existencias: pide traspaso o, antes de registrarlo, cierra y elige otro kit.`;
 }
 
-/** Toast tras el alta cuando el kit no se pudo agregar al carrito por estar agotado. */
+/**
+ * Toast (ámbar) tras el alta con el kit agotado. Igual que Electron: el kit SÍ
+ * entra al carrito (cantidad 1, sin tope) para que el cajero intente el cobro
+ * cuando llegue el traspaso o lo quite; el servidor es quien rechaza (V1). No
+ * se promete "elige otro kit": en el POS web cada kit de inscripción abre el
+ * alta de un prospecto nuevo y el distribuidor ya quedó registrado.
+ */
 export function posKitEnrolledSoldOutToast(kitCode: string, branchName?: string | null): string {
   const where = branchName ? ` en ${branchName}` : ' aquí';
-  return `Registrado, pero ${kitCode} está agotado${where}: pide traspaso o elige otro kit.`;
+  return `Registrado, pero ${kitCode} está agotado${where}: quedó en el carrito y el cobro se rechazará hasta que llegue el traspaso.`;
+}
+
+/**
+ * Existencia que el POS puede usar de la fila propia de `GET /products/code/:sku`.
+ * Ese endpoint reporta SOLO `stock_levels` del propio SKU: para un kit o paquete
+ * que SE ARMA esa cifra es la existencia fantasma/sembrada (o 0), no los
+ * armables que sí calcula el catálogo `GET /products`. Se descarta (`undefined`)
+ * y el grid la toma del catálogo cargado, como Electron (`withCatalogStock`).
+ */
+export function posOwnRowStock(p: {
+  productType?: string | null;
+  kitStockMode?: string | null;
+  kitDeductsInventory?: boolean | null;
+  stock: number | undefined;
+}): number | undefined {
+  return resolveStockMode(p) === 'assemble_on_sale' ? undefined : p.stock;
 }

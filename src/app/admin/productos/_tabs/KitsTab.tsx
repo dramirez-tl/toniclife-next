@@ -129,7 +129,12 @@ export function KitsTab() {
   const selectedCountry = countries?.find((c) => c.id === filterCountryId);
 
   // ---------- Disponibilidad (solo lectura; null = el servidor aún no la expone) ----------
-  const availabilityQuery = useKitsAvailability(filterCountryId || undefined, { onlyActive: false });
+  // Se consulta solo con país: el efecto de arriba fija MX en el primer render
+  // y sin esta guarda se disparaban dos consultas (una sin país).
+  const availabilityQuery = useKitsAvailability(filterCountryId || undefined, {
+    onlyActive: false,
+    enabled: !!filterCountryId,
+  });
   const availabilityRows: KitAvailabilitySummary[] | null | undefined = availabilityQuery.data;
   const availabilityUnavailable = availabilityRows === null;
   const availabilityReady = Array.isArray(availabilityRows);
@@ -685,7 +690,7 @@ export function KitsTab() {
               <p id="kits-missing-help" className="mt-1 text-xs text-gray-500">
                 {availabilityReady && missingOptions.length === 0
                   ? 'Hoy ningún componente deja un kit en cero en este país.'
-                  : 'Componentes que hoy dejan algún kit en cero en alguna sucursal.'}
+                  : 'Los 3 componentes que más sucursales dejan en cero por cada kit; un cuarto faltante no aparece aquí (velo en la ficha del kit).'}
               </p>
             </div>
           </div>

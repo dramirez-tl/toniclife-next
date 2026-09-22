@@ -182,7 +182,14 @@ export function InventorySection() {
       </SectionCard>
 
       {mode === 'edit' && product && kitStockMode ? (
-        <KitAvailabilityByBranch productId={productId} productCode={product.code} stockMode={kitStockMode} />
+        // Prearmado: la tabla por sucursal es la de existencias propias de
+        // abajo (una sola); aquí solo el resumen y el aviso "sin respaldo".
+        <KitAvailabilityByBranch
+          productId={productId}
+          productCode={product.code}
+          stockMode={kitStockMode}
+          showBranchTable={isAssembledKit}
+        />
       ) : null}
 
       {availabilityMissing && product ? (

@@ -15,6 +15,8 @@ import {
   posKitEnrollWarning,
   posKitEnrolledSoldOutToast,
   posKitStockLabel,
+  posOwnRowStock,
+  reasonSentence,
   recipeHeadline,
   recipeSellableAt,
   resolveStockMode,
@@ -23,6 +25,7 @@ import {
   stockModeLabel,
   summarizeBranches,
   summaryFlags,
+  unwrapKitAvailabilityList,
   type KitAvailabilitySummary,
 } from './kit-availability';
 
@@ -257,17 +260,87 @@ describe('kit-availability · POS web', () => {
       limitingComponent: { code: '8050M', name: 'Omega sobre', need: 1, available: 0 },
     });
     expect(msg).toBe(
-      'KPM05 está agotado en Irapuato Centro. Falta "Omega sobre" (8050M): requiere 1, hay 0. Puedes registrar al distribuidor, pero no podrás cobrarle este kit aquí hasta que haya existencias: pide traspaso o elige otro kit.',
+      'KPM05 está agotado en Irapuato Centro. Falta "Omega sobre" (8050M): requiere 1, hay 0. Puedes registrar al distribuidor, pero el cobro de este kit se rechazará hasta que haya existencias: pide traspaso o, antes de registrarlo, cierra y elige otro kit.',
     );
     expect(posKitEnrollWarning({ kitCode: 'KPM05' })).toBe(
-      'KPM05 está agotado en esta sucursal. Puedes registrar al distribuidor, pero no podrás cobrarle este kit aquí hasta que haya existencias: pide traspaso o elige otro kit.',
+      'KPM05 está agotado en esta sucursal. Puedes registrar al distribuidor, pero el cobro de este kit se rechazará hasta que haya existencias: pide traspaso o, antes de registrarlo, cierra y elige otro kit.',
     );
-    expect(posKitEnrolledSoldOutToast('KPM05', 'León')).toBe('Registrado, pero KPM05 está agotado en León: pide traspaso o elige otro kit.');
-    expect(posKitEnrolledSoldOutToast('KPM05')).toBe('Registrado, pero KPM05 está agotado aquí: pide traspaso o elige otro kit.');
+  });
+
+  it('tras el alta con kit agotado: el kit queda en el carrito y NO se promete "elige otro kit" (el POS web no tiene recompra)', () => {
+    const leon = posKitEnrolledSoldOutToast('KPM05', 'León');
+    expect(leon).toBe(
+      'Registrado, pero KPM05 está agotado en León: quedó en el carrito y el cobro se rechazará hasta que llegue el traspaso.',
+    );
+    expect(posKitEnrolledSoldOutToast('KPM05')).toBe(
+      'Registrado, pero KPM05 está agotado aquí: quedó en el carrito y el cobro se rechazará hasta que llegue el traspaso.',
+    );
+    expect(leon).not.toMatch(/elige otro kit/);
+  });
+
+  it('SKU: la fila propia de GET /products/code/:sku se descarta para kits/paquetes que se arman (sin tope, el servidor decide)', () => {
+    // Kit que se arma con existencia fantasma sembrada: 20 piezas propias no son armables.
+    expect(posOwnRowStock({ productType: 'kit', kitStockMode: 'assemble_on_sale', stock: 20 })).toBeUndefined();
+    expect(posOwnRowStock({ productType: 'pack', kitDeductsInventory: true, stock: 0 })).toBeUndefined();
+    // Prearmado y producto normal: la pieza propia SÍ es la existencia.
+    expect(posOwnRowStock({ productType: 'kit', kitStockMode: 'prebuilt', stock: 3 })).toBe(3);
+    expect(posOwnRowStock({ productType: 'pack', kitDeductsInventory: false, stock: 0 })).toBe(0);
+    expect(posOwnRowStock({ productType: 'finished_good', stock: 5 })).toBe(5);
+    expect(posOwnRowStock({ productType: 'finished_good', stock: undefined })).toBeUndefined();
   });
 });
 
 describe('kit-availability · normalización (el API se construye en paralelo)', () => {
+  it('listado: lee la envoltura REAL del API { generatedAt, countryId, onlyActive, kits } y conserva arreglo/data como respaldo', () => {
+    // Forma real: toniclife-api/src/modules/inventory/kit-stock/dto/kit-stock.dto.ts (KitAvailabilityListDto).
+    const apiBody = {
+      generatedAt: '2026-09-22T10:00:00.000Z',
+      countryId: 'mx',
+      onlyActive: false,
+      kits: [
+        {
+          productId: 'p-1',
+          code: 'KPM05',
+          name: 'Kit Premium 5',
+          productType: 'kit',
+          isActive: true,
+          isEnrollmentKit: true,
+          kitPosition: 'premium',
+          stockMode: 'assemble_on_sale',
+          componentsCount: 12,
+          branchesTotal: 60,
+          branchesSellable: 47,
+          maxSellable: 20,
+          limiting: [{ code: '8050M', name: 'Omega sobre', branchesShort: 13 }],
+          ownStockPhantom: { rows: 69, units: 1380 },
+          unbackedOwnStock: false,
+        },
+      ],
+    };
+    const rows = unwrapKitAvailabilityList(apiBody).map(normalizeKitAvailabilitySummary);
+    expect(rows).toEqual([
+      {
+        productId: 'p-1',
+        code: 'KPM05',
+        name: 'Kit Premium 5',
+        stockMode: 'assemble_on_sale',
+        componentsCount: 12,
+        branchesTotal: 60,
+        branchesSellable: 47,
+        maxSellable: 20,
+        limiting: [{ code: '8050M', name: 'Omega sobre', branchesShort: 13 }],
+        ownStockPhantom: { rows: 69, units: 1380 },
+        unbackedOwnStock: false,
+      },
+    ]);
+    expect(unwrapKitAvailabilityList({ kits: [] })).toEqual([]);
+    expect(unwrapKitAvailabilityList([{ productId: 'a' }])).toEqual([{ productId: 'a' }]);
+    expect(unwrapKitAvailabilityList({ data: [{ productId: 'b' }] })).toEqual([{ productId: 'b' }]);
+    expect(unwrapKitAvailabilityList({ generatedAt: 'x' })).toEqual([]);
+    expect(unwrapKitAvailabilityList(null)).toEqual([]);
+    expect(unwrapKitAvailabilityList('kits')).toEqual([]);
+  });
+
   it('resumen: coerciona números, tolera faltantes y descarta filas sin id', () => {
     expect(normalizeKitAvailabilitySummary(null)).toBeNull();
     expect(normalizeKitAvailabilitySummary({ code: 'X' })).toBeNull();
@@ -316,5 +389,71 @@ describe('kit-availability · normalización (el API se construye en paralelo)',
     expect(withBranches?.sellable).toBe(3);
     expect(withBranches?.branches).toEqual([{ branchId: 'b1', code: '101', name: 'X', isWarehouse: false, sellable: 2, limitingCode: null }]);
     expect(normalizeKitAvailabilityDetail('nada')).toBeNull();
+  });
+
+  it('detalle: forma REAL del API (KitAvailabilityDetailDto) con reason; sin ownStockPhantom (solo viaja en el listado)', () => {
+    const d = normalizeKitAvailabilityDetail({
+      productId: 'p-1',
+      code: 'KPM05',
+      name: 'Kit Premium 5',
+      stockMode: 'assemble_on_sale',
+      branchId: null,
+      sellable: 20,
+      reason: null,
+      limiting: { productId: 'c1', code: '8050M', name: 'Omega sobre', need: 1, available: 0 },
+      components: [
+        {
+          productId: 'c1',
+          code: '8050M',
+          name: 'Omega sobre',
+          qtyPerUnit: 1,
+          onHand: 2,
+          reserved: 2,
+          inTransit: 0,
+          available: 0,
+          buildable: 0,
+          isActive: true,
+          tracksInventory: true,
+          hasPriceInKitCountries: true,
+        },
+      ],
+      branches: [{ branchId: 'b1', code: '268', name: 'Irapuato Centro', isWarehouse: false, sellable: 3, limitingCode: null }],
+    });
+    expect(d).toEqual({
+      stockMode: 'assemble_on_sale',
+      sellable: 20,
+      reason: null,
+      limiting: { code: '8050M', name: 'Omega sobre', need: 1, available: 0 },
+      components: [
+        {
+          productId: 'c1',
+          code: '8050M',
+          name: 'Omega sobre',
+          qtyPerUnit: 1,
+          onHand: 2,
+          reserved: 2,
+          inTransit: 0,
+          available: 0,
+          buildable: 0,
+          isActive: true,
+          tracksInventory: true,
+          hasPriceInKitCountries: true,
+        },
+      ],
+      branches: [{ branchId: 'b1', code: '268', name: 'Irapuato Centro', isWarehouse: false, sellable: 3, limitingCode: null }],
+      ownStock: null,
+      hasKardex: null,
+    });
+    expect(d).not.toHaveProperty('ownStockPhantom');
+    expect(normalizeKitAvailabilityDetail({ reason: 'recipe_empty' })?.reason).toBe('recipe_empty');
+    expect(normalizeKitAvailabilityDetail({ reason: 'component_inactive' })?.reason).toBe('component_inactive');
+    expect(normalizeKitAvailabilityDetail({ reason: 'otra' })?.reason).toBeNull();
+  });
+
+  it('encabezado de la ficha según reason', () => {
+    expect(reasonSentence('recipe_empty')).toBe('No tiene receta: no hay qué armar.');
+    expect(reasonSentence('component_inactive')).toBe('Un componente de la receta está desactivado.');
+    expect(reasonSentence(null)).toBe('');
+    expect(reasonSentence(undefined)).toBe('');
   });
 });

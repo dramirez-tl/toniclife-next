@@ -12,6 +12,7 @@ import api from '@/lib/axios';
 import {
   normalizeKitAvailabilityDetail,
   normalizeKitAvailabilitySummary,
+  unwrapKitAvailabilityList,
   type KitAvailabilityDetail,
   type KitAvailabilitySummary,
 } from '@/lib/kits/kit-availability';
@@ -33,13 +34,12 @@ class KitAvailabilityService {
           onlyActive: params.onlyActive ?? true,
         },
       });
-      const body = response.data;
-      const rows = Array.isArray(body)
-        ? body
-        : body && typeof body === 'object' && Array.isArray((body as { data?: unknown }).data)
-          ? ((body as { data: unknown[] }).data)
-          : [];
-      return rows.map(normalizeKitAvailabilitySummary).filter((r): r is KitAvailabilitySummary => r !== null);
+      // El API envuelve: { generatedAt, countryId, onlyActive, kits: [...] }
+      // (KitAvailabilityListDto); `unwrapKitAvailabilityList` conserva arreglo
+      // pelado y `data` como respaldo.
+      return unwrapKitAvailabilityList(response.data)
+        .map(normalizeKitAvailabilitySummary)
+        .filter((r): r is KitAvailabilitySummary => r !== null);
     } catch (err) {
       if (isNotFound(err)) return null;
       throw err;
