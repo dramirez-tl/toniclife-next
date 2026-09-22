@@ -19,7 +19,7 @@ import {
   type KitOwnStockPreview,
 } from '@/lib/kits/kit-editor';
 import { normalizeKitReadiness, type KitReadiness } from '@/lib/kits/kit-readiness';
-import { normalizeKitSales, type KitSales } from '@/lib/kits/kit-sales';
+import { normalizeKitSales, normalizeKitSalesSummary, type KitSales, type KitSalesSummary } from '@/lib/kits/kit-sales';
 import type { KitComponent } from '@/types/kit';
 
 const isNotFound = (err: unknown): boolean => axios.isAxiosError(err) && err.response?.status === 404;
@@ -44,6 +44,25 @@ class KitAdminService {
       return normalizeKitSales(response.data);
     } catch (err) {
       if (isNotFound(err)) return null;
+      throw err;
+    }
+  }
+
+  /**
+   * Unidades cobradas/canceladas de TODOS los kits en un periodo de negocio
+   * (pestaña Kits, una consulta). Sin `periodNumber` = el vigente; ahí un 404
+   * significa servidor sin la ruta o sin periodo vigente y se devuelve `null`.
+   * Con `periodNumber` el 404 ("El periodo N no existe.") se propaga para
+   * mostrarlo tal cual.
+   */
+  async getSalesSummary(periodNumber?: number): Promise<KitSalesSummary | null> {
+    try {
+      const response = await api.get<unknown>('/products/kits/sales-summary', {
+        params: periodNumber !== undefined ? { periodNumber: Math.trunc(periodNumber) } : undefined,
+      });
+      return normalizeKitSalesSummary(response.data);
+    } catch (err) {
+      if (periodNumber === undefined && isNotFound(err)) return null;
       throw err;
     }
   }

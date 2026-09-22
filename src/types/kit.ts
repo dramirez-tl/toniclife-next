@@ -28,6 +28,10 @@ export interface KitListQueryParams {
   isEnrollmentKit?: boolean;
   isActive?: boolean;
   countryId?: string;
+  /** Canal (filtro de servidor): solo kits ofrecidos en el punto de venta. */
+  availableInPos?: boolean;
+  /** Canal (filtro de servidor): solo kits ofrecidos en la inscripción en línea. */
+  isVisibleEcommerce?: boolean;
   page?: number;
   limit?: number;
 }

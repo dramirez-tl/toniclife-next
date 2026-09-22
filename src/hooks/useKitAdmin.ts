@@ -15,6 +15,8 @@ export const kitAdminKeys = {
   all: ['kit-admin'] as const,
   readiness: (productId: string) => [...kitAdminKeys.all, 'readiness', productId] as const,
   sales: (productId: string, periods: number) => [...kitAdminKeys.all, 'sales', productId, periods] as const,
+  salesSummary: (periodNumber: number | null) =>
+    [...kitAdminKeys.all, 'sales-summary', periodNumber ?? 'current'] as const,
   ownStockPreview: (productId: string) => [...kitAdminKeys.all, 'own-stock-preview', productId] as const,
 };
 
@@ -34,6 +36,21 @@ export function useKitSales(productId: string | undefined, periods = 3, enabled 
     queryKey: kitAdminKeys.sales(productId ?? 'disabled', periods),
     queryFn: () => kitAdminService.getSales(productId!, periods),
     enabled: enabled && !!productId,
+    staleTime: 60 * 1000,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+}
+
+/**
+ * Ventas de TODOS los kits en un periodo (pestaña Kits). `periodNumber`
+ * ausente = el vigente; `data === null` = el servidor no expone la ruta.
+ */
+export function useKitsSalesSummary(periodNumber?: number, enabled = true) {
+  return useQuery({
+    queryKey: kitAdminKeys.salesSummary(periodNumber ?? null),
+    queryFn: () => kitAdminService.getSalesSummary(periodNumber),
+    enabled,
     staleTime: 60 * 1000,
     retry: false,
     refetchOnWindowFocus: false,
