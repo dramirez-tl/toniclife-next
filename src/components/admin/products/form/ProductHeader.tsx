@@ -23,6 +23,7 @@ import {
   countryName,
   healthIssueLabel,
   healthIssueMeta,
+  isKitLikeType,
   productTypeLabel,
   scoreTone,
   type ProductSectionId,
@@ -200,7 +201,8 @@ export function ProductHeader({
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                {canCreate && product && !product.isEnrollmentKit ? (
+                {/* Los kits de inscripción también se duplican (contrato de kits §4.2: exige products:kits_manage en el API). */}
+                {canCreate && product ? (
                   <Button type="button" variant="outline" onClick={onDuplicate}>
                     <Copy className="mr-2 h-4 w-4" aria-hidden />
                     Duplicar
@@ -215,7 +217,7 @@ export function ProductHeader({
                     onClick={onToggleActive}
                   >
                     <Power className="mr-2 h-4 w-4" aria-hidden />
-                    {product.isActive ? 'Desactivar' : 'Reactivar'}
+                    {product.isActive ? (isKitLikeType(product.productType) ? 'Eliminar (desactivar)' : 'Desactivar') : 'Reactivar'}
                   </Button>
                 ) : null}
               </>

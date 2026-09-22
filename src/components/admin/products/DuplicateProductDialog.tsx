@@ -2,7 +2,9 @@
 
 // DuplicateProductDialog — POST /products/:id/duplicate.
 // El duplicado nace INACTIVO y oculto de tienda y POS, con URL propia. No copia
-// imágenes, existencias, bonos ni cambios de precio programados.
+// existencias, bonos ni cambios de precio programados; imágenes y precios solo
+// si se piden (en kits de inscripción vienen marcados: contrato de kits §4.2,
+// que además conserva posición, inscripción y cómo se surte).
 
 import { useId, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -21,12 +23,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { productAdminErrorCode, productAdminErrorMessage } from './lib/errors';
+import { isKitLikeType } from './lib/labels';
 import { useDuplicateProduct } from './useProductsAdmin';
 
 interface DuplicateSource {
   id: string;
   code: string;
   name: string;
+  /** kit | pack | finished_good…: decide los valores por defecto y a qué sección se llega. */
+  productType?: string | null;
+  isEnrollmentKit?: boolean;
 }
 
 interface DuplicateProductDialogProps {
@@ -51,9 +57,14 @@ function DuplicateForm({ source, onClose }: { source: DuplicateSource; onClose: 
   const router = useRouter();
   const ids = useId();
   const duplicate = useDuplicateProduct(source.id);
+  const kitLike = isKitLikeType(source.productType);
+  const enrollmentKit = source.isEnrollmentKit === true;
   const [code, setCode] = useState('');
   const [name, setName] = useState(`${source.name} (copia)`.slice(0, 200));
-  const [copyPrices, setCopyPrices] = useState(false);
+  // Kits de inscripción: el API copia precios e imágenes por defecto; aquí se
+  // refleja para que el diálogo diga la verdad y se pueda apagar.
+  const [copyPrices, setCopyPrices] = useState(enrollmentKit);
+  const [copyImages, setCopyImages] = useState(enrollmentKit);
   const [copyComponents, setCopyComponents] = useState(true);
   const [copyTaxes, setCopyTaxes] = useState(true);
   const [copyContent, setCopyContent] = useState(true);
@@ -81,10 +92,15 @@ function DuplicateForm({ source, onClose }: { source: DuplicateSource; onClose: 
         copyComponents,
         copyTaxes,
         copyContent,
+        copyImages,
       });
-      toast.success(`Producto duplicado como ${created.code}. Está inactivo y oculto hasta que lo revises.`);
+      toast.success(
+        kitLike
+          ? `Kit duplicado como ${created.code}. Nace como borrador (inactivo, fuera del POS y de la inscripción en línea); sin bonos ni existencias.`
+          : `Producto duplicado como ${created.code}. Está inactivo y oculto hasta que lo revises.`,
+      );
       onClose();
-      router.push(`/admin/productos/${created.id}/editar?seccion=basica`);
+      router.push(`/admin/productos/${created.id}/editar?seccion=${kitLike ? 'kit' : 'basica'}`);
     } catch (err) {
       if (productAdminErrorCode(err) === 'PRD_CODE_TAKEN') {
         setCodeError('Esa clave ya existe en otro producto.');
@@ -95,10 +111,11 @@ function DuplicateForm({ source, onClose }: { source: DuplicateSource; onClose: 
   };
 
   const options: { id: string; label: string; help: string; checked: boolean; set: (v: boolean) => void }[] = [
-    { id: 'components', label: 'Copiar componentes', help: 'Composición del paquete o kit.', checked: copyComponents, set: setCopyComponents },
+    { id: 'components', label: kitLike ? 'Copiar receta' : 'Copiar componentes', help: kitLike ? 'Receta global del kit (los renglones por país no se copian).' : 'Composición del paquete o kit.', checked: copyComponents, set: setCopyComponents },
     { id: 'taxes', label: 'Copiar datos fiscales', help: 'Claves SAT y reglas fiscales por país.', checked: copyTaxes, set: setCopyTaxes },
     { id: 'content', label: 'Copiar contenido', help: 'Descripciones, beneficios, ingredientes y traducciones.', checked: copyContent, set: setCopyContent },
     { id: 'prices', label: 'Copiar precios', help: 'Precios activos por país y tipo. Revísalos antes de activar el producto.', checked: copyPrices, set: setCopyPrices },
+    { id: 'images', label: 'Copiar imágenes', help: 'Galería del producto original.', checked: copyImages, set: setCopyImages },
   ];
 
   const shownCodeError = codeError ?? liveCodeError;
@@ -112,10 +129,13 @@ function DuplicateForm({ source, onClose }: { source: DuplicateSource; onClose: 
       className="space-y-4"
     >
       <DialogHeader>
-        <DialogTitle>Duplicar producto</DialogTitle>
+        <DialogTitle>{kitLike ? 'Duplicar kit' : 'Duplicar producto'}</DialogTitle>
         <DialogDescription>
-          Se crea una copia de <strong>{source.name}</strong> ({source.code}). La copia nace inactiva y oculta de
-          la tienda y del POS. No se copian imágenes, existencias ni cambios de precio programados.
+          Se crea una copia de <strong>{source.name}</strong> ({source.code}). La copia nace inactiva (borrador) y fuera de
+          la tienda, del POS y de la inscripción en línea.{' '}
+          {kitLike
+            ? 'Conserva la posición, si es de inscripción y cómo se surte. Nunca se copian bonos, existencias ni cambios de precio programados.'
+            : 'No se copian existencias ni cambios de precio programados.'}
         </DialogDescription>
       </DialogHeader>
 
