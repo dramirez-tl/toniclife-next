@@ -7,6 +7,7 @@ import {
   KITS_CSV_HEADERS,
   SALES_FILTER_OPTIONS,
   channelFilterParams,
+  channelNeedsClientMode,
   filterKitList,
   healthText,
   isChannelFilter,
@@ -15,6 +16,7 @@ import {
   kitCsvRow,
   kitHealthFlags,
   limitingText,
+  matchesChannelFilter,
   matchesHealthFilter,
   matchesSalesFilter,
   recipeCell,
@@ -118,20 +120,33 @@ describe('kit-list · filtros', () => {
     expect(isSalesFilter('nada')).toBe(false);
   });
 
-  it('canal se traduce a los booleanos que GET /products ya filtra en el servidor', () => {
+  it('canal: «Punto de venta» va al servidor; «Inscripción en línea» NUNCA (el candado de la tienda ocultaba prearmados)', () => {
     expect(channelFilterParams('pos')).toEqual({ availableInPos: true });
-    expect(channelFilterParams('web')).toEqual({ isVisibleEcommerce: true });
+    expect(channelFilterParams('web')).toEqual({});
     expect(channelFilterParams('')).toEqual({});
+    expect(channelNeedsClientMode('web')).toBe(true);
+    expect(channelNeedsClientMode('pos')).toBe(false);
+    expect(channelNeedsClientMode('')).toBe(false);
     expect(CHANNEL_FILTER_OPTIONS.map((o) => o.label)).toEqual(['Punto de venta', 'Inscripción en línea']);
     expect(isChannelFilter('web')).toBe(true);
     expect(isChannelFilter('tienda')).toBe(false);
   });
 
-  it('filterKitList combina disponibilidad, salud y ventas sobre la lista completa', () => {
+  it('canal en cliente: «web» exige isVisibleEcommerce=true en la fila; «pos», availableInPos', () => {
+    expect(matchesChannelFilter({ isVisibleEcommerce: true }, 'web')).toBe(true);
+    expect(matchesChannelFilter({ isVisibleEcommerce: false }, 'web')).toBe(false);
+    expect(matchesChannelFilter({}, 'web')).toBe(false);
+    expect(matchesChannelFilter({ availableInPos: true }, 'pos')).toBe(true);
+    expect(matchesChannelFilter({ availableInPos: null }, 'pos')).toBe(false);
+    expect(matchesChannelFilter({}, '')).toBe(true);
+  });
+
+  it('filterKitList combina disponibilidad, salud, ventas y canal sobre la lista completa', () => {
     const kits = [
-      { id: 'a', imageUrl: 'x', kitStockMode: 'assemble_on_sale' as const },
-      { id: 'b', imageUrl: null, kitStockMode: 'prebuilt' as const },
-      { id: 'c', imageUrl: 'x', kitStockMode: 'assemble_on_sale' as const },
+      { id: 'a', imageUrl: 'x', kitStockMode: 'assemble_on_sale' as const, isVisibleEcommerce: true, availableInPos: true },
+      // Prearmado visible en línea SIN stock en el almacén ecommerce: el servidor lo ocultaba; aquí se conserva.
+      { id: 'b', imageUrl: null, kitStockMode: 'prebuilt' as const, isVisibleEcommerce: true, availableInPos: false },
+      { id: 'c', imageUrl: 'x', kitStockMode: 'assemble_on_sale' as const, isVisibleEcommerce: false, availableInPos: true },
     ];
     const ctx = {
       availabilityById: new Map([
@@ -155,6 +170,12 @@ describe('kit-list · filtros', () => {
     expect(ids(filterKitList(kits, ctx, { stockMode: 'assemble_on_sale', sales: 'without' }))).toEqual(['c']);
     expect(ids(filterKitList(kits, ctx, { availability: 'all_short', health: 'pending' }))).toEqual(['c']);
     expect(ids(filterKitList(kits, ctx, { availability: 'all_ok', sales: 'with' }))).toEqual([]);
+    // «Inscripción en línea» en cliente: el prearmado (b) sigue en la lista.
+    expect(ids(filterKitList(kits, ctx, { channel: 'web' }))).toEqual(['a', 'b']);
+    expect(ids(filterKitList(kits, ctx, { channel: 'web', health: 'pending' }))).toEqual(['b']);
+    expect(ids(filterKitList(kits, ctx, { channel: 'web', stockMode: 'prebuilt' }))).toEqual(['b']);
+    expect(ids(filterKitList(kits, ctx, { channel: 'pos' }))).toEqual(['a', 'c']);
+    expect(ids(filterKitList(kits, ctx, { channel: '' }))).toEqual(['a', 'b', 'c']);
   });
 });
 

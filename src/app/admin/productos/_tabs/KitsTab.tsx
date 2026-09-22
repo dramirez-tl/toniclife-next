@@ -5,16 +5,18 @@
 // Cruza tres lecturas del API en una sola tabla:
 //   - GET /products (isEnrollmentKit + productType=kit): la fila del kit
 //     (imagen, precio del país, canales, estado) y los filtros de SERVIDOR:
-//     búsqueda, país, posición, estado y canal (availableInPos /
-//     isVisibleEcommerce).
+//     búsqueda, país, posición, estado y canal «Punto de venta»
+//     (availableInPos). «Inscripción en línea» NO se manda: con countryId el
+//     API aplica el candado de la tienda (almacén ecommerce) y ocultaba los
+//     prearmados sin stock ahí; se filtra aquí sobre kit.isVisibleEcommerce.
 //   - GET /products/kits/availability: Surtido, Receta, Disponible hoy y los
 //     chips de Salud (sin receta, sin precio, existencia fantasma, sin respaldo).
 //   - GET /products/kits/sales-summary?periodNumber=: Ventas del periodo de
 //     negocio (26 → 25) tal como lo delimita el API; aquí no se calculan periodos.
 //
 // Los filtros que el servidor no conoce (surtido, disponibilidad, "le falta…",
-// salud, con/sin ventas) se aplican AQUÍ sobre la lista completa (~55 kits,
-// tope 500) y se pagina en cliente. Si el servidor aún no expone alguna de las
+// salud, con/sin ventas, «Inscripción en línea») se aplican AQUÍ sobre la lista
+// completa (~55 kits, tope 500) y se pagina en cliente. Si el servidor aún no expone alguna de las
 // dos lecturas (404) la columna avisa y sus filtros se ignoran: nada se rompe.
 //
 // Acciones por fila: lápiz (products:update) u ojo "Ver" hacia la ficha
@@ -86,6 +88,7 @@ import {
   KITS_CSV_HEADERS,
   SALES_FILTER_OPTIONS,
   channelFilterParams,
+  channelNeedsClientMode,
   filterKitList,
   healthText,
   isChannelFilter,
@@ -231,8 +234,10 @@ export function KitsTab() {
       missingCode: availabilityReady ? filterMissing : '',
       health: availabilityReady ? filterHealth : '',
       sales: salesReady ? filterSales : '',
+      // «Inscripción en línea» se resuelve aquí (kit-list.ts: el candado de la tienda ocultaba prearmados).
+      channel: filterChannel,
     }),
-    [filterStockMode, filterAvailability, filterMissing, filterHealth, filterSales, availabilityReady, salesReady],
+    [filterStockMode, filterAvailability, filterMissing, filterHealth, filterSales, filterChannel, availabilityReady, salesReady],
   );
   const clientFiltersActive = Boolean(
     filterStockMode || filterAvailability || filterMissing || filterHealth || filterSales,
@@ -242,7 +247,8 @@ export function KitsTab() {
     effectiveFilters.availability ||
     effectiveFilters.missingCode ||
     effectiveFilters.health ||
-    effectiveFilters.sales,
+    effectiveFilters.sales ||
+    channelNeedsClientMode(effectiveFilters.channel ?? ''),
   );
   const availabilityFiltersIgnored = Boolean(
     (filterAvailability || filterMissing || filterHealth) && !availabilityReady,
@@ -281,18 +287,26 @@ export function KitsTab() {
   const { data: kitsData, isLoading, isFetching, isError, refetch } = useKits(queryParams);
   const { data: activeStatsData } = useKits(activeStatsParams);
 
-  const { kits, total } = useMemo(() => {
+  // En modo cliente la lista completa ya está aquí: "Kits activos" se cuenta
+  // sobre lo filtrado (el conteo del servidor no conoce estos filtros y con
+  // «Inscripción en línea» ni siquiera recibe el canal).
+  const { kits, total, activeInList } = useMemo(() => {
     const all: Product[] = kitsData?.data ?? [];
-    if (!clientMode) return { kits: all, total: kitsData?.total ?? 0 };
+    if (!clientMode) return { kits: all, total: kitsData?.total ?? 0, activeInList: null };
     const filtered = filterKitList(all, listCtx, effectiveFilters);
     const start = (currentPage - 1) * pageSize;
-    return { kits: filtered.slice(start, start + pageSize), total: filtered.length };
+    return {
+      kits: filtered.slice(start, start + pageSize),
+      total: filtered.length,
+      activeInList: filtered.filter((k) => k.isActive).length,
+    };
   }, [kitsData, clientMode, listCtx, effectiveFilters, currentPage, pageSize]);
 
   const stats = useMemo(() => {
-    const active = filterStatus === 'active' ? total : filterStatus === 'inactive' ? 0 : (activeStatsData?.total ?? 0);
+    const active =
+      filterStatus === 'active' ? total : filterStatus === 'inactive' ? 0 : (activeInList ?? activeStatsData?.total ?? 0);
     return { total, active };
-  }, [total, activeStatsData, filterStatus]);
+  }, [total, activeInList, activeStatsData, filterStatus]);
 
   const hasActiveFilters = Boolean(
     searchQuery || filterPosition || filterStatus !== 'all' || filterChannel || clientFiltersActive || periodNumber,

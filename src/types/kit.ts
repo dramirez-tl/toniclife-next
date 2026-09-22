@@ -30,7 +30,12 @@ export interface KitListQueryParams {
   countryId?: string;
   /** Canal (filtro de servidor): solo kits ofrecidos en el punto de venta. */
   availableInPos?: boolean;
-  /** Canal (filtro de servidor): solo kits ofrecidos en la inscripción en línea. */
+  /**
+   * Canal (filtro de servidor): solo kits ofrecidos en la inscripción en línea.
+   * OJO: junto con countryId, GET /products aplica el candado de la tienda
+   * (almacén ecommerce del país) y oculta prearmados sin stock ahí; la pestaña
+   * Kits NO lo manda y filtra «Inscripción en línea» en cliente (kit-list.ts).
+   */
   isVisibleEcommerce?: boolean;
   page?: number;
   limit?: number;

@@ -1,7 +1,7 @@
 // kit-list.ts — lógica PURA (sin React ni red) de la pestaña Kits de
 // /admin/productos (contrato de kits §5.1): columnas Receta y Salud, filtros
-// que se aplican en el cliente (salud, ventas del periodo; los de canal van al
-// servidor) y las filas del CSV exportable.
+// que se aplican en el cliente (salud, ventas del periodo e «Inscripción en
+// línea»; solo «Punto de venta» va al servidor) y las filas del CSV exportable.
 //
 // Fuentes que cruza el listado:
 //   - GET /products (fila del kit: imagen, precio del país, canales, estado),
@@ -135,7 +135,15 @@ export function matchesHealthFilter(flags: readonly KitHealthFlag[], f: HealthFi
   return f === 'pending' ? flags.length > 0 : flags.length === 0;
 }
 
-/** Canal: se resuelve en el SERVIDOR (`GET /products` acepta ambos booleanos). */
+/**
+ * Canal. «Punto de venta» (availableInPos) se resuelve en el SERVIDOR.
+ * «Inscripción en línea» se aplica en el CLIENTE sobre `kit.isVisibleEcommerce`:
+ * `GET /products` con countryId + isVisibleEcommerce=true aplica el candado de
+ * la tienda pública (resuelve el almacén ecommerce del país y exige fila de
+ * stock ahí a todo lo que no se arma al vender), así que ocultaba los kits
+ * PREARMADOS visibles en línea sin existencia en ese almacén. Mientras el API
+ * no exponga un modo admin, la pestaña trae la lista completa y filtra aquí.
+ */
 export type ChannelFilter = '' | 'pos' | 'web';
 export const CHANNEL_FILTER_OPTIONS: { value: Exclude<ChannelFilter, ''>; label: string }[] = [
   { value: 'pos', label: 'Punto de venta' },
@@ -144,11 +152,24 @@ export const CHANNEL_FILTER_OPTIONS: { value: Exclude<ChannelFilter, ''>; label:
 export const isChannelFilter = (v: string): v is ChannelFilter =>
   v === '' || CHANNEL_FILTER_OPTIONS.some((o) => o.value === v);
 
-export function channelFilterParams(f: ChannelFilter): { availableInPos?: true; isVisibleEcommerce?: true } {
+/** Parámetros de servidor del canal: solo «Punto de venta»; «web» NUNCA se manda (ver arriba). */
+export function channelFilterParams(f: ChannelFilter): { availableInPos?: true } {
   if (f === 'pos') return { availableInPos: true };
-  if (f === 'web') return { isVisibleEcommerce: true };
   return {};
 }
+
+/** ¿Es del canal el kit? Se lee de la propia fila; «pos» también se acepta (idempotente con el servidor). */
+export function matchesChannelFilter(
+  kit: { availableInPos?: boolean | null; isVisibleEcommerce?: boolean | null },
+  f: ChannelFilter,
+): boolean {
+  if (f === 'pos') return kit.availableInPos === true;
+  if (f === 'web') return kit.isVisibleEcommerce === true;
+  return true;
+}
+
+/** «Inscripción en línea» obliga a traer la lista completa y paginar en cliente. */
+export const channelNeedsClientMode = (f: ChannelFilter): boolean => f === 'web';
 
 /** Ventas del periodo: en el cliente sobre el resumen (el endpoint no filtra). */
 export type SalesFilter = '' | 'with' | 'without';
@@ -168,6 +189,8 @@ export function matchesSalesFilter(item: Pick<KitSalesSummaryItem, 'unitsPaid'> 
 export interface KitListClientFilters extends KitListFilters {
   health?: HealthFilter;
   sales?: SalesFilter;
+  /** Canal sobre la fila: «web» solo se resuelve aquí; «pos» ya viene filtrado del servidor. */
+  channel?: ChannelFilter;
 }
 
 export interface KitListContext<T> {
@@ -178,19 +201,20 @@ export interface KitListContext<T> {
 }
 
 /**
- * Aplica sobre la lista completa los filtros que el servidor no conoce:
- * surtido, disponibilidad, "le falta…", salud y ventas del periodo.
+ * Aplica sobre la lista completa los filtros que el servidor no conoce (o no
+ * puede aplicar sin el candado de la tienda): surtido, disponibilidad,
+ * "le falta…", salud, ventas del periodo y canal «Inscripción en línea».
  */
-export function filterKitList<T extends { id: string; imageUrl?: string | null }>(
-  kits: T[],
-  ctx: KitListContext<T>,
-  filters: KitListClientFilters,
-): T[] {
+export function filterKitList<
+  T extends { id: string; imageUrl?: string | null; availableInPos?: boolean | null; isVisibleEcommerce?: boolean | null },
+>(kits: T[], ctx: KitListContext<T>, filters: KitListClientFilters): T[] {
   const byAvailability = filterKitsByAvailability(kits, ctx.availabilityById, filters, ctx.modeOf);
   const health = filters.health ?? '';
   const sales = filters.sales ?? '';
-  if (!health && !sales) return byAvailability;
+  const channel = filters.channel ?? '';
+  if (!health && !sales && !channel) return byAvailability;
   return byAvailability.filter((kit) => {
+    if (channel && !matchesChannelFilter(kit, channel)) return false;
     if (health && !matchesHealthFilter(kitHealthFlags(kit, ctx.availabilityById.get(kit.id)), health)) return false;
     if (sales && !matchesSalesFilter(ctx.salesById.get(kit.id), sales)) return false;
     return true;
