@@ -365,6 +365,8 @@ export const BULK_ACTIONS: BulkActionMeta[] = [
 export const BULK_SKIP_REASON_LABEL: Record<string, string> = {
   enrollment_kit: 'kit de inscripción',
   not_sellable_type: 'tipo que la tienda no vende',
+  // `activate` sobre un kit/paquete con faltantes críticos (API §4.2 KIT_NOT_READY).
+  kit_not_ready: 'kit con faltantes críticos (no está listo para vender)',
   not_found: 'ya no existe',
   unchanged: 'ya estaba así',
 };

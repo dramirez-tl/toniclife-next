@@ -54,7 +54,7 @@ const API_CATALOG_BULK_ACTIONS = [
   'set_category',
 ];
 // --- catalog-admin.dto.ts (CatalogBulkSkipReason) ---
-const API_BULK_SKIP_REASONS = ['enrollment_kit', 'not_sellable_type', 'not_found', 'unchanged'];
+const API_BULK_SKIP_REASONS = ['enrollment_kit', 'not_sellable_type', 'kit_not_ready', 'not_found', 'unchanged'];
 // --- catalog-health.lib.ts (HealthRuleCode) ---
 const API_HEALTH_RULE_CODES = [
   'no_image',
