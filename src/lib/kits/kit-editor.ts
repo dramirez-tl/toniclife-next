@@ -44,15 +44,17 @@ const n = (v: number): string => nf.format(Math.max(0, Math.trunc(v)));
 
 /**
  * Consecuencia del cambio de modo (texto del diálogo, contrato §5.2 bloque 1).
- * A "Se arma al vender" con existencia propia: se pregunta si dejarla en cero
- * (el API responde 409 KIT_MODE_HAS_OWN_STOCK mientras no esté en cero).
+ * A "Se arma al vender" solo se llega desde un PREARMADO, cuya existencia
+ * propia es real: el API responde 409 KIT_MODE_HAS_OWN_STOCK mientras no esté
+ * en cero y /clear-own-stock no aplica a prearmados (400), así que se pide
+ * dejarla en cero con un conteo o una salida de inventario por sucursal.
  */
 export function modeChangeConsequence(to: KitStockMode, ownStock: OwnStockSummary | null): string {
   if (to === 'prebuilt') {
     return 'Como prearmado arranca en 0: registra una entrada de inventario en cada sucursal que lo venda.';
   }
   if (ownStock && (ownStock.units > 0 || ownStock.rows > 0)) {
-    return `Tiene ${n(ownStock.units)} piezas propias en ${n(ownStock.rows)} ${ownStock.rows === 1 ? 'sucursal' : 'sucursales'} que ninguna venta usa. ¿Dejarlas en cero?`;
+    return `Tiene ${n(ownStock.units)} piezas propias en ${n(ownStock.rows)} ${ownStock.rows === 1 ? 'sucursal' : 'sucursales'}. El sistema no permite el cambio mientras haya existencia propia: déjala en cero con un conteo o una salida de inventario por sucursal y vuelve a intentarlo.`;
   }
   return 'El POS descontará los componentes de la receta al cobrar; si falta uno solo, el kit no se podrá vender.';
 }

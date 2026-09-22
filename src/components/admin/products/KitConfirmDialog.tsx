@@ -3,8 +3,8 @@
 // KitConfirmDialog — confirmación del editor de kits sobre shadcn AlertDialog
 // (contrato de kits §5.2): cambio de modo de surtido, marcar como kit de
 // inscripción, cerrar un bono, conflicto de existencia propia. Radix maneja
-// foco y Escape; `extraAction` permite un segundo botón (p. ej. "Vaciar
-// existencia propia") además de Confirmar / Cancelar.
+// foco y Escape; `extraAction` permite un segundo botón (p. ej. "Ver
+// existencias por sucursal") además de Confirmar / Cancelar.
 
 import type { ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';

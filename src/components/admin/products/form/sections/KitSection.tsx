@@ -2,8 +2,12 @@
 
 // (2) Kit — el editor único del kit/paquete dentro de la ficha (contrato de
 // kits §5.2, sustituye a /admin/kits/[id]):
-//   1. ¿Cómo se surte? (Se arma al vender / Prearmado) con confirmación; al
-//      409 KIT_MODE_HAS_OWN_STOCK ofrece "Vaciar existencia propia" y reintenta.
+//   1. ¿Cómo se surte? (Se arma al vender / Prearmado) con confirmación. El
+//      409 KIT_MODE_HAS_OWN_STOCK solo ocurre al pasar un PREARMADO a "Se arma
+//      al vender": esa existencia es real y /clear-own-stock rechaza prearmados
+//      (400), así que aquí se muestra el mensaje del API y se manda a Inventario
+//      (existencias por sucursal); NO se ofrece "Vaciar existencia propia". Ese
+//      botón solo aparece inline en un kit que YA se arma (existencia fantasma).
 //   2. Inscripción (solo kit): es kit de inscripción + posición.
 //   3. Dónde se ofrece: POS, inscripción en línea, genera comisión.
 //   4. Vigencia: la del precio (liga a Precios).
@@ -12,7 +16,7 @@
 // Guarda con el PATCH de producto de la ficha (expectedUpdatedAt / PRD_STALE).
 // Editable con products:kits_manage O products:update; sin ninguno, lectura.
 
-import { useCallback, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useId, useMemo, useState } from 'react';
 import { Controller, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { toast } from 'sonner';
@@ -61,6 +65,12 @@ const schema = z
 
 type KitValues = z.infer<typeof schema>;
 
+/** 409 KIT_MODE_HAS_OWN_STOCK: piezas propias (details o readiness) y el `message` del API. */
+interface OwnStockConflict {
+  ownStock: OwnStockSummary;
+  message: string | null;
+}
+
 export function KitSection() {
   const { mode, productId, product, readOnly, createType, patchProduct, goToSection, requestToggleActive } = useProductForm();
   const permissions = useProductPermissions();
@@ -91,18 +101,14 @@ export function KitSection() {
 
   // ---------- Confirmaciones ----------
   const modeConfirm = useAsyncConfirm<{ to: KitStockMode }, true>();
-  const skipModeConfirm = useRef(false);
   const [enrollmentConfirm, setEnrollmentConfirm] = useState(false);
-  const [ownStockConflict, setOwnStockConflict] = useState<OwnStockSummary | null>(null);
+  const [ownStockConflict, setOwnStockConflict] = useState<OwnStockConflict | null>(null);
   const [clearOpen, setClearOpen] = useState(false);
 
   const requestModeConfirm = modeConfirm.request;
   const beforeSave = useCallback(
     async ({ values: next, dirty }: { values: KitValues; dirty: Partial<Record<keyof KitValues, boolean>> }) => {
-      if (!dirty.kitStockMode || skipModeConfirm.current) {
-        skipModeConfirm.current = false;
-        return true as const;
-      }
+      if (!dirty.kitStockMode) return true as const;
       return requestModeConfirm({ to: next.kitStockMode });
     },
     [requestModeConfirm],
@@ -130,7 +136,10 @@ export function KitSection() {
       } catch (err) {
         const body = parseProductAdminError(err);
         if (body.code === 'KIT_MODE_HAS_OWN_STOCK') {
-          setOwnStockConflict(ownStockFromDetails(body.details) ?? readiness.data?.ownStock ?? { rows: 0, units: 0 });
+          setOwnStockConflict({
+            ownStock: ownStockFromDetails(body.details) ?? readiness.data?.ownStock ?? { rows: 0, units: 0 },
+            message: body.message,
+          });
         }
         throw err;
       }
@@ -150,13 +159,6 @@ export function KitSection() {
   const { control, setValue } = section.form;
   const isEnrollmentKit = useWatch({ control, name: 'isEnrollmentKit' });
   const stockMode = useWatch({ control, name: 'kitStockMode' });
-
-  // Tras vaciar la existencia propia se reintenta el guardado sin volver a preguntar.
-  const retryAfterClear = () => {
-    setOwnStockConflict(null);
-    skipModeConfirm.current = true;
-    void section.submit();
-  };
 
   const guardEnrollment = (next: boolean) => {
     if (!next || mode === 'create') return true;
@@ -364,49 +366,49 @@ export function KitSection() {
         onConfirm={() => modeConfirm.settle(true)}
       >
         <p>{modeConfirm.pending ? modeChangeConsequence(modeConfirm.pending.payload.to, ownStock) : ''}</p>
-        {modeConfirm.pending?.payload.to === 'assemble_on_sale' && ownStock && ownStock.units > 0 ? (
-          <p className="mt-2 text-xs text-gray-600">
-            El sistema no lo permitirá mientras haya existencia propia: podrás dejarla en cero en el siguiente paso.
-          </p>
-        ) : null}
       </KitConfirmDialog>
 
-      {/* 409 KIT_MODE_HAS_OWN_STOCK: ofrecer vaciar y reintentar */}
+      {/* 409 KIT_MODE_HAS_OWN_STOCK: el kit es PREARMADO y su existencia es real.
+          /clear-own-stock rechaza prearmados (400), así que no se ofrece vaciar:
+          se muestra el mensaje del API y se manda a Inventario (por sucursal). */}
       <KitConfirmDialog
         open={!!ownStockConflict}
         onOpenChange={(open) => {
           if (!open) setOwnStockConflict(null);
         }}
         title="Tiene existencia propia"
-        description={ownStockConflict ? modeChangeConsequence('assemble_on_sale', ownStockConflict) : ''}
+        description={
+          ownStockConflict ? (ownStockConflict.message ?? modeChangeConsequence('assemble_on_sale', ownStockConflict.ownStock)) : ''
+        }
         hideConfirm
-        cancelLabel="Ahora no"
+        cancelLabel="Cerrar"
         onConfirm={() => setOwnStockConflict(null)}
         extraAction={
           <Button
             type="button"
-            variant="destructive"
+            variant="outline"
             onClick={() => {
               setOwnStockConflict(null);
-              setClearOpen(true);
+              goToSection('inventario');
             }}
           >
-            Vaciar existencia propia
+            Ver existencias por sucursal
           </Button>
         }
       >
-        <p>Se deja en cero con un movimiento de salida por sucursal y después se vuelve a guardar el cambio.</p>
+        <p>
+          Como prearmado, su existencia propia es real y no se vacía desde aquí: déjala en cero con un conteo o una salida de
+          inventario en cada sucursal y vuelve a guardar el cambio.
+        </p>
       </KitConfirmDialog>
 
+      {/* Solo desde el botón inline de un kit que ya se arma (existencia fantasma). */}
       <KitClearOwnStockDialog
         productId={productId}
         productCode={product?.code ?? ''}
         open={clearOpen}
         onOpenChange={setClearOpen}
-        onCleared={() => {
-          if (section.isDirty) retryAfterClear();
-          else invalidateKitAdmin();
-        }}
+        onCleared={invalidateKitAdmin}
       />
 
       {/* Confirmación de "Es kit de inscripción" */}

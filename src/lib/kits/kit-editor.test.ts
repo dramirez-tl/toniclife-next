@@ -107,11 +107,15 @@ describe('modo de surtido: consecuencia y details del 409', () => {
   it('a prearmado avisa que arranca en 0', () => {
     expect(modeChangeConsequence('prebuilt', null)).toContain('arranca en 0');
   });
-  it('a "se arma" con existencia propia pregunta si dejarla en cero', () => {
-    expect(modeChangeConsequence('assemble_on_sale', { rows: 69, units: 1380 })).toBe(
-      'Tiene 1,380 piezas propias en 69 sucursales que ninguna venta usa. ¿Dejarlas en cero?',
+  it('a "se arma" con existencia propia (prearmado) pide dejarla en cero por inventario, sin prometer vaciarla', () => {
+    const text = modeChangeConsequence('assemble_on_sale', { rows: 69, units: 1380 });
+    expect(text).toBe(
+      'Tiene 1,380 piezas propias en 69 sucursales. El sistema no permite el cambio mientras haya existencia propia: déjala en cero con un conteo o una salida de inventario por sucursal y vuelve a intentarlo.',
     );
-    expect(modeChangeConsequence('assemble_on_sale', { rows: 1, units: 3 })).toContain('en 1 sucursal que');
+    // /clear-own-stock rechaza prearmados: el texto ya no ofrece "dejarlas en cero" aquí.
+    expect(text).not.toContain('¿Dejarlas en cero?');
+    expect(text).not.toContain('ninguna venta usa');
+    expect(modeChangeConsequence('assemble_on_sale', { rows: 1, units: 3 })).toContain('en 1 sucursal.');
   });
   it('a "se arma" sin existencia explica la regla del POS', () => {
     expect(modeChangeConsequence('assemble_on_sale', { rows: 0, units: 0 })).toContain('si falta uno solo');
