@@ -17,7 +17,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useActiveBranches } from '@/hooks/useBranches';
-import { useKitAvailability, useKitsAvailability } from '@/hooks/useKitAvailability';
+import { useKitAvailability } from '@/hooks/useKitAvailability';
 import { useKitBranchChoice } from '@/stores/kit-branch-choice.store';
 import {
   AVAILABILITY_TONE_CLASS,
@@ -50,13 +50,9 @@ const UNAVAILABLE_TEXT =
 export function KitAvailabilityByBranch({ productId, productCode, stockMode, showBranchTable = true }: KitAvailabilityByBranchProps) {
   const isAssemble = stockMode === 'assemble_on_sale';
   const allQuery = useKitAvailability(productId);
-  // La existencia fantasma (piezas propias de un kit que se arma) solo viaja en
-  // el listado (KitAvailabilitySummaryDto.ownStockPhantom), no en el detalle.
-  const listQuery = useKitsAvailability(undefined, { onlyActive: false, enabled: isAssemble });
-  const phantom = useMemo(
-    () => (isAssemble ? listQuery.data?.find((r) => r.productId === productId)?.ownStockPhantom ?? null : null),
-    [isAssemble, listQuery.data, productId],
-  );
+  // La existencia fantasma (piezas propias de un kit que se arma) viaja en el
+  // propio detalle (KitAvailabilityDetailDto.ownStockPhantom); un API previo la omite.
+  const phantom = isAssemble ? (allQuery.data?.ownStockPhantom ?? null) : null;
   const { data: branches = [] } = useActiveBranches();
   const branchId = useKitBranchChoice((s) => s.branchId);
   const setBranchId = useKitBranchChoice((s) => s.setBranchId);

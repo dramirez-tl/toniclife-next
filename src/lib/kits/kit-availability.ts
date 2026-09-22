@@ -87,6 +87,8 @@ export interface KitAvailabilityDetail {
   ownStock: number | null;
   /** Prearmado: `false` = existencia sin movimientos de kardex ("sin respaldo"). */
   hasKardex: boolean | null;
+  /** Se arma: piezas propias que ninguna venta usa (existencia fantasma); `null` = ninguna o API previo. */
+  ownStockPhantom: { rows: number; units: number } | null;
 }
 
 // ================================
@@ -198,6 +200,7 @@ export function normalizeKitAvailabilityDetail(raw: unknown): KitAvailabilityDet
     branches,
     ownStock: raw.ownStock === null || raw.ownStock === undefined ? null : num(raw.ownStock),
     hasKardex: typeof raw.hasKardex === 'boolean' ? raw.hasKardex : null,
+    ownStockPhantom: normalizePhantom(raw.ownStockPhantom),
   };
 }
 

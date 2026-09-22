@@ -391,7 +391,13 @@ describe('kit-availability · normalización (el API se construye en paralelo)',
     expect(normalizeKitAvailabilityDetail('nada')).toBeNull();
   });
 
-  it('detalle: forma REAL del API (KitAvailabilityDetailDto) con reason; sin ownStockPhantom (solo viaja en el listado)', () => {
+  it('detalle: ownStockPhantom del propio detalle (API b5d136e) o null con un API previo', () => {
+    expect(normalizeKitAvailabilityDetail({ stockMode: 'assemble_on_sale', ownStockPhantom: { rows: 69, units: '1380' } })?.ownStockPhantom).toEqual({ rows: 69, units: 1380 });
+    expect(normalizeKitAvailabilityDetail({ stockMode: 'assemble_on_sale', ownStockPhantom: null })?.ownStockPhantom).toBeNull();
+    expect(normalizeKitAvailabilityDetail({ stockMode: 'prebuilt' })?.ownStockPhantom).toBeNull();
+  });
+
+  it('detalle: forma REAL del API (KitAvailabilityDetailDto) con reason', () => {
     const d = normalizeKitAvailabilityDetail({
       productId: 'p-1',
       code: 'KPM05',
@@ -420,6 +426,7 @@ describe('kit-availability · normalización (el API se construye en paralelo)',
       branches: [{ branchId: 'b1', code: '268', name: 'Irapuato Centro', isWarehouse: false, sellable: 3, limitingCode: null }],
     });
     expect(d).toEqual({
+      ownStockPhantom: null,
       stockMode: 'assemble_on_sale',
       sellable: 20,
       reason: null,
@@ -444,7 +451,6 @@ describe('kit-availability · normalización (el API se construye en paralelo)',
       ownStock: null,
       hasKardex: null,
     });
-    expect(d).not.toHaveProperty('ownStockPhantom');
     expect(normalizeKitAvailabilityDetail({ reason: 'recipe_empty' })?.reason).toBe('recipe_empty');
     expect(normalizeKitAvailabilityDetail({ reason: 'component_inactive' })?.reason).toBe('component_inactive');
     expect(normalizeKitAvailabilityDetail({ reason: 'otra' })?.reason).toBeNull();
