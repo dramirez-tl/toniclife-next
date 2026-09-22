@@ -235,14 +235,17 @@ function readUnionType(source: string, name: string): string[] {
   return quoted(source.slice(start, end));
 }
 
-/** Códigos de HEALTH_RULES cuyo bloque declara `perCountry: true`. */
+/**
+ * Códigos de HEALTH_RULES cuyo bloque declara `perCountry: true` y NO `perZone: true`:
+ * una regla de zona (Frontera) se evalúa por zona de precio, no por país de tienda.
+ */
 function readPerCountryRules(source: string): string[] {
   const start = source.indexOf('export const HEALTH_RULES');
   const end = start < 0 ? -1 : source.indexOf('\n};', start);
   if (start < 0 || end < 0) throw new Error('No se encontró HEALTH_RULES en el API');
-  const blocks = source.slice(start, end).matchAll(/code:\s*'([^']+)'[^}]*?perCountry:\s*(true|false)/g);
+  const blocks = source.slice(start, end).matchAll(/code:\s*'([^']+)'([^}]*)/g);
   return Array.from(blocks)
-    .filter((m) => m[2] === 'true')
+    .filter((m) => /perCountry:\s*true/.test(m[2]) && !/perZone:\s*true/.test(m[2]))
     .map((m) => m[1]);
 }
 
