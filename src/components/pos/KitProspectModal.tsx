@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button';
 import { useEnrollKitProspect } from '@/hooks/useKits';
 import { KIT_POSITION_LABEL, type KitPosition } from '@/types/product';
 import type { KitEnrollmentResponse } from '@/types/kit';
-import { posKitEnrollWarning } from '@/lib/kits/kit-availability';
+import { posKitEnrollWarning, posKitEnrolledSoldOutToast } from '@/lib/kits/kit-availability';
 
 export interface KitProspectModalProps {
   open: boolean;
@@ -240,7 +240,7 @@ export function KitProspectModal({
                 <p className="text-blue-800">
                   El POS ya cambió el cliente activo al nuevo distribuidor <strong>{result.customerNumber}</strong>.
                   {kitSoldOut
-                    ? ` El kit ${kit?.code ?? ''} está agotado en esta sucursal, así que NO se agregó al carrito: pide traspaso o elige otro kit. El distribuidor queda pendiente hasta que se le cobre un kit.`
+                    ? ` ${posKitEnrolledSoldOutToast(kit?.code ?? 'El kit', branchName)} El distribuidor queda pendiente hasta que se le cobre un kit.`
                     : ' Procede a cobrar el kit normalmente. Cuando se confirme el pago, el distribuidor pasará a estado activo.'}
                 </p>
               </div>
