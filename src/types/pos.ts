@@ -518,6 +518,19 @@ export interface QuickProduct {
   /** Posición del kit (basic/premium/preferred). Solo aplica cuando productType='kit'. */
   kitPosition?: string;
   /**
+   * Kit/paquete: cómo se surte. `assemble_on_sale` = se arma al vender (entonces
+   * `stock` son los ARMABLES que el API ya calcula por sucursal); `prebuilt` =
+   * prearmado (`stock` = existencia propia). Derivado de `kitDeductsInventory`
+   * mientras el API no mande `kitStockMode` (contrato kits §4.1).
+   */
+  kitStockMode?: 'assemble_on_sale' | 'prebuilt';
+  /**
+   * Kit que se arma, agotado: el componente que lo deja en cero en la sucursal
+   * (campo opcional nuevo del catálogo POS, contrato kits §4.1). null/undefined
+   * cuando el API no lo manda o el kit sí se puede vender.
+   */
+  limitingComponent?: { code: string; name: string; need: number; available: number } | null;
+  /**
    * TRUE solo para kits de inscripción reales. Gate autoritativo (mig 037)
    * que dispara el flujo de inscripción (KitProspectModal) en POS.
    * El campo kitPosition existe en paquetes legacy mal clasificados como 'kit'

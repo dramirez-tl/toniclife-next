@@ -91,6 +91,13 @@ export interface Product {
   kitPosition?: string;
   isEnrollmentKit: boolean;
   kitDeductsInventory: boolean;
+  /**
+   * Cómo se surte un kit/paquete (mig 146, contrato kits §4.1): `assemble_on_sale`
+   * = se arma al vender (descuenta componentes), `prebuilt` = prearmado (pieza
+   * propia). Opcional: mientras el API no lo mande se deriva de `kitDeductsInventory`
+   * (`resolveStockMode` en lib/kits/kit-availability).
+   */
+  kitStockMode?: 'assemble_on_sale' | 'prebuilt' | null;
   pointsValue: string;
   businessVolume: string;
   qualifiesForCommission: boolean;
