@@ -9,6 +9,9 @@
 //   - solo las notas se editan en sitio (`notes: null` las borra);
 //   - una regla histórica es de solo lectura (409 KIT_BONUS_CLOSED).
 // Solo los kits de INSCRIPCIÓN admiten escrituras (400 en el API).
+// El importe se lee con parseMoney (coma de MILES como en es-MX: «1,380» =
+// 1380, no 1.38 como en parseQuantity) y se muestra la vista previa "Se
+// guardará $1,380.00 MXN" antes de guardar.
 // shadcn: Card, Badge, Input, SearchableSelect y AlertDialog (KitConfirmDialog).
 
 import { useId, useMemo, useState } from 'react';
@@ -22,7 +25,7 @@ import { Label } from '@/components/ui/label';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useActiveCountries } from '@/hooks/useConfig';
 import { useCreateKitBonus, useDeactivateKitBonus, useKitBonuses, useUpdateKitBonus } from '@/hooks/useKits';
-import { parseQuantity } from '@/lib/kits/kit-editor';
+import { moneyPreview, parseMoney } from '@/lib/kits/kit-editor';
 import type { BonusRecipientRole, CreateKitBonusInput, KitBonus } from '@/types/kit';
 import { KitConfirmDialog } from './KitConfirmDialog';
 import { productAdminErrorMessage } from './lib/errors';
@@ -102,10 +105,14 @@ export function KitBonusesSection({ kitId, isEnrollmentKit = false, readOnly = f
     setCurrency(countries?.find((x) => x.id === id)?.currencyCode ?? '');
   };
 
+  // Dinero, no cantidad de receta: «1,380» es 1380 (coma de miles), y se avisa antes de guardar.
   const parsedAmount = (text: string): number | null => {
-    const n = parseQuantity(text);
+    const n = parseMoney(text);
     return n === null || Number.isNaN(n) || n < 0 ? null : n;
   };
+  const amountPreview = moneyPreview(amount, currency);
+  const editPreview = editing ? moneyPreview(editAmount, editing.currencyCode) : null;
+  const previewClass = (p: { valid: boolean } | null) => (p && !p.valid ? 'text-xs font-medium text-red-700' : 'text-xs text-gray-600');
 
   const handleCreate = async () => {
     if (!countryId) {
@@ -269,9 +276,14 @@ export function KitBonusesSection({ kitId, isEnrollmentKit = false, readOnly = f
                   inputMode="decimal"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.00"
+                  placeholder="Ej.: 1,380.00"
                   autoComplete="off"
+                  aria-describedby={`${ids}-amount-help`}
+                  aria-invalid={amountPreview?.valid === false}
                 />
+                <p id={`${ids}-amount-help`} className={previewClass(amountPreview)} role={amountPreview?.valid === false ? 'alert' : 'status'}>
+                  {amountPreview ? amountPreview.text : 'La coma separa miles y el punto los decimales: 1,380 es mil trescientos ochenta.'}
+                </p>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor={`${ids}-currency`}>Moneda</Label>
@@ -344,8 +356,13 @@ export function KitBonusesSection({ kitId, isEnrollmentKit = false, readOnly = f
                             value={editAmount}
                             onChange={(e) => setEditAmount(e.target.value)}
                             autoComplete="off"
+                            aria-describedby={`${ids}-edit-amount-help`}
+                            aria-invalid={editPreview?.valid === false}
                           />
-                          <p className="text-xs text-gray-600">Cambiarlo crea una regla nueva desde hoy; esta pasa al histórico.</p>
+                          <p id={`${ids}-edit-amount-help`} className={previewClass(editPreview)} role={editPreview?.valid === false ? 'alert' : 'status'}>
+                            {editPreview ? `${editPreview.text} ` : ''}
+                            Cambiarlo crea una regla nueva desde hoy; esta pasa al histórico.
+                          </p>
                         </div>
                         <div className="space-y-1.5">
                           <Label htmlFor={`${ids}-edit-notes`}>Notas</Label>

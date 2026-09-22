@@ -108,6 +108,72 @@ export const isValidQuantity = (value: number | null): value is number =>
   value !== null && Number.isFinite(value) && value > 0;
 
 // ================================
+// Importes de dinero (bono de inscripción): coma de MILES como en es-MX
+// ================================
+/**
+ * "1,380" → 1380 · "1,380.50" → 1380.5 · "1380,50" → 1380.5 · "1,5" → 1.5 ·
+ * "1.250.000" → 1250000 · "$ 1,380" → 1380 · "" → null · "abc" → NaN.
+ * A diferencia de parseQuantity (recetas), una coma seguida de grupos de
+ * exactamente tres dígitos y sin punto es separador de miles, no decimal:
+ * nadie captura milésimas de peso y «1,380» tecleado en México es mil
+ * trescientos ochenta. El punto solo es decimal. Se redondea a centavos
+ * (el API exige máximo 2 decimales).
+ */
+export function parseMoney(input: string): number | null {
+  const raw = input.trim();
+  if (raw === '') return null;
+  if (!/^\$?\s*[0-9][0-9.,\s]*$/.test(raw)) return NaN;
+  const cleaned = raw.replace(/[$\s]/g, '');
+  const lastComma = cleaned.lastIndexOf(',');
+  const lastDot = cleaned.lastIndexOf('.');
+  let normalized: string;
+  if (lastComma >= 0 && lastDot >= 0) {
+    // Ambos separadores: el ÚLTIMO es el decimal y el otro, de miles.
+    const decimal = lastComma > lastDot ? ',' : '.';
+    const thousands = decimal === ',' ? '.' : ',';
+    normalized = cleaned.split(thousands).join('').replace(decimal, '.');
+  } else if (lastComma >= 0) {
+    // Solo comas: "1,380" / "1,250,000" = miles; "1,5" / "1380,50" = decimal; "1,2,3" = inválido.
+    const groups = cleaned.split(',');
+    const isThousands = /^\d{1,3}$/.test(groups[0]) && groups.slice(1).every((g) => /^\d{3}$/.test(g));
+    normalized = isThousands ? groups.join('') : groups.length === 2 ? `${groups[0]}.${groups[1]}` : 'NaN';
+  } else {
+    // Solo puntos: varios = miles ("1.250.000"); uno = decimal ("1380.50").
+    const groups = cleaned.split('.');
+    normalized = groups.length > 2 ? groups.join('') : cleaned;
+  }
+  const value = Number(normalized);
+  return Number.isFinite(value) ? Math.round(value * 100) / 100 : NaN;
+}
+
+const money = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/** "$1,380.00 MXN" (sin moneda: "$1,380.00"). */
+export function formatMoneyAmount(value: number, currency?: string | null): string {
+  const text = `$${money.format(value)}`;
+  const code = currency?.trim().toUpperCase();
+  return code ? `${text} ${code}` : text;
+}
+
+export interface MoneyPreview {
+  valid: boolean;
+  text: string;
+}
+
+/**
+ * Vista previa del importe tal como se guardará, para leerla ANTES de guardar:
+ * "Se guardará $1,380.00 MXN." · inválido → aviso · vacío → null (sin vista previa).
+ */
+export function moneyPreview(input: string, currency?: string | null): MoneyPreview | null {
+  const value = parseMoney(input);
+  if (value === null) return null;
+  if (Number.isNaN(value)) {
+    return { valid: false, text: 'Importe no válido: usa dígitos, coma de miles y punto decimal (ej. 1,380.00).' };
+  }
+  return { valid: true, text: `Se guardará ${formatMoneyAmount(value, currency)}.` };
+}
+
+// ================================
 // Reordenar (▲▼)
 // ================================
 /** Mueve el renglón `index` una posición (`-1` sube, `1` baja); fuera de rango ⇒ misma lista. */

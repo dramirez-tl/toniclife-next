@@ -2,16 +2,19 @@ import { describe, expect, it } from 'vitest';
 import {
   canEditKitFields,
   componentInvalidRows,
+  formatMoneyAmount,
   formatQuantity,
   isKitErrorCode,
   isValidQuantity,
   modeChangeConsequence,
+  moneyPreview,
   moveRow,
   normalizeOwnStockClearResult,
   normalizeOwnStockPreview,
   ownStockClearedSentence,
   ownStockFromDetails,
   ownStockPreviewSentence,
+  parseMoney,
   parseQuantity,
   recipeCopyPayload,
 } from './kit-editor';
@@ -60,6 +63,48 @@ describe('parseQuantity (coma decimal aceptada)', () => {
     expect(formatQuantity(1.23456)).toBe('1.2346');
     expect(formatQuantity(2)).toBe('2');
     expect(formatQuantity(NaN)).toBe('');
+  });
+});
+
+describe('parseMoney (importe del bono: coma de MILES como en es-MX)', () => {
+  it('«1,380» es mil trescientos ochenta, no 1.38 (parseQuantity sí lo leía como decimal)', () => {
+    expect(parseMoney('1,380')).toBe(1380);
+    expect(parseQuantity('1,380')).toBe(1.38);
+    expect(parseMoney('1,250,000')).toBe(1250000);
+    expect(parseMoney('12,345')).toBe(12345);
+    expect(parseMoney('$ 1,380')).toBe(1380);
+  });
+  it('coma con 1-2 decimales sigue siendo decimal; el punto siempre es decimal', () => {
+    expect(parseMoney('1,5')).toBe(1.5);
+    expect(parseMoney('1380,50')).toBe(1380.5);
+    expect(parseMoney('1380.50')).toBe(1380.5);
+    expect(parseMoney('1.380')).toBe(1.38);
+    expect(parseMoney('609')).toBe(609);
+    expect(parseMoney('0')).toBe(0);
+  });
+  it('con ambos separadores el último es el decimal; varios puntos son miles', () => {
+    expect(parseMoney('1,380.50')).toBe(1380.5);
+    expect(parseMoney('1.380,50')).toBe(1380.5);
+    expect(parseMoney('1.250.000')).toBe(1250000);
+    expect(parseMoney('1,250,000.75')).toBe(1250000.75);
+  });
+  it('redondea a centavos; vacío es null; basura y negativos son NaN', () => {
+    expect(parseMoney('1380.505')).toBe(1380.51);
+    expect(parseMoney('')).toBeNull();
+    expect(parseMoney('   ')).toBeNull();
+    expect(Number.isNaN(parseMoney('abc') as number)).toBe(true);
+    expect(Number.isNaN(parseMoney('-5') as number)).toBe(true);
+    expect(Number.isNaN(parseMoney('1,2,3') as number)).toBe(true);
+    expect(Number.isNaN(parseMoney('1,380x') as number)).toBe(true);
+  });
+  it('formatMoneyAmount y la vista previa dicen exactamente lo que se guardará', () => {
+    expect(formatMoneyAmount(1380, 'MXN')).toBe('$1,380.00 MXN');
+    expect(formatMoneyAmount(1380.5, ' usd ')).toBe('$1,380.50 USD');
+    expect(formatMoneyAmount(0, null)).toBe('$0.00');
+    expect(moneyPreview('1,380', 'MXN')).toEqual({ valid: true, text: 'Se guardará $1,380.00 MXN.' });
+    expect(moneyPreview('1.38', 'MXN')).toEqual({ valid: true, text: 'Se guardará $1.38 MXN.' });
+    expect(moneyPreview('abc', 'MXN')?.valid).toBe(false);
+    expect(moneyPreview('', 'MXN')).toBeNull();
   });
 });
 
