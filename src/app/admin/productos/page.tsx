@@ -51,8 +51,7 @@ const TABS: TabConfig[] = [
     id: 'promociones',
     label: 'Promociones',
     icon: SparklesIcon,
-    subtitle:
-      'Promociones canjeables por puntos acumulados del periodo (MX 4,000/6,000 — US 6,600/9,900)',
+    subtitle: 'Promociones canjeables por puntos acumulados del periodo (MX 4,000/6,000 — US 6,600/9,900)',
     newHref: '/admin/promociones/nuevo',
     newLabel: 'Nueva Promoción',
   },
@@ -81,6 +80,13 @@ const TAB_FILTER_KEYS = [
   'falta',
   'orden',
   'dir',
+  // Pestaña Kits (filtros en cliente + periodo de ventas)
+  'surtido',
+  'disponibilidad',
+  'salud',
+  'canal',
+  'ventas',
+  'periodo',
 ];
 
 export default function ProductosPage() {
@@ -95,8 +101,7 @@ function PageContent() {
   const router = useRouter();
   const sp = useSearchParams();
   const rawTab = sp.get('tab');
-  const active: Tab =
-    rawTab === 'kits' || rawTab === 'promociones' ? rawTab : 'productos';
+  const active: Tab = rawTab === 'kits' || rawTab === 'promociones' ? rawTab : 'productos';
   const config = TABS.find((t) => t.id === active)!;
   const Icon = config.icon;
   const { canCreate } = useProductPermissions();

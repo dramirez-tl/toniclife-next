@@ -1,22 +1,34 @@
 'use client';
 
-// KitsTab — pestaña Kits de /admin/productos.
+// KitsTab — pestaña Kits de /admin/productos (contrato de kits §5.1).
 //
-// Además del listado (GET /products con isEnrollmentKit + productType=kit) cruza
-// GET /products/kits/availability (contrato kits §4.1, solo lectura) para
-// responder en la misma tabla "¿dónde no se vende KPM05 y qué le falta?":
-//   - columna Surtido ("Se arma al vender" / "Prearmado"),
-//   - columna Disponible hoy ("47 de 60 · máx 20" con semáforo, faltantes y chips
-//     "Sin receta" / "Sin precio" / "Existencia fantasma" / "Sin respaldo"),
-//   - filtros Surtido, Disponibilidad y "Le falta…" (por componente).
-// Con esos filtros la lista se trae completa (son ~55 kits) y se filtra y pagina
-// aquí. Si el servidor aún no expone la disponibilidad (404) la columna avisa y
-// los filtros se deshabilitan: nada se rompe.
+// Cruza tres lecturas del API en una sola tabla:
+//   - GET /products (isEnrollmentKit + productType=kit): la fila del kit
+//     (imagen, precio del país, canales, estado) y los filtros de SERVIDOR:
+//     búsqueda, país, posición, estado y canal (availableInPos /
+//     isVisibleEcommerce).
+//   - GET /products/kits/availability: Surtido, Receta, Disponible hoy y los
+//     chips de Salud (sin receta, sin precio, existencia fantasma, sin respaldo).
+//   - GET /products/kits/sales-summary?periodNumber=: Ventas del periodo de
+//     negocio (26 → 25) tal como lo delimita el API; aquí no se calculan periodos.
+//
+// Los filtros que el servidor no conoce (surtido, disponibilidad, "le falta…",
+// salud, con/sin ventas) se aplican AQUÍ sobre la lista completa (~55 kits,
+// tope 500) y se pagina en cliente. Si el servidor aún no expone alguna de las
+// dos lecturas (404) la columna avisa y sus filtros se ignoran: nada se rompe.
+//
+// Acciones por fila: lápiz (products:update) u ojo "Ver" hacia la ficha
+// (?seccion=kit); eliminar = baja lógica con DELETE /products/:id
+// (products:delete, ProductActiveDialog con el mensaje real del API);
+// reactivar cuando está inactivo. "Nuevo kit" (products:create) va a
+// /admin/productos/nuevo?tipo=kit. "Exportar CSV" respeta los filtros activos
+// y neutraliza fórmulas (buildCsv), como el resto del admin.
 
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui';
@@ -28,36 +40,63 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ArrowPathIcon,
+  ArrowDownTrayIcon,
+  ArrowUturnLeftIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   PlusIcon,
   CubeIcon,
   PhotoIcon,
   EyeIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
-import { useKits } from '@/hooks/useKits';
-import { useKitsAvailability } from '@/hooks/useKitAvailability';
+import { kitKeys, useKits } from '@/hooks/useKits';
+import { kitAvailabilityKeys, useKitsAvailability } from '@/hooks/useKitAvailability';
+import { useKitsSalesSummary } from '@/hooks/useKitAdmin';
 import { useCountries } from '@/hooks/useConfig';
+import { kitsService } from '@/services/kits.service';
 import { KitPosition, KIT_POSITION_LABEL } from '@/types/product';
 import type { Product } from '@/types/product';
 import type { KitListQueryParams } from '@/types/kit';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
+import { ProductActiveDialog, type ProductActiveTarget } from '@/components/admin/products/ProductActiveDialog';
+import { canToggleProductActive, useProductPermissions } from '@/components/admin/products/lib/permissions';
+import { buildCsv, downloadCsv, fileDateStamp } from '@/components/admin/products/lib/csv';
+import { productAdminErrorMessage } from '@/components/admin/products/lib/errors';
 import {
   AVAILABILITY_FILTER_OPTIONS,
   AVAILABILITY_TONE_CLASS,
   STOCK_MODE_FILTER_OPTIONS,
+  STOCK_MODE_HELP,
   availabilityShort,
   availabilitySentence,
   availabilitySortValue,
   availabilityTone,
-  filterKitsByAvailability,
   limitingSentence,
   resolveStockMode,
   shortageOptions,
   stockModeLabel,
-  summaryFlags,
   type AvailabilityFilter,
   type KitAvailabilitySummary,
   type KitStockMode,
 } from '@/lib/kits/kit-availability';
+import {
+  CHANNEL_FILTER_OPTIONS,
+  HEALTH_FILTER_OPTIONS,
+  KITS_CSV_HEADERS,
+  SALES_FILTER_OPTIONS,
+  channelFilterParams,
+  filterKitList,
+  healthText,
+  isChannelFilter,
+  isHealthFilter,
+  isSalesFilter,
+  kitCsvRow,
+  kitHealthFlags,
+  recipeCell,
+  type KitListClientFilters,
+} from '@/lib/kits/kit-list';
+import { periodRange, salesCellText, salesCellTitle, type KitSalesSummaryItem } from '@/lib/kits/kit-sales';
 
 const formatNumber = (n: number) => new Intl.NumberFormat('es-MX').format(n);
 
@@ -72,8 +111,11 @@ const STOCK_MODE_CLASS: Record<KitStockMode, string> = {
   prebuilt: 'bg-gray-100 text-gray-800',
 };
 
-/** Con filtros de disponibilidad la lista se trae completa y se pagina aquí. */
+/** Con filtros de cliente la lista se trae completa (tope del API) y se pagina aquí. */
 const CLIENT_PAGE_LIMIT = 500;
+/** Exportación: páginas de 100 hasta agotar (tope de seguridad 50 páginas). */
+const EXPORT_PAGE = 100;
+const EXPORT_MAX_PAGES = 50;
 
 const isAvailabilityFilter = (v: string): v is AvailabilityFilter =>
   v === '' || AVAILABILITY_FILTER_OPTIONS.some((o) => o.value === v);
@@ -87,8 +129,16 @@ const kitModeOf = (kit: Product): KitStockMode | null =>
     kitDeductsInventory: kit.kitDeductsInventory,
   });
 
+const positionLabel = (kit: Pick<Product, 'kitPosition'>): string =>
+  kit.kitPosition ? KIT_POSITION_LABEL[kit.kitPosition as KitPosition] || kit.kitPosition : '';
+
+const editHref = (kit: Pick<Product, 'id'>) => `/admin/productos/${kit.id}/editar?seccion=kit`;
+const availabilityHref = (kit: Pick<Product, 'id'>) => `/admin/productos/${kit.id}/editar?seccion=inventario`;
+const componentsHref = (kit: Pick<Product, 'id'>) => `/admin/productos/${kit.id}/editar?seccion=componentes`;
+
 export function KitsTab() {
-  const router = useRouter();
+  const queryClient = useQueryClient();
+  const permissions = useProductPermissions();
 
   const { get, getNumber, setParams } = useQueryFilters({
     status: 'all',
@@ -96,6 +146,10 @@ export function KitsTab() {
     surtido: '',
     disponibilidad: '',
     falta: '',
+    salud: '',
+    canal: '',
+    ventas: '',
+    periodo: '',
     page: '1',
     limit: '20',
   });
@@ -109,10 +163,20 @@ export function KitsTab() {
   const rawAvailability = get('disponibilidad');
   const filterAvailability: AvailabilityFilter = isAvailabilityFilter(rawAvailability) ? rawAvailability : '';
   const filterMissing = get('falta');
+  const rawHealth = get('salud');
+  const filterHealth = isHealthFilter(rawHealth) ? rawHealth : '';
+  const rawChannel = get('canal');
+  const filterChannel = isChannelFilter(rawChannel) ? rawChannel : '';
+  const rawSales = get('ventas');
+  const filterSales = isSalesFilter(rawSales) ? rawSales : '';
+  /** Número de periodo elegido; 0 = el vigente (lo resuelve el API). */
+  const periodNumber = getNumber('periodo') || undefined;
   const currentPage = getNumber('page') || 1;
   const pageSize = getNumber('limit') || 20;
 
   const [searchInput, setSearchInput] = useState(searchQuery);
+  const [activeTarget, setActiveTarget] = useState<ProductActiveTarget | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   const { data: countries } = useCountries();
 
@@ -144,30 +208,75 @@ export function KitsTab() {
   );
   const missingOptions = useMemo(() => shortageOptions(availabilityRows ?? []), [availabilityRows]);
 
-  const availabilityFiltersActive = Boolean(filterStockMode || filterAvailability || filterMissing);
-  // Los filtros de disponibilidad se aplican aquí sobre la lista completa
-  // (no existen en el servidor); sin el endpoint se ignoran y se avisa.
-  const clientMode = availabilityFiltersActive && availabilityReady;
+  // ---------- Ventas del periodo (solo lectura; null = el servidor aún no la expone) ----------
+  const salesQuery = useKitsSalesSummary(periodNumber);
+  const salesSummary = salesQuery.data ?? null;
+  const salesUnavailable = salesQuery.data === null;
+  const salesReady = !!salesSummary;
+  const salesById = useMemo(
+    () => new Map<string, KitSalesSummaryItem>((salesSummary?.items ?? []).map((i) => [i.productId, i] as const)),
+    [salesSummary],
+  );
+  const periodLabel = salesSummary
+    ? `${salesSummary.name}${periodRange(salesSummary) ? ` (${periodRange(salesSummary)})` : ''}`
+    : '';
 
-  const queryParams: KitListQueryParams = useMemo(() => {
-    const p: KitListQueryParams = clientMode
-      ? { page: 1, limit: CLIENT_PAGE_LIMIT }
-      : { page: currentPage, limit: pageSize };
+  // ---------- Filtros de cliente (sobre la lista completa) ----------
+  // Surtido se resuelve con la propia fila aunque no haya resumen; los demás
+  // necesitan su dato del servidor y, si falta, se ignoran y se avisa.
+  const effectiveFilters: KitListClientFilters = useMemo(
+    () => ({
+      stockMode: filterStockMode,
+      availability: availabilityReady ? filterAvailability : '',
+      missingCode: availabilityReady ? filterMissing : '',
+      health: availabilityReady ? filterHealth : '',
+      sales: salesReady ? filterSales : '',
+    }),
+    [filterStockMode, filterAvailability, filterMissing, filterHealth, filterSales, availabilityReady, salesReady],
+  );
+  const clientFiltersActive = Boolean(
+    filterStockMode || filterAvailability || filterMissing || filterHealth || filterSales,
+  );
+  const clientMode = Boolean(
+    effectiveFilters.stockMode ||
+    effectiveFilters.availability ||
+    effectiveFilters.missingCode ||
+    effectiveFilters.health ||
+    effectiveFilters.sales,
+  );
+  const availabilityFiltersIgnored = Boolean(
+    (filterAvailability || filterMissing || filterHealth) && !availabilityReady,
+  );
+  const salesFilterIgnored = Boolean(filterSales && !salesReady);
+
+  const listCtx = useMemo(() => ({ availabilityById, salesById, modeOf: kitModeOf }), [availabilityById, salesById]);
+
+  // ---------- Parámetros de servidor ----------
+  const serverParams: KitListQueryParams = useMemo(() => {
+    const p: KitListQueryParams = { ...channelFilterParams(filterChannel) };
     if (searchQuery) p.search = searchQuery;
     if (filterPosition) p.kitPosition = filterPosition;
     if (filterCountryId) p.countryId = filterCountryId;
     if (filterStatus === 'active') p.isActive = true;
     if (filterStatus === 'inactive') p.isActive = false;
     return p;
-  }, [clientMode, searchQuery, filterPosition, filterCountryId, filterStatus, currentPage, pageSize]);
+  }, [searchQuery, filterPosition, filterCountryId, filterStatus, filterChannel]);
+
+  const queryParams: KitListQueryParams = useMemo(
+    () =>
+      clientMode
+        ? { ...serverParams, page: 1, limit: CLIENT_PAGE_LIMIT }
+        : { ...serverParams, page: currentPage, limit: pageSize },
+    [clientMode, serverParams, currentPage, pageSize],
+  );
 
   const activeStatsParams: KitListQueryParams = useMemo(() => {
-    const p: KitListQueryParams = { limit: 1, page: 1, isActive: true };
+    const p: KitListQueryParams = { ...channelFilterParams(filterChannel), limit: 1, page: 1, isActive: true };
     if (searchQuery) p.search = searchQuery;
     if (filterPosition) p.kitPosition = filterPosition;
     if (filterCountryId) p.countryId = filterCountryId;
     return p;
-  }, [searchQuery, filterPosition, filterCountryId]);
+  }, [searchQuery, filterPosition, filterCountryId, filterChannel]);
 
   const { data: kitsData, isLoading, isFetching, isError, refetch } = useKits(queryParams);
   const { data: activeStatsData } = useKits(activeStatsParams);
@@ -175,38 +284,22 @@ export function KitsTab() {
   const { kits, total } = useMemo(() => {
     const all: Product[] = kitsData?.data ?? [];
     if (!clientMode) return { kits: all, total: kitsData?.total ?? 0 };
-    const filtered = filterKitsByAvailability(
-      all,
-      availabilityById,
-      { stockMode: filterStockMode, availability: filterAvailability, missingCode: filterMissing },
-      kitModeOf,
-    );
+    const filtered = filterKitList(all, listCtx, effectiveFilters);
     const start = (currentPage - 1) * pageSize;
     return { kits: filtered.slice(start, start + pageSize), total: filtered.length };
-  }, [kitsData, clientMode, availabilityById, filterStockMode, filterAvailability, filterMissing, currentPage, pageSize]);
+  }, [kitsData, clientMode, listCtx, effectiveFilters, currentPage, pageSize]);
 
   const stats = useMemo(() => {
     const active = filterStatus === 'active' ? total : filterStatus === 'inactive' ? 0 : (activeStatsData?.total ?? 0);
-    return {
-      total,
-      active,
-    };
+    return { total, active };
   }, [total, activeStatsData, filterStatus]);
 
   const hasActiveFilters = Boolean(
-    searchQuery || filterPosition || filterStatus !== 'all' || availabilityFiltersActive,
+    searchQuery || filterPosition || filterStatus !== 'all' || filterChannel || clientFiltersActive || periodNumber,
   );
 
   const handleSearch = () => {
     setParams({ search: searchInput.trim(), page: null });
-  };
-
-  const handleFilterPosition = (value: string) => {
-    setParams({ kitPosition: value, page: null });
-  };
-
-  const handleFilterStatus = (value: string) => {
-    setParams({ status: value, page: null });
   };
 
   const handleFilterCountry = (value: string) => {
@@ -228,20 +321,79 @@ export function KitsTab() {
       surtido: '',
       disponibilidad: '',
       falta: '',
+      salud: '',
+      canal: '',
+      ventas: '',
+      periodo: '',
       countryId: null,
       page: null,
     });
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-MX', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
+  const refreshAll = () => {
+    void refetch();
+    void availabilityQuery.refetch();
+    void salesQuery.refetch();
   };
 
-  const availabilityHref = (kit: Product) => `/admin/productos/${kit.id}/editar?seccion=inventario`;
+  // Tras eliminar (baja lógica) o reactivar: la lista, la disponibilidad y el
+  // conteo de activos cambian.
+  const afterActiveChange = () => {
+    queryClient.invalidateQueries({ queryKey: kitKeys.lists() });
+    queryClient.invalidateQueries({ queryKey: kitAvailabilityKeys.all });
+  };
+
+  // ---------- Exportar CSV (respeta los filtros activos, incluidos los de cliente) ----------
+  const handleExport = async () => {
+    setIsExporting(true);
+    const toastId = toast.loading('Preparando la exportación…');
+    try {
+      const all: Product[] = [];
+      let page = 1;
+      let totalPages = 1;
+      do {
+        const res = await kitsService.listKits({ ...serverParams, page, limit: EXPORT_PAGE });
+        all.push(...res.data);
+        totalPages = res.totalPages;
+        page += 1;
+      } while (page <= totalPages && page <= EXPORT_MAX_PAGES);
+
+      const rows = clientMode ? filterKitList(all, listCtx, effectiveFilters) : all;
+      if (rows.length === 0) {
+        toast.error('No hay kits que exportar con estos filtros', { id: toastId });
+        return;
+      }
+      const csv = buildCsv(
+        [...KITS_CSV_HEADERS],
+        rows.map((kit) => {
+          const mode = availabilityById.get(kit.id)?.stockMode ?? kitModeOf(kit);
+          return kitCsvRow(kit, {
+            summary: availabilityById.get(kit.id),
+            sales: salesById.get(kit.id),
+            periodLabel,
+            mode,
+            positionLabel: positionLabel(kit),
+            stockModeLabel: stockModeLabel(mode),
+          });
+        }),
+      );
+      downloadCsv(csv, `kits_${selectedCountry?.code ?? 'todos'}_${fileDateStamp()}.csv`);
+      toast.success(`${formatNumber(rows.length)} ${rows.length === 1 ? 'kit exportado' : 'kits exportados'}`, {
+        id: toastId,
+      });
+    } catch (err) {
+      toast.error(productAdminErrorMessage(err, 'No se pudo exportar la lista de kits'), { id: toastId });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // ---------- Columnas ----------
+  const pendingCell = (label = 'Sin dato') => (
+    <span className="text-xs text-gray-400 italic" role="status">
+      {label}
+    </span>
+  );
 
   const columns: DataTableColumn<Product>[] = [
     {
@@ -262,17 +414,11 @@ export function KitsTab() {
       sortValue: (k) => k.name,
       render: (kit) => (
         <div className="flex items-center gap-3">
-          {/* Imagen principal del kit: el hueco ambar delata los que faltan
-              por subir (el POS la muestra al inscribir). */}
+          {/* Imagen principal del kit: el hueco ámbar delata los que faltan
+              por subir (el POS la muestra al inscribir); el chip va en Salud. */}
           {kit.imageUrl ? (
             <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-              <Image
-                src={kit.imageUrl}
-                alt={kit.name}
-                width={40}
-                height={40}
-                className="object-cover"
-              />
+              <Image src={kit.imageUrl} alt={kit.name} width={40} height={40} className="object-cover" />
             </div>
           ) : (
             <div
@@ -283,13 +429,13 @@ export function KitsTab() {
             </div>
           )}
           <div>
-            <p className="font-semibold text-gray-900">{kit.name}</p>
-            {kit.shortName && (
-              <p className="text-sm text-gray-500 truncate max-w-xs">{kit.shortName}</p>
-            )}
-            {!kit.imageUrl && (
-              <p className="text-xs font-medium text-amber-600">Sin imagen</p>
-            )}
+            <Link
+              href={editHref(kit)}
+              className="font-semibold text-gray-900 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3E667D]"
+            >
+              {kit.name}
+            </Link>
+            {kit.shortName && <p className="text-sm text-gray-500 truncate max-w-xs">{kit.shortName}</p>}
           </div>
         </div>
       ),
@@ -306,7 +452,7 @@ export function KitsTab() {
               KIT_POSITION_COLORS[kit.kitPosition] || 'bg-gray-100 text-gray-800'
             }`}
           >
-            {KIT_POSITION_LABEL[kit.kitPosition as KitPosition] || kit.kitPosition}
+            {positionLabel(kit)}
           </span>
         ) : (
           <span className="text-xs text-gray-400 italic">Sin posición</span>
@@ -322,16 +468,54 @@ export function KitsTab() {
         return mode ? (
           <span
             className={`inline-flex whitespace-nowrap px-2 py-1 text-xs font-medium rounded-full ${STOCK_MODE_CLASS[mode]}`}
-            title={
-              mode === 'assemble_on_sale'
-                ? 'La sucursal descuenta los componentes de la receta al cobrar. Si falta uno solo, no se vende.'
-                : 'La sucursal vende con su propia existencia del kit, como cualquier producto.'
-            }
+            title={STOCK_MODE_HELP[mode]}
           >
             {stockModeLabel(mode)}
           </span>
         ) : (
           <span className="text-xs text-gray-400 italic">Sin definir</span>
+        );
+      },
+    },
+    {
+      key: 'recipe',
+      header: 'Receta',
+      sortable: availabilityReady,
+      sortValue: (k) => availabilityById.get(k.id)?.componentsCount ?? -1,
+      render: (kit) => {
+        if (availabilityUnavailable) {
+          return (
+            <span className="text-xs text-gray-400 italic" title="Este servidor aún no calcula la receta de kits">
+              —
+            </span>
+          );
+        }
+        if (!availabilityReady) return pendingCell(availabilityQuery.isError ? 'Sin dato' : 'Calculando…');
+        const cell = recipeCell(availabilityById.get(kit.id));
+        if (!cell.known) {
+          return (
+            <span
+              className="text-xs text-gray-400 italic"
+              title="Este kit no entró en el cálculo (inactivo o sin precio en el país)"
+            >
+              {cell.label}
+            </span>
+          );
+        }
+        return (
+          <Link
+            href={componentsHref(kit)}
+            className={`whitespace-nowrap text-sm underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3E667D] ${
+              cell.missing ? 'font-semibold text-red-700' : 'text-gray-800'
+            }`}
+            title={
+              cell.missing
+                ? 'Se arma al vender pero no tiene componentes: no se puede vender. Ver la receta.'
+                : 'Ver la receta del kit.'
+            }
+          >
+            {cell.label}
+          </Link>
         );
       },
     },
@@ -343,29 +527,28 @@ export function KitsTab() {
       render: (kit) => {
         if (availabilityUnavailable) {
           return (
-            <span className="text-xs text-gray-400 italic" title="Este servidor aún no calcula la disponibilidad de kits">
+            <span
+              className="text-xs text-gray-400 italic"
+              title="Este servidor aún no calcula la disponibilidad de kits"
+            >
               —
             </span>
           );
         }
-        if (!availabilityReady) {
-          return (
-            <span className="text-xs text-gray-400" role="status">
-              {availabilityQuery.isError ? 'Sin dato' : 'Calculando…'}
-            </span>
-          );
-        }
+        if (!availabilityReady) return pendingCell(availabilityQuery.isError ? 'Sin dato' : 'Calculando…');
         const s = availabilityById.get(kit.id);
         if (!s) {
           return (
-            <span className="text-xs text-gray-400 italic" title="Este kit no entró en el cálculo (inactivo o sin precio en el país)">
+            <span
+              className="text-xs text-gray-400 italic"
+              title="Este kit no entró en el cálculo (inactivo o sin precio en el país)"
+            >
               Sin dato
             </span>
           );
         }
         const tone = availabilityTone(s);
         const limiting = limitingSentence(s.limiting);
-        const flags = summaryFlags(s);
         const sentence = availabilitySentence(s, s.code || kit.code);
         return (
           <div className="flex flex-col items-start gap-1">
@@ -378,17 +561,79 @@ export function KitsTab() {
               {availabilityShort(s)}
             </Link>
             {limiting ? <p className="max-w-[16rem] text-xs text-gray-700">{limiting}</p> : null}
-            {flags.length > 0 ? (
-              <div className="flex flex-wrap gap-1">
-                {flags.map((f) => (
-                  <span
-                    key={f.key}
-                    className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${AVAILABILITY_TONE_CLASS[f.tone]}`}
-                  >
-                    {f.label}
-                  </span>
-                ))}
-              </div>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'health',
+      header: 'Salud',
+      sortable: availabilityReady,
+      sortValue: (k) => kitHealthFlags(k, availabilityById.get(k.id)).length,
+      render: (kit) => {
+        const s = availabilityById.get(kit.id);
+        const flags = kitHealthFlags(kit, s);
+        if (flags.length === 0) {
+          return s ? (
+            <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-800">
+              <CheckCircleIcon className="h-3 w-3" aria-hidden />
+              Sin pendientes
+            </span>
+          ) : (
+            <span
+              className="text-xs text-gray-400 italic"
+              title={
+                availabilityUnavailable
+                  ? 'Este servidor aún no calcula la salud de kits'
+                  : 'Sin dato del servidor para este kit en el país elegido'
+              }
+            >
+              —
+            </span>
+          );
+        }
+        return (
+          <div className="flex max-w-[14rem] flex-wrap gap-1" aria-label={`Pendientes: ${healthText(flags)}`}>
+            {flags.map((f) => (
+              <span
+                key={f.key}
+                className={`inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium ${AVAILABILITY_TONE_CLASS[f.tone]}`}
+                title={f.title}
+              >
+                {f.label}
+              </span>
+            ))}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'sales',
+      header: salesSummary ? `Ventas · ${salesSummary.name}` : 'Ventas del periodo',
+      sortable: salesReady,
+      sortValue: (k) => salesById.get(k.id)?.unitsPaid ?? -1,
+      render: (kit) => {
+        if (salesUnavailable) {
+          return (
+            <span className="text-xs text-gray-400 italic" title="Este servidor aún no calcula las ventas por periodo">
+              —
+            </span>
+          );
+        }
+        if (!salesSummary) return pendingCell(salesQuery.isError ? 'Sin dato' : 'Calculando…');
+        const item = salesById.get(kit.id);
+        const paid = item?.unitsPaid ?? 0;
+        const cancelled = item?.unitsCancelled ?? 0;
+        return (
+          <div className="flex flex-col" title={salesCellTitle(item, salesSummary)}>
+            <span className={`whitespace-nowrap text-sm ${paid > 0 ? 'font-semibold text-gray-900' : 'text-gray-400'}`}>
+              {salesCellText(paid, salesSummary.name)}
+            </span>
+            <span className="text-[11px] text-gray-500">{periodRange(salesSummary)}</span>
+            {cancelled > 0 ? (
+              <span className="text-[11px] text-red-700">
+                {formatNumber(cancelled)} {cancelled === 1 ? 'cancelada' : 'canceladas'}
+              </span>
             ) : null}
           </div>
         );
@@ -401,10 +646,11 @@ export function KitsTab() {
       sortValue: (k) => parseFloat(k.price || '0') || 0,
       render: (kit) => (
         <span className="text-sm font-semibold text-gray-900">
-          {kit.price && Number(kit.price) > 0
-            ? `$${Number(kit.price).toLocaleString('es-MX')} ${kit.priceCurrency || ''}`
-            : <span className="text-xs text-gray-400 italic">Sin precio</span>
-          }
+          {kit.price && Number(kit.price) > 0 ? (
+            `$${Number(kit.price).toLocaleString('es-MX')} ${kit.priceCurrency || ''}`
+          ) : (
+            <span className="text-xs text-gray-400 italic">Sin precio</span>
+          )}
         </span>
       ),
     },
@@ -412,22 +658,17 @@ export function KitsTab() {
       key: 'countries',
       header: 'Países',
       render: (kit) => {
-        const countries = kit.activeCountries ?? [];
-        if (countries.length === 0) return <span className="text-sm text-gray-400">—</span>;
-        const flagMap: Record<string, string> = {
-          MX: '🇲🇽', US: '🇺🇸', CO: '🇨🇴', GT: '🇬🇹', FN: '🇲🇽',
-          SV: '🇸🇻', HN: '🇭🇳', NI: '🇳🇮', CR: '🇨🇷', PA: '🇵🇦',
-          PE: '🇵🇪', EC: '🇪🇨', CL: '🇨🇱', AR: '🇦🇷', BR: '🇧🇷', ES: '🇪🇸',
-        };
+        const codes = kit.activeCountries ?? [];
+        if (codes.length === 0) return <span className="text-sm text-gray-400">—</span>;
         return (
           <div className="flex flex-wrap gap-1">
-            {countries.map((code) => (
+            {codes.map((code) => (
               <span
                 key={code}
-                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-medium"
+                className="inline-flex items-center px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-xs font-medium"
                 title={code}
               >
-                {flagMap[code] || '🏳️'} {code}
+                {code}
               </span>
             ))}
           </div>
@@ -453,40 +694,56 @@ export function KitsTab() {
         ),
     },
     {
-      key: 'createdAt',
-      header: 'Creado',
-      sortable: true,
-      sortValue: (k) => k.createdAt,
-      render: (kit) => (
-        <span className="text-sm text-gray-600">{formatDate(kit.createdAt)}</span>
-      ),
-    },
-    {
       key: 'actions',
       header: 'Acciones',
       headerClassName: 'text-right',
       cellClassName: 'text-right',
-      render: (kit) => (
-        <div className="flex items-center justify-end gap-1">
-          <Link
-            href={availabilityHref(kit)}
-            className="rounded-lg p-2 transition-colors hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3E667D]"
-            title="Ver disponibilidad por sucursal"
-            aria-label={`Ver disponibilidad por sucursal de ${kit.code}`}
-          >
-            <EyeIcon className="h-4 w-4 text-[#3E667D]" aria-hidden />
-          </Link>
-          <button
-            type="button"
-            onClick={() => router.push(`/admin/productos/${kit.id}/editar?seccion=kit`)}
-            className="rounded-lg p-2 transition-colors hover:bg-green-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3E667D]"
-            title="Editar kit"
-            aria-label={`Editar kit ${kit.code}`}
-          >
-            <PencilIcon className="h-4 w-4 text-green-600" aria-hidden />
-          </button>
-        </div>
-      ),
+      render: (kit) => {
+        const canToggle = canToggleProductActive(permissions, kit.isActive);
+        return (
+          <div className="flex items-center justify-end gap-1">
+            <Link
+              href={editHref(kit)}
+              className="inline-flex items-center gap-1 rounded-lg p-2 text-sm text-gray-700 transition-colors hover:bg-green-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3E667D]"
+              title={permissions.canUpdate ? 'Editar kit' : 'Ver kit'}
+              aria-label={`${permissions.canUpdate ? 'Editar' : 'Ver'} kit ${kit.code}`}
+            >
+              {permissions.canUpdate ? (
+                <PencilIcon className="h-4 w-4 text-green-600" aria-hidden />
+              ) : (
+                <EyeIcon className="h-4 w-4 text-[#3E667D]" aria-hidden />
+              )}
+              <span className="hidden xl:inline">{permissions.canUpdate ? 'Editar' : 'Ver'}</span>
+            </Link>
+            {canToggle ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setActiveTarget({
+                    id: kit.id,
+                    code: kit.code,
+                    name: kit.name,
+                    slug: kit.slug,
+                    isActive: kit.isActive,
+                    productType: kit.productType,
+                  })
+                }
+                className={`rounded-lg p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#3E667D] ${
+                  kit.isActive ? 'hover:bg-red-50' : 'hover:bg-emerald-50'
+                }`}
+                title={kit.isActive ? 'Eliminar (desactivar) kit' : 'Reactivar kit'}
+                aria-label={`${kit.isActive ? 'Eliminar (desactivar)' : 'Reactivar'} kit ${kit.code}`}
+              >
+                {kit.isActive ? (
+                  <TrashIcon className="h-4 w-4 text-red-600" aria-hidden />
+                ) : (
+                  <ArrowUturnLeftIcon className="h-4 w-4 text-emerald-700" aria-hidden />
+                )}
+              </button>
+            ) : null}
+          </div>
+        );
+      },
     },
   ];
 
@@ -549,26 +806,43 @@ export function KitsTab() {
                 variant="ghost"
                 size="sm"
                 className="gap-2 text-gray-600"
-                onClick={() => {
-                  void refetch();
-                  void availabilityQuery.refetch();
-                }}
+                onClick={refreshAll}
                 disabled={isFetching}
               >
                 <ArrowPathIcon className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
                 {isFetching ? 'Actualizando...' : 'Actualizar'}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => void handleExport()}
+                disabled={isExporting || isLoading}
+              >
+                <ArrowDownTrayIcon className="h-4 w-4" aria-hidden />
+                {isExporting ? 'Exportando…' : 'Exportar CSV'}
               </Button>
               {hasActiveFilters && (
                 <Button variant="outline" size="sm" onClick={resetFilters}>
                   Limpiar filtros
                 </Button>
               )}
+              {permissions.canCreate ? (
+                <Link href="/admin/productos/nuevo?tipo=kit">
+                  <Button variant="default" size="sm" className="gap-2">
+                    <PlusIcon className="h-4 w-4" aria-hidden />
+                    Nuevo kit
+                  </Button>
+                </Link>
+              ) : null}
             </div>
           </div>
 
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-12 lg:gap-4">
             <div className="lg:col-span-5">
-              <label htmlFor="kits-search" className="block text-xs font-medium text-gray-500 mb-1">Buscar por nombre o código</label>
+              <label htmlFor="kits-search" className="block text-xs font-medium text-gray-500 mb-1">
+                Buscar por nombre o código
+              </label>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <div className="relative flex-1">
                   <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -587,19 +861,16 @@ export function KitsTab() {
                     className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#3E667D] focus:border-transparent"
                   />
                 </div>
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="h-10 px-4 sm:min-w-[96px]"
-                  onClick={handleSearch}
-                >
+                <Button variant="default" size="sm" className="h-10 px-4 sm:min-w-[96px]" onClick={handleSearch}>
                   Buscar
                 </Button>
               </div>
             </div>
 
             <div className="lg:col-span-3">
-              <label htmlFor="kits-country" className="block text-xs font-medium text-gray-500 mb-1">País (precio y sucursales)</label>
+              <label htmlFor="kits-country" className="block text-xs font-medium text-gray-500 mb-1">
+                País (precio y sucursales)
+              </label>
               <SearchableSelect
                 id="kits-country"
                 options={(countries ?? []).map((c) => ({ value: c.id, label: `${c.code} — ${c.name}` }))}
@@ -611,7 +882,9 @@ export function KitsTab() {
             </div>
 
             <div className="lg:col-span-2">
-              <label htmlFor="kits-position" className="block text-xs font-medium text-gray-500 mb-1">Posición</label>
+              <label htmlFor="kits-position" className="block text-xs font-medium text-gray-500 mb-1">
+                Posición
+              </label>
               <SearchableSelect
                 id="kits-position"
                 options={[
@@ -620,7 +893,7 @@ export function KitsTab() {
                   { value: KitPosition.PREFERRED, label: 'Preferente' },
                 ]}
                 value={filterPosition}
-                onChange={handleFilterPosition}
+                onChange={(v) => setParams({ kitPosition: v, page: null })}
                 allLabel="Todas"
                 allValue=""
                 className="w-full"
@@ -628,7 +901,9 @@ export function KitsTab() {
             </div>
 
             <div className="lg:col-span-2">
-              <label htmlFor="kits-status" className="block text-xs font-medium text-gray-500 mb-1">Estado</label>
+              <label htmlFor="kits-status" className="block text-xs font-medium text-gray-500 mb-1">
+                Estado
+              </label>
               <SearchableSelect
                 id="kits-status"
                 options={[
@@ -636,7 +911,7 @@ export function KitsTab() {
                   { value: 'inactive', label: 'Inactivos' },
                 ]}
                 value={filterStatus}
-                onChange={handleFilterStatus}
+                onChange={(v) => setParams({ status: v, page: null })}
                 allLabel="Todos"
                 allValue="all"
                 className="w-full"
@@ -644,7 +919,9 @@ export function KitsTab() {
             </div>
 
             <div className="lg:col-span-3">
-              <label htmlFor="kits-stock-mode" className="block text-xs font-medium text-gray-500 mb-1">Surtido</label>
+              <label htmlFor="kits-stock-mode" className="block text-xs font-medium text-gray-500 mb-1">
+                Surtido
+              </label>
               <SearchableSelect
                 id="kits-stock-mode"
                 options={STOCK_MODE_FILTER_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
@@ -653,12 +930,13 @@ export function KitsTab() {
                 allLabel="Todos"
                 allValue=""
                 className="w-full"
-                disabled={!availabilityReady}
               />
             </div>
 
-            <div className="lg:col-span-4">
-              <label htmlFor="kits-availability" className="block text-xs font-medium text-gray-500 mb-1">Disponibilidad</label>
+            <div className="lg:col-span-3">
+              <label htmlFor="kits-availability" className="block text-xs font-medium text-gray-500 mb-1">
+                Disponibilidad
+              </label>
               <SearchableSelect
                 id="kits-availability"
                 options={AVAILABILITY_FILTER_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
@@ -671,8 +949,57 @@ export function KitsTab() {
               />
             </div>
 
+            <div className="lg:col-span-2">
+              <label htmlFor="kits-health" className="block text-xs font-medium text-gray-500 mb-1">
+                Salud
+              </label>
+              <SearchableSelect
+                id="kits-health"
+                options={HEALTH_FILTER_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                value={filterHealth}
+                onChange={(v) => setParams({ salud: v, page: null })}
+                allLabel="Todos"
+                allValue=""
+                className="w-full"
+                disabled={!availabilityReady}
+              />
+            </div>
+
+            <div className="lg:col-span-2">
+              <label htmlFor="kits-channel" className="block text-xs font-medium text-gray-500 mb-1">
+                Canal
+              </label>
+              <SearchableSelect
+                id="kits-channel"
+                options={CHANNEL_FILTER_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                value={filterChannel}
+                onChange={(v) => setParams({ canal: v, page: null })}
+                allLabel="Todos"
+                allValue=""
+                className="w-full"
+              />
+            </div>
+
+            <div className="lg:col-span-2">
+              <label htmlFor="kits-sales" className="block text-xs font-medium text-gray-500 mb-1">
+                Ventas
+              </label>
+              <SearchableSelect
+                id="kits-sales"
+                options={SALES_FILTER_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+                value={filterSales}
+                onChange={(v) => setParams({ ventas: v, page: null })}
+                allLabel="Todas"
+                allValue=""
+                className="w-full"
+                disabled={!salesReady}
+              />
+            </div>
+
             <div className="lg:col-span-5">
-              <label htmlFor="kits-missing" className="block text-xs font-medium text-gray-500 mb-1">Le falta…</label>
+              <label htmlFor="kits-missing" className="block text-xs font-medium text-gray-500 mb-1">
+                Le falta…
+              </label>
               <SearchableSelect
                 id="kits-missing"
                 options={missingOptions.map((o) => ({
@@ -693,31 +1020,127 @@ export function KitsTab() {
                   : 'Los 3 componentes que más sucursales dejan en cero por cada kit; un cuarto faltante no aparece aquí (velo en la ficha del kit).'}
               </p>
             </div>
+
+            <div className="lg:col-span-7">
+              <p className="block text-xs font-medium text-gray-500 mb-1">Periodo de ventas</p>
+              <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Periodo de ventas">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 w-9 p-0"
+                  onClick={() =>
+                    salesSummary && setParams({ periodo: String(salesSummary.periodNumber - 1), page: null })
+                  }
+                  disabled={!salesSummary || salesSummary.periodNumber <= 1 || salesQuery.isFetching}
+                  title="Periodo anterior"
+                  aria-label="Periodo anterior"
+                >
+                  <ChevronLeftIcon className="h-4 w-4" aria-hidden />
+                </Button>
+                <span className="min-w-[14rem] text-sm font-medium text-gray-800" role="status">
+                  {salesSummary
+                    ? periodLabel
+                    : salesUnavailable
+                      ? 'Este servidor aún no calcula las ventas por periodo'
+                      : salesQuery.isError
+                        ? 'Sin dato'
+                        : 'Cargando…'}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 w-9 p-0"
+                  onClick={() =>
+                    salesSummary && setParams({ periodo: String(salesSummary.periodNumber + 1), page: null })
+                  }
+                  disabled={!salesSummary || salesSummary.isCurrent || salesQuery.isFetching}
+                  title="Periodo siguiente"
+                  aria-label="Periodo siguiente"
+                >
+                  <ChevronRightIcon className="h-4 w-4" aria-hidden />
+                </Button>
+                {periodNumber ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-9"
+                    onClick={() => setParams({ periodo: '', page: null })}
+                  >
+                    Periodo vigente
+                  </Button>
+                ) : null}
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Periodo de negocio del 26 al 25 tal como lo define el sistema; las unidades cobradas se muestran en la
+                columna «Ventas».
+              </p>
+            </div>
           </div>
 
           {availabilityUnavailable ? (
-            <p className="mt-4 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700" role="status">
-              Este servidor aún no calcula la disponibilidad de kits: la columna «Disponible hoy» y los filtros de
-              surtido, disponibilidad y «Le falta…» se activarán cuando se despliegue el API.
+            <p
+              className="mt-4 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-700"
+              role="status"
+            >
+              Este servidor aún no calcula la disponibilidad de kits: las columnas «Receta», «Disponible hoy» y «Salud»
+              y los filtros de disponibilidad, salud y «Le falta…» se activarán cuando se despliegue el API.
             </p>
           ) : availabilityQuery.isError ? (
-            <p className="mt-4 flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900" role="status">
+            <p
+              className="mt-4 flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+              role="status"
+            >
               No se pudo calcular la disponibilidad de los kits.
-              <Button type="button" variant="outline" size="sm" className="h-7" onClick={() => void availabilityQuery.refetch()}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7"
+                onClick={() => void availabilityQuery.refetch()}
+              >
                 Reintentar
               </Button>
             </p>
           ) : null}
 
+          {salesQuery.isError ? (
+            <p
+              className="mt-2 flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+              role="status"
+            >
+              {productAdminErrorMessage(salesQuery.error, 'No se pudieron calcular las ventas del periodo.')}
+              {periodNumber ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7"
+                  onClick={() => setParams({ periodo: '', page: null })}
+                >
+                  Volver al periodo vigente
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7"
+                  onClick={() => void salesQuery.refetch()}
+                >
+                  Reintentar
+                </Button>
+              )}
+            </p>
+          ) : null}
+
           {hasActiveFilters && (
             <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
-              <span className="rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-700">
-                Filtros activos
-              </span>
+              <span className="rounded-full bg-blue-50 px-2.5 py-1 font-medium text-blue-700">Filtros activos</span>
               {searchQuery && (
-                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
-                  Búsqueda: {searchQuery}
-                </span>
+                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">Búsqueda: {searchQuery}</span>
               )}
               {filterPosition && (
                 <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
@@ -727,6 +1150,11 @@ export function KitsTab() {
               {filterStatus !== 'all' && (
                 <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
                   Estado: {filterStatus === 'active' ? 'Activos' : 'Inactivos'}
+                </span>
+              )}
+              {filterChannel && (
+                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
+                  Canal: {CHANNEL_FILTER_OPTIONS.find((o) => o.value === filterChannel)?.label}
                 </span>
               )}
               {filterStockMode && (
@@ -739,14 +1167,32 @@ export function KitsTab() {
                   Disponibilidad: {AVAILABILITY_FILTER_OPTIONS.find((o) => o.value === filterAvailability)?.label}
                 </span>
               )}
-              {filterMissing && (
+              {filterHealth && (
                 <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
-                  Le falta: {filterMissing}
+                  Salud: {HEALTH_FILTER_OPTIONS.find((o) => o.value === filterHealth)?.label}
                 </span>
               )}
-              {availabilityFiltersActive && !availabilityReady ? (
+              {filterSales && (
+                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
+                  {SALES_FILTER_OPTIONS.find((o) => o.value === filterSales)?.label}
+                </span>
+              )}
+              {filterMissing && (
+                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">Le falta: {filterMissing}</span>
+              )}
+              {periodNumber ? (
+                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-gray-700">
+                  Periodo: {salesSummary ? periodLabel : `#${periodNumber}`}
+                </span>
+              ) : null}
+              {availabilityFiltersIgnored ? (
                 <span className="rounded-full bg-amber-100 px-2.5 py-1 text-amber-800">
-                  Los filtros de disponibilidad no se aplican: falta el dato del servidor
+                  Los filtros de disponibilidad, salud y «Le falta…» no se aplican: falta el dato del servidor
+                </span>
+              ) : null}
+              {salesFilterIgnored ? (
+                <span className="rounded-full bg-amber-100 px-2.5 py-1 text-amber-800">
+                  El filtro de ventas no se aplica: falta el dato del periodo
                 </span>
               ) : null}
             </div>
@@ -778,13 +1224,15 @@ export function KitsTab() {
               data={kits}
               isLoading={isLoading && !kitsData}
               getRowKey={(kit) => kit.id}
-              minWidthClassName="min-w-[1240px]"
+              minWidthClassName="min-w-[1520px]"
               emptyState={
                 <div className="py-2 text-center">
                   <GiftIcon className="mx-auto mb-4 h-16 w-16 text-gray-400" />
                   <h3 className="mb-2 text-xl font-bold text-gray-900">No se encontraron kits</h3>
                   <p className="text-gray-600">
-                    Intenta ajustar los filtros o crea un nuevo kit de inscripción.
+                    {hasActiveFilters
+                      ? 'Ningún kit cumple con estos filtros. Ajústalos o límpialos.'
+                      : 'Todavía no hay kits de inscripción. Crea el primero.'}
                   </p>
                   <div className="mt-4 flex justify-center gap-2">
                     {hasActiveFilters && (
@@ -792,12 +1240,14 @@ export function KitsTab() {
                         Limpiar filtros
                       </Button>
                     )}
-                    <Link href="/admin/productos/nuevo?tipo=kit">
-                      <Button variant="default">
-                        <PlusIcon className="h-4 w-4" />
-                        Nuevo Kit
-                      </Button>
-                    </Link>
+                    {permissions.canCreate ? (
+                      <Link href="/admin/productos/nuevo?tipo=kit">
+                        <Button variant="default">
+                          <PlusIcon className="h-4 w-4" />
+                          Nuevo kit
+                        </Button>
+                      </Link>
+                    ) : null}
                   </div>
                 </div>
               }
@@ -817,6 +1267,14 @@ export function KitsTab() {
           )}
         </CardContent>
       </Card>
+
+      <ProductActiveDialog
+        target={activeTarget}
+        onOpenChange={(open) => {
+          if (!open) setActiveTarget(null);
+        }}
+        onDone={afterActiveChange}
+      />
     </div>
   );
 }
