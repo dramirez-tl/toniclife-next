@@ -27,8 +27,10 @@ import {
   SCORE_TONE_CLASS,
   SELLABLE_TYPES,
   STORE_COUNTRY_NAME,
+  healthIssueBasesFor,
   healthIssueLabel,
   healthIssueMeta,
+  issueAppliesTo,
   issueCodeFor,
   productTypeLabel,
   scoreTone,
@@ -58,6 +60,13 @@ const HEALTH_CARDS: { id: string; title: string; help: string; bases: string[]; 
   { id: 'en', title: 'Sin traducción al inglés', help: 'La tienda en inglés muestra el español.', bases: ['no_en_name', 'no_en_description'] },
   { id: 'seo', title: 'Sin SEO', help: 'Sin meta título ni meta descripción.', bases: ['no_seo'] },
   { id: 'precios', title: 'Precios incoherentes o en cero', help: 'Público menor que distribuidor, preferente mayor que público o precio 0.', bases: ['price_incoherent', 'zero_price'] },
+  {
+    id: 'zona',
+    title: 'Sin precio de zona Frontera',
+    help: 'Ya se venden en la tienda de México sin fila para Frontera MX-USA: esas cuentas los pagan con el precio de respaldo y sin puntos. Se corrige capturando la fila de la zona en Precios.',
+    bases: ['zone_price_missing'],
+    onlyCountry: 'MX',
+  },
   { id: 'preciobajo', title: 'Precio sospechosamente bajo', help: 'Ya se ven en la tienda con un precio público simbólico (material interno, cortesías). Revísalos y, si no deben venderse, ocúltalos de la tienda.', bases: ['suspicious_low_price'] },
   { id: 'nombres', title: 'Nombres por normalizar', help: 'En mayúsculas, con espacios sobrantes o duplicados.', bases: ['name_uppercase', 'name_untrimmed', 'duplicate_name'] },
   { id: 'slugs', title: 'URLs fuera de convención', help: 'Sin URL o que no siguen clave-nombre.', bases: ['no_slug', 'slug_off_convention'] },
@@ -93,7 +102,8 @@ function SaludContent() {
   const paisRaw = get('pais');
   const country: StoreCountryCode = isCountry(paisRaw) ? paisRaw : 'MX';
   const faltaRaw = get('falta');
-  const falta = HEALTH_ISSUE_BASES.includes(faltaRaw) ? faltaRaw : '';
+  // Una regla de zona solo aplica en el país con zonas (MX): en otro país se ignora el filtro.
+  const falta = HEALTH_ISSUE_BASES.includes(faltaRaw) && issueAppliesTo(faltaRaw, country) ? faltaRaw : '';
   const includeAll = get('todos') === '1';
   const currentPage = getNumber('page') || 1;
   const pageSize = Math.min(100, Math.max(10, getNumber('limit') || 20));
@@ -193,7 +203,9 @@ function SaludContent() {
     },
   ];
 
-  const visibleCards = HEALTH_CARDS.filter((card) => !card.onlyCountry || card.onlyCountry === country);
+  const visibleCards = HEALTH_CARDS.filter(
+    (card) => (!card.onlyCountry || card.onlyCountry === country) && card.bases.every((base) => issueAppliesTo(base, country)),
+  );
   const rows = priority.data?.data ?? [];
   const total = priority.data?.total ?? 0;
 
@@ -356,7 +368,7 @@ function SaludContent() {
                   </Label>
                   <SearchableSelect
                     id={`${ids}-falta`}
-                    options={HEALTH_ISSUE_BASES.map((base) => ({ value: base, label: healthIssueLabel(issueCodeFor(base, country)) }))}
+                    options={healthIssueBasesFor(country).map((base) => ({ value: base, label: healthIssueLabel(issueCodeFor(base, country)) }))}
                     value={falta}
                     onChange={(v) => setParams({ falta: v || null })}
                     allLabel="Cualquier pendiente"

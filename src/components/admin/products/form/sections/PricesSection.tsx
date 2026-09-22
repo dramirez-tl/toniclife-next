@@ -33,7 +33,7 @@ import type { AdminSetPriceDto } from '@/services/products-admin.service';
 import type { ProductPrice } from '@/types/product';
 import type { Country, PriceType } from '@/types/config';
 import { productAdminErrorMessage } from '../../lib/errors';
-import { PRICE_WARNING_LABEL } from '../../lib/labels';
+import { PRICE_WARNING_LABEL, isPriceZone, priceCountryLabel, priceZoneStoreName } from '../../lib/labels';
 import { effectiveFromError, todayInMexico } from '../../lib/price-dates';
 import { productsAdminKeys, useAdminProductPrices, useSetAdminProductPrice } from '../../useProductsAdmin';
 import { PriceSchedulesPanel } from '../../PriceSchedulesPanel';
@@ -193,7 +193,7 @@ export function PricesSection() {
       // "Hoy" se recalcula al guardar: la ficha puede llevar abierta desde ayer.
       const problem = validateRow(row, allowZero, base.effectiveFrom, todayInMexico());
       if (problem) {
-        toast.error(`${country.name}: ${problem}`);
+        toast.error(`${priceCountryLabel(country)}: ${problem}`);
         return false;
       }
       const dto: AdminSetPriceDto = {
@@ -272,13 +272,13 @@ export function PricesSection() {
       notifyWrite();
       toast.success(
         deactivatedCount > 0
-          ? `${deactivatedCount} precios de ${countryToRemove.name} desactivados`
-          : `${countryToRemove.name} quitado`,
+          ? `${deactivatedCount} precios de ${priceCountryLabel(countryToRemove)} desactivados`
+          : `${priceCountryLabel(countryToRemove)} quitado`,
       );
       setCountryToRemove(null);
       setRemoveReason('');
     } catch (err) {
-      toast.error(productAdminErrorMessage(err, `No se pudieron desactivar los precios de ${countryToRemove.name}`));
+      toast.error(productAdminErrorMessage(err, `No se pudieron desactivar los precios de ${priceCountryLabel(countryToRemove)}`));
     }
   };
 
@@ -330,7 +330,8 @@ export function PricesSection() {
                 id={addCountryId}
                 options={availableCountries.map((c) => ({
                   value: c.id,
-                  label: c.name,
+                  // Una zona de precio (Frontera MX-USA) se distingue del país al que pertenece.
+                  label: priceCountryLabel(c),
                   hint: c.currencyCode?.trim(),
                 }))}
                 value=""
@@ -385,10 +386,10 @@ export function PricesSection() {
               const publicPrice = byCode.public ?? null;
 
               return (
-                <section key={countryId} aria-label={`Precios de ${country.name}`} className="rounded-lg border border-gray-200">
+                <section key={countryId} aria-label={`Precios de ${priceCountryLabel(country)}`} className="rounded-lg border border-gray-200">
                   <header className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-gray-50 px-4 py-2.5">
                     <h3 className="text-sm font-semibold text-gray-900">
-                      {country.name}{' '}
+                      {priceCountryLabel(country)}{' '}
                       <span className="ml-1 rounded border border-gray-300 bg-white px-1.5 py-0.5 text-xs font-medium text-gray-700">
                         {currency}
                       </span>
@@ -408,6 +409,13 @@ export function PricesSection() {
                       </Button>
                     ) : null}
                   </header>
+
+                  {isPriceZone(country.code) ? (
+                    <p className="border-b border-sky-200 bg-sky-50 px-4 py-2 text-xs text-sky-900" role="note">
+                      Lista propia de la zona: la ven y la pagan sus cuentas dentro de la tienda de {priceZoneStoreName(country.code)}.
+                      Sin fila aquí, el carrito les cobra el precio de respaldo y sin puntos.
+                    </p>
+                  ) : null}
 
                   {warnings.length > 0 ? (
                     <ul className="space-y-1 border-b border-amber-200 bg-amber-50 px-4 py-2" aria-live="polite">
@@ -442,7 +450,7 @@ export function PricesSection() {
                             key={pt.id}
                             rowId={rowKey(countryId, pt.id)}
                             priceType={pt}
-                            countryName={country.name}
+                            countryName={priceCountryLabel(country)}
                             currency={currency}
                             values={valuesOf(rowKey(countryId, pt.id))}
                             saved={serverRows[rowKey(countryId, pt.id)]?.price ?? null}

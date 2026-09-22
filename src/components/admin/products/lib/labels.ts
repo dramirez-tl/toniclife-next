@@ -102,6 +102,46 @@ export const countryName = (code: string): string =>
   STORE_COUNTRY_NAME[code as StoreCountryCode] ?? code;
 
 // ================================
+// Zonas de precio (países SIN tienda propia con lista de precios propia)
+// ================================
+/**
+ * Frontera MX-USA (`FN`) es un pseudo-país: país fiscal MX, moneda MXN, ~16 mil
+ * cuentas que compran en la tienda de México con SU lista en `product_prices`.
+ * Es un país activo más en `/config/countries/active`, así que la ficha ya lo
+ * ofrece para capturar; aquí solo se le da nombre y se liga a su tienda.
+ */
+export const PRICE_ZONE_NAME: Record<string, string> = { FN: 'Frontera MX-USA' };
+
+/** País (tienda) al que pertenece cada zona de precio. */
+const PRICE_ZONE_COUNTRY: Record<string, StoreCountryCode> = { FN: 'MX' };
+
+/** Zonas de precio que viven dentro de la tienda de un país (`MX` → `['FN']`). */
+export const priceZonesOf = (country: StoreCountryCode): string[] =>
+  Object.entries(PRICE_ZONE_COUNTRY)
+    .filter(([, parent]) => parent === country)
+    .map(([zone]) => zone);
+
+export const isPriceZone = (code: string | null | undefined): boolean =>
+  !!code && code.toUpperCase() in PRICE_ZONE_COUNTRY;
+
+/** Nombre de la tienda (país) en la que compran las cuentas de una zona; `null` si no es zona. */
+export const priceZoneStoreName = (code: string | null | undefined): string | null => {
+  const parent = code ? PRICE_ZONE_COUNTRY[code.toUpperCase()] : undefined;
+  return parent ? countryName(parent) : null;
+};
+
+/**
+ * Rótulo de un país en la captura de precios: una zona se distingue del país al
+ * que pertenece ("Frontera MX-USA (zona de México)"); el resto, su nombre tal cual.
+ */
+export function priceCountryLabel(country: { code: string; name: string }): string {
+  const code = country.code.toUpperCase();
+  const parent = PRICE_ZONE_COUNTRY[code];
+  if (!parent) return country.name;
+  return `${PRICE_ZONE_NAME[code] ?? country.name} (zona de ${countryName(parent)})`;
+}
+
+// ================================
 // Por qué un producto no sale en la tienda
 // ================================
 export const STOREFRONT_REASON_LABEL: Record<string, string> = {
@@ -167,9 +207,13 @@ const HEALTH_ISSUE_META: Record<string, HealthIssueMeta> = {
     short: 'Tipo no vendible',
     section: 'tienda',
   },
+  // Producto vendible en la tienda del país SIN fila de precio para una zona de ese
+  // país (`zone_price_missing:FN`): la cuenta de zona lo paga con el precio de
+  // respaldo y sin puntos. Se corrige capturando la fila de la zona en Precios.
+  zone_price_missing: { label: 'Sin precio de zona', short: 'Precio de zona', section: 'precios' },
 };
 
-/** `no_public_price:MX` → { base: 'no_public_price', country: 'MX' }. */
+/** `no_public_price:MX` → { base: 'no_public_price', country: 'MX' } (en reglas de zona el sufijo es la zona: `FN`). */
 export function splitIssueCode(code: string): { base: string; country: string | null } {
   const [base, country] = code.split(':');
   return { base, country: country ? country.toUpperCase() : null };
@@ -181,10 +225,13 @@ export function healthIssueMeta(code: string): HealthIssueMeta {
 }
 
 export function healthIssueLabel(code: string, short = false): string {
-  const { country } = splitIssueCode(code);
+  const { base, country } = splitIssueCode(code);
   const meta = healthIssueMeta(code);
   const text = short ? meta.short : meta.label;
-  return country ? `${text} (${country})` : text;
+  if (!country) return text;
+  // El sufijo de una regla de zona es la zona: se muestra con su nombre ("Frontera MX-USA").
+  const suffix = ZONE_SCOPED_ISSUES.has(base) ? (PRICE_ZONE_NAME[country] ?? country) : country;
+  return `${text} (${suffix})`;
 }
 
 /** Códigos base que ofrece el filtro "Le falta…" del listado. */
@@ -193,9 +240,26 @@ export const HEALTH_ISSUE_BASES: string[] = Object.keys(HEALTH_ISSUE_META);
 /** Reglas que se evalúan por país (llegan como `<base>:<CC>`). */
 export const COUNTRY_SCOPED_ISSUES = new Set(['no_public_price', 'zero_price', 'price_incoherent', 'suspicious_low_price']);
 
-/** Código completo de una regla para el país elegido. */
-export const issueCodeFor = (base: string, country: StoreCountryCode): string =>
-  COUNTRY_SCOPED_ISSUES.has(base) ? `${base}:${country}` : base;
+/** Reglas que se evalúan por ZONA de precio del país (llegan como `<base>:<ZONA>`, p. ej. `zone_price_missing:FN`). */
+export const ZONE_SCOPED_ISSUES = new Set(['zone_price_missing']);
+
+/** `false` = la regla no aplica en ese país (regla de zona en un país sin zonas): ni filtro ni tarjeta. */
+export const issueAppliesTo = (base: string, country: StoreCountryCode): boolean =>
+  !ZONE_SCOPED_ISSUES.has(base) || priceZonesOf(country).length > 0;
+
+/** Códigos base que ofrece el filtro "Le falta…" para el país elegido. */
+export const healthIssueBasesFor = (country: StoreCountryCode): string[] =>
+  HEALTH_ISSUE_BASES.filter((base) => issueAppliesTo(base, country));
+
+/** Código completo de una regla para el país elegido (regla de zona: la zona de ese país). */
+export function issueCodeFor(base: string, country: StoreCountryCode): string {
+  if (COUNTRY_SCOPED_ISSUES.has(base)) return `${base}:${country}`;
+  if (ZONE_SCOPED_ISSUES.has(base)) {
+    const [zone] = priceZonesOf(country);
+    return zone ? `${base}:${zone}` : base;
+  }
+  return base;
+}
 
 export function scoreTone(score: number | null): 'good' | 'warn' | 'bad' | 'none' {
   if (score === null) return 'none';

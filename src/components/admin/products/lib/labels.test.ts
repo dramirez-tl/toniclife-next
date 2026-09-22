@@ -25,9 +25,16 @@ import {
   PRODUCTS_TAB_TYPES,
   SELLABLE_TYPES,
   STOREFRONT_REASON_LABEL,
+  ZONE_SCOPED_ISSUES,
+  healthIssueBasesFor,
   healthIssueLabel,
   healthIssueMeta,
+  issueAppliesTo,
   issueCodeFor,
+  isPriceZone,
+  priceCountryLabel,
+  priceZoneStoreName,
+  priceZonesOf,
 } from './labels';
 
 // --- catalog-admin.dto.ts:42-49 ---
@@ -69,7 +76,10 @@ const API_HEALTH_RULE_CODES = [
   'duplicate_name',
   'components_missing',
   'visible_not_sellable_type',
+  'zone_price_missing',
 ];
+// --- catalog-health.lib.ts (reglas por ZONA de precio: llegan como <regla>:<ZONA>, hoy solo FN) ---
+const API_PER_ZONE_RULES = ['zone_price_missing'];
 // --- catalog-health.lib.ts (reglas con perCountry: true) ---
 const API_PER_COUNTRY_RULES = ['no_public_price', 'zero_price', 'price_incoherent', 'suspicious_low_price'];
 // --- storefront-status.lib.ts (StorefrontBlockReason) ---
@@ -148,11 +158,45 @@ describe('incidencias de salud ("Le falta…")', () => {
     expect(healthIssueMeta('suspicious_low_price:MX').section).toBe('precios');
   });
 
+  it('la regla de zona se manda como <regla>:<ZONA> solo en el país con zonas (MX → FN) y se muestra con el nombre de la zona', () => {
+    expect(Array.from(ZONE_SCOPED_ISSUES).sort()).toEqual([...API_PER_ZONE_RULES].sort());
+    for (const base of ZONE_SCOPED_ISSUES) expect(COUNTRY_SCOPED_ISSUES.has(base)).toBe(false);
+    expect(priceZonesOf('MX')).toEqual(['FN']);
+    expect(priceZonesOf('US')).toEqual([]);
+    expect(issueCodeFor('zone_price_missing', 'MX')).toBe('zone_price_missing:FN');
+    expect(issueAppliesTo('zone_price_missing', 'MX')).toBe(true);
+    expect(issueAppliesTo('zone_price_missing', 'US')).toBe(false);
+    expect(issueAppliesTo('no_image', 'US')).toBe(true);
+    // El filtro "Le falta…" ofrece la regla de zona solo en México; el resto de reglas en todos.
+    expect(healthIssueBasesFor('MX')).toEqual(HEALTH_ISSUE_BASES);
+    expect(healthIssueBasesFor('US')).toEqual(HEALTH_ISSUE_BASES.filter((b) => b !== 'zone_price_missing'));
+    expect(healthIssueLabel('zone_price_missing:FN')).toBe('Sin precio de zona (Frontera MX-USA)');
+    expect(healthIssueLabel('zone_price_missing:FN', true)).toBe('Precio de zona (Frontera MX-USA)');
+    expect(healthIssueLabel('zone_price_missing')).toBe('Sin precio de zona');
+    expect(healthIssueMeta('zone_price_missing:FN').section).toBe('precios');
+    // Una regla por país sigue mostrando el ISO2 tal cual.
+    expect(healthIssueLabel('no_public_price:MX')).toBe('Sin precio público (MX)');
+  });
+
   it('marcar TODAS las incidencias cabe en los límites del DTO', () => {
     expect(HEALTH_ISSUE_BASES.length).toBeLessThanOrEqual(API_ISSUE_MAX_ITEMS);
     for (const base of HEALTH_ISSUE_BASES) {
       expect(issueCodeFor(base, 'MX').length).toBeLessThanOrEqual(API_ISSUE_MAX_LENGTH);
     }
+  });
+});
+
+describe('captura de precios: zonas de precio', () => {
+  it('Frontera MX-USA se rotula como zona de México; un país normal conserva su nombre', () => {
+    expect(isPriceZone('FN')).toBe(true);
+    expect(isPriceZone('fn')).toBe(true);
+    expect(isPriceZone('MX')).toBe(false);
+    expect(isPriceZone(null)).toBe(false);
+    expect(priceCountryLabel({ code: 'FN', name: 'Frontera MX-USA' })).toBe('Frontera MX-USA (zona de México)');
+    expect(priceCountryLabel({ code: 'MX', name: 'Mexico' })).toBe('Mexico');
+    expect(priceCountryLabel({ code: 'US', name: 'Estados Unidos' })).toBe('Estados Unidos');
+    expect(priceZoneStoreName('FN')).toBe('México');
+    expect(priceZoneStoreName('US')).toBeNull();
   });
 });
 
@@ -167,6 +211,14 @@ const HAS_API_REPO = [API_DTO_PATH, API_HEALTH_LIB_PATH, API_HEALTH_SERVICE_PATH
 );
 
 const quoted = (text: string): string[] => Array.from(text.matchAll(/'([^']+)'/g)).map((m) => m[1]);
+
+// La regla de zona (`zone_price_missing:<ZONA>`) la agrega el API en un cambio
+// aparte: mientras su HealthRuleCode no la tenga, la copia se compara SIN ella y
+// el bloque estricto de abajo queda omitido (visible en la salida, no en silencio).
+const API_HAS_ZONE_RULE = HAS_API_REPO && readFileSync(API_HEALTH_LIB_PATH, 'utf8').includes("'zone_price_missing'");
+const API_HEALTH_RULE_CODES_LANDED = API_HAS_ZONE_RULE
+  ? API_HEALTH_RULE_CODES
+  : API_HEALTH_RULE_CODES.filter((code) => !API_PER_ZONE_RULES.includes(code));
 
 function readConstList(source: string, name: string): string[] {
   const start = source.indexOf(`export const ${name} = [`);
@@ -206,13 +258,21 @@ describe.skipIf(!HAS_API_REPO)('copias literales vs archivos reales del API', ()
   it('HealthRuleCode y las reglas perCountry no envejecieron', () => {
     const source = readFileSync(API_HEALTH_LIB_PATH, 'utf8');
     const codes = readUnionType(source, 'HealthRuleCode');
-    expect(codes).toEqual(API_HEALTH_RULE_CODES);
+    expect(codes).toEqual(API_HEALTH_RULE_CODES_LANDED);
     const perCountry = readPerCountryRules(source);
     expect(perCountry.length).toBeGreaterThan(0);
     expect([...perCountry].sort()).toEqual([...API_PER_COUNTRY_RULES].sort());
-    // El front y el API hablan de las mismas reglas, sin intermediarios.
-    expect([...HEALTH_ISSUE_BASES].sort()).toEqual([...codes].sort());
+    // El front y el API hablan de las mismas reglas, sin intermediarios (la de zona, cuando el API la tenga).
+    expect([...HEALTH_ISSUE_BASES].filter((b) => API_HAS_ZONE_RULE || !ZONE_SCOPED_ISSUES.has(b)).sort()).toEqual([...codes].sort());
     expect(Array.from(COUNTRY_SCOPED_ISSUES).sort()).toEqual([...perCountry].sort());
+  });
+
+  it.skipIf(!API_HAS_ZONE_RULE)('la regla de zona ya está en el API: copia exacta y NO es una regla por país', () => {
+    const source = readFileSync(API_HEALTH_LIB_PATH, 'utf8');
+    const codes = readUnionType(source, 'HealthRuleCode');
+    expect(codes).toEqual(API_HEALTH_RULE_CODES);
+    expect([...HEALTH_ISSUE_BASES].sort()).toEqual([...codes].sort());
+    for (const zoneRule of API_PER_ZONE_RULES) expect(readPerCountryRules(source)).not.toContain(zoneRule);
   });
 
   it('la etiqueta de suspicious_low_price es la del CSV de salud del API', () => {

@@ -67,8 +67,10 @@ import {
   STORE_COUNTRY_CURRENCY,
   STORE_COUNTRY_NAME,
   STOREFRONT_REASON_LABEL,
+  healthIssueBasesFor,
   healthIssueLabel,
   healthIssueMeta,
+  issueAppliesTo,
   issueCodeFor,
   productTypeLabel,
   scoreTone,
@@ -126,7 +128,11 @@ export function ProductosTab() {
   const precio = get('precio');
   const imagen = get('imagen');
   const falta = get('falta');
-  const missing = useMemo(() => (falta ? falta.split(',').filter((b) => HEALTH_ISSUE_BASES.includes(b)) : []), [falta]);
+  // Una regla de zona (Frontera) solo aplica en el país con zonas: en otro país se descarta del filtro.
+  const missing = useMemo(
+    () => (falta ? falta.split(',').filter((b) => HEALTH_ISSUE_BASES.includes(b) && issueAppliesTo(b, country)) : []),
+    [country, falta],
+  );
   const orden = get('orden');
   const dir = get('dir') === 'desc' ? 'desc' : 'asc';
   const currentPage = getNumber('page') || 1;
@@ -784,7 +790,7 @@ export function ProductosTab() {
                     <fieldset>
                       <legend className="mb-2 text-sm font-semibold text-gray-900">Productos a los que les falta…</legend>
                       <ul className="space-y-1">
-                        {HEALTH_ISSUE_BASES.map((base) => {
+                        {healthIssueBasesFor(country).map((base) => {
                           const checkboxId = `${ids}-falta-${base}`;
                           return (
                             <li key={base} className="flex min-h-9 items-center gap-2">
