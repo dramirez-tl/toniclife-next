@@ -3,20 +3,27 @@
 // (9) Componentes — kits y paquetes usan el compositor compartido; las
 // promociones se componen (global o por país) en su propio módulo.
 //
-// Para kits/paquetes se agrega, SOLO LECTURA, la existencia de cada componente
-// en la sucursal elegida (misma elección que Inventario › Disponibilidad) y el
-// encabezado "Con esta receta hoy se pueden vender N en {sucursal}" (contrato
-// kits §5.2). Fuente: GET /products/:id/kit-availability?branchId=. Si el
-// servidor aún no lo expone (404) el selector no aparece.
+// Para kits/paquetes (contrato kits §5.2) se agrega, SOLO LECTURA:
+//  - estado y existencia TOTAL de cada componente y el aviso de precio por país
+//    (GET /products/:id/kit-availability sin sucursal);
+//  - la existencia en la sucursal elegida (misma elección que Inventario ›
+//    Disponibilidad) y el encabezado "Con esta receta hoy se pueden vender N";
+//  - el candado "Hay N ventas/pedidos sin cobrar" (GET /products/:id/kit-readiness).
+// La ficha edita la receta GLOBAL (`?countryId=global`), que es la que reemplaza
+// PUT components/bulk. Si el servidor aún no expone la disponibilidad (404) el
+// selector de sucursal no aparece.
 
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { useActiveBranches } from '@/hooks/useBranches';
+import { useKitReadiness } from '@/hooks/useKitAdmin';
 import { useKitAvailability } from '@/hooks/useKitAvailability';
+import { resolveStockMode } from '@/lib/kits/kit-availability';
 import { useKitBranchChoice } from '@/stores/kit-branch-choice.store';
 import {
   ProductComponentsSection,
+  type ComponentInfo,
   type ComponentsSectionController,
   type ComponentsStockContext,
 } from '../../ProductComponentsSection';
@@ -24,7 +31,7 @@ import { useProductForm } from '../ProductFormContext';
 import { SectionCard } from '../SectionCard';
 
 export function ComponentsSection() {
-  const { productId, product, readOnly, notifyWrite, registerSection, setSectionDirty } = useProductForm();
+  const { productId, product, readOnly, notifyWrite, registerSection, setSectionDirty, goToSection } = useProductForm();
   const unregister = useRef<(() => void) | null>(null);
 
   const bind = useCallback<ComponentsSectionController['bind']>(
@@ -47,7 +54,9 @@ export function ComponentsSection() {
   );
 
   // ---------- Existencias por sucursal (kits y paquetes) ----------
-  const isKitOrPack = product?.productType === 'kit' || product?.productType === 'pack';
+  const productType = product?.productType === 'kit' || product?.productType === 'pack' ? product.productType : null;
+  const isKitOrPack = productType !== null;
+  const stockMode = product ? resolveStockMode(product) : null;
   const branchId = useKitBranchChoice((s) => s.branchId);
   const setBranchId = useKitBranchChoice((s) => s.setBranchId);
   const { data: branches = [] } = useActiveBranches();
@@ -55,6 +64,7 @@ export function ComponentsSection() {
   const probe = useKitAvailability(productId, undefined, isKitOrPack);
   const supported = isKitOrPack && probe.data !== null && !probe.isError;
   const branchQuery = useKitAvailability(productId, branchId || undefined, supported && !!branchId);
+  const readiness = useKitReadiness(productId, isKitOrPack);
 
   const branchOptions = useMemo(
     () =>
@@ -73,6 +83,16 @@ export function ComponentsSection() {
     }
     return { branchName, byComponent, loading: branchQuery.isLoading };
   }, [supported, branchId, branchQuery.data, branchQuery.isLoading, branchName]);
+
+  // Estado y existencia total por componente (detalle sin sucursal = suma del universo del kit).
+  const componentInfo = useMemo<Map<string, ComponentInfo> | undefined>(() => {
+    if (!supported) return undefined;
+    const map = new Map<string, ComponentInfo>();
+    for (const c of probe.data?.components ?? []) {
+      if (c.productId) map.set(c.productId, { isActive: c.isActive, totalAvailable: c.available, hasPriceInKitCountries: c.hasPriceInKitCountries });
+    }
+    return map;
+  }, [supported, probe.data]);
 
   if (product?.productType === 'promotional') {
     return (
@@ -106,7 +126,7 @@ export function ComponentsSection() {
         aria-describedby={`components-branch-help-${productId}`}
       />
       <p id={`components-branch-help-${productId}`} className="text-xs text-gray-500">
-        Solo lectura: cuánto hay hoy de cada componente ahí y cuántos {product?.productType === 'kit' ? 'kits' : 'paquetes'} salen con esta receta.
+        Solo lectura: cuánto hay hoy de cada componente ahí y cuántos {productType === 'kit' ? 'kits' : 'paquetes'} salen con esta receta.
       </p>
     </div>
   ) : undefined;
@@ -114,13 +134,18 @@ export function ComponentsSection() {
   return (
     <ProductComponentsSection
       productId={productId}
-      deductsInventory={product?.kitDeductsInventory ?? false}
-      noun={product?.productType === 'kit' ? 'kit' : 'paquete'}
+      stockMode={stockMode}
+      productType={productType ?? undefined}
+      noun={productType === 'kit' ? 'kit' : 'paquete'}
       readOnly={readOnly}
       controller={controller}
       onSaved={notifyWrite}
       toolbar={toolbar}
       stockContext={stockContext}
+      componentInfo={componentInfo}
+      recipeLock={readiness.data?.recipeLock ?? null}
+      onGoToKit={() => goToSection('kit')}
+      scope={isKitOrPack ? 'global' : 'all'}
     />
   );
 }

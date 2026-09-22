@@ -1,18 +1,24 @@
 'use client';
 
-// Compositor de componentes (BoM) de un producto — compartido entre el editor
-// de kits (/admin/kits/[id]) y la ficha de producto (paquetes). Guarda con
-// reemplazo atómico PUT /products/:id/components/bulk (alcance GLOBAL; las
-// promos editan por país en /admin/promociones/[id]).
+// Compositor de componentes (receta) de un kit/paquete en la ficha de producto
+// (contrato de kits §5.2, sección Componentes). Guarda con reemplazo atómico
+// PUT /products/:id/components/bulk (alcance GLOBAL; las promos editan por país
+// en /admin/promociones/[id]).
 //
-// - La búsqueda solo consulta con 2+ caracteres y 300 ms de retraso (antes
-//   disparaba GET /products?limit=0 → 400 al montar).
-// - "Guardar composición" solo se habilita si hay cambios.
+// - Por renglón: estado del componente (Inactivo en rojo), existencia total y
+//   en la sucursal elegida, aviso "no tiene precio en un país donde el kit sí".
+// - Reordenar con ▲▼ (sort_order = posición al guardar), cantidades con coma
+//   decimal, "Copiar receta de otro kit…" (reemplaza y guarda).
+// - Banner "Hay N ventas/pedidos sin cobrar con este kit" (candado de la receta:
+//   el API responde 409 KIT_RECIPE_LOCKED) y encabezado "Con esta receta hoy se
+//   pueden vender N en {sucursal}".
+// - 422 KIT_COMPONENT_INVALID: la razón del API se marca en cada renglón.
+// - La búsqueda solo consulta con 2+ caracteres y 300 ms de retraso.
 // - `controller` (opcional) permite a la ficha enterarse de los cambios sin
 //   guardar y dispararlos desde "Guardar todo".
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Check, Loader2, Plus, Search, Trash2, TriangleAlert } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Copy, Loader2, Plus, Search, Trash2, TriangleAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,12 +29,18 @@ import { useProducts } from '@/hooks/useProducts';
 import { ProductType } from '@/types/product';
 import type { Product } from '@/types/product';
 import type { BulkComponentItem } from '@/types/kit';
-import { fmt, recipeHeadline, recipeSellableAt } from '@/lib/kits/kit-availability';
-import { productAdminErrorMessage } from './lib/errors';
+import type { KitComponentsScope } from '@/services/kits.service';
+import { fmt, recipeHeadline, recipeSellableAt, type KitStockMode } from '@/lib/kits/kit-availability';
+import { componentInvalidRows, formatQuantity, isValidQuantity, moveRow, parseQuantity } from '@/lib/kits/kit-editor';
+import { recipeLockSentence } from '@/lib/kits/kit-readiness';
+import { CopyRecipeDialog } from './CopyRecipeDialog';
+import { parseProductAdminError, productAdminErrorMessage } from './lib/errors';
 
 type CompRow = BulkComponentItem & {
   productName: string;
   productCode: string;
+  /** Texto tal como lo teclea la persona (acepta coma decimal). */
+  quantityText: string;
 };
 
 export interface ComponentsSectionController {
@@ -44,11 +56,21 @@ export interface ComponentsStockContext {
   loading?: boolean;
 }
 
+/** Estado y existencia TOTAL de cada componente (detalle de disponibilidad sin sucursal). */
+export interface ComponentInfo {
+  isActive: boolean;
+  /** Suma de disponible en las sucursales del universo del kit. */
+  totalAvailable: number;
+  /** `false` = sin precio vigente en un país donde el kit sí tiene precio. */
+  hasPriceInKitCountries: boolean | null;
+}
+
 interface ProductComponentsSectionProps {
   productId: string;
-  /** TRUE cuando el producto descuenta inventario de componentes al venderse
-   *  (kit/paquete dinámico) — activa el aviso de BoM vacío. */
-  deductsInventory?: boolean;
+  /** Cómo se surte (kit/paquete); `null` = otro tipo de producto. */
+  stockMode?: KitStockMode | null;
+  /** Tipo para el buscador de "Copiar receta de otro kit…". */
+  productType?: 'kit' | 'pack';
   /** Sustantivo para los textos ("kit" | "paquete"). Default: "producto". */
   noun?: string;
   readOnly?: boolean;
@@ -58,24 +80,51 @@ interface ProductComponentsSectionProps {
   toolbar?: ReactNode;
   /** Con esto cada renglón muestra cuánto hay del componente y el encabezado cuántos kits salen. */
   stockContext?: ComponentsStockContext;
+  /** Por `componentProductId`: estado, existencia total y precio por país. */
+  componentInfo?: Map<string, ComponentInfo>;
+  /** Ventas POS / pedidos sin cobrar con el kit (readiness.recipeLock). */
+  recipeLock?: { pendingSales: number; pendingOrders: number } | null;
+  /** Ir a la sección Kit (cambiar cómo se surte). */
+  onGoToKit?: () => void;
+  /** `global` = solo la receta global (ficha del kit). Default: todos los renglones. */
+  scope?: KitComponentsScope;
 }
 
 const sameRows = (a: CompRow[], b: CompRow[]): boolean =>
   a.length === b.length &&
   a.every((row, i) => row.componentProductId === b[i].componentProductId && row.quantity === b[i].quantity);
 
+const rowIsInvalid = (row: CompRow): boolean => !isValidQuantity(row.quantity);
+
+/** `warnings: string[]` que cada renglón guardado puede traer (sin repetidos). */
+function responseWarnings(saved: unknown): string[] {
+  const out = new Set<string>();
+  if (!Array.isArray(saved)) return [];
+  for (const row of saved) {
+    const raw = typeof row === 'object' && row !== null ? (row as { warnings?: unknown }).warnings : undefined;
+    if (!Array.isArray(raw)) continue;
+    for (const w of raw) if (typeof w === 'string' && w.length > 0) out.add(w);
+  }
+  return Array.from(out);
+}
+
 export function ProductComponentsSection({
   productId,
-  deductsInventory = false,
+  stockMode = null,
+  productType,
   noun = 'producto',
   readOnly = false,
   controller,
   onSaved,
   toolbar,
   stockContext,
+  componentInfo,
+  recipeLock,
+  onGoToKit,
+  scope = 'all',
 }: ProductComponentsSectionProps) {
   const searchId = useId();
-  const { data: components, isLoading: compsLoading } = useKitComponents(productId);
+  const { data: components, isLoading: compsLoading } = useKitComponents(productId, scope);
   const replaceComponents = useReplaceKitComponents(productId);
 
   const serverRows = useMemo<CompRow[]>(
@@ -85,6 +134,7 @@ export function ProductComponentsSection({
         productName: c.componentProductName ?? '',
         productCode: c.componentProductCode ?? '',
         quantity: Number(c.quantity),
+        quantityText: formatQuantity(Number(c.quantity)),
         sortOrder: c.sortOrder,
       })),
     [components],
@@ -94,7 +144,15 @@ export function ProductComponentsSection({
   const [draft, setDraft] = useState<CompRow[] | null>(null);
   const rows = draft ?? serverRows;
   const isDirty = draft !== null && !sameRows(draft, serverRows);
-  const hasInvalidQty = rows.some((r) => !Number.isFinite(r.quantity) || r.quantity <= 0);
+  const hasInvalidQty = rows.some(rowIsInvalid);
+  // Razón por renglón del último 422 KIT_COMPONENT_INVALID (se limpia al editar).
+  const [rowErrors, setRowErrors] = useState<Map<string, string>>(new Map());
+  const [copyOpen, setCopyOpen] = useState(false);
+
+  const setRows = (next: CompRow[]) => {
+    setDraft(next);
+    if (rowErrors.size > 0) setRowErrors(new Map());
+  };
 
   const [productSearch, setProductSearch] = useState('');
   const [term, setTerm] = useState('');
@@ -118,26 +176,34 @@ export function ProductComponentsSection({
       toast.warning(`Ese producto ya está en el ${noun}`);
       return;
     }
-    setDraft([
+    setRows([
       ...rows,
-      { componentProductId: p.id, productName: p.name, productCode: p.code, quantity: 1, sortOrder: rows.length },
+      { componentProductId: p.id, productName: p.name, productCode: p.code, quantity: 1, quantityText: '1', sortOrder: rows.length },
     ]);
     setProductSearch('');
   };
 
-  const removeRow = (pid: string) => setDraft(rows.filter((r) => r.componentProductId !== pid));
+  const removeRow = (pid: string) => setRows(rows.filter((r) => r.componentProductId !== pid));
 
-  const updateQty = (pid: string, qty: number) =>
-    setDraft(rows.map((r) => (r.componentProductId === pid ? { ...r, quantity: qty } : r)));
+  const updateQty = (pid: string, text: string) =>
+    setRows(
+      rows.map((r) => {
+        if (r.componentProductId !== pid) return r;
+        const parsed = parseQuantity(text);
+        return { ...r, quantityText: text, quantity: parsed === null ? NaN : parsed };
+      }),
+    );
+
+  const move = (index: number, direction: -1 | 1) => setRows(moveRow(rows, index, direction));
 
   const handleSave = useCallback(async (): Promise<boolean> => {
     if (!isDirty) return true;
     if (hasInvalidQty) {
-      toast.error('Todas las cantidades deben ser mayores a cero');
+      toast.error('Todas las cantidades deben ser mayores a cero (acepta coma o punto decimal)');
       return false;
     }
     try {
-      await replaceComponents.mutateAsync({
+      const saved = await replaceComponents.mutateAsync({
         components: rows.map((r, i) => ({
           componentProductId: r.componentProductId,
           quantity: r.quantity,
@@ -145,16 +211,31 @@ export function ProductComponentsSection({
         })),
       });
       setDraft(null);
+      setRowErrors(new Map());
       toast.success('Composición guardada');
+      // Avisos no bloqueantes del API (p. ej. componente sin precio en un país del kit).
+      for (const w of responseWarnings(saved)) toast.warning(w);
       onSaved?.();
       return true;
     } catch (err) {
+      const body = parseProductAdminError(err);
+      if (body.code === 'KIT_COMPONENT_INVALID') {
+        const byRow = new Map<string, string>();
+        for (const r of componentInvalidRows(body.details)) {
+          const key = r.componentProductId || rows.find((x) => x.productCode === r.code)?.componentProductId || '';
+          if (key) byRow.set(key, r.label);
+        }
+        setRowErrors(byRow);
+      }
       toast.error(productAdminErrorMessage(err, 'No se pudieron guardar los componentes'));
       return false;
     }
   }, [hasInvalidQty, isDirty, onSaved, replaceComponents, rows]);
 
-  const discard = useCallback(() => setDraft(null), []);
+  const discard = useCallback(() => {
+    setDraft(null);
+    setRowErrors(new Map());
+  }, []);
 
   // Enlace opcional con la ficha (cambios sin guardar + "Guardar todo").
   const handlers = useRef({ handleSave, discard });
@@ -179,6 +260,10 @@ export function ProductComponentsSection({
     [stockContext, rows, compsLoading],
   );
 
+  const lockSentence = recipeLock ? recipeLockSentence(recipeLock) : null;
+  const assembles = stockMode === 'assemble_on_sale';
+  const canEdit = !readOnly;
+
   return (
     <Card className="p-0">
       <CardContent className="space-y-4 p-4 sm:p-6">
@@ -192,8 +277,14 @@ export function ProductComponentsSection({
               </span>
             ) : null}
           </h2>
-          {!readOnly ? (
-            <div className="flex items-center gap-2">
+          {canEdit ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {productType ? (
+                <Button type="button" variant="outline" size="sm" onClick={() => setCopyOpen(true)} disabled={replaceComponents.isPending || compsLoading}>
+                  <Copy className="mr-2 h-4 w-4" aria-hidden />
+                  Copiar receta de otro {productType === 'pack' ? 'paquete' : 'kit'}…
+                </Button>
+              ) : null}
               <Button type="button" variant="ghost" size="sm" onClick={discard} disabled={!isDirty || replaceComponents.isPending}>
                 Descartar
               </Button>
@@ -215,6 +306,15 @@ export function ProductComponentsSection({
           ) : null}
         </div>
 
+        {lockSentence ? (
+          <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">
+            <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
+            <p>
+              <strong>{lockSentence}</strong> Los cambios a la receta se rechazan hasta que se cobren o se cancelen.
+            </p>
+          </div>
+        ) : null}
+
         {toolbar ? <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">{toolbar}</div> : null}
 
         {stockContext && rows.length > 0 ? (
@@ -231,30 +331,36 @@ export function ProductComponentsSection({
           </p>
         ) : null}
 
-        {deductsInventory && !compsLoading && rows.length === 0 && (
+        {assembles && !compsLoading && rows.length === 0 ? (
           <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
             <p>
-              Este {noun} está configurado para <strong>descontar inventario de componentes</strong>,
-              pero no tiene componentes cargados: las ventas NO descontarán inventario hasta que
-              agregues su composición aquí.
+              Este {noun} <strong>se arma al vender</strong> y no tiene receta: no se puede vender hasta que agregues sus
+              componentes. Si está activo, el sistema tampoco dejará guardarlo sin receta.
             </p>
           </div>
-        )}
+        ) : null}
 
-        {!deductsInventory && !compsLoading && rows.length > 0 && (
+        {stockMode === 'prebuilt' && !compsLoading && rows.length > 0 ? (
           <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             <TriangleAlert className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
             <p>
-              Este {noun} tiene componentes pero <strong>NO está marcado para descontar inventario de
-              componentes</strong> (según lo último guardado): el POS validará y descontará el stock del{' '}
-              {noun} mismo y marcará «Stock insuficiente» si esa fila está en cero. Si debe armarse al
-              vender, activa «Descuenta inventario de sus componentes» en los datos del producto.
+              Este {noun} es <strong>prearmado</strong>: la receta es informativa, el POS descuenta la pieza propia del {noun}.
+              {onGoToKit ? (
+                <>
+                  {' '}
+                  Si debe armarse al vender, cámbialo en{' '}
+                  <button type="button" className="font-medium underline" onClick={onGoToKit}>
+                    la sección {noun === 'paquete' ? 'Paquete' : 'Kit'}
+                  </button>
+                  .
+                </>
+              ) : null}
             </p>
           </div>
-        )}
+        ) : null}
 
-        {!readOnly ? (
+        {canEdit ? (
           <div className="relative">
             <Label htmlFor={searchId} className="sr-only">
               Buscar producto para agregarlo como componente
@@ -311,33 +417,75 @@ export function ProductComponentsSection({
         ) : rows.length === 0 ? (
           <div className="rounded-lg border-2 border-dashed py-10 text-center text-gray-700">
             <p className="text-sm">
-              No hay componentes.{readOnly ? '' : ` Busca productos arriba para agregarlos al ${noun}.`}
+              No hay componentes.{canEdit ? ` Busca productos arriba para agregarlos al ${noun}.` : ''}
             </p>
           </div>
         ) : (
-          <ul className="space-y-2">
-            {rows.map((row) => {
+          <ol className="space-y-2">
+            {rows.map((row, index) => {
               const qtyId = `${searchId}-qty-${row.componentProductId}`;
-              const invalid = !Number.isFinite(row.quantity) || row.quantity <= 0;
+              const invalid = rowIsInvalid(row);
+              const apiError = rowErrors.get(row.componentProductId);
+              const info = componentInfo?.get(row.componentProductId);
               const stock = stockContext && !stockContext.loading ? stockContext.byComponent.get(row.componentProductId) : undefined;
+              const inactive = info?.isActive === false || stock?.isActive === false;
+              const noPrice = info?.hasPriceInKitCountries === false;
               const qtyForStock = invalid ? 1 : row.quantity;
               const short = stock ? stock.available < qtyForStock : false;
               const limitsRecipe = recipeStock?.limiting?.componentProductId === row.componentProductId && rows.length > 1;
+              const problem = short || inactive || !!apiError;
               return (
                 <li
                   key={row.componentProductId}
-                  className={`flex flex-wrap items-center gap-3 rounded-md border p-3 ${
-                    short || (stock && !stock.isActive) ? 'border-red-200 bg-red-50/40' : 'border-gray-200'
-                  }`}
+                  className={`flex flex-wrap items-center gap-3 rounded-md border p-3 ${problem ? 'border-red-200 bg-red-50/40' : 'border-gray-200'}`}
                 >
+                  {canEdit ? (
+                    <div className="flex flex-col">
+                      <button
+                        type="button"
+                        onClick={() => move(index, -1)}
+                        disabled={index === 0}
+                        className="rounded p-0.5 text-gray-600 hover:bg-gray-100 disabled:opacity-30"
+                        aria-label={`Subir ${row.productName}`}
+                      >
+                        <ChevronUp className="h-4 w-4" aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => move(index, 1)}
+                        disabled={index === rows.length - 1}
+                        className="rounded p-0.5 text-gray-600 hover:bg-gray-100 disabled:opacity-30"
+                        aria-label={`Bajar ${row.productName}`}
+                      >
+                        <ChevronDown className="h-4 w-4" aria-hidden />
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="w-6 text-center font-mono text-xs text-gray-500">{index + 1}</span>
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-gray-900">
                       {row.productName}
-                      {stock && !stock.isActive ? (
+                      {inactive ? (
                         <span className="ml-2 rounded-full bg-red-100 px-1.5 py-0.5 text-[11px] font-medium text-red-800">Inactivo</span>
                       ) : null}
                     </p>
                     <p className="font-mono text-xs text-gray-600">{row.productCode}</p>
+                    {apiError ? (
+                      <p className="mt-1 text-xs font-medium text-red-700" role="alert">
+                        {row.productCode}: {apiError}
+                      </p>
+                    ) : null}
+                    {noPrice ? (
+                      <p className="mt-1 text-xs text-amber-800">
+                        Este componente no tiene precio en un país donde el {noun} sí lo tiene.
+                      </p>
+                    ) : null}
+                    {info ? (
+                      <p className="mt-1 text-xs text-gray-700">
+                        Existencia total: <span className="font-semibold">{fmt(info.totalAvailable)}</span>
+                      </p>
+                    ) : null}
                     {stockContext ? (
                       <p className="mt-1 text-xs text-gray-700">
                         {stockContext.loading ? (
@@ -370,21 +518,26 @@ export function ProductComponentsSection({
                     </Label>
                     <Input
                       id={qtyId}
-                      type="number"
+                      type="text"
                       inputMode="decimal"
-                      min={0.0001}
-                      step={0.0001}
-                      value={Number.isFinite(row.quantity) ? row.quantity : ''}
-                      disabled={readOnly}
+                      value={row.quantityText}
+                      disabled={!canEdit}
                       aria-invalid={invalid}
-                      onChange={(e) => updateQty(row.componentProductId, Number(e.target.value))}
+                      aria-describedby={invalid ? `${qtyId}-error` : undefined}
+                      onChange={(e) => updateQty(row.componentProductId, e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') e.preventDefault();
                       }}
                       className="h-9 w-24 text-right"
+                      autoComplete="off"
                     />
+                    {invalid ? (
+                      <span id={`${qtyId}-error`} className="text-xs font-medium text-red-700" role="alert">
+                        Mayor a 0
+                      </span>
+                    ) : null}
                   </div>
-                  {!readOnly ? (
+                  {canEdit ? (
                     <Button
                       type="button"
                       variant="ghost"
@@ -399,14 +552,30 @@ export function ProductComponentsSection({
                 </li>
               );
             })}
-          </ul>
+          </ol>
         )}
 
         <p className="border-t pt-3 text-xs text-gray-600">
-          Con «descontar inventario» activo, al vender el {noun} se descuenta stock de cada producto
-          listado aquí.
+          {assembles
+            ? `Al cobrar el ${noun} se descuenta de cada componente la cantidad indicada; si falta uno solo, el ${noun} no se puede vender.`
+            : `La cantidad es cuántas piezas de cada componente lleva un ${noun}. Se acepta coma o punto decimal.`}
         </p>
       </CardContent>
+
+      {productType ? (
+        <CopyRecipeDialog
+          productId={productId}
+          productType={productType}
+          currentRows={rows.length}
+          open={copyOpen}
+          onOpenChange={setCopyOpen}
+          onCopied={() => {
+            setDraft(null);
+            setRowErrors(new Map());
+            onSaved?.();
+          }}
+        />
+      ) : null}
     </Card>
   );
 }
