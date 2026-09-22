@@ -77,6 +77,9 @@ const API_HEALTH_RULE_CODES = [
   'components_missing',
   'visible_not_sellable_type',
   'zone_price_missing',
+  'kit_recipe_empty',
+  'kit_no_position',
+  'kit_phantom_own_stock',
 ];
 // --- catalog-health.lib.ts (reglas por ZONA de precio: llegan como <regla>:<ZONA>, hoy solo FN) ---
 const API_PER_ZONE_RULES = ['zone_price_missing'];
@@ -93,8 +96,8 @@ const API_STOREFRONT_REASONS = [
   'out_of_stock',
   'country_not_ready',
 ];
-// --- catalog-admin.dto.ts: `issue` admite a lo más 20 valores de <= 40 caracteres ---
-const API_ISSUE_MAX_ITEMS = 20;
+// --- catalog-admin.dto.ts: `issue` admite a lo más 30 valores de <= 40 caracteres ---
+const API_ISSUE_MAX_ITEMS = 30;
 const API_ISSUE_MAX_LENGTH = 40;
 
 describe('tipos de producto que manda el admin', () => {

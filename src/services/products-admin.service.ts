@@ -51,7 +51,10 @@ export type HealthIssueBase =
   | 'name_untrimmed'
   | 'duplicate_name'
   | 'components_missing'
-  | 'visible_not_sellable_type';
+  | 'visible_not_sellable_type'
+  | 'kit_recipe_empty'
+  | 'kit_no_position'
+  | 'kit_phantom_own_stock';
 
 export interface HealthIssueCount {
   code: string;

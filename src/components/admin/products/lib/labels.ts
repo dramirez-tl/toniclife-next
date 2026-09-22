@@ -211,6 +211,10 @@ const HEALTH_ISSUE_META: Record<string, HealthIssueMeta> = {
   // país (`zone_price_missing:FN`): la cuenta de zona lo paga con el precio de
   // respaldo y sin puntos. Se corrige capturando la fila de la zona en Precios.
   zone_price_missing: { label: 'Sin precio de zona', short: 'Precio de zona', section: 'precios' },
+  // Reglas de kits (contrato de kits: catalog-health.lib.ts del API).
+  kit_recipe_empty: { label: 'Kit activo que se arma sin receta', short: 'Sin receta', section: 'componentes' },
+  kit_no_position: { label: 'Kit de inscripción sin posición', short: 'Sin posición', section: 'basica' },
+  kit_phantom_own_stock: { label: 'Existencia propia que ninguna venta usa', short: 'Existencia fantasma', section: 'inventario' },
 };
 
 /** `no_public_price:MX` → { base: 'no_public_price', country: 'MX' } (en reglas de zona el sufijo es la zona: `FN`). */

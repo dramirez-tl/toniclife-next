@@ -72,6 +72,12 @@ const HEALTH_CARDS: { id: string; title: string; help: string; bases: string[]; 
   { id: 'slugs', title: 'URLs fuera de convención', help: 'Sin URL o que no siguen clave-nombre.', bases: ['no_slug', 'slug_off_convention'] },
   { id: 'fiscal', title: 'Sin regla fiscal o clave SAT', help: 'Necesarias para facturar en México.', bases: ['no_tax_rule', 'no_sat_code'], onlyCountry: 'MX' },
   { id: 'componentes', title: 'Kits o paquetes sin componentes', help: 'No descuentan inventario al venderse.', bases: ['components_missing'] },
+  {
+    id: 'kits',
+    title: 'Kits con pendientes',
+    help: 'Se arman al vender sin receta (no se pueden vender), son de inscripción sin posición, o tienen existencia propia que ninguna venta usa.',
+    bases: ['kit_recipe_empty', 'kit_no_position', 'kit_phantom_own_stock'],
+  },
   { id: 'novendible', title: 'Visibles que no se pueden vender', help: 'Marcados para la tienda pero de un tipo que la tienda no vende.', bases: ['visible_not_sellable_type'] },
 ];
 
