@@ -36,6 +36,31 @@ import type {
   // Quick Product
   QuickProduct,
 } from '@/types/pos';
+import { normalizeStockMode } from '@/lib/kits/kit-availability';
+
+/** `stock` del catálogo POS como número; sin dato (null/undefined/basura) ⇒ undefined = "no limitar". */
+const toStock = (v: unknown): number | undefined => {
+  if (v === null || v === undefined || v === '') return undefined;
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : undefined;
+};
+
+/** Cómo se surte un kit: `kitStockMode` si el API ya lo manda; si no, el booleano que `main` sigue usando. */
+const toKitStockMode = (p: { kitStockMode?: unknown; kitDeductsInventory?: unknown }): QuickProduct['kitStockMode'] =>
+  normalizeStockMode(p.kitStockMode) ?? (p.kitDeductsInventory === true ? 'assemble_on_sale' : 'prebuilt');
+
+/** Componente que deja el kit en cero (campo opcional nuevo del catálogo POS); null si no viene. */
+const toLimitingComponent = (v: unknown): QuickProduct['limitingComponent'] => {
+  if (!v || typeof v !== 'object') return null;
+  const l = v as { code?: unknown; name?: unknown; need?: unknown; available?: unknown };
+  if (typeof l.code !== 'string' || !l.code) return null;
+  return {
+    code: l.code,
+    name: typeof l.name === 'string' ? l.name : '',
+    need: toStock(l.need) ?? 0,
+    available: toStock(l.available) ?? 0,
+  };
+};
 
 class PosService {
   // ================================
@@ -305,8 +330,11 @@ class PosService {
         imageUrl: p.imageUrl,
         basePrice: parseFloat(p.price || '0'),
         categoryName: p.categoryName,
-        // Kits no rastrean stock propio (descuentan de componentes)
-        stock: isKit ? undefined : p.stock,
+        // El API YA manda `stock` también para kits: armables por sucursal si
+        // se arma al vender, existencia propia si es prearmado (contrato kits
+        // §6.1). Antes se tiraba (`isKit ? undefined`) y el POS nunca marcaba
+        // "Agotado" un kit ni limitaba su cantidad.
+        stock: toStock(p.stock),
         isActive: p.isActive,
         taxRate: p.taxRate != null ? Number(p.taxRate) : undefined,
         isIncludedInPrice: p.taxIncludedInPrice,
@@ -315,6 +343,7 @@ class PosService {
         productType: p.productType,
         kitPosition: p.kitPosition,
         isEnrollmentKit: p.isEnrollmentKit === true,
+        ...(isKit && { kitStockMode: toKitStockMode(p), limitingComponent: toLimitingComponent(p.limitingComponent) }),
       };
     }) || [];
   }
@@ -357,14 +386,15 @@ class PosService {
         imageUrl: p.imageUrl,
         basePrice: parseFloat(p.price || '0'),
         categoryName: p.categoryName,
-        // Kits no rastrean stock propio (descuentan de componentes via kit_deducts_inventory)
-        stock: isKit ? undefined : p.stock,
+        // Kits: `stock` = armables (se arma) o existencia propia (prearmado); ver searchProducts.
+        stock: toStock(p.stock),
         isActive: p.isActive,
         taxRate: p.taxRate != null ? Number(p.taxRate) : undefined,
         isIncludedInPrice: p.taxIncludedInPrice,
         productType: p.productType,
         kitPosition: p.kitPosition,
         isEnrollmentKit: p.isEnrollmentKit === true,
+        ...(isKit && { kitStockMode: toKitStockMode(p), limitingComponent: toLimitingComponent(p.limitingComponent) }),
       };
     } catch {
       return null;

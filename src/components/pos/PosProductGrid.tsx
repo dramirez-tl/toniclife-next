@@ -9,6 +9,18 @@ import { posService } from '@/services/pos.service';
 import { toast } from 'sonner';
 import Image from 'next/image';
 import { MagnifyingGlassIcon, QueueListIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { posKitStockLabel, shortageText } from '@/lib/kits/kit-availability';
+
+const isKitProduct = (p: QuickProduct): boolean => p.productType === 'kit' || p.productType === 'pack';
+
+/** Texto emergente de una tarjeta de kit agotada: qué componente falta y cuánto. */
+const kitCardTitle = (p: QuickProduct): string | undefined => {
+  if (!isKitProduct(p) || p.stock === undefined || p.stock > 0) return undefined;
+  if (p.limitingComponent) return `Agotado en esta sucursal. ${shortageText(p.limitingComponent)}`;
+  return p.kitStockMode === 'assemble_on_sale'
+    ? 'Agotado en esta sucursal: falta al menos un componente de la receta.'
+    : 'Agotado en esta sucursal: sin existencia del kit.';
+};
 
 interface PosProductGridProps {
   branchId?: string;
@@ -301,13 +313,21 @@ export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbo
           {filtered.map((product) => {
             const outOfStock = product.stock !== undefined && product.stock <= 0;
             const inCart = cartItems.find((i) => i.productId === product.id);
+            const kitLabel = isKitProduct(product)
+              ? posKitStockLabel({ stock: product.stock, kitStockMode: product.kitStockMode, limitingComponent: product.limitingComponent })
+              : null;
+            // Un kit de INSCRIPCIÓN agotado sigue abriendo el alta: el aviso va
+            // en el modal y el bloqueo duro es decisión D9 (contrato kits §5.3).
+            const clickable = !outOfStock || (product.isEnrollmentKit === true && !!onKitDetected);
             return (
               <button
                 key={product.id}
                 onClick={() => handleAdd(product)}
-                disabled={outOfStock}
+                disabled={!clickable}
+                title={kitCardTitle(product)}
+                aria-label={kitLabel ? `${product.name}. ${kitLabel.text}` : undefined}
                 className={`relative overflow-visible flex flex-col bg-white border rounded-xl p-2.5 text-left transition-all hover:shadow-md hover:border-[#3E667D]/30 active:scale-[0.97] ${
-                  outOfStock ? 'opacity-50 cursor-not-allowed' : ''
+                  outOfStock ? (clickable ? 'opacity-70' : 'opacity-50 cursor-not-allowed') : ''
                 } ${inCart ? 'ring-2 ring-[#3E667D]/30 border-[#3E667D]/20' : 'border-gray-200'}`}
               >
                 {/* Image */}
@@ -342,9 +362,17 @@ export function PosProductGrid({ branchId, priceTypeId, countryId, currencySymbo
                     {currencySymbol}{product.basePrice.toFixed(2)}
                     {currencyCode && <span className="text-[9px] text-gray-400 font-normal ml-0.5">{currencyCode}</span>}
                   </span>
-                  {process.env.NODE_ENV === 'development' && product.stock !== undefined && product.stock > 0 && (
+                  {kitLabel ? (
+                    <span
+                      className={`text-[10px] font-semibold ${
+                        kitLabel.tone === 'bad' ? 'text-red-700' : kitLabel.tone === 'warn' ? 'text-amber-700' : 'text-green-700'
+                      }`}
+                    >
+                      {kitLabel.text}
+                    </span>
+                  ) : process.env.NODE_ENV === 'development' && product.stock !== undefined && product.stock > 0 ? (
                     <span className="text-[10px] text-green-600 font-medium">{product.stock}</span>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* Cart indicator */}

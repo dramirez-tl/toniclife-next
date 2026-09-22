@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { useEnrollKitProspect } from '@/hooks/useKits';
 import { KIT_POSITION_LABEL, type KitPosition } from '@/types/product';
 import type { KitEnrollmentResponse } from '@/types/kit';
+import { posKitEnrollWarning } from '@/lib/kits/kit-availability';
 
 export interface KitProspectModalProps {
   open: boolean;
@@ -46,6 +47,17 @@ export interface KitProspectModalProps {
   } | null;
   /** Sucursal donde se está haciendo la venta */
   branchId?: string;
+  /** Nombre de la sucursal (para el aviso de disponibilidad). */
+  branchName?: string;
+  /**
+   * Disponibilidad del kit en la sucursal, tal como la manda el catálogo POS:
+   * `stock` = armables (se arma) o existencia propia (prearmado). Con 0 se avisa
+   * en claro SIN bloquear el alta (el bloqueo duro es decisión D9).
+   */
+  kitAvailability?: {
+    stock?: number;
+    limitingComponent?: { code: string; name: string; need: number; available: number } | null;
+  };
   /** Callback al inscribir exitosamente. El padre debe setear el customer del POS al customerId devuelto. */
   onEnrolled: (result: KitEnrollmentResponse) => void;
 }
@@ -56,6 +68,8 @@ export function KitProspectModal({
   sponsor,
   kit,
   branchId,
+  branchName,
+  kitAvailability,
   onEnrolled,
 }: KitProspectModalProps) {
   const enrollMutation = useEnrollKitProspect();
@@ -91,6 +105,11 @@ export function KitProspectModal({
     (sponsor.status !== undefined && sponsor.status !== 'active');
 
   const kitInvalid = !kit || !kit.kitPosition;
+  const kitSoldOut = kitAvailability?.stock !== undefined && kitAvailability.stock <= 0;
+  const soldOutWarning =
+    kit && kitSoldOut
+      ? posKitEnrollWarning({ kitCode: kit.code, branchName, limitingComponent: kitAvailability?.limitingComponent })
+      : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -220,7 +239,9 @@ export function KitProspectModal({
                 <p className="font-semibold text-blue-900 mb-1">Siguiente paso:</p>
                 <p className="text-blue-800">
                   El POS ya cambió el cliente activo al nuevo distribuidor <strong>{result.customerNumber}</strong>.
-                  Procede a cobrar el kit normalmente. Cuando se confirme el pago, el distribuidor pasará a estado activo.
+                  {kitSoldOut
+                    ? ` El kit ${kit?.code ?? ''} está agotado en esta sucursal, así que NO se agregó al carrito: pide traspaso o elige otro kit. El distribuidor queda pendiente hasta que se le cobre un kit.`
+                    : ' Procede a cobrar el kit normalmente. Cuando se confirme el pago, el distribuidor pasará a estado activo.'}
                 </p>
               </div>
 
@@ -273,6 +294,12 @@ export function KitProspectModal({
               {kitInvalid && !sponsorInvalid && (
                 <div className="bg-red-50 border border-red-200 text-red-800 px-3 py-2 rounded text-sm">
                   Este kit no tiene posición definida. Edítalo en /admin/kits y asígnale Básico, Premium o Preferente.
+                </div>
+              )}
+              {soldOutWarning && (
+                <div className="bg-amber-50 border border-amber-300 text-amber-900 px-3 py-2 rounded text-sm" role="alert">
+                  <p className="font-semibold">Kit agotado en esta sucursal</p>
+                  <p>{soldOutWarning}</p>
                 </div>
               )}
 

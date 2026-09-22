@@ -25,6 +25,7 @@ import {
 import { PosCart, PaymentModal, PosProductGrid, KitProspectModal, PosAvailablePromotions } from '@/components/pos';
 import type { QuickProduct } from '@/types/pos';
 import type { KitEnrollmentResponse } from '@/types/kit';
+import { posKitEnrolledSoldOutToast } from '@/lib/kits/kit-availability';
 import { CorteDiaModal } from '@/components/pos/CorteDiaModal';
 import { PosCustomerSelector } from '@/components/pos/PosCustomerSelector';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
@@ -1050,6 +1051,10 @@ export default function PosPage() {
               : null
           }
           branchId={effectiveBranchId}
+          branchName={selectedBranch?.name}
+          kitAvailability={
+            pendingKit ? { stock: pendingKit.stock, limitingComponent: pendingKit.limitingComponent } : undefined
+          }
           onEnrolled={(result: KitEnrollmentResponse) => {
             // 1. Cambiar cliente del POS al nuevo distribuidor inscrito.
             //    El kit se factura al nuevo, no al sponsor.
@@ -1062,10 +1067,20 @@ export default function PosPage() {
               currentPriceTypeId,
             );
 
-            // 2. Agregar el kit al carrito.
+            // 2. Agregar el kit al carrito. Si está agotado en la sucursal
+            //    (stock 0 = no se puede armar / sin existencia) no se agrega:
+            //    el servidor lo rechazaría al reservar y el carrito toparía la
+            //    cantidad en 0. Se avisa en claro; el alta NO se bloquea (D9).
             if (pendingKit) {
-              store.addItem(pendingKit, 1);
-              toast.success(`Kit ${pendingKit.sku} agregado para ${result.fullName}`);
+              if (pendingKit.stock !== undefined && pendingKit.stock <= 0) {
+                toast.warning(posKitEnrolledSoldOutToast(pendingKit.sku, selectedBranch?.name), {
+                  duration: Infinity,
+                  action: { label: 'Entendido', onClick: () => {} },
+                });
+              } else {
+                store.addItem(pendingKit, 1);
+                toast.success(`Kit ${pendingKit.sku} agregado para ${result.fullName}`);
+              }
             }
             setPendingKit(null);
           }}
