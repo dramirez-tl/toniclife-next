@@ -4,8 +4,29 @@
 // la cohorte, filtros de elegibilidad, interruptor de envios automaticos y
 // hora del envio diario. El enlace del taller se muestra de solo lectura: se
 // edita en la tarjeta "Enlace del Taller de Induccion" que ya existe abajo.
+//
+// Junto a "Envios automaticos" se muestra "WhatsApp listo n/7" (estado de la
+// sincronizacion legacy -> v2, contrato §6) y un bloqueo SUAVE: si no esta
+// 7/7 (o no se puede consultar), encender pide confirmacion mostrando los
+// criterios en rojo. Nunca bloquea en duro.
 
-import { Button } from '@/components/ui/button';
+import { useState } from 'react';
+import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
+import { Button, buttonVariants } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { cn } from '@/lib/utils';
+import { useLegacySyncStatus } from '@/hooks/useMaintenance';
+import { inductionAutoGate } from '@/lib/legacy-sync/format';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -50,6 +71,24 @@ export default function InduccionWorkshopTab({
   // en dos cohortes.
   const back = (draft.workshopWeekday - draft.cohortStartWeekday + 7) % 7 || 6;
   const cohortStart = addDays(nextDate, -back);
+
+  // "WhatsApp listo n/7": solo lectura del estado de la sync (super_admin y
+  // Sistemas; otros roles reciben 403 y el hook deja de consultar).
+  const syncStatus = useLegacySyncStatus();
+  const gate = inductionAutoGate({
+    ready: syncStatus.data?.whatsappReady,
+    error: syncStatus.error,
+    loading: syncStatus.isLoading,
+  });
+  const [confirmAutoOpen, setConfirmAutoOpen] = useState(false);
+
+  const onAutoChange = (v: boolean) => {
+    if (v && !draft.autoEnabled && gate.needsConfirm) {
+      setConfirmAutoOpen(true);
+      return;
+    }
+    patch({ autoEnabled: v });
+  };
 
   return (
     <div className="space-y-5">
@@ -161,34 +200,130 @@ export default function InduccionWorkshopTab({
         </label>
       </div>
 
-      <label
-        className={`flex items-start gap-3 rounded-md border p-3 ${
+      <div
+        className={`rounded-md border p-3 ${
           draft.autoEnabled
             ? 'border-emerald-200 bg-emerald-50/60'
             : 'border-amber-200 bg-amber-50/60'
         }`}
       >
-        <Switch
-          checked={draft.autoEnabled}
-          onCheckedChange={(v) => patch({ autoEnabled: v })}
-          className="mt-0.5"
-        />
-        <span>
-          <span className="block text-sm font-medium text-gray-900">
-            Envíos automáticos
-          </span>
-          <span className="mt-1 flex items-start gap-1.5 text-xs text-amber-800">
-            <ExclamationTriangleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span>
-              Con esto activado el sistema manda mensajes de WhatsApp reales
-              sin intervención: la invitación todos los días a las{' '}
-              {draft.inviteDailyTime} a los nuevos de la cohorte y los
-              recordatorios programados (máximo 500 envíos por corrida). Apagado,
-              solo se envía desde la pestaña Cohorte.
+        <label className="flex items-start gap-3">
+          <Switch
+            checked={draft.autoEnabled}
+            onCheckedChange={onAutoChange}
+            className="mt-0.5"
+          />
+          <span>
+            <span className="block text-sm font-medium text-gray-900">
+              Envíos automáticos
+            </span>
+            <span className="mt-1 flex items-start gap-1.5 text-xs text-amber-800">
+              <ExclamationTriangleIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>
+                Con esto activado el sistema manda mensajes de WhatsApp reales
+                sin intervención: la invitación todos los días a las{' '}
+                {draft.inviteDailyTime} a los nuevos de la cohorte y los
+                recordatorios programados (máximo 500 envíos por corrida). Apagado,
+                solo se envía desde la pestaña Cohorte.
+              </span>
             </span>
           </span>
-        </span>
-      </label>
+        </label>
+
+        {/* Estado de la sincronización legacy (fuera del <label> para que
+            el chip y el enlace no muevan el interruptor). */}
+        <div className="mt-2 flex flex-wrap items-center gap-2 pl-12 text-xs">
+          <Badge
+            variant={
+              gate.chip.tone === 'verde'
+                ? 'success'
+                : gate.chip.tone === 'rojo'
+                  ? 'destructive'
+                  : 'outline'
+            }
+            title={
+              gate.state === 'desconocido'
+                ? (gate.reason ?? undefined)
+                : 'Criterios del contrato de sincronización §6 (Sistema → Sincronización legacy)'
+            }
+          >
+            {gate.chip.label}
+          </Badge>
+          {gate.state === 'no_listo' && (
+            <span className="text-red-700">
+              Falta: {gate.failing.length} criterio(s)
+            </span>
+          )}
+          {syncStatus.data && (
+            <Link
+              href="/admin/sistema?tab=sync"
+              className="text-[#0A4B94] hover:underline"
+            >
+              Ver detalle
+            </Link>
+          )}
+        </div>
+        {draft.autoEnabled && gate.state === 'no_listo' && (
+          <p className="mt-2 pl-12 text-xs text-red-700">
+            Encendido aunque la sincronización no está lista: si la sync se
+            atrasa, el cron no invita (sync_stale), pero la cohorte puede salir
+            incompleta o con teléfonos repetidos.
+          </p>
+        )}
+      </div>
+
+      <AlertDialog open={confirmAutoOpen} onOpenChange={setConfirmAutoOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {gate.state === 'no_listo'
+                ? `Todavía no: ${gate.chip.label}. ¿Encender de todos modos?`
+                : 'No se pudo comprobar si WhatsApp está listo. ¿Encender de todos modos?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>
+                  Con los envíos automáticos encendidos se mandan invitaciones y
+                  recordatorios reales todos los días a las{' '}
+                  {draft.inviteDailyTime}. Lo recomendado (contrato §6) es
+                  encender un miércoles ~09:30, con la corrida de las 09:05 en
+                  verde y los 7 criterios cumplidos.
+                </p>
+                {gate.state === 'no_listo' ? (
+                  <ul className="space-y-1.5">
+                    {gate.failing.map((c) => (
+                      <li
+                        key={c.criterio}
+                        className="rounded-md border border-red-200 bg-red-50 p-2 text-red-800"
+                      >
+                        <span className="block font-medium">{c.criterio}</span>
+                        <span className="block text-xs">{c.detalle}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="rounded-md border border-red-200 bg-red-50 p-2 text-red-800">
+                    {gate.reason}
+                  </p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  El cambio queda en el borrador: después hay que pulsar
+                  &ldquo;Guardar&rdquo;.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className={cn(buttonVariants({ variant: 'destructive' }))}
+              onClick={() => patch({ autoEnabled: true })}
+            >
+              Encender de todos modos
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="rounded-md border p-3">
         <div className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-900">
