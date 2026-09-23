@@ -1,7 +1,9 @@
 // Tour guiado de primera vez para el panel del distribuidor.
 // Usa driver.js (spotlight + popover). Los pasos se anclan a la navegación via
 // atributos data-tour: prefijo "d-" en el sidebar de escritorio y "m-" en la
-// barra superior/menú móvil. Es omitible (✕) y repetible desde el botón de ayuda.
+// barra superior/menú móvil; los pasos "d-red-*" viven dentro de la página
+// /distribuidor/red y solo aparecen cuando el tour arranca ahí. Es omitible (✕)
+// y repetible desde el botón de ayuda.
 
 import { driver, type DriveStep } from 'driver.js';
 import 'driver.js/dist/driver.css';
@@ -72,7 +74,33 @@ export function startDistributorTour(): void {
       popover: {
         title: 'Mi Red',
         description:
-          'Tu organización: visualiza tu genealogía, cuántos distribuidores tienes activos e inactivos, y da de alta nuevos socios o clientes preferentes.',
+          'Tu organización: explora tu red línea por línea, busca y filtra a tus socios en una lista, descarga tu Excel y da de alta nuevos socios o clientes preferentes.',
+      },
+    },
+    // Los tres pasos siguientes viven DENTRO de /distribuidor/red (anclas
+    // d-red-*): fuera de esa página el filtro por existencia de abajo los omite.
+    {
+      element: '[data-tour="d-red-kpis"]',
+      popover: {
+        title: 'Tu red este periodo',
+        description:
+          'Tu red este periodo: cuántos compraron, quién califica y quién está en riesgo. Toca una cifra para ver a esos socios en la lista.',
+      },
+    },
+    {
+      element: '[data-tour="d-red-explorer"]',
+      popover: {
+        title: 'Explora por líneas',
+        description:
+          'Abre cada línea para ver a quién inscribió cada socio. Desde el menú de cada fila puedes ver su ficha, su lista o el volumen de su línea.',
+      },
+    },
+    {
+      element: '[data-tour="d-red-export"]',
+      popover: {
+        title: 'Descarga tu Excel',
+        description:
+          'Tu Excel se genera en segundo plano; te avisamos cuando esté listo, aunque cambies de página. Es el mismo archivo de siempre.',
       },
     },
     {
