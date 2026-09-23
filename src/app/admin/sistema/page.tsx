@@ -3,6 +3,8 @@
 // /admin/sistema - Mantenimiento del sistema (EXCLUSIVO super_admin).
 // Tab Limpieza: vacía la BD por bloques en orden FK-seguro (1→10).
 // Tab Carga masiva: pobla por fases vía CSV con plantillas descargables.
+// Tab Sincronización legacy (?tab=sync): semáforo, corridas, retenciones y
+// "WhatsApp listo" de la sync automática legacy→v2.
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -55,6 +57,7 @@ import { Switch } from '@/components/ui/switch';
 import { PilotLiveTab } from './PilotLiveTab';
 import { PilotGatingTab } from './PilotGatingTab';
 import { TreasurySettingsTab } from './TreasurySettingsTab';
+import { LegacySyncTab } from './LegacySyncTab';
 import type { CleanupBlockStatus, LoadPhaseStatus } from '@/types/maintenance';
 import type { PosLicense } from '@/types/posLicense';
 
@@ -98,6 +101,7 @@ const SISTEMA_TABS = [
   'liberaciones',
   'limpieza',
   'carga',
+  'sync',
   'reset',
   'tesoreria',
 ];
@@ -179,12 +183,17 @@ function SistemaContent() {
                 </TabsTrigger>
                 <TabsTrigger value="limpieza">Limpieza</TabsTrigger>
                 <TabsTrigger value="carga">Carga masiva</TabsTrigger>
+                <TabsTrigger value="sync">Sincronización legacy</TabsTrigger>
                 <TabsTrigger value="reset">Reset por periodo</TabsTrigger>
                 <TabsTrigger value="tesoreria">Tesorería</TabsTrigger>
               </TabsList>
 
               <TabsContent value="tesoreria" className="mt-6">
                 <TreasurySettingsTab />
+              </TabsContent>
+
+              <TabsContent value="sync" className="mt-6">
+                <LegacySyncTab />
               </TabsContent>
 
               <TabsContent value="piloto" className="mt-6">

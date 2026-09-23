@@ -662,6 +662,12 @@ function stepNote(name: string, r: Record<string, unknown>): string | null {
       notes.push(`pares ${pairs ?? '?'} · retenidos ${held ?? '?'}`);
     }
   }
+  if (name === 'nuevos') {
+    const would = num(r.wouldInsert);
+    const rejected = num(r.rejected);
+    if (would !== null) notes.push(`dry-run: habría insertado ${would}`);
+    if (rejected !== null && rejected > 0) notes.push(`rechazados por el API ${rejected}`);
+  }
   if (name === 'inscripcion') {
     const nf = num(r.notFound);
     if (typeof r.desde === 'string') notes.push(`desde ${r.desde}`);

@@ -260,6 +260,11 @@ describe('normalizeSteps', () => {
     expect(rows[3].note).toBe('periodo 73: fase omitida (periodo_abierto)');
     expect(rows[4].note).toBe('periodos medidos 73');
     expect(normalizeSteps(null)).toEqual([]);
+    const [nuevosDry] = normalizeSteps({
+      nuevos: { inserted: 0, skipped: 0, wouldInsert: 31, held: 2, rejected: 1, ms: 900 },
+    });
+    expect(nuevosDry.inserted).toBe(0);
+    expect(nuevosDry.note).toBe('dry-run: habría insertado 31 · rechazados por el API 1');
   });
 });
 
