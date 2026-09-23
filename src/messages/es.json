@@ -1272,10 +1272,6 @@
       }
     },
     "network": {
-      "title": "Mi Red de Distribuidores",
-      "subtitle": "Visualiza y gestiona tu red multinivel",
-      "backToPanel": "Volver al Panel Principal",
-      "inviteLink": "Enlace de invitación",
       "grow": {
         "title": "Crece tu red",
         "subtitle": "Da de alta un nuevo socio o un cliente preferente en segundos.",
@@ -1283,15 +1279,9 @@
         "preferredCustomer": "Cliente preferente"
       },
       "tabs": {
-        "downline": "Descendencia de Red",
         "directLineVolume": "Volumen por línea directa",
         "explore": "Explorar",
         "list": "Lista"
-      },
-      "helpCta": {
-        "title": "Haz Crecer tu Red",
-        "body": "Invita a más distribuidores y aumenta tus comisiones. ¡Cada nuevo miembro activo te acerca a tu siguiente rango!",
-        "enrollNewMember": "Dar de alta nuevo miembro"
       },
       "invitePanel": {
         "ariaLabel": "Invitar nuevo distribuidor",
@@ -1350,96 +1340,10 @@
           "joinDate": "Alta"
         }
       },
-      "downline": {
-        "title": "Descendencia de Red",
-        "subtitle": "Consulta tu red y descarga la lista completa en Excel",
-        "downloadExcel": "Descargar Excel",
-        "generating": "Generando… {percent}%",
-        "searchPlaceholder": "Buscar por nombre o email...",
-        "clear": "Limpiar",
-        "updating": "Actualizando resultados...",
-        "exportStarted": "Generando el archivo en segundo plano… puedes seguir navegando; se descargará al terminar.",
-        "exportStartError": "No se pudo iniciar la exportación",
-        "exportDownloaded": "Archivo descargado ({count} registros)",
-        "exportGenError": "No se pudo generar el archivo",
-        "exportExpired": "La exportación expiró o no se encontró; vuelve a generarla",
-        "filters": {
-          "levelOption": "Nivel {n}",
-          "allLevels": "Todos los niveles",
-          "active": "Activos",
-          "inactive": "Inactivos",
-          "suspended": "Suspendidos",
-          "allStatuses": "Todos los estados",
-          "notQualified": "No calificados",
-          "qualified": "Calificados",
-          "allQualification": "Calificación: todos",
-          "allRanks": "Todos los rangos",
-          "newInPeriod": "Nuevos en {period}",
-          "allPeriods": "Ingreso: todos los periodos"
-        },
-        "columns": {
-          "distributor": "Distribuidor",
-          "level": "Nivel",
-          "levelValue": "Nivel {level}",
-          "depth": "Profundidad",
-          "rank": "Rango",
-          "sponsor": "Patrocinador",
-          "sponsorId": "ID {code}",
-          "status": "Estado",
-          "personalPoints": "Pts. personales",
-          "joinDate": "Ingreso"
-        },
-        "error": {
-          "title": "Error al cargar los distribuidores",
-          "body": "Intenta de nuevo más tarde",
-          "retry": "Reintentar"
-        },
-        "empty": {
-          "withFilters": "No se encontraron distribuidores con los filtros aplicados",
-          "noFilters": "No tienes distribuidores en tu red aún"
-        },
-        "periodCurrent": " (Actual)"
-      },
       "status": {
         "active": "Activo",
         "inactive": "Inactivo",
         "suspended": "Suspendido"
-      },
-      "export": {
-        "fileName": "descendencia-red",
-        "headers": {
-          "distributorId": "ID distribuidor",
-          "name": "Nombre",
-          "level": "Nivel",
-          "depth": "Profundidad",
-          "rank": "Rango",
-          "sponsor": "Patrocinador",
-          "sponsorId": "ID patrocinador",
-          "status": "Estado",
-          "personalPoints": "Puntos personales",
-          "joinDate": "Fecha de ingreso"
-        }
-      },
-      "detail": {
-        "selectMember": "Selecciona un miembro de la red para ver sus detalles",
-        "loading": "Cargando información...",
-        "loadError": "Error al cargar la información",
-        "closeAria": "Cerrar panel",
-        "code": "Código: {code}",
-        "contact": "Contacto",
-        "memberSince": "Desde {date}",
-        "sponsor": "Patrocinador",
-        "network": "Red",
-        "directs": "Directos",
-        "totalNetwork": "Red Total",
-        "maxDepth": "Profundidad Máxima",
-        "levelsCount": "{count} niveles",
-        "salesTitle": "Ventas (Periodo Actual)",
-        "personalSales": "Ventas Personales",
-        "networkSales": "Ventas de Red",
-        "businessPoints": "Puntos de Negocio",
-        "businessPointsValue": "{points} pts",
-        "viewFullProfile": "Ver Perfil Completo"
       },
       "header": {
         "title": "Mi red",

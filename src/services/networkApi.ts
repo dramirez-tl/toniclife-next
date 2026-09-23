@@ -1,14 +1,14 @@
 // services/networkApi.ts - Llamadas API al backend para red MLM (axios)
-// Usa endpoints de /distributor/network/ (JWT only, sin permisos admin)
+// Usa endpoints de /distributor/network/ (JWT only, sin permisos admin):
+// ficha del socio, downlines (buscador de colocación del alta), overview/
+// children/members (Mi red), export v2 y volumen por línea directa. El árbol
+// recursivo (tree/upline/search) y las mutaciones admin (add/move) se retiraron
+// en P6 del contrato /distribuidor/red: nadie los usaba.
 
 import api from '@/lib/axios';
 import { saveBlob } from '@/lib/download';
 import type {
-  NetworkTreeResponse,
-  NetworkChildrenResponse,
   NetworkMemberDetail,
-  NetworkSearchResult,
-  NetworkNode,
   RankType,
   DownlineListResponse,
   DownlineQuery,
@@ -58,169 +58,9 @@ const rankCodeToType: Record<string, RankType> = {
   'CORONA_DIAMANTE': 'azul',
 };
 
-// Interfaz para la respuesta del backend
-interface BackendNetworkNode {
-  id: string;
-  customerId: string;
-  customerName: string;
-  customerEmail?: string;
-  parentId?: string;
-  sponsorMemberId?: string;
-  depth: number;
-  path?: string;
-  rank?: {
-    id: string;
-    code: string;
-    name: string;
-    rankNumber: number;
-  };
-  personalPoints?: number;
-  groupPoints?: number;
-  kitType?: string;
-  status?: string;
-  directDownlinesCount: number;
-  children?: BackendNetworkNode[];
-  // Indicadores
-  monthlyStatus?: {
-    status: 'qualified' | 'purchased' | 'inactive';
-    currentPoints: number;
-    qualificationThreshold: number;
-  };
-  rankProgress?: {
-    currentRankCode: string;
-    nextRankCode: string;
-    nextRankName: string;
-    progressPercent: number;
-    currentGroupPoints: number;
-    requiredGroupPoints: number;
-    isNearPromotion: boolean;
-  };
-  isNewMember?: boolean;
-  joinDate?: string;
-  daysSinceJoin?: number;
-}
-
-interface BackendTreeResponse {
-  root: BackendNetworkNode;
-  totalNodes: number;
-  levelsLoaded: number;
-}
-
-// Interfaz para datos del usuario raiz
-export interface RootUserData {
-  id: string;
-  name: string;
-  code?: string;
-  rank?: RankType;
-  networkCount?: number;
-  directCount?: number;
-}
-
-/**
- * Transforma un nodo del backend al formato del frontend
- */
-function transformBackendNode(backendNode: BackendNetworkNode, customerNumber?: string): NetworkNode {
-  const rankType = backendNode.rank?.code
-    ? rankCodeToType[backendNode.rank.code] || 'distribuidor'
-    : 'distribuidor';
-
-  // Contar descendientes totales recursivamente
-  const countDescendants = (node: BackendNetworkNode): number => {
-    if (!node.children || node.children.length === 0) return 0;
-    return node.children.reduce((acc, child) => acc + 1 + countDescendants(child), 0);
-  };
-
-  const networkCount = countDescendants(backendNode);
-  const hasChildren = backendNode.directDownlinesCount > 0 || (backendNode.children && backendNode.children.length > 0);
-
-  return {
-    id: backendNode.customerId,
-    code: customerNumber || `TL-${backendNode.customerId.substring(0, 6).toUpperCase()}`,
-    name: backendNode.customerName,
-    rank: rankType,
-    level: backendNode.depth,
-    directCount: backendNode.directDownlinesCount,
-    networkCount: networkCount,
-    hasChildren: hasChildren ?? false,
-    isExpanded: (backendNode.children && backendNode.children.length > 0) ?? false,
-    isLoaded: backendNode.children !== undefined,
-    children: backendNode.children?.map(child => transformBackendNode(child)),
-    // Indicadores
-    monthlyStatus: backendNode.monthlyStatus,
-    rankProgress: backendNode.rankProgress ? {
-      ...backendNode.rankProgress,
-      nextRank: rankCodeToType[backendNode.rankProgress.nextRankCode] || 'distribuidor',
-    } : undefined,
-    isNewMember: backendNode.isNewMember,
-    joinDate: backendNode.joinDate,
-    daysSinceJoin: backendNode.daysSinceJoin,
-  };
-}
-
-/**
- * Transforma la respuesta del backend al formato del frontend
- */
-function transformBackendTreeResponse(
-  backendResponse: BackendTreeResponse,
-  rootUserData?: RootUserData
-): NetworkTreeResponse {
-  const root = transformBackendNode(backendResponse.root, rootUserData?.code);
-
-  // Sobrescribir datos del nodo raiz con datos del usuario autenticado si estan disponibles
-  if (rootUserData) {
-    root.name = rootUserData.name;
-    root.code = rootUserData.code || root.code;
-    root.rank = rootUserData.rank || root.rank;
-    if (rootUserData.networkCount !== undefined) {
-      root.networkCount = rootUserData.networkCount;
-    }
-    if (rootUserData.directCount !== undefined) {
-      root.directCount = rootUserData.directCount;
-    }
-  }
-
-  return {
-    root,
-    totalNodes: backendResponse.totalNodes,
-    maxDepthLoaded: backendResponse.levelsLoaded,
-  };
-}
-
 class NetworkApi {
   /**
-   * Obtiene el arbol de red del distribuidor autenticado
-   * Backend: GET /distributor/network/tree?depth=N
-   */
-  async getTree(userId: string, depth: number = 3, rootUserData?: RootUserData): Promise<NetworkTreeResponse> {
-    const { data: backendResponse } = await api.get<BackendTreeResponse>(
-      `/distributor/network/tree`,
-      { params: { depth: depth.toString() } },
-    );
-    return transformBackendTreeResponse(backendResponse, rootUserData);
-  }
-
-  /**
-   * (Legacy, árbol recursivo) Hijos directos de un nodo vía network/tree/:id.
-   * Sin usos fuera de useNetwork.ts; se retira en P6. El explorador nuevo usa
-   * getChildren(query) → GET network/children.
-   * Backend: GET /distributor/network/tree/:customerId?depth=1
-   */
-  async getTreeChildren(customerId: string): Promise<NetworkChildrenResponse> {
-    const { data: backendResponse } = await api.get<BackendTreeResponse>(
-      `/distributor/network/tree/${customerId}`,
-      { params: { depth: '1' } },
-    );
-    const rootNode = transformBackendNode(backendResponse.root);
-
-    return {
-      parentId: customerId,
-      children: rootNode.children || [],
-      hasMore: false,
-    };
-  }
-
-  /**
-   * Obtiene estadisticas detalladas de un miembro de la red
+   * Ficha de un socio de mi red (el servidor verifica que pertenezca a ella).
    * Backend: GET /distributor/network/member/:customerId
    */
   async getStats(customerId: string): Promise<NetworkMemberDetail> {
@@ -417,69 +257,6 @@ class NetworkApi {
     return data;
   }
 
-  /**
-   * Obtiene la upline (linea ascendente) del distribuidor autenticado. El
-   * endpoint es "mi upline" (JWT): no viaja ningún id.
-   * Backend: GET /distributor/network/upline
-   */
-  async getUpline(): Promise<NetworkNode[]> {
-    const { data } = await api.get(`/distributor/network/upline`);
-    return Array.isArray(data) ? data.map((node: BackendNetworkNode) => transformBackendNode(node)) : [];
-  }
-
-  /**
-   * Agrega un distribuidor a la red (admin)
-   * Backend: POST /mlm/network/:customerId/add
-   */
-  async addToNetwork(customerId: string, body: { sponsorId: string; position?: string }): Promise<{ success: boolean }> {
-    await api.post<{ message: string }>(`/mlm/network/${customerId}/add`, body);
-    return { success: true };
-  }
-
-  /**
-   * Mueve un distribuidor dentro de la red (admin)
-   * Backend: PUT /mlm/network/:customerId/move
-   */
-  async moveInNetwork(customerId: string, body: { newSponsorId: string; reason?: string }): Promise<{ success: boolean }> {
-    await api.put<{ message: string }>(`/mlm/network/${customerId}/move`, {
-      newUplineId: body.newSponsorId,
-    });
-    return { success: true };
-  }
-
-  /**
-   * Busca distribuidores por nombre o codigo
-   * Backend: GET /customers?search=...&limit=10
-   */
-  async search(query: string): Promise<NetworkSearchResult[]> {
-    const { data: result } = await api.get('/customers', {
-      params: { search: query, limit: '10' },
-    });
-
-    // Forma mínima del cliente que devuelve GET /customers (lista paginada o arreglo).
-    interface SearchCustomer {
-      id: string;
-      customerNumber?: string | null;
-      firstName?: string | null;
-      lastName?: string | null;
-      rank?: { code?: string | null } | null;
-    }
-    const customers: SearchCustomer[] = result.data || result;
-
-    return customers.map((customer) => {
-      const rankType = customer.rank?.code
-        ? rankCodeToType[customer.rank.code] || 'distribuidor'
-        : 'distribuidor';
-
-      return {
-        id: customer.id,
-        code: customer.customerNumber || `TL-${customer.id.substring(0, 6).toUpperCase()}`,
-        name: `${customer.firstName} ${customer.lastName}`,
-        rank: rankType,
-        path: '', // Backend does not return path in search
-      };
-    });
-  }
 }
 
 export const networkApi = new NetworkApi();

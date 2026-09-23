@@ -39,6 +39,5 @@ export { commissionsApi } from './commissionsApi';
 export { distributorApi } from './distributorApi';
 
 export { networkApi } from './networkApi';
-export type { RootUserData } from './networkApi';
 
 export { auditApi } from './auditApi';
