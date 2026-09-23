@@ -3,6 +3,7 @@ import { CashRegisterStatus, type CashRegister, type CashRegisterListResponse } 
 import {
   CASH_REGISTER_MAX_PAGES,
   CASH_REGISTER_PAGE_LIMIT,
+  apiErrorMessage,
   branchRegisterStatus,
   branchesMissingRegister,
   canCreateCashRegister,
@@ -207,5 +208,20 @@ describe('respuesta de POST/PATCH /branches (cashRegisterCreated opcional)', () 
       code: undefined,
       name: undefined,
     });
+  });
+});
+
+describe('apiErrorMessage', () => {
+  it('message del API (texto) → tal cual: 409 de código repetido, 403 de roles', () => {
+    const conflict = { response: { status: 409, data: { message: 'Ya existe una caja con el código 428-C1 en esta sucursal' } } };
+    expect(apiErrorMessage(conflict, 'x')).toBe('Ya existe una caja con el código 428-C1 en esta sucursal');
+  });
+
+  it('lista del ValidationPipe → unida; sin mensaje → respaldo', () => {
+    const invalid = { response: { data: { message: ['code must be shorter than or equal to 20 characters', 3, ''] } } };
+    expect(apiErrorMessage(invalid, 'x')).toBe('code must be shorter than or equal to 20 characters');
+    expect(apiErrorMessage({ response: { data: { message: [] } } }, 'Error al crear')).toBe('Error al crear');
+    expect(apiErrorMessage(new Error('Network Error'), 'Error al crear')).toBe('Error al crear');
+    expect(apiErrorMessage(null, 'Error al crear')).toBe('Error al crear');
   });
 });

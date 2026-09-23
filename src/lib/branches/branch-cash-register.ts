@@ -237,3 +237,19 @@ export function createdCashRegisterToast(created: { code?: string; name?: string
   const name = created.name ?? MAIN_CASH_REGISTER_NAME;
   return created.code ? `Se creó la ${name} (${created.code})` : `Se creó la ${name}`;
 }
+
+// ================================
+// ERRORES DEL API
+// ================================
+
+/** Mensaje de un error de axios del API: `message` de NestJS (texto o lista del
+ *  ValidationPipe) o el texto de respaldo. */
+export function apiErrorMessage(err: unknown, fallback: string): string {
+  const message = (err as { response?: { data?: { message?: unknown } } } | null)?.response?.data?.message;
+  if (typeof message === 'string' && message.trim()) return message;
+  if (Array.isArray(message)) {
+    const parts = message.filter((m): m is string => typeof m === 'string' && m.trim() !== '');
+    if (parts.length > 0) return parts.join('. ');
+  }
+  return fallback;
+}
