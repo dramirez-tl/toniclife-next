@@ -15,6 +15,8 @@ import {
   hhmm,
   hhmmUtc,
   holdAgeText,
+  HOLD_DECISION_UI,
+  HOLD_DECISIONS,
   legacySyncErrorInfo,
   nextWindowLabel,
   normalizeParity,
@@ -278,6 +280,24 @@ describe('retenciones', () => {
     expect(holdAgeText(52)).toBe('hace 2 d 4 h');
     expect(holdAgeText(72)).toBe('hace 3 d');
     expect(holdAgeText(null)).toBe('—');
+  });
+
+  // El migrador (auto/record.js readReleasedPairs) trata 'dismissed' igual que
+  // 'released': deja de retener el par y la siguiente ventana INSERTA la ficha
+  // legacy. 'merged' no sale de la retención mientras el par coincida.
+  it('los textos de decisión dicen lo que hace el runner', () => {
+    const dismissed = HOLD_DECISION_UI.dismissed.description;
+    expect(dismissed).toContain('igual que Liberar');
+    expect(dismissed).toContain('INSERTA la ficha legacy');
+    expect(dismissed).not.toMatch(/NO se insertar/i);
+    expect(HOLD_DECISION_UI.dismissed.destructive).toBe(true);
+    expect(HOLD_DECISION_UI.released.description).toContain('insertará la ficha legacy');
+
+    const merged = HOLD_DECISION_UI.merged.description;
+    expect(merged).toContain('sigue reteniendo la ficha legacy mientras el par coincida');
+    expect(merged).not.toContain('deja de bloquear');
+
+    expect(HOLD_DECISIONS).toEqual(['renumbered', 'merged', 'released', 'dismissed']);
   });
 });
 

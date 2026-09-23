@@ -772,6 +772,12 @@ export interface HoldDecisionUi {
   destructive: boolean;
 }
 
+// Los textos describen lo que hace el migrador (auto/record.js
+// readReleasedPairs + auto/holds.js matchPairs), no lo que "debería" hacer:
+// 'released' y 'dismissed' salen de la retención y la siguiente ventana
+// INSERTA la ficha legacy; 'merged' (y 'renumbered') NO están en esa lista,
+// así que el runner sigue reteniendo mientras el par coincida. Si el migrador
+// cambia esa semántica, estos textos (y su prueba) cambian con él.
 export const HOLD_DECISION_UI: Record<LegacySyncHoldDecision, HoldDecisionUi> = {
   renumbered: {
     label: 'Renumerado',
@@ -784,7 +790,7 @@ export const HOLD_DECISION_UI: Record<LegacySyncHoldDecision, HoldDecisionUi> = 
     label: 'Fusionado',
     title: 'Marcar como fusionado',
     description:
-      'Las dos fichas se fusionaron a mano (ventas, puntos y red movidos a una sola). La retención deja de bloquear.',
+      'Las dos fichas se fusionaron a mano (ventas, puntos y red movidos a una sola). Solo deja de contar como pendiente (alertas y "WhatsApp listo"): el runner sigue reteniendo la ficha legacy mientras el par coincida (número legacy sin ficha en v2 y nativo activo con las mismas señales). Si el par deja de coincidir por otra causa (p. ej. se desactiva el nativo), la siguiente ventana puede insertar la ficha legacy.',
     destructive: false,
   },
   released: {
@@ -798,7 +804,7 @@ export const HOLD_DECISION_UI: Record<LegacySyncHoldDecision, HoldDecisionUi> = 
     label: 'Descartar',
     title: 'Descartar la retención',
     description:
-      'No se hará nada con este par: la ficha legacy NO se insertará y el nativo queda como está. Úsalo solo si el alta legacy es basura o ya no aplica.',
+      'Para el runner es igual que Liberar: el par deja de retenerse y la siguiente ventana INSERTA la ficha legacy como cliente nuevo (con sus ventas). Si es la misma persona que el nativo, eso crea la doble identidad y no se deshace desde aquí. Si la ficha legacy NO debe entrar a v2, no la descartes: déjala pendiente (sigue retenida) o renumera.',
     destructive: true,
   },
 };
