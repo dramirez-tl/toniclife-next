@@ -12,6 +12,7 @@ import {
   CalendarDaysIcon,
   CheckBadgeIcon,
   ArrowDownTrayIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import {
@@ -19,6 +20,8 @@ import {
   useCustomerStatsForPeriod,
 } from '@/hooks/useDistributorPeriodStats';
 import { customersService, type NetworkExportJob } from '@/services/customers.service';
+import { isTerminalPhase } from '@/lib/network/export-job';
+import type { NetworkExportPhase } from '@/types/network';
 import {
   Tooltip,
   TooltipContent,
@@ -43,6 +46,16 @@ const EXPORT_STORAGE_PREFIX = 'tl_admin_red_export_';
 const MAX_POLL_FAILURES = 5;
 const EXPORT_HELP_TEXT =
   'Descendencia completa de la red con puntos del periodo seleccionado (CSV compatible con Excel)';
+/**
+ * Texto corto por fase del export v2 (queued → counting → traversing → writing
+ * → finalizing). Un API anterior no manda `phase`: se muestra solo el %.
+ */
+const EXPORT_PHASE_TEXT: Partial<Record<NetworkExportPhase, string>> = {
+  queued: 'en espera',
+  counting: 'contando la red…',
+  traversing: 'recorriendo la red…',
+  finalizing: 'guardando el archivo…',
+};
 
 function readStoredExportJob(key: string): StoredExportJob | null {
   try {
@@ -115,8 +128,19 @@ export function DistributorPeriodActivity({
   const [exportJobId, setExportJobId] = useState<string | null>(null);
   const [exportPeriodId, setExportPeriodId] = useState<string | null>(null);
   const [exportPct, setExportPct] = useState(0);
+  /** Fase del export v2 (null con un API anterior que no la manda). */
+  const [exportPhase, setExportPhase] = useState<NetworkExportPhase | null>(null);
   const [startingExport, setStartingExport] = useState(false);
+  const [cancellingExport, setCancellingExport] = useState(false);
   const exportHelpId = useId();
+
+  const clearStoredExport = useCallback(() => {
+    try {
+      localStorage.removeItem(exportStorageKey);
+    } catch {
+      // sin storage disponible: no pasa nada
+    }
+  }, [exportStorageKey]);
 
   // Selección por defecto: el periodo abierto, si no el más reciente
   useEffect(() => {
@@ -135,6 +159,7 @@ export function DistributorPeriodActivity({
     setExportJobId(saved?.jobId ?? null);
     setExportPeriodId(saved?.periodId ?? null);
     setExportPct(0);
+    setExportPhase(null);
   }, [exportStorageKey]);
 
   // Polling del job: avanza %, auto-descarga al terminar. Solo un 404 significa
@@ -142,25 +167,21 @@ export function DistributorPeriodActivity({
   // (caída de red, 401 con refresh fallido, 500 transitorio) se reintenta
   // hasta MAX_POLL_FAILURES veces consecutivas antes de rendirse, porque el
   // servidor sigue generando el archivo. Sobrevive recargas porque el job
-  // corre en el servidor.
+  // corre en el servidor. Con el export v2 el job trae `phase`: cancelado
+  // (aquí o desde otra pestaña) se avisa en tono neutro, no como error.
   useEffect(() => {
     if (!exportJobId) return;
     let active = true;
     let settled = false;
     let failures = 0;
-    const clearStored = () => {
-      try {
-        localStorage.removeItem(exportStorageKey);
-      } catch {
-        // sin storage disponible: no pasa nada
-      }
-    };
-    const finish = (msg: string, isError = false) => {
+    const finish = (msg: string, tone: 'success' | 'error' | 'info' = 'success') => {
       if (!active) return;
       setExportJobId(null);
       setExportPeriodId(null);
       setExportPct(0);
-      if (isError) toast.error(msg);
+      setExportPhase(null);
+      if (tone === 'error') toast.error(msg);
+      else if (tone === 'info') toast.info(msg);
       else toast.success(msg);
     };
     const poll = async () => {
@@ -173,35 +194,40 @@ export function DistributorPeriodActivity({
         const status = (err as { response?: { status?: number } })?.response?.status;
         if (status === 404) {
           settled = true;
-          clearStored();
-          finish('La exportación expiró o ya no está disponible. Vuelve a intentarlo.', true);
+          clearStoredExport();
+          finish('La exportación expiró o ya no está disponible. Vuelve a intentarlo.', 'error');
         } else if (++failures >= MAX_POLL_FAILURES) {
           settled = true;
-          clearStored();
-          finish('No se pudo consultar el avance de la exportación. Vuelve a intentarlo.', true);
+          clearStoredExport();
+          finish('No se pudo consultar el avance de la exportación. Vuelve a intentarlo.', 'error');
         }
         return;
       }
       if (!active || settled) return;
       failures = 0;
       setExportPct(Math.max(0, Math.min(100, Math.round(st.percent || 0))));
-      if (st.status === 'done') {
+      setExportPhase(st.phase ?? null);
+      if (st.phase === 'cancelled') {
+        settled = true;
+        clearStoredExport();
+        finish('Exportación de red cancelada.', 'info');
+      } else if (st.status === 'done') {
         settled = true;
         // La clave se quita ANTES de descargar: si el usuario navega mientras
         // baja el archivo, al volver no se reconecta ni se descarga dos veces.
-        clearStored();
+        clearStoredExport();
         try {
           await customersService.downloadNetworkExportFile(customerId, exportJobId, st.filename);
           finish(
             `Excel de red descargado (${(st.total || 0).toLocaleString('es-MX')} registros)`,
           );
         } catch {
-          finish('No se pudo descargar el Excel de red. Vuelve a intentarlo.', true);
+          finish('No se pudo descargar el Excel de red. Vuelve a intentarlo.', 'error');
         }
       } else if (st.status === 'error') {
         settled = true;
-        clearStored();
-        finish(st.error || 'No se pudo generar el Excel de red', true);
+        clearStoredExport();
+        finish(st.error || 'No se pudo generar el Excel de red', 'error');
       }
     };
     void poll();
@@ -210,7 +236,7 @@ export function DistributorPeriodActivity({
       active = false;
       window.clearInterval(intervalId);
     };
-  }, [exportJobId, customerId, exportStorageKey]);
+  }, [exportJobId, customerId, clearStoredExport]);
 
   const handleExportNetwork = useCallback(async () => {
     if (!periodId || exportJobId || startingExport) return;
@@ -224,6 +250,7 @@ export function DistributorPeriodActivity({
         // sin storage: el job sigue, solo no sobrevive a una recarga
       }
       setExportPct(0);
+      setExportPhase(null);
       setExportPeriodId(periodId);
       setExportJobId(jobId);
       toast.info('Generando el Excel de red. Se descargará automáticamente al terminar.');
@@ -234,7 +261,32 @@ export function DistributorPeriodActivity({
     }
   }, [customerId, periodId, exportJobId, startingExport, exportStorageKey]);
 
+  // Cancelar (export v2): en espera sale de la cola; en curso aborta y borra el
+  // temporal. 409 = ya terminó (el sondeo lo cierra en su siguiente vuelta).
+  const handleCancelExport = useCallback(async () => {
+    if (!exportJobId || cancellingExport) return;
+    setCancellingExport(true);
+    try {
+      await customersService.cancelNetworkExport(customerId, exportJobId);
+      clearStoredExport();
+      setExportJobId(null);
+      setExportPeriodId(null);
+      setExportPct(0);
+      setExportPhase(null);
+      toast.info('Exportación de red cancelada.');
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 409) toast.info('La exportación ya terminó; se descargará en un momento.');
+      else toast.error(extractApiError(err, 'No se pudo cancelar la exportación de la red'));
+    } finally {
+      setCancellingExport(false);
+    }
+  }, [customerId, exportJobId, cancellingExport, clearStoredExport]);
+
   const exportBusy = !!exportJobId || startingExport;
+  // Solo con el export v2 (el job trae `phase`) y mientras no haya terminado:
+  // con un API anterior no hay ruta DELETE y el botón no se ofrece.
+  const canCancelExport = !!exportJobId && exportPhase !== null && !isTerminalPhase(exportPhase);
 
   // Periodo que se está generando (para el botón): el del job, no el del selector.
   const exportPeriodLabel = useMemo(() => {
@@ -242,6 +294,9 @@ export function DistributorPeriodActivity({
     const p = exportPeriodId ? periods.find((x) => x.id === exportPeriodId) : undefined;
     return p?.name || p?.code || 'periodo actual';
   }, [exportJobId, exportPeriodId, periods]);
+
+  // Avance para el botón: texto de la fase (export v2) o el % (escribiendo / API anterior).
+  const exportProgressText = (exportPhase && EXPORT_PHASE_TEXT[exportPhase]) || `${exportPct}%`;
 
   const { data: stats, isLoading: loadingStats } = useCustomerStatsForPeriod(
     customerId,
@@ -324,7 +379,7 @@ export function DistributorPeriodActivity({
                         className={`h-4 w-4 ${exportJobId ? 'animate-pulse' : ''}`}
                       />
                       {exportJobId
-                        ? `Generando ${exportPeriodLabel} ${exportPct}%`
+                        ? `Generando ${exportPeriodLabel} · ${exportProgressText}`
                         : startingExport
                           ? 'Iniciando...'
                           : 'Descargar Excel de red'}
@@ -341,6 +396,18 @@ export function DistributorPeriodActivity({
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+          )}
+          {canExportNetwork && canCancelExport && (
+            <button
+              type="button"
+              onClick={() => void handleCancelExport()}
+              disabled={cancellingExport}
+              aria-busy={cancellingExport}
+              className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-[#3E667D] disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap transition-colors"
+            >
+              <XMarkIcon className="h-4 w-4" aria-hidden="true" />
+              {cancellingExport ? 'Cancelando...' : 'Cancelar'}
+            </button>
           )}
         </div>
       </div>

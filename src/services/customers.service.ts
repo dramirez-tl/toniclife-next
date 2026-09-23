@@ -315,6 +315,19 @@ class CustomersService {
     );
     saveBlob(response.data as BlobPart, filename || 'descendencia-red.csv');
   }
+
+  /**
+   * Cancela un job en espera o en curso (el archivo temporal se borra). Responde
+   * el estado con status 'error' y phase 'cancelled'; 409 si ya terminó; 404 si
+   * no existe, expiró o el API aún no tiene la ruta (export anterior al v2).
+   * Backend: DELETE /customers/:id/network/export-job/:jobId
+   */
+  async cancelNetworkExport(customerId: string, jobId: string): Promise<NetworkExportJob> {
+    const response = await api.delete<NetworkExportJob>(
+      `${this.basePath}/${customerId}/network/export-job/${jobId}`,
+    );
+    return response.data;
+  }
 }
 
 export const customersService = new CustomersService();
