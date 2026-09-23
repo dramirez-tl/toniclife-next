@@ -284,7 +284,7 @@ describe('retenciones', () => {
 
   // El migrador (auto/record.js readReleasedPairs) trata 'dismissed' igual que
   // 'released': deja de retener el par y la siguiente ventana INSERTA la ficha
-  // legacy. 'merged' no sale de la retención mientras el par coincida.
+  // legacy. 'merged' (y 'renumbered') se retienen SIEMPRE (migrador f8ede00: readKeptHolds).
   it('los textos de decisión dicen lo que hace el runner', () => {
     const dismissed = HOLD_DECISION_UI.dismissed.description;
     expect(dismissed).toContain('igual que Liberar');
@@ -294,7 +294,8 @@ describe('retenciones', () => {
     expect(HOLD_DECISION_UI.released.description).toContain('insertará la ficha legacy');
 
     const merged = HOLD_DECISION_UI.merged.description;
-    expect(merged).toContain('sigue reteniendo la ficha legacy mientras el par coincida');
+    expect(merged).toContain('NUNCA insertará esa ficha legacy');
+    expect(merged).toContain('45 días');
     expect(merged).not.toContain('deja de bloquear');
 
     expect(HOLD_DECISIONS).toEqual(['renumbered', 'merged', 'released', 'dismissed']);

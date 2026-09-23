@@ -879,10 +879,11 @@ function HoldsCard({
           Altas del legacy que coinciden con un cliente nativo de v2 (2000xxx)
           por teléfono/CURP/nombre. El runner las RETIENE: no inserta la ficha
           legacy ni sus ventas mientras sigan pendientes. Renumerar = ejecutar el
-          SQL en DBeaver y marcar &ldquo;Renumerado&rdquo;; Liberar = son dos
-          personas distintas (la siguiente ventana inserta la ficha legacy);
-          Descartar hace lo mismo que Liberar. Para que la ficha legacy no
-          entre a v2, déjala pendiente.
+          SQL en DBeaver y marcar &ldquo;Renumerado&rdquo;; Fusionado = misma
+          persona ya fusionada a mano (nunca se inserta en automático); Liberar
+          = son dos personas distintas (la siguiente ventana inserta la ficha
+          legacy); Descartar hace lo mismo que Liberar. Si dudas, déjala
+          pendiente: sigue retenida.
         </p>
 
         {!migrationApplied ? (

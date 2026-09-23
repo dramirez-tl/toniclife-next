@@ -790,7 +790,7 @@ export const HOLD_DECISION_UI: Record<LegacySyncHoldDecision, HoldDecisionUi> = 
     label: 'Fusionado',
     title: 'Marcar como fusionado',
     description:
-      'Las dos fichas se fusionaron a mano (ventas, puntos y red movidos a una sola). Solo deja de contar como pendiente (alertas y "WhatsApp listo"): el runner sigue reteniendo la ficha legacy mientras el par coincida (número legacy sin ficha en v2 y nativo activo con las mismas señales). Si el par deja de coincidir por otra causa (p. ej. se desactiva el nativo), la siguiente ventana puede insertar la ficha legacy.',
+      'Es la MISMA persona y ya se fusionaron las fichas a mano (ventas, puntos y red en una sola). Deja de contar como pendiente (alertas y "WhatsApp listo") y el runner NUNCA insertará esa ficha legacy en automático, aunque pasen los 45 días o se desactive el nativo. Márcalo solo después de aplicar la fusión en DBeaver.',
     destructive: false,
   },
   released: {
