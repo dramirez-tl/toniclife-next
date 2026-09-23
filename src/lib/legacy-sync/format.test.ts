@@ -3,12 +3,19 @@ import type { LegacySyncRun } from '@/types/legacySync';
 import {
   criterionShortLabel,
   dayOf,
+  displayedRun,
+  inductionAutoGate,
+  isForbiddenError,
+  needsSetup,
+  setupSteps,
+  statusPollInterval,
   exitCodeLabel,
   failingCriteria,
   formatDuration,
   hhmm,
   hhmmUtc,
   holdAgeText,
+  legacySyncErrorInfo,
   nextWindowLabel,
   normalizeParity,
   normalizeSteps,
@@ -299,5 +306,138 @@ describe('WhatsApp listo', () => {
     expect(criterionShortLabel(0, 'x')).toContain('09:05');
     expect(criterionShortLabel(6, 'x')).toContain('WHATSAPP_ENABLED');
     expect(criterionShortLabel(9, 'respaldo')).toBe('respaldo');
+  });
+});
+
+describe('legacySyncErrorInfo', () => {
+  it('distingue 403, 503 (migración 150), sin respuesta y mensaje del backend', () => {
+    expect(legacySyncErrorInfo({ response: { status: 403, data: {} } }, 'f').message).toContain('super_admin');
+    const pending = legacySyncErrorInfo(
+      { response: { status: 503, data: { code: 'SYNC_MIGRATION_PENDING', message: 'Falta la 150' } } },
+      'f',
+    );
+    expect(pending).toEqual({ status: 503, code: 'SYNC_MIGRATION_PENDING', message: 'Falta la 150' });
+    // 503 sin código del módulo: puede ser el API caído, no solo la 150.
+    const bare503 = legacySyncErrorInfo({ response: { status: 503, data: {} } }, 'f');
+    expect(bare503.code).toBeNull();
+    expect(bare503.message).toContain('503');
+    expect(bare503.message).toContain('migración 150');
+    expect(legacySyncErrorInfo({ message: 'Network Error' }, 'No se pudo cargar')).toEqual({
+      status: null,
+      code: null,
+      message: 'No se pudo cargar (sin respuesta del API).',
+    });
+    expect(
+      legacySyncErrorInfo({ response: { status: 409, data: { code: 'SYNC_HOLD_NOT_PENDING', message: ['Ya decidida'] } } }, 'f'),
+    ).toEqual({ status: 409, code: 'SYNC_HOLD_NOT_PENDING', message: 'Ya decidida' });
+    expect(legacySyncErrorInfo(null, 'respaldo').message).toBe('respaldo (sin respuesta del API).');
+  });
+});
+
+describe('ensayo dry-run y puesta en marcha', () => {
+  const DRY: LegacySyncRun = { ...RUN, id: 'd1', mode: 'dry-run', runKey: 'auto-2026-09-23T15:05Z', startedAt: '2026-09-23T15:05:02.000Z', startedAtCdmx: '2026-09-23 09:05:02', legacyWatermarkCdmx: '2026-09-23 08:18:44' };
+  const base = {
+    migrationApplied: true,
+    autoEnabled: false,
+    lastRun: null,
+    lastOkRun: null,
+    lastDryRun: null,
+    watchdog: { enabled: false, env: 'LEGACY_SYNC_WATCHDOG' },
+  };
+
+  it('la frase usa el último ensayo cuando no hay corridas reales', () => {
+    expect(
+      statusPhrase({ lastRun: null, lastDryRun: DRY, nextExpectedCdmx: '2026-09-23 11:05', nowCdmx: '2026-09-23 09:40:00' }),
+    ).toBe(
+      'Sin corridas reales · último ensayo (dry-run) 09:05 CDMX (15:05 UTC) · ok en 7 m 38 s · copia del legacy hasta 08:18 · próxima 11:05',
+    );
+    // Con corrida real manda la real aunque haya ensayo.
+    expect(
+      statusPhrase({ lastRun: RUN, lastDryRun: DRY, nextExpectedCdmx: '2026-09-22 23:05', nowCdmx: '2026-09-22 21:40:00' }),
+    ).toMatch(/^Última corrida 21:05 CDMX/);
+  });
+
+  it('displayedRun: real primero, luego el ensayo, si no nada', () => {
+    expect(displayedRun({ lastRun: RUN, lastDryRun: DRY })).toEqual({ run: RUN, isDryRun: false });
+    expect(displayedRun({ lastRun: null, lastDryRun: DRY })).toEqual({ run: DRY, isDryRun: true });
+    expect(displayedRun({ lastRun: null })).toBeNull();
+  });
+
+  it('setupSteps: sin la 150 todo pendiente; marca lo que ya se ve en el estado', () => {
+    const none = setupSteps({ ...base, migrationApplied: false });
+    expect(none.map((s) => s.key)).toEqual(['mig150', 'tarea', 'ensayo', 'encendido', 'vigilancia', 'primera_ok']);
+    expect(none.every((s) => !s.done)).toBe(true);
+    expect(needsSetup(none)).toBe(true);
+    expect(none[0].how).toContain('150_legacy_sync_runs.sql');
+
+    const rehearsing = setupSteps({ ...base, lastDryRun: DRY }, Array.from({ length: 5 }, () => ({ mode: 'dry-run' as const })));
+    expect(rehearsing.find((s) => s.key === 'tarea')?.done).toBe(true);
+    expect(rehearsing.find((s) => s.key === 'ensayo')?.done).toBe(false);
+    expect(rehearsing.find((s) => s.key === 'ensayo')?.how).toContain('5/12');
+
+    const rehearsed = setupSteps({ ...base, lastDryRun: DRY }, Array.from({ length: 14 }, () => ({ mode: 'dry-run' as const })));
+    expect(rehearsed.find((s) => s.key === 'ensayo')?.done).toBe(true);
+    expect(rehearsed.find((s) => s.key === 'ensayo')?.how).toContain('12/12');
+
+    const live = setupSteps({
+      ...base,
+      autoEnabled: true,
+      lastRun: RUN,
+      lastOkRun: RUN,
+      watchdog: { enabled: true, env: 'LEGACY_SYNC_WATCHDOG' },
+    });
+    expect(live.every((s) => s.done)).toBe(true);
+    expect(needsSetup(live)).toBe(false);
+  });
+});
+
+describe('403 y polling', () => {
+  it('deja de consultar tras un 403 y sigue cada 60 s con otros errores', () => {
+    const forbidden = { response: { status: 403, data: {} } };
+    expect(isForbiddenError(forbidden)).toBe(true);
+    expect(isForbiddenError({ response: { status: 500, data: {} } })).toBe(false);
+    expect(isForbiddenError(null)).toBe(false);
+    expect(statusPollInterval(forbidden, 60_000)).toBe(false);
+    expect(statusPollInterval({ message: 'Network Error' }, 60_000)).toBe(60_000);
+    expect(statusPollInterval(null, 60_000)).toBe(60_000);
+  });
+});
+
+describe('inductionAutoGate (bloqueo suave de Envíos automáticos)', () => {
+  const criterios = Array.from({ length: 7 }, (_, i) => ({ criterio: `c${i + 1}`, ok: true, detalle: `d${i + 1}` }));
+
+  it('7/7 enciende sin confirmar', () => {
+    const g = inductionAutoGate({ ready: { ready: true, score: '7/7', criterios } });
+    expect(g.state).toBe('listo');
+    expect(g.needsConfirm).toBe(false);
+    expect(g.chip).toEqual({ label: 'WhatsApp listo 7/7', tone: 'verde' });
+    expect(g.failing).toEqual([]);
+  });
+
+  it('no listo: pide confirmación con los criterios en rojo', () => {
+    const mixed = criterios.map((c, i) => (i === 0 || i === 3 ? { ...c, ok: false } : c));
+    const g = inductionAutoGate({ ready: { ready: false, score: '5/7', criterios: mixed } });
+    expect(g.state).toBe('no_listo');
+    expect(g.needsConfirm).toBe(true);
+    expect(g.chip).toEqual({ label: 'WhatsApp listo 5/7', tone: 'rojo' });
+    expect(g.failing.map((c) => c.criterio)).toEqual(['c1', 'c4']);
+  });
+
+  it('sin acceso, error o consultando: desconocido y también confirma', () => {
+    const forbidden = inductionAutoGate({ ready: undefined, error: { response: { status: 403, data: {} } } });
+    expect(forbidden.state).toBe('desconocido');
+    expect(forbidden.needsConfirm).toBe(true);
+    expect(forbidden.chip.label).toBe('WhatsApp listo: sin acceso');
+    expect(forbidden.reason).toContain('Sistemas');
+
+    const down = inductionAutoGate({ ready: undefined, error: { message: 'Network Error' } });
+    expect(down.chip.label).toBe('WhatsApp listo: sin datos');
+    expect(down.reason).toContain('sin respuesta del API');
+
+    const loading = inductionAutoGate({ ready: undefined, loading: true });
+    expect(loading.chip.label).toContain('consultando');
+    expect(loading.needsConfirm).toBe(true);
+
+    expect(inductionAutoGate({ ready: null }).chip).toEqual({ label: 'WhatsApp listo: sin datos', tone: 'sin_dato' });
   });
 });

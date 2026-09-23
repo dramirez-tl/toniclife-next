@@ -5,6 +5,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { maintenanceService } from '@/services/maintenance.service';
+import { statusPollInterval } from '@/lib/legacy-sync/format';
 import type {
   DecideLegacySyncHoldInput,
   LegacySyncHoldStatus,
@@ -35,14 +36,16 @@ export const LEGACY_SYNC_POLL_MS = 60_000;
  * Estado de la sincronización legacy->v2 (semáforo, última corrida, siguiente
  * ventana, "WhatsApp listo"). Sin reintentos: un 403 (rol sin acceso) o un 503
  * (migración 150 pendiente) se muestran de inmediato en vez de esperar tres
- * intentos. `enabled` permite montarlo en otras pantallas sin consultar.
+ * intentos; tras un 403 deja de consultar (p. ej. Comercial en la pestaña de
+ * Inducción). `enabled` permite montarlo en otras pantallas sin consultar.
  */
 export const useLegacySyncStatus = (opts: { enabled?: boolean } = {}) =>
   useQuery({
     queryKey: maintenanceKeys.legacySyncStatus(),
     queryFn: () => maintenanceService.getLegacySyncStatus(),
     enabled: opts.enabled ?? true,
-    refetchInterval: LEGACY_SYNC_POLL_MS,
+    refetchInterval: (query) =>
+      statusPollInterval(query.state.error, LEGACY_SYNC_POLL_MS),
     refetchIntervalInBackground: false,
     staleTime: 30 * 1000,
     retry: false,

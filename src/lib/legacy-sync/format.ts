@@ -196,27 +196,21 @@ export function runStateText(
   return `${label}${reason}${dur}`;
 }
 
-/**
- * Frase del encabezado (§5.5): "Última corrida 21:05 CDMX (03:05 UTC) · ok en
- * 7 m 38 s · copia del legacy hasta 20:18 · próxima 23:05". Si la corrida no
- * es de hoy CDMX se antepone su fecha. Sin corridas: "Sin corridas
- * registradas · próxima HH:05".
- */
-export function statusPhrase(
-  s: Pick<LegacySyncStatus, 'lastRun' | 'nextExpectedCdmx' | 'nowCdmx'>,
-): string {
-  const next = `próxima ${nextWindowLabel(s.nextExpectedCdmx, s.nowCdmx)}`;
-  const run = s.lastRun;
-  if (!run) return `Sin corridas registradas · ${next}`;
+/** Partes "<prefijo> HH:MM CDMX (HH:MM UTC) · estado · copia del legacy hasta HH:MM". */
+function runPhraseParts(
+  run: LegacySyncRun,
+  prefix: string,
+  nowCdmx: string | null | undefined,
+): string[] {
   const startDay = dayOf(run.startedAtCdmx);
-  const today = dayOf(s.nowCdmx);
+  const today = dayOf(nowCdmx);
   const when =
     startDay && today && startDay !== today
       ? `${startDay} ${hhmm(run.startedAtCdmx) ?? '?'}`
       : (hhmm(run.startedAtCdmx) ?? '?');
   const utc = hhmmUtc(run.startedAt);
   const parts = [
-    `Última corrida ${when} CDMX${utc ? ` (${utc} UTC)` : ''}`,
+    `${prefix} ${when} CDMX${utc ? ` (${utc} UTC)` : ''}`,
     runStateText(run),
   ];
   const wm = hhmm(run.legacyWatermarkCdmx);
@@ -226,8 +220,118 @@ export function statusPhrase(
       `copia del legacy hasta ${wmDay && startDay && wmDay !== startDay ? `${wmDay} ` : ''}${wm}`,
     );
   }
-  parts.push(next);
-  return parts.join(' · ');
+  return parts;
+}
+
+/**
+ * Frase del encabezado (§5.5): "Última corrida 21:05 CDMX (03:05 UTC) · ok en
+ * 7 m 38 s · copia del legacy hasta 20:18 · próxima 23:05". Si la corrida no
+ * es de hoy CDMX se antepone su fecha. Sin corridas reales pero con ensayo
+ * (dry-run, que no cuenta para el semáforo): "Sin corridas reales · último
+ * ensayo (dry-run) …". Sin nada: "Sin corridas registradas · próxima HH:05".
+ */
+export function statusPhrase(
+  s: Pick<LegacySyncStatus, 'lastRun' | 'nextExpectedCdmx' | 'nowCdmx'> &
+    Partial<Pick<LegacySyncStatus, 'lastDryRun'>>,
+): string {
+  const next = `próxima ${nextWindowLabel(s.nextExpectedCdmx, s.nowCdmx)}`;
+  if (s.lastRun) {
+    return [...runPhraseParts(s.lastRun, 'Última corrida', s.nowCdmx), next].join(' · ');
+  }
+  if (s.lastDryRun) {
+    return [
+      'Sin corridas reales',
+      ...runPhraseParts(s.lastDryRun, 'último ensayo (dry-run)', s.nowCdmx),
+      next,
+    ].join(' · ');
+  }
+  return `Sin corridas registradas · ${next}`;
+}
+
+/**
+ * Corrida que se muestra en "Pasos" y "Matriz": la última real; si todavía no
+ * hay (ensayo de 24 h en dry-run), el último ensayo, marcado como tal.
+ */
+export function displayedRun(
+  s: Pick<LegacySyncStatus, 'lastRun'> & Partial<Pick<LegacySyncStatus, 'lastDryRun'>>,
+): { run: LegacySyncRun; isDryRun: boolean } | null {
+  if (s.lastRun) return { run: s.lastRun, isDryRun: s.lastRun.mode === 'dry-run' };
+  if (s.lastDryRun) return { run: s.lastDryRun, isDryRun: true };
+  return null;
+}
+
+// ── Estado "sin datos": pasos que faltan (§8 pasos 4-7) ──
+
+export interface SetupStep {
+  key: 'mig150' | 'tarea' | 'ensayo' | 'encendido' | 'vigilancia' | 'primera_ok';
+  label: string;
+  /** Cómo se hace (DBeaver, PowerShell, Railway, este panel). */
+  how: string;
+  done: boolean;
+}
+
+/** Ventanas del ensayo (b) del contrato §7: 24 h = 12 horas impares. */
+export const DRY_RUN_WINDOWS_REQUIRED = 12;
+
+/**
+ * Lista de puesta en marcha que el panel muestra mientras no hay datos (mig
+ * 150 sin aplicar, sin corridas o sin la primera corrida real ok). Todo se
+ * deduce del estado y de las últimas corridas: nada se adivina con el reloj.
+ */
+export function setupSteps(
+  s: Pick<
+    LegacySyncStatus,
+    'migrationApplied' | 'autoEnabled' | 'lastRun' | 'lastOkRun' | 'watchdog'
+  > &
+    Partial<Pick<LegacySyncStatus, 'lastDryRun'>>,
+  runs: ReadonlyArray<Pick<LegacySyncRun, 'mode'>> = [],
+): SetupStep[] {
+  const anyRun = !!s.lastRun || !!s.lastDryRun || runs.length > 0;
+  const dryRuns = runs.filter((r) => r.mode === 'dry-run').length;
+  const realRun = !!s.lastRun && s.lastRun.mode !== 'dry-run';
+  return [
+    {
+      key: 'mig150',
+      label: 'Aplicar la migración 150 (bitácora legacy_sync_runs / legacy_sync_holds e interruptor)',
+      how: 'DBeaver: toniclife-api/sql/migrations/150_legacy_sync_runs.sql como script completo (Alt+X) y COMMIT.',
+      done: s.migrationApplied,
+    },
+    {
+      key: 'tarea',
+      label: 'Registrar la tarea programada de ensayo en la PC de Sistemas',
+      how: 'PowerShell elevado en toniclife-migration-sales-mlm: .\\scripts\\register-scheduled-task.ps1 -DryRun (horas impares HH:05).',
+      done: s.migrationApplied && anyRun,
+    },
+    {
+      key: 'ensayo',
+      label: `Ensayo de 24 h en dry-run (${DRY_RUN_WINDOWS_REQUIRED} ventanas; ≥ 11 listas antes de HH:15 y 0 inválidas)`,
+      how: `Revisar las corridas "dry-run" de abajo: van ${Math.min(dryRuns, DRY_RUN_WINDOWS_REQUIRED)}/${DRY_RUN_WINDOWS_REQUIRED} en las últimas 24.`,
+      done: realRun || dryRuns >= DRY_RUN_WINDOWS_REQUIRED,
+    },
+    {
+      key: 'encendido',
+      label: 'GO: registrar la tarea en modo real y encender «Sincronización automática»',
+      how: '.\\scripts\\register-scheduled-task.ps1 -Force y el interruptor de este panel, antes de una hora impar laboral, con Sistemas mirando.',
+      done: s.autoEnabled,
+    },
+    {
+      key: 'vigilancia',
+      label: 'Encender la vigilancia (alertas a Sistemas)',
+      how: 'Railway, solo staging: variable LEGACY_SYNC_WATCHDOG=true en toniclife-api.',
+      done: s.watchdog?.enabled === true,
+    },
+    {
+      key: 'primera_ok',
+      label: 'Primera corrida real en ok',
+      how: 'La registra el runner sola; compárala con verify-sync-*.js la primera vez.',
+      done: !!s.lastOkRun,
+    },
+  ];
+}
+
+/** true mientras falte algo de la puesta en marcha (el panel muestra la lista). */
+export function needsSetup(steps: SetupStep[]): boolean {
+  return steps.some((st) => !st.done);
 }
 
 // ── Paridad (§7) ──
@@ -753,4 +857,157 @@ export function failingCriteria(
 ): LegacySyncWhatsappCriterion[] {
   if (!ready || !Array.isArray(ready.criterios)) return [];
   return ready.criterios.filter((c) => !c.ok);
+}
+
+// ── Errores del API ({ statusCode, code, message, details? }) ──
+
+export interface LegacySyncErrorInfo {
+  status: number | null;
+  code: string | null;
+  message: string;
+}
+
+/**
+ * Lee el cuerpo uniforme de error del módulo (axios: err.response.data) y
+ * traduce los casos que el panel distingue: 403 (rol sin acceso), 503
+ * SYNC_MIGRATION_PENDING (falta la migración 150) y sin respuesta (API caído).
+ */
+export function legacySyncErrorInfo(
+  err: unknown,
+  fallback: string,
+): LegacySyncErrorInfo {
+  const e = err as {
+    response?: {
+      status?: number;
+      data?: { code?: unknown; message?: unknown };
+    };
+    message?: unknown;
+  } | null;
+  const status = typeof e?.response?.status === 'number' ? e.response.status : null;
+  const code = typeof e?.response?.data?.code === 'string' ? e.response.data.code : null;
+  const raw = e?.response?.data?.message;
+  const backendMsg = Array.isArray(raw)
+    ? String(raw[0] ?? '')
+    : typeof raw === 'string'
+      ? raw
+      : '';
+  if (status === 403) {
+    return {
+      status,
+      code,
+      message:
+        'Tu rol no puede consultar la sincronización legacy (solo super_admin y Sistemas).',
+    };
+  }
+  if (code === 'SYNC_MIGRATION_PENDING') {
+    return {
+      status,
+      code,
+      message:
+        backendMsg ||
+        'Falta aplicar la migración 150 (sql/migrations/150_legacy_sync_runs.sql): la bitácora no existe todavía.',
+    };
+  }
+  if (status === 503) {
+    // 503 sin código del módulo: puede ser el API caído/reiniciando (Railway)
+    // y no necesariamente la migración; se dicen las dos cosas.
+    return {
+      status,
+      code,
+      message:
+        backendMsg ||
+        'El API respondió 503 (no disponible). Si persiste, revisa que la migración 150 esté aplicada.',
+    };
+  }
+  if (status === null && !backendMsg) {
+    return {
+      status,
+      code,
+      message: `${fallback} (sin respuesta del API).`,
+    };
+  }
+  return { status, code, message: backendMsg || fallback };
+}
+
+/** true si el error es un 403 (rol sin acceso): no tiene caso seguir consultando. */
+export function isForbiddenError(err: unknown): boolean {
+  return legacySyncErrorInfo(err, '').status === 403;
+}
+
+/**
+ * Intervalo de polling del estado: 60 s, salvo que la última respuesta haya
+ * sido 403 (el rol no puede leer el panel; p. ej. Comercial en la pestaña de
+ * Inducción), en cuyo caso se deja de consultar.
+ */
+export function statusPollInterval(lastError: unknown, pollMs: number): number | false {
+  return isForbiddenError(lastError) ? false : pollMs;
+}
+
+// ── Inducción: bloqueo suave de "Envíos automáticos" (§6, V12) ──
+
+export interface InductionAutoGate {
+  /** listo = 7/7; no_listo = falta algún criterio; desconocido = no se pudo consultar. */
+  state: 'listo' | 'no_listo' | 'desconocido';
+  chip: WhatsappChip;
+  /** Encender "Envíos automáticos" pide confirmación explícita. */
+  needsConfirm: boolean;
+  failing: LegacySyncWhatsappCriterion[];
+  /** Por qué no se sabe (solo en 'desconocido'). */
+  reason: string | null;
+}
+
+/**
+ * Qué muestra el interruptor "Envíos automáticos" de la pestaña Taller según
+ * `whatsappReady` del estado de la sincronización. Nunca bloquea en duro:
+ * si no está listo (o no se puede saber) pide confirmación mostrando los
+ * criterios en rojo; si está 7/7 enciende directo.
+ */
+export function inductionAutoGate(input: {
+  ready: LegacySyncWhatsappReady | null | undefined;
+  error?: unknown;
+  loading?: boolean;
+}): InductionAutoGate {
+  if (input.ready && Array.isArray(input.ready.criterios)) {
+    const chip = whatsappChip(input.ready);
+    return input.ready.ready
+      ? { state: 'listo', chip, needsConfirm: false, failing: [], reason: null }
+      : {
+          state: 'no_listo',
+          chip,
+          needsConfirm: true,
+          failing: failingCriteria(input.ready),
+          reason: null,
+        };
+  }
+  if (input.loading) {
+    return {
+      state: 'desconocido',
+      chip: { label: 'WhatsApp listo: consultando…', tone: 'sin_dato' },
+      needsConfirm: true,
+      failing: [],
+      reason: 'Todavía se está consultando el estado de la sincronización legacy.',
+    };
+  }
+  if (input.error !== undefined && input.error !== null) {
+    const forbidden = isForbiddenError(input.error);
+    return {
+      state: 'desconocido',
+      chip: {
+        label: forbidden ? 'WhatsApp listo: sin acceso' : 'WhatsApp listo: sin datos',
+        tone: 'sin_dato',
+      },
+      needsConfirm: true,
+      failing: [],
+      reason: forbidden
+        ? 'Tu rol no puede consultar la sincronización legacy (solo super_admin y Sistemas): confirma con Sistemas que está 7/7 antes de encender.'
+        : legacySyncErrorInfo(input.error, 'No se pudo consultar el estado de la sincronización legacy').message,
+    };
+  }
+  return {
+    state: 'desconocido',
+    chip: whatsappChip(null),
+    needsConfirm: true,
+    failing: [],
+    reason: 'Sin datos del estado de la sincronización legacy.',
+  };
 }
