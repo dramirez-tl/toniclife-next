@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useState, useMemo, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +27,8 @@ import {
   useUnbindPosLicense,
 } from '@/hooks/usePosLicenses';
 import type { PosLicense } from '@/types/posLicense';
+import { useAllCashRegisters, useCreateCashRegister, posKeys } from '@/hooks/usePos';
+import type { CreateCashRegisterInput } from '@/types/pos';
 import { PosLicensesModal } from '@/components/pos-licenses/PosLicensesModal';
 import { useStates } from '@/hooks/useStates';
 import { useAppSelector } from '@/store/hooks';
@@ -40,7 +43,6 @@ import {
   PencilIcon,
   XCircleIcon,
   CheckCircleIcon,
-  FunnelIcon,
   MapPinIcon,
   CubeIcon,
   ComputerDesktopIcon,
@@ -52,12 +54,11 @@ import {
   ArrowPathIcon,
   UserGroupIcon,
   ShieldCheckIcon,
-  EyeIcon,
-  EyeSlashIcon,
   KeyIcon,
   ClipboardDocumentIcon,
   LockClosedIcon,
   LockOpenIcon,
+  BanknotesIcon,
 } from '@heroicons/react/24/outline';
 import { toast } from 'sonner';
 import { confirmAction } from '@/lib/utils';
@@ -78,6 +79,17 @@ import { useActiveCountries } from '@/hooks/useConfig';
 import type { Country } from '@/types/config';
 import { getTimezoneLabel, getTimezoneShortLabel, resolveTimeZone } from '@/lib/timezone-utils';
 import { toCreateBranchPayload, toUpdateBranchPayload } from '@/lib/branches/branch-form-payload';
+import {
+  apiErrorMessage,
+  branchRegisterStatus,
+  branchesMissingRegister,
+  canCreateCashRegister,
+  canListCashRegisters,
+  createdCashRegisterFromResponse,
+  createdCashRegisterToast,
+  mainCashRegisterPayload,
+  summarizeRegistersByBranch,
+} from '@/lib/branches/branch-cash-register';
 
 // ================================
 // TIMEZONE OPTIONS
@@ -480,6 +492,40 @@ function SucursalesContent() {
   // (is_active = false), así que deja sin envío a los mismos países.
   const [deactivateTarget, setDeactivateTarget] = useState<{ branch: Branch; action: BranchOffAction } | null>(null);
 
+  // Caja registradora (incidente 428, 23-sep-2026): una sucursal ACTIVA con POS
+  // y sin caja activa no puede cobrar ("No hay una caja registradora configurada
+  // para esta sucursal"). Se cruza TODO el listado de cajas (GET /pos/registers,
+  // una llamada con ≤100 cajas) con las sucursales. Ese endpoint va por @Roles:
+  // un rol que no pasa no consulta y no se marca nada (estado `unknown`).
+  const queryClient = useQueryClient();
+  const canListRegisters = canListCashRegisters(sucUserRoles);
+  const canCreateRegisters = canCreateCashRegister(sucUserRoles);
+  const { data: allRegisters } = useAllCashRegisters(canListRegisters);
+  const registersByBranch = useMemo(
+    () => (allRegisters ? summarizeRegistersByBranch(allRegisters) : undefined),
+    [allRegisters],
+  );
+  const createCashRegister = useCreateCashRegister();
+  const [registerTarget, setRegisterTarget] = useState<Branch | null>(null);
+  // Aviso arriba del listado: TODAS las sucursales activas con POS (no solo la
+  // página visible), para que una sucursal sin caja en la página 3 no pase desapercibida.
+  const posActiveParams: BranchQueryParams = useMemo(() => ({ isPosEnabled: true, isActive: true, page: 1, limit: 500 }), []);
+  const { data: posActiveBranches } = useBranches(posActiveParams, { enabled: !!registersByBranch });
+  const branchesWithoutRegister = useMemo(
+    () => branchesMissingRegister(posActiveBranches?.data, registersByBranch),
+    [posActiveBranches, registersByBranch],
+  );
+  const editingRegisterStatus = editingBranch ? branchRegisterStatus(editingBranch, registersByBranch) : 'not-applicable';
+  // Vista previa del payload (código libre '<código>-C<n>'); null si no se pudo armar.
+  const registerTargetPayload = useMemo<CreateCashRegisterInput | null>(() => {
+    if (!registerTarget) return null;
+    try {
+      return mainCashRegisterPayload(registerTarget, registersByBranch?.[registerTarget.id]?.codes ?? []);
+    } catch {
+      return null;
+    }
+  }, [registerTarget, registersByBranch]);
+
   // Computed stats (server-side totals)
   const stats = useMemo(() => ({
     total: baseStatsData?.total ?? 0,
@@ -574,6 +620,36 @@ function SucursalesContent() {
     }));
   };
 
+  // POST/PATCH /branches manda `cashRegisterCreated` solo cuando ESA operación
+  // creó la Caja Principal (sucursal activa con POS y sin caja). Opcional: un
+  // API sin ese cambio no lo manda y no se dice nada. Siempre se refresca el
+  // listado de cajas (invalidar no consulta si el rol no puede listarlas).
+  const announceCreatedRegister = (saved: unknown) => {
+    const created = createdCashRegisterFromResponse(saved);
+    if (created) toast.success(createdCashRegisterToast(created));
+    void queryClient.invalidateQueries({ queryKey: posKeys.registers() });
+  };
+
+  const handleCreateMainRegister = async () => {
+    const branch = registerTarget;
+    if (!branch) return;
+    if (!registerTargetPayload) {
+      toast.error(`No se pudo armar un código libre para la caja de ${branch.name}.`);
+      return;
+    }
+    try {
+      const register = await createCashRegister.mutateAsync(registerTargetPayload);
+      toast.success(
+        `Se creó la ${register.name} (${register.code}) de ${branch.name}. El POS ya puede cobrar: que vuelvan a intentar el cobro.`,
+      );
+      setRegisterTarget(null);
+    } catch (err: unknown) {
+      toast.error(apiErrorMessage(err, 'No se pudo crear la caja registradora'));
+      // Un 409 (alguien la creó mientras tanto) se resuelve con el listado al día.
+      void queryClient.invalidateQueries({ queryKey: posKeys.registers() });
+    }
+  };
+
   const handleSubmit = async () => {
     // Validation
     if (!formData.name.trim()) {
@@ -593,20 +669,20 @@ function SucursalesContent() {
       // Normalización del payload (opcionales vacíos no viajan, sin `code` al
       // editar, timezone en ambos): lib/branches/branch-form-payload.ts.
       if (editingBranch) {
-        await updateBranch.mutateAsync({
+        const saved = await updateBranch.mutateAsync({
           id: editingBranch.id,
           dto: toUpdateBranchPayload(formData),
         });
         toast.success('Sucursal actualizada correctamente');
+        announceCreatedRegister(saved);
       } else {
-        await createBranch.mutateAsync(toCreateBranchPayload(formData));
+        const saved = await createBranch.mutateAsync(toCreateBranchPayload(formData));
         toast.success('Sucursal creada correctamente');
+        announceCreatedRegister(saved);
       }
       handleCloseModal();
-    } catch (err: any) {
-      toast.error(
-        err.response?.data?.message || `Error al ${editingBranch ? 'actualizar' : 'crear'} la sucursal`
-      );
+    } catch (err: unknown) {
+      toast.error(apiErrorMessage(err, `Error al ${editingBranch ? 'actualizar' : 'crear'} la sucursal`));
     }
   };
 
@@ -617,15 +693,16 @@ function SucursalesContent() {
       return;
     }
     try {
-      await updateBranch.mutateAsync({
+      const saved = await updateBranch.mutateAsync({
         id: branch.id,
         dto: { isActive: !branch.isActive },
       });
       toast.success(
         branch.isActive ? 'Sucursal desactivada correctamente' : 'Sucursal activada correctamente'
       );
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Error al cambiar el estado de la sucursal');
+      announceCreatedRegister(saved);
+    } catch (err: unknown) {
+      toast.error(apiErrorMessage(err, 'Error al cambiar el estado de la sucursal'));
     }
   };
 
@@ -643,8 +720,8 @@ function SucursalesContent() {
     try {
       await deleteBranch.mutateAsync(branch.id);
       toast.success('Sucursal eliminada correctamente');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Error al eliminar la sucursal');
+    } catch (err: unknown) {
+      toast.error(apiErrorMessage(err, 'Error al eliminar la sucursal'));
     }
   };
 
@@ -672,6 +749,23 @@ function SucursalesContent() {
         <Badge key="pos" variant="secondary">
           <ComputerDesktopIcon className="h-3 w-3" />
           POS
+        </Badge>
+      );
+    }
+    // Activa, con POS y sin caja activa: el POS no puede cobrar.
+    if (branchRegisterStatus(branch, registersByBranch) === 'missing') {
+      badges.push(
+        <Badge
+          key="no-register"
+          variant="destructive"
+          title={`El POS no puede cobrar: no tiene caja registradora activa. ${
+            canCreateRegisters
+              ? 'Créala con el botón "Crear caja principal".'
+              : 'Pide a un administrador que cree su Caja Principal.'
+          }`}
+        >
+          <ExclamationTriangleIcon className="h-3 w-3" />
+          Sin caja
         </Badge>
       );
     }
@@ -728,12 +822,9 @@ function SucursalesContent() {
   };
 
   const branches = branchesData?.data ?? [];
-  const totalPages = branchesData?.totalPages ?? 1;
   const backendTotalPages = branchesData?.totalPages;
   const hasActiveFilters = Boolean(searchQuery || filterCountry !== 'all' || filterType !== 'all' || filterStatus !== 'all');
   const totalBranches = branchesData?.total ?? 0;
-  const pageStart = totalBranches === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-  const pageEnd = totalBranches === 0 ? 0 : Math.min(currentPage * pageSize, totalBranches);
 
   useEffect(() => {
     // Solo ajustar cuando el backend ya devolvió totalPages real;
@@ -908,6 +999,17 @@ function SucursalesContent() {
           >
             <PencilIcon className="h-4 w-4 text-blue-600" />
           </button>
+          {/* Crear caja: POST /pos/registers exige super_admin/admin (@Roles). */}
+          {canCreateRegisters && branchRegisterStatus(branch, registersByBranch) === 'missing' && (
+            <button
+              onClick={() => setRegisterTarget(branch)}
+              className="rounded-lg p-2 transition-colors hover:bg-destructive/10"
+              title="Crear caja principal"
+              aria-label={`Crear caja principal de ${branch.name}`}
+            >
+              <BanknotesIcon className="h-4 w-4 text-destructive" />
+            </button>
+          )}
           {/* Licencias: SOLO con pos_licenses:manage (los roles de la matriz
               pueden crear/editar sucursales, pero no tocar licencias POS). */}
           {branch.isPosEnabled && canManageLicenses && (
@@ -1152,6 +1254,49 @@ function SucursalesContent() {
           </CardContent>
         </Card>
 
+        {/* Aviso: sucursales activas con POS sin caja registradora (el POS no cobra) */}
+        {branchesWithoutRegister.length > 0 && (
+          <Card className="mb-6 border-destructive/30 bg-destructive/5 shadow-sm" role="alert">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-start gap-3">
+                <ExclamationTriangleIcon className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-foreground">
+                    {branchesWithoutRegister.length === 1
+                      ? '1 sucursal con POS no tiene caja registradora'
+                      : `${branchesWithoutRegister.length} sucursales con POS no tienen caja registradora`}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Ahí el POS no puede cobrar: al confirmar el pago dice &quot;No hay una caja registradora
+                    configurada para esta sucursal&quot;.{' '}
+                    {canCreateRegisters
+                      ? 'Crea su Caja Principal y que vuelvan a intentar el cobro (no hace falta reiniciar el POS).'
+                      : 'Pide a un administrador que cree su Caja Principal desde esta pantalla.'}
+                  </p>
+                  <ul className="mt-3 flex flex-col gap-2">
+                    {branchesWithoutRegister.map((b) => (
+                      <li
+                        key={b.id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-background px-3 py-2"
+                      >
+                        <span className="min-w-0 text-sm text-foreground">
+                          <span className="font-mono font-medium">{b.code}</span> · {b.name}
+                        </span>
+                        {canCreateRegisters && (
+                          <Button size="sm" variant="destructive" onClick={() => setRegisterTarget(b)}>
+                            <BanknotesIcon className="h-4 w-4" />
+                            Crear caja principal
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Branches Table */}
         <Card className="border-border shadow-sm">
           <CardContent className="p-6">
@@ -1256,6 +1401,44 @@ function SucursalesContent() {
             'Para elegir otro almacén, pídeselo a quien administra Almacenes y envíos.'
           )}
         </p>
+      </ConfirmDialog>
+
+      {/* Confirmación: crear la Caja Principal de una sucursal con POS sin caja */}
+      <ConfirmDialog
+        open={!!registerTarget}
+        onOpenChange={(open) => {
+          if (!open && !createCashRegister.isPending) setRegisterTarget(null);
+        }}
+        title={registerTarget ? `¿Crear la caja principal de ${registerTarget.name}?` : '¿Crear caja principal?'}
+        description="Sin una caja registradora activa el POS de esta sucursal no puede cobrar."
+        confirmLabel="Crear caja principal"
+        cancelLabel="Cancelar"
+        isPending={createCashRegister.isPending}
+        disabled={!registerTargetPayload}
+        onConfirm={handleCreateMainRegister}
+      >
+        {registerTargetPayload ? (
+          <div className="space-y-2 text-sm">
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-lg border border-border bg-muted/50 p-3">
+              <dt className="text-muted-foreground">Nombre</dt>
+              <dd className="font-medium text-foreground">{registerTargetPayload.name}</dd>
+              <dt className="text-muted-foreground">Código</dt>
+              <dd className="font-mono font-medium text-foreground">{registerTargetPayload.code}</dd>
+              <dt className="text-muted-foreground">Sucursal</dt>
+              <dd className="text-foreground">
+                <span className="font-mono">{registerTarget?.code}</span> · {registerTarget?.name}
+              </dd>
+            </dl>
+            <p className="text-muted-foreground">
+              Igual que las demás sucursales: sin saldo negativo e imprime el ticket automáticamente. El POS
+              abre la sesión solo, con fondo $0, en el siguiente cobro; no hace falta reiniciarlo.
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-destructive">
+            No se pudo armar un código libre para la caja de esta sucursal. Revisa sus cajas en el sistema.
+          </p>
+        )}
       </ConfirmDialog>
 
       {/* Create/Edit Modal */}
@@ -1491,8 +1674,8 @@ function SucursalesContent() {
                           try {
                             await removeTaxRule.mutateAsync({ branchId: editingBranch.id, taxRuleId: btr.taxRuleId });
                             toast.success('Regla fiscal removida');
-                          } catch (err: any) {
-                            toast.error(err.response?.data?.message || 'Error al remover regla');
+                          } catch (err: unknown) {
+                            toast.error(apiErrorMessage(err, 'Error al remover regla'));
                           }
                         }}
                         className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-600 transition-colors"
@@ -1536,8 +1719,8 @@ function SucursalesContent() {
                     await assignTaxRule.mutateAsync({ branchId: editingBranch.id, taxRuleId });
                     toast.success('Regla fiscal asignada');
                     select.value = '';
-                  } catch (err: any) {
-                    toast.error(err.response?.data?.message || 'Error al asignar regla');
+                  } catch (err: unknown) {
+                    toast.error(apiErrorMessage(err, 'Error al asignar regla'));
                   }
                 }}
                 disabled={assignTaxRule.isPending}
@@ -1652,8 +1835,8 @@ function SucursalesContent() {
                             try {
                               await deactivatePosUser.mutateAsync({ branchId: editingBranch.id, userId: user.id });
                               toast.success('Usuario POS desactivado');
-                            } catch (err: any) {
-                              toast.error(err.response?.data?.message || 'Error al desactivar usuario');
+                            } catch (err: unknown) {
+                              toast.error(apiErrorMessage(err, 'Error al desactivar usuario'));
                             }
                           }}
                           className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-600 transition-colors"
@@ -1727,8 +1910,8 @@ function SucursalesContent() {
                         toast.success('Usuario POS creado correctamente');
                         setPosUserForm({ email: '', password: '', firstName: '', lastName: '' });
                         setShowPosUserForm(false);
-                      } catch (err: any) {
-                        toast.error(err.response?.data?.message || 'Error al crear usuario POS');
+                      } catch (err: unknown) {
+                        toast.error(apiErrorMessage(err, 'Error al crear usuario POS'));
                       }
                     }}
                     disabled={createPosUser.isPending}
@@ -1749,6 +1932,53 @@ function SucursalesContent() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Caja registradora: solo al editar una sucursal ACTIVA con POS (lo
+            guardado, no lo que se está editando) y con el listado de cajas. */}
+        {editingBranch && editingRegisterStatus === 'ok' && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-3 border-b border-border pb-2 flex items-center gap-2">
+              <BanknotesIcon className="h-4 w-4" />
+              Caja registradora
+            </h3>
+            <ul className="space-y-1 text-sm">
+              {(registersByBranch?.[editingBranch.id]?.active ?? []).map((r) => (
+                <li key={r.id} className="flex items-center gap-2 text-foreground">
+                  <CheckCircleIcon className="h-4 w-4 text-green-600" />
+                  {r.name} <span className="font-mono text-muted-foreground">({r.code})</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {editingBranch && editingRegisterStatus === 'missing' && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-3 border-b border-border pb-2 flex items-center gap-2">
+              <BanknotesIcon className="h-4 w-4" />
+              Caja registradora
+            </h3>
+            <div className="flex flex-col gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="flex items-start gap-2 text-sm text-foreground">
+                <ExclamationTriangleIcon className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                <span>
+                  Sin caja registradora activa: el POS de esta sucursal no puede cobrar.
+                  {!canCreateRegisters && ' Pide a un administrador que cree su Caja Principal.'}
+                </span>
+              </p>
+              {canCreateRegisters && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="shrink-0"
+                  onClick={() => setRegisterTarget(editingBranch)}
+                >
+                  <BanknotesIcon className="h-4 w-4" />
+                  Crear caja principal
+                </Button>
+              )}
+            </div>
           </div>
         )}
 
