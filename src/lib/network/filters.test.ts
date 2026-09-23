@@ -11,9 +11,12 @@ import {
   levelParamOf,
   parseTab,
   queryToUrl,
+  searchBoxAction,
+  searchChangedOutside,
   sortToParam,
   underLinePatch,
   urlToQuery,
+  URL_PARAM,
 } from './filters';
 import type { NetworkMembersQuery } from '@/types/network';
 
@@ -236,5 +239,39 @@ describe('utilidades', () => {
     expect(hasListFilters({ search: 'x' })).toBe(true);
     expect(hasListFilters({ levelDeeper: true })).toBe(true);
     expect(hasListFilters({ under: MEMBER })).toBe(true);
+  });
+});
+
+describe('caja de búsqueda ↔ URL (la URL manda)', () => {
+  it('searchBoxAction: empuja texto buscable distinto, quita q con texto no buscable, nada si es igual', () => {
+    expect(searchBoxAction('ab', '')).toEqual({ kind: 'push', search: 'ab' });
+    expect(searchBoxAction(' ab ', 'ab')).toEqual({ kind: 'none' });
+    expect(searchBoxAction('7', '')).toEqual({ kind: 'push', search: '7' });
+    expect(searchBoxAction('x', '')).toEqual({ kind: 'none' });
+    expect(searchBoxAction('', 'ab')).toEqual({ kind: 'clear' });
+    expect(searchBoxAction('x', 'ab')).toEqual({ kind: 'clear' });
+    expect(searchBoxAction('', '')).toEqual({ kind: 'none' });
+  });
+
+  it('Limpiar filtros / Atrás: q cambió por fuera ⇒ la caja se alinea y NO vuelve a filtrar con el texto viejo', () => {
+    // La caja escribió "ab" y lo empujó a la URL: ese es el último q aplicado.
+    let applied = '';
+    const typed = searchBoxAction('ab', '');
+    expect(typed.kind).toBe('push');
+    if (typed.kind === 'push') applied = typed.search;
+    // Su propio empuje no cuenta como cambio externo (no se pisa lo tecleado).
+    expect(searchChangedOutside('ab', applied)).toBe(false);
+    // "Limpiar filtros" quita q ⇒ cambio externo ⇒ la caja toma '' y aplica ''.
+    expect(clearFiltersPatch()[URL_PARAM.search]).toBeNull();
+    expect(searchChangedOutside('', applied)).toBe(true);
+    applied = '';
+    // Con la caja alineada, el debounce ya no empuja "ab" de vuelta (antes sí).
+    expect(searchBoxAction('', '')).toEqual({ kind: 'none' });
+    // Atrás del navegador a ?q=cd ⇒ la caja toma "cd" y no lo re-empuja.
+    expect(searchChangedOutside('cd', applied)).toBe(true);
+    applied = 'cd';
+    expect(searchBoxAction('cd', 'cd')).toEqual({ kind: 'none' });
+    // Lo que la caja acaba de empujar (q = "cd" con applied = "cd") no es cambio externo.
+    expect(searchChangedOutside('cd', 'cd')).toBe(false);
   });
 });

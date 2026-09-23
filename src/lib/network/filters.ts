@@ -232,6 +232,29 @@ export function clearFiltersPatch(): Record<string, string | null> {
   return patch;
 }
 
+/** Qué hace la caja de búsqueda tras el debounce: empujar `q`, quitarlo o nada. */
+export type SearchBoxAction = { kind: 'push'; search: string } | { kind: 'clear' } | { kind: 'none' };
+
+/**
+ * Texto buscable distinto al de la URL ⇒ push (recortado); texto no buscable
+ * con `q` en la URL ⇒ clear; en cualquier otro caso nada.
+ */
+export function searchBoxAction(text: string, urlSearch: string): SearchBoxAction {
+  const trimmed = text.trim();
+  if (isSearchable(trimmed)) return trimmed !== urlSearch ? { kind: 'push', search: trimmed } : { kind: 'none' };
+  return urlSearch ? { kind: 'clear' } : { kind: 'none' };
+}
+
+/**
+ * ¿`q` cambió por fuera de la caja (Limpiar filtros, Atrás/Adelante del
+ * navegador)? `applied` es el último `q` que la caja empujó o tomó de la URL:
+ * lo que ella misma escribió no cuenta, así no se pisa lo que el usuario está
+ * tecleando. Cuando cambia por fuera, la URL manda y la caja se alinea.
+ */
+export function searchChangedOutside(urlSearch: string, applied: string): boolean {
+  return urlSearch !== applied;
+}
+
 /**
  * Tocar una ficha de la tira lleva a la Lista con el filtro equivalente
  * (§5.2): total = sin filtro de actividad; nuevos = ingreso en el periodo

@@ -32,6 +32,8 @@ import {
   isUuid,
   kpiToFilter,
   parseTab,
+  searchBoxAction,
+  searchChangedOutside,
   underLinePatch,
   urlToQuery,
   type NetworkTab,
@@ -199,14 +201,26 @@ function RedContent() {
   // cambia a Lista con q=; borrar regresa a la pestaña anterior.
   const urlSearch = get(URL_PARAM.search);
   const [searchText, setSearchText] = useState(urlSearch);
+  /** Último `q` que la caja empujó a la URL (o tomó de ella). */
+  const [appliedSearch, setAppliedSearch] = useState(urlSearch);
+  // La URL manda: si `q` cambió por fuera de la caja (Limpiar filtros, Atrás/
+  // Adelante del navegador), la caja se alinea y el debounce ya no vuelve a
+  // filtrar con el texto viejo. Se ajusta durante el render (estado derivado),
+  // no en un efecto.
+  if (searchChangedOutside(urlSearch, appliedSearch)) {
+    setAppliedSearch(urlSearch);
+    setSearchText(urlSearch);
+  }
   const previousTab = useRef<NetworkTab>(tab === 'list' ? 'explore' : tab);
   useEffect(() => {
     const id = window.setTimeout(() => {
-      const trimmed = searchText.trim();
-      if (isSearchable(trimmed)) {
-        if (trimmed !== urlSearch) setParams({ [URL_PARAM.search]: trimmed, [URL_PARAM.tab]: TAB_PARAM.list, [URL_PARAM.page]: null });
-      } else if (urlSearch) {
+      const action = searchBoxAction(searchText, urlSearch);
+      if (action.kind === 'push') {
+        setAppliedSearch(action.search);
+        setParams({ [URL_PARAM.search]: action.search, [URL_PARAM.tab]: TAB_PARAM.list, [URL_PARAM.page]: null });
+      } else if (action.kind === 'clear') {
         const back = previousTab.current;
+        setAppliedSearch('');
         setParams({ [URL_PARAM.search]: null, [URL_PARAM.tab]: back === 'explore' ? null : TAB_PARAM[back], [URL_PARAM.page]: null });
       }
     }, SEARCH_DEBOUNCE_MS);
