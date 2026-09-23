@@ -3,7 +3,7 @@
 
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { branchesService } from '@/services/branches.service';
-import type { Branch, BranchQueryParams, CreateBranchDto, UpdateBranchDto, CedeaInfo, PosUser, CreatePosUserDto, UpdatePosUserDto } from '@/types/branch';
+import type { Branch, BranchQueryParams, CreateBranchDto, UpdateBranchDto, PosUser, CreatePosUserDto, UpdatePosUserDto } from '@/types/branch';
 
 // Query keys
 export const branchKeys = {
@@ -31,11 +31,12 @@ export function useActiveBranches() {
 /**
  * Hook to fetch branches with pagination and filters (admin)
  */
-export function useBranches(params: BranchQueryParams = {}) {
+export function useBranches(params: BranchQueryParams = {}, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: branchKeys.list(params),
     queryFn: () => branchesService.getBranches(params),
     placeholderData: keepPreviousData,
+    enabled: options?.enabled ?? true,
   });
 }
 

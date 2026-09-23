@@ -49,6 +49,17 @@ export interface Branch {
   cedeaDistributorNumber?: string | null;
   cedeaContractNumber?: string | null;
   timezone?: string;
+  /** Solo en la respuesta de POST/PATCH /branches, y solo cuando ESA operación
+   *  creó la caja por defecto (sucursal activa con POS y sin caja). Opcional:
+   *  un API sin ese cambio no lo manda. Ver createdCashRegisterFromResponse. */
+  cashRegisterCreated?: BranchCashRegisterCreated;
+}
+
+/** Caja por defecto que el API creó al guardar la sucursal. */
+export interface BranchCashRegisterCreated {
+  id: string;
+  code: string;
+  name: string;
 }
 
 // ================================

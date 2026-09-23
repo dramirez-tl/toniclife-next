@@ -4,6 +4,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { posService } from '@/services/pos.service';
 import { customersService } from '@/services/customers.service';
+import { fetchAllCashRegisters } from '@/lib/branches/branch-cash-register';
 import type {
   // Cash Register
   CreateCashRegisterInput,
@@ -31,6 +32,7 @@ export const posKeys = {
   // Cash Registers
   registers: () => [...posKeys.all, 'registers'] as const,
   registerList: (params?: CashRegisterQueryParams) => [...posKeys.registers(), 'list', params] as const,
+  registerAll: () => [...posKeys.registers(), 'all'] as const,
   registerAvailable: (branchId?: string) => [...posKeys.registers(), 'available', branchId] as const,
   registerDetail: (id: string) => [...posKeys.registers(), 'detail', id] as const,
   // Sessions
@@ -67,6 +69,23 @@ export const useCashRegisters = (params?: CashRegisterQueryParams) => {
     queryKey: posKeys.registerList(params),
     queryFn: () => posService.getRegisters(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+/**
+ * TODAS las cajas (activas e inactivas) para cruzarlas con las sucursales en
+ * /admin/sucursales ("Sin caja"). Cuelga de posKeys.registers(), así que
+ * useCreateCashRegister/useUpdateCashRegister la invalidan. `enabled` = el rol
+ * pasa los @Roles de GET /pos/registers (si no, el API responde 403).
+ */
+export const useAllCashRegisters = (enabled = true) => {
+  return useQuery({
+    queryKey: posKeys.registerAll(),
+    queryFn: () => fetchAllCashRegisters((page, limit) => posService.getRegisters({ page, limit })),
+    enabled,
+    staleTime: 60 * 1000, // 1 minuto: el aviso debe desaparecer pronto tras crear la caja
+    gcTime: 5 * 60 * 1000,
+    retry: false,
   });
 };
 
