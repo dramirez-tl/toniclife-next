@@ -197,6 +197,19 @@ export function describeJob(job: NetworkExportJob, now: number = Date.now()): Jo
   }
 }
 
+export type ExportPanelView = 'unreachable' | 'job' | 'loading';
+
+/**
+ * Qué pinta la tarjeta bajo el job guardado. El aviso "sin conexión" + Reintentar
+ * manda AUNQUE haya un último estado en caché (React Query conserva `data` al
+ * fallar, así que `job` casi siempre existe tras 8 fallos): la última fase se
+ * muestra debajo, en gris. Sin aviso: el job, o el spinner mientras llega.
+ */
+export function exportPanelView(job: NetworkExportJob | null | undefined, unreachable: boolean): ExportPanelView {
+  if (unreachable) return 'unreachable';
+  return job ? 'job' : 'loading';
+}
+
 /**
  * Intervalo de sondeo (ms) o false para detenerse: `pollAfterMs` del servidor
  * (2000 en espera, 1000 en curso), 3000 tras 60 s sondeando, nada al terminar.

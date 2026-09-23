@@ -14,6 +14,7 @@ import {
   clearStoredJob,
   createExportPollTracker,
   describeJob,
+  exportPanelView,
   downloadedOnce,
   exportDoneKey,
   exportSeenKey,
@@ -183,6 +184,18 @@ describe('pollIntervalFor', () => {
     // Sin pollAfterMs (API viejo): 2000 en espera, 1000 en curso.
     expect(pollIntervalFor(job({ pollAfterMs: undefined }), 0)).toBe(2000);
     expect(pollIntervalFor(job({ phase: 'traversing', pollAfterMs: undefined }), 0)).toBe(1000);
+  });
+});
+
+describe('exportPanelView: el aviso "sin conexión" manda aunque haya último estado', () => {
+  it('inalcanzable ⇒ unreachable con o sin job en caché; si no, job o spinner', () => {
+    // Job en writing 40 % y el API deja de responder: la tarjeta NO se congela en la fase.
+    expect(exportPanelView(job({ phase: 'writing', percent: 40 }), true)).toBe('unreachable');
+    expect(exportPanelView(undefined, true)).toBe('unreachable');
+    expect(exportPanelView(null, true)).toBe('unreachable');
+    expect(exportPanelView(job({ phase: 'writing', percent: 40 }), false)).toBe('job');
+    expect(exportPanelView(job({ status: 'done', phase: 'done', percent: 100 }), false)).toBe('job');
+    expect(exportPanelView(undefined, false)).toBe('loading');
   });
 });
 

@@ -21,7 +21,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useCancelNetworkExport, useNetworkExportJob, useStartNetworkExport } from '@/hooks/useNetwork';
 import { setStoredExportJob, useExportDownloader, useNetworkExportStore } from '@/hooks/useNetworkExportStore';
 import { networkApi } from '@/services/networkApi';
-import { describeJob, phaseOf } from '@/lib/network/export-job';
+import { describeJob, exportPanelView, phaseOf } from '@/lib/network/export-job';
 import { fmtDate, fmtInt, fmtRelativeTime, minutesSince } from '@/lib/network/format';
 import { networkErrorKey } from '@/lib/network/network-error';
 
@@ -43,6 +43,7 @@ export function NetworkExportCard({ periodId, periodName, isCurrentPeriod }: Net
   const download = useExportDownloader();
 
   const desc = job ? describeJob(job) : null;
+  const view = exportPanelView(job, unreachable);
   const jobActive = job ? !desc?.terminal : Boolean(stored) && !notice && jobLoading;
   const busy = jobActive || startMutation.isPending;
 
@@ -129,10 +130,22 @@ export function NetworkExportCard({ periodId, periodName, isCurrentPeriod }: Net
           </div>
         )}
 
-        {/* Estado del job guardado */}
+        {/* Estado del job guardado: el aviso "sin conexión" manda sobre el último estado (§6.3) */}
         {stored && (
           <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-3" aria-live="polite">
-            {job && desc ? (
+            {view === 'unreachable' ? (
+              <>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-amber-800">{t('errors.unreachable')}</p>
+                  <Button variant="outline" size="sm" onClick={resume}>
+                    <ArrowPathIcon className="h-4 w-4" aria-hidden="true" />
+                    {t('overview.retry')}
+                  </Button>
+                </div>
+                {/* Última fase conocida, en gris: el sondeo está detenido hasta reintentar */}
+                {desc && <p className="mt-2 text-xs text-gray-500">{phaseLabel}</p>}
+              </>
+            ) : view === 'job' && job && desc ? (
               <>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <p className={`text-sm font-medium ${desc.phase === 'error' ? 'text-red-700' : 'text-gray-800'}`}>{phaseLabel}</p>
@@ -178,14 +191,6 @@ export function NetworkExportCard({ periodId, periodName, isCurrentPeriod }: Net
                 )}
                 {!desc.terminal && <p className="mt-2 text-xs text-gray-500">{t('exportPanel.keepBrowsing')}</p>}
               </>
-            ) : unreachable ? (
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-amber-800">{t('errors.unreachable')}</p>
-                <Button variant="outline" size="sm" onClick={resume}>
-                  <ArrowPathIcon className="h-4 w-4" aria-hidden="true" />
-                  {t('overview.retry')}
-                </Button>
-              </div>
             ) : (
               <p className="flex items-center gap-2 text-sm text-gray-600">
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
