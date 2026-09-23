@@ -10,6 +10,9 @@
 //                                (antes era el jobId a secas: se sigue leyendo).
 // - tl_red_export_history      → JSON ExportHistoryItem[] (máx. 5, más reciente primero).
 // - tl_red_export_done_<jobId> → '1' cuando ya se descargó ese job.
+// - tl_red_export_seen_<jobId> → '1' cuando ya se AVISÓ (toast) que terminó
+//                                (listo, con error o cancelado): una vez por job
+//                                aunque varias pestañas sondeen o se recargue.
 
 import type { NetworkExportJob, NetworkExportPhase } from '@/types/network';
 
@@ -27,6 +30,7 @@ export const EXPORT_MAX_POLL_FAILURES = 8;
 export const EXPORT_STORAGE_JOB_KEY = 'tl_red_export_job';
 export const EXPORT_STORAGE_HISTORY_KEY = 'tl_red_export_history';
 export const exportDoneKey = (jobId: string): string => `tl_red_export_done_${jobId}`;
+export const exportSeenKey = (jobId: string): string => `tl_red_export_seen_${jobId}`;
 
 export const TERMINAL_PHASES: ReadonlySet<NetworkExportPhase> = new Set<NetworkExportPhase>([
   'done',
@@ -392,4 +396,23 @@ export function claimDownload(jobId: string, storage: StorageLike | null = defau
 
 export function clearDownloaded(jobId: string, storage: StorageLike | null = defaultStorage()): void {
   remove(storage, exportDoneKey(jobId));
+}
+
+/**
+ * Reclama el AVISO de fin de job (toast "listo" / error / cancelada): true solo
+ * la primera vez por job en este navegador (y lo marca). Sin storage siempre
+ * true (se avisa en cada montaje; nada grave).
+ */
+export function claimNotified(jobId: string, storage: StorageLike | null = defaultStorage()): boolean {
+  try {
+    if (storage?.getItem(exportSeenKey(jobId)) === '1') return false;
+    storage?.setItem(exportSeenKey(jobId), '1');
+  } catch {
+    // sin storage: se avisa de nuevo si se vuelve a montar
+  }
+  return true;
+}
+
+export function clearNotified(jobId: string, storage: StorageLike | null = defaultStorage()): void {
+  remove(storage, exportSeenKey(jobId));
 }

@@ -6,11 +6,14 @@ import {
   EXPORT_STORAGE_HISTORY_KEY,
   EXPORT_STORAGE_JOB_KEY,
   claimDownload,
+  claimNotified,
   clearDownloaded,
+  clearNotified,
   clearStoredJob,
   describeJob,
   downloadedOnce,
   exportDoneKey,
+  exportSeenKey,
   historyItemFromJob,
   isJobActive,
   markDownloaded,
@@ -341,6 +344,22 @@ describe('job guardado y bandera de descarga única', () => {
     // Sin storage: no explota y no "recuerda".
     expect(claimDownload('j9', null)).toBe(true);
     expect(claimDownload('j9', null)).toBe(true);
+  });
+
+  it('claimNotified avisa UNA vez por job (independiente de la descarga)', () => {
+    const s = fakeStorage();
+    expect(claimNotified('j1', s)).toBe(true);
+    expect(claimNotified('j1', s)).toBe(false);
+    expect(s.getItem(exportSeenKey('j1'))).toBe('1');
+    // Otro job no se ve afectado; la bandera de descarga es otra clave.
+    expect(claimNotified('j2', s)).toBe(true);
+    expect(downloadedOnce('j1', s)).toBe(false);
+    expect(exportSeenKey('j1')).not.toBe(exportDoneKey('j1'));
+    clearNotified('j1', s);
+    expect(claimNotified('j1', s)).toBe(true);
+    // Sin storage: no explota y no "recuerda".
+    expect(claimNotified('j9', null)).toBe(true);
+    expect(claimNotified('j9', null)).toBe(true);
   });
 
   it('un storage que lanza (modo privado) no rompe', () => {
