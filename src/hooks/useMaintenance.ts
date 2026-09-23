@@ -5,6 +5,10 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { maintenanceService } from '@/services/maintenance.service';
+import type {
+  DecideLegacySyncHoldInput,
+  LegacySyncHoldStatus,
+} from '@/types/legacySync';
 
 export const maintenanceKeys = {
   all: ['maintenance'] as const,
@@ -12,6 +16,92 @@ export const maintenanceKeys = {
   loadJobs: () => [...maintenanceKeys.all, 'load-jobs'] as const,
   periodSales: (periodId: string) =>
     [...maintenanceKeys.all, 'period-sales', periodId] as const,
+  legacySync: () => [...maintenanceKeys.all, 'legacy-sync'] as const,
+  legacySyncStatus: () => [...maintenanceKeys.legacySync(), 'status'] as const,
+  legacySyncRuns: (limit: number) =>
+    [...maintenanceKeys.legacySync(), 'runs', limit] as const,
+  legacySyncRun: (id: string) =>
+    [...maintenanceKeys.legacySync(), 'run', id] as const,
+  legacySyncHolds: (status: LegacySyncHoldStatus | 'all') =>
+    [...maintenanceKeys.legacySync(), 'holds', status] as const,
+};
+
+// ── Sincronización legacy (pestaña /admin/sistema?tab=sync) ──
+
+/** Polling del panel (§5.5): cada 60 s mientras la pestaña está visible. */
+export const LEGACY_SYNC_POLL_MS = 60_000;
+
+/**
+ * Estado de la sincronización legacy->v2 (semáforo, última corrida, siguiente
+ * ventana, "WhatsApp listo"). Sin reintentos: un 403 (rol sin acceso) o un 503
+ * (migración 150 pendiente) se muestran de inmediato en vez de esperar tres
+ * intentos. `enabled` permite montarlo en otras pantallas sin consultar.
+ */
+export const useLegacySyncStatus = (opts: { enabled?: boolean } = {}) =>
+  useQuery({
+    queryKey: maintenanceKeys.legacySyncStatus(),
+    queryFn: () => maintenanceService.getLegacySyncStatus(),
+    enabled: opts.enabled ?? true,
+    refetchInterval: LEGACY_SYNC_POLL_MS,
+    refetchIntervalInBackground: false,
+    staleTime: 30 * 1000,
+    retry: false,
+  });
+
+/** Últimas corridas de la bitácora (default 24). Mismo polling que el estado. */
+export const useLegacySyncRuns = (limit = 24) =>
+  useQuery({
+    queryKey: maintenanceKeys.legacySyncRuns(limit),
+    queryFn: () => maintenanceService.getLegacySyncRuns(limit),
+    refetchInterval: LEGACY_SYNC_POLL_MS,
+    refetchIntervalInBackground: false,
+    staleTime: 30 * 1000,
+    retry: false,
+  });
+
+/** Detalle de una corrida (con legacySnapshot); solo cuando hay id. */
+export const useLegacySyncRun = (id: string | null) =>
+  useQuery({
+    queryKey: maintenanceKeys.legacySyncRun(id ?? ''),
+    queryFn: () => maintenanceService.getLegacySyncRun(id as string),
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+/** Retenciones por doble identidad (default: pendientes) + SQL de renumeración. */
+export const useLegacySyncHolds = (status: LegacySyncHoldStatus | 'all' = 'pending') =>
+  useQuery({
+    queryKey: maintenanceKeys.legacySyncHolds(status),
+    queryFn: () => maintenanceService.getLegacySyncHolds(status),
+    refetchInterval: LEGACY_SYNC_POLL_MS,
+    refetchIntervalInBackground: false,
+    staleTime: 30 * 1000,
+    retry: false,
+  });
+
+/** Decisión humana sobre una retención. Invalida estado, corridas y retenciones. */
+export const useDecideHold = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: DecideLegacySyncHoldInput }) =>
+      maintenanceService.decideLegacySyncHold(id, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: maintenanceKeys.legacySync() });
+    },
+  });
+};
+
+/** Interruptor "Sincronización automática" (legacy_sync.auto_enabled). */
+export const useToggleLegacySync = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (autoEnabled: boolean) =>
+      maintenanceService.setLegacySyncAutoEnabled(autoEnabled),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: maintenanceKeys.legacySync() });
+    },
+  });
 };
 
 export const useMaintenanceOverview = () =>

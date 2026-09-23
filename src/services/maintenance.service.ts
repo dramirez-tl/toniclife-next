@@ -10,6 +10,16 @@ import type {
   PeriodSalesPreview,
   PeriodSalesResetResult,
 } from '@/types/maintenance';
+import type {
+  DecideLegacySyncHoldInput,
+  LegacySyncHold,
+  LegacySyncHoldStatus,
+  LegacySyncHolds,
+  LegacySyncRunDetail,
+  LegacySyncRuns,
+  LegacySyncSettings,
+  LegacySyncStatus,
+} from '@/types/legacySync';
 
 /** Un distribuidor en BD ausente del archivo maestro (candidato a borrar). */
 export interface ClientesSyncRemoval {
@@ -164,6 +174,70 @@ class MaintenanceService {
       { headers: { 'Content-Type': 'multipart/form-data' } },
     );
     return { jobId: data.jobId };
+  }
+
+  // ── Sincronización legacy (contrato §5.2; /maintenance/legacy-sync) ──
+  // Lectura: super_admin y sistemas (D12). Escritura: solo super_admin.
+
+  /** Semáforo, última corrida, siguiente ventana, retenciones y "WhatsApp listo". */
+  async getLegacySyncStatus(): Promise<LegacySyncStatus> {
+    const { data } = await api.get<LegacySyncStatus>(
+      '/maintenance/legacy-sync/status',
+    );
+    return data;
+  }
+
+  /** Últimas corridas de la bitácora (default 24, máx. 200). */
+  async getLegacySyncRuns(limit = 24): Promise<LegacySyncRuns> {
+    const { data } = await api.get<LegacySyncRuns>(
+      '/maintenance/legacy-sync/runs',
+      { params: { limit } },
+    );
+    return data;
+  }
+
+  /** Detalle de una corrida (incluye legacySnapshot). */
+  async getLegacySyncRun(id: string): Promise<LegacySyncRunDetail> {
+    const { data } = await api.get<LegacySyncRunDetail>(
+      `/maintenance/legacy-sync/runs/${encodeURIComponent(id)}`,
+    );
+    return data;
+  }
+
+  /** Retenciones por doble identidad (+ SQL de renumeración de las pendientes). */
+  async getLegacySyncHolds(
+    status: LegacySyncHoldStatus | 'all' = 'pending',
+  ): Promise<LegacySyncHolds> {
+    const { data } = await api.get<LegacySyncHolds>(
+      '/maintenance/legacy-sync/holds',
+      { params: { status } },
+    );
+    return data;
+  }
+
+  /** Decisión humana sobre una retención pendiente (se audita en el API). */
+  async decideLegacySyncHold(
+    id: string,
+    input: DecideLegacySyncHoldInput,
+  ): Promise<LegacySyncHold> {
+    const body: DecideLegacySyncHoldInput = { status: input.status };
+    if (input.note?.trim()) body.note = input.note.trim();
+    const { data } = await api.patch<LegacySyncHold>(
+      `/maintenance/legacy-sync/holds/${encodeURIComponent(id)}`,
+      body,
+    );
+    return data;
+  }
+
+  /** Interruptor legacy_sync.auto_enabled (se audita en el API). */
+  async setLegacySyncAutoEnabled(
+    autoEnabled: boolean,
+  ): Promise<LegacySyncSettings> {
+    const { data } = await api.put<LegacySyncSettings>(
+      '/maintenance/legacy-sync/settings',
+      { autoEnabled },
+    );
+    return data;
   }
 
   async downloadTemplate(key: string): Promise<void> {
