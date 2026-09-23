@@ -264,6 +264,9 @@ const navigation: NavItem[] = [
     children: [
       { name: 'Limpieza y Carga', href: '/admin/sistema' },
       { name: 'Tesorería (ajustes)', href: '/admin/sistema?tab=tesoreria' },
+      // Sync automática legacy→v2: hereda superAdminOnly del padre, igual
+      // que el PermissionGuard roles={['super_admin']} de la página.
+      { name: 'Sincronización legacy', href: '/admin/sistema?tab=sync' },
     ],
   },
 ];
