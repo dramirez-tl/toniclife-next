@@ -1109,7 +1109,10 @@ function RunsCard({
     <Card>
       <CardContent className="p-5">
         <h3 className="mb-3 text-sm font-semibold text-gray-900">
-          Últimas {data?.limit ?? 24} corridas
+          Últimas corridas{' '}
+          <span className="font-normal text-muted-foreground">
+            ({runs.length} de hasta {data?.limit ?? 24}; incluye ensayos dry-run)
+          </span>
         </h3>
         {runsQuery.isLoading ? (
           <Skeleton className="h-32 w-full" />
