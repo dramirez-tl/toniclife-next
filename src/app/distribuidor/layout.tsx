@@ -9,6 +9,7 @@ import { DistributorTopNav } from '@/components/distributor/DistributorTopNav';
 import { DistributorMoreMenu } from '@/components/distributor/DistributorMoreMenu';
 import { ComingSoon } from '@/components/distributor/ComingSoon';
 import { DistributorTour } from '@/components/distributor/DistributorTour';
+import { NetworkExportWatcher } from '@/components/distributor/NetworkExportWatcher';
 import { OnboardingGate } from '@/components/distributor/OnboardingGate';
 import { DistributorLocaleSync } from '@/components/distributor/DistributorLocaleSync';
 
@@ -72,6 +73,9 @@ export default function DistributorLayout({
       <DistributorLocaleSync />
       {/* Tour guiado de primera vez (omitible + repetible desde "Ver tutorial") */}
       <DistributorTour />
+      {/* Vigía de la descarga de "Mi red": reconecta al job vivo y avisa al
+          terminar (toast con "Descargar") desde cualquier página del panel */}
+      <NetworkExportWatcher />
       <div className="min-h-screen bg-gray-50">
         {/* Sidebar rico: tablet (≥768px) y escritorio */}
         <div className="hidden md:block">
