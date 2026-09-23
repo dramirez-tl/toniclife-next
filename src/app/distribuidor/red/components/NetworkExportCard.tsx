@@ -21,7 +21,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useCancelNetworkExport, useNetworkExportJob, useStartNetworkExport } from '@/hooks/useNetwork';
 import { setStoredExportJob, useExportDownloader, useNetworkExportStore } from '@/hooks/useNetworkExportStore';
 import { networkApi } from '@/services/networkApi';
-import { describeJob, exportPanelView, phaseOf } from '@/lib/network/export-job';
+import { describeJob, downloadedOnce, exportPanelView, phaseOf } from '@/lib/network/export-job';
 import { fmtDate, fmtInt, fmtRelativeTime, minutesSince } from '@/lib/network/format';
 import { networkErrorKey } from '@/lib/network/network-error';
 
@@ -157,10 +157,16 @@ export function NetworkExportCard({ periodId, periodName, isCurrentPeriod }: Net
                       </Button>
                     )}
                     {desc.phase === 'done' && (
-                      <Button size="sm" onClick={() => void download(job)}>
-                        <ArrowDownTrayIcon className="h-4 w-4" aria-hidden="true" />
-                        {t('exportPanel.download')}
-                      </Button>
+                      <>
+                        {/* Listo y aún sin descargar (p. ej. encontrado al montar): se ofrece, no baja solo (§5.6) */}
+                        {!downloadedOnce(job.jobId) && (
+                          <span className="inline-flex items-center text-xs font-semibold text-emerald-700">{t('exportPanel.downloadReady')}</span>
+                        )}
+                        <Button size="sm" onClick={() => void download(job)}>
+                          <ArrowDownTrayIcon className="h-4 w-4" aria-hidden="true" />
+                          {t('exportPanel.download')}
+                        </Button>
+                      </>
                     )}
                     {(desc.phase === 'error' || desc.phase === 'cancelled') && (
                       <Button variant="outline" size="sm" onClick={regenerate}>

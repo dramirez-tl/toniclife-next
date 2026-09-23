@@ -7,6 +7,7 @@ import {
   EXPORT_POLL_TRACKED_MAX,
   EXPORT_STORAGE_HISTORY_KEY,
   EXPORT_STORAGE_JOB_KEY,
+  claimAutoDownload,
   claimDownload,
   claimNotified,
   clearDownloaded,
@@ -421,6 +422,32 @@ describe('job guardado y bandera de descarga única', () => {
     // Sin storage: no explota y no "recuerda".
     expect(claimDownload('j9', null)).toBe(true);
     expect(claimDownload('j9', null)).toBe(true);
+  });
+
+  it('claimAutoDownload: un job ofrecido al montar (offerDownload) NUNCA se descarga solo ni se marca', () => {
+    const s = fakeStorage();
+    const offered = new Set<string>();
+    // El distribuidor cierra el navegador con el Excel en curso y vuelve 5 min después:
+    // export-jobs lo trae listo ⇒ offerDownload ⇒ se ofrece con botón, sin descarga automática.
+    const done = job({ status: 'done', phase: 'done', percent: 100 });
+    const decision = reconnectDecision({ jobs: [done], stored: null, now: NOW, isDownloaded: (id) => downloadedOnce(id, s) });
+    expect(decision.kind).toBe('offerDownload');
+    if (decision.kind === 'offerDownload') offered.add(decision.jobId);
+    expect(claimAutoDownload('job-1', offered, s)).toBe(false);
+    // Sigue "sin descargar": el botón downloadReady se mantiene y otra pestaña también lo ofrece.
+    expect(downloadedOnce('job-1', s)).toBe(false);
+    expect(reconnectDecision({ jobs: [done], stored: null, now: NOW, isDownloaded: (id) => downloadedOnce(id, s) }).kind).toBe(
+      'offerDownload',
+    );
+    // Aunque el sondeo devuelva el job otra vez (foco, reanudar), tampoco baja.
+    expect(claimAutoDownload('job-1', offered, s)).toBe(false);
+    // Un job que TERMINA mientras se navega sí baja una sola vez.
+    expect(claimAutoDownload('job-2', offered, s)).toBe(true);
+    expect(claimAutoDownload('job-2', offered, s)).toBe(false);
+    expect(downloadedOnce('job-2', s)).toBe(true);
+    // Sin storage: no explota.
+    expect(claimAutoDownload('job-3', offered, null)).toBe(true);
+    expect(claimAutoDownload('job-1', offered, null)).toBe(false);
   });
 
   it('claimNotified avisa UNA vez por job (independiente de la descarga)', () => {

@@ -503,6 +503,22 @@ export function clearDownloaded(jobId: string, storage: StorageLike | null = def
 }
 
 /**
+ * Reclama la descarga AUTOMÁTICA al terminar: solo para jobs que terminan
+ * mientras el usuario navega. Un job que ya estaba listo al montar (decisión
+ * `offerDownload`, guardado en `offered` por la pestaña) se ofrece con botón y
+ * toast pero NUNCA se descarga solo (§5.6, "no descarga sola"); tampoco se
+ * marca como descargado, para que el botón `downloadReady` siga visible.
+ */
+export function claimAutoDownload(
+  jobId: string,
+  offered: ReadonlySet<string>,
+  storage: StorageLike | null = defaultStorage(),
+): boolean {
+  if (offered.has(jobId)) return false;
+  return claimDownload(jobId, storage);
+}
+
+/**
  * Reclama el AVISO de fin de job (toast "listo" / error / cancelada): true solo
  * la primera vez por job en este navegador (y lo marca). Sin storage siempre
  * true (se avisa en cada montaje; nada grave).

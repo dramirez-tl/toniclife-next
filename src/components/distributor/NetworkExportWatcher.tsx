@@ -10,11 +10,14 @@
 //   "Tu archivo está listo" con "Descargar" desde CUALQUIER /distribuidor/*;
 // - descarga automática UNA sola vez por job (tl_red_export_done_<jobId>,
 //   varias pestañas sondean pero solo una descarga) y avisa una vez por job
-//   (tl_red_export_seen_<jobId>) aunque se recargue la página.
+//   (tl_red_export_seen_<jobId>) aunque se recargue la página;
+// - un job que YA estaba listo al montar (offerDownload) se ofrece (toast con
+//   "Descargar" + botón de la tarjeta) y no se descarga solo (§5.6): se anota
+//   en `offered` y claimAutoDownload lo salta.
 // No renderiza nada. Sin setState dentro de efectos: el estado compartido vive
 // en useNetworkExportStore y las decisiones corren en callbacks.
 
-import { useEffect, useEffectEvent, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -29,7 +32,7 @@ import {
 import { networkApi } from '@/services/networkApi';
 import type { NetworkExportJob } from '@/types/network';
 import {
-  claimDownload,
+  claimAutoDownload,
   claimNotified,
   clearDownloaded,
   describeJob,
@@ -48,6 +51,8 @@ export function NetworkExportWatcher() {
   // existe se resuelve UNA vez (aquí) y no también por el 404 del sondeo.
   const [decided, setDecided] = useState(false);
   const { job, gone } = useNetworkExportJob(stored?.jobId, { enabled: decided });
+  /** Jobs listos encontrados al montar: se ofrecen, no se descargan solos (por pestaña). */
+  const offered = useRef(new Set<string>());
 
   // Decisión al montar (una vez). Lo no reactivo (t, decisión) va en un
   // "effect event": el efecto solo depende del queryClient.
@@ -55,6 +60,7 @@ export function NetworkExportWatcher() {
     const storedAtMount = readStoredJob();
     const decision = reconnectDecision({ jobs, stored: storedAtMount, isDownloaded: downloadedOnce });
     if (decision.kind === 'reconnect' || decision.kind === 'offerDownload') {
+      if (decision.kind === 'offerDownload') offered.current.add(decision.jobId);
       if (!storedAtMount || storedAtMount.jobId !== decision.jobId) {
         setStoredExportJob({
           jobId: decision.jobId,
@@ -87,11 +93,12 @@ export function NetworkExportWatcher() {
     };
   }, [queryClient]);
 
-  // Fin del job: aviso una vez por job y descarga automática una vez por job.
+  // Fin del job: aviso una vez por job y descarga automática una vez por job
+  // (nunca para un job que ya estaba listo al montar: solo se ofrece).
   const onJobUpdate = useEffectEvent((current: NetworkExportJob) => {
     const phase = phaseOf(current);
     if (phase === 'done') {
-      const first = claimDownload(current.jobId);
+      const first = claimAutoDownload(current.jobId, offered.current);
       if (claimNotified(current.jobId)) {
         toast.success(t('exportPanel.toastDone', { filename: current.filename }), {
           id: exportToastId(current.jobId),
