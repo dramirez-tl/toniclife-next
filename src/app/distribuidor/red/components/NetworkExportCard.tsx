@@ -8,8 +8,9 @@
 // Descargar + "Disponible hasta las HH:MM"), Cancelar en espera/en curso,
 // interrumpida/expirada ⇒ "Volver a generar", 429 ⇒ ocupado, reused ⇒ toast,
 // cancelada ⇒ info, y descargas recientes (máx. 5, localStorage).
-// El sondeo y los avisos al terminar los lleva NetworkExportWatcher (layout);
-// aquí solo se pinta el estado compartido (useNetworkExportStore) y se actúa.
+// El sondeo (un solo intervalo) y los avisos al terminar los lleva
+// NetworkExportWatcher (layout); aquí se lee la misma query y el estado
+// compartido (useNetworkExportStore) y se actúa.
 
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -35,7 +36,8 @@ export function NetworkExportCard({ periodId, periodName, isCurrentPeriod }: Net
   const t = useTranslations('distributor.network');
   const locale = useLocale();
   const { stored, notice, history } = useNetworkExportStore();
-  const { job, unreachable, resume, isLoading: jobLoading } = useNetworkExportJob(stored?.jobId);
+  // Misma query que el vigía; el intervalo lo arma solo él (un solo sondeo, §6.3).
+  const { job, unreachable, resume, isLoading: jobLoading } = useNetworkExportJob(stored?.jobId, { poll: false });
   const startMutation = useStartNetworkExport();
   const cancelMutation = useCancelNetworkExport();
   const download = useExportDownloader();

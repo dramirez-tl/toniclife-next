@@ -209,6 +209,97 @@ export function pollIntervalFor(job: NetworkExportJob | null | undefined, pollin
   return phaseOf(job) === 'queued' ? EXPORT_POLL_DEFAULT_MS : 1000;
 }
 
+// ---------------------------------------------------------------------------
+// Sondeo compartido (§6.3, V12: "un solo sondeo")
+// ---------------------------------------------------------------------------
+
+/** Estado del sondeo de un job: fallos seguidos, reloj y bandera "inalcanzable". */
+export interface ExportPollState {
+  jobId: string;
+  /** Fallos de red consecutivos (un 404 no cuenta; una respuesta OK los pone en cero). */
+  failures: number;
+  /** ms (Date.now) desde que se sonda este job: gobierna el ritmo lento tras 60 s. */
+  since: number;
+  /** 8 fallos seguidos: el sondeo se detiene hasta `resume()` (reintento manual). */
+  unreachable: boolean;
+}
+
+/** Jobs que se recuerdan a la vez (los más viejos se olvidan). */
+export const EXPORT_POLL_TRACKED_MAX = 10;
+
+/**
+ * Rastreador ÚNICO por pestaña: la tarjeta y el vigía observan la misma query,
+ * pero cada observador de React Query dispara su propio `queryFn`; si cada uno
+ * contara sus fallos, el umbral de 8 se repartiría entre los dos y uno podría
+ * declararse inalcanzable mientras el otro sigue sondeando. Aquí el conteo, el
+ * reloj y la bandera son por job y compartidos; `subscribe` avisa cuando cambia
+ * la bandera (para useSyncExternalStore).
+ */
+export interface ExportPollTracker {
+  /** Estado del job (lo crea con reloj = `now` si es nuevo). */
+  get(jobId: string, now?: number): ExportPollState;
+  /** Respuesta OK: fallos en cero. */
+  success(jobId: string, now?: number): void;
+  /** Fallo de red (no 404): true si con este fallo el job pasó a inalcanzable. */
+  failure(jobId: string, now?: number): boolean;
+  isUnreachable(jobId: string | null | undefined): boolean;
+  /** Reintento manual: fallos y reloj en cero y deja de estar inalcanzable. */
+  resume(jobId: string, now?: number): void;
+  subscribe(listener: () => void): () => void;
+}
+
+export function createExportPollTracker(maxFailures: number = EXPORT_MAX_POLL_FAILURES): ExportPollTracker {
+  const states = new Map<string, ExportPollState>();
+  const listeners = new Set<() => void>();
+  const emit = (): void => {
+    for (const listener of listeners) listener();
+  };
+  const get = (jobId: string, now: number = Date.now()): ExportPollState => {
+    let state = states.get(jobId);
+    if (!state) {
+      state = { jobId, failures: 0, since: now, unreachable: false };
+      states.set(jobId, state);
+      while (states.size > EXPORT_POLL_TRACKED_MAX) {
+        const oldest = states.keys().next().value;
+        if (oldest === undefined) break;
+        states.delete(oldest);
+      }
+    }
+    return state;
+  };
+  return {
+    get,
+    success(jobId, now) {
+      get(jobId, now).failures = 0;
+    },
+    failure(jobId, now) {
+      const state = get(jobId, now);
+      state.failures += 1;
+      if (state.unreachable || state.failures < maxFailures) return false;
+      state.unreachable = true;
+      emit();
+      return true;
+    },
+    isUnreachable(jobId) {
+      return Boolean(jobId) && (states.get(jobId as string)?.unreachable ?? false);
+    },
+    resume(jobId, now = Date.now()) {
+      const state = get(jobId, now);
+      const wasUnreachable = state.unreachable;
+      state.failures = 0;
+      state.since = now;
+      state.unreachable = false;
+      if (wasUnreachable) emit();
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+}
+
 /**
  * Qué hacer al montar con lo que hay guardado y lo que responde
  * GET network/export-jobs (`jobs` = null si la lista falló):

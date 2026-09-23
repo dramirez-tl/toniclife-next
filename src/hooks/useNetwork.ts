@@ -1,11 +1,11 @@
 // hooks/useNetwork.ts - Hooks con React Query para datos de red MLM
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 import { keepPreviousData, useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { networkApi } from '@/services/networkApi';
 import { NetworkChildrenQuery, NetworkExportJob, NetworkMembersQuery } from '@/types/network';
-import { EXPORT_MAX_POLL_FAILURES, pollIntervalFor } from '@/lib/network/export-job';
+import { createExportPollTracker, pollIntervalFor } from '@/lib/network/export-job';
 import { isHttpStatus } from '@/lib/network/network-error';
 
 /** Solo las claves con valor, para que la queryKey sea estable entre renders. */
@@ -135,13 +135,12 @@ export interface UseNetworkExportJobResult {
   refetch: () => void;
 }
 
-/** Contador de fallos y reloj del sondeo, por job (se reinicia solo al cambiar de job). */
-interface PollTracker {
-  jobId: string | null;
-  failures: number;
-  /** Reloj (ms) desde que se sonda este job. */
-  since: number;
-}
+/**
+ * UN rastreador por pestaña (§6.3, V12): la tarjeta y el vigía comparten el
+ * conteo de fallos, el reloj del ritmo lento y la bandera "inalcanzable".
+ */
+const exportPoll = createExportPollTracker();
+const neverUnreachable = (): boolean => false;
 
 /**
  * Sondeo del job de exportación: refetchInterval = pollAfterMs del servidor
@@ -149,25 +148,19 @@ interface PollTracker {
  * oculta (document.visibilityState) y reanudado al volver (refetchOnWindowFocus).
  * 8 fallos de red consecutivos ⇒ `unreachable` (el job queda en caché para
  * mostrar su último estado); un 404 detiene el sondeo (`gone`). El estado es
- * Map.get en el servidor (O(1)): varias pestañas pueden sondear sin costo.
- * La query se comparte entre la tarjeta de descarga y NetworkExportWatcher.
+ * Map.get en el servidor (O(1)).
+ * La query se comparte entre la tarjeta de descarga y NetworkExportWatcher y el
+ * intervalo lo arma UNO solo: el vigía (`poll` por defecto); la tarjeta pasa
+ * `poll: false` y lee la misma caché (fetch al montar, al volver a la pestaña y
+ * al reanudar), así que hay un solo sondeo aunque los dos estén montados.
  */
 export const useNetworkExportJob = (
   jobId: string | null | undefined,
-  options: { enabled?: boolean } = {},
+  options: { enabled?: boolean; poll?: boolean } = {},
 ): UseNetworkExportJobResult => {
   const enabled = (options.enabled ?? true) && Boolean(jobId);
-  const tracker = useRef<PollTracker>({ jobId: null, failures: 0, since: 0 });
-  /** Job declarado inalcanzable (8 fallos seguidos); al cambiar de job deja de aplicar sin efecto alguno. */
-  const [unreachableFor, setUnreachableFor] = useState<string | null>(null);
-  const unreachable = Boolean(jobId) && unreachableFor === jobId;
-
-  // Solo desde callbacks (nunca en el render): contador y reloj limpios cuando
-  // cambia el job sondeado.
-  const track = useCallback((id: string): PollTracker => {
-    if (tracker.current.jobId !== id) tracker.current = { jobId: id, failures: 0, since: Date.now() };
-    return tracker.current;
-  }, []);
+  const poll = options.poll ?? true;
+  const unreachable = useSyncExternalStore(exportPoll.subscribe, () => exportPoll.isUnreachable(jobId), neverUnreachable);
 
   const query = useQuery({
     queryKey: networkKeys.exportJob(jobId ?? ''),
@@ -179,33 +172,29 @@ export const useNetworkExportJob = (
     refetchIntervalInBackground: false,
     queryFn: async () => {
       const id = jobId as string;
-      const t = track(id);
       try {
         const job = await networkApi.getNetworkExportJob(id);
-        t.failures = 0;
+        exportPoll.success(id);
         return job;
       } catch (err) {
         // Un 404 no es un fallo de red: el job ya no está (no se reintenta).
-        if (!isHttpStatus(err, 404)) {
-          t.failures += 1;
-          if (t.failures >= EXPORT_MAX_POLL_FAILURES) setUnreachableFor(id);
-        }
+        if (!isHttpStatus(err, 404)) exportPoll.failure(id);
         throw err;
       }
     },
-    refetchInterval: (q) => {
-      if (!jobId) return false;
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
-      if (q.state.error && isHttpStatus(q.state.error, 404)) return false;
-      const t = track(jobId);
-      if (t.failures >= EXPORT_MAX_POLL_FAILURES) return false;
-      return pollIntervalFor(q.state.data, Date.now() - t.since);
-    },
+    refetchInterval: poll
+      ? (q) => {
+          if (!jobId) return false;
+          if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
+          if (q.state.error && isHttpStatus(q.state.error, 404)) return false;
+          if (exportPoll.isUnreachable(jobId)) return false;
+          return pollIntervalFor(q.state.data, Date.now() - exportPoll.get(jobId).since);
+        }
+      : false,
   });
 
   const resume = useCallback(() => {
-    tracker.current = { jobId: jobId ?? null, failures: 0, since: Date.now() };
-    setUnreachableFor(null);
+    if (jobId) exportPoll.resume(jobId);
   }, [jobId]);
 
   const { refetch: refetchQuery } = query;

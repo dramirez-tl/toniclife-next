@@ -3,6 +3,8 @@ import type { NetworkExportJob } from '@/types/network';
 import {
   EXPORT_HISTORY_MAX,
   EXPORT_JOB_TTL_MS,
+  EXPORT_MAX_POLL_FAILURES,
+  EXPORT_POLL_TRACKED_MAX,
   EXPORT_STORAGE_HISTORY_KEY,
   EXPORT_STORAGE_JOB_KEY,
   claimDownload,
@@ -10,6 +12,7 @@ import {
   clearDownloaded,
   clearNotified,
   clearStoredJob,
+  createExportPollTracker,
   describeJob,
   downloadedOnce,
   exportDoneKey,
@@ -180,6 +183,67 @@ describe('pollIntervalFor', () => {
     // Sin pollAfterMs (API viejo): 2000 en espera, 1000 en curso.
     expect(pollIntervalFor(job({ pollAfterMs: undefined }), 0)).toBe(2000);
     expect(pollIntervalFor(job({ phase: 'traversing', pollAfterMs: undefined }), 0)).toBe(1000);
+  });
+});
+
+describe('createExportPollTracker: un solo conteo para tarjeta y vigía', () => {
+  it('8 fallos seguidos ⇒ inalcanzable, contados entre TODOS los observadores; un OK reinicia', () => {
+    const tracker = createExportPollTracker();
+    const changes: boolean[] = [];
+    const unsubscribe = tracker.subscribe(() => changes.push(tracker.isUnreachable('j1')));
+    // La tarjeta y el vigía alternan disparos del mismo queryFn: el umbral no se reparte.
+    for (let i = 1; i < EXPORT_MAX_POLL_FAILURES; i += 1) {
+      expect(tracker.failure('j1', NOW + i)).toBe(false);
+      expect(tracker.isUnreachable('j1')).toBe(false);
+    }
+    expect(tracker.get('j1').failures).toBe(EXPORT_MAX_POLL_FAILURES - 1);
+    expect(tracker.failure('j1', NOW + 8)).toBe(true);
+    expect(tracker.isUnreachable('j1')).toBe(true);
+    expect(changes).toEqual([true]);
+    // Más fallos ya no "avisan" otra vez.
+    expect(tracker.failure('j1')).toBe(false);
+    expect(changes).toEqual([true]);
+    // Reintento manual: fallos y reloj en cero, deja de estar inalcanzable y avisa.
+    tracker.resume('j1', NOW + 50_000);
+    expect(tracker.isUnreachable('j1')).toBe(false);
+    expect(tracker.get('j1')).toMatchObject({ failures: 0, since: NOW + 50_000, unreachable: false });
+    expect(changes).toEqual([true, false]);
+    // Un OK a mitad de camino reinicia el conteo.
+    tracker.failure('j1');
+    tracker.failure('j1');
+    tracker.success('j1');
+    expect(tracker.get('j1').failures).toBe(0);
+    unsubscribe();
+    for (let i = 0; i < EXPORT_MAX_POLL_FAILURES; i += 1) tracker.failure('j1');
+    expect(tracker.isUnreachable('j1')).toBe(true);
+    expect(changes).toEqual([true, false]);
+  });
+
+  it('cada job lleva su cuenta y su reloj; sin job nunca es inalcanzable', () => {
+    const tracker = createExportPollTracker(2);
+    expect(tracker.get('a', NOW).since).toBe(NOW);
+    expect(tracker.get('a', NOW + 999).since).toBe(NOW);
+    tracker.failure('a');
+    tracker.failure('a');
+    expect(tracker.isUnreachable('a')).toBe(true);
+    expect(tracker.isUnreachable('b')).toBe(false);
+    expect(tracker.isUnreachable(null)).toBe(false);
+    expect(tracker.isUnreachable(undefined)).toBe(false);
+    expect(tracker.isUnreachable('')).toBe(false);
+    // resume de un job que no estaba inalcanzable no avisa.
+    const changes: string[] = [];
+    tracker.subscribe(() => changes.push('x'));
+    tracker.resume('b');
+    expect(changes).toEqual([]);
+  });
+
+  it('olvida los jobs más viejos al pasar el tope', () => {
+    const tracker = createExportPollTracker(1);
+    tracker.failure('j0');
+    expect(tracker.isUnreachable('j0')).toBe(true);
+    for (let i = 1; i <= EXPORT_POLL_TRACKED_MAX; i += 1) tracker.get(`j${i}`);
+    expect(tracker.isUnreachable('j0')).toBe(false);
+    expect(tracker.get('j0').failures).toBe(0);
   });
 });
 
