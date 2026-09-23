@@ -33,26 +33,9 @@ import {
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { logoutAsync, selectUser, selectUserPermissions } from '@/store/slices/authSlice';
 import { toast } from 'sonner';
-
-interface NavChild {
-  name: string;
-  href: string;
-  // Permisos PROPIOS del hijo (cualquiera de ellos). Sin ellos hereda los del
-  // padre. Con ellos se muestra aunque el rol no tenga los del padre (y el
-  // padre aparece solo con los hijos permitidos).
-  permissions?: string[];
-}
-
-interface NavItem {
-  name: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  children?: NavChild[];
-  // Permisos requeridos para ver este elemento (cualquiera de ellos)
-  permissions?: string[];
-  // Visible EXCLUSIVAMENTE para el rol super_admin (ignora permisos)
-  superAdminOnly?: boolean;
-}
+import { useLegacySyncReadProbe } from '@/hooks/useMaintenance';
+import { filterNavigation, type NavChild, type NavItem } from '@/lib/admin-nav-filter';
+import { LEGACY_SYNC_PAGE, legacySyncReadAccess } from '@/lib/legacy-sync/access';
 
 // Navegación con permisos requeridos
 const navigation: NavItem[] = [
@@ -264,45 +247,13 @@ const navigation: NavItem[] = [
     children: [
       { name: 'Limpieza y Carga', href: '/admin/sistema' },
       { name: 'Tesorería (ajustes)', href: '/admin/sistema?tab=tesoreria' },
-      // Sync automática legacy→v2: hereda superAdminOnly del padre, igual
-      // que el PermissionGuard roles={['super_admin']} de la página.
-      { name: 'Sincronización legacy', href: '/admin/sistema?tab=sync' },
+      // Sync automática legacy→v2 en su ruta propia (D12): la ve quien el API
+      // deje leer (sonda a GET /status; hoy super_admin y Sistemas). Para los
+      // demás Sistema asoma solo con este hijo.
+      { name: 'Sincronización legacy', href: LEGACY_SYNC_PAGE, access: 'legacySyncRead' },
     ],
   },
 ];
-
-// Función para verificar si el usuario tiene al menos uno de los permisos requeridos
-function hasAnyPermission(userPermissions: string[], requiredPermissions?: string[]): boolean {
-  // Si no hay permisos requeridos, mostrar el elemento
-  if (!requiredPermissions || requiredPermissions.length === 0) {
-    return true;
-  }
-
-  // Verificar si tiene permiso wildcard total
-  if (userPermissions.includes('*')) {
-    return true;
-  }
-
-  // Verificar cada permiso requerido
-  return requiredPermissions.some((required) => {
-    const [requiredModule] = required.split(':');
-
-    return userPermissions.some((userPerm) => {
-      const [userModule, userAction] = userPerm.split(':');
-
-      // Coincidencia exacta
-      if (userPerm === required) return true;
-
-      // Wildcard de módulo (ej: "inventory:*" permite "inventory:read")
-      if (userModule === requiredModule && userAction === '*') return true;
-
-      // Wildcard global
-      if (userModule === '*' && userAction === '*') return true;
-
-      return false;
-    });
-  });
-}
 
 interface AdminSidebarProps {
   mobile?: boolean;
@@ -323,25 +274,30 @@ export function AdminSidebar({ mobile = false, collapsed = false, onNavigate }: 
   // dejaba a roles legítimos, p.ej. OPERACIONES, viendo solo "Panel
   // Principal" aunque tuvieran permisos concedidos — reporte ago-2026.)
   // Conceder un permiso en Seguridad → Roles hace aparecer el módulo aquí
-  // automáticamente; no se requiere tocar código.
-  const filteredNavigation = useMemo(() => {
-    // Super admin ve todo (incluidos los items superAdminOnly)
-    if (user?.roles?.includes('super_admin')) {
-      return navigation;
-    }
-
-    return navigation.flatMap((item) => {
-      if (item.superAdminOnly) return [];
-      const parentAllowed = hasAnyPermission(userPermissions, item.permissions);
-      if (!item.children) return parentAllowed ? [item] : [];
-      // Hijo con permisos propios: se decide por ellos. Sin permisos propios: hereda al padre.
-      const children = item.children.filter((child) =>
-        child.permissions ? hasAnyPermission(userPermissions, child.permissions) : parentAllowed,
-      );
-      if (children.length === 0) return parentAllowed ? [{ ...item, children: undefined }] : [];
-      return [{ ...item, children }];
-    });
-  }, [user?.roles, userPermissions]);
+  // automáticamente; no se requiere tocar código (lógica en
+  // lib/admin-nav-filter.ts).
+  //
+  // Sincronización legacy (D12): la LEE quien el API deje leer. Sonda única a
+  // GET /status (comparte caché con el panel, sin polling; tras un 403 no
+  // vuelve a consultar hasta recargar). super_admin no la necesita.
+  const isSuperAdmin = !!user?.roles?.includes('super_admin');
+  const syncProbe = useLegacySyncReadProbe({ enabled: !!user && !isSuperAdmin });
+  const legacySyncRead =
+    legacySyncReadAccess({
+      isSuperAdmin,
+      hasData: !!syncProbe.data,
+      error: syncProbe.error,
+      loading: syncProbe.isLoading,
+    }) === 'allowed';
+  const filteredNavigation = useMemo(
+    () =>
+      filterNavigation(navigation, {
+        isSuperAdmin,
+        permissions: userPermissions,
+        access: { legacySyncRead },
+      }),
+    [isSuperAdmin, userPermissions, legacySyncRead],
+  );
 
   // Rol sin ningún módulo concedido: solo verá Panel Principal + aviso.
   const hasNoModules = filteredNavigation.length <= 1;

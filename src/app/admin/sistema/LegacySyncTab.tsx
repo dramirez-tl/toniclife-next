@@ -101,7 +101,11 @@ const nf = new Intl.NumberFormat('es-MX');
 const fmt = (n: number | null | undefined) =>
   n === null || n === undefined ? '—' : nf.format(n);
 
-export function LegacySyncTab() {
+/**
+ * canManage: puede mover el interruptor y decidir retenciones (PATCH/PUT del
+ * API: solo super_admin). Sin él la pestaña es de solo lectura (Sistemas, D12).
+ */
+export function LegacySyncTab({ canManage }: { canManage: boolean }) {
   const status = useLegacySyncStatus();
   const runs = useLegacySyncRuns(24);
   const holds = useLegacySyncHolds('pending');
@@ -175,7 +179,7 @@ export function LegacySyncTab() {
 
         <SetupCard status={data} runs={runs.data?.runs ?? []} />
 
-        <AutoSwitchCard status={data} />
+        <AutoSwitchCard status={data} canManage={canManage} />
 
         {shown && (
           <>
@@ -188,6 +192,7 @@ export function LegacySyncTab() {
           holdsQuery={holds}
           migrationApplied={data.migrationApplied}
           pendingWithKit={data.holdsPendingWithKit}
+          canManage={canManage}
         />
 
         <WhatsappCard ready={data.whatsappReady} />
@@ -386,7 +391,13 @@ function SetupCard({
 // (2) Interruptor "Sincronización automática" con confirmación
 // ─────────────────────────────────────────────────────────────────────────────
 
-function AutoSwitchCard({ status }: { status: LegacySyncStatus }) {
+function AutoSwitchCard({
+  status,
+  canManage,
+}: {
+  status: LegacySyncStatus;
+  canManage: boolean;
+}) {
   const toggle = useToggleLegacySync();
   const [pending, setPending] = useState<boolean | null>(null);
 
@@ -412,7 +423,7 @@ function AutoSwitchCard({ status }: { status: LegacySyncStatus }) {
           <label className="flex items-start gap-3">
             <Switch
               checked={status.autoEnabled}
-              disabled={!status.migrationApplied || toggle.isPending}
+              disabled={!canManage || !status.migrationApplied || toggle.isPending}
               onCheckedChange={(v) => setPending(v)}
               className="mt-0.5"
               aria-label="Sincronización automática"
@@ -433,6 +444,7 @@ function AutoSwitchCard({ status }: { status: LegacySyncStatus }) {
           {!status.migrationApplied && (
             <Badge variant="warning">Requiere la migración 150</Badge>
           )}
+          {!canManage && <Badge variant="outline">Solo lectura</Badge>}
         </div>
         {!status.migrationApplied && (
           <p className="mt-3 flex items-start gap-1.5 text-xs text-amber-800">
@@ -778,10 +790,12 @@ function HoldsCard({
   holdsQuery,
   migrationApplied,
   pendingWithKit,
+  canManage,
 }: {
   holdsQuery: ReturnType<typeof useLegacySyncHolds>;
   migrationApplied: boolean;
   pendingWithKit: number;
+  canManage: boolean;
 }) {
   const decide = useDecideHold();
   const [dialog, setDialog] = useState<{
@@ -946,22 +960,28 @@ function HoldsCard({
                       </div>
                     </TableCell>
                     <TableCell className="align-top">
-                      <div className="flex flex-wrap justify-end gap-1">
-                        {HOLD_DECISIONS.map((d) => (
-                          <Button
-                            key={d}
-                            size="sm"
-                            variant={HOLD_DECISION_UI[d].destructive ? 'destructive' : 'outline'}
-                            onClick={() => {
-                              setNote('');
-                              setDialog({ hold: h, decision: d });
-                            }}
-                            disabled={decide.isPending}
-                          >
-                            {HOLD_DECISION_UI[d].label}
-                          </Button>
-                        ))}
-                      </div>
+                      {!canManage ? (
+                        <div className="text-right text-xs text-muted-foreground">
+                          Solo super_admin decide
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap justify-end gap-1">
+                          {HOLD_DECISIONS.map((d) => (
+                            <Button
+                              key={d}
+                              size="sm"
+                              variant={HOLD_DECISION_UI[d].destructive ? 'destructive' : 'outline'}
+                              onClick={() => {
+                                setNote('');
+                                setDialog({ hold: h, decision: d });
+                              }}
+                              disabled={decide.isPending}
+                            >
+                              {HOLD_DECISION_UI[d].label}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -978,7 +998,7 @@ function HoldsCard({
       </CardContent>
 
       <AlertDialog
-        open={dialog !== null}
+        open={canManage && dialog !== null}
         onOpenChange={(open) => {
           if (!open && !decide.isPending) setDialog(null);
         }}

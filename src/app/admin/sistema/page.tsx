@@ -4,7 +4,8 @@
 // Tab Limpieza: vacía la BD por bloques en orden FK-seguro (1→10).
 // Tab Carga masiva: pobla por fases vía CSV con plantillas descargables.
 // Tab Sincronización legacy (?tab=sync): semáforo, corridas, retenciones y
-// "WhatsApp listo" de la sync automática legacy→v2.
+// "WhatsApp listo" de la sync automática legacy→v2. Tiene además ruta propia
+// de lectura (/admin/sistema/sync) para Sistemas (D12).
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -58,6 +59,7 @@ import { PilotLiveTab } from './PilotLiveTab';
 import { PilotGatingTab } from './PilotGatingTab';
 import { TreasurySettingsTab } from './TreasurySettingsTab';
 import { LegacySyncTab } from './LegacySyncTab';
+import { sistemaRedirectFor } from '@/lib/legacy-sync/access';
 import type { CleanupBlockStatus, LoadPhaseStatus } from '@/types/maintenance';
 import type { PosLicense } from '@/types/posLicense';
 
@@ -76,12 +78,34 @@ function rowsLabel(rows: number, isEmpty: boolean): string {
 
 export default function SistemaPage() {
   return (
-    <PermissionGuard roles={['super_admin']}>
-      <Suspense fallback={<SistemaSkeleton />}>
-        <SistemaContent />
-      </Suspense>
+    <Suspense fallback={<SistemaSkeleton />}>
+      <SistemaGate />
+    </Suspense>
+  );
+}
+
+// Exclusivo de super_admin. Excepción D12: las alertas del API enlazan a
+// ?tab=sync y también le llegan a Sistemas; a quien no es super_admin y pide
+// esa pestaña se le lleva a /admin/sistema/sync (lectura según el API).
+function SistemaGate() {
+  const searchParams = useSearchParams();
+  const redirectTo = sistemaRedirectFor(searchParams.get('tab'));
+  return (
+    <PermissionGuard
+      roles={['super_admin']}
+      fallback={redirectTo ? <RedirectTo href={redirectTo} /> : undefined}
+    >
+      <SistemaContent />
     </PermissionGuard>
   );
+}
+
+function RedirectTo({ href }: { href: string }) {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace(href);
+  }, [router, href]);
+  return <SistemaSkeleton />;
 }
 
 function SistemaSkeleton() {
@@ -193,7 +217,8 @@ function SistemaContent() {
               </TabsContent>
 
               <TabsContent value="sync" className="mt-6">
-                <LegacySyncTab />
+                {/* Página solo de super_admin: puede escribir. */}
+                <LegacySyncTab canManage />
               </TabsContent>
 
               <TabsContent value="piloto" className="mt-6">

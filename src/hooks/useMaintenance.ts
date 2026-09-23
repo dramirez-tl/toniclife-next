@@ -27,7 +27,7 @@ export const maintenanceKeys = {
     [...maintenanceKeys.legacySync(), 'holds', status] as const,
 };
 
-// ── Sincronización legacy (pestaña /admin/sistema?tab=sync) ──
+// ── Sincronización legacy (/admin/sistema/sync y pestaña ?tab=sync) ──
 
 /** Polling del panel (§5.5): cada 60 s mientras la pestaña está visible. */
 export const LEGACY_SYNC_POLL_MS = 60_000;
@@ -49,6 +49,26 @@ export const useLegacySyncStatus = (opts: { enabled?: boolean } = {}) =>
     refetchIntervalInBackground: false,
     staleTime: 30 * 1000,
     retry: false,
+  });
+
+/**
+ * Sonda de LECTURA del panel (D12): misma consulta y caché que
+ * useLegacySyncStatus, pero sin polling ni reintentos y sin volver a consultar
+ * al montar si ya hay dato o error (tras un 403 no insiste hasta recargar).
+ * La usan el sidebar y la guarda de /admin/sistema/sync para saber si el API
+ * deja leer al usuario sin copiar su lista de roles.
+ */
+export const useLegacySyncReadProbe = (opts: { enabled: boolean }) =>
+  useQuery({
+    queryKey: maintenanceKeys.legacySyncStatus(),
+    queryFn: () => maintenanceService.getLegacySyncStatus(),
+    enabled: opts.enabled,
+    staleTime: Infinity,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
+    retryOnMount: false,
   });
 
 /** Últimas corridas de la bitácora (default 24). Mismo polling que el estado. */

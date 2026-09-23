@@ -27,6 +27,13 @@ import {
 import { cn } from '@/lib/utils';
 import { useLegacySyncStatus } from '@/hooks/useMaintenance';
 import { inductionAutoGate } from '@/lib/legacy-sync/format';
+import {
+  canManageLegacySync,
+  LEGACY_SYNC_PAGE,
+  legacySyncReadAccess,
+} from '@/lib/legacy-sync/access';
+import { useAppSelector } from '@/store/hooks';
+import { selectUserRoles } from '@/store/slices/authSlice';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -80,6 +87,16 @@ export default function InduccionWorkshopTab({
     error: syncStatus.error,
     loading: syncStatus.isLoading,
   });
+  // "Ver detalle" solo si el usuario puede abrir /admin/sistema/sync (la
+  // misma regla que su guarda: lo que responda el API).
+  const roles = useAppSelector(selectUserRoles);
+  const canOpenSyncPage =
+    legacySyncReadAccess({
+      isSuperAdmin: canManageLegacySync(roles),
+      hasData: !!syncStatus.data,
+      error: syncStatus.error,
+      loading: syncStatus.isLoading,
+    }) === 'allowed';
   const [confirmAutoOpen, setConfirmAutoOpen] = useState(false);
 
   const onAutoChange = (v: boolean) => {
@@ -254,9 +271,9 @@ export default function InduccionWorkshopTab({
               Falta: {gate.failing.length} criterio(s)
             </span>
           )}
-          {syncStatus.data && (
+          {canOpenSyncPage && (
             <Link
-              href="/admin/sistema?tab=sync"
+              href={LEGACY_SYNC_PAGE}
               className="text-[#0A4B94] hover:underline"
             >
               Ver detalle
