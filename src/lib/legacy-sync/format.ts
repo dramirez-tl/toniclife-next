@@ -185,13 +185,16 @@ export function nextWindowLabel(
   return `${day} ${time}`;
 }
 
-/** 'ok en 7 m 38 s', 'omitida (legacy_no_listo) en 41 s', 'en curso'. */
+/**
+ * 'ok en 7 m 38 s', 'omitida (legacy_no_listo) en 41 s', 'en curso'. El motivo
+ * sale con su etiqueta en español si tiene (syncCodeLabel); si no, en crudo.
+ */
 export function runStateText(
   run: Pick<LegacySyncRun, 'status' | 'durationMs' | 'reason'>,
 ): string {
   if (run.status === 'running') return 'en curso';
   const label = RUN_STATUS_UI[run.status]?.label ?? run.status;
-  const reason = run.reason ? ` (${run.reason})` : '';
+  const reason = run.reason ? ` (${syncCodeLabel(run.reason)})` : '';
   const dur = run.durationMs === null ? '' : ` en ${formatDuration(run.durationMs)}`;
   return `${label}${reason}${dur}`;
 }
@@ -595,6 +598,11 @@ export interface StepRow {
   crashed: boolean;
   /** Texto libre del paso (plan de periodos, intentos de la guarda, avisos…). */
   note: string | null;
+  /**
+   * El paso falló SIN detener la corrida (apiFailed en nuevos/inscripcion,
+   * failed/endpointMissing en logins): la nota dice por qué.
+   */
+  softFailed: boolean;
 }
 
 export const STEP_ORDER = [
@@ -603,6 +611,7 @@ export const STEP_ORDER = [
   'dobles',
   'nuevos',
   'inscripcion',
+  'logins',
   'ventas-pos',
   'ventas-online',
   'puntos',
@@ -618,6 +627,7 @@ export const STEP_LABELS: Record<string, string> = {
   dobles: 'Dobles identidades',
   nuevos: 'Clientes nuevos',
   inscripcion: 'Inscripción (fecha/kit)',
+  logins: 'Logins faltantes',
   'ventas-pos': 'Ventas POS',
   'ventas-online': 'Ventas online',
   puntos: 'Puntos',
@@ -631,12 +641,151 @@ export function stepLabel(name: string): string {
   return STEP_LABELS[name] ?? name;
 }
 
+// ── Códigos de aviso y motivo (warnings / reason del runner) ──
+
+/**
+ * Códigos de error del cliente del API del migrador (utils/api-errors.js):
+ * llegan en steps.<paso>.failReason (nuevos, inscripcion, logins) y en
+ * steps.nuevos.priceTypeFailCode.
+ */
+export const API_FAIL_REASON_LABELS: Record<string, string> = {
+  api_inalcanzable: 'API inalcanzable (red, DNS o reintentos agotados)',
+  login_error: 'no se pudo iniciar sesión en el API',
+  upload_error: 'el API rechazó el archivo de la carga',
+  patch_error: 'el API rechazó la actualización (PATCH)',
+  api_error: 'el API no respondió al consultar el avance de la carga',
+  job_error: 'la carga terminó en error en el API',
+  job_perdido: 'la carga se perdió en el API (¿redespliegue a media carga?)',
+  job_timeout: 'la carga no terminó a tiempo',
+  logins_endpoint_no_disponible:
+    'el API desplegado aún no tiene la fase clientes-logins',
+};
+
+/** Motivo legible de un código del API; el código en crudo si no se conoce. */
+export function apiFailReasonLabel(code: unknown): string {
+  if (typeof code !== 'string' || !code.trim()) return 'motivo desconocido';
+  return API_FAIL_REASON_LABELS[code] ?? code;
+}
+
+/**
+ * Etiquetas de los avisos (run.warnings, steps.*.warnings) y motivos
+ * (run.reason) que agregó la ronda del 23-sep del runner (fallos del API por
+ * paso, paso 'logins', retenidos con ficha en v2). Los códigos anteriores se
+ * siguen mostrando en crudo.
+ */
+// Cortas a propósito: el motivo también sale en el badge de estado (una línea).
+export const SYNC_CODE_LABELS: Record<string, string> = {
+  nuevos_api_fallo: 'Clientes nuevos: el API no respondió',
+  nuevos_rechazados: 'Clientes nuevos: el API rechazó altas',
+  inscripcion_api_fallo: 'Inscripción: fallo del API',
+  precio_no_actualizado: 'Tipo de precio de clientes nuevos sin actualizar',
+  logins_api_fallo: 'Logins faltantes: fallo del API',
+  logins_fallo: 'Logins faltantes: falló la lectura de candidatos',
+  logins_endpoint_no_disponible: 'Logins faltantes: el API aún no tiene la fase',
+  logins_tope_excedido: 'Logins faltantes: tope por corrida excedido',
+  retenidos_en_v2_no_medido:
+    'Retenidos con ficha en v2 sin medir: ventas de todos omitidas',
+};
+
+/** Códigos con parámetro 'codigo:valor' (p. ej. sucursal_sin_fila:404). */
+const PARAM_CODE_LABELS: Record<string, (param: string) => string> = {
+  sucursal_sin_fila: (p) =>
+    p.startsWith('office-')
+      ? `Oficina legacy ${p.slice('office-'.length)} sin clave de sucursal`
+      : `Sucursal ${p} sin fila en v2`,
+  retenido_con_ficha_y_nativo_activo: (p) =>
+    `Retenido ${p}: ya tiene ficha en v2 y su nativo sigue activo`,
+};
+
+/**
+ * Etiqueta en español de un aviso o motivo del runner. Acepta 'codigo',
+ * 'codigo:param' y 'codigo[detalle]' (el detalle se conserva al final). Un
+ * código desconocido sale tal cual.
+ */
+export function syncCodeLabel(code: string): string {
+  const raw = String(code ?? '').trim();
+  const bracket = raw.indexOf('[');
+  const base = bracket === -1 ? raw : raw.slice(0, bracket).trim();
+  const suffix = bracket === -1 ? '' : ` ${raw.slice(bracket)}`;
+  const colon = base.indexOf(':');
+  if (colon > 0) {
+    const param = base.slice(colon + 1).trim();
+    const fn = PARAM_CODE_LABELS[base.slice(0, colon)];
+    if (fn && param) return `${fn(param)}${suffix}`;
+  }
+  const known = SYNC_CODE_LABELS[base];
+  return known ? `${known}${suffix}` : raw;
+}
+
+/** 'Etiqueta (codigo)' si el código tiene etiqueta; si no, el código solo. */
+export function syncCodeText(code: string): string {
+  const label = syncCodeLabel(code);
+  return label === code ? code : `${label} (${code})`;
+}
+
+/** Motivos de omisión del lado legacy del paso logins (steps.logins.counts). */
+const LOGINS_COUNT_SKIPS = [
+  'no_en_legacy',
+  'sin_tusers_legacy',
+  'sin_password_legacy',
+  'varios_tusers_legacy',
+  'password_invalida',
+] as const;
+
+/** "Fallo del API: <motivo legible> — <error>" de un paso con apiFailed. */
+function apiFailedNote(r: Record<string, unknown>): string {
+  return `Fallo del API: ${apiFailReasonLabel(r.failReason)}${
+    typeof r.error === 'string' && r.error ? ` — ${r.error}` : ''
+  }`;
+}
+
+function loginsNote(r: Record<string, unknown>): string[] {
+  if (r.disabled === true) return ['apagado (SYNC_LOGINS=0)'];
+  if (r.endpointMissing === true) {
+    return [
+      'el API desplegado aún no tiene la fase clientes-logins: no se creó ningún login',
+    ];
+  }
+  if (r.apiFailed === true) return [apiFailedNote(r)];
+  if (r.failed === true) {
+    return [
+      `falló${typeof r.failReason === 'string' ? ` [${r.failReason}]` : ''}${
+        typeof r.error === 'string' && r.error ? `: ${r.error}` : ''
+      } (no se creó ningún login)`,
+    ];
+  }
+  const notes: string[] = [];
+  const created = num(r.created);
+  const sent = num(r.sent);
+  const eligible = num(r.eligible);
+  const candidates = num(r.candidates);
+  // En dry-run con elegibles no se llama al API: wouldCreate en vez de creados/enviados.
+  const would = num(r.wouldCreate);
+  if (would !== null) notes.push(`dry-run: habría creado ${fmtNum(would)}`);
+  else if (created !== null || sent !== null) {
+    notes.push(`creados ${fmtNum(created ?? 0)} · enviados ${fmtNum(sent ?? 0)}`);
+  }
+  if (eligible !== null || candidates !== null) {
+    notes.push(`elegibles ${fmtNum(eligible ?? 0)} de ${fmtNum(candidates ?? 0)} candidatos`);
+  }
+  const assigned = num(r.legacyIdAssigned);
+  if (assigned !== null && assigned > 0) notes.push(`legacy_id asignados ${fmtNum(assigned)}`);
+  const overCap = num(r.overCap);
+  if (overCap !== null && overCap > 0) {
+    notes.push(`${fmtNum(overCap)} sobre el tope (entran en las siguientes ventanas)`);
+  }
+  return notes;
+}
+
 function stepNote(name: string, r: Record<string, unknown>): string | null {
   const notes: string[] = [];
   if (r.crashed === true) {
     notes.push(
       `tronó${typeof r.crashReason === 'string' ? ` (${r.crashReason})` : ''}${typeof r.error === 'string' ? `: ${r.error}` : ''}`,
     );
+  }
+  if ((name === 'nuevos' || name === 'inscripcion') && r.apiFailed === true) {
+    notes.push(apiFailedNote(r));
   }
   if (name === 'legacy-listo') {
     const attempts = num(r.attempts);
@@ -659,7 +808,15 @@ function stepNote(name: string, r: Record<string, unknown>): string | null {
     const pairs = num(r.pairs);
     const held = num(r.held);
     if (pairs !== null || held !== null) {
-      notes.push(`pares ${pairs ?? '?'} · retenidos ${held ?? '?'}`);
+      // heldSales: retenidos cuyas ventas se omiten (sin ficha en v2);
+      // heldInV2: retenidos que ya tienen ficha (renumerados/fusionados).
+      const heldSales = num(r.heldSales);
+      const heldInV2 = num(r.heldInV2);
+      const sales =
+        heldSales !== null
+          ? ` (ventas omitidas de ${heldSales}${heldInV2 !== null && heldInV2 > 0 ? `; ${heldInV2} ya con ficha en v2` : ''})`
+          : '';
+      notes.push(`pares ${pairs ?? '?'} · retenidos ${held ?? '?'}${sales}`);
     }
   }
   if (name === 'nuevos') {
@@ -667,12 +824,23 @@ function stepNote(name: string, r: Record<string, unknown>): string | null {
     const rejected = num(r.rejected);
     if (would !== null) notes.push(`dry-run: habría insertado ${would}`);
     if (rejected !== null && rejected > 0) notes.push(`rechazados por el API ${rejected}`);
+    const priceFailed = r.priceTypeFailed === true ? 1 : num(r.priceTypeFailed);
+    if (priceFailed !== null && priceFailed > 0) {
+      notes.push(
+        `tipo de precio sin actualizar ${priceFailed}${
+          typeof r.priceTypeFailCode === 'string' ? ` (${apiFailReasonLabel(r.priceTypeFailCode)})` : ''
+        }`,
+      );
+    }
   }
   if (name === 'inscripcion') {
     const nf = num(r.notFound);
     if (typeof r.desde === 'string') notes.push(`desde ${r.desde}`);
     if (nf !== null && nf > 0) notes.push(`no encontrados ${nf}`);
+    const lotes = num(r.lotes);
+    if (r.apiFailed === true && lotes !== null) notes.push(`lotes aplicados antes del fallo ${lotes}`);
   }
+  if (name === 'logins') notes.push(...loginsNote(r));
   if (name === 'verificacion' && Array.isArray(r.periodsMeasured)) {
     notes.push(
       r.periodsMeasured.length
@@ -688,7 +856,7 @@ function stepNote(name: string, r: Record<string, unknown>): string | null {
     }
   }
   if (Array.isArray(r.warnings) && r.warnings.length) {
-    notes.push(`avisos: ${r.warnings.map(String).join(', ')}`);
+    notes.push(`avisos: ${r.warnings.map((w) => syncCodeLabel(String(w))).join(', ')}`);
   }
   return notes.length ? notes.join(' · ') : null;
 }
@@ -710,19 +878,28 @@ export function normalizeSteps(
   return names.map((name) => {
     const raw = src[name];
     const r = isRecord(raw) ? raw : {};
-    const inserted = num(r.migrated) ?? num(r.inserted) ?? num(r.updated);
-    const skippedBy: Array<[string, number]> = [];
+    // logins (paso 5b) cuenta en `created` los logins creados.
+    const inserted =
+      num(r.migrated) ?? num(r.inserted) ?? num(r.updated) ?? num(r.created);
+    const skippedMap = new Map<string, number>();
+    const addSkip = (k: string, v: unknown) => {
+      const n = num(v);
+      if (n !== null) skippedMap.set(k, (skippedMap.get(k) ?? 0) + n);
+    };
     if (isRecord(r.skipped)) {
-      for (const [k, v] of Object.entries(r.skipped)) {
-        const n = num(v);
-        if (n !== null) skippedBy.push([k, n]);
-      }
+      for (const [k, v] of Object.entries(r.skipped)) addSkip(k, v);
     } else if (isRecord(r.skippedBy)) {
-      for (const [k, v] of Object.entries(r.skippedBy)) {
-        const n = num(v);
-        if (n !== null) skippedBy.push([k, n]);
+      for (const [k, v] of Object.entries(r.skippedBy)) addSkip(k, v);
+    }
+    // logins: además de lo que omitió el API (skipped), los candidatos que no
+    // llegaron a elegibles por el lado legacy (counts: sin t_users, sin password…).
+    if (name === 'logins' && isRecord(r.counts)) {
+      for (const k of LOGINS_COUNT_SKIPS) {
+        const n = num(r.counts[k]);
+        if (n !== null && n > 0) addSkip(k, n);
       }
     }
+    const skippedBy: Array<[string, number]> = [...skippedMap.entries()];
     const held = num(r.held);
     if (held !== null && held > 0) skippedBy.push(['retenido', held]);
     skippedBy.sort((a, b) => b[1] - a[1]);
@@ -735,10 +912,14 @@ export function normalizeSteps(
       inserted,
       skippedTotal,
       skippedBy,
-      failed: num(r.failed),
+      // logins marca el fallo con failed: true (booleano), no con un conteo.
+      failed: typeof r.failed === 'boolean' ? null : num(r.failed),
       ms: num(r.ms),
       crashed: r.crashed === true,
       note: stepNote(name, r),
+      softFailed:
+        r.crashed !== true &&
+        (r.apiFailed === true || r.failed === true || r.endpointMissing === true),
     };
   });
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { LegacySyncRun } from '@/types/legacySync';
 import {
+  apiFailReasonLabel,
   criterionShortLabel,
   dayOf,
   displayedRun,
@@ -28,9 +29,12 @@ import {
   signalLabel,
   statusPhrase,
   stepLabel,
+  syncCodeLabel,
+  syncCodeText,
   whatsappChip,
   PARITY_LEGEND,
   PARITY_ORDER,
+  SYNC_CODE_LABELS,
 } from './format';
 
 /** Corrida del ejemplo §4.5 del contrato (21:05 CDMX = 03:05 UTC del día siguiente). */
@@ -267,6 +271,157 @@ describe('normalizeSteps', () => {
     });
     expect(nuevosDry.inserted).toBe(0);
     expect(nuevosDry.note).toBe('dry-run: habría insertado 31 · rechazados por el API 1');
+    expect(nuevosDry.softFailed).toBe(false);
+  });
+
+  it('paso logins: creados/enviados/elegibles y omitidos del API y del legacy', () => {
+    const [logins] = normalizeSteps({
+      logins: {
+        candidates: 9,
+        eligible: 3,
+        max: 500,
+        overCap: 0,
+        sent: 3,
+        created: 2,
+        legacyIdAssigned: 2,
+        skipped: { ya_tiene_login: 1 },
+        wouldCreate: null,
+        counts: { candidatos: 9, no_en_legacy: 0, sin_tusers_legacy: 4, sin_password_legacy: 2, varios_tusers_legacy: 0, password_invalida: 0, elegibles: 3 },
+        ms: 900,
+      },
+    });
+    expect(logins.name).toBe('logins');
+    expect(stepLabel('logins')).toBe('Logins faltantes');
+    expect(logins.inserted).toBe(2);
+    expect(logins.skippedBy).toEqual([
+      ['sin_tusers_legacy', 4],
+      ['sin_password_legacy', 2],
+      ['ya_tiene_login', 1],
+    ]);
+    expect(logins.skippedTotal).toBe(7);
+    expect(logins.failed).toBeNull();
+    expect(logins.softFailed).toBe(false);
+    expect(logins.note).toBe('creados 2 · enviados 3 · elegibles 3 de 9 candidatos · legacy_id asignados 2');
+
+    // Hoy (23-sep): 9 candidatos, 0 elegibles, no se llama al API.
+    const [none] = normalizeSteps({
+      logins: { candidates: 9, eligible: 0, overCap: 0, sent: 0, created: 0, legacyIdAssigned: 0, skipped: {}, wouldCreate: null, counts: { candidatos: 9, sin_tusers_legacy: 4, sin_password_legacy: 5, elegibles: 0 }, ms: 400 },
+    });
+    expect(none.inserted).toBe(0);
+    expect(none.skippedTotal).toBe(9);
+    expect(none.note).toBe('creados 0 · enviados 0 · elegibles 0 de 9 candidatos');
+
+    // Ensayo con elegibles y tope excedido: wouldCreate en vez de creados/enviados.
+    const [dry] = normalizeSteps({
+      logins: { candidates: 700, eligible: 600, overCap: 100, sent: 0, created: 0, legacyIdAssigned: 0, skipped: {}, wouldCreate: 500, counts: { candidatos: 700, password_invalida: 100, elegibles: 600 }, ms: 1200 },
+    });
+    expect(dry.note).toBe('dry-run: habría creado 500 · elegibles 600 de 700 candidatos · 100 sobre el tope (entran en las siguientes ventanas)');
+    expect(dry.skippedBy).toEqual([['password_invalida', 100]]);
+  });
+
+  it('paso logins: apagado, endpoint sin desplegar, fallo del API y de BD', () => {
+    const rows = normalizeSteps({
+      logins: { failed: true, failReason: 'logins_endpoint_no_disponible', endpointMissing: true, error: 'El API desplegado aún no tiene…', ms: 300 },
+    });
+    expect(rows[0].note).toBe('el API desplegado aún no tiene la fase clientes-logins: no se creó ningún login');
+    expect(rows[0].failed).toBeNull();
+    expect(rows[0].softFailed).toBe(true);
+    expect(rows[0].crashed).toBe(false);
+
+    const [api] = normalizeSteps({
+      logins: { failed: true, failReason: 'login_error', apiFailed: true, error: 'POST /auth/login 401', ms: 200 },
+    });
+    expect(api.note).toBe('Fallo del API: no se pudo iniciar sesión en el API — POST /auth/login 401');
+    expect(api.softFailed).toBe(true);
+
+    const [db] = normalizeSteps({ logins: { failed: true, failReason: null, error: 'timeout de la consulta', ms: 10 } });
+    expect(db.note).toBe('falló: timeout de la consulta (no se creó ningún login)');
+
+    const [off] = normalizeSteps({ logins: { disabled: true, ms: 0 } });
+    expect(off.note).toBe('apagado (SYNC_LOGINS=0)');
+    expect(off.softFailed).toBe(false);
+  });
+
+  it('nuevos/inscripcion con apiFailed: "Fallo del API: <motivo legible>"', () => {
+    const rows = normalizeSteps({
+      nuevos: { apiFailed: true, failReason: 'api_inalcanzable', error: 'fetch failed', ms: 5000 },
+      inscripcion: { apiFailed: true, failReason: 'job_timeout', error: 'sin terminar', desde: '2026-09-20', lotes: 2, ms: 9000 },
+      logins: { candidates: 0, eligible: 0, sent: 0, created: 0, ms: 5 },
+    });
+    expect(rows.map((r) => r.name)).toEqual(['nuevos', 'inscripcion', 'logins']);
+    expect(rows[0].note).toBe('Fallo del API: API inalcanzable (red, DNS o reintentos agotados) — fetch failed');
+    expect(rows[0].softFailed).toBe(true);
+    expect(rows[0].crashed).toBe(false);
+    expect(rows[1].note).toBe(
+      'Fallo del API: la carga no terminó a tiempo — sin terminar · desde 2026-09-20 · lotes aplicados antes del fallo 2',
+    );
+    // Código desconocido o ausente.
+    const [odd] = normalizeSteps({ nuevos: { apiFailed: true, failReason: 'otro_codigo', ms: 1 } });
+    expect(odd.note).toBe('Fallo del API: otro_codigo');
+    expect(apiFailReasonLabel(null)).toBe('motivo desconocido');
+    expect(apiFailReasonLabel('job_error')).toBe('la carga terminó en error en el API');
+  });
+
+  it('nuevos con PATCH de tipo de precio fallido y dobles con retenidos ya en v2', () => {
+    const rows = normalizeSteps({
+      dobles: { pairs: 4, held: 4, heldSales: 2, heldInV2: 2, ms: 300 },
+      nuevos: { inserted: 3, skipped: 0, held: 4, rejected: 0, priceTypeFailed: 2, priceTypeFailCode: 'patch_error', ms: 800 },
+    });
+    expect(rows[0].note).toBe('pares 4 · retenidos 4 (ventas omitidas de 2; 2 ya con ficha en v2)');
+    expect(rows[1].note).toBe('tipo de precio sin actualizar 2 (el API rechazó la actualización (PATCH))');
+    const [dobles] = normalizeSteps({ dobles: { pairs: 4, held: 4, heldSales: 4, heldInV2: 0 } });
+    expect(dobles.note).toBe('pares 4 · retenidos 4 (ventas omitidas de 4)');
+  });
+
+  it('los avisos de un paso salen con su etiqueta', () => {
+    const [pos] = normalizeSteps({
+      'ventas-pos': { migrated: 1, warnings: ['sucursal_sin_fila:404', 'otro_aviso'], ms: 1 },
+    });
+    expect(pos.note).toBe('avisos: Sucursal 404 sin fila en v2, otro_aviso');
+  });
+});
+
+describe('syncCodeLabel (avisos y motivos del runner)', () => {
+  it('etiqueta en español cada código nuevo de la ronda del 23-sep', () => {
+    const codes = [
+      'nuevos_api_fallo',
+      'nuevos_rechazados',
+      'inscripcion_api_fallo',
+      'precio_no_actualizado',
+      'logins_api_fallo',
+      'logins_fallo',
+      'logins_endpoint_no_disponible',
+      'logins_tope_excedido',
+      'retenidos_en_v2_no_medido',
+    ];
+    for (const c of codes) {
+      expect(SYNC_CODE_LABELS[c]).toBeTruthy();
+      expect(syncCodeLabel(c)).not.toBe(c);
+      expect(syncCodeLabel(c)).not.toContain('_');
+    }
+    expect(syncCodeLabel('nuevos_api_fallo')).toBe('Clientes nuevos: el API no respondió');
+    expect(syncCodeLabel('logins_tope_excedido')).toBe('Logins faltantes: tope por corrida excedido');
+  });
+
+  it('prefijos parametrizados, detalle entre corchetes y códigos desconocidos', () => {
+    expect(syncCodeLabel('sucursal_sin_fila:404')).toBe('Sucursal 404 sin fila en v2');
+    expect(syncCodeLabel('sucursal_sin_fila:office-12')).toBe('Oficina legacy 12 sin clave de sucursal');
+    expect(syncCodeLabel('retenido_con_ficha_y_nativo_activo:1787562')).toBe(
+      'Retenido 1787562: ya tiene ficha en v2 y su nativo sigue activo',
+    );
+    expect(syncCodeLabel('nuevos_rechazados[3]')).toBe('Clientes nuevos: el API rechazó altas [3]');
+    // Sin parámetro o con prefijo desconocido: tal cual.
+    expect(syncCodeLabel('sucursal_sin_fila:')).toBe('sucursal_sin_fila:');
+    expect(syncCodeLabel('otro:1')).toBe('otro:1');
+    expect(syncCodeLabel('legacy_no_listo')).toBe('legacy_no_listo');
+    expect(syncCodeText('logins_fallo')).toBe('Logins faltantes: falló la lectura de candidatos (logins_fallo)');
+    expect(syncCodeText('paridad_roja')).toBe('paridad_roja');
+  });
+
+  it('runStateText usa la etiqueta del motivo', () => {
+    expect(runStateText({ status: 'warn', durationMs: 256_000, reason: 'nuevos_api_fallo' })).toBe(
+      'warn (Clientes nuevos: el API no respondió) en 4 m 16 s',
+    );
   });
 });
 

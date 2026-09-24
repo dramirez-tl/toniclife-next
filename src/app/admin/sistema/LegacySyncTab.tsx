@@ -86,6 +86,8 @@ import {
   signalLabel,
   statusPhrase,
   stepLabel,
+  syncCodeLabel,
+  syncCodeText,
   whatsappChip,
   type ParityChip,
 } from '@/lib/legacy-sync/format';
@@ -562,7 +564,13 @@ function StepsTable({ run }: { run: LegacySyncRun }) {
         </TableHeader>
         <TableBody>
           {rows.map((r) => (
-            <TableRow key={r.name} className={cn(r.crashed && 'bg-red-50/60')}>
+            <TableRow
+              key={r.name}
+              className={cn(
+                r.crashed && 'bg-red-50/60',
+                r.softFailed && 'bg-amber-50/60',
+              )}
+            >
               <TableCell className="align-top">
                 <div className="font-medium">{stepLabel(r.name)}</div>
                 <div className="text-xs text-muted-foreground">{r.name}</div>
@@ -570,7 +578,11 @@ function StepsTable({ run }: { run: LegacySyncRun }) {
                   <div
                     className={cn(
                       'mt-1 max-w-md text-xs',
-                      r.crashed ? 'text-red-700' : 'text-muted-foreground',
+                      r.crashed
+                        ? 'text-red-700'
+                        : r.softFailed
+                          ? 'text-amber-800'
+                          : 'text-muted-foreground',
                     )}
                   >
                     {r.note}
@@ -635,16 +647,27 @@ function StepsCard({ run, isDryRun }: { run: LegacySyncRun; isDryRun: boolean })
         <StepsTable run={run} />
         {(run.warnings.length > 0 || run.error) && (
           <div className="mt-3 space-y-1 text-xs">
-            {run.warnings.length > 0 && (
-              <p className="text-amber-800">
-                Avisos: {run.warnings.join(', ')}
-              </p>
-            )}
+            {run.warnings.length > 0 && <WarningsLine warnings={run.warnings} />}
             {run.error && <p className="text-red-700">Error: {run.error}</p>}
           </div>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/** "Avisos: …" con la etiqueta en español; el código crudo queda en el title. */
+function WarningsLine({ warnings }: { warnings: string[] }) {
+  return (
+    <p className="text-amber-800">
+      Avisos:{' '}
+      {warnings.map((w, i) => (
+        <span key={`${w}-${i}`} title={w}>
+          {i > 0 && ', '}
+          {syncCodeLabel(w)}
+        </span>
+      ))}
+    </p>
   );
 }
 
@@ -656,12 +679,13 @@ function RunStatusBadge({ run }: { run: Pick<LegacySyncRun, 'status' | 'reason'>
         <span>
           <Badge variant="outline" className={ui.className}>
             {ui.label}
-            {run.reason ? ` · ${run.reason}` : ''}
+            {run.reason ? ` · ${syncCodeLabel(run.reason)}` : ''}
           </Badge>
         </span>
       </TooltipTrigger>
       <TooltipContent side="top" className="max-w-xs">
         {RUN_STATUS_HELP[run.status] ?? run.status}
+        {run.reason ? ` Motivo: ${run.reason}.` : ''}
       </TooltipContent>
     </Tooltip>
   );
@@ -1272,7 +1296,7 @@ function RunDetail({ run }: { run: LegacySyncRun }) {
       <dl className="grid gap-x-6 gap-y-1 text-xs sm:grid-cols-2 lg:grid-cols-3">
         <Item label="Clave" value={run.runKey} mono />
         <Item label="Salida" value={exitCodeLabel(run.exitCode)} />
-        <Item label="Motivo" value={run.reason ?? '—'} />
+        <Item label="Motivo" value={run.reason ? syncCodeText(run.reason) : '—'} />
         <Item label="Periodos" value={run.periodNumbers.length ? run.periodNumbers.join(', ') : '—'} />
         <Item label="Inicio" value={`${run.startedAtCdmx} CDMX`} />
         <Item label="Lista (guarda)" value={run.readyAtCdmx ? `${run.readyAtCdmx} CDMX` : '—'} />
@@ -1293,9 +1317,7 @@ function RunDetail({ run }: { run: LegacySyncRun }) {
       </dl>
       {(run.warnings.length > 0 || run.error) && (
         <div className="space-y-1 text-xs">
-          {run.warnings.length > 0 && (
-            <p className="text-amber-800">Avisos: {run.warnings.join(', ')}</p>
-          )}
+          {run.warnings.length > 0 && <WarningsLine warnings={run.warnings} />}
           {run.error && <p className="text-red-700">Error: {run.error}</p>}
         </div>
       )}
