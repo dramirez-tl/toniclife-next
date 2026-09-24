@@ -393,6 +393,8 @@ describe('syncCodeLabel (avisos y motivos del runner)', () => {
       'logins_endpoint_no_disponible',
       'logins_tope_excedido',
       'retenidos_en_v2_no_medido',
+      'retenido_con_ficha_y_nativo_activo',
+      'pedidos_online_omitidos',
     ];
     for (const c of codes) {
       expect(SYNC_CODE_LABELS[c]).toBeTruthy();

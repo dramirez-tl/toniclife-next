@@ -685,6 +685,11 @@ export const SYNC_CODE_LABELS: Record<string, string> = {
   logins_tope_excedido: 'Logins faltantes: tope por corrida excedido',
   retenidos_en_v2_no_medido:
     'Retenidos con ficha en v2 sin medir: ventas de todos omitidas',
+  // Motivo sin sufijo (el aviso con el número sale en warnings).
+  retenido_con_ficha_y_nativo_activo:
+    'Retenido con ficha en v2 y su nativo activo: ventas omitidas',
+  pedidos_online_omitidos:
+    'Pedidos en línea omitidos sin cliente o sin sucursal',
 };
 
 /** Códigos con parámetro 'codigo:valor' (p. ej. sucursal_sin_fila:404). */
