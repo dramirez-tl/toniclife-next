@@ -51,6 +51,9 @@ export function apiErrorInfo(
         'Tu rol no tiene acceso a esta sección. Pide a Sistemas que habilite el permiso.',
     };
   }
+  if (status === 429) {
+    return { status, message: 'Demasiadas consultas seguidas; espera un minuto e intenta de nuevo.' };
+  }
   if (status === 503) {
     return {
       status,

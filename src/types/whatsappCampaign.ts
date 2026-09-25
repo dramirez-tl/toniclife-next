@@ -199,6 +199,11 @@ export interface AttributionFields {
   base_ctrl: number;
   calificaron_ctrl: number;
   pct_calificaron_ctrl: number | null;
+  /** Califican Y compraron (con hora) desde el primer aviso; base = base_trat/base_ctrl. */
+  calificaron_desde_t0_trat?: number;
+  pct_calificaron_desde_t0_trat?: number | null;
+  calificaron_desde_t0_ctrl?: number;
+  pct_calificaron_desde_t0_ctrl?: number | null;
 }
 
 export interface AttributionSegmento extends AttributionFields {
@@ -336,6 +341,8 @@ export interface CampaignMembersParams {
   segmento?: string;
   ola?: string;
   grupo?: CampaignGroup;
+  /** 'total' = solo los segmentos que entran al total del tablero (sin líderes). */
+  alcance?: 'total';
   page?: number;
   limit?: number;
 }

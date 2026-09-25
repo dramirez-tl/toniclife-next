@@ -35,7 +35,12 @@ export function HourlyChart({ data }: { data: LecturaHora[] }) {
       {data.length === 0 ? (
         <EmptyNote>Sin entregas todavía.</EmptyNote>
       ) : (
-        <div role="img" aria-label="Entregas y lecturas por hora">
+        <div
+          role="img"
+          aria-label={`Entregas y lecturas por hora, de ${data[0].hora} a ${data[data.length - 1].hora}: ${n(
+            data.reduce((a, x) => a + (x.entregados ?? 0), 0),
+          )} entregados y ${n(data.reduce((a, x) => a + (x.leidos ?? 0), 0))} leídos en total.`}
+        >
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barGap={2}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />

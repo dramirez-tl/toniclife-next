@@ -19,6 +19,7 @@ import {
 import { cn } from '@/lib/utils';
 import {
   embudoAtribucion,
+  etiquetaFiltro,
   hrefPersonas,
   n,
   pct,
@@ -31,12 +32,20 @@ import type {
 import { CompareLegend, CompareRow, TONE_FILL } from './CompareBar';
 import { EmptyNote, Panel } from './Panel';
 
-/** Cifra con enlace a la pestaña Personas (si hay a quién mostrar). */
+/** Umbral de cobertura de hora exacta bajo el cual se avisa (ver backfill). */
+const COBERTURA_MINIMA = 0.95;
+
+/**
+ * Cifra con enlace a la pestaña Personas (si hay a quién mostrar).
+ * `total` = la cifra es del total o de la tabla por ola (sin los segmentos que
+ * no entran al total, p. ej. líderes): la lista usa alcance=total para cuadrar.
+ */
 function PeopleLink({
   campana,
   filtro,
   segmento,
   ola,
+  total,
   value,
   children,
 }: {
@@ -44,6 +53,7 @@ function PeopleLink({
   filtro: CampaignMemberFilter;
   segmento?: string | null;
   ola?: string | null;
+  total?: boolean;
   value: number | null | undefined;
   children?: ReactNode;
 }) {
@@ -51,9 +61,10 @@ function PeopleLink({
   if (!campana || !value) return <>{content}</>;
   return (
     <Link
-      href={hrefPersonas(campana, filtro, { segmento, ola })}
+      href={hrefPersonas(campana, filtro, { segmento, ola, alcance: total ? 'total' : null })}
       className="underline decoration-dotted underline-offset-4 hover:text-primary hover:decoration-solid"
       title="Ver personas"
+      aria-label={`Ver personas: ${n(value)} (${etiquetaFiltro(filtro).toLowerCase()})`}
     >
       {content}
     </Link>
@@ -130,14 +141,14 @@ export function AttributionPanel({ data }: { data: CampaignDashboard }) {
           <BigTile
             label="De ellos, ya calificaron"
             value={
-              <PeopleLink campana={key} filtro="recibieron_calificaron" value={t.calificaron_recibieron} />
+              <PeopleLink campana={key} filtro="recibieron_calificaron" total value={t.calificaron_recibieron} />
             }
             detail={`${pct(t.pct_calificaron_recibieron, 1)} de ${n(t.base_recibieron)} que estaban debajo de ${umbral}`}
           />
           <BigTile
             label="Lo leyeron y después compraron"
             value={
-              <PeopleLink campana={key} filtro="leyeron_compraron" value={t.compraron_despues_de_leer} />
+              <PeopleLink campana={key} filtro="leyeron_compraron" total value={t.compraron_despues_de_leer} />
             }
             detail={`${pct(t.pct_compraron_despues_de_leer, 1)} de ${n(t.leyeron)} que lo leyeron`}
             extra={<SinHora value={t.compraron_mismo_dia_sin_hora} />}
@@ -145,7 +156,7 @@ export function AttributionPanel({ data }: { data: CampaignDashboard }) {
           <BigTile
             label="Lo leyeron y después calificaron"
             value={
-              <PeopleLink campana={key} filtro="leyeron_calificaron" value={t.calificaron_despues_de_leer} />
+              <PeopleLink campana={key} filtro="leyeron_calificaron" total value={t.calificaron_despues_de_leer} />
             }
             detail={`${pct(t.pct_calificaron_despues_de_leer, 1)} de ${n(t.base_leyeron)} que lo leyeron y estaban debajo`}
             extra={<SinHora value={t.calificaron_mismo_dia_sin_hora} />}
@@ -170,7 +181,7 @@ export function AttributionPanel({ data }: { data: CampaignDashboard }) {
                 </div>
                 <span className="text-right tabular-nums">
                   <strong className="font-semibold">
-                    {p.filtro ? <PeopleLink campana={key} filtro={p.filtro} value={p.n} /> : n(p.n)}
+                    {p.filtro ? <PeopleLink campana={key} filtro={p.filtro} total value={p.n} /> : n(p.n)}
                   </strong>{' '}
                   <span className="text-xs text-muted-foreground">{pct(p.frac)}</span>
                 </span>
@@ -190,7 +201,7 @@ export function AttributionPanel({ data }: { data: CampaignDashboard }) {
               <CompareRow label="Control" tone="ctrl" value={t.pct_compraron_desde_t0_ctrl} />
               <p className="text-xs text-muted-foreground">
                 {n(t.compraron_desde_t0_trat)} de {n(t.tratados)} con campaña ·{' '}
-                <PeopleLink campana={key} filtro="control_compraron" value={t.compraron_desde_t0_ctrl} /> de{' '}
+                <PeopleLink campana={key} filtro="control_compraron" total value={t.compraron_desde_t0_ctrl} /> de{' '}
                 {n(t.control)} en el control
                 {(t.compraron_desde_t0_trat_sin_hora || t.compraron_desde_t0_ctrl_sin_hora) ? (
                   <>
@@ -207,9 +218,22 @@ export function AttributionPanel({ data }: { data: CampaignDashboard }) {
               <CompareRow label="Control" tone="ctrl" value={t.pct_calificaron_ctrl} />
               <p className="text-xs text-muted-foreground">
                 {n(t.calificaron_trat)} de {n(t.base_trat)} con campaña ·{' '}
-                <PeopleLink campana={key} filtro="control_calificaron" value={t.calificaron_ctrl} /> de{' '}
+                <PeopleLink campana={key} filtro="control_calificaron" total value={t.calificaron_ctrl} /> de{' '}
                 {n(t.base_ctrl)} en el control
               </p>
+              {t.pct_calificaron_desde_t0_trat !== undefined && (
+                <p className="text-xs text-muted-foreground">
+                  Con una compra desde el primer aviso:{' '}
+                  <strong className="font-semibold text-foreground">
+                    {pct(t.pct_calificaron_desde_t0_trat, 1)}
+                  </strong>{' '}
+                  con campaña ({n(t.calificaron_desde_t0_trat)}) vs.{' '}
+                  <strong className="font-semibold text-foreground">
+                    {pct(t.pct_calificaron_desde_t0_ctrl, 1)}
+                  </strong>{' '}
+                  en el control ({n(t.calificaron_desde_t0_ctrl)}).
+                </p>
+              )}
             </div>
             <CompareLegend pctControl={data.campana.pct_control || null} />
           </div>
@@ -287,7 +311,7 @@ export function AttributionPanel({ data }: { data: CampaignDashboard }) {
           </div>
           {tieneLid && (
             <p className="text-xs text-muted-foreground">
-              Los líderes (LID) no entran en el total: la mayoría ya estaba calificada y su efecto se
+              Los líderes no entran en el total: la mayoría ya estaba calificada y su efecto se
               mide en las compras de su primera línea.
             </p>
           )}
@@ -297,6 +321,11 @@ export function AttributionPanel({ data }: { data: CampaignDashboard }) {
         {a.olas.length > 0 && (
           <div className="grid gap-2">
             <h3 className="text-sm font-semibold">Por ola</h3>
+            {tieneLid && (
+              <p className="text-xs text-muted-foreground">
+                Sin líderes, igual que el total. Cada ola se mide con la lectura de ese mensaje.
+              </p>
+            )}
             <div className="overflow-x-auto rounded-md border">
               <Table>
                 <TableHeader>
@@ -322,7 +351,7 @@ export function AttributionPanel({ data }: { data: CampaignDashboard }) {
                       <TableCell className="text-right">{n(o.mediana_min_lectura)}</TableCell>
                       <TableCell className="text-right">
                         {o.es_aviso ? (
-                          <PeopleLink campana={key} filtro="leyeron_compraron" ola={o.id} value={o.compraron_despues} />
+                          <PeopleLink campana={key} filtro="leyeron_compraron" ola={o.id} total value={o.compraron_despues} />
                         ) : (
                           n(o.compraron_despues)
                         )}{' '}
@@ -332,7 +361,7 @@ export function AttributionPanel({ data }: { data: CampaignDashboard }) {
                       <TableCell className="text-right">
                         {o.es_aviso ? (
                           <>
-                            <PeopleLink campana={key} filtro="leyeron_calificaron" ola={o.id} value={o.calificaron_despues} />{' '}
+                            <PeopleLink campana={key} filtro="leyeron_calificaron" ola={o.id} total value={o.calificaron_despues} />{' '}
                             <span className="text-xs text-muted-foreground">{pct(o.pct_calificaron_despues, 1)}</span>
                           </>
                         ) : (
@@ -350,10 +379,17 @@ export function AttributionPanel({ data }: { data: CampaignDashboard }) {
         {/* Pie del bloque */}
         <div className="grid gap-1.5 rounded-md bg-muted p-3 text-sm">
           {a.notas[0] && <p className="font-medium">{a.notas[0]}</p>}
+          {cobertura != null && cobertura < COBERTURA_MINIMA && (
+            <p className="font-medium text-amber-700 dark:text-amber-400">
+              Solo {pct(cobertura)} de las ventas del sistema anterior tienen hora de captura: las
+              demás cuentan por día y pueden quedar en &quot;mismo día, sin hora&quot;. Pide a Sistemas
+              que actualice las horas.
+            </p>
+          )}
           <p className="text-muted-foreground">
             {cobertura == null
-              ? 'Sin ventas migradas del legacy en la ventana.'
-              : `Hora exacta en ${pct(cobertura)} de las ventas migradas del legacy.`}{' '}
+              ? 'Sin ventas del sistema anterior en la ventana.'
+              : `Hora exacta en ${pct(cobertura)} de las ventas capturadas en el sistema anterior.`}{' '}
             Compras con hora exacta: {n(a.evidencia.compras_hora_exacta)} · solo con día:{' '}
             {n(a.evidencia.compras_solo_dia)}.
           </p>

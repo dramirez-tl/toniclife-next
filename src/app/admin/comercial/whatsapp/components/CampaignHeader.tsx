@@ -8,7 +8,7 @@ import { ArrowPathIcon } from '@heroicons/react/24/outline';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { chipCierre, hayOlaEnCurso, pct } from '@/lib/whatsapp-campaign/format';
+import { badgeContraste, chipCierre, hayOlaEnCurso, pct } from '@/lib/whatsapp-campaign/format';
 import type { CampaignDashboard } from '@/types/whatsappCampaign';
 
 /** Hora actual refrescada cada minuto (solo para la cuenta regresiva del chip). */
@@ -70,9 +70,13 @@ export function CampaignHeader({
             {data.estado_campana}
           </Badge>
         )}
-        {cierre && <Badge variant={cierre.tono}>{cierre.texto}</Badge>}
+        {cierre && (
+          <Badge variant={cierre.tono} className={badgeContraste(cierre.tono)}>
+            {cierre.texto}
+          </Badge>
+        )}
         {data.corte.sync_en_curso && (
-          <Badge variant="warning">Sync en curso: las cifras de puntos pueden cambiar</Badge>
+          <Badge variant="warning">Actualizando cifras: los puntos pueden cambiar</Badge>
         )}
         <Badge variant="outline" className="font-mono" title={data.generado_cdmx}>
           Actualizado {hhmm}

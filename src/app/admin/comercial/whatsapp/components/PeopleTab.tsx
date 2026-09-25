@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import {
   FILTRO_LABELS,
   GRUPO_LABELS,
+  badgeContraste,
   califico,
   evidenciaBadge,
   isCampaignGroup,
@@ -48,7 +49,17 @@ import {
 const PAGE_SIZE = 50;
 const ALL = '__all';
 
-type PeopleParams = Pick<WhatsAppParams, 'filtro' | 'segmento' | 'ola' | 'grupo' | 'page'>;
+type PeopleParams = Pick<WhatsAppParams, 'filtro' | 'segmento' | 'ola' | 'grupo' | 'alcance' | 'page'>;
+
+/** Filtros de lectura que, con una ola elegida, se miden con la lectura de ESA ola. */
+const FILTROS_POR_OLA = new Set([
+  'leyeron_compraron',
+  'leyeron_calificaron',
+  'leyeron_mismo_dia_sin_hora',
+  'leyeron_no_compraron',
+]);
+/** Filtros de respuestas: listan solo integrantes de la campaña. */
+const FILTROS_RESPUESTA = new Set(['respondieron', 'por_contestar', 'bajas']);
 
 const CATEGORIA_CLASS = {
   alerta: 'text-[#B0432D] dark:text-[#EE8B74]',
@@ -104,6 +115,7 @@ export function PeopleTab({
     segmento: params.segmento ?? undefined,
     ola: params.ola ?? undefined,
     grupo: params.grupo ?? undefined,
+    alcance: params.alcance ?? undefined,
     page: params.page,
     limit: PAGE_SIZE,
   });
@@ -167,6 +179,39 @@ export function PeopleTab({
         />
       </div>
 
+      {(params.alcance === 'total' ||
+        (params.ola && FILTROS_POR_OLA.has(params.filtro)) ||
+        FILTROS_RESPUESTA.has(params.filtro)) && (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          {params.alcance === 'total' && (
+            <>
+              <Badge variant="outline">Sin líderes, igual que el total del tablero</Badge>
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto p-0 text-xs"
+                onClick={() => set({ alcance: null })}
+              >
+                Incluir líderes
+              </Button>
+            </>
+          )}
+          {params.ola && FILTROS_POR_OLA.has(params.filtro) && (
+            <span>
+              Lectura medida con{' '}
+              {(olaNombre.get(params.ola) ?? `la ola ${params.ola}`).toLowerCase()}.
+            </span>
+          )}
+          {FILTROS_RESPUESTA.has(params.filtro) && (
+            <span>
+              Solo integrantes de la campaña; el conteo del tablero también incluye a quien escribió sin
+              estar en ella.
+            </span>
+          )}
+        </div>
+      )}
+
       {query.isError ? (
         <Alert variant="destructive">
           <ExclamationTriangleIcon className="h-4 w-4" />
@@ -174,7 +219,7 @@ export function PeopleTab({
           <AlertDescription>
             {apiErrorMessage(query.error, 'Error al cargar las personas de la campaña.', {
               forbidden: 'Tu rol no tiene el permiso Comercial para ver las personas de la campaña.',
-              unavailable: 'Falta aplicar la migración 151 (campañas de WhatsApp).',
+              unavailable: 'Las campañas de WhatsApp aún no están habilitadas (pendiente de Sistemas).',
             })}
           </AlertDescription>
         </Alert>
@@ -206,7 +251,7 @@ export function PeopleTab({
                   <TableHead>Teléfono</TableHead>
                   <TableHead>Sucursal</TableHead>
                   <TableHead>Segmento</TableHead>
-                  <TableHead className="text-right">Puntos T0 → ahora</TableHead>
+                  <TableHead className="text-right">Puntos al primer aviso → ahora</TableHead>
                   <TableHead className="text-right">Faltan</TableHead>
                   <TableHead>Leyó</TableHead>
                   <TableHead>Compra tras leer</TableHead>
@@ -267,7 +312,7 @@ export function PeopleTab({
                             <div className="font-mono text-xs">{m.primera_compra_tras_leer_cdmx}</div>
                           )}
                           {ev ? (
-                            <Badge variant={ev.variant} title={ev.ayuda}>
+                            <Badge variant={ev.variant} className={badgeContraste(ev.variant)} title={ev.ayuda}>
                               {ev.texto}
                             </Badge>
                           ) : (

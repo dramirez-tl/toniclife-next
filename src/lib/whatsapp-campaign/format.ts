@@ -96,6 +96,17 @@ export function toneCategoria(id: string | null | undefined): CategoriaTone {
   return 'normal';
 }
 
+/**
+ * Clase extra para las insignias: la variante `success` del Badge compartido
+ * (texto blanco sobre verde claro) no tiene contraste suficiente; aquí se
+ * oscurece el texto sin tocar el componente compartido.
+ */
+export function badgeContraste(variant: BadgeTone | string | null | undefined): string | undefined {
+  return variant === 'success'
+    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+    : undefined;
+}
+
 export function badgeImpacto(tipo: ImpactoTipo | string | null | undefined): {
   texto: string;
   variant: BadgeTone;
@@ -129,8 +140,8 @@ export const TRAMO_ETIQUETAS: Record<TramoId, string> = {
   leidos: 'Leídos',
   entregados: 'Entregados sin leer',
   pendientes: 'En camino',
-  sin_whatsapp: 'Sin WhatsApp (131026)',
-  limite: 'Límite de WhatsApp (131049 + 130472)',
+  sin_whatsapp: 'Sin WhatsApp',
+  limite: 'Límite de envíos de WhatsApp',
   otros: 'Otros fallos',
 };
 
@@ -266,6 +277,8 @@ export interface WhatsAppParams {
   segmento: string | null;
   ola: string | null;
   grupo: CampaignGroup | null;
+  /** 'total' = la lista excluye los segmentos que no entran al total (líderes). */
+  alcance: 'total' | null;
   page: number;
   /** true si algún parámetro presente era inválido (hay que normalizar la URL). */
   invalido: boolean;
@@ -298,13 +311,14 @@ export function normalizarParams(search: ParamSource): WhatsAppParams {
   const segmento = leer<string | null>('segmento', (v) => SEGMENTO_RE.test(v), id, null);
   const ola = leer<string | null>('ola', (v) => OLA_RE.test(v), id, null);
   const grupo = leer<CampaignGroup | null>('grupo', isCampaignGroup, (v) => v as CampaignGroup, null);
+  const alcance = leer<'total' | null>('alcance', (v) => v === 'total', () => 'total', null);
   const page = leer<number>(
     'page',
     (v) => /^\d{1,6}$/.test(v) && Number(v) >= 1,
     Number,
     1,
   );
-  return { campana, tab, filtro, segmento, ola, grupo, page, invalido };
+  return { campana, tab, filtro, segmento, ola, grupo, alcance, page, invalido };
 }
 
 /** Query string canónica (sin defaults) de la página. */
@@ -318,6 +332,7 @@ export function construirQuery(p: Partial<Omit<WhatsAppParams, 'invalido'>>): st
     if (p.segmento) q.set('segmento', p.segmento);
     if (p.ola) q.set('ola', p.ola);
     if (p.grupo) q.set('grupo', p.grupo);
+    if (p.alcance === 'total') q.set('alcance', 'total');
     if (p.page && p.page > 1) q.set('page', String(p.page));
   }
   const s = q.toString();
@@ -328,7 +343,12 @@ export function construirQuery(p: Partial<Omit<WhatsAppParams, 'invalido'>>): st
 export function hrefPersonas(
   campana: string,
   filtro: CampaignMemberFilter,
-  extra: { segmento?: string | null; ola?: string | null; grupo?: CampaignGroup | null } = {},
+  extra: {
+    segmento?: string | null;
+    ola?: string | null;
+    grupo?: CampaignGroup | null;
+    alcance?: 'total' | null;
+  } = {},
 ): string {
   return `${WHATSAPP_ADMIN_PATH}${construirQuery({ campana, tab: 'personas', filtro, ...extra })}`;
 }
@@ -345,14 +365,14 @@ export function evidenciaBadge(
     return {
       texto: 'Día posterior',
       variant: 'info',
-      ayuda: 'Venta migrada del legacy sin hora, de un día posterior a la lectura.',
+      ayuda: 'Venta del sistema anterior todavía sin hora de captura, de un día posterior a la lectura.',
     };
   }
   if (e === 'mismo_dia_sin_hora') {
     return {
       texto: 'Mismo día, sin hora',
       variant: 'warning',
-      ayuda: 'Venta migrada del legacy del mismo día de la lectura: no se sabe si fue antes o después.',
+      ayuda: 'Venta del sistema anterior del mismo día de la lectura, todavía sin hora: no se sabe si fue antes o después.',
     };
   }
   return null;
@@ -532,7 +552,10 @@ export function adaptarDashboard(raw: unknown, fallbackKey = ''): CampaignDashbo
 function adaptarAtribucion(raw: unknown): CampaignDashboard['atribucion'] {
   if (raw == null) return null;
   const a = obj(raw);
+  // Forma de la SPEC §3.7: total + evidencia + olas. Otra forma (p. ej. un
+  // bloque de otra versión) se trata como ausente en vez de pintar '—'.
   if (!a.total || typeof a.total !== 'object') return null;
+  if (!a.evidencia || typeof a.evidencia !== 'object' || !Array.isArray(a.olas)) return null;
   const ev = obj(a.evidencia);
   return {
     t0_cdmx: str(a.t0_cdmx),

@@ -60,12 +60,12 @@ export function EffectInterval({
       />
       <circle cx={x(est)} cy={26} r={7} className={cn(tone)} strokeWidth={0} />
       {[
-        { v: 0, t: '0' },
-        { v: lo, t: signed(lo, 0) },
-        { v: hi, t: signed(hi, 0) },
+        { id: 'cero', v: 0, t: '0' },
+        { id: 'bajo', v: lo, t: signed(lo, 0) },
+        { id: 'alto', v: hi, t: signed(hi, 0) },
       ].map((l) => (
         <text
-          key={l.t + l.v}
+          key={l.id}
           x={x(l.v)}
           y={58}
           textAnchor="middle"

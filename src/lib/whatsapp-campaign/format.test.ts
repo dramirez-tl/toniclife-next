@@ -3,6 +3,7 @@ import tableroV1 from './__fixtures__/tablero-v1.json';
 import {
   FILTRO_LABELS,
   adaptarDashboard,
+  badgeContraste,
   badgeImpacto,
   califico,
   categoriasOrdenadas,
@@ -261,6 +262,7 @@ describe('filtros y URL', () => {
       segmento: 'P1',
       ola: 'felicitacion',
       grupo: 'control',
+      alcance: null,
       page: 3,
       invalido: false,
     });
@@ -332,6 +334,15 @@ describe('adaptarDashboard', () => {
     expect(d.atribucion?.total.compraron_despues_de_leer).toBe(30);
   });
 
+  it('una atribución sin evidencia u olas (forma de otra versión) se trata como ausente', () => {
+    const v = mockV2();
+    expect(adaptarDashboard({ ...v, atribucion: { ...v.atribucion, evidencia: undefined } }).atribucion).toBeNull();
+    expect(adaptarDashboard({ ...v, atribucion: { ...v.atribucion, olas: undefined } }).atribucion).toBeNull();
+    expect(
+      adaptarDashboard({ ...v, atribucion: { total: {}, por_ola: [], compras_disponibles: true } }).atribucion,
+    ).toBeNull();
+  });
+
   it('una atribución sin `total` (forma distinta) se trata como ausente', () => {
     const d = adaptarDashboard({ ...mockV2(), atribucion: { t0_cdmx: 'x', segmentos: [] } });
     expect(d.atribucion).toBeNull();
@@ -398,3 +409,22 @@ describe('privacidad del fixture', () => {
     expect(txt).not.toMatch(/\+52\d/);
   });
 });
+
+describe('alcance=total y enlaces a Personas', () => {
+  it('normalizarParams acepta solo alcance=total; construirQuery y hrefPersonas lo conservan', () => {
+    const p = normalizarParams(new URLSearchParams('campana=cierre-p73&tab=personas&alcance=total&ola=2'));
+    expect(p.alcance).toBe('total');
+    expect(p.invalido).toBe(false);
+    expect(normalizarParams(new URLSearchParams('alcance=lid')).invalido).toBe(true);
+    expect(construirQuery({ ...p })).toContain('alcance=total');
+    expect(hrefPersonas('cierre-p73', 'leyeron_compraron', { ola: '2', alcance: 'total' })).toBe(
+      '/admin/comercial/whatsapp?campana=cierre-p73&tab=personas&filtro=leyeron_compraron&ola=2&alcance=total',
+    );
+  });
+
+  it('badgeContraste oscurece solo la variante success', () => {
+    expect(badgeContraste('success')).toContain('text-emerald-800');
+    expect(badgeContraste('info')).toBeUndefined();
+  });
+});
+

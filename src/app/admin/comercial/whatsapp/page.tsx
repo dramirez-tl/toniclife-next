@@ -20,6 +20,7 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Select,
@@ -58,7 +59,7 @@ const ERROR_MESSAGES: ApiErrorMessages = {
   forbidden:
     'Tu rol no tiene acceso a las campañas de WhatsApp. Pide a Sistemas que habilite el permiso Comercial.',
   unavailable:
-    'Las campañas de WhatsApp aún no están habilitadas: falta aplicar la migración 151 en la base de datos.',
+    'Las campañas de WhatsApp aún no están habilitadas (pendiente de Sistemas).',
   notFound: 'El API todavía no expone las campañas de WhatsApp (despliegue pendiente).',
 };
 
@@ -101,21 +102,68 @@ function AccessDenied({ message }: { message: string }) {
   );
 }
 
-/** 403 → tarjeta; 503/404/otros → Alert (el 503 es la migración 151 pendiente). */
-function ErrorState({ error, fallback }: { error: unknown; fallback: string }) {
+/**
+ * 403 → tarjeta; 503/404/otros → Alert. El 503 solo se rotula como
+ * "no habilitadas" si el API lo dice (mig 151 pendiente); un 503 del
+ * balanceador (reinicio o despliegue) es "servicio no disponible".
+ * Con `onRetry` muestra "Reintentar"; con `staleAt`, avisa que las cifras
+ * de abajo son las de esa hora.
+ */
+function ErrorState({
+  error,
+  fallback,
+  onRetry,
+  retrying,
+  staleAt,
+}: {
+  error: unknown;
+  fallback: string;
+  onRetry?: () => void;
+  retrying?: boolean;
+  staleAt?: string | null;
+}) {
   const info = apiErrorInfo(error, fallback, ERROR_MESSAGES);
   if (info.status === 403) return <AccessDenied message={info.message} />;
-  const title =
-    info.status === 503
-      ? 'Falta aplicar la migración 151'
-      : info.status === 404
-        ? 'No disponible todavía'
-        : 'No se pudo cargar';
+  const faltaMigracion = info.status === 503 && /migraci[oó]n/i.test(info.message);
+  const title = staleAt
+    ? 'No se pudo actualizar'
+    : faltaMigracion
+      ? 'Campañas aún no habilitadas'
+      : info.status === 503
+        ? 'Servicio no disponible'
+        : info.status === 404
+          ? 'No disponible todavía'
+          : 'No se pudo cargar';
+  const message = staleAt
+    ? `Se muestran las cifras de ${staleAt}. ${info.message}`
+    : info.status === 503 && !faltaMigracion
+      ? 'El servidor no responde en este momento (reinicio o despliegue). Intenta en un momento.'
+      : faltaMigracion
+        ? ERROR_MESSAGES.unavailable
+        : info.message;
   return (
-    <Alert variant={info.status === 503 || info.status === 404 ? 'default' : 'destructive'}>
+    <Alert
+      variant={
+        staleAt || info.status === 503 || info.status === 404 ? 'default' : 'destructive'
+      }
+    >
       <ExclamationTriangleIcon className="h-4 w-4" />
       <AlertTitle>{title}</AlertTitle>
-      <AlertDescription>{info.message}</AlertDescription>
+      <AlertDescription>
+        <p>{message}</p>
+        {onRetry && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-2"
+            onClick={onRetry}
+            disabled={retrying}
+          >
+            {retrying ? 'Reintentando…' : 'Reintentar'}
+          </Button>
+        )}
+      </AlertDescription>
     </Alert>
   );
 }
@@ -177,7 +225,12 @@ function WhatsAppContent() {
   if (campaigns.isError) {
     return (
       <PageShell>
-        <ErrorState error={campaigns.error} fallback="Error al cargar las campañas de WhatsApp." />
+        <ErrorState
+          error={campaigns.error}
+          fallback="Error al cargar las campañas de WhatsApp."
+          onRetry={() => void campaigns.refetch()}
+          retrying={campaigns.isFetching}
+        />
       </PageShell>
     );
   }
@@ -213,7 +266,15 @@ function WhatsAppContent() {
             <Select
               value={selected}
               onValueChange={(v) =>
-                navigate({ campana: v, page: 1, filtro: 'todos', segmento: null, ola: null, grupo: null })
+                navigate({
+                  campana: v,
+                  page: 1,
+                  filtro: 'todos',
+                  segmento: null,
+                  ola: null,
+                  grupo: null,
+                  alcance: null,
+                })
               }
             >
               <SelectTrigger className="w-full bg-card text-sm text-foreground">
@@ -254,7 +315,13 @@ function WhatsAppContent() {
               <TabsContent value="tablero" className="mt-5">
                 {dashboard.isError && (
                   <div className="mb-5">
-                    <ErrorState error={dashboard.error} fallback="Error al cargar el tablero." />
+                    <ErrorState
+                      error={dashboard.error}
+                      fallback="Error al cargar el tablero."
+                      onRetry={() => void dashboard.refetch()}
+                      retrying={dashboard.isFetching}
+                      staleAt={data?.generado_cdmx ?? null}
+                    />
                   </div>
                 )}
                 {!data ? (

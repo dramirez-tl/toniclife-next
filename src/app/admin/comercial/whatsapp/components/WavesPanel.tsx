@@ -15,6 +15,7 @@ import {
   toneOla,
   tramosOlaSeguro,
   type TramoId,
+  badgeContraste,
 } from '@/lib/whatsapp-campaign/format';
 import type { CampaignOla } from '@/types/whatsappCampaign';
 import { EmptyNote, Panel } from './Panel';
@@ -48,7 +49,7 @@ function OlaCard({ ola }: { ola: CampaignOla }) {
           <h3 className="text-sm font-semibold">{ola.nombre}</h3>
           <span className="font-mono text-xs text-muted-foreground">{ola.cuando}</span>
         </div>
-        <Badge variant={tone.variant}>
+        <Badge variant={tone.variant} className={badgeContraste(tone.variant)}>
           {tone.pulso && (
             <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-current motion-safe:animate-pulse" />
           )}

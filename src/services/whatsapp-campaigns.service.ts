@@ -49,6 +49,7 @@ export const whatsappCampaignsService = {
     if (params.segmento) query.segmento = params.segmento;
     if (params.ola) query.ola = params.ola;
     if (params.grupo) query.grupo = params.grupo;
+    if (params.alcance) query.alcance = params.alcance;
     if (params.page) query.page = params.page;
     if (params.limit) query.limit = params.limit;
     const { data } = await api.get<unknown>(`${BASE}/${encodeURIComponent(key)}/members`, {

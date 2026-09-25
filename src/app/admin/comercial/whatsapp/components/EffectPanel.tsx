@@ -5,7 +5,7 @@
 // medición (interina, preliminar u oficial).
 
 import { Badge } from '@/components/ui/badge';
-import { badgeImpacto, n, pct, signed } from '@/lib/whatsapp-campaign/format';
+import { badgeContraste, badgeImpacto, n, pct, signed } from '@/lib/whatsapp-campaign/format';
 import type { CampaignDashboard } from '@/types/whatsappCampaign';
 import { CompareLegend, CompareRow } from './CompareBar';
 import { EffectInterval } from './EffectInterval';
@@ -75,7 +75,9 @@ function Impact({ data }: { data: CampaignDashboard }) {
     <div className="grid content-start gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <p className="font-semibold">Efecto medido contra el control</p>
-        <Badge variant={tp.variant}>{tp.texto}</Badge>
+        <Badge variant={tp.variant} className={badgeContraste(tp.variant)}>
+          {tp.texto}
+        </Badge>
       </div>
       <div>
         <span className="text-[0.72rem] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -85,7 +87,7 @@ function Impact({ data }: { data: CampaignDashboard }) {
         <EffectInterval est={p.efecto} lo={p.ic_bajo} hi={p.ic_alto} unidad="puntos" />
         <p className="text-xs text-muted-foreground">
           Intervalo de confianza 95%: {signed(p.ic_bajo, 0)} a {signed(p.ic_alto, 0)} pts
-          {p.p != null && ` · p = ${Number(p.p).toFixed(2)}`}
+
         </p>
       </div>
       {c?.efecto != null && (
@@ -93,9 +95,9 @@ function Impact({ data }: { data: CampaignDashboard }) {
           <span className="text-[0.72rem] font-semibold uppercase tracking-wider text-muted-foreground">
             Tasa de calificación
           </span>
-          <div className="text-xl font-semibold tabular-nums">{signed(c.efecto, 1, ' pp')}</div>
+          <div className="text-xl font-semibold tabular-nums">{signed(c.efecto, 1, ' puntos porcentuales')}</div>
           <p className="text-xs text-muted-foreground">
-            Intervalo 95%: {signed(c.ic_bajo, 1)} a {signed(c.ic_alto, 1)} pp
+            Intervalo 95%: {signed(c.ic_bajo, 1)} a {signed(c.ic_alto, 1)} puntos porcentuales
           </p>
         </div>
       )}

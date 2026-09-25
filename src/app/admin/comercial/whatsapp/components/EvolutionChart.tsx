@@ -53,7 +53,15 @@ export function EvolutionChart({ data }: { data: CampaignDashboard }) {
           cifras (cada 2 horas).
         </EmptyNote>
       ) : (
-        <div role="img" aria-label="Avance de la calificación en el día">
+        <div
+          role="img"
+          aria-label={`Avance de la calificación en el día. Última actualización (${
+            pts[pts.length - 1].generado_cdmx
+          }): con campaña ${pct(pts[pts.length - 1].pct_califican_trat, 1)}, control ${pct(
+            pts[pts.length - 1].pct_califican_ctrl,
+            1,
+          )}.`}
+        >
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={pts} margin={{ top: 20, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
@@ -69,8 +77,9 @@ export function EvolutionChart({ data }: { data: CampaignDashboard }) {
                 tick={CHART_TICK}
                 tickLine={false}
                 axisLine={false}
-                width={44}
-                tickFormatter={(v: number) => pct(v)}
+                width={48}
+                domain={[0, 'auto']}
+                tickFormatter={(v: number) => pct(v, 1)}
               />
               <Tooltip
                 {...CHART_TOOLTIP}
