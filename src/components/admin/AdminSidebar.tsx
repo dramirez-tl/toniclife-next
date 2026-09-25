@@ -189,6 +189,10 @@ const navigation: NavItem[] = [
       { name: 'Materiales', href: '/admin/comercial/materiales' },
       { name: 'Simulaciones', href: '/admin/comercial/simulaciones' },
       { name: 'Formularios', href: '/admin/comercial/formularios' },
+      // Campañas de WhatsApp medibles: el API exige 'comercial' (no los
+      // granulares de cursos/materiales del padre), así que el hijo declara
+      // sus propios permisos y no hereda los del padre (admin-nav-filter).
+      { name: 'WhatsApp', href: '/admin/comercial/whatsapp', permissions: ['comercial'] },
     ],
   },
   { name: 'Cupones', href: '/admin/cupones', icon: TagIcon, permissions: ['customers.promos', 'config'] },

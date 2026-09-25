@@ -1,0 +1,578 @@
+{
+ "version": 1,
+ "generado": "2026-09-25T11:58:17-06:00",
+ "generado_cdmx": "vie 25 11:58",
+ "corte": {
+  "sync_fin_cdmx": "vie 25 11:08",
+  "watermark_legacy": "vie 25 10:24"
+ },
+ "periodo": {
+  "nombre": "SEPTIEMBRE 2026",
+  "inicio": "2026-08-26",
+  "fin": "2026-09-25",
+  "umbral": 3300
+ },
+ "estado_campana": "Olas 1, 2, felicitación enviadas · ola 3 programada vie ~13:20",
+ "olas": [
+  {
+   "id": "1",
+   "nombre": "Estado de tus puntos (ola 1)",
+   "cuando": "jue 24 · 17:13–18:07",
+   "estado": "enviada",
+   "intentos": 2021,
+   "recibidos": 1433,
+   "leidos": 1181,
+   "sin_whatsapp": 441,
+   "tope_meta": 57,
+   "experimento_meta": 28,
+   "otros_fallos": 0,
+   "pendientes": 62,
+   "por_plantilla": [
+    {
+     "plantilla": "cierre_sep_regreso",
+     "nombre": "Te esperamos",
+     "intentos": 828,
+     "recibidos": 577,
+     "leidos": 474
+    },
+    {
+     "plantilla": "cierre_sep_estado_puntos",
+     "nombre": "Estado de tus puntos",
+     "intentos": 773,
+     "recibidos": 538,
+     "leidos": 448
+    },
+    {
+     "plantilla": "cierre_sep_resumen_cuenta",
+     "nombre": "Resumen de cuenta",
+     "intentos": 303,
+     "recibidos": 247,
+     "leidos": 195
+    },
+    {
+     "plantilla": "cierre_sep_lider_red",
+     "nombre": "Tu primera línea",
+     "intentos": 117,
+     "recibidos": 71,
+     "leidos": 64
+    }
+   ]
+  },
+  {
+   "id": "2",
+   "nombre": "Hoy cierra (ola 2)",
+   "cuando": "vie 25 · 08:07–08:46",
+   "estado": "enviada",
+   "intentos": 1426,
+   "recibidos": 1227,
+   "leidos": 760,
+   "sin_whatsapp": 1,
+   "tope_meta": 127,
+   "experimento_meta": 0,
+   "otros_fallos": 2,
+   "pendientes": 69,
+   "por_plantilla": [
+    {
+     "plantilla": "cierre_sep_regreso_hoy",
+     "nombre": "Hoy cierra: te esperamos",
+     "intentos": 601,
+     "recibidos": 491,
+     "leidos": 307
+    },
+    {
+     "plantilla": "cierre_sep_hoy_cierra",
+     "nombre": "Hoy cierra el periodo",
+     "intentos": 467,
+     "recibidos": 405,
+     "leidos": 270
+    },
+    {
+     "plantilla": "cierre_sep_resumen_cuenta",
+     "nombre": "Resumen de cuenta",
+     "intentos": 358,
+     "recibidos": 331,
+     "leidos": 183
+    }
+   ]
+  },
+  {
+   "id": "3",
+   "nombre": "Última llamada (ola 3)",
+   "cuando": "vie 25 · ~13:20",
+   "estado": "programada",
+   "intentos": null,
+   "recibidos": null,
+   "leidos": null,
+   "sin_whatsapp": null,
+   "tope_meta": null,
+   "experimento_meta": null,
+   "otros_fallos": null,
+   "pendientes": null,
+   "por_plantilla": null
+  },
+  {
+   "id": "felicitacion",
+   "nombre": "Felicitación (ya cumplen el requisito)",
+   "cuando": "vie 25 · 09:44–09:45",
+   "estado": "enviada",
+   "intentos": 31,
+   "recibidos": 27,
+   "leidos": 18,
+   "sin_whatsapp": 0,
+   "tope_meta": 0,
+   "experimento_meta": 0,
+   "otros_fallos": 0,
+   "pendientes": 4,
+   "por_plantilla": [
+    {
+     "plantilla": "periodo_calificado",
+     "nombre": "Ya cumples el requisito",
+     "intentos": 31,
+     "recibidos": 27,
+     "leidos": 18
+    }
+   ]
+  }
+ ],
+ "embudo": {
+  "elegibles": 2251,
+  "control": 230,
+  "tratados": 2021,
+  "contactados": 2021,
+  "recibieron": 1476,
+  "leyeron": 1208,
+  "respondieron": 137
+ },
+ "segmentos": [
+  {
+   "id": "P1",
+   "nombre": "Les faltan 1–500 pts",
+   "tratados": 240,
+   "control": 19,
+   "recibieron": 157,
+   "leyeron": 128,
+   "pp_t0_trat": 3053,
+   "pp_t0_ctrl": 3079,
+   "base_trat": 240,
+   "base_ctrl": 19,
+   "califican_trat": 32,
+   "califican_ctrl": 2,
+   "pct_califican_trat": 0.1333,
+   "pct_califican_ctrl": 0.1053,
+   "compraron_trat": 36,
+   "compraron_ctrl": 2,
+   "pct_compraron_trat": 0.15,
+   "pct_compraron_ctrl": 0.1053,
+   "pts_ganados_prom_trat": 113,
+   "pts_ganados_prom_ctrl": 108,
+   "base_historica_califica": 0.57,
+   "base_historica_compra": 0.579
+  },
+  {
+   "id": "P2",
+   "nombre": "Les faltan 501–1,000 pts",
+   "tratados": 241,
+   "control": 29,
+   "recibieron": 175,
+   "leyeron": 144,
+   "pp_t0_trat": 2542,
+   "pp_t0_ctrl": 2532,
+   "base_trat": 241,
+   "base_ctrl": 29,
+   "califican_trat": 14,
+   "califican_ctrl": 1,
+   "pct_califican_trat": 0.0581,
+   "pct_califican_ctrl": 0.0345,
+   "compraron_trat": 19,
+   "compraron_ctrl": 3,
+   "pct_compraron_trat": 0.0788,
+   "pct_compraron_ctrl": 0.1034,
+   "pts_ganados_prom_trat": 130,
+   "pts_ganados_prom_ctrl": 73,
+   "base_historica_califica": 0.357,
+   "base_historica_compra": 0.404
+  },
+  {
+   "id": "P4",
+   "nombre": "Calificaron en agosto y llevan 1,300–2,299",
+   "tratados": 217,
+   "control": 16,
+   "recibieron": 155,
+   "leyeron": 131,
+   "pp_t0_trat": 1806,
+   "pp_t0_ctrl": 1924,
+   "base_trat": 217,
+   "base_ctrl": 16,
+   "califican_trat": 8,
+   "califican_ctrl": 3,
+   "pct_califican_trat": 0.0369,
+   "pct_califican_ctrl": 0.1875,
+   "compraron_trat": 18,
+   "compraron_ctrl": 3,
+   "pct_compraron_trat": 0.0829,
+   "pct_compraron_ctrl": 0.1875,
+   "pts_ganados_prom_trat": 128,
+   "pts_ganados_prom_ctrl": 300,
+   "base_historica_califica": 0.327,
+   "base_historica_compra": 0.433
+  },
+  {
+   "id": "LID",
+   "nombre": "Líderes con frontales por calificar",
+   "tratados": 126,
+   "control": 16,
+   "recibieron": 79,
+   "leyeron": 71,
+   "pp_t0_trat": 4482,
+   "pp_t0_ctrl": 4660,
+   "base_trat": 1,
+   "base_ctrl": 0,
+   "califican_trat": 0,
+   "califican_ctrl": 0,
+   "pct_califican_trat": 0,
+   "pct_califican_ctrl": null,
+   "compraron_trat": 2,
+   "compraron_ctrl": 0,
+   "pct_compraron_trat": 0.0159,
+   "pct_compraron_ctrl": 0,
+   "pts_ganados_prom_trat": 15,
+   "pts_ganados_prom_ctrl": 0,
+   "base_historica_califica": 1,
+   "base_historica_compra": 0.115
+  },
+  {
+   "id": "REG",
+   "nombre": "Calificaron en agosto y no han comprado",
+   "tratados": 1056,
+   "control": 134,
+   "recibieron": 783,
+   "leyeron": 627,
+   "pp_t0_trat": 0,
+   "pp_t0_ctrl": 0,
+   "base_trat": 1056,
+   "base_ctrl": 134,
+   "califican_trat": 11,
+   "califican_ctrl": 1,
+   "pct_califican_trat": 0.0104,
+   "pct_califican_ctrl": 0.0075,
+   "compraron_trat": 19,
+   "compraron_ctrl": 2,
+   "pct_compraron_trat": 0.018,
+   "pct_compraron_ctrl": 0.0149,
+   "pts_ganados_prom_trat": 63,
+   "pts_ganados_prom_ctrl": 89,
+   "base_historica_califica": 0.05,
+   "base_historica_compra": 0.081
+  },
+  {
+   "id": "NUE",
+   "nombre": "Nuevos de septiembre",
+   "tratados": 141,
+   "control": 16,
+   "recibieron": 127,
+   "leyeron": 107,
+   "pp_t0_trat": 342,
+   "pp_t0_ctrl": 617,
+   "base_trat": 141,
+   "base_ctrl": 16,
+   "califican_trat": 1,
+   "califican_ctrl": 0,
+   "pct_califican_trat": 0.0071,
+   "pct_califican_ctrl": 0,
+   "compraron_trat": 3,
+   "compraron_ctrl": 0,
+   "pct_compraron_trat": 0.0213,
+   "pct_compraron_ctrl": 0,
+   "pts_ganados_prom_trat": 31,
+   "pts_ganados_prom_ctrl": 0,
+   "base_historica_califica": 0.164,
+   "base_historica_compra": 0.247
+  }
+ ],
+ "total": {
+  "tratados": 1895,
+  "control": 214,
+  "recibieron": 1397,
+  "leyeron": 1137,
+  "pp_t0_trat": 942,
+  "pp_t0_ctrl": 806,
+  "base_trat": 1895,
+  "base_ctrl": 214,
+  "califican_trat": 66,
+  "califican_ctrl": 7,
+  "pct_califican_trat": 0.0348,
+  "pct_califican_ctrl": 0.0327,
+  "compraron_trat": 95,
+  "compraron_ctrl": 10,
+  "pct_compraron_trat": 0.0501,
+  "pct_compraron_ctrl": 0.0467,
+  "pts_ganados_prom_trat": 83,
+  "pts_ganados_prom_ctrl": 98,
+  "base_historica_califica": 0.195,
+  "base_historica_compra": 0.238
+ },
+ "lecturas_por_hora": [
+  {
+   "hora": "jue 17:00",
+   "entregados": 1136,
+   "leidos": 515
+  },
+  {
+   "hora": "jue 18:00",
+   "entregados": 248,
+   "leidos": 376
+  },
+  {
+   "hora": "jue 19:00",
+   "entregados": 28,
+   "leidos": 115
+  },
+  {
+   "hora": "jue 20:00",
+   "entregados": 6,
+   "leidos": 52
+  },
+  {
+   "hora": "jue 21:00",
+   "entregados": 5,
+   "leidos": 32
+  },
+  {
+   "hora": "jue 22:00",
+   "entregados": 1,
+   "leidos": 17
+  },
+  {
+   "hora": "jue 23:00",
+   "entregados": 2,
+   "leidos": 9
+  },
+  {
+   "hora": "vie 00:00",
+   "entregados": 0,
+   "leidos": 0
+  },
+  {
+   "hora": "vie 01:00",
+   "entregados": 1,
+   "leidos": 2
+  },
+  {
+   "hora": "vie 02:00",
+   "entregados": 0,
+   "leidos": 0
+  },
+  {
+   "hora": "vie 03:00",
+   "entregados": 0,
+   "leidos": 1
+  },
+  {
+   "hora": "vie 04:00",
+   "entregados": 0,
+   "leidos": 0
+  },
+  {
+   "hora": "vie 05:00",
+   "entregados": 0,
+   "leidos": 3
+  },
+  {
+   "hora": "vie 06:00",
+   "entregados": 3,
+   "leidos": 7
+  },
+  {
+   "hora": "vie 07:00",
+   "entregados": 1,
+   "leidos": 8
+  },
+  {
+   "hora": "vie 08:00",
+   "entregados": 1155,
+   "leidos": 412
+  },
+  {
+   "hora": "vie 09:00",
+   "entregados": 72,
+   "leidos": 249
+  },
+  {
+   "hora": "vie 10:00",
+   "entregados": 18,
+   "leidos": 109
+  },
+  {
+   "hora": "vie 11:00",
+   "entregados": 11,
+   "leidos": 52
+  }
+ ],
+ "respuestas": {
+  "personas": 138,
+  "mensajes": 180,
+  "por_contestar": 46,
+  "bajas": 8,
+  "por_categoria": [
+   {
+    "id": "baja",
+    "nombre": "Pidieron baja",
+    "n": 8
+   },
+   {
+    "id": "numero_equivocado",
+    "nombre": "Número equivocado",
+    "n": 4
+   },
+   {
+    "id": "molesto",
+    "nombre": "Molestos",
+    "n": 1
+   },
+   {
+    "id": "pregunta",
+    "nombre": "Preguntas",
+    "n": 24
+   },
+   {
+    "id": "confusion",
+    "nombre": "Preguntan quién escribe",
+    "n": 4
+   },
+   {
+    "id": "audio",
+    "nombre": "Audios, fotos o documentos",
+    "n": 4
+   },
+   {
+    "id": "saludo",
+    "nombre": "Saludos",
+    "n": 5
+   },
+   {
+    "id": "compromiso",
+    "nombre": "Dicen que comprarán",
+    "n": 6
+   },
+   {
+    "id": "autorespuesta",
+    "nombre": "Respuestas automáticas",
+    "n": 7
+   },
+   {
+    "id": "agradece",
+    "nombre": "Agradecen",
+    "n": 45
+   },
+   {
+    "id": "reaccion",
+    "nombre": "Reacciones o stickers",
+    "n": 21
+   },
+   {
+    "id": "otro",
+    "nombre": "Otros",
+    "n": 9
+   }
+  ]
+ },
+ "impacto": {
+  "tipo": "interino",
+  "corte": "vie 25 08:00",
+  "puntos": {
+   "efecto": -20.2,
+   "ic_bajo": -90.6,
+   "ic_alto": 28.9,
+   "p": 0.438
+  },
+  "calificacion_pp": {
+   "efecto": -1.5,
+   "ic_bajo": -4.7,
+   "ic_alto": 1.3,
+   "p": 0.191
+  },
+  "compra_pp": {
+   "efecto": 0,
+   "ic_bajo": -2.5,
+   "ic_alto": 2,
+   "p": 0.974
+  },
+  "veredicto": "Lectura intermedia: todavía no se decide",
+  "mde_pts": "167–243",
+  "mde_pp": "6–8"
+ },
+ "sucursales": [
+  {
+   "nombre": "CEDEA Teziutlan",
+   "contactados": 267,
+   "calificaron": 13,
+   "compraron": 19
+  },
+  {
+   "nombre": "Puebla Loreto",
+   "contactados": 140,
+   "calificaron": 5,
+   "compraron": 8
+  },
+  {
+   "nombre": "USA Tulsa Sucursal (EUA)",
+   "contactados": 138,
+   "calificaron": 2,
+   "compraron": 2
+  },
+  {
+   "nombre": "Irapuato Call Center/Almacen General",
+   "contactados": 122,
+   "calificaron": 0,
+   "compraron": 2
+  },
+  {
+   "nombre": "Zacatelco, Tlax",
+   "contactados": 106,
+   "calificaron": 2,
+   "compraron": 6
+  },
+  {
+   "nombre": "CEDEA Morelia",
+   "contactados": 103,
+   "calificaron": 3,
+   "compraron": 5
+  },
+  {
+   "nombre": "Puebla 11 Norte",
+   "contactados": 73,
+   "calificaron": 3,
+   "compraron": 5
+  },
+  {
+   "nombre": "Tecamachalco",
+   "contactados": 61,
+   "calificaron": 0,
+   "compraron": 3
+  },
+  {
+   "nombre": "CEDEA San Pablo Del Monte",
+   "contactados": 54,
+   "calificaron": 7,
+   "compraron": 8
+  },
+  {
+   "nombre": "Merida",
+   "contactados": 50,
+   "calificaron": 1,
+   "compraron": 1
+  }
+ ],
+ "notas": [
+  "Solo cifras agregadas: el tablero no contiene nombres, teléfonos, correos ni números de cliente.",
+  "Periodo SEPTIEMBRE 2026: del 2026-08-26 al 2026-09-25 (periodo de negocio 26→25, no mes calendario). Califica quien llega a 3,300 puntos personales.",
+  "Población del experimento: la foto del envío de la ola 1 (jue 24 17:13). El grupo de control (10%) nunca recibe mensajes.",
+  "Puntos \"en T0\" = puntos de v2 en la foto del envío (sync de las 17:08, compras del legacy hasta las 16:19); puntos \"ahora\" = puntos de v2 en la última sync. Por eso \"compraron\" y \"pts ganados\" incluyen compras hechas entre esa hora y el envío, que no son efecto de la campaña, y los puntos pueden bajar por cancelaciones. Son cifras descriptivas; el efecto de la campaña está en el bloque de impacto.",
+  "\"Califican\" se calcula solo entre quienes estaban debajo de 3,300 al enviar (base); \"compraron\" = subieron sus puntos desde T0.",
+  "El total excluye a los líderes (LID): la mayoría ya estaba calificada, se miden aparte por las compras de su primera línea.",
+  "Base histórica = lo que pasó al CIERRE en junio, julio y agosto 2026 (compras desde las 17:13 del día anterior al cierre, sin campaña), con las mismas reglas de segmento; en el total, ponderada por tratados de cada segmento. Las cifras de hoy son parciales hasta que cierre el periodo.",
+  "Olas: \"recibidos\" incluye los leídos; \"sin WhatsApp\" = error 131026, \"tope de Meta\" = 131049 (límite de mensajes de marketing por persona), \"experimento de Meta\" = 130472; \"pendientes\" = aceptados sin confirmación de entrega todavía.",
+  "Respuestas: conteo del listado del call center generado el vie 25 09:52 (no incluye lo que llegó después).",
+  "Impacto: lectura intermedia con compras del legacy hasta el vie 25 08:00; no decide nada. La preliminar es el sáb 26 y la oficial el lun 28."
+ ]
+}
