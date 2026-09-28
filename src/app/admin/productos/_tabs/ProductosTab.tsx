@@ -53,11 +53,11 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog';
 import { DuplicateProductDialog } from '@/components/admin/products/DuplicateProductDialog';
 import { ProductActiveDialog, type ProductActiveTarget } from '@/components/admin/products/ProductActiveDialog';
+import { EnableBranchCatalogDialog } from '@/components/inventory/EnableBranchCatalogDialog';
 import { buildCsv, downloadCsv, fileDateStamp } from '@/components/admin/products/lib/csv';
 import { productAdminErrorCode, productAdminErrorMessage } from '@/components/admin/products/lib/errors';
 import {
   BULK_ACTIONS,
-  BULK_SKIP_REASON_LABEL,
   CATALOG_LIST_SORT_KEYS,
   HEALTH_ISSUE_BASES,
   PRODUCTS_LIST_RETURN_KEY,
@@ -67,6 +67,7 @@ import {
   STORE_COUNTRY_CURRENCY,
   STORE_COUNTRY_NAME,
   STOREFRONT_REASON_LABEL,
+  bulkResultMessage,
   healthIssueBasesFor,
   healthIssueLabel,
   healthIssueMeta,
@@ -85,6 +86,9 @@ import {
 import { useCategories } from '@/hooks/useProducts';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
 import { formatCurrency } from '@/lib/currency';
+import { canEnableBranchCatalog } from '@/lib/inventory/branch-catalog';
+import { useAppSelector } from '@/store/hooks';
+import { selectUserPermissions, selectUserRoles } from '@/store/slices/authSlice';
 import {
   STORE_COUNTRY_CODES,
   productsAdminService,
@@ -112,6 +116,11 @@ const triState = (v: string): boolean | undefined => (v === 'si' ? true : v === 
 export function ProductosTab() {
   const ids = useId();
   const permissions = useProductPermissions();
+  // "Habilitar en sucursal…" escribe en stock_levels: exige inventory:update
+  // (mismo permiso que POST /inventory/branches/:id/catalog/enable), no products:*.
+  const userRoles = useAppSelector(selectUserRoles);
+  const userPermissions = useAppSelector(selectUserPermissions);
+  const canEnableBranch = canEnableBranchCatalog(userRoles, userPermissions);
   const { searchParams, get, getNumber, setParams } = useQueryFilters(FILTER_DEFAULTS);
 
   // ---------- Estado en la URL ----------
@@ -208,6 +217,7 @@ export function ProductosTab() {
   const [duplicateSource, setDuplicateSource] = useState<CatalogAdminRow | null>(null);
   const [activeTarget, setActiveTarget] = useState<ProductActiveTarget | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [enableBranchOpen, setEnableBranchOpen] = useState(false);
 
   const hasActiveFilters = Boolean(
     search || sku || categoryId || status !== 'all' || tipo || tienda || pos || destacado || precio || imagen || missing.length > 0,
@@ -251,16 +261,13 @@ export function ProductosTab() {
         categoryId: bulkMeta.action === 'set_category' ? bulkCategoryId : undefined,
         expectedCount: selectedIds.length,
       });
-      const skippedByReason = new Map<string, number>();
-      for (const s of result.skipped) skippedByReason.set(s.reason, (skippedByReason.get(s.reason) ?? 0) + 1);
-      const skippedText = Array.from(skippedByReason.entries())
-        .map(([reason, n]) => `${n} ${BULK_SKIP_REASON_LABEL[reason] ?? reason}`)
-        .join(', ');
-      const message = `${bulkMeta.label}: ${result.updated} ${result.updated === 1 ? 'actualizado' : 'actualizados'}${
-        result.skipped.length > 0 ? ` · ${result.skipped.length} omitidos (${skippedText})` : ''
-      }`;
-      if (result.skipped.length > 0) toast.warning(message, { duration: 8000 });
-      else toast.success(message);
+      // `updated` cuenta solo lo que cambió; lo que ya estaba así llega como
+      // `unchanged` y se dice tal cual (antes "3 actualizados" confundía).
+      const { tone, message, hint } = bulkResultMessage(bulkMeta, result);
+      const toastOptions = { description: hint, duration: tone === 'success' && !hint ? undefined : 8000 };
+      if (tone === 'warning') toast.warning(message, toastOptions);
+      else if (tone === 'info') toast.info(message, toastOptions);
+      else toast.success(message, toastOptions);
       const slugs = rows.filter((r) => selectedIds.includes(r.id)).map((r) => r.slug);
       void productsAdminService.revalidateCatalog(slugs);
       setSelection({ scope: '', ids: [] });
@@ -573,7 +580,8 @@ export function ProductosTab() {
 
   const sellable = health.data?.totals.sellable ?? {};
   const availableBulk = BULK_ACTIONS.filter((a) => (a.needsDelete ? permissions.canDelete : permissions.canUpdate));
-  const canSelect = availableBulk.length > 0;
+  // También se puede seleccionar solo para "Habilitar en sucursal…" (inventory:update).
+  const canSelect = availableBulk.length > 0 || canEnableBranch;
 
   return (
     <>
@@ -883,6 +891,15 @@ export function ProductosTab() {
                         {meta.label}
                       </DropdownMenuItem>
                     ))}
+                    {/* No va en BULK_ACTIONS (esa lista espeja las acciones de
+                        /catalog-admin/products/bulk): habilita la selección en
+                        el POS de UNA sucursal creando sus filas de existencias. */}
+                    {canEnableBranch ? (
+                      <>
+                        {availableBulk.length > 0 ? <DropdownMenuSeparator /> : null}
+                        <DropdownMenuItem onSelect={() => setEnableBranchOpen(true)}>Habilitar en sucursal…</DropdownMenuItem>
+                      </>
+                    ) : null}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -987,6 +1004,16 @@ export function ProductosTab() {
           </ul>
         </div>
       </ConfirmDialog>
+
+      {/* Habilitar la selección en el POS de una sucursal (crea filas de existencias en 0). */}
+      <EnableBranchCatalogDialog
+        open={enableBranchOpen}
+        onOpenChange={setEnableBranchOpen}
+        branch={null}
+        fixedMode="products"
+        productIds={selectedIds}
+        onDone={() => setSelection({ scope: '', ids: [] })}
+      />
 
       <DuplicateProductDialog
         source={duplicateSource ? { id: duplicateSource.id, code: duplicateSource.code, name: duplicateSource.name } : null}

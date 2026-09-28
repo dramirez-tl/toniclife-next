@@ -342,15 +342,23 @@ export interface BulkActionMeta {
 /** Las acciones que APAGAN algo nunca tocan un kit de inscripción por lote (el API los omite con `enrollment_kit`). */
 const ENROLLMENT_KIT_BULK_NOTE = 'Los kits de inscripción se omiten: se administran desde Kits.';
 
+/**
+ * Activar o habilitar en POS NO mete el producto al POS de una sucursal: el POS
+ * solo muestra los productos con fila de existencias en esa sucursal
+ * (Inventario → Catálogo por sucursal). Incidente 28-sep-2026 (427/404/428).
+ */
+export const BULK_POS_BRANCH_HINT =
+  'Para que aparezcan en el POS de una sucursal nueva usa Inventario → Catálogo por sucursal (o la acción Habilitar en sucursal…).';
+
 export const BULK_ACTIONS: BulkActionMeta[] = [
   { action: 'show_store', label: 'Mostrar en tienda', scope: 'Mostrar en la tienda', note: 'Se omiten los tipos que la tienda no vende (solo productos y paquetes).' },
   { action: 'hide_store', label: 'Ocultar de la tienda', scope: 'Ocultar de la tienda', destructive: true, note: `Solo afecta a los productos seleccionados en esta página. ${ENROLLMENT_KIT_BULK_NOTE}` },
-  { action: 'enable_pos', label: 'Habilitar en POS', scope: 'Habilitar en el POS' },
+  { action: 'enable_pos', label: 'Habilitar en POS', scope: 'Habilitar en el POS', note: `Solo afecta a los productos seleccionados en esta página. ${BULK_POS_BRANCH_HINT}` },
   { action: 'disable_pos', label: 'Quitar del POS', scope: 'Quitar del POS', destructive: true, note: `Solo afecta a los productos seleccionados en esta página. ${ENROLLMENT_KIT_BULK_NOTE}` },
   { action: 'feature', label: 'Destacar', scope: 'Marcar como destacados' },
   { action: 'unfeature', label: 'Quitar destacado', scope: 'Quitar el destacado de' },
   { action: 'set_category', label: 'Cambiar categoría', scope: 'Cambiar la categoría de' },
-  { action: 'activate', label: 'Activar', scope: 'Activar', needsDelete: true },
+  { action: 'activate', label: 'Activar', scope: 'Activar', needsDelete: true, note: `Solo afecta a los productos seleccionados en esta página. ${BULK_POS_BRANCH_HINT}` },
   {
     action: 'deactivate',
     label: 'Desactivar',
@@ -370,3 +378,46 @@ export const BULK_SKIP_REASON_LABEL: Record<string, string> = {
   not_found: 'ya no existe',
   unchanged: 'ya estaba así',
 };
+
+/** Plural de las razones que lo tienen ("2 ya estaban así"); las demás no cambian. */
+const BULK_SKIP_REASON_LABEL_PLURAL: Record<string, string> = {
+  enrollment_kit: 'kits de inscripción',
+  not_found: 'ya no existen',
+  unchanged: 'ya estaban así',
+};
+
+export interface BulkResultToast {
+  tone: 'success' | 'warning' | 'info';
+  message: string;
+  /** Segunda línea del toast: cómo llevar los productos al POS de una sucursal nueva. */
+  hint?: string;
+}
+
+/**
+ * Texto del toast tras una acción masiva. `updated` cuenta SOLO las filas que
+ * cambiaron (el API reporta `unchanged` las que ya estaban así): si nada cambió
+ * y todo lo omitido "ya estaba así", se dice tal cual en vez de "0 actualizados".
+ * Activar y Habilitar en POS llevan la pista al catálogo por sucursal.
+ */
+export function bulkResultMessage(
+  meta: Pick<BulkActionMeta, 'action' | 'label'>,
+  result: { updated: number; skipped: readonly { reason: string }[] },
+): BulkResultToast {
+  const byReason = new Map<string, number>();
+  for (const s of result.skipped) byReason.set(s.reason, (byReason.get(s.reason) ?? 0) + 1);
+  const skippedCount = result.skipped.length;
+  const hint = meta.action === 'activate' || meta.action === 'enable_pos' ? BULK_POS_BRANCH_HINT : undefined;
+
+  if (result.updated === 0 && skippedCount > 0 && byReason.size === 1 && byReason.has('unchanged')) {
+    const detail = skippedCount === 1 ? 'ya estaba así' : `los ${skippedCount} ya estaban así`;
+    return { tone: 'info', message: `${meta.label}: nada que cambiar · ${detail}`, hint };
+  }
+
+  const skippedText = Array.from(byReason.entries())
+    .map(([reason, n]) => `${n} ${(n === 1 ? undefined : BULK_SKIP_REASON_LABEL_PLURAL[reason]) ?? BULK_SKIP_REASON_LABEL[reason] ?? reason}`)
+    .join(', ');
+  const message = `${meta.label}: ${result.updated} ${result.updated === 1 ? 'actualizado' : 'actualizados'}${
+    skippedCount > 0 ? ` · ${skippedCount} ${skippedCount === 1 ? 'omitido' : 'omitidos'} (${skippedText})` : ''
+  }`;
+  return { tone: skippedCount > 0 ? 'warning' : 'success', message, hint };
+}

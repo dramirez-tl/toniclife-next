@@ -17,6 +17,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   BULK_ACTIONS,
+  BULK_POS_BRANCH_HINT,
   BULK_SKIP_REASON_LABEL,
   CATALOG_LIST_SORT_KEYS,
   COUNTRY_SCOPED_ISSUES,
@@ -26,6 +27,7 @@ import {
   SELLABLE_TYPES,
   STOREFRONT_REASON_LABEL,
   ZONE_SCOPED_ISSUES,
+  bulkResultMessage,
   healthIssueBasesFor,
   healthIssueLabel,
   healthIssueMeta,
@@ -141,6 +143,63 @@ describe('orden, acciones masivas y razones', () => {
 
   it('todas las razones del candado de tienda tienen texto', () => {
     expect(Object.keys(STOREFRONT_REASON_LABEL).sort()).toEqual([...API_STOREFRONT_REASONS].sort());
+  });
+});
+
+describe('mensaje del resultado de una acción masiva', () => {
+  const activate = { action: 'activate' as const, label: 'Activar' };
+  const enablePos = { action: 'enable_pos' as const, label: 'Habilitar en POS' };
+  const feature = { action: 'feature' as const, label: 'Destacar' };
+
+  it('todo actualizado → éxito; solo Activar y Habilitar en POS llevan la pista al catálogo por sucursal', () => {
+    expect(bulkResultMessage(feature, { updated: 3, skipped: [] })).toEqual({
+      tone: 'success',
+      message: 'Destacar: 3 actualizados',
+      hint: undefined,
+    });
+    expect(bulkResultMessage(activate, { updated: 1, skipped: [] })).toEqual({
+      tone: 'success',
+      message: 'Activar: 1 actualizado',
+      hint: BULK_POS_BRANCH_HINT,
+    });
+    expect(bulkResultMessage(enablePos, { updated: 2, skipped: [] }).hint).toBe(BULK_POS_BRANCH_HINT);
+  });
+
+  it('nada cambió y todo "ya estaba así" → info que lo dice, no "0 actualizados"', () => {
+    const unchanged = { reason: 'unchanged' };
+    expect(bulkResultMessage(activate, { updated: 0, skipped: [unchanged, unchanged, unchanged] })).toEqual({
+      tone: 'info',
+      message: 'Activar: nada que cambiar · los 3 ya estaban así',
+      hint: BULK_POS_BRANCH_HINT,
+    });
+    expect(bulkResultMessage(feature, { updated: 0, skipped: [unchanged] })).toEqual({
+      tone: 'info',
+      message: 'Destacar: nada que cambiar · ya estaba así',
+      hint: undefined,
+    });
+  });
+
+  it('mezcla de cambios y omitidos → aviso con las razones (plural cuando toca)', () => {
+    expect(
+      bulkResultMessage(enablePos, {
+        updated: 1,
+        skipped: [{ reason: 'unchanged' }, { reason: 'unchanged' }, { reason: 'enrollment_kit' }],
+      }),
+    ).toEqual({
+      tone: 'warning',
+      message: 'Habilitar en POS: 1 actualizado · 3 omitidos (2 ya estaban así, 1 kit de inscripción)',
+      hint: BULK_POS_BRANCH_HINT,
+    });
+    // Nada cambió pero NO todo era "ya estaba así": sigue siendo aviso, con el detalle.
+    expect(bulkResultMessage(feature, { updated: 0, skipped: [{ reason: 'not_found' }] })).toEqual({
+      tone: 'warning',
+      message: 'Destacar: 0 actualizados · 1 omitido (1 ya no existe)',
+      hint: undefined,
+    });
+    // Una razón nueva del API sale con su código, no se pierde.
+    expect(bulkResultMessage(feature, { updated: 0, skipped: [{ reason: 'otra' }] }).message).toBe(
+      'Destacar: 0 actualizados · 1 omitido (1 otra)',
+    );
   });
 });
 
