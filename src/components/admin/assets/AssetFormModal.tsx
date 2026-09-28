@@ -17,8 +17,13 @@
 //
 // La factura se puede crear SIN salir del formulario (panel "Nueva factura"),
 // así no hay que ir a otra pantalla y perder lo ya capturado.
+//
+// Un activo puede ser COMPONENTE de otro (el disco duro de un NVR): el campo
+// "Instalado en" elige el equipo padre y, si no se indicó sucursal, se toma la
+// del padre. Desde el detalle del padre llega precargado (defaultParent) junto
+// con la categoría sugerida (defaultCategoryCode, ej. disco duro).
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Loader2, Plus, Upload, X } from 'lucide-react';
 import {
@@ -36,7 +41,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { confirmAction } from '@/lib/utils';
 import { groupByRoot } from '@/lib/asset-select-options';
+import { isParentLinkError } from '@/lib/assets/warranty';
 import { LabelCodeField } from './LabelCodeField';
+import { AssetParentSelect, type AssetParentOption } from './AssetParentSelect';
 import {
   SpecFieldsRenderer,
   reconcileSpecs,
@@ -72,6 +79,10 @@ interface AssetFormModalProps {
   defaultPurchaseId?: string;
   /** Etiqueta ya escaneada desde el listado: llega precargada. */
   defaultLabelCode?: string;
+  /** Equipo padre precargado (al registrar un componente desde su detalle). */
+  defaultParent?: AssetParentOption | null;
+  /** Código de la categoría sugerida (ej. DISCO_DURO); si no existe, sin preselección. */
+  defaultCategoryCode?: string;
   onSaved?: () => void;
 }
 
@@ -96,6 +107,8 @@ interface FormState {
   warrantyProvider: string;
   branchId: string;
   locationId: string;
+  /** Equipo donde va instalado (null = no es componente de nadie). */
+  parent: AssetParentOption | null;
   notes: string;
 }
 
@@ -120,6 +133,7 @@ const EMPTY: FormState = {
   warrantyProvider: '',
   branchId: '',
   locationId: '',
+  parent: null,
   notes: '',
 };
 
@@ -155,11 +169,15 @@ export function AssetFormModal({
   asset,
   defaultPurchaseId,
   defaultLabelCode,
+  defaultParent,
+  defaultCategoryCode,
   onSaved,
 }: AssetFormModalProps) {
   const isEdit = !!asset;
   const [form, setForm] = useState<FormState>(EMPTY);
   const [specs, setSpecs] = useState<SpecValues>({});
+  // Mensaje de las guardas del API sobre el equipo padre (ciclo, niveles, baja…)
+  const [parentError, setParentError] = useState<string | null>(null);
 
   // Panel de "Nueva factura" embebido en el propio formulario
   const [newInvoiceOpen, setNewInvoiceOpen] = useState(false);
@@ -170,8 +188,10 @@ export function AssetFormModal({
   // La etiqueta capturada sirve? (lo reporta LabelCodeField)
   const [labelUsable, setLabelUsable] = useState(true);
 
-  // Snapshot para saber si hay cambios sin guardar
-  const initialSnapshot = useRef('');
+  // Foto del estado recién cargado, para saber si hay cambios sin guardar
+  const [initialSnapshot, setInitialSnapshot] = useState('');
+  // Categoría sugerida por aplicar (el catálogo aún no había cargado al abrir)
+  const [pendingCategoryCode, setPendingCategoryCode] = useState<string | null>(null);
 
   // Solo categorías de EQUIPO: las de insumo se capturan en SupplyFormModal.
   const { data: categories = [] } = useAssetCategories({ leafOnly: 'true', isSupply: 'false' });
@@ -220,62 +240,111 @@ export function AssetFormModal({
     [categories],
   );
 
-  // Cargar el estado al abrir
-  useEffect(() => {
-    if (!open) return;
-    setNewInvoiceOpen(false);
-    setInvoice(EMPTY_INVOICE);
-    setInvoiceFile(null);
-    setLabelUsable(true);
-    if (asset) {
-      setForm({
-        labelCode: asset.assetTag ?? '',
-        categoryId: asset.categoryId,
-        name: asset.name,
-        brand: asset.brand ?? '',
-        model: asset.model ?? '',
-        serialNumber: asset.serialNumber ?? '',
-        partNumber: asset.partNumber ?? '',
-        legacyTag: asset.legacyTag ?? '',
-        manufacturerTag: asset.manufacturerTag ?? '',
-        status: asset.status,
-        condition: asset.condition,
-        purchaseId: asset.purchaseId ?? '',
-        // .slice(0,10): si la fecha llegara como timestamp ISO, el input
-        // type="date" la mostraría vacía y al guardar la borraría.
-        purchaseDate: (asset.purchaseDate ?? '').slice(0, 10),
-        purchaseCost: asset.purchaseCost !== null ? String(asset.purchaseCost) : '',
-        currencyCode: asset.currencyCode ?? 'MXN',
-        usefulLifeMonths:
-          asset.usefulLifeMonths !== null ? String(asset.usefulLifeMonths) : '',
-        warrantyUntil: (asset.warrantyUntil ?? '').slice(0, 10),
-        warrantyProvider: asset.warrantyProvider ?? '',
-        branchId: asset.branchId ?? '',
-        locationId: asset.locationId ?? '',
-        notes: asset.notes ?? '',
-      });
-      setSpecs(asset.specifications ?? {});
-    } else {
-      setForm({
-        ...EMPTY,
-        purchaseId: defaultPurchaseId ?? '',
-        labelCode: defaultLabelCode ?? '',
-      });
-      setSpecs({});
-    }
-  }, [open, asset, defaultPurchaseId, defaultLabelCode]);
+  /** Estado inicial de una edición. */
+  const buildEditState = (a: AssetDetail): FormState => ({
+    labelCode: a.assetTag ?? '',
+    categoryId: a.categoryId,
+    name: a.name,
+    brand: a.brand ?? '',
+    model: a.model ?? '',
+    serialNumber: a.serialNumber ?? '',
+    partNumber: a.partNumber ?? '',
+    legacyTag: a.legacyTag ?? '',
+    manufacturerTag: a.manufacturerTag ?? '',
+    status: a.status,
+    condition: a.condition,
+    purchaseId: a.purchaseId ?? '',
+    // .slice(0,10): si la fecha llegara como timestamp ISO, el input
+    // type="date" la mostraría vacía y al guardar la borraría.
+    purchaseDate: (a.purchaseDate ?? '').slice(0, 10),
+    purchaseCost: a.purchaseCost !== null ? String(a.purchaseCost) : '',
+    currencyCode: a.currencyCode ?? 'MXN',
+    usefulLifeMonths: a.usefulLifeMonths !== null ? String(a.usefulLifeMonths) : '',
+    warrantyUntil: (a.warrantyUntil ?? '').slice(0, 10),
+    warrantyProvider: a.warrantyProvider ?? '',
+    branchId: a.branchId ?? '',
+    locationId: a.locationId ?? '',
+    parent: a.parentAssetId
+      ? {
+          id: a.parentAssetId,
+          assetTag: a.parentAssetTag,
+          name: a.parentAssetName ?? '',
+          branchId: null,
+          locationId: null,
+          branchName: null,
+          categoryCode: null,
+        }
+      : null,
+    notes: a.notes ?? '',
+  });
 
-  // Guarda la foto del estado recién cargado para poder detectar cambios.
-  useEffect(() => {
-    if (open) initialSnapshot.current = JSON.stringify({ form, specs });
-    // Solo al abrir: no queremos re-tomar la foto en cada tecleo.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, asset?.id]);
+  /** Estado inicial de un alta (con el equipo padre y su sucursal si vienen). */
+  const buildCreateState = (): FormState => ({
+    ...EMPTY,
+    purchaseId: defaultPurchaseId ?? '',
+    labelCode: defaultLabelCode ?? '',
+    // Un componente vive donde vive su equipo.
+    parent: defaultParent ?? null,
+    branchId: defaultParent?.branchId ?? '',
+    locationId: defaultParent?.locationId ?? '',
+  });
+
+  // Cargar el estado al abrir. Se hace DURANTE el render (patrón "ajustar el
+  // estado cuando cambia una prop" de React), no en un efecto: así no hay un
+  // render intermedio con el formulario anterior y la foto para detectar
+  // cambios se toma del estado recién cargado. Se recarga solo al abrir o al
+  // cambiar de activo, no si el detalle se refresca mientras se edita.
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const openKey = open ? (asset ? `edit:${asset.id}` : 'new') : null;
+  if (openKey !== loadedKey) {
+    setLoadedKey(openKey);
+    if (openKey !== null) {
+      setNewInvoiceOpen(false);
+      setInvoice(EMPTY_INVOICE);
+      setInvoiceFile(null);
+      setLabelUsable(true);
+      setParentError(null);
+      const nextForm = asset ? buildEditState(asset) : buildCreateState();
+      const nextSpecs: SpecValues = asset ? (asset.specifications ?? {}) : {};
+      setForm(nextForm);
+      setSpecs(nextSpecs);
+      setInitialSnapshot(JSON.stringify({ form: nextForm, specs: nextSpecs }));
+      setPendingCategoryCode(!asset && defaultCategoryCode ? defaultCategoryCode : null);
+    }
+  }
+
+  // La categoría sugerida (disco duro al registrar un componente de un NVR) se
+  // aplica en cuanto el catálogo está cargado. Si el código no existe todavía
+  // (el SQL de la categoría no se ha aplicado), simplemente no hay preselección.
+  if (pendingCategoryCode && categories.length > 0) {
+    setPendingCategoryCode(null);
+    const suggested = categories.find((c) => c.code === pendingCategoryCode);
+    if (suggested && !form.categoryId) {
+      const nextForm: FormState = {
+        ...form,
+        categoryId: suggested.id,
+        usefulLifeMonths:
+          form.usefulLifeMonths ||
+          (suggested.defaultUsefulLifeMonths ? String(suggested.defaultUsefulLifeMonths) : ''),
+      };
+      setForm(nextForm);
+      setInitialSnapshot(JSON.stringify({ form: nextForm, specs }));
+    }
+  }
 
   const set = (patch: Partial<FormState>) => setForm((prev) => ({ ...prev, ...patch }));
 
-  const hasUnsavedChanges = () =>
-    initialSnapshot.current !== JSON.stringify({ form, specs });
+  /** Al elegir el equipo padre, si aún no hay sucursal se toma la del padre. */
+  const handleParentChange = (parent: AssetParentOption | null) => {
+    setParentError(null);
+    if (parent && !form.branchId) {
+      set({ parent, branchId: parent.branchId ?? '', locationId: parent.locationId ?? '' });
+      return;
+    }
+    set({ parent });
+  };
+
+  const hasUnsavedChanges = () => initialSnapshot !== JSON.stringify({ form, specs });
 
   /**
    * Único camino de cierre. Se llama desde Cancelar, la X y Esc; el clic fuera
@@ -437,6 +506,7 @@ export function AssetFormModal({
       warrantyProvider: form.warrantyProvider.trim() || null,
       branchId: form.branchId || null,
       locationId: form.locationId || null,
+      parentAssetId: form.parent?.id ?? null,
       notes: form.notes.trim() || null,
     };
 
@@ -460,7 +530,11 @@ export function AssetFormModal({
     } catch (e) {
       const err = e as { response?: { data?: { message?: string | string[] } } };
       const msg = err?.response?.data?.message;
-      toast.error(Array.isArray(msg) ? msg[0] : msg || 'Error al guardar el activo');
+      const text = Array.isArray(msg) ? msg[0] : msg;
+      // Las guardas del vínculo (ciclo, niveles, padre de baja…) también van
+      // bajo el campo, para que se vea qué corregir.
+      if (isParentLinkError(text)) setParentError(text ?? null);
+      toast.error(text || 'Error al guardar el activo');
     }
   };
 
@@ -483,7 +557,11 @@ export function AssetFormModal({
           <div className="flex items-start justify-between gap-4">
             <div>
               <DialogTitle>
-                {isEdit ? `Editar ${asset?.assetTag}` : 'Nuevo activo'}
+                {isEdit
+                  ? `Editar ${asset?.assetTag}`
+                  : defaultParent
+                    ? `Nuevo componente de ${defaultParent.assetTag ?? defaultParent.name}`
+                    : 'Nuevo activo'}
               </DialogTitle>
               <DialogDescription>
                 {isEdit
@@ -826,6 +904,27 @@ export function AssetFormModal({
           <section className="grid gap-4">
             <h3 className="text-sm font-semibold text-muted-foreground">Ubicación</h3>
             <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-2 sm:col-span-2">
+                <Label htmlFor="asset-parent">Instalado en / componente de</Label>
+                <AssetParentSelect
+                  id="asset-parent"
+                  value={form.parent}
+                  onChange={handleParentChange}
+                  excludeId={asset?.id}
+                  aria-describedby="asset-parent-hint"
+                  aria-invalid={!!parentError}
+                />
+                {parentError ? (
+                  <p id="asset-parent-hint" role="alert" className="text-xs text-destructive">
+                    {parentError}
+                  </p>
+                ) : (
+                  <p id="asset-parent-hint" className="text-xs text-muted-foreground">
+                    Ej. el NVR donde va este disco. Si no eliges sucursal, se toma la del
+                    equipo padre.
+                  </p>
+                )}
+              </div>
               <div className="grid gap-2">
                 <Label>Sucursal</Label>
                 <SearchableSelect

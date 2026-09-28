@@ -1,7 +1,8 @@
 'use client';
 
-// Detalle de un activo de TI: información, características técnicas, compra,
-// asignaciones (con historial), mantenimiento, documentos y etiqueta.
+// Detalle de un activo de TI: información, características técnicas,
+// componentes (los discos de un NVR), compra, asignaciones (con historial),
+// mantenimiento, documentos y etiqueta.
 
 import { use, useState } from 'react';
 import Link from 'next/link';
@@ -42,6 +43,7 @@ import { AssetBarcode } from '@/components/admin/assets/AssetBarcode';
 import { SpecFieldsView } from '@/components/admin/assets/SpecFieldsRenderer';
 import { AssetDocumentsSection } from '@/components/admin/assets/AssetDocumentsSection';
 import { AssetMaintenanceSection } from '@/components/admin/assets/AssetMaintenanceSection';
+import { AssetComponentsSection } from '@/components/admin/assets/AssetComponentsSection';
 import {
   ASSET_CONDITION_LABELS,
   ASSET_CONDITION_VARIANTS,
@@ -266,6 +268,7 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
           <TabsList className="flex w-full justify-start overflow-x-auto sm:flex-wrap">
             <TabsTrigger value="info">Información</TabsTrigger>
             <TabsTrigger value="specs">Características</TabsTrigger>
+            <TabsTrigger value="components">Componentes ({asset.children.length})</TabsTrigger>
             <TabsTrigger value="purchase">Compra</TabsTrigger>
             <TabsTrigger value="assignments">
               Asignaciones ({asset.assignments.length})
@@ -290,8 +293,17 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                 <Field label="Sucursal" value={asset.branchName} />
                 <Field label="Ubicación" value={asset.locationName} />
                 <Field label="Departamento" value={asset.departmentName} />
-                {asset.parentAssetTag ? (
-                  <Field label="Accesorio de" value={asset.parentAssetTag} mono />
+                {asset.parentAssetId ? (
+                  <div className="flex justify-between gap-4 border-b border-border pb-2">
+                    <span className="text-sm text-muted-foreground">Instalado en</span>
+                    <Link
+                      href={`/admin/activos/${asset.parentAssetId}`}
+                      className="text-right text-sm font-medium text-primary hover:underline"
+                    >
+                      <span className="font-mono">{asset.parentAssetTag ?? 'Sin etiqueta'}</span>
+                      {asset.parentAssetName ? ` · ${asset.parentAssetName}` : ''}
+                    </Link>
+                  </div>
                 ) : null}
                 <Field label="Registrado el" value={shortDate(asset.createdAt)} />
                 {asset.notes ? (
@@ -300,24 +312,13 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
                     <p className="whitespace-pre-wrap text-sm">{asset.notes}</p>
                   </div>
                 ) : null}
-                {asset.children.length > 0 && (
-                  <div className="sm:col-span-2">
-                    <p className="mb-2 text-sm text-muted-foreground">Accesorios ligados</p>
-                    <div className="flex flex-wrap gap-2">
-                      {asset.children.map((c) => (
-                        <Link
-                          key={c.id}
-                          href={`/admin/activos/${c.id}`}
-                          className="rounded-md border border-border px-3 py-1 text-xs hover:bg-muted"
-                        >
-                          <span className="font-mono">{c.assetTag}</span> · {c.name}
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Componentes (los discos de un NVR) */}
+          <TabsContent value="components">
+            <AssetComponentsSection asset={asset} />
           </TabsContent>
 
           {/* Características técnicas */}
@@ -425,7 +426,12 @@ export default function AssetDetailPage({ params }: { params: Promise<{ id: stri
           </TabsContent>
 
           <TabsContent value="maintenance">
-            <AssetMaintenanceSection assetId={asset.id} maintenance={asset.maintenance} />
+            <AssetMaintenanceSection
+              assetId={asset.id}
+              maintenance={asset.maintenance}
+              specTemplate={asset.specTemplate}
+              specifications={asset.specifications}
+            />
           </TabsContent>
 
           <TabsContent value="documents">

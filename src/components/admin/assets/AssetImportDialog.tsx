@@ -105,6 +105,9 @@ export function AssetImportDialog({ open, onOpenChange }: AssetImportDialogProps
           <DialogDescription>
             Sube un CSV o Excel con el equipo que ya tienes. Solo la categoría y el nombre son
             obligatorios: los equipos viejos sin factura ni costo también se pueden capturar.
+            La columna opcional <code>etiqueta_padre</code> liga cada componente al equipo
+            donde va instalado (ej. el NVR de un disco duro): importa primero los equipos y
+            después sus componentes.
           </DialogDescription>
         </DialogHeader>
 
