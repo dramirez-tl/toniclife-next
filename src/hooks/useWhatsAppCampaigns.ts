@@ -1,8 +1,10 @@
 'use client';
 
 // useWhatsAppCampaigns.ts - Hooks React Query de Comercial → WhatsApp.
-// El tablero se consulta cada 2 min SOLO mientras la campaña está activa y la
-// pestaña del navegador está visible; tras un 403 deja de consultar.
+// El tablero se consulta cada 2 min SOLO mientras la campaña está activa, su
+// periodo (26→25) no ha cerrado y la pestaña del navegador está visible; tras
+// un 403 deja de consultar. Con el periodo cerrado el tablero ya no cambia
+// solo (las lecturas nuevas llegan por importación), así que no se sondea.
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { whatsappCampaignsService } from '@/services/whatsapp-campaigns.service';
@@ -33,7 +35,7 @@ export const useWhatsAppCampaignDashboard = (key: string | null | undefined) =>
     queryFn: () => whatsappCampaignsService.getDashboard(key as string),
     enabled: !!key,
     refetchInterval: (q) =>
-      q.state.data?.campana.estado === 'activa'
+      q.state.data?.campana.estado === 'activa' && !q.state.data.periodo.cerrado
         ? statusPollInterval(q.state.error, WHATSAPP_DASHBOARD_POLL_MS)
         : false,
     refetchIntervalInBackground: false,

@@ -26,6 +26,7 @@ import {
   UNIDAD_LABELS,
   VECINDARIO_LABELS,
   filaPrincipalDerrame,
+  formatoCompraron,
   icTexto,
   nombreVecindario,
   pTexto,
@@ -56,16 +57,25 @@ const LECTURA_EFECTO = {
   neutro: { texto: 'No concluyente', variant: 'outline' as const },
 };
 
-/** Efecto con intervalo en una celda; la fracción de vecinos se muestra en %. */
+/** Lectura llana del efecto sobre la red de los líderes, según su intervalo (no una frase fija). */
+const LID_LECTURA = {
+  bien: 'La red de los líderes con mensaje compró más que la de los líderes del control: escribirles sí movió a su red.',
+  mal: 'La red de los líderes con mensaje compró menos que la de los líderes del control: revisar el mensaje a líderes.',
+  neutro: 'No se ve un efecto medible de escribirle a los líderes sobre su red: el intervalo incluye el 0.',
+} as const;
+
+/** Efecto con intervalo en una celda; `fmt`/`ic` cambian el formato (p. ej. fracciones en pp). */
 function Efecto({
   e,
   dec = 0,
   fmt,
+  ic,
   sufijo = '',
 }: {
   e: DerrameEstimate | null;
   dec?: number;
   fmt?: (v: number | null | undefined) => string;
+  ic?: (e: DerrameEstimate) => string;
   sufijo?: string;
 }) {
   if (!e) return <span className="text-muted-foreground">—</span>;
@@ -78,7 +88,7 @@ function Efecto({
         {sufijo}
       </span>
       <span className="text-xs text-muted-foreground">
-        {fmt ? `${fmt(e.ic_bajo)} a ${fmt(e.ic_alto)}` : icTexto(e, dec)}
+        {ic ? ic(e) : fmt ? `${fmt(e.ic_bajo)} a ${fmt(e.ic_alto)}` : icTexto(e, dec)}
         {sufijo}
       </span>
     </span>
@@ -100,7 +110,8 @@ function Headline({ fila, esPorVecino }: { fila: DerrameFila; esPorVecino: boole
   const comp = fila.compraron;
   const venta = fila.venta;
   const porQuien = esPorVecino ? 'por vecino' : 'por persona con mensaje';
-  const pctFrac = (v: number | null | undefined) => (esPorVecino ? signed(v, 1) : pct(v, 1));
+  // Por vecino la métrica es una fracción (se muestra en pp); por persona, un conteo medio.
+  const fc = formatoCompraron(esPorVecino ? 'por_vecino' : 'suma_por_indice');
   return (
     <div className="grid gap-3 sm:grid-cols-3">
       <BigTile
@@ -111,8 +122,8 @@ function Headline({ fila, esPorVecino }: { fila: DerrameFila; esPorVecino: boole
       />
       <BigTile
         label={`Frontales que compraron (${porQuien})`}
-        value={comp ? (esPorVecino ? signed(comp.efecto, 1, ' pp') : signed(comp.efecto, 3)) : '—'}
-        detail={comp ? `${pctFrac(comp.media_t)} vs ${pctFrac(comp.media_c)} · intervalo 95%: ${esPorVecino ? icTexto(comp, 1) : icTexto(comp, 3)} · ${pTexto(comp.p)}` : 'Sin estimación'}
+        value={comp ? fc.efecto(comp.efecto) : '—'}
+        detail={comp ? `${fc.media(comp.media_t)} vs ${fc.media(comp.media_c)} · intervalo 95%: ${fc.ic(comp)} · ${pTexto(comp.p)}` : 'Sin estimación'}
         tono={comp ? toneEfecto(comp.ic_bajo, comp.ic_alto) : 'neutro'}
       />
       <BigTile
@@ -126,7 +137,9 @@ function Headline({ fila, esPorVecino }: { fila: DerrameFila; esPorVecino: boole
 }
 
 function TablaVecindarios({ filas, esPorVecino }: { filas: DerrameFila[]; esPorVecino: boolean }) {
-  const fracFmt = esPorVecino ? (v: number | null | undefined) => signed(v, 1) : (v: number | null | undefined) => signed(v, 3);
+  // Por vecino "compraron" es una FRACCIÓN de los vecinos (0.073 = 7.3 %): en pp,
+  // no con un decimal (se pintaba "+0.0"). Por persona es un conteo medio.
+  const fc = formatoCompraron(esPorVecino ? 'por_vecino' : 'suma_por_indice');
   return (
     <div className="overflow-x-auto rounded-md border">
       <Table>
@@ -138,7 +151,7 @@ function TablaVecindarios({ filas, esPorVecino }: { filas: DerrameFila[]; esPorV
             <TableHead className="text-right">Pts de los vecinos, media (campaña vs control)</TableHead>
             <TableHead className="text-right">Efecto en puntos (IC95)</TableHead>
             <TableHead className="text-right">p</TableHead>
-            <TableHead className="text-right">Vecinos que compraron{esPorVecino ? ' (pp)' : ''}</TableHead>
+            <TableHead className="text-right">{fc.encabezado}</TableHead>
             <TableHead className="text-right">Venta (MXN)</TableHead>
             <TableHead>Lectura</TableHead>
           </TableRow>
@@ -166,7 +179,7 @@ function TablaVecindarios({ filas, esPorVecino }: { filas: DerrameFila[]; esPorV
                 </TableCell>
                 <TableCell className="text-right"><Efecto e={f.pts} dec={0} /></TableCell>
                 <TableCell className="text-right">{f.pts?.p != null ? f.pts.p.toFixed(2) : '—'}</TableCell>
-                <TableCell className="text-right"><Efecto e={f.compraron} fmt={fracFmt} /></TableCell>
+                <TableCell className="text-right"><Efecto e={f.compraron} fmt={fc.efecto} ic={fc.ic} /></TableCell>
                 <TableCell className="text-right"><Efecto e={f.venta} fmt={(v) => money(v, { signo: true })} /></TableCell>
                 <TableCell>
                   {lectura ? (
@@ -224,7 +237,7 @@ function Detalles({ d }: { d: DerrameBlock }) {
               {lid.frontales_calif && (
                 <>; frontales que califican: {signed(lid.frontales_calif.efecto, 2)} por líder ({icTexto(lid.frontales_calif, 2)})</>
               )}
-              . Escribirle a los líderes no movió a su red de forma medible.
+              . {LID_LECTURA[toneEfecto(lid.ic_bajo, lid.ic_alto)]}
             </p>
           </div>
         )}

@@ -22,6 +22,7 @@
 // envíos por ola → segmentos → gráficas → respuestas/sucursales → pie.
 
 import { Suspense, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ChatBubbleLeftRightIcon,
@@ -60,6 +61,7 @@ import { EvolutionChart } from './components/EvolutionChart';
 import { ExtraWavePanel } from './components/ExtraWavePanel';
 import { HourlyChart } from './components/HourlyChart';
 import { KpiTiles } from './components/KpiTiles';
+import { EmptyNote, Panel } from './components/Panel';
 import { PeopleTab } from './components/PeopleTab';
 import { RepliesPanel } from './components/RepliesPanel';
 import { SegmentsTable } from './components/SegmentsTable';
@@ -137,7 +139,10 @@ function ErrorState({
 }) {
   const info = apiErrorInfo(error, fallback, ERROR_MESSAGES);
   if (info.status === 403) return <AccessDenied message={info.message} />;
-  const faltaMigracion = info.status === 503 && /migraci[oó]n/i.test(info.message);
+  // El API manda `habilitado: false` en el 503 de la migración pendiente; la
+  // regex sobre el texto queda solo de respaldo para un API anterior.
+  const faltaMigracion =
+    info.status === 503 && (info.habilitado === false || /migraci[oó]n/i.test(info.message));
   const title = staleAt
     ? 'No se pudo actualizar'
     : faltaMigracion
@@ -178,6 +183,28 @@ function ErrorState({
         )}
       </AlertDescription>
     </Alert>
+  );
+}
+
+/**
+ * Una campaña hija (ola extra) no lleva ventas del cierre ni derrame: esas
+ * dos lecturas se hacen una vez por cierre y viven en el tablero del padre
+ * (su derrame ya incluye a la población de la hija). En vez de dos paneles
+ * vacíos que nunca se llenarían, un enlace al padre.
+ */
+function ParentOnlyNote({ padre }: { padre: string }) {
+  const href = `${WHATSAPP_ADMIN_PATH}${construirQuery({ campana: padre })}`;
+  return (
+    <Panel id="t-padre" title="Ventas del cierre y ¿pasaron la voz?">
+      <EmptyNote>
+        Estas dos lecturas se hacen una sola vez por cierre y se ven en el tablero de la campaña
+        principal; su lectura de «pasaron la voz» incluye a esta población.{' '}
+        <Link href={href} className="underline decoration-dotted underline-offset-4 hover:text-primary">
+          Abrir la campaña principal
+        </Link>
+        .
+      </EmptyNote>
+    </Panel>
   );
 }
 
@@ -346,11 +373,17 @@ function WhatsAppContent() {
                     <AttributionPanel data={data} />
                     <EffectPanel data={data} />
                     <ExtraWavePanel data={data} />
-                    <VentasCierresPanel
-                      ventas={data.ventas_cierres}
-                      nombresSegmentos={Object.fromEntries(data.segmentos.map((s) => [s.id, s.nombre]))}
-                    />
-                    <SpilloverPanel derrame={data.derrame} pctControl={data.campana.pct_control || null} />
+                    {data.campana.padre ? (
+                      <ParentOnlyNote padre={data.campana.padre} />
+                    ) : (
+                      <>
+                        <VentasCierresPanel
+                          ventas={data.ventas_cierres}
+                          nombresSegmentos={Object.fromEntries(data.segmentos.map((s) => [s.id, s.nombre]))}
+                        />
+                        <SpilloverPanel derrame={data.derrame} pctControl={data.campana.pct_control || null} />
+                      </>
+                    )}
                     <WavesPanel olas={data.olas} />
                     <SegmentsTable data={data} />
                     <div className="grid gap-5 lg:grid-cols-2">

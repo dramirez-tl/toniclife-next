@@ -123,12 +123,19 @@ export interface RespuestaCategoria {
   n: number;
 }
 
+/**
+ * Respuestas de INTEGRANTES de esta campaña (el API las liga por cliente o
+ * teléfono): dos campañas del mismo periodo (padre y ola extra) no se cuentan
+ * las respuestas la una a la otra.
+ */
 export interface CampaignRespuestas {
   personas: number;
   mensajes: number;
   por_contestar: number;
   bajas: number;
   por_categoria: RespuestaCategoria[];
+  /** ➕ v2: teléfonos que escribieron en la ventana sin ser de esta campaña (no cuentan arriba). */
+  sin_identificar?: number | null;
   /** ➕ v2: integrantes con whatsapp_opt_out_at ≥ T0. */
   opt_out_desde_t0?: number | null;
 }

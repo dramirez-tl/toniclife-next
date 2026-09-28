@@ -58,7 +58,7 @@ import type {
 } from '@/types/whatsappCampaign';
 import { VENTAS_METRICAS, VENTAS_VENTANAS } from '@/types/whatsappCampaign';
 import type { BadgeTone } from './format';
-import { isNum, money, n, signed } from './numeros';
+import { isNum, money, n, pct, signed } from './numeros';
 
 // ── Utilería ───────────────────────────────────────────────────────────────
 
@@ -165,7 +165,7 @@ const RESULTADO_REGLA: Record<DecisionResultado, ResultadoRegla> = {
     variant: 'info',
     indice: 3,
     siguiente:
-      'No se puede decir que funcionó ni que no funcionó. El resultado se guarda para acumularlo con el siguiente cierre; con un control del 20% en dos cierres sí se podría medir un efecto de este tamaño.',
+      'No se puede decir que funcionó ni que no funcionó. El resultado se guarda para acumularlo con el siguiente cierre; para detectar un efecto de este tamaño hace falta un control mayor o más de un cierre (el MDE de abajo dice desde cuánto se ve).',
   },
 };
 
@@ -912,6 +912,38 @@ export function tablaDerrame(
 /** La fila que decide el veredicto: campaña principal, suma por persona, frontales. */
 export function filaPrincipalDerrame(d: DerrameBlock | null | undefined): DerrameFila | null {
   return tablaDerrame(d, 'principal', 'suma_por_indice')?.filas.find((f) => f.vecindario === 'frontales') ?? null;
+}
+
+/**
+ * Formato de "vecinos que compraron" de una fila de derrame. La métrica cambia
+ * de naturaleza con la unidad: por persona con mensaje es un CONTEO medio
+ * (0.025 = 2.5 vecinos que compraron por cada 100 personas con mensaje); por
+ * vecino es una FRACCIÓN de los vecinos (0.073 = 7.3 %), que se muestra en
+ * puntos porcentuales para que un efecto de 0.021 no se pinte como "+0.0".
+ */
+export interface FormatoCompraron {
+  encabezado: string;
+  efecto: (v: number | null | undefined) => string;
+  media: (v: number | null | undefined) => string;
+  ic: (e: Pick<EffectEstimate, 'ic_bajo' | 'ic_alto'> | null | undefined) => string;
+}
+
+export function formatoCompraron(unidad: DerrameUnidad | string): FormatoCompraron {
+  if (unidad === 'por_vecino') {
+    const pp = (v: number | null | undefined): number | null => (isNum(v) ? v * 100 : null);
+    return {
+      encabezado: 'Vecinos que compraron (pp)',
+      efecto: (v) => signed(pp(v), 1, ' pp'),
+      media: (v) => pct(v, 1),
+      ic: (e) => (e ? icTexto({ ic_bajo: pp(e.ic_bajo), ic_alto: pp(e.ic_alto) }, 1, ' pp') : '—'),
+    };
+  }
+  return {
+    encabezado: 'Vecinos que compraron (por persona)',
+    efecto: (v) => signed(v, 3),
+    media: (v) => (isNum(v) ? v.toFixed(3) : '—'),
+    ic: (e) => icTexto(e, 3),
+  };
 }
 
 // ── Campañas hijas (ola extra) ─────────────────────────────────────────────

@@ -78,10 +78,13 @@ export function RepliesPanel({ data }: { data: CampaignDashboard }) {
             </span>
           </div>
           <p className="text-xs text-muted-foreground">
-            {n(r.mensajes)} mensajes recibidos
+            {n(r.mensajes)} mensajes recibidos de integrantes de esta campaña
             {r.opt_out_desde_t0 != null && (
               <> · {n(r.opt_out_desde_t0)} integrantes quedaron fuera de WhatsApp (baja) desde el primer aviso</>
             )}
+            {r.sin_identificar ? (
+              <> · {n(r.sin_identificar)} teléfonos más escribieron sin ser de esta campaña y no se cuentan</>
+            ) : null}
             .
           </p>
         </div>

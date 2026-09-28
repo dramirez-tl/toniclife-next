@@ -10,6 +10,12 @@ export const CDMX_TZ = 'America/Mexico_City';
 export interface ApiErrorInfo {
   status?: number;
   message: string;
+  /**
+   * Bandera `habilitado` del cuerpo de la respuesta (la manda el API en el 503
+   * de "función apagada / migración pendiente"): false = no habilitada.
+   * Ausente si el cuerpo no la trae.
+   */
+  habilitado?: boolean;
 }
 
 export interface ApiErrorMessages {
@@ -35,6 +41,13 @@ function backendMessage(err: unknown): string {
   return typeof raw === 'string' ? raw : '';
 }
 
+/** Bandera `habilitado` del cuerpo (solo si es booleana). */
+function backendHabilitado(err: unknown): boolean | undefined {
+  const e = err as { response?: { data?: { habilitado?: unknown } } } | null;
+  const v = e?.response?.data?.habilitado;
+  return typeof v === 'boolean' ? v : undefined;
+}
+
 export function apiErrorInfo(
   err: unknown,
   fallback: string,
@@ -43,20 +56,22 @@ export function apiErrorInfo(
   const status = apiErrorStatus(err);
   const backendMsg = backendMessage(err);
   const plain = (err as { message?: string } | null)?.message;
+  const habilitado = backendHabilitado(err);
+  const base = habilitado === undefined ? { status } : { status, habilitado };
   if (status === 403) {
     return {
-      status,
+      ...base,
       message:
         messages.forbidden ??
         'Tu rol no tiene acceso a esta sección. Pide a Sistemas que habilite el permiso.',
     };
   }
   if (status === 429) {
-    return { status, message: 'Demasiadas consultas seguidas; espera un minuto e intenta de nuevo.' };
+    return { ...base, message: 'Demasiadas consultas seguidas; espera un minuto e intenta de nuevo.' };
   }
   if (status === 503) {
     return {
-      status,
+      ...base,
       message:
         backendMsg ||
         messages.unavailable ||
@@ -65,12 +80,12 @@ export function apiErrorInfo(
   }
   if (status === 404) {
     return {
-      status,
+      ...base,
       message:
         backendMsg || messages.notFound || 'El API aún no expone esta función (despliegue pendiente).',
     };
   }
-  return { status, message: backendMsg || plain || fallback };
+  return { ...base, message: backendMsg || plain || fallback };
 }
 
 export const apiErrorMessage = (

@@ -232,6 +232,12 @@ function SemanaChart({ ventas }: { ventas: VentasCierresBlock }) {
 function CierresTable({ ventas }: { ventas: VentasCierresBlock }) {
   const corte = horaDe(ventas.corte_hoy);
   const h = ventas.hoy.al_corte;
+  // "Tickets del día" del cierre actual con la MISMA definición que `total_dia`
+  // de los cierres anteriores: el día completo del bloque dia_completo. Si no
+  // viene, la cifra al corte solo vale como total con la lectura oficial
+  // (corte al final del día); en curso se dice "en curso".
+  const totalHoy = ventas.dia_completo?.periodos.find((p) => p.es_actual)?.dia_cierre?.tickets ?? null;
+  const totalHoyTexto = totalHoy != null ? n(totalHoy) : ventas.lectura === 'oficial' ? n(h?.tickets) : 'en curso';
   return (
     <div className="overflow-x-auto rounded-md border">
       <Table>
@@ -252,7 +258,7 @@ function CierresTable({ ventas }: { ventas: VentasCierresBlock }) {
             <TableCell className="text-right">{n(h?.tickets)}</TableCell>
             <TableCell className="text-right">{n(h?.pts)}</TableCell>
             <TableCell className="text-right">{moneyCorto(h?.venta)}</TableCell>
-            <TableCell className="text-right font-normal text-muted-foreground">{ventas.lectura === 'oficial' ? n(h?.tickets) : 'en curso'}</TableCell>
+            <TableCell className="text-right font-normal text-muted-foreground">{totalHoyTexto}</TableCell>
           </TableRow>
           {ventas.cierres.map((c) => (
             <TableRow key={`${c.n ?? ''}-${c.fecha ?? ''}`}>

@@ -75,6 +75,11 @@ function Robustez({ data }: { data: CampaignDashboard }) {
   const im = data.impacto;
   if (!im || (!im.sensibilidades.length && !im.por_subestrato.length && !im.cace)) return null;
   const segNombre = (id: string) => data.segmentos.find((s) => s.id === id)?.nombre ?? id;
+  // La lectura del CACE se compara con el efecto principal en vez de afirmarla fija.
+  const lecturaCace =
+    im.cace && toneEfecto(im.cace.ic_bajo, im.cace.ic_alto) === toneEfecto(im.puntos?.ic_bajo, im.puntos?.ic_alto)
+      ? 'Misma conclusión: el intervalo se estira, no cambia de signo.'
+      : 'Ojo: entre quienes sí lo recibieron la conclusión cambia; léase con el intervalo, no con el número suelto.';
   return (
     <details className="group rounded-md border p-3 text-sm">
       <summary className="cursor-pointer font-medium">
@@ -86,8 +91,8 @@ function Robustez({ data }: { data: CampaignDashboard }) {
             El efecto de arriba cuenta a todos los asignados, les haya llegado o no el mensaje (así se
             protege el sorteo). Entre quienes sí lo recibieron ({pct(im.cace.pct_entregado)} de los
             tratados) el efecto sería {signed(im.cace.efecto, 0)} pts (intervalo {icTexto(im.cace, 0)})
-            {im.cace.efecto_leido != null && <>; entre quienes lo leyeron, {signed(im.cace.efecto_leido, 0)} pts</>}.
-            Misma conclusión: el intervalo se estira, no cambia de signo.
+            {im.cace.efecto_leido != null && <>; entre quienes lo leyeron, {signed(im.cace.efecto_leido, 0)} pts</>}.{' '}
+            {lecturaCace}
           </p>
         )}
         {im.sensibilidades.length > 0 && (
@@ -231,7 +236,7 @@ export function VerdictPanel({ data }: { data: CampaignDashboard }) {
           />
         </div>
 
-        {im.retorno && <ReturnBlock retorno={im.retorno} ventaConfiable={im.venta_confiable} />}
+        {im.retorno && <ReturnBlock retorno={im.retorno} ventaConfiable={im.venta_confiable} esHija={esHija} />}
 
         <DecisionRule regla={regla} impacto={im} pctControl={data.campana.pct_control || null} />
 

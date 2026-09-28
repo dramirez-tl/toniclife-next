@@ -505,6 +505,7 @@ export function adaptarDashboard(raw: unknown, fallbackKey = ''): CampaignDashbo
           por_contestar: numOr(respuestas.por_contestar, 0),
           bajas: numOr(respuestas.bajas, 0),
           por_categoria: arr(respuestas.por_categoria),
+          sin_identificar: isNum(respuestas.sin_identificar) ? respuestas.sin_identificar : null,
           opt_out_desde_t0: isNum(respuestas.opt_out_desde_t0) ? respuestas.opt_out_desde_t0 : null,
         }
       : null,

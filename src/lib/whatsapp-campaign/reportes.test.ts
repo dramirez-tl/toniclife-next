@@ -18,6 +18,7 @@ import {
   esCampanaHija,
   estimacion,
   filaPrincipalDerrame,
+  formatoCompraron,
   horaDe,
   icTexto,
   opcionesSelector,
@@ -244,7 +245,9 @@ describe('regla de decisión (plan §6)', () => {
     expect(resultadoRegla('hizo_dano')).toMatchObject({ variant: 'destructive', indice: 1 });
     expect(resultadoRegla('no_funciono')).toMatchObject({ variant: 'warning', indice: 2 });
     expect(resultadoRegla('no_concluyente')).toMatchObject({ texto: 'No concluyente', variant: 'info', indice: 3 });
-    expect(resultadoRegla('no_concluyente').siguiente).toMatch(/20%/);
+    // Texto genérico: la cifra concreta (control del 20 %, dos cierres) va en el reporte, no en la lib.
+    expect(resultadoRegla('no_concluyente').siguiente).toMatch(/control mayor/);
+    expect(resultadoRegla('no_concluyente').siguiente).not.toMatch(/20%/);
     expect(resultadoRegla('x')).toMatchObject({ texto: 'Sin veredicto', variant: 'outline', indice: null });
     expect(resultadoRegla(null).indice).toBeNull();
     expect(REGLAS_DECISION).toHaveLength(4);
@@ -478,6 +481,26 @@ describe('derrame ("¿pasaron la voz?")', () => {
     expect(filaPrincipalDerrame(d)?.pts?.efecto).toBe(31);
     expect(toneEfecto(filaPrincipalDerrame(d)?.pts?.ic_bajo, filaPrincipalDerrame(d)?.pts?.ic_alto)).toBe('neutro');
     expect(poblacionesDerrame(null)).toEqual([]);
+  });
+
+  it('"vecinos que compraron": por vecino es una fracción (se pinta en pp); por persona, un conteo medio', () => {
+    // Fila real por_vecino/frontales del derrame del 28-sep (solo agregados): la
+    // media es 7.3 % vs 3.9 % y el efecto +2.1 pp; con un decimal se leía "+0.0".
+    const fila = { media_t: 0.073, media_c: 0.039, efecto: 0.021, ic_bajo: -0.029, ic_alto: 0.082, p: 0.788 };
+    const pv = formatoCompraron('por_vecino');
+    expect(pv.encabezado).toBe('Vecinos que compraron (pp)');
+    expect(pv.efecto(fila.efecto)).toBe('+2.1 pp');
+    expect(pv.media(fila.media_t)).toBe('7.3%');
+    expect(pv.media(fila.media_c)).toBe('3.9%');
+    expect(pv.ic(fila)).toBe('de -2.9 a +8.2 pp');
+    expect(pv.efecto(null)).toBe('—');
+    expect(pv.ic(null)).toBe('—');
+    // Suma por persona: 0.025 vecinos que compraron por persona con mensaje.
+    const pi = formatoCompraron('suma_por_indice');
+    expect(pi.encabezado).toBe('Vecinos que compraron (por persona)');
+    expect(pi.efecto(0.008)).toBe('+0.008');
+    expect(pi.media(0.025)).toBe('0.025');
+    expect(pi.ic({ ic_bajo: -0.017, ic_alto: 0.028 })).toBe('de -0.017 a +0.028');
   });
 
   it('sin tablas o sin veredicto no hay derrame; otro tipo tampoco', () => {

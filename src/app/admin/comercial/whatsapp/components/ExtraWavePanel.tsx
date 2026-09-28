@@ -147,9 +147,11 @@ function ExtraWaveCard({ hija, umbral }: { hija: ComplementoItem; umbral: number
 
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted p-3 text-sm">
         <p>
-          Es otra población: distribuidores con puntos que no estaban en la campaña original. Tiene
-          su propio grupo de control ({n(d.embudo.control)} personas), así que se mide aparte y no
-          entra en las cifras de arriba. Con pocas horas de compras, la cifra es orientativa.
+          Es otra población
+          {d.segmentos.length === 1 && d.segmentos[0].nombre ? ` (${d.segmentos[0].nombre.toLowerCase()})` : ''}, con su
+          propio grupo de control ({n(d.embudo.control)} personas): se mide aparte y no entra en las cifras
+          de arriba.
+          {im?.venta_confiable === false && ' Con tan pocas compras en el control, la venta es solo orientativa.'}
         </p>
         <Link
           href={href}
