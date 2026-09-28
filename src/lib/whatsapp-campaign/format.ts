@@ -5,6 +5,8 @@
 // aquí solo se formatean, se validan y se arman textos. La única hora que se
 // calcula en el front es la cuenta regresiva del chip de cierre
 // (chipCierre), contra `periodo.fin` de tonic.commission_periods.
+// Los bloques de reportes (impacto extendido, ventas del cierre, derrame y
+// campañas hijas) viven en reportes.ts; los números en numeros.ts.
 
 import {
   CAMPAIGN_GROUPS,
@@ -19,6 +21,8 @@ import {
   type ImpactoTipo,
   type OlaEstado,
 } from '@/types/whatsappCampaign';
+import { clamp01, isNum, n, pct, ratio } from './numeros';
+import { adaptarComplementos, adaptarDerrame, adaptarImpacto, adaptarVentasCierres } from './reportes';
 
 export type BadgeTone =
   | 'default'
@@ -36,38 +40,10 @@ export const TRATADO_COLOR = 'var(--chart-1)';
 export const WHATSAPP_ADMIN_PATH = '/admin/comercial/whatsapp';
 
 // ── Números (es-MX) ────────────────────────────────────────────────────────
+// Viven en numeros.ts (sin ciclos con reportes.ts); se reexportan aquí para
+// que los componentes sigan importando todo de format.ts.
 
-const NF = new Intl.NumberFormat('es-MX');
-
-const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
-
-/** Entero con separador de miles; '—' si no hay dato. */
-export function n(v: number | null | undefined): string {
-  return isNum(v) ? NF.format(Math.round(v)) : '—';
-}
-
-/** Fracción 0..1 → '12%' / '12.5%'; '—' si no hay dato. */
-export function pct(v: number | null | undefined, dec = 0): string {
-  return isNum(v) ? `${(v * 100).toFixed(dec)}%` : '—';
-}
-
-/** a / b, o null si falta a o b es 0. */
-export function ratio(a: number | null | undefined, b: number | null | undefined): number | null {
-  if (!isNum(a) || !isNum(b) || b === 0) return null;
-  return a / b;
-}
-
-/** '+12.5 pp' / '-3' / '0'; '—' si no hay dato. */
-export function signed(v: number | null | undefined, dec = 0, suf = ''): string {
-  if (!isNum(v)) return '—';
-  const s = v.toFixed(dec);
-  return `${v > 0 ? '+' : ''}${s}${suf}`;
-}
-
-/** Fracción recortada a 0..1 para anchos de barra (null → 0). */
-export function clamp01(v: number | null | undefined): number {
-  return isNum(v) ? Math.max(0, Math.min(1, v)) : 0;
-}
+export { clamp01, money, moneyCorto, n, pct, ratio, signed, toneEfecto } from './numeros';
 
 // ── Tonos ──────────────────────────────────────────────────────────────────
 
@@ -115,13 +91,6 @@ export function badgeImpacto(tipo: ImpactoTipo | string | null | undefined): {
   if (tipo === 'preliminar') return { texto: 'Resultado preliminar', variant: 'warning' };
   if (tipo === 'oficial') return { texto: 'Resultado oficial', variant: 'success' };
   return { texto: 'Medición', variant: 'info' };
-}
-
-/** Color del efecto: verde si el intervalo queda arriba de 0, rojo si abajo. */
-export function toneEfecto(lo: number | null | undefined, hi: number | null | undefined): 'bien' | 'mal' | 'neutro' {
-  if (isNum(lo) && lo > 0) return 'bien';
-  if (isNum(hi) && hi < 0) return 'mal';
-  return 'neutro';
 }
 
 // ── Olas ───────────────────────────────────────────────────────────────────
@@ -476,8 +445,10 @@ const numOr = (v: unknown, def: number): number => (isNum(v) ? v : def);
 /**
  * Normaliza la respuesta del tablero: acepta el JSON v1 del artefacto y el v2
  * del API, y rellena las llaves ➕ que falten (historial vacío, atribución
- * null, sync_en_curso false...). Así la página no se rompe si el API todavía
- * no calcula algún bloque.
+ * null, sync_en_curso false, ventas_cierres/derrame null, complementos [],
+ * impacto con sus llaves extendidas...). Así la página no se rompe si el API
+ * todavía no calcula algún bloque o si el reporte importado es de una versión
+ * anterior.
  */
 export function adaptarDashboard(raw: unknown, fallbackKey = ''): CampaignDashboard {
   const d = obj(raw);
@@ -511,6 +482,7 @@ export function adaptarDashboard(raw: unknown, fallbackKey = ''): CampaignDashbo
         : 'activa') as CampaignDashboard['campana']['estado'],
       t0_cdmx: str(campana.t0_cdmx),
       pct_control: numOr(campana.pct_control, 0),
+      padre: typeof campana.padre === 'string' && campana.padre ? campana.padre : null,
     },
     estado_campana: str(d.estado_campana),
     olas: arr(d.olas),
@@ -536,10 +508,13 @@ export function adaptarDashboard(raw: unknown, fallbackKey = ''): CampaignDashbo
           opt_out_desde_t0: isNum(respuestas.opt_out_desde_t0) ? respuestas.opt_out_desde_t0 : null,
         }
       : null,
-    impacto: d.impacto == null ? null : (obj(d.impacto) as unknown as CampaignDashboard['impacto']),
+    impacto: adaptarImpacto(d.impacto),
+    ventas_cierres: adaptarVentasCierres(d.ventas_cierres),
+    derrame: adaptarDerrame(d.derrame),
     sucursales: arr(d.sucursales),
     historial: arr(d.historial),
     atribucion: adaptarAtribucion(d.atribucion),
+    complementos: adaptarComplementos(d.complementos),
     notas: arr<unknown>(d.notas).filter((x): x is string => typeof x === 'string'),
   };
 }
