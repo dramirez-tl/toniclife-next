@@ -90,6 +90,8 @@ import {
   mainCashRegisterPayload,
   summarizeRegistersByBranch,
 } from '@/lib/branches/branch-cash-register';
+import { canEnableBranchCatalog, seededCatalogFromResponse, seededCatalogToast } from '@/lib/inventory/branch-catalog';
+import { inventoryKeys } from '@/hooks/useInventory';
 
 // ================================
 // TIMEZONE OPTIONS
@@ -373,6 +375,8 @@ function SucursalesContent() {
     sucUserPermissions.includes('*');
   const canDeleteBranches = sucHasPerm('branches:delete');
   const canManageLicenses = sucHasPerm('pos_licenses:manage');
+  // Habilitar el catálogo POS escribe en stock_levels: inventory:update.
+  const canEnableCatalog = canEnableBranchCatalog(sucUserRoles, sucUserPermissions);
 
   const { get, getNumber, setParams } = useQueryFilters({
     type: 'all',
@@ -628,6 +632,12 @@ function SucursalesContent() {
     const created = createdCashRegisterFromResponse(saved);
     if (created) toast.success(createdCashRegisterToast(created));
     void queryClient.invalidateQueries({ queryKey: posKeys.registers() });
+    // Igual con `catalogSeeded`: el API sembró el catálogo POS (filas de
+    // existencias en 0) de una sucursal que no tenía ninguna. Se refresca la
+    // cobertura de Inventario → Catálogo por sucursal.
+    const seeded = seededCatalogFromResponse(saved);
+    if (seeded) toast.success(seededCatalogToast(seeded), { duration: 8000 });
+    void queryClient.invalidateQueries({ queryKey: inventoryKeys.branchCatalogCoverage() });
   };
 
   const handleCreateMainRegister = async () => {
@@ -1021,6 +1031,19 @@ function SucursalesContent() {
             >
               <KeyIcon className="h-4 w-4 text-primary" />
             </button>
+          )}
+          {/* Catálogo del POS: el POS solo muestra las filas de existencias de la
+              sucursal y una recién creada no trae ninguna (incidente 427/404).
+              Abre Inventario → Catálogo por sucursal con el diálogo listo. */}
+          {branch.isActive && branch.isPosEnabled && canEnableCatalog && (
+            <Link
+              href={`/admin/inventario/catalogo-sucursal?branch=${branch.id}`}
+              className="rounded-lg p-2 transition-colors hover:bg-primary/10"
+              title="Habilitar catálogo en el POS"
+              aria-label={`Habilitar catálogo en el POS de ${branch.name}`}
+            >
+              <CubeIcon className="h-4 w-4 text-primary" />
+            </Link>
           )}
           {branch.isActive ? (
             <button

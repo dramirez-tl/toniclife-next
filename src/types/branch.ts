@@ -53,6 +53,12 @@ export interface Branch {
    *  creó la caja por defecto (sucursal activa con POS y sin caja). Opcional:
    *  un API sin ese cambio no lo manda. Ver createdCashRegisterFromResponse. */
   cashRegisterCreated?: BranchCashRegisterCreated;
+  /** Solo en la respuesta de POST/PATCH /branches, y solo cuando ESA operación
+   *  sembró el catálogo POS (filas de stock_levels con existencia 0) porque la
+   *  sucursal quedó activa con POS, con país, sin ser almacén y sin ninguna
+   *  fila. Opcional: un API sin ese cambio no lo manda. Ver
+   *  seededCatalogFromResponse (lib/inventory/branch-catalog). */
+  catalogSeeded?: BranchCatalogSeeded;
 }
 
 /** Caja por defecto que el API creó al guardar la sucursal. */
@@ -60,6 +66,12 @@ export interface BranchCashRegisterCreated {
   id: string;
   code: string;
   name: string;
+}
+
+/** Catálogo POS que el API sembró al guardar la sucursal. */
+export interface BranchCatalogSeeded {
+  created: number;
+  eligible: number;
 }
 
 // ================================
