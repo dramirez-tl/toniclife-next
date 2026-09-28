@@ -24,14 +24,25 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { DataTable, DataTablePagination, type DataTableColumn } from '@/components/ui/DataTable';
 import { useQueryFilters } from '@/hooks/useQueryFilters';
-import { useAssetCategories, useAssetStats, useAssets } from '@/hooks/useAssets';
+import {
+  useAssetAlerts,
+  useAssetCategories,
+  useAssetStats,
+  useAssets,
+} from '@/hooks/useAssets';
 import { useBranches } from '@/hooks/useBranches';
 import { AssetFormModal } from '@/components/admin/assets/AssetFormModal';
 import { LifeBar } from '@/components/admin/assets/AssignAssetModal';
+import { WarrantyBadge } from '@/components/admin/assets/AssetComponentsSection';
 import { AssetImportDialog } from '@/components/admin/assets/AssetImportDialog';
 import { BarcodeScannerDialog } from '@/components/admin/assets/BarcodeScannerDialog';
 import { assetsService } from '@/services/assets.service';
 import { suppliesService } from '@/services/supplies.service';
+import {
+  DISK_CATEGORY_CODE,
+  LIFE_CRITICAL_PCT,
+  WARRANTY_SOON_DAYS,
+} from '@/lib/assets/warranty';
 import {
   ASSET_CONDITION_LABELS,
   ASSET_STATUSES,
@@ -39,6 +50,9 @@ import {
   ASSET_STATUS_VARIANTS,
   type Asset,
 } from '@/types/asset';
+
+/** Renglones de la tarjeta de alertas; el resto se ve con el filtro. */
+const ALERT_ROWS = 10;
 
 export default function ActivosPage() {
   return (
@@ -67,6 +81,7 @@ function ActivosContent() {
     branch: 'all',
     life: 'all',
     invoice: 'all',
+    warranty: 'all',
     page: '1',
     limit: '20',
   });
@@ -114,10 +129,12 @@ function ActivosContent() {
   const branch = get('branch');
   const life = get('life');
   const invoice = get('invoice');
+  const warranty = get('warranty');
   const page = getNumber('page') || 1;
   const limit = getNumber('limit') || 20;
 
   const { data: stats } = useAssetStats();
+  const { data: alerts = [] } = useAssetAlerts();
   // Solo categorías de EQUIPO: las de insumo también pasan el filtro leafOnly
   // (viven sin padre) y aquí no filtrarían nada.
   const { data: categories = [] } = useAssetCategories({ leafOnly: 'true', isSupply: 'false' });
@@ -130,12 +147,30 @@ function ActivosContent() {
     branchId: branch !== 'all' ? branch : undefined,
     lifeBelowPct: life !== 'all' ? Number(life) : undefined,
     hasInvoice: invoice !== 'all' ? invoice : undefined,
+    warrantyExpiringDays: warranty !== 'all' ? Number(warranty) : undefined,
     page,
     limit,
   });
 
   const assets = data?.data ?? [];
   const branches = branchesData?.data ?? [];
+
+  // La categoría de discos la siembra un SQL aparte: mientras no exista, la
+  // tarjeta cuenta cualquier COMPONENTE (activo con equipo padre) crítico.
+  const diskCategory = categories.find((c) => c.code === DISK_CATEGORY_CODE);
+  const criticalComponents = alerts.filter(
+    (a) =>
+      a.conditions.includes('life') &&
+      (diskCategory ? a.categoryCode === DISK_CATEGORY_CODE : !!a.parentAssetId),
+  ).length;
+  const hasFilters =
+    !!search ||
+    status !== 'all' ||
+    category !== 'all' ||
+    branch !== 'all' ||
+    life !== 'all' ||
+    invoice !== 'all' ||
+    warranty !== 'all';
 
   const applySearch = () => setParams({ search: searchDraft.trim() || null, page: null });
 
@@ -242,7 +277,7 @@ function ActivosContent() {
 
       <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
         {/* Estadísticas */}
-        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-7">
           <StatCard label="Total de equipos" value={stats?.total ?? 0} />
           <StatCard label="Disponibles" value={stats?.available ?? 0} tone="text-emerald-600" />
           <StatCard label="Asignados" value={stats?.assigned ?? 0} tone="text-sky-600" />
@@ -250,7 +285,8 @@ function ActivosContent() {
             label="Vida útil crítica"
             value={stats?.lifeCritical ?? 0}
             tone="text-red-600"
-            hint="20% o menos"
+            hint={`${LIFE_CRITICAL_PCT}% o menos`}
+            onClick={() => setParams({ life: String(LIFE_CRITICAL_PCT), page: null })}
           />
           <StatCard
             label="Sin etiqueta"
@@ -258,7 +294,82 @@ function ActivosContent() {
             tone="text-amber-600"
             hint="por vincular"
           />
+          <StatCard
+            label="Garantías por vencer"
+            value={stats?.warrantyExpiringSoon ?? 0}
+            tone="text-amber-600"
+            hint={`${WARRANTY_SOON_DAYS} días`}
+            onClick={() => setParams({ warranty: String(WARRANTY_SOON_DAYS), page: null })}
+          />
+          <StatCard
+            label={diskCategory ? `Discos con vida ≤ ${LIFE_CRITICAL_PCT}%` : 'Componentes críticos'}
+            value={criticalComponents}
+            tone="text-red-600"
+            hint={diskCategory ? 'por reemplazar' : `con vida ≤ ${LIFE_CRITICAL_PCT}%`}
+            onClick={() =>
+              setParams({
+                category: diskCategory?.id ?? 'all',
+                life: String(LIFE_CRITICAL_PCT),
+                page: null,
+              })
+            }
+          />
         </div>
+
+        {/* Alertas de vida útil y garantía (misma consulta que el aviso diario) */}
+        {alerts.length > 0 && (
+          <Card>
+            <CardContent className="space-y-3 p-6">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold">Alertas de vida útil y garantía</h2>
+                <p className="text-xs text-muted-foreground">
+                  {alerts.length} equipo(s) con vida útil ≤ {LIFE_CRITICAL_PCT}% o garantía por
+                  vencer/vencida
+                </p>
+              </div>
+              <ul className="divide-y divide-border rounded-md border border-border">
+                {alerts.slice(0, ALERT_ROWS).map((a) => (
+                  <li
+                    key={a.id}
+                    className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 p-3"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        href={`/admin/activos/${a.id}`}
+                        className="text-sm font-medium text-primary hover:underline"
+                      >
+                        <span className="font-mono tracking-wider">
+                          {a.assetTag ?? 'Sin etiqueta'}
+                        </span>{' '}
+                        · {a.name}
+                      </Link>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {a.categoryName}
+                        {a.parentAssetId
+                          ? ` · en ${a.parentAssetTag ?? a.parentAssetName ?? 'equipo'}`
+                          : a.branchName
+                            ? ` · ${a.branchName}`
+                            : ''}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      {a.conditions.includes('life') ? <LifeBar pct={a.lifeRemainingPct} /> : null}
+                      {a.conditions.includes('warranty') ? (
+                        <WarrantyBadge status={a.warrantyStatus} until={a.warrantyUntil} />
+                      ) : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              {alerts.length > ALERT_ROWS ? (
+                <p className="text-xs text-muted-foreground">
+                  …y {alerts.length - ALERT_ROWS} más. Usa las tarjetas de arriba para filtrar el
+                  inventario.
+                </p>
+              ) : null}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Filtros y acciones */}
         <Card>
@@ -366,8 +477,18 @@ function ActivosContent() {
               >
                 En reparación ({stats?.inRepair ?? 0})
               </FilterChip>
-              {(search || status !== 'all' || category !== 'all' || branch !== 'all' ||
-                life !== 'all' || invoice !== 'all') && (
+              <FilterChip
+                active={warranty !== 'all'}
+                onClick={() =>
+                  setParams({
+                    warranty: warranty !== 'all' ? 'all' : String(WARRANTY_SOON_DAYS),
+                    page: null,
+                  })
+                }
+              >
+                Garantía por vencer ({stats?.warrantyExpiringSoon ?? 0})
+              </FilterChip>
+              {hasFilters && (
                 <button
                   type="button"
                   className="text-xs text-primary underline"
@@ -380,6 +501,7 @@ function ActivosContent() {
                       branch: 'all',
                       life: 'all',
                       invoice: 'all',
+                      warranty: 'all',
                       page: null,
                     });
                   }}
@@ -520,19 +642,38 @@ function StatCard({
   value,
   tone,
   hint,
+  onClick,
 }: {
   label: string;
   value: number;
   tone?: string;
   hint?: string;
+  /** Con onClick la tarjeta es un botón que aplica el filtro correspondiente. */
+  onClick?: () => void;
 }) {
+  const body = (
+    <>
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className={`text-2xl font-bold ${tone ?? ''}`}>{value.toLocaleString('es-MX')}</p>
+      {hint ? <p className="text-[11px] text-muted-foreground">{hint}</p> : null}
+    </>
+  );
   return (
-    <Card>
-      <CardContent className="p-4">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className={`text-2xl font-bold ${tone ?? ''}`}>{value.toLocaleString('es-MX')}</p>
-        {hint ? <p className="text-[11px] text-muted-foreground">{hint}</p> : null}
-      </CardContent>
+    <Card className={onClick ? 'transition-colors hover:bg-muted/40' : undefined}>
+      {onClick ? (
+        <CardContent className="p-0">
+          <button
+            type="button"
+            onClick={onClick}
+            className="w-full p-4 text-left"
+            aria-label={`${label}: filtrar el inventario`}
+          >
+            {body}
+          </button>
+        </CardContent>
+      ) : (
+        <CardContent className="p-4">{body}</CardContent>
+      )}
     </Card>
   );
 }
