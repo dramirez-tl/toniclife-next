@@ -941,14 +941,36 @@ export const esCampanaHija = (list: readonly CampaignListItem[], key: string | n
   !!key && !!list.find((c) => c.key === key)?.padre;
 
 /**
- * Opciones del selector: las principales y, si la seleccionada es una hija
- * (abierta por enlace), también ella, para que el selector la muestre.
+ * Campaña a mostrar: la pedida en la URL si existe; si no, la primera
+ * principal (el API las manda primero) o, sin principales, la primera.
+ */
+export function campanaSeleccionada(
+  list: readonly CampaignListItem[],
+  pedida: string | null | undefined,
+): string | null {
+  if (pedida && list.some((c) => c.key === pedida)) return pedida;
+  for (const c of list) if (c.padre == null) return c.key;
+  return list.length ? list[0].key : null;
+}
+
+/**
+ * Opciones del selector: cada campaña principal seguida de sus hijas (la ola
+ * extra, marcada como complementaria). Una hija cuyo padre no está en la
+ * lista, o la seleccionada por enlace, se agrega al final para que el
+ * selector siempre pueda mostrarla.
  */
 export function opcionesSelector(
   list: readonly CampaignListItem[],
   seleccionada: string | null | undefined,
 ): CampaignListItem[] {
-  const out = campanasPrincipales(list);
-  const hija = seleccionada ? list.find((c) => c.key === seleccionada && c.padre != null) : null;
-  return hija ? [...out, hija] : out;
+  const out: CampaignListItem[] = [];
+  for (const c of campanasPrincipales(list)) {
+    out.push(c);
+    for (const h of list) if (h.padre === c.key) out.push(h);
+  }
+  if (seleccionada && !out.some((c) => c.key === seleccionada)) {
+    const sel = list.find((c) => c.key === seleccionada);
+    if (sel) out.push(sel);
+  }
+  return out;
 }

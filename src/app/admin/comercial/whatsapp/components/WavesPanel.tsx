@@ -31,7 +31,8 @@ const TRAMO_CLASS: Record<TramoId, string> = {
 
 const LEYENDA: TramoId[] = ['leidos', 'entregados', 'pendientes', 'sin_whatsapp', 'limite', 'otros'];
 
-function OlaCard({ ola }: { ola: CampaignOla }) {
+/** Tarjeta de una ola (también la usa ExtraWavePanel para la entrega de la ola extra). */
+export function OlaCard({ ola }: { ola: CampaignOla }) {
   const tone = toneOla(ola.estado);
   const programada = ola.intentos == null;
   const tramos = programada ? [] : tramosOlaSeguro(ola);

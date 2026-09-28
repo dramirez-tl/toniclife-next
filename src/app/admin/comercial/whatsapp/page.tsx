@@ -12,8 +12,16 @@
 // ola, grupo y page en Personas). Los valores inválidos se normalizan con
 // router.replace. El tablero se consulta cada 2 min solo mientras la campaña
 // está activa y la pestaña del navegador está visible.
+//
+// El selector lista las campañas principales y, debajo de cada una, sus hijas
+// (la ola extra: otra población con su propio control, marcada como
+// complementaria); una hija también se abre por enlace
+// (?campana=cierre-p73-extra) y su tablero y su pestaña Personas funcionan
+// igual. Orden del tablero: cifras clave → veredicto oficial → atribución →
+// ¿está funcionando? → ola extra → ventas del cierre → ¿pasaron la voz? →
+// envíos por ola → segmentos → gráficas → respuestas/sucursales → pie.
 
-import { Suspense, useCallback, useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ChatBubbleLeftRightIcon,
@@ -42,17 +50,22 @@ import {
   normalizarParams,
   type WhatsAppParams,
 } from '@/lib/whatsapp-campaign/format';
+import { campanaSeleccionada, opcionesSelector } from '@/lib/whatsapp-campaign/reportes';
 import { AttributionPanel } from './components/AttributionPanel';
 import { BranchesTable } from './components/BranchesTable';
 import { CampaignHeader } from './components/CampaignHeader';
 import { DashboardFooter } from './components/DashboardFooter';
 import { EffectPanel } from './components/EffectPanel';
 import { EvolutionChart } from './components/EvolutionChart';
+import { ExtraWavePanel } from './components/ExtraWavePanel';
 import { HourlyChart } from './components/HourlyChart';
 import { KpiTiles } from './components/KpiTiles';
 import { PeopleTab } from './components/PeopleTab';
 import { RepliesPanel } from './components/RepliesPanel';
 import { SegmentsTable } from './components/SegmentsTable';
+import { SpilloverPanel } from './components/SpilloverPanel';
+import { VentasCierresPanel } from './components/VentasCierresPanel';
+import { VerdictPanel } from './components/VerdictPanel';
 import { WavesPanel } from './components/WavesPanel';
 
 const ERROR_MESSAGES: ApiErrorMessages = {
@@ -190,20 +203,18 @@ function WhatsAppContent() {
 
   const campaigns = useWhatsAppCampaigns();
   const list = campaigns.data ?? [];
-  const selected =
-    (params.campana && list.some((c) => c.key === params.campana) ? params.campana : null) ??
-    list[0]?.key ??
-    null;
+  // Sin ?campana, la primera campaña principal (el API las manda primero).
+  const selected = campanaSeleccionada(list, params.campana);
+  const opciones = opcionesSelector(list, selected);
 
   const dashboard = useWhatsAppCampaignDashboard(selected);
 
-  const navigate = useCallback(
-    (next: Partial<Omit<WhatsAppParams, 'invalido'>>) => {
-      const merged = { ...params, campana: selected, ...next };
-      router.replace(`${WHATSAPP_ADMIN_PATH}${construirQuery(merged)}`, { scroll: false });
-    },
-    [params, selected, router],
-  );
+  // Sin useCallback: el React Compiler lo memoiza solo (con la memoización
+  // manual se quejaba de que no podía conservarla).
+  const navigate = (next: Partial<Omit<WhatsAppParams, 'invalido'>>) => {
+    const merged = { ...params, campana: selected, ...next };
+    router.replace(`${WHATSAPP_ADMIN_PATH}${construirQuery(merged)}`, { scroll: false });
+  };
 
   // URL canónica: parámetros inválidos, campaña ausente o inexistente.
   const canonical = `${WHATSAPP_ADMIN_PATH}${construirQuery({ ...params, campana: selected })}`;
@@ -260,7 +271,7 @@ function WhatsAppContent() {
   return (
     <PageShell>
       <div className="grid gap-5">
-        {list.length > 1 && (
+        {opciones.length > 1 && (
           <label className="grid max-w-md gap-1 text-xs font-medium text-muted-foreground">
             Campaña
             <Select
@@ -281,9 +292,11 @@ function WhatsAppContent() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {list.map((c) => (
+                {opciones.map((c) => (
                   <SelectItem key={c.key} value={c.key}>
+                    {c.padre ? '↳ ' : ''}
                     {c.nombre} · {c.periodo.nombre}
+                    {c.padre ? ' (ola complementaria)' : ''}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -329,8 +342,15 @@ function WhatsAppContent() {
                 ) : (
                   <div className="grid gap-5">
                     <KpiTiles data={data} />
+                    <VerdictPanel data={data} />
                     <AttributionPanel data={data} />
                     <EffectPanel data={data} />
+                    <ExtraWavePanel data={data} />
+                    <VentasCierresPanel
+                      ventas={data.ventas_cierres}
+                      nombresSegmentos={Object.fromEntries(data.segmentos.map((s) => [s.id, s.nombre]))}
+                    />
+                    <SpilloverPanel derrame={data.derrame} pctControl={data.campana.pct_control || null} />
                     <WavesPanel olas={data.olas} />
                     <SegmentsTable data={data} />
                     <div className="grid gap-5 lg:grid-cols-2">

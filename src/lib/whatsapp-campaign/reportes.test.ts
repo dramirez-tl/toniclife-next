@@ -9,6 +9,7 @@ import {
   adaptarDerrame,
   adaptarImpacto,
   adaptarVentasCierres,
+  campanaSeleccionada,
   campanasPrincipales,
   claveVeredictoDerrame,
   comparacionesResumen,
@@ -495,13 +496,26 @@ describe('campañas hijas (ola extra)', () => {
     expect(adaptarComplementos(null)).toEqual([]);
   });
 
-  it('el selector muestra solo las principales, más la hija si está abierta por enlace', () => {
+  it('la campaña seleccionada: la de la URL si existe; si no, la primera principal', () => {
+    expect(campanaSeleccionada(lista, 'cierre-p73-extra')).toBe('cierre-p73-extra');
+    expect(campanaSeleccionada(lista, 'no-existe')).toBe('cierre-p73');
+    expect(campanaSeleccionada(lista, null)).toBe('cierre-p73');
+    expect(campanaSeleccionada([lista[1], lista[0]], null)).toBe('cierre-p73');
+    expect(campanaSeleccionada([lista[1]], null)).toBe('cierre-p73-extra');
+    expect(campanaSeleccionada([], null)).toBeNull();
+  });
+
+  it('el selector lista cada principal seguida de sus hijas; una hija huérfana solo si está abierta', () => {
     expect(campanasPrincipales(lista).map((c) => c.key)).toEqual(['cierre-p73']);
     expect(esCampanaHija(lista, 'cierre-p73-extra')).toBe(true);
     expect(esCampanaHija(lista, 'cierre-p73')).toBe(false);
     expect(esCampanaHija(lista, null)).toBe(false);
-    expect(opcionesSelector(lista, 'cierre-p73').map((c) => c.key)).toEqual(['cierre-p73']);
-    expect(opcionesSelector(lista, 'cierre-p73-extra').map((c) => c.key)).toEqual(['cierre-p73', 'cierre-p73-extra']);
+    expect(opcionesSelector(lista, 'cierre-p73').map((c) => c.key)).toEqual(['cierre-p73', 'cierre-p73-extra']);
+    // La hija va debajo de su padre aunque el API la mande antes.
+    expect(opcionesSelector([lista[1], lista[0]], null).map((c) => c.key)).toEqual(['cierre-p73', 'cierre-p73-extra']);
+    const huerfana = { ...lista[1], padre: 'otra' };
+    expect(opcionesSelector([lista[0], huerfana], null).map((c) => c.key)).toEqual(['cierre-p73']);
+    expect(opcionesSelector([lista[0], huerfana], 'cierre-p73-extra').map((c) => c.key)).toEqual(['cierre-p73', 'cierre-p73-extra']);
   });
 });
 
