@@ -19,7 +19,9 @@ import type {
   ApplyAdjustmentDto,
   UpdateStockSettingsDto,
   MovementQueryDto,
-  CreateMovementDto, ApplyTransferPayload } from '@/types/inventory';
+  CreateMovementDto, ApplyTransferPayload,
+  EnableBranchCatalogDto } from '@/types/inventory';
+import { productKeys } from '@/hooks/useProducts';
 
 // ================================
 // QUERY KEYS
@@ -68,6 +70,11 @@ export const inventoryKeys = {
     [...inventoryKeys.transfers(), 'stats', query] as const,
   adjustmentStats: (query?: AdjustmentQueryDto) =>
     [...inventoryKeys.adjustments(), 'stats', query] as const,
+  // Catálogo POS por sucursal
+  branchCatalogCoverage: () => [...inventoryKeys.all, 'branch-catalog-coverage'] as const,
+  branchCatalogPreviews: () => [...inventoryKeys.all, 'branch-catalog-preview'] as const,
+  branchCatalogPreview: (branchId: string, dto: EnableBranchCatalogDto | null) =>
+    [...inventoryKeys.branchCatalogPreviews(), branchId, dto] as const,
 };
 
 // ================================
@@ -511,6 +518,53 @@ export function useAdjustmentStats(query: AdjustmentQueryDto = {}) {
     queryKey: inventoryKeys.adjustmentStats(query),
     queryFn: () => inventoryService.getAdjustmentStats(query),
     staleTime: 30 * 1000,
+  });
+}
+
+// ================================
+// CATÁLOGO POS POR SUCURSAL
+// ================================
+
+/** Cobertura del catálogo POS por sucursal (el API la cachea 60 s). */
+export function useBranchCatalogCoverage(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: inventoryKeys.branchCatalogCoverage(),
+    queryFn: () => inventoryService.getBranchCatalogCoverage(),
+    enabled: options?.enabled ?? true,
+    staleTime: 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * Vista previa de "Habilitar catálogo" (POST con dryRun: true, no escribe).
+ * Va como query para que cada cambio de parámetros traiga su propio resultado
+ * y no se mezclen respuestas viejas. Sin reintentos: un 400 es de validación.
+ */
+export function useBranchCatalogPreview(branchId: string | null, dto: EnableBranchCatalogDto | null) {
+  return useQuery({
+    queryKey: inventoryKeys.branchCatalogPreview(branchId ?? '', dto),
+    queryFn: () => inventoryService.enableBranchCatalog(branchId!, { ...dto!, dryRun: true }),
+    enabled: !!branchId && !!dto,
+    staleTime: 15 * 1000,
+    gcTime: 60 * 1000,
+    retry: false,
+  });
+}
+
+/** Habilita el catálogo. Solo con `dryRun: false` cambia algo (y ahí invalida). */
+export function useEnableBranchCatalog() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ branchId, dto }: { branchId: string; dto: EnableBranchCatalogDto }) =>
+      inventoryService.enableBranchCatalog(branchId, dto),
+    onSuccess: (_, { dto }) => {
+      if (dto.dryRun !== false) return; // vista previa: no cambió nada
+      queryClient.invalidateQueries({ queryKey: inventoryKeys.branchCatalogCoverage() });
+      queryClient.invalidateQueries({ queryKey: inventoryKeys.branchCatalogPreviews() });
+      queryClient.invalidateQueries({ queryKey: inventoryKeys.stock() });
+      queryClient.invalidateQueries({ queryKey: productKeys.all });
+    },
   });
 }
 

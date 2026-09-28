@@ -682,3 +682,110 @@ export interface BranchStockStats {
   outOfStock: number;
   totalAvailable: number;
 }
+
+// ================================
+// CATÁLOGO POS POR SUCURSAL
+// Espejo de toniclife-api/src/modules/inventory/dto/branch-catalog.dto.ts.
+// El POS de una sucursal SOLO muestra los productos con fila en stock_levels
+// para esa sucursal; estos tipos describen la cobertura y la habilitación
+// (siempre con existencia 0).
+// ================================
+
+export const BRANCH_CATALOG_ENABLE_MODES = ['eligible', 'copy_from_branch', 'products'] as const;
+export type BranchCatalogEnableMode = (typeof BRANCH_CATALOG_ENABLE_MODES)[number];
+
+/** Por qué un producto NO se habilita en la sucursal (prioridad en ese orden). */
+export type BranchCatalogSkipReason =
+  | 'unknown'
+  | 'inactive'
+  | 'not_pos'
+  | 'service'
+  | 'dynamic_kit'
+  | 'no_price_for_country';
+
+/** Tope de ids por petición en modo `products` (BRANCH_CATALOG_MAX_PRODUCT_IDS del API). */
+export const BRANCH_CATALOG_MAX_PRODUCT_IDS = 500;
+
+export interface BranchCatalogCoverageRow {
+  branchId: string;
+  code: string;
+  name: string;
+  /** countries.code de la sucursal; null si no tiene país (elegibles 0). */
+  countryCode: string | null;
+  isPosEnabled: boolean;
+  isWarehouse: boolean;
+  /** ISO 8601 */
+  createdAt: string;
+  /** Productos elegibles para el país de la sucursal. */
+  eligibleCount: number;
+  /** Elegibles con fila en stock_levels (activa o inactiva). */
+  presentCount: number;
+  /** eligibleCount - presentCount */
+  missingCount: number;
+  /** Elegibles con fila activa y existencia > 0. */
+  withStockCount: number;
+}
+
+export interface BranchCatalogCoverageResponse {
+  data: BranchCatalogCoverageRow[];
+  /** ISO 8601 del cálculo (el API lo cachea 60 s). */
+  generatedAt: string;
+}
+
+export interface EnableBranchCatalogDto {
+  mode: BranchCatalogEnableMode;
+  /** Obligatorio en copy_from_branch; distinta de la sucursal destino. */
+  sourceBranchId?: string;
+  /** Obligatorio en products; 1..500 ids únicos. */
+  productIds?: string[];
+  /** true (por defecto) = solo vista previa. SOLO `false` escribe. */
+  dryRun?: boolean;
+}
+
+export interface BranchCatalogSkippedSample {
+  productId: string;
+  /** null cuando la razón es unknown. */
+  code: string | null;
+  name: string | null;
+  reason: BranchCatalogSkipReason;
+}
+
+export interface BranchCatalogSkipped {
+  total: number;
+  /** Solo las razones presentes. */
+  byReason: Partial<Record<BranchCatalogSkipReason, number>>;
+  /** Hasta 20 productos omitidos. */
+  sample: BranchCatalogSkippedSample[];
+}
+
+export interface BranchCatalogEnableBranch {
+  id: string;
+  code: string;
+  name: string;
+  countryCode: string | null;
+  isPosEnabled: boolean;
+  isWarehouse: boolean;
+  isActive: boolean;
+}
+
+export interface BranchCatalogEnableResult {
+  branch: BranchCatalogEnableBranch;
+  mode: BranchCatalogEnableMode;
+  sourceBranchId: string | null;
+  dryRun: boolean;
+  /** Ids pedidos (deduplicados) en modo products; null en los demás. */
+  requested: number | null;
+  /** Candidatos que cumplen la regla = alreadyPresent + toCreate. */
+  eligible: number;
+  /** Elegibles que ya tenían fila (activa o inactiva; no se recrean). */
+  alreadyPresent: number;
+  /** De los ya presentes, cuántas filas están inactivas. */
+  inactiveRows: number;
+  /** Elegibles sin fila: las que se crearían / se crearon. */
+  toCreate: number;
+  /** Filas creadas (siempre 0 en vista previa). */
+  created: number;
+  skipped: BranchCatalogSkipped;
+  /** Hoy solo 'warehouse' (la sucursal es almacén; la operación sigue). */
+  warnings: string[];
+}

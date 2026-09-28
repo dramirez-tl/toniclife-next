@@ -68,6 +68,9 @@ const navigation: NavItem[] = [
       { name: 'Salidas', href: '/admin/inventario/salidas' },
       { name: 'Traspasos', href: '/admin/inventario/traspasos' },
       { name: 'Ajustes', href: '/admin/inventario/ajustes' },
+      // Qué productos ve el POS de cada sucursal (filas de stock_levels) y
+      // habilitar los que faltan en sucursales nuevas.
+      { name: 'Catálogo por sucursal', href: '/admin/inventario/catalogo-sucursal' },
     ],
   },
   {

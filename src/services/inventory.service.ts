@@ -40,6 +40,9 @@ import type {
   ProductLotDto,
   InventoryStats,
   BranchStockStats,
+  BranchCatalogCoverageResponse,
+  BranchCatalogEnableResult,
+  EnableBranchCatalogDto,
 } from '@/types/inventory';
 
 /** Triggers a browser download for a CSV blob. */
@@ -122,6 +125,25 @@ class InventoryService {
       `/inventory/stock/${branchId}/${productId}/settings`,
       dto,
     );
+    return response.data;
+  }
+
+  // ================================
+  // CATÁLOGO POS POR SUCURSAL
+  // ================================
+
+  /** Cobertura del catálogo POS por sucursal activa con POS (el API la cachea 60 s). */
+  async getBranchCatalogCoverage(): Promise<BranchCatalogCoverageResponse> {
+    const response = await api.get<BranchCatalogCoverageResponse>('/inventory/branches/catalog-coverage');
+    return response.data;
+  }
+
+  /**
+   * Habilita el catálogo POS de una sucursal (crea filas de stock_levels en 0).
+   * Con `dryRun` distinto de `false` es solo vista previa: no escribe nada.
+   */
+  async enableBranchCatalog(branchId: string, dto: EnableBranchCatalogDto): Promise<BranchCatalogEnableResult> {
+    const response = await api.post<BranchCatalogEnableResult>(`/inventory/branches/${branchId}/catalog/enable`, dto);
     return response.data;
   }
 
