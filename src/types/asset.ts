@@ -3,6 +3,8 @@
 // NO confundir con el inventario de producto de venta (src/types/inventory.ts):
 // son dominios distintos.
 
+import type { WarrantyStatus } from '@/lib/assets/warranty';
+
 // ================================
 // ENUMS Y ETIQUETAS
 // ================================
@@ -409,8 +411,12 @@ export interface Asset {
   departmentName: string | null;
   locationId: string | null;
   locationName: string | null;
+  /** Equipo donde va instalado (el NVR de un disco duro). */
   parentAssetId: string | null;
   parentAssetTag: string | null;
+  parentAssetName: string | null;
+  /** Componentes activos que cuelgan de este equipo. */
+  componentsCount: number;
   notes: string | null;
   retiredAt: string | null;
   retirementReason: string | null;
@@ -465,12 +471,39 @@ export interface AssetMaintenance {
   createdAt: string;
 }
 
-export interface AssetChild {
-  id: string;
-  assetTag: string;
-  name: string;
-  status: AssetStatus;
+/** Subconjunto de características que el API devuelve por componente (si existen). */
+export interface AssetComponentSpecs {
+  capacidad_tb?: number | string;
+  tipo?: string;
+  interfaz?: string;
+  bahia?: string;
+  horas_encendido?: number | string;
+  ultima_revision_smart?: string;
 }
+
+/**
+ * Componente instalado en un equipo (GET /it-assets/:id/components y
+ * `children` del detalle). Solo hijos activos.
+ */
+export interface AssetComponent {
+  id: string;
+  assetTag: string | null;
+  name: string;
+  categoryName: string;
+  categoryCode: string;
+  serialNumber: string | null;
+  brand: string | null;
+  model: string | null;
+  status: AssetStatus;
+  condition: AssetCondition;
+  lifeRemainingPct: number | null;
+  warrantyUntil: string | null;
+  warrantyStatus: WarrantyStatus;
+  specs: AssetComponentSpecs;
+}
+
+/** @deprecated Usa AssetComponent (superset compatible). */
+export type AssetChild = AssetComponent;
 
 export interface AssetDetail extends Asset {
   specTemplate: SpecFieldDef[];
@@ -479,7 +512,52 @@ export interface AssetDetail extends Asset {
   currentAssignment: AssetAssignment | null;
   documents: AssetDocument[];
   maintenance: AssetMaintenance[];
-  children: AssetChild[];
+  children: AssetComponent[];
+}
+
+/** Resultado de GET /it-assets/search (selector de equipo padre). */
+export interface AssetSearchHit {
+  id: string;
+  assetTag: string | null;
+  name: string;
+  brand: string | null;
+  model: string | null;
+  serialNumber: string | null;
+  branchId: string | null;
+  locationId: string | null;
+  branchName: string | null;
+  categoryName: string;
+  categoryCode: string;
+}
+
+export interface AssetSearchParams {
+  /** 1..80 caracteres; busca en etiqueta, nombre, serie, marca y modelo. */
+  q: string;
+  /** 1..50 (default 20). */
+  limit?: number;
+  /** El activo que se edita: nunca se ofrece a sí mismo. */
+  excludeId?: string;
+  /** Códigos en MAYÚSCULAS separados por coma, ej. 'DVR,SERVIDOR'. */
+  categoryCodes?: string;
+}
+
+/** Fila de GET /it-assets/alerts: vida útil ≤ 20 % o garantía por vencer/vencida. */
+export interface ItAssetAlert {
+  id: string;
+  assetTag: string | null;
+  name: string;
+  categoryName: string;
+  categoryCode: string;
+  branchName: string | null;
+  parentAssetId: string | null;
+  parentAssetTag: string | null;
+  parentAssetName: string | null;
+  lifeRemainingPct: number | null;
+  warrantyUntil: string | null;
+  warrantyStatus: WarrantyStatus;
+  /** Días para que venza la garantía (negativo = ya venció). */
+  daysToWarranty: number | null;
+  conditions: ('life' | 'warranty')[];
 }
 
 export interface CreateAssetDto {
@@ -633,6 +711,12 @@ export interface CreateMaintenanceDto {
   currencyCode?: string | null;
   nextDueDate?: string | null;
   setAssetStatus?: 'in_repair' | 'in_warranty' | 'available' | 'assigned';
+  /**
+   * Características del activo a actualizar junto con el registro (ej.
+   * horas_encendido / ultima_revision_smart de un disco). El API las fusiona
+   * con las actuales y las valida contra la plantilla de la categoría.
+   */
+  specUpdates?: SpecValues;
 }
 
 export type UpdateMaintenanceDto = Partial<CreateMaintenanceDto>;

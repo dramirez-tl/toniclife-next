@@ -15,6 +15,7 @@ import type {
   AssetPurchaseQueryParams,
   AssetLabelQueryParams,
   AssetQueryParams,
+  AssetSearchParams,
   AssignAssetDto,
   BulkReturnDto,
   CreateAssetCategoryDto,
@@ -47,6 +48,9 @@ export const assetKeys = {
   stats: () => [...assetKeys.all, 'stats'] as const,
   byTag: (tag: string) => [...assetKeys.all, 'by-tag', tag] as const,
   byUser: (userId: string) => [...assetKeys.all, 'by-user', userId] as const,
+  search: (params: AssetSearchParams) => [...assetKeys.all, 'search', params] as const,
+  components: (id: string) => [...assetKeys.all, 'components', id] as const,
+  alerts: () => [...assetKeys.all, 'alerts'] as const,
 };
 
 export const assetCategoryKeys = {
@@ -114,12 +118,13 @@ export function useAssetsByUser(userId: string | undefined) {
   });
 }
 
-/** Invalida listas + estadísticas (y opcionalmente el detalle de un activo). */
+/** Invalida listas + estadísticas + alertas (y opcionalmente el detalle de un activo). */
 function useInvalidateAssets() {
   const queryClient = useQueryClient();
   return (id?: string) => {
     void queryClient.invalidateQueries({ queryKey: assetKeys.lists() });
     void queryClient.invalidateQueries({ queryKey: assetKeys.stats() });
+    void queryClient.invalidateQueries({ queryKey: assetKeys.alerts() });
     if (id) void queryClient.invalidateQueries({ queryKey: assetKeys.detail(id) });
   };
 }
@@ -128,16 +133,26 @@ export function useCreateAsset() {
   const invalidate = useInvalidateAssets();
   return useMutation({
     mutationFn: (dto: CreateAssetDto) => assetsService.createAsset(dto),
-    onSuccess: () => invalidate(),
+    onSuccess: (data) => {
+      invalidate();
+      // El equipo padre lista sus componentes: se refresca su detalle.
+      if (data.parentAssetId) invalidate(data.parentAssetId);
+    },
   });
 }
 
 export function useUpdateAsset() {
+  const queryClient = useQueryClient();
   const invalidate = useInvalidateAssets();
   return useMutation({
     mutationFn: ({ id, dto }: { id: string; dto: UpdateAssetDto }) =>
       assetsService.updateAsset(id, dto),
-    onSuccess: (_data, { id }) => invalidate(id),
+    onSuccess: () => {
+      invalidate();
+      // Pudo cambiar de equipo padre: el anterior y el nuevo listan componentes,
+      // y el anterior no se conoce aquí. Se invalidan todos los detalles.
+      void queryClient.invalidateQueries({ queryKey: assetKeys.details() });
+    },
   });
 }
 
@@ -155,6 +170,59 @@ export function useRestoreAsset() {
   return useMutation({
     mutationFn: (id: string) => assetsService.restoreAsset(id),
     onSuccess: (_data, id) => invalidate(id),
+  });
+}
+
+// ================================
+// COMPONENTES (discos de un NVR, cargador de una laptop…)
+// ================================
+
+/** Búsqueda del selector de equipo padre; `enabled` la apaga con menos de 2 letras. */
+export function useAssetSearch(params: AssetSearchParams, enabled = true) {
+  return useQuery({
+    queryKey: assetKeys.search(params),
+    queryFn: () => assetsService.searchAssets(params),
+    enabled: enabled && params.q.trim().length > 0,
+    placeholderData: keepPreviousData,
+    staleTime: 30 * 1000,
+    retry: false,
+  });
+}
+
+export function useAssetComponents(id: string | undefined) {
+  return useQuery({
+    queryKey: assetKeys.components(id ?? ''),
+    queryFn: () => assetsService.getAssetComponents(id as string),
+    enabled: !!id,
+    staleTime: 30 * 1000,
+  });
+}
+
+/** Alertas de vida útil/garantía para las tarjetas del panel. */
+export function useAssetAlerts() {
+  return useQuery({
+    queryKey: assetKeys.alerts(),
+    queryFn: () => assetsService.getAssetAlerts(),
+    staleTime: 60 * 1000,
+  });
+}
+
+/**
+ * Vincular/desvincular un componente. Se invalidan TODOS los detalles: cambian
+ * el hijo, el padre nuevo y el padre anterior (que aquí no se conoce).
+ */
+export function useSetAssetParent() {
+  const queryClient = useQueryClient();
+  const invalidate = useInvalidateAssets();
+  return useMutation({
+    mutationFn: ({ id, parentAssetId }: { id: string; parentAssetId: string | null }) =>
+      assetsService.setAssetParent(id, parentAssetId),
+    onSuccess: () => {
+      invalidate();
+      void queryClient.invalidateQueries({ queryKey: assetKeys.details() });
+      void queryClient.invalidateQueries({ queryKey: [...assetKeys.all, 'components'] });
+      void queryClient.invalidateQueries({ queryKey: assetKeys.alerts() });
+    },
   });
 }
 

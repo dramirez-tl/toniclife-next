@@ -7,6 +7,7 @@ import type {
   Asset,
   AssetCategory,
   AssetCategoryQueryParams,
+  AssetComponent,
   AssetDetail,
   AssetDocument,
   AssetImportPreview,
@@ -30,6 +31,8 @@ import type {
   AssetPurchaseListResponse,
   AssetPurchaseQueryParams,
   AssetQueryParams,
+  AssetSearchHit,
+  AssetSearchParams,
   AssetStats,
   AssignAssetDto,
   BulkReturnDto,
@@ -39,6 +42,7 @@ import type {
   CreateAssetPurchaseDto,
   CreateMaintenanceDto,
   DeleteResult,
+  ItAssetAlert,
   PurchaseFileKind,
   RetireAssetDto,
   ReturnAssetDto,
@@ -98,6 +102,33 @@ class AssetsService {
 
   async restoreAsset(id: string): Promise<AssetDetail> {
     const { data } = await api.post<AssetDetail>(`/it-assets/${id}/restore`);
+    return data;
+  }
+
+  // ================================
+  // COMPONENTES (discos de un NVR, cargador de una laptop…)
+  // ================================
+
+  /** Selector de equipo padre: solo activos vivos de categorías que NO son de insumo. */
+  async searchAssets(params: AssetSearchParams): Promise<AssetSearchHit[]> {
+    const { data } = await api.get<AssetSearchHit[]>('/it-assets/search', { params });
+    return data;
+  }
+
+  async getAssetComponents(id: string): Promise<AssetComponent[]> {
+    const { data } = await api.get<AssetComponent[]>(`/it-assets/${id}/components`);
+    return data;
+  }
+
+  /** null = desvincular. Al vincular hereda sucursal/ubicación del padre si el hijo no tenía. */
+  async setAssetParent(id: string, parentAssetId: string | null): Promise<AssetDetail> {
+    const { data } = await api.patch<AssetDetail>(`/it-assets/${id}/parent`, { parentAssetId });
+    return data;
+  }
+
+  /** Vida útil ≤ 20 % o garantía por vencer/vencida (misma consulta que el cron diario). */
+  async getAssetAlerts(): Promise<ItAssetAlert[]> {
+    const { data } = await api.get<ItAssetAlert[]>('/it-assets/alerts');
     return data;
   }
 
