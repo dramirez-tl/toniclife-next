@@ -54,11 +54,16 @@ export function defaultComponentCategoryCode(
 
 /**
  * ¿El mensaje del API es de las guardas del vínculo padre ↔ componente?
- * (padre inexistente/de baja, insumo, ciclo, niveles). Esos van bajo el campo
+ * (padre inexistente/de baja, hijo de baja, insumo, ciclo, niveles). Esos van bajo el campo
  * "Instalado en", no solo en el toast.
  */
 export function isParentLinkError(message: string | null | undefined): boolean {
   if (!message) return false;
   const m = message.toLowerCase();
-  return m.includes('padre') || m.includes('ciclo') || m.includes('niveles');
+  return (
+    m.includes('padre') ||
+    m.includes('ciclo') ||
+    m.includes('niveles') ||
+    m.includes('vincularlo')
+  );
 }

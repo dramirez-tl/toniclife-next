@@ -415,6 +415,8 @@ export interface Asset {
   parentAssetId: string | null;
   parentAssetTag: string | null;
   parentAssetName: string | null;
+  /** Sucursal del equipo padre (solo la trae el detalle; null en el listado). */
+  parentBranchName?: string | null;
   /** Componentes activos que cuelgan de este equipo. */
   componentsCount: number;
   notes: string | null;

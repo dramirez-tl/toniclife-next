@@ -56,12 +56,14 @@ describe('mensajes de guarda del vínculo padre ↔ componente', () => {
   const API_MESSAGES = [
     'El equipo padre no existe o está dado de baja',
     'Un activo no puede ser su propio activo padre',
+    'El activo está dado de baja; restáuralo antes de vincularlo a un equipo',
+    'El árbol de componentes del equipo padre es inconsistente (ciclo); avisa a Sistemas',
     'La categoría del equipo padre es de insumos: no puede tener componentes',
     'Ese vínculo crearía un ciclo (el equipo padre ya cuelga de este activo)',
-    'Solo se permiten 3 niveles de componentes (equipo → componente → subcomponente)',
+    'Solo se permiten 3 niveles de componentes debajo del equipo (equipo → componente → subcomponente → pieza)',
   ];
 
-  it('reconoce los 5 mensajes del API', () => {
+  it('reconoce los 7 mensajes del API', () => {
     for (const m of API_MESSAGES) expect(isParentLinkError(m)).toBe(true);
   });
 

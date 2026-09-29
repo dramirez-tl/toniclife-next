@@ -271,7 +271,7 @@ export function AssetFormModal({
           name: a.parentAssetName ?? '',
           branchId: null,
           locationId: null,
-          branchName: null,
+          branchName: a.parentBranchName ?? null,
           categoryCode: null,
         }
       : null,

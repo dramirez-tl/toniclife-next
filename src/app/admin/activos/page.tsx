@@ -305,13 +305,22 @@ function ActivosContent() {
             label={diskCategory ? `Discos con vida ≤ ${LIFE_CRITICAL_PCT}%` : 'Componentes críticos'}
             value={criticalComponents}
             tone="text-red-600"
-            hint={diskCategory ? 'por reemplazar' : `con vida ≤ ${LIFE_CRITICAL_PCT}%`}
-            onClick={() =>
-              setParams({
-                category: diskCategory?.id ?? 'all',
-                life: String(LIFE_CRITICAL_PCT),
-                page: null,
-              })
+            hint={
+              diskCategory
+                ? 'por reemplazar'
+                : `con vida ≤ ${LIFE_CRITICAL_PCT}% (detalle en Alertas, abajo)`
+            }
+            // Sin la categoría de discos no hay filtro "solo componentes" en el
+            // listado: la tarjeta no aplica uno que no cuadre con su número.
+            onClick={
+              diskCategory
+                ? () =>
+                    setParams({
+                      category: diskCategory.id,
+                      life: String(LIFE_CRITICAL_PCT),
+                      page: null,
+                    })
+                : undefined
             }
           />
         </div>
